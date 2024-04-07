@@ -33,7 +33,7 @@ import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.asJava.KtLightClassMarker;
-import org.jetbrains.kotlin.idea.KotlinLanguage;
+import org.jetbrains.kotlin.idea2.KotlinLanguage;
 import org.jetbrains.kotlin.load.java.JavaClassFinder;
 import org.jetbrains.kotlin.load.java.structure.JavaClass;
 import org.jetbrains.kotlin.load.java.structure.JavaElementsKt;

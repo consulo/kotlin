@@ -14,34 +14,35 @@
  * limitations under the License.
  */
 
-package org.jetbrains.kotlin.idea;
+package org.jetbrains.kotlin.idea2;
 
 import consulo.application.util.NotNullLazyValue;
+import consulo.language.file.LanguageFileType;
 import consulo.localize.LocalizeValue;
 import consulo.ui.image.Image;
-import consulo.virtualFileSystem.VirtualFile;
-import consulo.virtualFileSystem.fileType.FileType;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-public class KotlinModuleFileType implements FileType {
-    public static final String EXTENSION = "kotlin_module";
-    public static final KotlinModuleFileType INSTANCE = new KotlinModuleFileType();
+public class KotlinFileType extends LanguageFileType {
+    public static final String EXTENSION = "kt";
+    public static final String DOT_DEFAULT_EXTENSION = "." + EXTENSION;
+    public static final KotlinFileType INSTANCE = new KotlinFileType();
 
     private final NotNullLazyValue<Image> myIcon = NotNullLazyValue.createValue(() -> KotlinIconProviderService.getInstance().getFileIcon());
 
-    private KotlinModuleFileType() {}
+    private KotlinFileType() {
+        super(KotlinLanguage.INSTANCE);
+    }
 
     @Override
     @NotNull
     public String getName() {
-        return EXTENSION;
+        return KotlinLanguage.NAME;
     }
 
     @Override
     @NotNull
     public LocalizeValue getDescription() {
-        return LocalizeValue.localizeTODO("Kotlin module info: contains package part mappings");
+        return LocalizeValue.localizeTODO("Kotlin files");
     }
 
     @Override
@@ -53,21 +54,5 @@ public class KotlinModuleFileType implements FileType {
     @Override
     public Image getIcon() {
         return myIcon.getValue();
-    }
-
-    @Override
-    public boolean isBinary() {
-        return true;
-    }
-
-    @Override
-    public boolean isReadOnly() {
-        return true;
-    }
-
-    @Nullable
-    @Override
-    public String getCharset(@NotNull VirtualFile file, @NotNull byte[] content) {
-        return null;
     }
 }

@@ -16,7 +16,6 @@
 
 package org.jetbrains.kotlin.parsing
 
-import consulo.language.Language
 import consulo.language.ast.ASTNode
 import consulo.language.ast.IFileElementType
 import consulo.language.ast.TokenSet
@@ -31,7 +30,7 @@ import consulo.language.version.LanguageVersion
 import consulo.language.parser.ParserDefinition.SpaceRequirements.*;
 import org.jetbrains.kotlin.KtNodeType
 import org.jetbrains.kotlin.KtNodeTypes
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.lexer.KDocTokens
 import org.jetbrains.kotlin.kdoc.parser.KDocElementType
 import org.jetbrains.kotlin.kdoc.psi.impl.KDocLink

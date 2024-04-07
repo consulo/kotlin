@@ -24,7 +24,7 @@ import consulo.language.psi.PsiFile;
 import consulo.language.version.LanguageVersion;
 import consulo.util.io.FileUtil;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.idea.KotlinFileType;
+import org.jetbrains.kotlin.idea2.KotlinFileType;
 
 public class KotlinParser implements PsiParser {
 

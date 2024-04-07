@@ -14,7 +14,7 @@ import consulo.project.Project
 import consulo.util.dataholder.Key
 import consulo.util.lang.LocalTimeCounter
 import org.jetbrains.annotations.NonNls
-import org.jetbrains.kotlin.idea.KotlinFileType
+import org.jetbrains.kotlin.idea2.KotlinFileType
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.FqName
@@ -22,7 +22,6 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.psiUtil.isIdentifier
 import org.jetbrains.kotlin.resolve.ImportPath
 import org.jetbrains.kotlin.utils.checkWithAttachment
-import org.jetbrains.kotlin.utils.KotlinExceptionWithAttachments
 
 @JvmOverloads
 @JvmName("KtPsiFactory")

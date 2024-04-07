@@ -18,8 +18,8 @@ import consulo.util.collection.ArrayFactory
 import consulo.virtualFileSystem.VirtualFileWithId
 import consulo.virtualFileSystem.fileType.FileType
 import org.jetbrains.kotlin.KtNodeTypes
-import org.jetbrains.kotlin.idea.KotlinFileType
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.idea2.KotlinFileType
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.parsing.KotlinParserDefinition

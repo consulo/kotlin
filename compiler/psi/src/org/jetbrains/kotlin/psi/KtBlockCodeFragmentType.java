@@ -25,7 +25,7 @@ import consulo.language.psi.PsiElement;
 import consulo.language.version.LanguageVersionUtil;
 import consulo.project.Project;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.idea.KotlinLanguage;
+import org.jetbrains.kotlin.idea2.KotlinLanguage;
 import org.jetbrains.kotlin.parsing.KotlinParser;
 
 public class KtBlockCodeFragmentType extends ICodeFragmentElementType {

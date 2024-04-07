@@ -18,7 +18,7 @@ import consulo.language.psi.PsiWhiteSpace
 import consulo.language.psi.stub.StubElement
 import consulo.util.dataholder.Key
 import org.jetbrains.kotlin.KtNodeTypes
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 import org.jetbrains.kotlin.lexer.KotlinLexer
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens

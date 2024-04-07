@@ -25,7 +25,7 @@ import consulo.language.psi.PsiFile;
 import consulo.language.psi.PsiReference;
 import consulo.language.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.idea.KotlinLanguage;
+import org.jetbrains.kotlin.idea2.KotlinLanguage;
 import org.jetbrains.kotlin.psi.psiUtil.KtPsiUtilKt;
 
 public class KtElementImpl extends ASTWrapperPsiElement implements KtElement {

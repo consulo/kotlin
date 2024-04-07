@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.jetbrains.kotlin.idea;
+package org.jetbrains.kotlin.idea2;
 
 import consulo.language.Language;
 import org.jetbrains.annotations.NotNull;

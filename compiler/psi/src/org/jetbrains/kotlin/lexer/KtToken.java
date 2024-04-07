@@ -19,7 +19,7 @@ package org.jetbrains.kotlin.lexer;
 import consulo.language.ast.IElementType;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.idea.KotlinLanguage;
+import org.jetbrains.kotlin.idea2.KotlinLanguage;
 
 public class KtToken extends IElementType {
     private static final int INVALID_ID = -1;

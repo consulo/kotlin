@@ -18,7 +18,7 @@ package org.jetbrains.kotlin;
 
 import consulo.language.ast.IElementType;
 import consulo.language.ast.IFileElementType;
-import org.jetbrains.kotlin.idea.KotlinLanguage;
+import org.jetbrains.kotlin.idea2.KotlinLanguage;
 import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes;
 

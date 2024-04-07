@@ -27,7 +27,7 @@ import consulo.language.version.LanguageVersion;
 import consulo.language.version.LanguageVersionUtil;
 import consulo.project.Project;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.idea.KotlinLanguage;
+import org.jetbrains.kotlin.idea2.KotlinLanguage;
 import org.jetbrains.kotlin.kdoc.parser.KDocLinkParser;
 import org.jetbrains.kotlin.kdoc.parser.KDocParser;
 import org.jetbrains.kotlin.kdoc.psi.impl.KDocImpl;

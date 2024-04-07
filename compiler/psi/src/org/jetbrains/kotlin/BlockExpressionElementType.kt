@@ -13,7 +13,7 @@ import consulo.language.parser.PsiBuilderFactory
 import consulo.language.version.LanguageVersionUtil
 import consulo.project.Project
 import org.jetbrains.kotlin.KtNodeTypes.*
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 import org.jetbrains.kotlin.lexer.KotlinLexer
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.parsing.KotlinParser

@@ -20,7 +20,7 @@ import consulo.language.Language;
 import consulo.language.ast.ASTNode;
 import consulo.language.impl.psi.ASTWrapperPsiElement;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.idea.KotlinLanguage;
+import org.jetbrains.kotlin.idea2.KotlinLanguage;
 import org.jetbrains.kotlin.kdoc.psi.api.KDocElement;
 
 public abstract class KDocElementImpl extends ASTWrapperPsiElement implements KDocElement {

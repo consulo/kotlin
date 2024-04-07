@@ -28,7 +28,7 @@ import consulo.language.psi.util.PsiTreeUtil;
 import consulo.language.version.LanguageVersionUtil;
 import consulo.project.Project;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.idea.KotlinLanguage;
+import org.jetbrains.kotlin.idea2.KotlinLanguage;
 import org.jetbrains.kotlin.lexer.KotlinLexer;
 import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.parsing.KotlinParser;

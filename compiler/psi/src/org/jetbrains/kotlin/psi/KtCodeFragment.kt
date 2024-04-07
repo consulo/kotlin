@@ -35,7 +35,7 @@ import consulo.language.psi.scope.GlobalSearchScope
 import consulo.logging.Logger
 import consulo.project.Project
 import consulo.util.dataholder.Key
-import org.jetbrains.kotlin.idea.KotlinFileType
+import org.jetbrains.kotlin.idea2.KotlinFileType
 import org.jetbrains.kotlin.psi.psiUtil.getElementTextWithContext
 
 abstract class KtCodeFragment(
