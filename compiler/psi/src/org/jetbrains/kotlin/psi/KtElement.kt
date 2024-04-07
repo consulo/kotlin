@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.psi.NavigatablePsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiReference
+import consulo.language.psi.NavigatablePsiElement
+import consulo.language.psi.PsiFile
+import consulo.language.psi.PsiReference
 
 interface KtElement : NavigatablePsiElement, KtPureElement {
     fun <D> acceptChildren(visitor: KtVisitor<Void, D>, data: D)

@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
-import com.intellij.psi.PsiElement
+import consulo.language.ast.ASTNode
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.psiUtil.getParentOfType
 import org.jetbrains.kotlin.psi.stubs.KotlinPlaceHolderStub

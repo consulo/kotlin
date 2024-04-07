@@ -16,10 +16,10 @@
 
 package org.jetbrains.kotlin.kdoc.psi.impl
 
-import com.intellij.lang.ASTNode
-import com.intellij.openapi.util.text.StringUtil
-import com.intellij.psi.PsiElement
-import com.intellij.psi.TokenType
+import consulo.language.ast.ASTNode
+import consulo.language.ast.TokenType
+import consulo.language.psi.PsiElement
+import consulo.util.lang.StringUtil
 import org.jetbrains.kotlin.kdoc.lexer.KDocTokens
 import org.jetbrains.kotlin.kdoc.parser.KDocElementTypes
 import org.jetbrains.kotlin.kdoc.parser.KDocKnownTag

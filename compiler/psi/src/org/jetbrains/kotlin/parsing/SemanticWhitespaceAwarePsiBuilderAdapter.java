@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.parsing;
 
-import com.intellij.lang.impl.PsiBuilderAdapter;
-import com.intellij.psi.tree.IElementType;
+import consulo.language.ast.IElementType;
+import consulo.language.parser.PsiBuilderAdapter;
 import org.jetbrains.annotations.NotNull;
 
 public class SemanticWhitespaceAwarePsiBuilderAdapter extends PsiBuilderAdapter implements SemanticWhitespaceAwarePsiBuilder {

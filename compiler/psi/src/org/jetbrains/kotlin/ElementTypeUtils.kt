@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin
 
-import com.intellij.lang.LighterASTNode
-import com.intellij.psi.tree.IElementType
-import com.intellij.psi.tree.IErrorCounterReparseableElementType
+import consulo.language.ast.IElementType
+import consulo.language.ast.IErrorCounterReparseableElementType
+import consulo.language.ast.LighterASTNode
 import org.jetbrains.kotlin.KtNodeTypes.*
 import org.jetbrains.kotlin.lexer.KotlinLexer
 import org.jetbrains.kotlin.lexer.KtSingleValueToken

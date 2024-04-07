@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.psi.stubs.elements;
 
-import com.intellij.psi.stubs.StubElement;
-import com.intellij.psi.stubs.StubInputStream;
-import com.intellij.psi.stubs.StubOutputStream;
-import com.intellij.util.io.DataInputOutputUtil;
+import consulo.index.io.data.DataInputOutputUtil;
+import consulo.language.psi.stub.StubElement;
+import consulo.language.psi.stub.StubInputStream;
+import consulo.language.psi.stub.StubOutputStream;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.psi.KtModifierList;
@@ -25,7 +25,7 @@ public class KtModifierListElementType<T extends KtModifierList> extends KtStubE
     }
 
     @Override
-    public KotlinModifierListStub createStub(@NotNull T psi, StubElement<?> parentStub) {
+    public KotlinModifierListStub createStub(@NotNull T psi, StubElement parentStub) {
         return new KotlinModifierListStubImpl(parentStub, computeMaskFromModifierList(psi), this);
     }
 

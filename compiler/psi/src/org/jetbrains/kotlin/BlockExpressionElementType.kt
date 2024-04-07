@@ -5,16 +5,14 @@
 
 package org.jetbrains.kotlin
 
-import com.intellij.lang.ASTNode
-import com.intellij.lang.Language
-import com.intellij.lang.PsiBuilderFactory
-import com.intellij.openapi.project.Project
-import com.intellij.psi.tree.ICompositeElementType
-import com.intellij.psi.tree.IErrorCounterReparseableElementType
-import com.intellij.psi.tree.TokenSet
-import org.jetbrains.kotlin.KtNodeTypes.BLOCK_CODE_FRAGMENT
-import org.jetbrains.kotlin.KtNodeTypes.FUNCTION_LITERAL
-import org.jetbrains.kotlin.KtNodeTypes.SCRIPT
+import consulo.language.Language
+import consulo.language.ast.ASTNode
+import consulo.language.ast.ICompositeElementType
+import consulo.language.ast.IErrorCounterReparseableElementType
+import consulo.language.parser.PsiBuilderFactory
+import consulo.language.version.LanguageVersionUtil
+import consulo.project.Project
+import org.jetbrains.kotlin.KtNodeTypes.*
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.lexer.KotlinLexer
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -39,7 +37,7 @@ class BlockExpressionElementType : IErrorCounterReparseableElementType("BLOCK", 
     override fun parseContents(chameleon: ASTNode): ASTNode {
         val project = chameleon.psi.project
         val builder = PsiBuilderFactory.getInstance().createBuilder(
-            project, chameleon, null, KotlinLanguage.INSTANCE, chameleon.chars
+            project, chameleon, null, KotlinLanguage.INSTANCE, LanguageVersionUtil.findDefaultVersion(KotlinLanguage.INSTANCE), chameleon.chars
         )
 
         return KotlinParser.parseBlockExpression(builder).firstChildNode

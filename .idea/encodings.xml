@@ -1,6 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/_global/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/_global/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/_global/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/_global/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/_shade/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/_shade/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/compiler.version/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/compiler.version/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/compiler.version/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/compiler.version/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/container/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/container/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend.common/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend.common/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend.common/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend.common/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/psi/${project.directory}/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/psi/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/psi/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/psi/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/psi/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/util/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/util/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/util/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/util/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/compiler.common/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/compiler.common/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/compiler.common/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/metadata/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/metadata/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/metadata/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/util.runtime/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/util.runtime/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/util.runtime/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/util.runtime/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/libraries" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/libraries/examples/browser-example" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/libraries/examples/browser-example-with-library" charset="UTF-8" />
@@ -57,6 +92,8 @@
     <file url="file://$PROJECT_DIR$/plugins/lombok/lombok.cli/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/plugins/noarg/noarg.cli/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/plugins/sam-with-receiver/sam-with-receiver.cli/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
     <file url="PROJECT" charset="UTF-8" />
   </component>
 </project>

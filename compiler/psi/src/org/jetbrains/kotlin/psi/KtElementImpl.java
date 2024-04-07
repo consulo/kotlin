@@ -16,14 +16,14 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.extapi.psi.ASTWrapperPsiElement;
-import com.intellij.lang.ASTNode;
-import com.intellij.lang.Language;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiElementVisitor;
-import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiReference;
-import com.intellij.util.IncorrectOperationException;
+import consulo.language.Language;
+import consulo.language.ast.ASTNode;
+import consulo.language.impl.psi.ASTWrapperPsiElement;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.PsiElementVisitor;
+import consulo.language.psi.PsiFile;
+import consulo.language.psi.PsiReference;
+import consulo.language.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.idea.KotlinLanguage;
 import org.jetbrains.kotlin.psi.psiUtil.KtPsiUtilKt;
@@ -107,5 +107,10 @@ public class KtElementImpl extends ASTWrapperPsiElement implements KtElement {
     public PsiElement getParent() {
         PsiElement substitute = KtPsiUtilKt.getParentSubstitute(this);
         return substitute != null ? substitute : super.getParent();
+    }
+
+    @Override
+    public PsiElement replace(@NotNull PsiElement newElement) throws IncorrectOperationException {
+        return super.replace(newElement);
     }
 }

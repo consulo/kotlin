@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
+import consulo.language.ast.ASTNode
 
 class KtSafeQualifiedExpression(node: ASTNode) : KtExpressionImpl(node), KtQualifiedExpression {
     override fun <R, D> accept(visitor: KtVisitor<R, D>, data: D): R {

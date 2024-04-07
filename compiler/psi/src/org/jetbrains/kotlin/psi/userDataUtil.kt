@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.UserDataHolder
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
+import consulo.util.dataholder.Key
+import consulo.util.dataholder.UserDataHolder
 import kotlin.reflect.KProperty
 
 class UserDataProperty<in R : UserDataHolder, T : Any>(val key: Key<T>) {

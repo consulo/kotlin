@@ -16,10 +16,10 @@
 
 package org.jetbrains.kotlin.psi.stubs.elements
 
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.psi.stubs.IndexSink
-import com.intellij.psi.stubs.StubInputStream
-import com.intellij.psi.stubs.StubOutputStream
+import consulo.application.ApplicationManager
+import consulo.language.psi.stub.IndexSink
+import consulo.language.psi.stub.StubInputStream
+import consulo.language.psi.stub.StubOutputStream
 import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.stubs.*
@@ -74,7 +74,7 @@ open class StubIndexService protected constructor() {
     companion object {
         @JvmStatic
         fun getInstance(): StubIndexService {
-            return ApplicationManager.getApplication().getService(StubIndexService::class.java) ?: NO_INDEX
+            return ApplicationManager.getApplication().getInstance(StubIndexService::class.java) ?: NO_INDEX
         }
 
         private val NO_INDEX = StubIndexService()

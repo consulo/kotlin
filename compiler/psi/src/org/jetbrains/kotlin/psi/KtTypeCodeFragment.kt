@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
+import consulo.project.Project
 import org.jetbrains.kotlin.KtNodeTypes
 
 class KtTypeCodeFragment(

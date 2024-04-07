@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.psi.PsiClass
+import com.intellij.java.language.psi.PsiClass
 
 interface KtFileClassProvider {
     fun getFileClasses(file: KtFile): Array<PsiClass>

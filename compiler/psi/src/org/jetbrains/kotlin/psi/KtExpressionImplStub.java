@@ -16,11 +16,11 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.lang.ASTNode;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.stubs.IStubElementType;
-import com.intellij.psi.stubs.StubElement;
-import com.intellij.util.IncorrectOperationException;
+import consulo.language.ast.ASTNode;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.stub.IStubElementType;
+import consulo.language.psi.stub.StubElement;
+import consulo.language.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 
 public abstract class KtExpressionImplStub<T extends StubElement<?>> extends KtElementImplStub<T> implements KtExpression {

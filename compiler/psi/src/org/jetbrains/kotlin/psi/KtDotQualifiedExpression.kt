@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
-import com.intellij.openapi.diagnostic.Logger
+import consulo.language.ast.ASTNode
+import consulo.logging.Logger
 import org.jetbrains.kotlin.psi.stubs.KotlinPlaceHolderStub
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
 import org.jetbrains.kotlin.psi.stubs.elements.KtTokenSets.INSIDE_DIRECTIVE_EXPRESSIONS

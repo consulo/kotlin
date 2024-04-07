@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.diagnostics
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 
 interface DiagnosticMarker {
     val psiElement: PsiElement

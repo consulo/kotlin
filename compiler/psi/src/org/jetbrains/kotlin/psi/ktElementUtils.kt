@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.psi.PsiComment
-import com.intellij.psi.PsiWhiteSpace
-import com.intellij.psi.util.PsiTreeUtil
+import consulo.language.psi.PsiComment
+import consulo.language.psi.PsiWhiteSpace
+import consulo.language.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.lexer.KtTokens
 
 internal fun KtElement.deleteSemicolon() {

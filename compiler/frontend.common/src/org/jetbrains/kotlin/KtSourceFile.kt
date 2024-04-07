@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin
 
-import com.intellij.openapi.util.io.FileUtilRt
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.PsiFile
+import consulo.language.psi.PsiFile
+import consulo.util.io.FileUtil
+import consulo.virtualFileSystem.VirtualFile
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
@@ -43,7 +43,7 @@ class KtIoFileSourceFile(val file: File) : KtSourceFile {
     override val name: String
         get() = file.name
     override val path: String
-        get() = FileUtilRt.toSystemIndependentName(file.path)
+        get() = FileUtil.toSystemIndependentName(file.path)
 
     override fun getContentsAsStream(): InputStream = file.inputStream()
 }

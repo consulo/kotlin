@@ -16,14 +16,14 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.psi.stubs.StubElement
-import com.intellij.util.io.StringRef
+import consulo.index.io.StringRef
+import consulo.language.psi.PsiElement
+import consulo.language.psi.stub.StubElement
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.stubs.KotlinObjectStub
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
 import org.jetbrains.kotlin.name.FqName
 
-import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.name.ClassId
 
 class KotlinObjectStubImpl(

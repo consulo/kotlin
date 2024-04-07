@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.psi.stubs.StubInputStream
-import com.intellij.psi.stubs.StubOutputStream
+import consulo.language.psi.stub.StubInputStream
+import consulo.language.psi.stub.StubOutputStream
 
 sealed class KotlinStubOrigin {
     companion object {

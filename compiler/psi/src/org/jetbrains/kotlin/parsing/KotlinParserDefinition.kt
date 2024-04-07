@@ -16,19 +16,19 @@
 
 package org.jetbrains.kotlin.parsing
 
-import com.intellij.extapi.psi.ASTWrapperPsiElement
-import com.intellij.lang.ASTNode
-import com.intellij.lang.LanguageParserDefinitions
-import com.intellij.lang.ParserDefinition
-import com.intellij.lang.ParserDefinition.SpaceRequirements.*
-import com.intellij.lang.PsiParser
-import com.intellij.lexer.Lexer
-import com.intellij.openapi.project.Project
-import com.intellij.psi.FileViewProvider
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.tree.IFileElementType
-import com.intellij.psi.tree.TokenSet
+import consulo.language.Language
+import consulo.language.ast.ASTNode
+import consulo.language.ast.IFileElementType
+import consulo.language.ast.TokenSet
+import consulo.language.file.FileViewProvider
+import consulo.language.impl.psi.ASTWrapperPsiElement
+import consulo.language.lexer.Lexer
+import consulo.language.parser.ParserDefinition
+import consulo.language.parser.PsiParser
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.language.version.LanguageVersion
+import consulo.language.parser.ParserDefinition.SpaceRequirements.*;
 import org.jetbrains.kotlin.KtNodeType
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.idea.KotlinLanguage
@@ -48,18 +48,18 @@ import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementType
  * Creates [org.jetbrains.kotlin.psi.KtCommonFile] when java psi is not available e.g. on JB Client.
  * Otherwise, normal [KotlinParserDefinition] should be used.
  */
-open class KotlinCommonParserDefinition : ParserDefinition {
-    override fun createLexer(project: Project): Lexer = KotlinLexer()
+abstract class KotlinCommonParserDefinition : ParserDefinition {
+    override fun createLexer(languageVersion: LanguageVersion): Lexer = KotlinLexer()
 
-    override fun createParser(project: Project): PsiParser = KotlinParser(project)
+    override fun createParser(languageVersion: LanguageVersion): PsiParser = KotlinParser()
 
     override fun getFileNodeType(): IFileElementType = KtFileElementType.INSTANCE
 
-    override fun getWhitespaceTokens(): TokenSet = KtTokens.WHITESPACES
+    override fun getWhitespaceTokens(languageVersion: LanguageVersion): TokenSet = KtTokens.WHITESPACES
 
-    override fun getCommentTokens(): TokenSet = KtTokens.COMMENTS
+    override fun getCommentTokens(languageVersion: LanguageVersion): TokenSet = KtTokens.COMMENTS
 
-    override fun getStringLiteralElements(): TokenSet = KtTokens.STRINGS
+    override fun getStringLiteralElements(languageVersion: LanguageVersion): TokenSet = KtTokens.STRINGS
 
     override fun createElement(astNode: ASTNode): PsiElement {
         val elementType = astNode.elementType
@@ -110,6 +110,8 @@ class KotlinParserDefinition : KotlinCommonParserDefinition() {
         return KtFile(fileViewProvider, false)
     }
 
+    override fun getLanguage() = KotlinLanguage.INSTANCE
+
     companion object {
 
         @JvmField
@@ -119,6 +121,6 @@ class KotlinParserDefinition : KotlinCommonParserDefinition() {
         val STD_SCRIPT_EXT = "." + STD_SCRIPT_SUFFIX
 
         val instance: KotlinParserDefinition
-            get() = LanguageParserDefinitions.INSTANCE.forLanguage(KotlinLanguage.INSTANCE) as KotlinParserDefinition
+            get() = ParserDefinition.forLanguage(KotlinLanguage.INSTANCE) as KotlinParserDefinition
     }
 }

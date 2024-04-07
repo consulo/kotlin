@@ -2,11 +2,10 @@
 
 package org.jetbrains.kotlin.kdoc.lexer;
 
-import com.intellij.lexer.FlexLexer;
-import com.intellij.psi.TokenType;
-import com.intellij.psi.tree.IElementType;
-import com.intellij.util.text.CharArrayUtil;
-import java.lang.Character;
+import consulo.language.ast.IElementType;
+import consulo.language.ast.TokenType;
+import consulo.language.lexer.FlexLexer;
+import consulo.util.lang.CharArrayUtil;
 import org.jetbrains.kotlin.kdoc.parser.KDocKnownTag;
 
 

@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.util
 
-import com.intellij.lang.LighterASTNode
-import com.intellij.openapi.diagnostic.ControlFlowException
-import com.intellij.openapi.project.IndexNotReadyException
-import com.intellij.util.diff.FlyweightCapableTreeStructure
+import consulo.application.dumb.IndexNotReadyException
+import consulo.language.ast.LighterASTNode
+import consulo.language.util.FlyweightCapableTreeStructure
+import consulo.util.lang.ControlFlowException
 import org.jetbrains.kotlin.*
 
 val Throwable.classNameAndMessage get() = "${this::class.qualifiedName}: $message"

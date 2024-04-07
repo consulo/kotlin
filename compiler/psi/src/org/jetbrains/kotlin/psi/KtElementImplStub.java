@@ -5,14 +5,14 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.extapi.psi.StubBasedPsiElementBase;
-import com.intellij.lang.ASTNode;
-import com.intellij.lang.Language;
-import com.intellij.psi.*;
-import com.intellij.psi.impl.source.PsiFileImpl;
-import com.intellij.psi.stubs.IStubElementType;
-import com.intellij.psi.stubs.StubElement;
-import com.intellij.util.IncorrectOperationException;
+import consulo.language.Language;
+import consulo.language.ast.ASTNode;
+import consulo.language.impl.psi.PsiFileImpl;
+import consulo.language.impl.psi.stub.StubBasedPsiElementBase;
+import consulo.language.psi.*;
+import consulo.language.psi.stub.IStubElementType;
+import consulo.language.psi.stub.StubElement;
+import consulo.language.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.idea.KotlinLanguage;
 import org.jetbrains.kotlin.psi.psiUtil.KtPsiUtilKt;

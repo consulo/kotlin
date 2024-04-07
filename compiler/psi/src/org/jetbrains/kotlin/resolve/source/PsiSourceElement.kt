@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.resolve.source
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
 import org.jetbrains.kotlin.descriptors.SourceElement
 import org.jetbrains.kotlin.descriptors.SourceFile
 

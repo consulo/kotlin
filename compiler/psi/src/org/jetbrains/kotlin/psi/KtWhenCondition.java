@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.lang.ASTNode;
+import consulo.language.ast.ASTNode;
 import org.jetbrains.annotations.NotNull;
 
 public abstract class KtWhenCondition extends KtElementImpl {

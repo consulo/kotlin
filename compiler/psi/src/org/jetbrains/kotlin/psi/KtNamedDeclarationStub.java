@@ -5,19 +5,18 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.google.common.collect.ImmutableSet;
-import com.intellij.lang.ASTNode;
-import com.intellij.openapi.project.Project;
-import com.intellij.psi.JavaPsiFacade;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiPackage;
-import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.psi.search.LocalSearchScope;
-import com.intellij.psi.search.PackageScope;
-import com.intellij.psi.search.SearchScope;
-import com.intellij.psi.stubs.IStubElementType;
-import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.util.IncorrectOperationException;
+import com.intellij.java.language.psi.JavaPsiFacade;
+import com.intellij.java.language.psi.PsiJavaPackage;
+import com.intellij.java.language.psi.search.PackageScope;
+import consulo.content.scope.SearchScope;
+import consulo.language.ast.ASTNode;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.scope.GlobalSearchScope;
+import consulo.language.psi.scope.LocalSearchScope;
+import consulo.language.psi.stub.IStubElementType;
+import consulo.language.psi.util.PsiTreeUtil;
+import consulo.language.util.IncorrectOperationException;
+import consulo.project.Project;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -75,7 +74,7 @@ abstract class KtNamedDeclarationStub<T extends KotlinStubWithFqName<?>> extends
         return findChildByType(KtTokens.IDENTIFIER);
     }
 
-    private static final Set<String> FUNCTIONLIKE_CONVENTIONS = ImmutableSet.of(
+    private static final Set<String> FUNCTIONLIKE_CONVENTIONS = Set.of(
             OperatorNameConventions.INVOKE.asString(),
             OperatorNameConventions.GET.asString()
     );
@@ -172,7 +171,7 @@ abstract class KtNamedDeclarationStub<T extends KotlinStubWithFqName<?>> extends
                 );
 
                 SearchScope fileScope = GlobalSearchScope.fileScope(ktFile);
-                PsiPackage psiPackage = JavaPsiFacade.getInstance(project).findPackage(ktFile.getPackageFqName().asString());
+                PsiJavaPackage psiPackage = JavaPsiFacade.getInstance(project).findPackage(ktFile.getPackageFqName().asString());
                 SearchScope superScope = super.getUseScope(); // TODO: should be replaced with module scope if possible
                 if (psiPackage == null) return superScope;
 

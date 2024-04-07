@@ -16,12 +16,12 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiElement
-import com.intellij.psi.SmartPointerManager
-import com.intellij.psi.SmartPsiElementPointer
-import com.intellij.psi.codeStyle.CodeStyleManager
-import com.intellij.psi.impl.source.codeStyle.CodeEditUtil
+import consulo.document.util.TextRange
+import consulo.language.codeStyle.CodeStyleManager
+import consulo.language.impl.psi.CodeEditUtil
+import consulo.language.psi.PsiElement
+import consulo.language.psi.SmartPointerManager
+import consulo.language.psi.SmartPsiElementPointer
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.lexer.KtTokens

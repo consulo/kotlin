@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.psi.stubs.StubElement
-import com.intellij.util.io.StringRef
-import com.intellij.psi.PsiElement
+import consulo.index.io.StringRef
+import consulo.language.psi.PsiElement
+import consulo.language.psi.stub.StubElement
 import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.stubs.KotlinConstructorStub
 import org.jetbrains.kotlin.psi.stubs.elements.KtConstructorElementType

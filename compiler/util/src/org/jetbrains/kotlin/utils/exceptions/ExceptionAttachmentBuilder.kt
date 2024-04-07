@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.utils.exceptions
 
-import com.intellij.openapi.diagnostic.Logger
+import consulo.logging.Logger
 import org.jetbrains.kotlin.utils.SmartPrinter
 import org.jetbrains.kotlin.utils.withIndent
 import kotlin.contracts.ExperimentalContracts

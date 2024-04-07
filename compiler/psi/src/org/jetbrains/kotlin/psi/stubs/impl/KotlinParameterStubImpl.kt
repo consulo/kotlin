@@ -16,13 +16,13 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.psi.stubs.StubElement
-import com.intellij.util.io.StringRef
+import consulo.index.io.StringRef
+import consulo.language.psi.PsiElement
+import consulo.language.psi.stub.StubElement
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.stubs.KotlinParameterStub
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
 import org.jetbrains.kotlin.name.FqName
-import com.intellij.psi.PsiElement
 
 class KotlinParameterStubImpl(
     parent: StubElement<out PsiElement>?,

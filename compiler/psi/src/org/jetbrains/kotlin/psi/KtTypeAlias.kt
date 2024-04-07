@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
-import com.intellij.navigation.ItemPresentationProviders
-import com.intellij.psi.PsiElement
+import consulo.language.ast.ASTNode
+import consulo.language.psi.PsiElement
+import consulo.navigation.ItemPresentationProvider
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.ClassId
@@ -58,5 +58,5 @@ class KtTypeAlias : KtTypeParameterListOwnerStub<KotlinTypeAliasStub>, KtNamedDe
         return ClassIdCalculator.calculateClassId(this)
     }
 
-    override fun getPresentation() = ItemPresentationProviders.getItemPresentation(this)
+    override fun getPresentation() = ItemPresentationProvider.getItemPresentation(this)
 }

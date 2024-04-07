@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.utils.intellij
 
-import com.intellij.openapi.util.Pair
+import consulo.util.lang.Pair
 
 fun <A> Pair<A, *>.component1(): A = getFirst()
 

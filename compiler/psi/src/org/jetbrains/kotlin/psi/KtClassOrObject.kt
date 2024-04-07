@@ -16,16 +16,16 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
-import com.intellij.navigation.ItemPresentation
-import com.intellij.navigation.ItemPresentationProviders
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiErrorElement
-import com.intellij.psi.PsiWhiteSpace
-import com.intellij.psi.impl.CheckUtil
-import com.intellij.psi.stubs.IStubElementType
-import com.intellij.psi.tree.TokenSet
-import com.intellij.psi.util.PsiTreeUtil
+import consulo.language.ast.ASTNode
+import consulo.language.ast.TokenSet
+import consulo.language.impl.psi.CheckUtil
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiErrorElement
+import consulo.language.psi.PsiWhiteSpace
+import consulo.language.psi.stub.IStubElementType
+import consulo.language.psi.util.PsiTreeUtil
+import consulo.navigation.ItemPresentation
+import consulo.navigation.ItemPresentationProvider
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.psiUtil.ClassIdCalculator
@@ -108,7 +108,7 @@ abstract class KtClassOrObject :
 
     override fun getDeclarations(): List<KtDeclaration> = getBody()?.declarations.orEmpty()
 
-    override fun getPresentation(): ItemPresentation? = ItemPresentationProviders.getItemPresentation(this)
+    override fun getPresentation(): ItemPresentation? = ItemPresentationProvider.getItemPresentation(this)
 
     override fun getPrimaryConstructor(): KtPrimaryConstructor? = getStubOrPsiChild(KtStubElementTypes.PRIMARY_CONSTRUCTOR)
 

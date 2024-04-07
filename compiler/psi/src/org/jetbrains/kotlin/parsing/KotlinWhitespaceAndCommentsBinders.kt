@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.parsing
 
-import com.intellij.lang.WhitespacesAndCommentsBinder
-import com.intellij.openapi.util.text.StringUtil
-import com.intellij.psi.tree.IElementType
+import consulo.language.ast.IElementType
+import consulo.language.parser.WhitespacesAndCommentsBinder
+import consulo.util.lang.StringUtil
 import org.jetbrains.kotlin.lexer.KtTokens
 
 object PrecedingCommentsBinder : WhitespacesAndCommentsBinder {

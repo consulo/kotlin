@@ -16,11 +16,11 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.psi.stubs.IStubElementType
-import com.intellij.psi.stubs.NamedStub
-import com.intellij.psi.stubs.StubBase
-import com.intellij.psi.stubs.StubElement
+import consulo.language.psi.stub.IStubElementType
+import consulo.language.psi.stub.NamedStub
+import consulo.language.psi.stub.StubBase
+import consulo.language.psi.stub.StubElement
+import consulo.logging.Logger
 import org.jetbrains.kotlin.psi.KtElementImplStub
 import org.jetbrains.kotlin.psi.stubs.KotlinCallableStubBase
 import org.jetbrains.kotlin.psi.stubs.KotlinClassOrObjectStub

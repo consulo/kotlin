@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.idea;
 
-import com.intellij.lang.Language;
+import consulo.language.Language;
 import org.jetbrains.annotations.NotNull;
 
 public class KotlinLanguage extends Language {

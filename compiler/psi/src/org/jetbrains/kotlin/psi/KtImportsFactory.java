@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.openapi.project.Project;
+import consulo.project.Project;
 import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.resolve.ImportPath;

@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.util.io.StringRef
+import consulo.index.io.StringRef
 
 object Utils {
     fun wrapStrings(names: List<String>): Array<StringRef> {

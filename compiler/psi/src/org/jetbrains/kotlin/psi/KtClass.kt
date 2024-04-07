@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
-import com.intellij.psi.PsiElement
-import com.intellij.psi.tree.TokenSet
+import consulo.language.ast.ASTNode
+import consulo.language.ast.TokenSet
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.stubs.KotlinClassStub
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes

@@ -5,14 +5,14 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Key
-import com.intellij.psi.PsiComment
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiFileFactory
-import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.util.LocalTimeCounter
+import consulo.language.psi.PsiComment
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.language.psi.PsiFileFactory
+import consulo.language.psi.util.PsiTreeUtil
+import consulo.project.Project
+import consulo.util.dataholder.Key
+import consulo.util.lang.LocalTimeCounter
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken

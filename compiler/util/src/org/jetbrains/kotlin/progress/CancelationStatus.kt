@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.progress
 
-import com.intellij.openapi.progress.ProcessCanceledException
-import com.intellij.openapi.progress.ProgressIndicatorProvider
+import consulo.application.progress.ProgressIndicatorProvider
+import consulo.component.ProcessCanceledException
 
 open class CompilationCanceledException : ProcessCanceledException()
 

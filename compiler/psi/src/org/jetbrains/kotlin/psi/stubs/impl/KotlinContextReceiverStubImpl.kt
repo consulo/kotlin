@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.psi.stubs.StubElement
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
+import consulo.language.psi.stub.StubElement
 import org.jetbrains.kotlin.psi.KtContextReceiver
 import org.jetbrains.kotlin.psi.stubs.KotlinContextReceiverStub
 import org.jetbrains.kotlin.psi.stubs.elements.KtContextReceiverElementType

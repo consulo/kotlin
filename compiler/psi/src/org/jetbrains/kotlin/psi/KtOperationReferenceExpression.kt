@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
-import com.intellij.psi.PsiElement
-import com.intellij.psi.impl.source.tree.TreeElement
+import consulo.language.ast.ASTNode
+import consulo.language.impl.ast.TreeElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.lexer.KtSingleValueToken
 import org.jetbrains.kotlin.parsing.KotlinExpressionParsing
 import org.jetbrains.kotlin.types.expressions.OperatorConventions

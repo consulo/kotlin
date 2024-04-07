@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.psi.typeRefHelpers
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiErrorElement
-import com.intellij.psi.PsiWhiteSpace
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiErrorElement
+import consulo.language.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf

@@ -16,15 +16,12 @@
 
 package org.jetbrains.kotlin.container
 
-import com.intellij.util.containers.MultiMap
+import consulo.util.collection.MultiMap
 import java.io.Closeable
 import java.io.PrintStream
 import java.lang.reflect.Modifier
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
-import java.util.ArrayList
-import java.util.HashSet
-import java.util.LinkedHashSet
 
 enum class ComponentStorageState {
     Initial,

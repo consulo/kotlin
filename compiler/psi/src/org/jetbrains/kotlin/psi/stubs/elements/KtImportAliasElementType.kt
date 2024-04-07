@@ -5,11 +5,11 @@
 
 package org.jetbrains.kotlin.psi.stubs.elements
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.stubs.StubElement
-import com.intellij.psi.stubs.StubInputStream
-import com.intellij.psi.stubs.StubOutputStream
-import com.intellij.util.io.StringRef
+import consulo.index.io.StringRef
+import consulo.language.psi.PsiElement
+import consulo.language.psi.stub.StubElement
+import consulo.language.psi.stub.StubInputStream
+import consulo.language.psi.stub.StubOutputStream
 import org.jetbrains.kotlin.psi.KtImportAlias
 import org.jetbrains.kotlin.psi.stubs.KotlinImportAliasStub
 import org.jetbrains.kotlin.psi.stubs.impl.KotlinImportAliasStubImpl

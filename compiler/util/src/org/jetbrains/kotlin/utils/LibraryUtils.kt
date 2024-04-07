@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.utils
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.vfs.VirtualFile
+import consulo.logging.Logger
+import consulo.virtualFileSystem.VirtualFile
 import java.io.*
 import java.util.*
 import java.util.jar.Attributes

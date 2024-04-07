@@ -6,7 +6,7 @@
 package org.jetbrains.kotlin.diagnostics
 
 import com.google.common.collect.ImmutableSet
-import com.intellij.util.containers.ContainerUtil
+import consulo.util.collection.ContainerUtil
 
 abstract class AbstractKotlinSuppressCache<Element> {
     // The cache is weak: we're OK with losing it

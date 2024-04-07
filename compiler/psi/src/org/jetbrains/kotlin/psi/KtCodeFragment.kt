@@ -16,17 +16,25 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Key
-import com.intellij.psi.*
-import com.intellij.psi.JavaCodeFragment.VisibilityChecker
-import com.intellij.psi.impl.PsiManagerEx
-import com.intellij.psi.impl.source.tree.FileElement
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.tree.IElementType
-import com.intellij.testFramework.LightVirtualFile
-import com.intellij.util.messages.Topic
+import com.intellij.java.language.psi.JavaCodeFragment
+import com.intellij.java.language.psi.JavaCodeFragment.VisibilityChecker
+import com.intellij.java.language.psi.PsiType
+import consulo.annotation.component.ComponentScope
+import consulo.annotation.component.TopicAPI
+import consulo.annotation.component.TopicBroadcastDirection
+import consulo.language.ast.IElementType
+import consulo.language.ast.TokenType
+import consulo.language.file.light.LightVirtualFile
+import consulo.language.impl.ast.FileElement
+import consulo.language.impl.file.SingleRootFileViewProvider
+import consulo.language.impl.internal.psi.PsiManagerEx
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.language.psi.PsiManager
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.logging.Logger
+import consulo.project.Project
+import consulo.util.dataholder.Key
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.psi.psiUtil.getElementTextWithContext
 
@@ -220,8 +228,7 @@ abstract class KtCodeFragment(
         const val IMPORT_SEPARATOR: String = ","
 
         @Suppress("UnstableApiUsage")
-        val IMPORT_MODIFICATION: Topic<KotlinCodeFragmentImportModificationListener> =
-            Topic(KotlinCodeFragmentImportModificationListener::class.java, Topic.BroadcastDirection.TO_CHILDREN, true)
+        val IMPORT_MODIFICATION: Class<KotlinCodeFragmentImportModificationListener> = KotlinCodeFragmentImportModificationListener::class.java
 
         val FAKE_CONTEXT_FOR_JAVA_FILE: Key<Function0<KtElement>> = Key.create("FAKE_CONTEXT_FOR_JAVA_FILE")
 
@@ -229,6 +236,7 @@ abstract class KtCodeFragment(
     }
 }
 
+@TopicAPI(ComponentScope.PROJECT, direction = TopicBroadcastDirection.TO_CHILDREN)
 fun interface KotlinCodeFragmentImportModificationListener {
     fun onCodeFragmentImportsModification(codeFragment: KtCodeFragment)
 }

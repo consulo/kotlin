@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi.stubs.elements;
 
-import com.intellij.psi.tree.TokenSet;
+import consulo.language.ast.TokenSet;
 import org.jetbrains.kotlin.psi.*;
 
 public interface KtStubElementTypes {

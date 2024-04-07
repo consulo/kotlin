@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
+import consulo.language.ast.ASTNode
 import org.jetbrains.kotlin.lexer.KtSingleValueToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.psiUtil.siblings

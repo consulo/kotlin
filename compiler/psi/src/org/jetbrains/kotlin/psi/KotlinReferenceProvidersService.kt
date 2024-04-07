@@ -5,10 +5,9 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.openapi.components.ServiceManager
-import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiReference
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiReference
+import consulo.project.Project
 
 open class KotlinReferenceProvidersService {
     open fun getReferences(psiElement: PsiElement): Array<PsiReference> = PsiReference.EMPTY_ARRAY
@@ -18,7 +17,7 @@ open class KotlinReferenceProvidersService {
 
         @JvmStatic
         fun getInstance(project: Project): KotlinReferenceProvidersService {
-            return project.getService(KotlinReferenceProvidersService::class.java) ?: NO_REFERENCES_SERVICE
+            return project.getInstance(KotlinReferenceProvidersService::class.java) ?: NO_REFERENCES_SERVICE
         }
 
         @JvmStatic

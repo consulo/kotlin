@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.psi.JavaCodeFragment
-import com.intellij.psi.PsiClass
+import com.intellij.java.language.psi.JavaCodeFragment
+import com.intellij.java.language.psi.PsiClass
 
 interface KtCodeFragmentBase : JavaCodeFragment {
     override fun importClass(aClass: PsiClass): Boolean {

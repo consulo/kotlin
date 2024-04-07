@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analyzer
 
-import com.intellij.openapi.util.ModificationTracker
+import consulo.component.util.ModificationTracker
 
 interface TrackableModuleInfo : ModuleInfo {
     fun createModificationTracker(): ModificationTracker

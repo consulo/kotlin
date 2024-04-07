@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.psi.stubs.elements
 
-import com.intellij.lang.ASTNode
 import org.jetbrains.kotlin.psi.KtContractEffectList
 
 class KtContractEffectListElementType(debugName: String) :

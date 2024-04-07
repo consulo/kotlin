@@ -16,13 +16,14 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.lang.ASTNode;
-import com.intellij.lang.Language;
-import com.intellij.lang.PsiBuilder;
-import com.intellij.lang.PsiBuilderFactory;
-import com.intellij.openapi.project.Project;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.impl.source.tree.ICodeFragmentElementType;
+import consulo.language.Language;
+import consulo.language.ast.ASTNode;
+import consulo.language.ast.ICodeFragmentElementType;
+import consulo.language.parser.PsiBuilder;
+import consulo.language.parser.PsiBuilderFactory;
+import consulo.language.psi.PsiElement;
+import consulo.language.version.LanguageVersionUtil;
+import consulo.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.idea.KotlinLanguage;
 import org.jetbrains.kotlin.parsing.KotlinParser;
@@ -38,7 +39,7 @@ public class KtTypeCodeFragmentType extends ICodeFragmentElementType {
     protected ASTNode doParseContents(@NotNull ASTNode chameleon, @NotNull PsiElement psi) {
         Project project = psi.getProject();
         Language languageForParser = getLanguageForParser(psi);
-        PsiBuilder builder = PsiBuilderFactory.getInstance().createBuilder(project, chameleon, null, languageForParser, chameleon.getChars());
+        PsiBuilder builder = PsiBuilderFactory.getInstance().createBuilder(project, chameleon, null, languageForParser, LanguageVersionUtil.findDefaultVersion(languageForParser), chameleon.getChars());
         return KotlinParser.parseTypeCodeFragment(builder).getFirstChildNode();
     }
 }

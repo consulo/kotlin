@@ -16,10 +16,10 @@
 
 package org.jetbrains.kotlin.parsing;
 
-import com.intellij.lang.PsiBuilder;
-import com.intellij.psi.tree.IElementType;
-import com.intellij.psi.tree.TokenSet;
-import com.intellij.util.containers.Stack;
+import consulo.language.ast.IElementType;
+import consulo.language.ast.TokenSet;
+import consulo.language.parser.PsiBuilder;
+import consulo.util.collection.Stack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.kotlin.lexer.KtKeywordToken;

@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.psi.impl.source.tree.LeafPsiElement
+import consulo.language.impl.psi.LeafPsiElement
 import org.jetbrains.kotlin.name.Name
 
 interface ValueArgument {

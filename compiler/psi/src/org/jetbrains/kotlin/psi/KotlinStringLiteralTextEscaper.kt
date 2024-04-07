@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.LiteralTextEscaper
-import it.unimi.dsi.fastutil.ints.IntArrayList
+import consulo.document.util.TextRange
+import consulo.language.psi.LiteralTextEscaper
+import consulo.util.collection.primitive.ints.IntLists
 import org.jetbrains.kotlin.psi.psiUtil.getContentRange
 import org.jetbrains.kotlin.psi.psiUtil.isSingleQuoted
 import kotlin.math.min
@@ -27,7 +27,7 @@ class KotlinStringLiteralTextEscaper(host: KtStringTemplateExpression) : Literal
     private var sourceOffsets: IntArray? = null
 
     override fun decode(rangeInsideHost: TextRange, outChars: StringBuilder): Boolean {
-        val sourceOffsetsList = IntArrayList()
+        val sourceOffsetsList = IntLists.newArrayList()
         var sourceOffset = 0
 
         for (child in myHost.entries) {
@@ -44,7 +44,7 @@ class KotlinStringLiteralTextEscaper(host: KtStringTemplateExpression) : Literal
                         //don't allow injection if its range starts or ends inside escaped sequence
                         //but still process offsets for the already decoded part
                         sourceOffsetsList.add(sourceOffset)
-                        sourceOffsets = sourceOffsetsList.toIntArray()
+                        sourceOffsets = sourceOffsetsList.toArray()
                         return false
                     }
                     val unescaped = child.unescapedValue
@@ -64,7 +64,7 @@ class KotlinStringLiteralTextEscaper(host: KtStringTemplateExpression) : Literal
             }
         }
         sourceOffsetsList.add(sourceOffset)
-        sourceOffsets = sourceOffsetsList.toIntArray()
+        sourceOffsets = sourceOffsetsList.toArray()
         return true
     }
 

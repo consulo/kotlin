@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.parsing;
 
-import com.intellij.lang.PsiBuilder;
-import com.intellij.psi.tree.IElementType;
+import consulo.language.ast.IElementType;
+import consulo.language.parser.PsiBuilder;
 import org.jetbrains.annotations.NotNull;
 
 public interface SemanticWhitespaceAwarePsiBuilder extends PsiBuilder {
@@ -32,6 +32,5 @@ public interface SemanticWhitespaceAwarePsiBuilder extends PsiBuilder {
     void enableJoiningComplexTokens();
     void disableJoiningComplexTokens();
 
-    @Override
     boolean isWhitespaceOrComment(@NotNull IElementType elementType);
 }

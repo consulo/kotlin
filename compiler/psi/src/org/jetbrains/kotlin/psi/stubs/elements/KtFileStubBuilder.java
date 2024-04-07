@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.psi.stubs.elements;
 
-import com.intellij.psi.PsiFile;
-import com.intellij.psi.stubs.DefaultStubBuilder;
-import com.intellij.psi.stubs.StubElement;
+import consulo.language.psi.PsiFile;
+import consulo.language.psi.stub.DefaultStubBuilder;
+import consulo.language.psi.stub.StubElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.psi.KtFile;
 

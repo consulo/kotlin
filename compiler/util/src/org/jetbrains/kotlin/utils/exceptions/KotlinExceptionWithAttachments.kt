@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.utils.exceptions
 
-import com.intellij.openapi.diagnostic.Attachment
-import com.intellij.openapi.diagnostic.ExceptionWithAttachments
+import consulo.logging.attachment.Attachment
+import consulo.logging.attachment.AttachmentFactory
+import consulo.logging.attachment.ExceptionWithAttachments
 import org.jetbrains.kotlin.utils.exceptions.KotlinExceptionWithAttachments.Companion.withAttachmentsFrom
-import java.nio.charset.StandardCharsets
 
 interface KotlinExceptionWithAttachments : ExceptionWithAttachments {
     val mutableAttachments: MutableList<Attachment>
@@ -16,7 +16,7 @@ interface KotlinExceptionWithAttachments : ExceptionWithAttachments {
     override fun getAttachments(): Array<Attachment> = mutableAttachments.toTypedArray()
 
     fun withAttachment(name: String, content: Any?): KotlinExceptionWithAttachments {
-        mutableAttachments.add(Attachment(name, content?.toString() ?: "<null>"))
+        mutableAttachments.add(AttachmentFactory.get().create(name, content?.toString() ?: "<null>"))
         return this
     }
 
@@ -33,8 +33,10 @@ interface KotlinExceptionWithAttachments : ExceptionWithAttachments {
         }
 
         private fun Attachment.copyWithNewName(newName: String): Attachment {
-            val content = String(bytes, StandardCharsets.UTF_8)
-            return Attachment(newName, content)
+            return this
+            // not supported
+            //val content = String(bytes, StandardCharsets.UTF_8)
+            //return Attachment(newName, content)
         }
     }
 }

@@ -16,14 +16,14 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.lang.Language;
-import com.intellij.openapi.util.TextRange;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiElementVisitor;
-import com.intellij.psi.impl.source.tree.CompositeElement;
-import com.intellij.psi.impl.source.tree.LazyParseablePsiElement;
-import com.intellij.psi.util.PsiUtilCore;
-import com.intellij.util.IncorrectOperationException;
+import consulo.document.util.TextRange;
+import consulo.language.Language;
+import consulo.language.impl.ast.CompositeElement;
+import consulo.language.impl.psi.LazyParseablePsiElement;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.PsiElementVisitor;
+import consulo.language.psi.PsiUtilCore;
+import consulo.language.util.IncorrectOperationException;
 import kotlin.annotations.jvm.ReadOnly;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

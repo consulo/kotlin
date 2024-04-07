@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.kdoc.psi.impl
 
-import com.intellij.lang.ASTNode
-import com.intellij.openapi.util.TextRange
+import consulo.document.util.TextRange
+import consulo.language.ast.ASTNode
 import org.jetbrains.kotlin.psi.KtElementImpl
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 

@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.psi.stubs.elements
 
-import com.intellij.lang.ASTNode
+import consulo.language.ast.ASTNode
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 

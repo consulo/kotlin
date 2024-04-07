@@ -5,15 +5,18 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.extapi.psi.PsiFileBase
-import com.intellij.openapi.fileTypes.FileType
-import com.intellij.openapi.vfs.VirtualFileWithId
-import com.intellij.psi.*
-import com.intellij.psi.stubs.StubElement
-import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.util.ArrayFactory
-import com.intellij.util.FileContentUtilCore
-import com.intellij.util.IncorrectOperationException
+import consulo.document.util.FileContentUtilCore
+import consulo.language.file.FileViewProvider
+import consulo.language.impl.psi.PsiFileBase
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiElementVisitor
+import consulo.language.psi.PsiNamedElement
+import consulo.language.psi.stub.StubElement
+import consulo.language.psi.util.PsiTreeUtil
+import consulo.language.util.IncorrectOperationException
+import consulo.util.collection.ArrayFactory
+import consulo.virtualFileSystem.VirtualFileWithId
+import consulo.virtualFileSystem.fileType.FileType
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.idea.KotlinLanguage

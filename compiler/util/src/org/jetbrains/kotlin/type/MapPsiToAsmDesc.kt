@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.type
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.psi.*
-import org.jetbrains.org.objectweb.asm.Type
-import org.jetbrains.org.objectweb.asm.Type.*
+import com.intellij.java.language.psi.*
+import consulo.internal.org.objectweb.asm.Type
+import consulo.internal.org.objectweb.asm.Type.*
+import consulo.logging.Logger
 
 object MapPsiToAsmDesc {
     fun typeDesc(type: PsiType): String = when (type) {

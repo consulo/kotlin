@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.kdoc.psi.impl
 
-import com.intellij.lang.Language
-import com.intellij.psi.impl.source.tree.LazyParseablePsiElement
-import com.intellij.psi.tree.IElementType
+import consulo.language.Language
+import consulo.language.ast.IElementType
+import consulo.language.impl.psi.LazyParseablePsiElement
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.kdoc.lexer.KDocTokens
 import org.jetbrains.kotlin.kdoc.parser.KDocKnownTag

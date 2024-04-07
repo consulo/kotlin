@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.psi.stubs.StubInputStream
-import com.intellij.psi.stubs.StubOutputStream
+import consulo.language.psi.stub.StubInputStream
+import consulo.language.psi.stub.StubOutputStream
 import org.jetbrains.kotlin.constant.*
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.Flags

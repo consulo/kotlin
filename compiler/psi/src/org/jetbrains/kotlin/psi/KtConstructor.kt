@@ -16,11 +16,11 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
-import com.intellij.navigation.ItemPresentationProviders
-import com.intellij.psi.PsiElement
-import com.intellij.psi.search.SearchScope
-import com.intellij.util.IncorrectOperationException
+import consulo.content.scope.SearchScope
+import consulo.language.ast.ASTNode
+import consulo.language.psi.PsiElement
+import consulo.language.util.IncorrectOperationException
+import consulo.navigation.ItemPresentationProvider
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.stubs.KotlinConstructorStub
 import org.jetbrains.kotlin.psi.stubs.elements.KtConstructorElementType
@@ -103,7 +103,7 @@ abstract class KtConstructor<T : KtConstructor<T>> : KtDeclarationStub<KotlinCon
     @Throws(IncorrectOperationException::class)
     override fun setName(name: String): PsiElement = throw IncorrectOperationException("setName to constructor")
 
-    override fun getPresentation() = ItemPresentationProviders.getItemPresentation(this)
+    override fun getPresentation() = ItemPresentationProvider.getItemPresentation(this)
 
     open fun getConstructorKeyword(): PsiElement? = findChildByType(KtTokens.CONSTRUCTOR_KEYWORD)
 

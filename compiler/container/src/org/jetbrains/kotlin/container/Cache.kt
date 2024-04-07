@@ -16,15 +16,14 @@
 
 package org.jetbrains.kotlin.container
 
-import com.intellij.util.containers.ContainerUtil
+import consulo.util.collection.Maps
 import java.lang.reflect.*
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 private object ClassTraversalCache {
     private val cache =
         if (System.getProperty("idea.system.path") != null) ConcurrentHashMap<Class<*>, ClassInfo>()
-        else ContainerUtil.createConcurrentWeakKeySoftValueMap<Class<*>, ClassInfo>()
+        else Maps.newConcurrentWeakKeySoftValueHashMap<Class<*>, ClassInfo>()
 
     fun getClassInfo(c: Class<*>): ClassInfo {
         val classInfo = cache.get(c)

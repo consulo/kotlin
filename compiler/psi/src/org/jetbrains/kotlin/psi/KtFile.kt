@@ -16,17 +16,17 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.psi.FileViewProvider
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiClassOwner
-import com.intellij.psi.tree.TokenSet
+import com.intellij.java.language.psi.PsiClass
+import com.intellij.java.language.psi.PsiClassOwner
+import consulo.language.ast.TokenSet
+import consulo.language.file.FileViewProvider
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
 import org.jetbrains.kotlin.psi.stubs.elements.KtTokenSets
 
 open class KtFile(viewProvider: FileViewProvider, isCompiled: Boolean) : @Suppress("DEPRECATION") KtCommonFile(viewProvider, isCompiled),
     PsiClassOwner {
     override fun getClasses(): Array<PsiClass> {
-        val fileClassProvider = project.getService(KtFileClassProvider::class.java)
+        val fileClassProvider = project.getInstance(KtFileClassProvider::class.java)
         return fileClassProvider?.getFileClasses(this) ?: PsiClass.EMPTY_ARRAY
     }
 

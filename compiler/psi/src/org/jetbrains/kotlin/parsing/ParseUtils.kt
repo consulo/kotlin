@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.parsing
 
-import com.intellij.psi.tree.IElementType
-import com.intellij.util.text.LiteralFormatUtil
+import com.intellij.java.language.impl.util.text.LiteralFormatUtil
+import consulo.language.ast.IElementType
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.utils.extractRadix
 

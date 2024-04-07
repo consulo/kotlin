@@ -5,12 +5,12 @@
 
 package org.jetbrains.kotlin.psi.stubs.elements
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.stubs.IndexSink
-import com.intellij.psi.stubs.StubElement
-import com.intellij.psi.stubs.StubInputStream
-import com.intellij.psi.stubs.StubOutputStream
-import com.intellij.util.io.StringRef
+import consulo.index.io.StringRef
+import consulo.language.psi.PsiElement
+import consulo.language.psi.stub.IndexSink
+import consulo.language.psi.stub.StubElement
+import consulo.language.psi.stub.StubInputStream
+import consulo.language.psi.stub.StubOutputStream
 import org.jetbrains.kotlin.psi.KtScript
 import org.jetbrains.kotlin.psi.stubs.KotlinScriptStub
 import org.jetbrains.kotlin.psi.stubs.impl.KotlinScriptStubImpl

@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl;
 
-import com.intellij.psi.stubs.StubElement;
+import consulo.language.psi.stub.StubElement;
 import org.jetbrains.kotlin.psi.KtPropertyAccessor;
 import org.jetbrains.kotlin.psi.stubs.KotlinPropertyAccessorStub;
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes;

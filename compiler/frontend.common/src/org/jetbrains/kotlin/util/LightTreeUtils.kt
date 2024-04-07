@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.util
 
-import com.intellij.lang.LighterASTNode
-import com.intellij.openapi.util.Ref
-import com.intellij.util.diff.FlyweightCapableTreeStructure
+import consulo.language.ast.LighterASTNode
+import consulo.language.util.FlyweightCapableTreeStructure
+import consulo.util.lang.ref.Ref
 
 fun LighterASTNode.getChildren(tree: FlyweightCapableTreeStructure<LighterASTNode>): List<LighterASTNode> {
     val children = Ref<Array<LighterASTNode?>>()

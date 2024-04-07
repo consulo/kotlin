@@ -16,12 +16,12 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.psi.stubs.StubElement
-import com.intellij.util.io.StringRef
+import consulo.index.io.StringRef
+import consulo.language.psi.PsiElement
+import consulo.language.psi.stub.StubElement
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.stubs.KotlinAnnotationEntryStub
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
-import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.constant.ConstantValue
 import org.jetbrains.kotlin.name.Name
 

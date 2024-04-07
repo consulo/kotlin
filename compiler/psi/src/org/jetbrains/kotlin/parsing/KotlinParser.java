@@ -16,25 +16,25 @@
 
 package org.jetbrains.kotlin.parsing;
 
-import com.intellij.lang.ASTNode;
-import com.intellij.lang.PsiBuilder;
-import com.intellij.lang.PsiParser;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.io.FileUtilRt;
-import com.intellij.psi.PsiFile;
-import com.intellij.psi.tree.IElementType;
+import consulo.language.ast.ASTNode;
+import consulo.language.ast.IElementType;
+import consulo.language.parser.PsiBuilder;
+import consulo.language.parser.PsiParser;
+import consulo.language.psi.PsiFile;
+import consulo.language.version.LanguageVersion;
+import consulo.util.io.FileUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.idea.KotlinFileType;
 
 public class KotlinParser implements PsiParser {
 
 
-    public KotlinParser(Project project) {
+    public KotlinParser() {
     }
 
     @Override
     @NotNull
-    public ASTNode parse(@NotNull IElementType iElementType, @NotNull PsiBuilder psiBuilder) {
+    public ASTNode parse(@NotNull IElementType iElementType, @NotNull PsiBuilder psiBuilder, @NotNull LanguageVersion languageVersion) {
         throw new IllegalStateException("use another parse");
     }
 
@@ -42,7 +42,7 @@ public class KotlinParser implements PsiParser {
     @NotNull
     public static ASTNode parse(PsiBuilder psiBuilder, PsiFile psiFile) {
         KotlinParsing ktParsing = KotlinParsing.createForTopLevel(new SemanticWhitespaceAwarePsiBuilderImpl(psiBuilder));
-        String extension = FileUtilRt.getExtension(psiFile.getName());
+        String extension = FileUtil.getExtension(psiFile.getName());
         if (extension.isEmpty() || extension.equals(KotlinFileType.EXTENSION) || isCompiledFile(psiFile)) {
             ktParsing.parseFile();
         }

@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.kdoc.psi.api;
 
-import com.intellij.psi.PsiElement;
+import consulo.language.psi.PsiElement;
 
 public interface KDocElement extends PsiElement {
 }

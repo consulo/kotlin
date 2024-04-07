@@ -5,10 +5,8 @@
 
 package org.jetbrains.kotlin.diagnostics
 
-import com.intellij.openapi.util.TextRange
+import consulo.document.util.TextRange
 import org.jetbrains.kotlin.AbstractKtSourceElement
-import org.jetbrains.kotlin.KtLightSourceElement
-import org.jetbrains.kotlin.KtPsiSourceElement
 
 open class OffsetsOnlyPositioningStrategy : AbstractSourceElementPositioningStrategy() {
     open fun markKtDiagnostic(element: AbstractKtSourceElement, diagnostic: KtDiagnostic): List<TextRange> {

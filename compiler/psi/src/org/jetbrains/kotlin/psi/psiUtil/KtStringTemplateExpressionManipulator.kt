@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.psi.psiUtil
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.util.TextRange
-import com.intellij.openapi.util.text.StringUtil
-import com.intellij.psi.AbstractElementManipulator
+import consulo.document.util.TextRange
+import consulo.language.psi.AbstractElementManipulator
+import consulo.logging.Logger
+import consulo.util.lang.StringUtil
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtStringTemplateEntryWithExpression
@@ -17,6 +17,8 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 private val LOG = Logger.getInstance(KtStringTemplateExpressionManipulator::class.java)
 
 class KtStringTemplateExpressionManipulator : AbstractElementManipulator<KtStringTemplateExpression>() {
+    override fun getElementClass() = KtStringTemplateExpression::class.java
+
     override fun handleContentChange(
         element: KtStringTemplateExpression,
         range: TextRange,

@@ -16,9 +16,8 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl;
 
-import com.intellij.psi.stubs.IStubElementType;
-import com.intellij.psi.stubs.StubElement;
-import com.intellij.util.io.StringRef;
+import consulo.index.io.StringRef;
+import consulo.language.psi.stub.StubElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression;

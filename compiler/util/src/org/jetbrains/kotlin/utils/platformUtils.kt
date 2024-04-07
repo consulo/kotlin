@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.utils
 
-import com.intellij.util.containers.Interner
-import com.intellij.util.containers.MultiMap
+import consulo.util.collection.MultiMap
+import consulo.util.interner.Interner
 
 fun createStringInterner(): Interner<String> =
     Interner.createStringInterner()

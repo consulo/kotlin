@@ -16,14 +16,16 @@
 
 package org.jetbrains.kotlin.kdoc.lexer;
 
-import com.intellij.lang.ASTNode;
-import com.intellij.lang.PsiBuilder;
-import com.intellij.lang.PsiBuilderFactory;
-import com.intellij.lang.PsiParser;
-import com.intellij.openapi.project.Project;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.tree.ILazyParseableElementType;
-import com.intellij.psi.tree.TokenSet;
+import consulo.language.ast.ASTNode;
+import consulo.language.ast.ILazyParseableElementType;
+import consulo.language.ast.TokenSet;
+import consulo.language.parser.PsiBuilder;
+import consulo.language.parser.PsiBuilderFactory;
+import consulo.language.parser.PsiParser;
+import consulo.language.psi.PsiElement;
+import consulo.language.version.LanguageVersion;
+import consulo.language.version.LanguageVersionUtil;
+import consulo.project.Project;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.idea.KotlinLanguage;
 import org.jetbrains.kotlin.kdoc.parser.KDocLinkParser;
@@ -36,11 +38,12 @@ public interface KDocTokens {
         public ASTNode parseContents(ASTNode chameleon) {
             PsiElement parentElement = chameleon.getTreeParent().getPsi();
             Project project = parentElement.getProject();
-            PsiBuilder builder = PsiBuilderFactory.getInstance().createBuilder(project, chameleon, new KDocLexer(), getLanguage(),
+            LanguageVersion version = LanguageVersionUtil.findDefaultVersion(getLanguage());
+            PsiBuilder builder = PsiBuilderFactory.getInstance().createBuilder(project, chameleon, new KDocLexer(), getLanguage(), version,
                                                                                chameleon.getText());
             PsiParser parser = new KDocParser();
 
-            return parser.parse(this, builder).getFirstChildNode();
+            return parser.parse(this, builder, version).getFirstChildNode();
         }
 
         @Nullable

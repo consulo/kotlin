@@ -16,14 +16,14 @@
 
 package org.jetbrains.kotlin.psi.psiUtil
 
-import com.intellij.lang.ASTNode
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.*
-import com.intellij.psi.impl.source.tree.LazyParseablePsiElement
-import com.intellij.psi.impl.source.tree.TreeUtil
-import com.intellij.psi.search.PsiSearchScopeUtil
-import com.intellij.psi.search.SearchScope
-import com.intellij.psi.util.PsiTreeUtil
+import consulo.content.scope.SearchScope
+import consulo.document.util.TextRange
+import consulo.language.ast.ASTNode
+import consulo.language.impl.ast.TreeUtil
+import consulo.language.impl.psi.LazyParseablePsiElement
+import consulo.language.psi.*
+import consulo.language.psi.scope.PsiSearchScopeUtil
+import consulo.language.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.diagnostics.PsiDiagnosticUtils
 import org.jetbrains.kotlin.lexer.KtTokens

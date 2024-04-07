@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.utils.exceptions
 
-import com.intellij.openapi.diagnostic.ControlFlowException
-import com.intellij.openapi.project.IndexNotReadyException
+import consulo.application.dumb.IndexNotReadyException
+import consulo.util.lang.ControlFlowException
 
 fun shouldIjPlatformExceptionBeRethrown(exception: Throwable): Boolean = when (exception) {
     is ControlFlowException -> true

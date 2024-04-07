@@ -16,11 +16,13 @@
 
 package org.jetbrains.kotlin.kdoc.parser
 
-import com.intellij.lang.ASTNode
-import com.intellij.lang.PsiBuilder
-import com.intellij.lang.PsiBuilderFactory
-import com.intellij.lang.PsiParser
-import com.intellij.psi.tree.IElementType
+import consulo.language.ast.ASTNode
+import consulo.language.ast.IElementType
+import consulo.language.parser.PsiBuilder
+import consulo.language.parser.PsiBuilderFactory
+import consulo.language.parser.PsiParser
+import consulo.language.version.LanguageVersion
+import consulo.language.version.LanguageVersionUtil
 import org.jetbrains.kotlin.lexer.KotlinLexer
 import org.jetbrains.kotlin.lexer.KtTokens
 
@@ -33,20 +35,22 @@ class KDocLinkParser : PsiParser {
         fun parseMarkdownLink(root: IElementType, chameleon: ASTNode): ASTNode {
             val parentElement = chameleon.treeParent.psi
             val project = parentElement.project
+            val languageVersion = LanguageVersionUtil.findDefaultVersion(root.language)
             val builder = PsiBuilderFactory.getInstance().createBuilder(
                 project,
                 chameleon,
                 KotlinLexer(),
                 root.language,
+                languageVersion,
                 chameleon.text
             )
             val parser = KDocLinkParser()
 
-            return parser.parse(root, builder).firstChildNode
+            return parser.parse(root, builder, languageVersion).firstChildNode
         }
     }
 
-    override fun parse(root: IElementType, builder: PsiBuilder): ASTNode {
+    override fun parse(root: IElementType, builder: PsiBuilder, languageVersion: LanguageVersion): ASTNode {
         val rootMarker = builder.mark()
         val hasLBracket = builder.tokenType == KtTokens.LBRACKET
         if (hasLBracket) {

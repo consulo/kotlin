@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.psi.stubs.PsiFileStubImpl
-import com.intellij.psi.tree.IStubFileElementType
+import consulo.language.psi.stub.IStubFileElementType
+import consulo.language.psi.stub.PsiFileStubImpl
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtFile

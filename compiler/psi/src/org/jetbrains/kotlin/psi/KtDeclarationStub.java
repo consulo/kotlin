@@ -16,12 +16,11 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.lang.ASTNode;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.components.ServiceManager;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.stubs.IStubElementType;
-import com.intellij.psi.stubs.StubElement;
+import consulo.application.ApplicationManager;
+import consulo.language.ast.ASTNode;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.stub.IStubElementType;
+import consulo.language.psi.stub.StubElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc;
@@ -69,14 +68,14 @@ public abstract class KtDeclarationStub<T extends StubElement<?>> extends KtModi
 
     @Override
     public PsiElement getOriginalElement() {
-        KotlinDeclarationNavigationPolicy navigationPolicy = ApplicationManager.getApplication().getService(KotlinDeclarationNavigationPolicy.class);
+        KotlinDeclarationNavigationPolicy navigationPolicy = ApplicationManager.getApplication().getInstanceIfCreated(KotlinDeclarationNavigationPolicy.class);
         return navigationPolicy != null ? navigationPolicy.getOriginalElement(this) : this;
     }
 
     @NotNull
     @Override
     public PsiElement getNavigationElement() {
-        KotlinDeclarationNavigationPolicy navigationPolicy = ApplicationManager.getApplication().getService(KotlinDeclarationNavigationPolicy.class);
+        KotlinDeclarationNavigationPolicy navigationPolicy = ApplicationManager.getApplication().getInstanceIfCreated(KotlinDeclarationNavigationPolicy.class);
         return navigationPolicy != null ? navigationPolicy.getNavigationElement(this) : this;
     }
 }

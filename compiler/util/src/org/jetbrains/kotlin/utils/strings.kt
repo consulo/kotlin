@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.utils.strings
 
-import com.intellij.openapi.util.text.StringUtil
+import consulo.util.lang.StringUtil
 
 private val CARET_MARKER = "<~!!~>"
 private val BEGIN_MARKER = "<~BEGIN~>"

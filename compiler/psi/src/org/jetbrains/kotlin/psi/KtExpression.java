@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.util.ArrayFactory;
+import consulo.util.collection.ArrayFactory;
 import org.jetbrains.annotations.NotNull;
 
 public interface KtExpression extends KtElement {

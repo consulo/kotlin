@@ -16,18 +16,18 @@
 
 package org.jetbrains.kotlin.idea;
 
-import com.intellij.openapi.fileTypes.LanguageFileType;
-import com.intellij.openapi.util.NotNullLazyValue;
+import consulo.application.util.NotNullLazyValue;
+import consulo.language.file.LanguageFileType;
+import consulo.localize.LocalizeValue;
+import consulo.ui.image.Image;
 import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
 
 public class KotlinFileType extends LanguageFileType {
     public static final String EXTENSION = "kt";
     public static final String DOT_DEFAULT_EXTENSION = "." + EXTENSION;
     public static final KotlinFileType INSTANCE = new KotlinFileType();
 
-    private final NotNullLazyValue<Icon> myIcon = NotNullLazyValue.lazy(() -> KotlinIconProviderService.getInstance().getFileIcon());
+    private final NotNullLazyValue<Image> myIcon = NotNullLazyValue.createValue(() -> KotlinIconProviderService.getInstance().getFileIcon());
 
     private KotlinFileType() {
         super(KotlinLanguage.INSTANCE);
@@ -41,8 +41,8 @@ public class KotlinFileType extends LanguageFileType {
 
     @Override
     @NotNull
-    public String getDescription() {
-        return getName();
+    public LocalizeValue getDescription() {
+        return LocalizeValue.localizeTODO("Kotlin files");
     }
 
     @Override
@@ -52,7 +52,7 @@ public class KotlinFileType extends LanguageFileType {
     }
 
     @Override
-    public Icon getIcon() {
+    public Image getIcon() {
         return myIcon.getValue();
     }
 }

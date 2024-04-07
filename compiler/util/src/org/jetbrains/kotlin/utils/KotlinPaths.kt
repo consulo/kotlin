@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.utils
 
+import consulo.application.util.JavaVersion
 import java.io.File
 import java.lang.IllegalStateException
-import com.intellij.util.lang.JavaVersion
 
 interface KotlinPaths {
     val homePath: File

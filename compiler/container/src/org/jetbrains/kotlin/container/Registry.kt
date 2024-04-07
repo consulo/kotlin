@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.container
 
-import com.intellij.util.containers.MultiMap
+import consulo.util.collection.MultiMap
 import java.lang.reflect.Type
 
 internal class ComponentRegistry {

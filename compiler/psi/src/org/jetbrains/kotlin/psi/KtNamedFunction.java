@@ -16,12 +16,12 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.lang.ASTNode;
-import com.intellij.navigation.ItemPresentation;
-import com.intellij.navigation.ItemPresentationProviders;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.tree.IElementType;
-import com.intellij.psi.util.PsiTreeUtil;
+import consulo.language.ast.ASTNode;
+import consulo.language.ast.IElementType;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.util.PsiTreeUtil;
+import consulo.navigation.ItemPresentation;
+import consulo.navigation.ItemPresentationProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.lexer.KtTokens;
@@ -104,7 +104,7 @@ public class KtNamedFunction extends KtTypeParameterListOwnerStub<KotlinFunction
 
     @Override
     public ItemPresentation getPresentation() {
-        return ItemPresentationProviders.getItemPresentation(this);
+        return ItemPresentationProvider.getItemPresentation(this);
     }
 
     @Override

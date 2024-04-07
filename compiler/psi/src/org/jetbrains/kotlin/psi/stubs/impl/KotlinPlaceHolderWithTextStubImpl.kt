@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.psi.stubs.IStubElementType
-import com.intellij.psi.stubs.StubElement
+import consulo.language.psi.stub.IStubElementType
+import consulo.language.psi.stub.StubElement
 import org.jetbrains.kotlin.psi.KtElementImplStub
 import org.jetbrains.kotlin.psi.stubs.KotlinPlaceHolderWithTextStub
 

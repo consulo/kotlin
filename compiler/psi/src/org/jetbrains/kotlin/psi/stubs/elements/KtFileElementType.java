@@ -16,15 +16,14 @@
 
 package org.jetbrains.kotlin.psi.stubs.elements;
 
-import com.intellij.lang.*;
-import com.intellij.openapi.project.Project;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.StubBuilder;
-import com.intellij.psi.stubs.IndexSink;
-import com.intellij.psi.stubs.StubElement;
-import com.intellij.psi.stubs.StubInputStream;
-import com.intellij.psi.stubs.StubOutputStream;
-import com.intellij.psi.tree.IStubFileElementType;
+import consulo.language.Language;
+import consulo.language.ast.ASTNode;
+import consulo.language.parser.PsiBuilder;
+import consulo.language.parser.PsiBuilderFactory;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.stub.*;
+import consulo.language.version.LanguageVersionUtil;
+import consulo.project.Project;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.idea.KotlinLanguage;
@@ -79,7 +78,7 @@ public class KtFileElementType extends IStubFileElementType<KotlinFileStub> {
     protected ASTNode doParseContents(@NotNull ASTNode chameleon, @NotNull PsiElement psi) {
         Project project = psi.getProject();
         Language languageForParser = getLanguageForParser(psi);
-        PsiBuilder builder = PsiBuilderFactory.getInstance().createBuilder(project, chameleon, null, languageForParser, chameleon.getChars());
+        PsiBuilder builder = PsiBuilderFactory.getInstance().createBuilder(project, chameleon, null, languageForParser, LanguageVersionUtil.findDefaultVersion(languageForParser), chameleon.getChars());
         return KotlinParser.parse(builder, psi.getContainingFile()).getFirstChildNode();
     }
 

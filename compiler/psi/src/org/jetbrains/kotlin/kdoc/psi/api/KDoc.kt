@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.kdoc.psi.api
 
-import com.intellij.psi.PsiDocCommentBase
+import consulo.language.psi.PsiDocCommentBase
 import org.jetbrains.kotlin.kdoc.psi.impl.KDocSection
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.kdoc.parser.KDocKnownTag

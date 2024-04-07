@@ -5,28 +5,27 @@
 
 package org.jetbrains.kotlin.idea;
 
-import com.intellij.openapi.application.ApplicationManager;
-
-import javax.swing.*;
+import consulo.application.ApplicationManager;
+import consulo.ui.image.Image;
 
 public abstract class KotlinIconProviderService {
-    public abstract Icon getFileIcon();
-    public abstract Icon getBuiltInFileIcon();
+    public abstract Image getFileIcon();
+    public abstract Image getBuiltInFileIcon();
 
     public static class CompilerKotlinFileIconProviderService extends KotlinIconProviderService {
         @Override
-        public Icon getFileIcon() {
+        public Image getFileIcon() {
             return null;
         }
 
         @Override
-        public Icon getBuiltInFileIcon() {
+        public Image getBuiltInFileIcon() {
             return null;
         }
     }
 
     public static KotlinIconProviderService getInstance() {
-        KotlinIconProviderService service = ApplicationManager.getApplication().getService(KotlinIconProviderService.class);
+        KotlinIconProviderService service = ApplicationManager.getApplication().getInstance(KotlinIconProviderService.class);
         return service != null ? service : new CompilerKotlinFileIconProviderService();
     }
 }

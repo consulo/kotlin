@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin
 
-import com.intellij.openapi.editor.Document
-import com.intellij.psi.PsiFile
+import consulo.document.Document
+import consulo.language.psi.PsiFile
 import java.io.InputStreamReader
 
 interface KtSourceFileLinesMapping {

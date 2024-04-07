@@ -5,13 +5,13 @@
 
 package org.jetbrains.kotlin.utils
 
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.diagnostic.Attachment
-import com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.utils.exceptions.KotlinExceptionWithAttachments as KotlinExceptionWithAttachmentsBase
+import consulo.application.ApplicationManager
+import consulo.language.psi.PsiElement
+import consulo.logging.attachment.Attachment
 import org.jetbrains.kotlin.utils.exceptions.KotlinExceptionWithAttachments.Companion.withAttachmentsFrom
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
+import org.jetbrains.kotlin.utils.exceptions.KotlinExceptionWithAttachments as KotlinExceptionWithAttachmentsBase
 
 open class KotlinExceptionWithAttachments : RuntimeException, KotlinExceptionWithAttachmentsBase {
     override val mutableAttachments = mutableListOf<Attachment>()

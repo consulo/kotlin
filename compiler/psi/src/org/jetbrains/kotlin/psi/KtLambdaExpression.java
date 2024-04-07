@@ -16,10 +16,10 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.lang.ASTNode;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiElementVisitor;
-import com.intellij.psi.impl.source.tree.LazyParseablePsiElement;
+import consulo.language.ast.ASTNode;
+import consulo.language.impl.psi.LazyParseablePsiElement;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.PsiElementVisitor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.KtNodeTypes;

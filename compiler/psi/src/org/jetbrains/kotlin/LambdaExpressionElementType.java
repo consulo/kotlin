@@ -16,16 +16,17 @@
 
 package org.jetbrains.kotlin;
 
-import com.intellij.lang.ASTNode;
-import com.intellij.lang.Language;
-import com.intellij.lang.PsiBuilder;
-import com.intellij.lang.PsiBuilderFactory;
-import com.intellij.lexer.Lexer;
-import com.intellij.openapi.project.Project;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.tree.IElementType;
-import com.intellij.psi.tree.IErrorCounterReparseableElementType;
-import com.intellij.psi.util.PsiTreeUtil;
+import consulo.language.Language;
+import consulo.language.ast.ASTNode;
+import consulo.language.ast.IElementType;
+import consulo.language.ast.IErrorCounterReparseableElementType;
+import consulo.language.lexer.Lexer;
+import consulo.language.parser.PsiBuilder;
+import consulo.language.parser.PsiBuilderFactory;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.util.PsiTreeUtil;
+import consulo.language.version.LanguageVersionUtil;
+import consulo.project.Project;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.idea.KotlinLanguage;
 import org.jetbrains.kotlin.lexer.KotlinLexer;
@@ -44,7 +45,7 @@ class LambdaExpressionElementType extends IErrorCounterReparseableElementType {
     public ASTNode parseContents(ASTNode chameleon) {
         Project project = chameleon.getPsi().getProject();
         PsiBuilder builder = PsiBuilderFactory.getInstance().createBuilder(
-                project, chameleon, null, KotlinLanguage.INSTANCE, chameleon.getChars());
+                project, chameleon, null, KotlinLanguage.INSTANCE, LanguageVersionUtil.findDefaultVersion(KotlinLanguage.INSTANCE), chameleon.getChars());
         return KotlinParser.parseLambdaExpression(builder).getFirstChildNode();
     }
 

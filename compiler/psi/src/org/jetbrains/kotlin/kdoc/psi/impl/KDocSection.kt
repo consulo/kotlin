@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.kdoc.psi.impl
 
-import com.intellij.lang.ASTNode
+import consulo.language.ast.ASTNode
 import org.jetbrains.kotlin.psi.psiUtil.getChildrenOfType
 import org.jetbrains.kotlin.psi.psiUtil.getChildOfType
 

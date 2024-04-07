@@ -5,12 +5,18 @@
 
 package org.jetbrains.kotlin.psi.psiUtil
 
-import com.intellij.extapi.psi.StubBasedPsiElementBase
-import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.*
-import com.intellij.psi.stubs.StubElement
-import com.intellij.psi.tree.TokenSet
+import com.intellij.java.language.psi.PsiClass
+import com.intellij.java.language.psi.PsiParameter
+import com.intellij.java.language.psi.PsiParameterList
+import consulo.document.util.TextRange
+import consulo.language.ast.TokenSet
+import consulo.language.impl.psi.stub.StubBasedPsiElementBase
+import consulo.language.psi.PsiComment
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.language.psi.PsiWhiteSpace
+import consulo.language.psi.stub.StubElement
+import consulo.util.dataholder.Key
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.lexer.KotlinLexer

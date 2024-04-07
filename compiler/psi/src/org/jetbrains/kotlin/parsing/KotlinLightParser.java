@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.parsing;
 
-import com.intellij.lang.LighterASTNode;
-import com.intellij.lang.PsiBuilder;
-import com.intellij.util.diff.FlyweightCapableTreeStructure;
+import consulo.language.ast.LighterASTNode;
+import consulo.language.parser.PsiBuilder;
+import consulo.language.util.FlyweightCapableTreeStructure;
 
 public class KotlinLightParser {
     public static FlyweightCapableTreeStructure<LighterASTNode> parse(PsiBuilder builder) {

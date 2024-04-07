@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiWhiteSpace
+import consulo.language.ast.ASTNode
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.addRemoveModifier.addModifier

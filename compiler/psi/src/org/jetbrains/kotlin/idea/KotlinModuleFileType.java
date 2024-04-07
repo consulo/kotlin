@@ -16,19 +16,19 @@
 
 package org.jetbrains.kotlin.idea;
 
-import com.intellij.openapi.fileTypes.FileType;
-import com.intellij.openapi.util.NotNullLazyValue;
-import com.intellij.openapi.vfs.VirtualFile;
+import consulo.application.util.NotNullLazyValue;
+import consulo.localize.LocalizeValue;
+import consulo.ui.image.Image;
+import consulo.virtualFileSystem.VirtualFile;
+import consulo.virtualFileSystem.fileType.FileType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
 
 public class KotlinModuleFileType implements FileType {
     public static final String EXTENSION = "kotlin_module";
     public static final KotlinModuleFileType INSTANCE = new KotlinModuleFileType();
 
-    private final NotNullLazyValue<Icon> myIcon = NotNullLazyValue.lazy(() -> KotlinIconProviderService.getInstance().getFileIcon());
+    private final NotNullLazyValue<Image> myIcon = NotNullLazyValue.createValue(() -> KotlinIconProviderService.getInstance().getFileIcon());
 
     private KotlinModuleFileType() {}
 
@@ -40,8 +40,8 @@ public class KotlinModuleFileType implements FileType {
 
     @Override
     @NotNull
-    public String getDescription() {
-        return "Kotlin module info: contains package part mappings";
+    public LocalizeValue getDescription() {
+        return LocalizeValue.localizeTODO("Kotlin module info: contains package part mappings");
     }
 
     @Override
@@ -51,7 +51,7 @@ public class KotlinModuleFileType implements FileType {
     }
 
     @Override
-    public Icon getIcon() {
+    public Image getIcon() {
         return myIcon.getValue();
     }
 

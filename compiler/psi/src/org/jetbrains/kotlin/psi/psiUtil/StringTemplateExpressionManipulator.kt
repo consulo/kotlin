@@ -5,15 +5,17 @@
 
 package org.jetbrains.kotlin.psi.psiUtil
 
-import com.intellij.psi.AbstractElementManipulator
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
-import com.intellij.openapi.util.TextRange
 import org.jetbrains.kotlin.psi.KtPsiFactory
-import com.intellij.openapi.util.text.StringUtil
+import consulo.document.util.TextRange
+import consulo.language.psi.AbstractElementManipulator
+import consulo.util.lang.StringUtil
 import kotlin.jvm.java
 import kotlin.text.substring
 
 class StringTemplateExpressionManipulator : AbstractElementManipulator<KtStringTemplateExpression>() {
+    override fun getElementClass() = KtStringTemplateExpression::class.java
+
     override fun handleContentChange(
         element: KtStringTemplateExpression,
         range: TextRange,

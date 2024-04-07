@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.psi.PsiElementVisitor;
+import consulo.language.psi.PsiElementVisitor;
 import org.jetbrains.annotations.NotNull;
 
 public class KtVisitor<R, D> extends PsiElementVisitor {

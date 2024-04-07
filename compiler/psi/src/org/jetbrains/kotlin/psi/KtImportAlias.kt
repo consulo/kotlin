@@ -16,10 +16,10 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiNameIdentifierOwner
-import com.intellij.psi.search.LocalSearchScope
+import consulo.language.ast.ASTNode
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiNameIdentifierOwner
+import consulo.language.psi.scope.LocalSearchScope
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
 import org.jetbrains.kotlin.psi.stubs.KotlinImportAliasStub

@@ -16,10 +16,10 @@
 
 package org.jetbrains.kotlin.psi.stubs
 
-import com.intellij.psi.PsiNamedElement
-import com.intellij.psi.stubs.NamedStub
-import com.intellij.psi.stubs.PsiFileStub
-import com.intellij.psi.stubs.StubElement
+import consulo.language.psi.PsiNamedElement
+import consulo.language.psi.stub.NamedStub
+import consulo.language.psi.stub.PsiFileStub
+import consulo.language.psi.stub.StubElement
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName

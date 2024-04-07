@@ -5,15 +5,15 @@
 
 package org.jetbrains.kotlin.psi.stubs.elements;
 
-import com.intellij.lang.ASTNode;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.stubs.IStubElementType;
-import com.intellij.psi.stubs.IndexSink;
-import com.intellij.psi.stubs.StubElement;
-import com.intellij.psi.tree.IElementType;
-import com.intellij.psi.tree.IStubFileElementType;
-import com.intellij.util.ArrayFactory;
-import com.intellij.util.ReflectionUtil;
+import consulo.language.ast.ASTNode;
+import consulo.language.ast.IElementType;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.stub.IStubElementType;
+import consulo.language.psi.stub.IStubFileElementType;
+import consulo.language.psi.stub.IndexSink;
+import consulo.language.psi.stub.StubElement;
+import consulo.util.collection.ArrayFactory;
+import consulo.util.lang.reflect.ReflectionUtil;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.idea.KotlinLanguage;
@@ -69,7 +69,7 @@ public abstract class KtStubElementType<StubT extends StubElement<?>, PsiT exten
     @NotNull
     @Override
     public String getExternalId() {
-        return "kotlin." + getDebugName();
+        return "kotlin." + super.toString();
     }
 
     @Override

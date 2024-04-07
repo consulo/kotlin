@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
-import com.intellij.psi.PsiElement
-import com.intellij.psi.tree.IElementType
+import consulo.language.ast.ASTNode
+import consulo.language.ast.IElementType
+import consulo.language.psi.PsiElement
 
 abstract class KtExpressionImpl(node: ASTNode) : KtElementImpl(node), KtExpression {
 
@@ -19,7 +19,7 @@ abstract class KtExpressionImpl(node: ASTNode) : KtElementImpl(node), KtExpressi
     }
 
     override fun replace(newElement: PsiElement): PsiElement {
-        return replaceExpression(this, newElement) { super.replace(it) }
+        return replaceExpression(this, newElement) { super<KtElementImpl>.replace(it) }
     }
 
     companion object {

@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.psi.stubs.impl
 
-import com.intellij.psi.stubs.StubElement
-import com.intellij.util.io.StringRef
+import consulo.index.io.StringRef
+import consulo.language.psi.stub.StubElement
 import org.jetbrains.kotlin.psi.KtEnumEntrySuperclassReferenceExpression
 import org.jetbrains.kotlin.psi.stubs.KotlinEnumEntrySuperclassReferenceExpressionStub
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes

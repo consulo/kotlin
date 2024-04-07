@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.psi.PsiComment
-import com.intellij.psi.PsiWhiteSpace
+import consulo.language.psi.PsiComment
+import consulo.language.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.lexer.KtToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.psiUtil.siblings

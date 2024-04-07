@@ -16,8 +16,7 @@
 
 package org.jetbrains.kotlin.utils;
 
-import com.intellij.openapi.diagnostic.Logger;
-import org.apache.log4j.Level;
+import consulo.logging.Logger;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -25,7 +24,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.PrintStream;
 
 @SuppressWarnings("UseOfSystemOutOrSystemErr")
-public class PrintingLogger extends Logger {
+public class PrintingLogger implements Logger {
 
     public static final Logger SYSTEM_OUT = new PrintingLogger(System.out);
     public static final Logger SYSTEM_ERR = new PrintingLogger(System.err);
@@ -80,9 +79,5 @@ public class PrintingLogger extends Logger {
         for (String detail : details) {
             debug(detail);
         }
-    }
-
-    @Override
-    public void setLevel(Level level) {
     }
 }

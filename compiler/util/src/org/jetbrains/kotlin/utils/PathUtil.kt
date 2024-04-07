@@ -16,12 +16,10 @@
 
 package org.jetbrains.kotlin.utils
 
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.PathManager
-import org.jetbrains.jps.model.java.impl.JavaSdkUtil
-
+import com.intellij.java.impl.openapi.projectRoots.impl.JavaSdkImpl
+import consulo.application.ApplicationManager
+import consulo.util.io.ClassPathUtil
 import java.io.File
-import java.nio.file.Paths
 import java.util.regex.Pattern
 
 object PathUtil {
@@ -167,7 +165,7 @@ object PathUtil {
     @JvmStatic
     fun getResourcePathForClass(aClass: Class<*>): File {
         val path = "/" + aClass.name.replace('.', '/') + ".class"
-        val resourceRoot = PathManager.getResourceRoot(aClass, path) ?: throw IllegalStateException("Resource not found: $path")
+        val resourceRoot = ClassPathUtil.getResourceRoot(aClass, path) ?: throw IllegalStateException("Resource not found: $path")
         return File(resourceRoot).absoluteFile
     }
 
@@ -177,15 +175,15 @@ object PathUtil {
 
     @JvmStatic
     fun getJdkClassesRootsFromJre(javaHome: String): List<File> =
-            JavaSdkUtil.getJdkClassesRoots(Paths.get(javaHome), true).map { it.toFile() }
+        JavaSdkImpl.getJdkClassesRoots(File(javaHome), true)
 
     @JvmStatic
     fun getJdkClassesRoots(jdkHome: File): List<File> =
-            JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), false).map { it.toFile() }
+        JavaSdkImpl.getJdkClassesRoots(jdkHome, false)
 
     @JvmStatic
     fun getJdkClassesRootsFromJdkOrJre(javaRoot: File): List<File> {
         val isJdk = File(javaRoot, "jre/lib").exists()
-        return JavaSdkUtil.getJdkClassesRoots(javaRoot.toPath(), !isJdk).map { it.toFile() }
+        return JavaSdkImpl.getJdkClassesRoots(javaRoot, !isJdk)
     }
 }

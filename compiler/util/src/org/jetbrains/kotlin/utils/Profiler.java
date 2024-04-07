@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.utils;
 
-import com.intellij.openapi.diagnostic.Logger;
+import consulo.logging.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.PrintStream;

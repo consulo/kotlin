@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
+import consulo.language.ast.ASTNode
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.name.Name
 

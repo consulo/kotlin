@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.diagnostics
 
-import com.intellij.openapi.util.TextRange
+import consulo.document.util.TextRange
 
 interface UnboundDiagnostic {
     val factory: DiagnosticFactory<*>

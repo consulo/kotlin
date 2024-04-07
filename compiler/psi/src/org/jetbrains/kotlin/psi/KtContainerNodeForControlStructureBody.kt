@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
+import consulo.language.ast.ASTNode
 
 class KtContainerNodeForControlStructureBody(node: ASTNode) : KtContainerNode(node) {
     val expression: KtExpression?

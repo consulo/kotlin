@@ -4,8 +4,8 @@
  */
 package org.jetbrains.kotlin.psi.stubs.elements
 
-import com.intellij.psi.stubs.StubElement
-import com.intellij.util.io.StringRef
+import consulo.index.io.StringRef
+import consulo.language.psi.stub.StubElement
 import org.jetbrains.kotlin.psi.KtSecondaryConstructor
 import org.jetbrains.kotlin.psi.stubs.KotlinConstructorStub
 import org.jetbrains.kotlin.psi.stubs.impl.KotlinConstructorStubImpl

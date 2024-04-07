@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.utils.exceptions
 
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.utils.getElementTextWithContext
 
 fun ExceptionAttachmentBuilder.withPsiEntry(name: String, psi: PsiElement?) {

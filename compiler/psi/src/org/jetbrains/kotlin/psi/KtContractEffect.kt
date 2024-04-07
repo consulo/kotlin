@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.psi
 
-import com.intellij.lang.ASTNode
+import consulo.language.ast.ASTNode
 import org.jetbrains.kotlin.psi.psiUtil.getChildOfType
 import org.jetbrains.kotlin.psi.stubs.KotlinContractEffectStub
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes

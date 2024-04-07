@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.parsing;
 
-import com.intellij.psi.tree.IElementType;
+import consulo.language.ast.IElementType;
 
 public interface TokenStreamPattern {
     /**

@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.utils
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiElementVisitor
-import com.intellij.psi.PsiFile
-import com.intellij.psi.impl.source.tree.LeafPsiElement
+import consulo.language.impl.psi.LeafPsiElement
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiElementVisitor
+import consulo.language.psi.PsiFile
 
 fun getElementTextWithContext(psiElement: PsiElement): String {
     if (!psiElement.isValid) return "<invalid element $psiElement>"

@@ -16,10 +16,10 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.lang.ASTNode;
-import com.intellij.navigation.ItemPresentation;
-import com.intellij.navigation.ItemPresentationProviders;
-import com.intellij.psi.PsiElement;
+import consulo.language.ast.ASTNode;
+import consulo.language.psi.PsiElement;
+import consulo.navigation.ItemPresentation;
+import consulo.navigation.ItemPresentationProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.KtNodeTypes;
@@ -157,6 +157,6 @@ public class KtAnnotationEntry extends KtElementImplStub<KotlinAnnotationEntrySt
 
     @Override
     public ItemPresentation getPresentation() {
-        return ItemPresentationProviders.getItemPresentation(this);
+        return ItemPresentationProvider.getItemPresentation(this);
     }
 }

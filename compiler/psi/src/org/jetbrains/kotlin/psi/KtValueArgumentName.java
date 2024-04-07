@@ -16,9 +16,8 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.intellij.lang.ASTNode;
+import consulo.language.ast.ASTNode;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.KtNodeTypes;
 import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.psi.stubs.KotlinPlaceHolderStub;
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes;

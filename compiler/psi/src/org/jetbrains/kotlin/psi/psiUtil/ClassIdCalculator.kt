@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.psi.psiUtil
 
-import com.intellij.psi.PsiErrorElement
+import consulo.language.psi.PsiErrorElement
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.SpecialNames

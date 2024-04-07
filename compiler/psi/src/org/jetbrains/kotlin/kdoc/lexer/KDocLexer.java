@@ -16,10 +16,9 @@
 
 package org.jetbrains.kotlin.kdoc.lexer;
 
-import com.intellij.lexer.FlexAdapter;
-import com.intellij.lexer.MergingLexerAdapter;
-import com.intellij.psi.tree.TokenSet;
-import org.jetbrains.annotations.NotNull;
+import consulo.language.ast.TokenSet;
+import consulo.language.lexer.FlexAdapter;
+import consulo.language.lexer.MergingLexerAdapter;
 
 import java.io.Reader;
 

@@ -16,11 +16,11 @@
 
 package org.jetbrains.kotlin.kdoc.psi.impl
 
-import com.intellij.lang.ASTNode
+import consulo.document.util.TextRange
+import consulo.language.ast.ASTNode
 import org.jetbrains.kotlin.psi.KtElementImpl
 import org.jetbrains.kotlin.kdoc.psi.api.KDoc
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
-import com.intellij.openapi.util.TextRange
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.psiUtil.getChildOfType
