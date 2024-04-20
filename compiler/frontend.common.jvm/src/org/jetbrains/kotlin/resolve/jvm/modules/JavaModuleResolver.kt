@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.resolve.jvm.modules
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
+import consulo.project.Project
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.load.java.JavaModuleAnnotationsProvider
 import org.jetbrains.kotlin.name.FqName
 
@@ -20,6 +20,6 @@ interface JavaModuleResolver : JavaModuleAnnotationsProvider {
     }
 
     companion object SERVICE {
-        fun getInstance(project: Project): JavaModuleResolver = project.getService(JavaModuleResolver::class.java)
+        fun getInstance(project: Project): JavaModuleResolver = project.getInstance(JavaModuleResolver::class.java)
     }
 }

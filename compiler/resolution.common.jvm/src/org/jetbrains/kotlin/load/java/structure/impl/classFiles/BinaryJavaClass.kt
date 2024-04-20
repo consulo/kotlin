@@ -16,9 +16,8 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl.classFiles
 
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.search.SearchScope
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
+import consulo.content.scope.SearchScope
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.builtins.PrimitiveType
 import org.jetbrains.kotlin.load.java.structure.*
 import org.jetbrains.kotlin.load.java.structure.impl.VirtualFileBoundJavaClass
@@ -27,9 +26,10 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.SmartList
 import org.jetbrains.kotlin.utils.addIfNotNull
-import org.jetbrains.org.objectweb.asm.*
+import consulo.internal.org.objectweb.asm.*
 import java.text.CharacterIterator
 import java.text.StringCharacterIterator
+import java.util.HashMap
 
 class BinaryJavaClass(
     override val virtualFile: VirtualFile,
@@ -64,7 +64,7 @@ class BinaryJavaClass(
 
     // Short name of a nested class of this class -> access flags as seen in the InnerClasses attribute value.
     // Note that it doesn't include classes mentioned in other InnerClasses attribute values (those which are not nested in this class).
-    private val ownInnerClassNameToAccess: MutableMap<Name, Int> = Object2ObjectOpenHashMap()
+    private val ownInnerClassNameToAccess: MutableMap<Name, Int> = HashMap()
 
     override val innerClassNames get() = ownInnerClassNameToAccess.keys
 

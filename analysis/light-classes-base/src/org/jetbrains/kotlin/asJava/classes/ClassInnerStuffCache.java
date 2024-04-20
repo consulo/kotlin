@@ -5,29 +5,32 @@
 
 package org.jetbrains.kotlin.asJava.classes;
 
-import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.util.ModificationTracker;
-import com.intellij.openapi.util.Pair;
-import com.intellij.openapi.util.Ref;
-import com.intellij.openapi.util.TextRange;
-import com.intellij.psi.*;
-import com.intellij.psi.augment.PsiAugmentProvider;
-import com.intellij.psi.impl.PsiClassImplUtil;
-import com.intellij.psi.impl.PsiImplUtil;
-import com.intellij.psi.impl.PsiSuperMethodImplUtil;
-import com.intellij.psi.impl.light.*;
-import com.intellij.psi.javadoc.PsiDocComment;
-import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.psi.util.CachedValueProvider;
-import com.intellij.psi.util.CachedValuesManager;
-import com.intellij.psi.util.MethodSignature;
-import com.intellij.psi.util.MethodSignatureBackedByPsiMethod;
-import com.intellij.util.ArrayUtil;
-import com.intellij.util.IncorrectOperationException;
-import com.intellij.util.containers.ConcurrentFactoryMap;
-import com.intellij.util.containers.ContainerUtil;
-import com.intellij.util.containers.Interner;
-import com.intellij.util.containers.JBIterable;
+import com.intellij.java.language.impl.psi.impl.PsiClassImplUtil;
+import com.intellij.java.language.impl.psi.impl.PsiImplUtil;
+import com.intellij.java.language.impl.psi.impl.PsiSuperMethodImplUtil;
+import com.intellij.java.language.impl.psi.impl.light.*;
+import com.intellij.java.language.psi.PsiElementFactory;
+import com.intellij.java.language.psi.*;
+import com.intellij.java.language.psi.augment.PsiAugmentProvider;
+import com.intellij.java.language.psi.javadoc.PsiDocComment;
+import com.intellij.java.language.psi.util.MethodSignature;
+import com.intellij.java.language.psi.util.MethodSignatureBackedByPsiMethod;
+import consulo.application.util.CachedValueProvider;
+import consulo.application.util.ConcurrentFactoryMap;
+import consulo.component.util.ModificationTracker;
+import consulo.document.util.TextRange;
+import consulo.language.impl.psi.LightElement;
+import consulo.language.psi.*;
+import consulo.language.psi.scope.GlobalSearchScope;
+import consulo.language.psi.util.LanguageCachedValueUtil;
+import consulo.language.util.IncorrectOperationException;
+import consulo.logging.Logger;
+import consulo.util.collection.ArrayUtil;
+import consulo.util.collection.ContainerUtil;
+import consulo.util.collection.JBIterable;
+import consulo.util.interner.Interner;
+import consulo.util.lang.Pair;
+import consulo.util.lang.ref.Ref;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -39,7 +42,7 @@ import org.jetbrains.kotlin.psi.KtParameter;
 
 import java.util.*;
 
-import static com.intellij.util.ObjectUtils.notNull;
+import static consulo.util.lang.ObjectUtil.notNull;
 
 /**
  * Copy-pasted and updated from com.intellij.psi.impl.source.ClassInnerStuffCache
@@ -66,7 +69,7 @@ public final class ClassInnerStuffCache {
 
     @NotNull
     public PsiMethod[] getConstructors() {
-        return copy(CachedValuesManager.getCachedValue(
+        return copy(LanguageCachedValueUtil.getCachedValue(
                 myClass,
                 () -> CachedValueProvider.Result.create(
                         PsiImplUtil.getConstructors(myClass),
@@ -77,7 +80,7 @@ public final class ClassInnerStuffCache {
 
     @NotNull
     public PsiField[] getFields() {
-        return copy(CachedValuesManager.getCachedValue(
+        return copy(LanguageCachedValueUtil.getCachedValue(
                 myClass,
                 () -> CachedValueProvider.Result.create(
                         calcFields(),
@@ -88,7 +91,7 @@ public final class ClassInnerStuffCache {
 
     @NotNull
     public PsiMethod[] getMethods() {
-        return copy(CachedValuesManager.getCachedValue(
+        return copy(LanguageCachedValueUtil.getCachedValue(
                 myClass,
                 () -> CachedValueProvider.Result.create(
                         calcMethods(),
@@ -99,7 +102,7 @@ public final class ClassInnerStuffCache {
 
     @NotNull
     public PsiClass[] getInnerClasses() {
-        return copy(CachedValuesManager.getCachedValue(
+        return copy(LanguageCachedValueUtil.getCachedValue(
                 myClass,
                 () -> CachedValueProvider.Result.create(
                         calcInnerClasses(),
@@ -114,7 +117,7 @@ public final class ClassInnerStuffCache {
             return PsiClassImplUtil.findFieldByName(myClass, name, true);
         }
         else {
-            return CachedValuesManager.getCachedValue(
+            return LanguageCachedValueUtil.getCachedValue(
                     myClass,
                     () -> CachedValueProvider.Result.create(
                             getFieldsMap(),
@@ -130,7 +133,7 @@ public final class ClassInnerStuffCache {
             return PsiClassImplUtil.findMethodsByName(myClass, name, true);
         }
         else {
-            return copy(notNull(CachedValuesManager.getCachedValue(
+            return copy(notNull(LanguageCachedValueUtil.getCachedValue(
                     myClass,
                     () -> CachedValueProvider.Result.create(
                             getMethodsMap(),
@@ -146,7 +149,7 @@ public final class ClassInnerStuffCache {
             return PsiClassImplUtil.findInnerByName(myClass, name, true);
         }
         else {
-            return CachedValuesManager.getCachedValue(
+            return LanguageCachedValueUtil.getCachedValue(
                     myClass,
                     () -> CachedValueProvider.Result.create(
                             getInnerClassesMap(),
@@ -158,7 +161,7 @@ public final class ClassInnerStuffCache {
 
     @Nullable
     private PsiMethod getValuesMethod() {
-        return isEnum() ? internMember(CachedValuesManager.getCachedValue(
+        return isEnum() ? internMember(LanguageCachedValueUtil.getCachedValue(
                 myClass,
                 () -> CachedValueProvider.Result.create(
                         makeValuesMethod(myClass),
@@ -169,7 +172,7 @@ public final class ClassInnerStuffCache {
 
     @Nullable
     private PsiMethod getValueOfMethod() {
-        return isEnum() ? internMember(CachedValuesManager.getCachedValue(
+        return isEnum() ? internMember(LanguageCachedValueUtil.getCachedValue(
                 myClass,
                 () -> CachedValueProvider.Result.create(
                         makeValueOfMethod(myClass),

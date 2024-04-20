@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl
 
-import com.intellij.psi.PsiRecordComponent
+import com.intellij.java.language.psi.PsiRecordComponent
 import org.jetbrains.kotlin.load.java.structure.JavaRecordComponent
 import org.jetbrains.kotlin.load.java.structure.JavaType
 import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementPsiSource

@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve.jvm
 
-import com.intellij.psi.impl.file.impl.JavaFileManager
-import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.java.language.impl.psi.impl.file.impl.JavaFileManager
+import consulo.language.psi.scope.GlobalSearchScope
 import org.jetbrains.kotlin.load.java.JavaClassFinder
 import org.jetbrains.kotlin.load.java.structure.JavaClass
 import org.jetbrains.kotlin.name.FqName

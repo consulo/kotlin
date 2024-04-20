@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.impl.light.LightIdentifier
+import com.intellij.java.language.impl.psi.impl.light.LightIdentifier
+import consulo.document.util.TextRange
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 

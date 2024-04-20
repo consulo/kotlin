@@ -16,10 +16,10 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl;
 
-import com.intellij.psi.PsiAnnotationOwner;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiDocCommentOwner;
-import com.intellij.psi.PsiMember;
+import com.intellij.java.language.psi.PsiAnnotationOwner;
+import com.intellij.java.language.psi.PsiClass;
+import com.intellij.java.language.psi.PsiDocCommentOwner;
+import com.intellij.java.language.psi.PsiMember;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.Visibility;

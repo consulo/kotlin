@@ -16,17 +16,18 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl
 
-import com.intellij.psi.PsiPackage
-import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.java.language.psi.PsiJavaPackage
+import consulo.language.psi.PsiPackage
+import consulo.language.psi.scope.GlobalSearchScope
 import org.jetbrains.kotlin.load.java.structure.*
 import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementPsiSource
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
 class JavaPackageImpl(
-    psiPackageSource: JavaElementPsiSource<PsiPackage>, private val scope: GlobalSearchScope,
+    psiPackageSource: JavaElementPsiSource<PsiJavaPackage>, private val scope: GlobalSearchScope,
     private val mayHaveAnnotations: Boolean = true,
-) : JavaElementImpl<PsiPackage>(psiPackageSource), JavaPackage, MapBasedJavaAnnotationOwner {
+) : JavaElementImpl<PsiJavaPackage>(psiPackageSource), JavaPackage, MapBasedJavaAnnotationOwner {
 
     override fun getClasses(nameFilter: (Name) -> Boolean): Collection<JavaClass> {
         val psiClasses = psi.getClasses(scope).filter {

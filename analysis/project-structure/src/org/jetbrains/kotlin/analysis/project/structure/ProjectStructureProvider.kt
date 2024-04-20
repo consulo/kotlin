@@ -5,18 +5,14 @@
 
 package org.jetbrains.kotlin.analysis.project.structure
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Key
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.project.Project
+import consulo.util.dataholder.Key
 import org.jetbrains.kotlin.analysis.project.structure.impl.KtDanglingFileModuleImpl
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
-import org.jetbrains.kotlin.psi.KtCodeFragment
-import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.UserDataProperty
-import org.jetbrains.kotlin.psi.analysisContext
-import org.jetbrains.kotlin.psi.doNotAnalyze
+import org.jetbrains.kotlin.psi.*
 
 public abstract class ProjectStructureProvider {
     /**
@@ -98,7 +94,7 @@ public abstract class ProjectStructureProvider {
 
     public companion object {
         public fun getInstance(project: Project): ProjectStructureProvider {
-            return project.getService(ProjectStructureProvider::class.java)
+            return project.getInstance(ProjectStructureProvider::class.java)
         }
 
         public fun getModule(project: Project, element: PsiElement, contextualModule: KtModule?): KtModule {

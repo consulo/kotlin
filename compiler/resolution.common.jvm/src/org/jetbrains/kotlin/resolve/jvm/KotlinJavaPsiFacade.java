@@ -5,30 +5,32 @@
 
 package org.jetbrains.kotlin.resolve.jvm;
 
-import com.intellij.openapi.Disposable;
-import com.intellij.openapi.project.DumbAware;
-import com.intellij.openapi.project.DumbService;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.roots.PackageIndex;
-import com.intellij.openapi.util.LowMemoryWatcher;
-import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.vfs.VirtualFileManager;
-import com.intellij.openapi.vfs.newvfs.BulkFileListener;
-import com.intellij.openapi.vfs.newvfs.events.*;
-import com.intellij.psi.*;
-import com.intellij.psi.impl.PsiElementFinderImpl;
-import com.intellij.psi.impl.file.PsiPackageImpl;
-import com.intellij.psi.impl.file.impl.JavaFileManager;
-import com.intellij.psi.impl.light.LightModifierList;
-import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.psi.search.SearchScope;
-import com.intellij.psi.util.PsiModificationTracker;
-import com.intellij.util.CommonProcessors;
-import com.intellij.util.ConcurrencyUtil;
-import com.intellij.util.Query;
-import com.intellij.util.SmartList;
-import com.intellij.util.messages.MessageBusConnection;
+import com.intellij.java.language.impl.psi.NonClasspathClassFinder;
+import com.intellij.java.language.impl.psi.impl.DefaultPsiElementFinderImpl;
+import com.intellij.java.language.impl.psi.impl.file.impl.JavaFileManager;
+import com.intellij.java.language.impl.psi.impl.light.LightModifierList;
+import com.intellij.java.language.psi.PsiClass;
+import com.intellij.java.language.psi.PsiElementFinder;
+import com.intellij.java.language.psi.PsiJavaPackage;
+import consulo.application.dumb.DumbAware;
+import consulo.application.util.LowMemoryWatcher;
+import consulo.application.util.function.CommonProcessors;
+import consulo.application.util.query.Query;
+import consulo.component.messagebus.MessageBusConnection;
+import consulo.disposer.Disposable;
+import consulo.java.language.module.extension.JavaModuleExtension;
+import consulo.kotlinc.SearchScopes;
+import consulo.kotlinc.psi.impl.PsiJavaPackageStub;
+import consulo.language.psi.*;
+import consulo.language.psi.scope.GlobalSearchScope;
+import consulo.module.content.DirectoryIndex;
+import consulo.project.DumbService;
+import consulo.project.Project;
+import consulo.util.collection.Maps;
+import consulo.util.collection.SmartList;
+import consulo.util.lang.StringUtil;
+import consulo.virtualFileSystem.VirtualFile;
+import consulo.virtualFileSystem.event.*;
 import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -52,10 +54,10 @@ public class KotlinJavaPsiFacade implements Disposable {
 
     private static class PackageCache {
         // long term cache
-        final ConcurrentMap<GlobalSearchScope, ConcurrentMap<String, PsiPackage>> packageInLibScopeCache = new ConcurrentHashMap<>();
+        final ConcurrentMap<GlobalSearchScope, ConcurrentMap<String, PsiJavaPackage>> packageInLibScopeCache = new ConcurrentHashMap<>();
 
         // short term caches
-        final ConcurrentMap<GlobalSearchScope, ConcurrentMap<String, PsiPackage>> packageInScopeCache = new ConcurrentHashMap<>();
+        final ConcurrentMap<GlobalSearchScope, ConcurrentMap<String, PsiJavaPackage>> packageInScopeCache = new ConcurrentHashMap<>();
         final ConcurrentMap<String, Boolean> hasPackageInAllScopeCache = new ConcurrentHashMap<>();
 
         void clear() {
@@ -64,9 +66,9 @@ public class KotlinJavaPsiFacade implements Disposable {
         }
     }
 
-    private static final PsiPackage NULL_PACKAGE = new PsiPackageImpl(null, "NULL_PACKAGE");
+    private static final PsiJavaPackage NULL_PACKAGE = PsiJavaPackageStub.INSTANCE;
 
-    private static @Nullable PsiPackage unwrap(@NotNull PsiPackage psiPackage) {
+    private static @Nullable PsiJavaPackage unwrap(@NotNull PsiJavaPackage psiPackage) {
         return psiPackage == NULL_PACKAGE ? null : psiPackage;
     }
 
@@ -77,7 +79,7 @@ public class KotlinJavaPsiFacade implements Disposable {
     private final LightModifierList emptyModifierList;
 
     public static KotlinJavaPsiFacade getInstance(Project project) {
-        return project.getService(KotlinJavaPsiFacade.class);
+        return project.getInstance(KotlinJavaPsiFacade.class);
     }
 
     public KotlinJavaPsiFacade(@NotNull Project project) {
@@ -91,7 +93,7 @@ public class KotlinJavaPsiFacade implements Disposable {
         MessageBusConnection connection = project.getMessageBus().connect(this);
 
         // VFS changes like create/delete/copy/move directory are subject to clean up short term caches
-        connection.subscribe(VirtualFileManager.VFS_CHANGES, new BulkFileListener() {
+        connection.subscribe(BulkFileListener.class, new BulkFileListener() {
             @Override
             public void after(@NotNull List<? extends VFileEvent> events) {
                 boolean relevant = false;
@@ -114,7 +116,7 @@ public class KotlinJavaPsiFacade implements Disposable {
         // PSI changes (like in R files) could lead to creating virtual packages
         // therefore it has to clean up short term caches
         PsiModificationTracker modificationTracker = PsiManager.getInstance(project).getModificationTracker();
-        connection.subscribe(PsiModificationTracker.TOPIC, new PsiModificationTracker.Listener() {
+        connection.subscribe(PsiModificationTrackerListener.class, new PsiModificationTrackerListener() {
             private long lastTimeSeen = -1L;
 
             @Override
@@ -157,7 +159,7 @@ public class KotlinJavaPsiFacade implements Disposable {
 
     @Nullable
     public JavaClass findClass(@NotNull JavaClassFinder.Request request, @NotNull GlobalSearchScope scope) {
-        if (SearchScope.isEmptyScope(scope)) return null;
+        if (SearchScopes.isEmptyScope(scope)) return null;
 
         // We hope this method is being called often enough to cancel daemon processes smoothly
         ProgressIndicatorAndCompilationCanceledStatus.checkCanceled();
@@ -195,7 +197,7 @@ public class KotlinJavaPsiFacade implements Disposable {
 
     @NotNull
     public List<JavaClass> findClasses(@NotNull JavaClassFinder.Request request, @NotNull GlobalSearchScope scope) {
-        if (SearchScope.isEmptyScope(scope)) return Collections.emptyList();
+        if (SearchScopes.isEmptyScope(scope)) return Collections.emptyList();
 
         // We hope this method is being called often enough to cancel daemon processes smoothly
         ProgressIndicatorAndCompilationCanceledStatus.checkCanceled();
@@ -243,7 +245,7 @@ public class KotlinJavaPsiFacade implements Disposable {
      */
     @Nullable
     public Set<String> knownClassNamesInPackage(@NotNull FqName packageFqName, @NotNull GlobalSearchScope scope) {
-        if (SearchScope.isEmptyScope(scope)) return Collections.emptySet();
+        if (SearchScopes.isEmptyScope(scope)) return Collections.emptySet();
 
         KotlinPsiElementFinderWrapper[] finders = finders();
 
@@ -262,7 +264,7 @@ public class KotlinJavaPsiFacade implements Disposable {
     @NotNull
     private PsiClass[] findClassesInDumbMode(@NotNull String qualifiedName, @NotNull GlobalSearchScope scope) {
         String packageName = StringUtil.getPackageName(qualifiedName);
-        PsiPackage pkg = findPackage(packageName, scope);
+        PsiJavaPackage pkg = findPackage(packageName, scope);
         String className = StringUtil.getShortName(qualifiedName);
         if (pkg == null && packageName.length() < qualifiedName.length()) {
             PsiClass[] containingClasses = findClassesInDumbMode(packageName, scope);
@@ -307,11 +309,11 @@ public class KotlinJavaPsiFacade implements Disposable {
         );
 
         List<PsiElementFinder> nonKotlinFinders = new ArrayList<>();
-        for (PsiElementFinder finder : PsiElementFinder.EP.getExtensions(getProject())) {
+        for (PsiElementFinder finder : PsiElementFinder.EP_NAME.getExtensions(getProject())) {
             if ((finder instanceof KotlinSafeClassFinder) ||
                 !(finder instanceof NonClasspathClassFinder ||
                   finder instanceof KotlinFinderMarker ||
-                  finder instanceof PsiElementFinderImpl)) {
+                  finder instanceof DefaultPsiElementFinderImpl)) {
                 nonKotlinFinders.add(finder);
             }
         }
@@ -323,7 +325,7 @@ public class KotlinJavaPsiFacade implements Disposable {
 
     @NotNull
     private static JavaFileManager findJavaFileManager(@NotNull Project project) {
-        JavaFileManager javaFileManager = project.getService(JavaFileManager.class);
+        JavaFileManager javaFileManager = project.getInstance(JavaFileManager.class);
         if (javaFileManager == null) {
             throw new IllegalStateException("JavaFileManager component is not found in project");
         }
@@ -331,8 +333,8 @@ public class KotlinJavaPsiFacade implements Disposable {
     }
 
     @Nullable
-    public PsiPackage findPackage(@NotNull String qualifiedName, @NotNull GlobalSearchScope searchScope) {
-        if (SearchScope.isEmptyScope(searchScope)) return null;
+    public PsiJavaPackage findPackage(@NotNull String qualifiedName, @NotNull GlobalSearchScope searchScope) {
+        if (SearchScopes.isEmptyScope(searchScope)) return null;
 
         ProgressIndicatorAndCompilationCanceledStatus.checkCanceled();
         if (certainlyDoesNotExist(qualifiedName, searchScope)) return null;
@@ -342,12 +344,12 @@ public class KotlinJavaPsiFacade implements Disposable {
         Boolean packageFoundInAllScope = cache.hasPackageInAllScopeCache.get(qualifiedName);
         if (packageFoundInAllScope != null && !packageFoundInAllScope.booleanValue()) return null;
 
-        ConcurrentMap<String, PsiPackage> packageInLibScope = cache.packageInLibScopeCache.get(searchScope);
-        PsiPackage pkg = packageInLibScope != null ? packageInLibScope.get(qualifiedName) : null;
+        ConcurrentMap<String, PsiJavaPackage> packageInLibScope = cache.packageInLibScopeCache.get(searchScope);
+        PsiJavaPackage pkg = packageInLibScope != null ? packageInLibScope.get(qualifiedName) : null;
         if (pkg != null) {
             return unwrap(pkg);
         }
-        ConcurrentMap<String, PsiPackage> packageInScope = cache.packageInScopeCache.get(searchScope);
+        ConcurrentMap<String, PsiJavaPackage> packageInScope = cache.packageInScopeCache.get(searchScope);
         pkg = packageInScope != null ? packageInScope.get(qualifiedName) : null;
         if (pkg != null) {
             return unwrap(pkg);
@@ -359,7 +361,7 @@ public class KotlinJavaPsiFacade implements Disposable {
 
         {
             // store found package in a long term cache if package is found in library search scope
-            ConcurrentMap<GlobalSearchScope, ConcurrentMap<String, PsiPackage>> existedPackageInScopeCache =
+            ConcurrentMap<GlobalSearchScope, ConcurrentMap<String, PsiJavaPackage>> existedPackageInScopeCache =
                     isALibrarySearchScope ? cache.packageInLibScopeCache : cache.packageInScopeCache;
 
             KotlinPsiElementFinderWrapper[] finders = filteredFinders();
@@ -368,23 +370,23 @@ public class KotlinJavaPsiFacade implements Disposable {
                 // We check only finders that depend on scope.
                 for (KotlinPsiElementFinderWrapper finder : finders) {
                     if (!finder.isSameResultForAnyScope()) {
-                        PsiPackage aPackage = finder.findPackage(qualifiedName, searchScope);
+                        PsiJavaPackage aPackage = finder.findPackage(qualifiedName, searchScope);
                         if (aPackage != null) {
-                            ConcurrentMap<String, PsiPackage> concurrentMap =
-                                    ConcurrencyUtil.cacheOrGet(existedPackageInScopeCache, searchScope, new ConcurrentHashMap<>());
-                            return unwrap(ConcurrencyUtil.cacheOrGet(concurrentMap, qualifiedName, aPackage));
+                            ConcurrentMap<String, PsiJavaPackage> concurrentMap =
+                                    Maps.cacheOrGet(existedPackageInScopeCache, searchScope, new ConcurrentHashMap<>());
+                            return unwrap(Maps.cacheOrGet(concurrentMap, qualifiedName, aPackage));
                         }
                     }
                 }
             }
             else {
                 for (KotlinPsiElementFinderWrapper finder : finders) {
-                    PsiPackage aPackage = finder.findPackage(qualifiedName, searchScope);
+                    PsiJavaPackage aPackage = finder.findPackage(qualifiedName, searchScope);
 
                     if (aPackage != null) {
-                        ConcurrentMap<String, PsiPackage> concurrentMap =
-                                ConcurrencyUtil.cacheOrGet(existedPackageInScopeCache, searchScope, new ConcurrentHashMap<>());
-                        return unwrap(ConcurrencyUtil.cacheOrGet(concurrentMap, qualifiedName, aPackage));
+                        ConcurrentMap<String, PsiJavaPackage> concurrentMap =
+                                Maps.cacheOrGet(existedPackageInScopeCache, searchScope, new ConcurrentHashMap<>());
+                        return unwrap(Maps.cacheOrGet(concurrentMap, qualifiedName, aPackage));
                     }
                 }
 
@@ -404,7 +406,7 @@ public class KotlinJavaPsiFacade implements Disposable {
             }
         }
 
-        ConcurrentMap<GlobalSearchScope, ConcurrentMap<String, PsiPackage>> notFoundPackageInScopeCache;
+        ConcurrentMap<GlobalSearchScope, ConcurrentMap<String, PsiJavaPackage>> notFoundPackageInScopeCache;
         switch (notFoundCacheType) {
             case LIB_SCOPE:
                 notFoundPackageInScopeCache = cache.packageInLibScopeCache;
@@ -418,9 +420,9 @@ public class KotlinJavaPsiFacade implements Disposable {
                 throw new IllegalStateException("Impossible enum value: " + notFoundCacheType.toString());
         }
 
-        ConcurrentMap<String, PsiPackage> concurrentMap =
-                ConcurrencyUtil.cacheOrGet(notFoundPackageInScopeCache, searchScope, new ConcurrentHashMap<>());
-        return unwrap(ConcurrencyUtil.cacheOrGet(concurrentMap, qualifiedName, NULL_PACKAGE));
+        ConcurrentMap<String, PsiJavaPackage> concurrentMap =
+                Maps.cacheOrGet(notFoundPackageInScopeCache, searchScope, new ConcurrentHashMap<>());
+        return unwrap(Maps.cacheOrGet(concurrentMap, qualifiedName, NULL_PACKAGE));
     }
 
     private PackageCache obtainPackageCache() {
@@ -478,7 +480,7 @@ public class KotlinJavaPsiFacade implements Disposable {
     interface KotlinPsiElementFinderWrapper {
         PsiClass findClass(@NotNull String qualifiedName, @NotNull GlobalSearchScope scope);
         PsiClass[] findClasses(@NotNull String qualifiedName, @NotNull GlobalSearchScope scope);
-        PsiPackage findPackage(@NotNull String qualifiedName, @NotNull GlobalSearchScope scope);
+        PsiJavaPackage findPackage(@NotNull String qualifiedName, @NotNull GlobalSearchScope scope);
         boolean isSameResultForAnyScope();
     }
 
@@ -500,7 +502,7 @@ public class KotlinJavaPsiFacade implements Disposable {
         }
 
         @Override
-        public PsiPackage findPackage(@NotNull String qualifiedName, @NotNull GlobalSearchScope scope) {
+        public PsiJavaPackage findPackage(@NotNull String qualifiedName, @NotNull GlobalSearchScope scope) {
             // Original element finder can't search packages with scope
             return finder.findPackage(qualifiedName);
         }
@@ -549,7 +551,7 @@ public class KotlinJavaPsiFacade implements Disposable {
         }
 
         @Override
-        public PsiPackage findPackage(@NotNull String qualifiedName, @NotNull GlobalSearchScope scope) {
+        public PsiJavaPackage findPackage(@NotNull String qualifiedName, @NotNull GlobalSearchScope scope) {
             return javaFileManager.findPackage(qualifiedName);
         }
 
@@ -562,11 +564,11 @@ public class KotlinJavaPsiFacade implements Disposable {
     private static class NonCliFinder implements KotlinPsiElementFinderWrapper, DumbAware {
         private final JavaFileManager javaFileManager;
         private final PsiManager psiManager;
-        private final PackageIndex packageIndex;
+        private final DirectoryIndex packageIndex;
 
         public NonCliFinder(@NotNull Project project, @NotNull JavaFileManager javaFileManager) {
             this.javaFileManager = javaFileManager;
-            this.packageIndex = PackageIndex.getInstance(project);
+            this.packageIndex = DirectoryIndex.getInstance(project);
             this.psiManager = PsiManager.getInstance(project);
         }
 
@@ -581,9 +583,10 @@ public class KotlinJavaPsiFacade implements Disposable {
         }
 
         @Override
-        public PsiPackage findPackage(@NotNull String qualifiedName, @NotNull GlobalSearchScope scope) {
-            Query<VirtualFile> dirs = packageIndex.getDirsByPackageName(qualifiedName, true);
-            return hasDirectoriesInScope(dirs, scope) ? new PsiPackageImpl(psiManager, qualifiedName) : null;
+        public PsiJavaPackage findPackage(@NotNull String qualifiedName, @NotNull GlobalSearchScope scope) {
+            Query<VirtualFile> dirs = packageIndex.getDirectoriesByPackageName(qualifiedName, true);
+            return hasDirectoriesInScope(dirs, scope) ? (PsiJavaPackage) PsiPackageManager.getInstance(psiManager.getProject()).findPackage(qualifiedName, JavaModuleExtension.class)
+                                                      : null;
         }
 
         @Override

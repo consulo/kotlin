@@ -5,8 +5,9 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl.source
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.*
+import com.intellij.java.language.psi.*
+import consulo.language.psi.PsiElement
+import consulo.project.Project
 
 abstract class JavaElementSourceFactory {
     abstract fun <PSI : PsiElement> createPsiSource(psi: PSI): JavaElementPsiSource<PSI>
@@ -37,7 +38,7 @@ abstract class JavaElementSourceFactory {
     companion object {
         @JvmStatic
         fun getInstance(project: Project): JavaElementSourceFactory {
-            return project.getService(JavaElementSourceFactory::class.java)
+            return project.getInstance(JavaElementSourceFactory::class.java)
         }
     }
 }

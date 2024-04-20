@@ -20,8 +20,8 @@ import org.jetbrains.kotlin.load.java.structure.*
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.SmartList
-import org.jetbrains.org.objectweb.asm.ClassReader
-import org.jetbrains.org.objectweb.asm.ClassVisitor
+import consulo.internal.org.objectweb.asm.ClassReader
+import consulo.internal.org.objectweb.asm.ClassVisitor
 
 class BinaryJavaField(
     override val name: Name,

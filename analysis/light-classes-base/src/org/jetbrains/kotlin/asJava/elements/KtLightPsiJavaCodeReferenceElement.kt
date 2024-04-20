@@ -5,10 +5,15 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.*
-import com.intellij.psi.scope.PsiScopeProcessor
-import com.intellij.util.IncorrectOperationException
+import com.intellij.java.language.psi.JavaResolveResult
+import com.intellij.java.language.psi.PsiJavaCodeReferenceElement
+import com.intellij.java.language.psi.PsiReferenceParameterList
+import com.intellij.java.language.psi.PsiType
+import consulo.document.util.TextRange
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiReference
+import consulo.language.psi.resolve.PsiScopeProcessor
+import consulo.language.util.IncorrectOperationException
 import org.jetbrains.kotlin.asJava.classes.lazyPub
 
 class KtLightPsiJavaCodeReferenceElement(

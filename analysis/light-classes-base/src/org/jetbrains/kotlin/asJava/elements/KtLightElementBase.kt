@@ -5,11 +5,11 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.navigation.ItemPresentationProviders
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiElement
-import com.intellij.psi.impl.light.LightElement
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import consulo.document.util.TextRange
+import consulo.language.impl.psi.LightElement
+import consulo.language.psi.PsiElement
+import consulo.navigation.ItemPresentationProvider
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtElement
 
 abstract class KtLightElementBase(private var parent: PsiElement) : LightElement(parent.manager, KotlinLanguage.INSTANCE) {
@@ -31,7 +31,7 @@ abstract class KtLightElementBase(private var parent: PsiElement) : LightElement
     override fun getNavigationElement() = kotlinOrigin?.navigationElement ?: this
     override fun getUseScope() = kotlinOrigin?.useScope ?: super.getUseScope()
     override fun getContainingFile() = parent.containingFile
-    override fun getPresentation() = (kotlinOrigin ?: this).let { ItemPresentationProviders.getItemPresentation(it) }
+    override fun getPresentation() = (kotlinOrigin ?: this).let { ItemPresentationProvider.getItemPresentation(it) }
     override fun isValid() = parent.isValid && (kotlinOrigin?.isValid != false)
     override fun findElementAt(offset: Int) = kotlinOrigin?.findElementAt(offset)
     override fun isEquivalentTo(another: PsiElement?): Boolean {

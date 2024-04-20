@@ -16,10 +16,9 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl;
 
-import com.intellij.psi.PsiAnnotationOwner;
-import com.intellij.psi.PsiClassType;
-import com.intellij.psi.PsiField;
-import com.intellij.psi.PsiTypeParameter;
+import com.intellij.java.language.psi.PsiAnnotationOwner;
+import com.intellij.java.language.psi.PsiClassType;
+import com.intellij.java.language.psi.PsiTypeParameter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.load.java.structure.JavaClassifierType;
@@ -31,11 +30,8 @@ import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.name.SpecialNames;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-
-import static org.jetbrains.kotlin.load.java.structure.impl.JavaElementCollectionFromPsiArrayUtil.classifierTypes;
 
 public class JavaTypeParameterImpl extends JavaClassifierImpl<PsiTypeParameter> implements JavaTypeParameter {
     public JavaTypeParameterImpl(@NotNull JavaElementPsiSource<PsiTypeParameter> psiTypeParameterSource) {

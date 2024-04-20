@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.diagnostics.rendering
 
-import com.intellij.openapi.util.text.StringUtil
+import consulo.util.lang.StringUtil
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.Variance

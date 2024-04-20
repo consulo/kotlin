@@ -5,18 +5,18 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiMember
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.augment.PsiAugmentProvider
-import com.intellij.psi.impl.light.LightClass
-import com.intellij.psi.impl.light.LightField
-import com.intellij.psi.impl.light.LightMethod
+import com.intellij.java.language.impl.psi.impl.light.LightClass
+import com.intellij.java.language.impl.psi.impl.light.LightField
+import com.intellij.java.language.impl.psi.impl.light.LightMethod
+import com.intellij.java.language.psi.PsiClass
+import com.intellij.java.language.psi.PsiField
+import com.intellij.java.language.psi.PsiMember
+import com.intellij.java.language.psi.PsiMethod
+import com.intellij.java.language.psi.augment.PsiAugmentProvider
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.asJava.LightClassUtil
 import org.jetbrains.kotlin.asJava.toLightClass
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.parents
 

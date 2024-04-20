@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.diagnostics
 
-import com.intellij.lang.LighterASTNode
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.TokenType
-import com.intellij.util.diff.FlyweightCapableTreeStructure
+import consulo.document.util.TextRange
+import consulo.language.ast.LighterASTNode
+import consulo.language.ast.TokenType
+import consulo.language.util.FlyweightCapableTreeStructure
 import org.jetbrains.kotlin.KtLightSourceElement
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.lexer.KtSingleValueToken
@@ -25,7 +25,7 @@ open class LightTreePositioningStrategy {
         node: LighterASTNode,
         startOffset: Int,
         endOffset: Int,
-        tree: FlyweightCapableTreeStructure<LighterASTNode>
+        tree: FlyweightCapableTreeStructure<LighterASTNode>,
     ): List<TextRange> {
         return markElement(node, startOffset, endOffset, tree)
     }
@@ -49,7 +49,7 @@ fun markRange(
     startOffset: Int,
     endOffset: Int,
     tree: FlyweightCapableTreeStructure<LighterASTNode>,
-    originalNode: LighterASTNode
+    originalNode: LighterASTNode,
 ): List<TextRange> {
     return listOf(markSingleElement(from, to, startOffset, endOffset, tree, originalNode))
 }
@@ -60,7 +60,7 @@ fun markSingleElement(
     startOffset: Int,
     endOffset: Int,
     tree: FlyweightCapableTreeStructure<LighterASTNode>,
-    originalNode: LighterASTNode
+    originalNode: LighterASTNode,
 ): TextRange {
     val betterFrom = from.nonFillerFirstChildOrSelf(tree)
     val betterTo = to.nonFillerLastChildOrSelf(tree)
@@ -106,7 +106,7 @@ val KtLightSourceElement.startOffsetSkippingComments: Int
 
         // The solution to find first non comment children will not work here. `treeStructure` can have different root
         // than original program. Because of that `startOffset` is relative and not in absolute value.
-        val comments = children.takeWhile { it.tokenType in FILLER_TOKENS }
+        val comments: List<LighterASTNode> = children.takeWhile { it.tokenType in FILLER_TOKENS }
         return startOffset + comments.sumOf { it.textLength }
     }
 

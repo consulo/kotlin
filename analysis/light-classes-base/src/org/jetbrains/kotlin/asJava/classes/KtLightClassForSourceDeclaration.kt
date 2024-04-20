@@ -5,16 +5,20 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.*
-import com.intellij.psi.impl.source.PsiImmediateClassType
-import com.intellij.psi.impl.source.tree.TreeUtil
-import com.intellij.psi.search.SearchScope
-import com.intellij.psi.stubs.IStubElementType
-import com.intellij.psi.stubs.StubElement
-import com.intellij.psi.util.PsiUtilCore
-import com.intellij.util.IncorrectOperationException
+import com.intellij.java.language.impl.psi.impl.source.PsiImmediateClassType
+import com.intellij.java.language.psi.*
+import consulo.content.scope.SearchScope
+import consulo.document.util.TextRange
+import consulo.language.ast.TokenType
+import consulo.language.impl.ast.TreeUtil
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.language.psi.PsiUtilCore
+import consulo.language.psi.StubBasedPsiElement
+import consulo.language.psi.stub.IStubElementType
+import consulo.language.psi.stub.StubElement
+import consulo.language.util.IncorrectOperationException
+import consulo.project.Project
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.asJava.ImpreciseResolveResult
 import org.jetbrains.kotlin.asJava.ImpreciseResolveResult.UNSURE
@@ -27,7 +31,6 @@ import org.jetbrains.kotlin.psi.psiUtil.hasExpectModifier
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
 import org.jetbrains.kotlin.psi.stubs.KotlinClassOrObjectStub
 import org.jetbrains.kotlin.serialization.deserialization.builtins.BuiltInSerializerProtocol
-import javax.swing.Icon
 
 abstract class KtLightClassForSourceDeclaration(
     protected val classOrObject: KtClassOrObject,
@@ -67,8 +70,8 @@ abstract class KtLightClassForSourceDeclaration(
                 equals(another) ||
                 (qualifiedName != null && another is KtLightClassForSourceDeclaration && qualifiedName == another.qualifiedName)
 
-    override fun getElementIcon(flags: Int): Icon? =
-        throw UnsupportedOperationException("This should be done by KotlinIconProvider")
+//    override fun getElementIcon(flags: Int): Icon? =
+//        throw UnsupportedOperationException("This should be done by KotlinIconProvider")
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -186,7 +189,7 @@ interface LightClassInheritanceHelper {
 
     companion object {
         fun getService(project: Project): LightClassInheritanceHelper =
-            project.getService(LightClassInheritanceHelper::class.java) ?: NoHelp
+            project.getInstance(LightClassInheritanceHelper::class.java) ?: NoHelp
     }
 }
 

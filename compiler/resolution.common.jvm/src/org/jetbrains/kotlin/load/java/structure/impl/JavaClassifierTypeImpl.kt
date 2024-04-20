@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl
 
-import com.intellij.psi.*
+import com.intellij.java.language.psi.*
 import org.jetbrains.kotlin.load.java.structure.JavaClassifierType
 import org.jetbrains.kotlin.load.java.structure.JavaType
 import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementTypeSource

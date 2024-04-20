@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.project.structure
 
-import com.intellij.openapi.project.Project
+import consulo.project.Project
 
 /**
  * [KotlinModuleDependentsProvider] provides dependents for a [KtModule], which are modules that depend on the [KtModule].
@@ -40,6 +40,6 @@ public abstract class KotlinModuleDependentsProvider {
 
     public companion object {
         public fun getInstance(project: Project): KotlinModuleDependentsProvider =
-            project.getService(KotlinModuleDependentsProvider::class.java)
+            project.getInstance(KotlinModuleDependentsProvider::class.java)
     }
 }

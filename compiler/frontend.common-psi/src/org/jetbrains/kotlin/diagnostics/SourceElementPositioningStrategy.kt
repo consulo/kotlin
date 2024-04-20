@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.diagnostics
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiElement
+import consulo.document.util.TextRange
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.AbstractKtSourceElement
 import org.jetbrains.kotlin.KtLightSourceElement
 import org.jetbrains.kotlin.KtPsiSourceElement

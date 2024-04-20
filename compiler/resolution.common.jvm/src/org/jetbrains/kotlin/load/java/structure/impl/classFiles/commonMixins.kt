@@ -16,12 +16,12 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl.classFiles
 
+import consulo.internal.org.objectweb.asm.Opcodes
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.descriptors.java.JavaVisibilities
 import org.jetbrains.kotlin.load.java.structure.JavaModifierListOwner
 import org.jetbrains.kotlin.load.java.structure.MapBasedJavaAnnotationOwner
-import org.jetbrains.org.objectweb.asm.Opcodes
 
 internal const val ASM_API_VERSION_FOR_CLASS_READING = Opcodes.API_VERSION
 

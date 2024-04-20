@@ -16,11 +16,11 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl;
 
-import com.intellij.codeInsight.ExternalAnnotationsManager;
-import com.intellij.psi.PsiAnnotation;
-import com.intellij.psi.PsiAnnotationOwner;
-import com.intellij.psi.PsiModifier;
-import com.intellij.psi.PsiModifierListOwner;
+import com.intellij.java.language.codeInsight.ExternalAnnotationsManager;
+import com.intellij.java.language.psi.PsiAnnotation;
+import com.intellij.java.language.psi.PsiAnnotationOwner;
+import com.intellij.java.language.psi.PsiModifier;
+import com.intellij.java.language.psi.PsiModifierListOwner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.Visibilities;

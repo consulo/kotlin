@@ -16,11 +16,11 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl;
 
-import com.intellij.codeInsight.ExternalAnnotationsManager;
-import com.intellij.psi.PsiAnnotation;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiJavaCodeReferenceElement;
+import com.intellij.java.language.codeInsight.ExternalAnnotationsManager;
+import com.intellij.java.language.psi.PsiAnnotation;
+import com.intellij.java.language.psi.PsiClass;
+import com.intellij.java.language.psi.PsiJavaCodeReferenceElement;
+import consulo.language.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.load.java.structure.JavaAnnotation;

@@ -16,15 +16,15 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl.classFiles
 
-import com.intellij.util.cls.ClsFormatException
+import com.intellij.java.language.util.cls.ClsFormatException
+import consulo.internal.org.objectweb.asm.MethodVisitor
+import consulo.internal.org.objectweb.asm.Opcodes
+import consulo.internal.org.objectweb.asm.Type
 import org.jetbrains.kotlin.load.java.structure.*
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.utils.SmartList
 import org.jetbrains.kotlin.utils.compact
-import org.jetbrains.org.objectweb.asm.MethodVisitor
-import org.jetbrains.org.objectweb.asm.Opcodes
-import org.jetbrains.org.objectweb.asm.Type
 import java.text.CharacterIterator
 import java.text.StringCharacterIterator
 

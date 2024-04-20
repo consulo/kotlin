@@ -5,17 +5,24 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.*
-import com.intellij.psi.scope.PsiScopeProcessor
-import com.intellij.psi.util.MethodSignature
-import com.intellij.psi.util.MethodSignatureBackedByPsiMethod
-import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.asJava.*
+import com.intellij.java.language.psi.*
+import com.intellij.java.language.psi.util.MethodSignature
+import com.intellij.java.language.psi.util.MethodSignatureBackedByPsiMethod
+import consulo.document.util.TextRange
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiElementVisitor
+import consulo.language.psi.PsiNamedElement
+import consulo.language.psi.resolve.PsiScopeProcessor
+import consulo.language.psi.resolve.ResolveState
+import consulo.language.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.asJava.builder.LightMemberOriginForDeclaration
+import org.jetbrains.kotlin.asJava.checkIsMangled
 import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.asJava.classes.cannotModify
 import org.jetbrains.kotlin.asJava.classes.lazyPub
+import org.jetbrains.kotlin.asJava.demangleInternalName
+import org.jetbrains.kotlin.asJava.propertyNameByAccessor
+import org.jetbrains.kotlin.asJava.unwrapped
 import org.jetbrains.kotlin.fileClasses.JvmFileClassUtil
 import org.jetbrains.kotlin.psi.*
 

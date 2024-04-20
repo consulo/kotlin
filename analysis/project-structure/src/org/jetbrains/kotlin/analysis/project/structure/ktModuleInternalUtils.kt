@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.analysis.project.structure
 
-import com.intellij.openapi.util.Key
-import com.intellij.openapi.vfs.VirtualFile
+import consulo.util.dataholder.Key
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.psi.UserDataProperty
 
 /**

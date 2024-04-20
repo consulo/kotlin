@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl;
 
-import com.intellij.psi.PsiPrimitiveType;
+import com.intellij.java.language.psi.PsiPrimitiveType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.builtins.PrimitiveType;

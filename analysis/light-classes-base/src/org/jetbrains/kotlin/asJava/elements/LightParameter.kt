@@ -5,8 +5,12 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.lang.Language
-import com.intellij.psi.*
+import com.intellij.java.language.psi.JavaElementVisitor
+import com.intellij.java.language.psi.PsiEllipsisType
+import com.intellij.java.language.psi.PsiParameter
+import com.intellij.java.language.psi.PsiType
+import consulo.language.Language
+import consulo.language.psi.PsiElementVisitor
 
 // Based on com.intellij.psi.impl.light.LightParameter
 open class LightParameter @JvmOverloads constructor(

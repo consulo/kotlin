@@ -5,8 +5,13 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.lang.Language
-import com.intellij.psi.*
+import com.intellij.java.language.psi.PsiClass
+import com.intellij.java.language.psi.PsiJavaCodeReferenceElement
+import com.intellij.java.language.psi.PsiReferenceList
+import consulo.language.Language
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiManager
+import consulo.language.psi.PsiQualifiedReference
 import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtSuperTypeList

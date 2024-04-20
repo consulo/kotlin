@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve.calls.results
 
-import it.unimi.dsi.fastutil.Hash
-import it.unimi.dsi.fastutil.objects.ObjectOpenCustomHashSet
+import consulo.util.collection.HashingStrategy
+import consulo.util.collection.Sets
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.builtins.UnsignedTypes
@@ -34,7 +34,6 @@ import org.jetbrains.kotlin.types.checker.KotlinTypeRefiner
 import org.jetbrains.kotlin.types.model.KotlinTypeMarker
 import org.jetbrains.kotlin.types.model.requireOrDescribe
 import org.jetbrains.kotlin.util.CancellationChecker
-import java.util.*
 
 open class OverloadingConflictResolver<C : Any>(
     private val builtIns: KotlinBuiltIns,
@@ -53,7 +52,7 @@ open class OverloadingConflictResolver<C : Any>(
 
     private val isTypeRefinementEnabled by lazy { module.isTypeRefinementEnabled() }
 
-    private val resolvedCallHashingStrategy = object : Hash.Strategy<C> {
+    private val resolvedCallHashingStrategy = object : HashingStrategy<C> {
         override fun equals(call1: C?, call2: C?): Boolean =
             if (call1 != null && call2 != null)
                 call1.resultingDescriptor == call2.resultingDescriptor
@@ -456,10 +455,10 @@ open class OverloadingConflictResolver<C : Any>(
 
     // Different smart casts may lead to the same candidate descriptor wrapped into different ResolvedCallImpl objects
     private fun uniquifyCandidatesSet(candidates: Collection<C>): Set<C> =
-        ObjectOpenCustomHashSet(candidates.size, resolvedCallHashingStrategy).apply { addAll(candidates) }
+        Sets.newHashSet(candidates.size, resolvedCallHashingStrategy).apply { addAll(candidates) }
 
     private fun newResolvedCallSet(expectedSize: Int): MutableSet<C> =
-        ObjectOpenCustomHashSet(expectedSize, resolvedCallHashingStrategy)
+        Sets.newHashSet(expectedSize, resolvedCallHashingStrategy)
 
     private fun FlatSignature<C>.candidateDescriptor() =
         origin.resultingDescriptor.original

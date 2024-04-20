@@ -16,13 +16,13 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiElementFactory
-import com.intellij.psi.PsiTypeParameter
-import com.intellij.psi.SyntaxTraverser
-import com.intellij.psi.search.SearchScope
+import com.intellij.java.language.psi.PsiClass
+import com.intellij.java.language.psi.PsiElementFactory
+import com.intellij.java.language.psi.PsiTypeParameter
+import consulo.content.scope.SearchScope
+import consulo.language.psi.SyntaxTraverser
+import consulo.logging.Logger
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.asJava.KtLightClassMarker
 import org.jetbrains.kotlin.asJava.isSyntheticValuesOrValueOfMethod
 import org.jetbrains.kotlin.descriptors.Visibility

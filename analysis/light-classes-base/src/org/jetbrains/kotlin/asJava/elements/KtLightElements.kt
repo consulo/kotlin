@@ -5,8 +5,11 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.psi.*
-import com.intellij.psi.impl.PsiVariableEx
+import com.intellij.java.language.impl.psi.impl.PsiVariableEx
+import com.intellij.java.language.psi.*
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiNameIdentifierOwner
+import consulo.language.psi.PsiNamedElement
 import org.jetbrains.kotlin.asJava.builder.LightMemberOrigin
 import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.psi.KtDeclaration

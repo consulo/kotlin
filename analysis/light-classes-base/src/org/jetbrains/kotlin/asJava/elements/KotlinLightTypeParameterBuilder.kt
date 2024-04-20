@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.psi.PsiTypeParameterListOwner
-import com.intellij.psi.impl.light.LightTypeParameterBuilder
+import com.intellij.java.language.impl.psi.impl.light.LightTypeParameterBuilder
+import com.intellij.java.language.psi.PsiTypeParameterListOwner
 import org.jetbrains.kotlin.psi.KtTypeParameter
 
 open class KotlinLightTypeParameterBuilder(

@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.fir.extensions
 
-import com.intellij.openapi.project.Project
-import org.jetbrains.kotlin.config.CompilerConfiguration
+import consulo.compiler.CompilerConfiguration
+import consulo.project.Project
 import org.jetbrains.kotlin.extensions.ProjectExtensionDescriptor
 
 

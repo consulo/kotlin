@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl;
 
-import com.intellij.psi.PsiArrayType;
+import com.intellij.java.language.psi.PsiArrayType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.load.java.structure.JavaArrayType;
 import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementTypeSource;

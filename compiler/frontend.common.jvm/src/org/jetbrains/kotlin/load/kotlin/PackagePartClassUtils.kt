@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.load.kotlin
 
-import com.intellij.openapi.util.io.FileUtil
-import com.intellij.openapi.vfs.VirtualFile
+import consulo.util.io.FileUtil
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.annotations.TestOnly
-import org.jetbrains.kotlin.idea.KotlinFileType
+import org.jetbrains.kotlin.idea2.KotlinFileType
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.NameUtils

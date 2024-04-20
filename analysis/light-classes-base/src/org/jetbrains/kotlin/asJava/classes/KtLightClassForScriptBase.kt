@@ -5,17 +5,17 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.psi.*
-import com.intellij.psi.impl.PsiSuperMethodImplUtil
-import com.intellij.psi.impl.light.LightEmptyImplementsList
-import com.intellij.psi.impl.light.LightModifierList
-import com.intellij.util.IncorrectOperationException
+import com.intellij.java.language.impl.psi.impl.PsiSuperMethodImplUtil
+import com.intellij.java.language.impl.psi.impl.light.LightEmptyImplementsList
+import com.intellij.java.language.impl.psi.impl.light.LightModifierList
+import com.intellij.java.language.psi.*
+import consulo.language.psi.PsiElement
+import consulo.language.util.IncorrectOperationException
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.asJava.elements.FakeFileForLightClass
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtScript
-import javax.swing.Icon
 
 abstract class KtLightClassForScriptBase(
     override val script: KtScript
@@ -92,8 +92,8 @@ abstract class KtLightClassForScriptBase(
         equals(another) ||
                 (another is KtLightClassForScriptBase && fqName == another.fqName)
 
-    override fun getElementIcon(flags: Int): Icon? =
-        throw UnsupportedOperationException("This should be done by KotlinIconProvider")
+//    override fun getElementIcon(flags: Int): Icon? =
+//        throw UnsupportedOperationException("This should be done by KotlinIconProvider")
 
     override fun getLBrace(): PsiElement? = null
 

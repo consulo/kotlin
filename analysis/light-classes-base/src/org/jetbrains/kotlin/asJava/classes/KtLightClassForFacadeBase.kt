@@ -5,11 +5,15 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.*
-import com.intellij.psi.impl.PsiSuperMethodImplUtil
-import com.intellij.psi.impl.light.LightEmptyImplementsList
-import com.intellij.psi.impl.light.LightModifierList
+import com.intellij.java.language.impl.psi.impl.PsiSuperMethodImplUtil
+import com.intellij.java.language.impl.psi.impl.light.LightEmptyImplementsList
+import com.intellij.java.language.impl.psi.impl.light.LightModifierList
+import com.intellij.java.language.psi.*
+import consulo.document.util.TextRange
+import consulo.language.psi.ElementManipulators
+import consulo.language.psi.PsiComment
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiWhiteSpace
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.asJava.elements.FakeFileForLightClass
 import org.jetbrains.kotlin.asJava.elements.KtLightField
@@ -17,7 +21,7 @@ import org.jetbrains.kotlin.asJava.elements.KtLightMethod
 import org.jetbrains.kotlin.fileClasses.JvmFileClassUtil
 import org.jetbrains.kotlin.fileClasses.isJvmMultifileClassFile
 import org.jetbrains.kotlin.fileClasses.javaFileFacadeFqName
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 import org.jetbrains.kotlin.load.java.structure.LightClassOriginKind
 import org.jetbrains.kotlin.load.kotlin.PackagePartClassUtils
 import org.jetbrains.kotlin.name.FqName
@@ -181,7 +185,7 @@ abstract class KtLightClassForFacadeBase(
         equals(another) ||
                 (another is KtLightClassForFacade && another.facadeClassFqName == facadeClassFqName)
 
-    override fun getElementIcon(flags: Int): Icon? = throw UnsupportedOperationException("This should be done by KotlinIconProvider")
+    //override fun getElementIcon(flags: Int): Icon? = throw UnsupportedOperationException("This should be done by KotlinIconProvider")
 
     override fun isInheritor(baseClass: PsiClass, checkDeep: Boolean): Boolean {
         return baseClass.qualifiedName == CommonClassNames.JAVA_LANG_OBJECT

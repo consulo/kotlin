@@ -5,15 +5,15 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.navigation.ItemPresentationProviders
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiManager
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.impl.PsiClassImplUtil
-import com.intellij.psi.impl.light.AbstractLightClass
+import com.intellij.java.language.impl.psi.impl.PsiClassImplUtil
+import com.intellij.java.language.impl.psi.impl.light.AbstractLightClass
+import com.intellij.java.language.psi.PsiField
+import com.intellij.java.language.psi.PsiMethod
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiManager
+import consulo.navigation.ItemPresentationProvider
 import org.jetbrains.kotlin.analyzer.KotlinModificationTrackerService
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 
 abstract class KtLightClassBase protected constructor(
     manager: PsiManager
@@ -60,7 +60,7 @@ abstract class KtLightClassBase protected constructor(
 
     override fun getLanguage() = KotlinLanguage.INSTANCE
 
-    override fun getPresentation() = ItemPresentationProviders.getItemPresentation(this)
+    override fun getPresentation() = ItemPresentationProvider.getItemPresentation(this)
 
     abstract override fun equals(other: Any?): Boolean
 

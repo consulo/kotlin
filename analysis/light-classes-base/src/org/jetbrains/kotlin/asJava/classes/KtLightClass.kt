@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.psi.PsiClass
-import com.intellij.psi.impl.source.PsiExtensibleClass
+import com.intellij.java.language.impl.psi.impl.source.PsiExtensibleClass
+import com.intellij.java.language.psi.PsiClass
 import org.jetbrains.kotlin.asJava.KtLightClassMarker
 import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
 import org.jetbrains.kotlin.psi.KtClassOrObject

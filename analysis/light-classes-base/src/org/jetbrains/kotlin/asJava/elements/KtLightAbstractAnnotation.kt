@@ -5,7 +5,11 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.psi.*
+import com.intellij.java.language.psi.PsiAnnotation
+import com.intellij.java.language.psi.PsiAnnotationOwner
+import com.intellij.java.language.psi.PsiAnnotationParameterList
+import com.intellij.java.language.psi.PsiJavaCodeReferenceElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.psi.KtCallElement
 
 abstract class KtLightAbstractAnnotation(parent: PsiElement) :
@@ -18,4 +22,16 @@ abstract class KtLightAbstractAnnotation(parent: PsiElement) :
     abstract override fun getParameterList(): PsiAnnotationParameterList
 
     open fun fqNameMatches(fqName: String): Boolean = qualifiedName == fqName
+
+    override fun canNavigate(): Boolean {
+        return super<KtLightElementBase>.canNavigate()
+    }
+
+    override fun canNavigateToSource(): Boolean {
+        return super<KtLightElementBase>.canNavigateToSource()
+    }
+
+    override fun navigate(requestFocus: Boolean) {
+        super<KtLightElementBase>.navigate(requestFocus)
+    }
 }

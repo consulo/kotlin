@@ -5,11 +5,11 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.util.ModificationTracker
-import com.intellij.psi.*
-import com.intellij.psi.impl.light.LightElement
-import com.intellij.util.IncorrectOperationException
+import com.intellij.java.language.psi.*
+import consulo.application.ApplicationManager
+import consulo.component.util.ModificationTracker
+import consulo.language.impl.psi.LightElement
+import consulo.language.util.IncorrectOperationException
 import org.jetbrains.kotlin.analyzer.KotlinModificationTrackerService
 import org.jetbrains.kotlin.psi.*
 

@@ -36,8 +36,8 @@
     </repository>
   </repositories>
 
-  <groupId>consulo.plugin</groupId>
-  <artifactId>consulo.kotlinc.compiler.container</artifactId>
+  <groupId>consulo.kotlinc</groupId>
+  <artifactId>compiler.container</artifactId>
   <version>3-SNAPSHOT</version>
   <packaging>jar</packaging>
 
@@ -52,8 +52,8 @@
 
   <dependencies>
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.core.util.runtime</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>core.util.runtime</artifactId>
       <version>${project.version}</version>
     </dependency>
 

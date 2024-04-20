@@ -5,7 +5,8 @@
 
 package org.jetbrains.kotlin.load.kotlin;
 
-import com.intellij.openapi.util.Ref;
+import consulo.internal.org.objectweb.asm.*;
+import consulo.util.lang.ref.Ref;
 import kotlin.jvm.functions.Function4;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -19,12 +20,11 @@ import org.jetbrains.kotlin.name.FqName;
 import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.resolve.constants.ClassLiteralValue;
 import org.jetbrains.kotlin.resolve.jvm.JvmPrimitiveType;
-import org.jetbrains.org.objectweb.asm.*;
 
 import java.util.*;
 
-import static org.jetbrains.org.objectweb.asm.ClassReader.*;
-import static org.jetbrains.org.objectweb.asm.Opcodes.API_VERSION;
+import static consulo.internal.org.objectweb.asm.ClassReader.*;
+import static consulo.internal.org.objectweb.asm.Opcodes.API_VERSION;
 
 public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
     private final ClassId classId;
@@ -97,7 +97,7 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
             }
 
             @Override
-            public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitAnnotation(@NotNull String desc, boolean visible) {
+            public consulo.internal.org.objectweb.asm.AnnotationVisitor visitAnnotation(@NotNull String desc, boolean visible) {
                 return convertAnnotationVisitor(readHeaderVisitor, desc, innerClasses);
             }
 
@@ -138,7 +138,7 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
         byte[] fileContents = cachedContents != null ? cachedContents : getFileContents();
         new ClassReader(fileContents).accept(new ClassVisitor(API_VERSION) {
             @Override
-            public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitAnnotation(@NotNull String desc, boolean visible) {
+            public consulo.internal.org.objectweb.asm.AnnotationVisitor visitAnnotation(@NotNull String desc, boolean visible) {
                 return convertAnnotationVisitor(annotationVisitor, desc, innerClasses);
             }
 
@@ -150,7 +150,7 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
     }
 
     @Nullable
-    public static org.jetbrains.org.objectweb.asm.AnnotationVisitor convertAnnotationVisitor(
+    public static consulo.internal.org.objectweb.asm.AnnotationVisitor convertAnnotationVisitor(
             @NotNull AnnotationVisitor visitor, @NotNull String desc, @NotNull InnerClassesInfo innerClasses
     ) {
         AnnotationArgumentVisitor v = visitor.visitAnnotation(resolveNameByDesc(desc, innerClasses), SourceElement.NO_SOURCE);
@@ -158,10 +158,10 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
     }
 
     @NotNull
-    private static org.jetbrains.org.objectweb.asm.AnnotationVisitor convertAnnotationVisitor(
+    private static consulo.internal.org.objectweb.asm.AnnotationVisitor convertAnnotationVisitor(
             @NotNull AnnotationArgumentVisitor v, @NotNull InnerClassesInfo innerClasses
     ) {
-        return new org.jetbrains.org.objectweb.asm.AnnotationVisitor(API_VERSION) {
+        return new consulo.internal.org.objectweb.asm.AnnotationVisitor(API_VERSION) {
             @Override
             public void visit(String name, @NotNull Object value) {
                 Name identifier = name == null ? null : Name.identifier(name);
@@ -174,9 +174,9 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
             }
 
             @Override
-            public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitArray(String name) {
+            public consulo.internal.org.objectweb.asm.AnnotationVisitor visitArray(String name) {
                 AnnotationArrayArgumentVisitor arv = v.visitArray(name == null ? null : Name.identifier(name));
-                return arv == null ? null : new org.jetbrains.org.objectweb.asm.AnnotationVisitor(API_VERSION) {
+                return arv == null ? null : new consulo.internal.org.objectweb.asm.AnnotationVisitor(API_VERSION) {
                     @Override
                     public void visit(String name, @NotNull Object value) {
                         if (value instanceof Type) {
@@ -193,7 +193,7 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
                     }
 
                     @Override
-                    public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitAnnotation(String name, @NotNull String desc) {
+                    public consulo.internal.org.objectweb.asm.AnnotationVisitor visitAnnotation(String name, @NotNull String desc) {
                         AnnotationArgumentVisitor aav = arv.visitAnnotation(resolveNameByDesc(desc, innerClasses));
                         return aav == null ? null : convertAnnotationVisitor(aav, innerClasses);
                     }
@@ -206,7 +206,7 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
             }
 
             @Override
-            public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitAnnotation(String name, @NotNull String desc) {
+            public consulo.internal.org.objectweb.asm.AnnotationVisitor visitAnnotation(String name, @NotNull String desc) {
                 AnnotationArgumentVisitor arv =
                         v.visitAnnotation(name == null ? null : Name.identifier(name), resolveNameByDesc(desc, innerClasses));
                 return arv == null ? null : convertAnnotationVisitor(arv, innerClasses);
@@ -235,7 +235,7 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
 
                 return new FieldVisitor(API_VERSION) {
                     @Override
-                    public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitAnnotation(@NotNull String desc, boolean visible) {
+                    public consulo.internal.org.objectweb.asm.AnnotationVisitor visitAnnotation(@NotNull String desc, boolean visible) {
                         return convertAnnotationVisitor(v, desc, innerClasses);
                     }
 
@@ -258,18 +258,18 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
                     private int invisibleAnnotableParameterCount = methodParamCount;
 
                     @Override
-                    public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitAnnotation(@NotNull String desc, boolean visible) {
+                    public consulo.internal.org.objectweb.asm.AnnotationVisitor visitAnnotation(@NotNull String desc, boolean visible) {
                         return convertAnnotationVisitor(v, desc, innerClasses);
                     }
 
                     @Override
-                    public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitAnnotationDefault() {
+                    public consulo.internal.org.objectweb.asm.AnnotationVisitor visitAnnotationDefault() {
                         AnnotationArgumentVisitor av = v.visitAnnotationMemberDefaultValue();
                         return av == null ? null : convertAnnotationVisitor(av, innerClasses);
                     }
 
                     @Override
-                    public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitParameterAnnotation(int parameter, @NotNull String desc, boolean visible) {
+                    public consulo.internal.org.objectweb.asm.AnnotationVisitor visitParameterAnnotation(int parameter, @NotNull String desc, boolean visible) {
                         int parameterIndex = parameter + methodParamCount - (visible ? visibleAnnotableParameterCount : invisibleAnnotableParameterCount);
                         AnnotationArgumentVisitor av = v.visitParameterAnnotation(parameterIndex, resolveNameByDesc(desc, innerClasses), SourceElement.NO_SOURCE);
                         return av == null ? null : convertAnnotationVisitor(av, innerClasses);

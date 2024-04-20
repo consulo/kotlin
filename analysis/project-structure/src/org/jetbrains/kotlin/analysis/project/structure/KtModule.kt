@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.analysis.project.structure
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiFile
-import com.intellij.psi.search.GlobalSearchScope
+import consulo.language.psi.PsiFile
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.project.Project
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.psi.KtFile

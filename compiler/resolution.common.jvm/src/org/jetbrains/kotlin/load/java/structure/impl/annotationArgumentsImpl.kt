@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl
 
-import com.intellij.psi.*
+import com.intellij.java.language.psi.*
 import org.jetbrains.kotlin.load.java.structure.*
 import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementPsiSource
 import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementSourceFactory

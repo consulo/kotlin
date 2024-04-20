@@ -5,8 +5,9 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.psi.*
-import com.intellij.psi.impl.light.LightIdentifier
+import com.intellij.java.language.impl.psi.impl.light.LightIdentifier
+import com.intellij.java.language.psi.*
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.asJava.classes.cannotModify
 import org.jetbrains.kotlin.asJava.classes.lazyPub
 import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap

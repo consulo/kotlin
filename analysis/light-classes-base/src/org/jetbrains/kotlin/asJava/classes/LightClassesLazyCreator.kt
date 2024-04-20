@@ -5,11 +5,10 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiManager
-import com.intellij.psi.impl.PsiCachedValueImpl
-import com.intellij.psi.util.CachedValueProvider
+import consulo.application.progress.ProgressManager
+import consulo.application.util.CachedValueProvider
+import consulo.application.util.CachedValuesManager
+import consulo.project.Project
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.time.DurationUnit
@@ -19,7 +18,7 @@ class LightClassesLazyCreator(private val project: Project) : KotlinClassInnerSt
     override fun <T : Any> get(initializer: () -> T, dependencies: List<Any>) = object : Lazy<T> {
         private val lock = ReentrantLock()
         private val holder = lazyPub {
-            PsiCachedValueImpl(PsiManager.getInstance(project)) {
+            CachedValuesManager.getManager(project).createCachedValue {
                 val v = initializer()
                 CachedValueProvider.Result.create(v, dependencies)
             }

@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.asJava.builder;
 
-import com.intellij.psi.*;
-import com.intellij.psi.impl.compiled.ClsClassImpl;
-import com.intellij.psi.impl.java.stubs.*;
+import com.intellij.java.language.impl.psi.impl.compiled.ClsClassImpl;
+import com.intellij.java.language.impl.psi.impl.java.stubs.*;
+import com.intellij.java.language.psi.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

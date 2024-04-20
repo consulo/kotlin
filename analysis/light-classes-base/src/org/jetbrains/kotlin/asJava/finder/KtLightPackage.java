@@ -5,10 +5,12 @@
 
 package org.jetbrains.kotlin.asJava.finder;
 
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiManager;
-import com.intellij.psi.impl.file.PsiPackageImpl;
-import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.java.language.impl.psi.impl.file.PsiPackageImpl;
+import consulo.java.language.module.extension.JavaModuleExtension;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.PsiManager;
+import consulo.language.psi.PsiPackageManager;
+import consulo.language.psi.scope.GlobalSearchScope;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.asJava.KotlinAsJavaSupport;
 import org.jetbrains.kotlin.name.FqName;
@@ -19,7 +21,7 @@ public class KtLightPackage extends PsiPackageImpl {
     private final GlobalSearchScope scope;
 
     public KtLightPackage(PsiManager manager, FqName qualifiedName, GlobalSearchScope scope) {
-        super(manager, qualifiedName.asString());
+        super(manager, PsiPackageManager.getInstance(manager.getProject()), JavaModuleExtension.class, qualifiedName.asString());
         this.fqName = qualifiedName;
         this.scope = scope;
     }

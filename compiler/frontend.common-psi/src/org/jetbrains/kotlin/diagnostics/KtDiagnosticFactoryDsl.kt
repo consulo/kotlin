@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.diagnostics
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.utils.DummyDelegate
 import kotlin.properties.ReadOnlyProperty

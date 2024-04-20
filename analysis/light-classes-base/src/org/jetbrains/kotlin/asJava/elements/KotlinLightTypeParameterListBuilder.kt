@@ -5,13 +5,13 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiTypeParameterListOwner
-import com.intellij.psi.ResolveState
-import com.intellij.psi.impl.light.LightTypeParameterListBuilder
-import com.intellij.psi.scope.PsiScopeProcessor
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import com.intellij.java.language.impl.psi.impl.light.LightTypeParameterListBuilder
+import com.intellij.java.language.psi.PsiTypeParameterListOwner
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.language.psi.resolve.PsiScopeProcessor
+import consulo.language.psi.resolve.ResolveState
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 
 class KotlinLightTypeParameterListBuilder(private val owner: PsiTypeParameterListOwner) :
     LightTypeParameterListBuilder(owner.manager, KotlinLanguage.INSTANCE) {

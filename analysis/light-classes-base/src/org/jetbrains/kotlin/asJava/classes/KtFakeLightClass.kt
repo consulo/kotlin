@@ -5,14 +5,17 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.ide.highlighter.JavaFileType
-import com.intellij.openapi.project.Project
-import com.intellij.psi.*
-import com.intellij.psi.impl.PsiClassImplUtil
-import com.intellij.psi.impl.light.AbstractLightClass
-import com.intellij.psi.search.SearchScope
-import com.intellij.util.IncorrectOperationException
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import com.intellij.java.language.impl.JavaFileType
+import com.intellij.java.language.impl.psi.impl.PsiClassImplUtil
+import com.intellij.java.language.impl.psi.impl.light.AbstractLightClass
+import com.intellij.java.language.psi.*
+import consulo.content.scope.SearchScope
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.language.psi.PsiFileFactory
+import consulo.language.util.IncorrectOperationException
+import consulo.project.Project
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 import org.jetbrains.kotlin.load.java.structure.LightClassOriginKind
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import javax.swing.Icon
@@ -34,7 +37,7 @@ abstract class KtFakeLightClass(override val kotlinOrigin: KtClassOrObject) :
     override fun getQualifiedName(): String? = kotlinOrigin.fqName?.asString()
     abstract override fun getContainingClass(): KtFakeLightClass?
     override fun getNavigationElement(): PsiElement = kotlinOrigin.navigationElement
-    override fun getIcon(flags: Int): Icon? = kotlinOrigin.getIcon(flags)
+    //override fun getIcon(flags: Int): Icon? = kotlinOrigin.getIcon(flags)
     override fun getContainingFile(): PsiFile = kotlinOrigin.containingFile
     override fun getUseScope(): SearchScope = kotlinOrigin.useScope
 

@@ -5,15 +5,14 @@
 
 package org.jetbrains.kotlin.diagnostics
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiElement
+import consulo.document.util.TextRange
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.KtPsiSourceElement
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.cfg.UnreachableCode
 import org.jetbrains.kotlin.psi
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
-
 
 object PsiPositioningStrategies {
     val UNREACHABLE_CODE = object : PositioningStrategy<PsiElement>() {

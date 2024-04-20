@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.asJava
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiClass
-import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.java.language.psi.PsiClass
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.project.Project
 import org.jetbrains.kotlin.asJava.classes.KtFakeLightClass
 import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -64,7 +64,7 @@ abstract class KotlinAsJavaSupport {
     companion object {
         @JvmStatic
         fun getInstance(project: Project): KotlinAsJavaSupport {
-            return project.getService( KotlinAsJavaSupport::class.java)
+            return project.getInstance( KotlinAsJavaSupport::class.java)
         }
     }
 }

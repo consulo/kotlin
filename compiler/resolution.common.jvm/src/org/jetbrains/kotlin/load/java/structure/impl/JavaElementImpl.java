@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl;
 
-import com.intellij.psi.PsiElement;
+import consulo.language.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.load.java.structure.JavaElement;
 import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementPsiSource;

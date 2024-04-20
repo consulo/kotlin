@@ -5,17 +5,17 @@
 
 package org.jetbrains.kotlin.analysis.project.structure.impl
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.search.GlobalSearchScope
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.project.Project
 import org.jetbrains.kotlin.analysis.project.structure.DanglingFileResolutionMode
-import org.jetbrains.kotlin.analysis.project.structure.KtModule
 import org.jetbrains.kotlin.analysis.project.structure.KtDanglingFileModule
+import org.jetbrains.kotlin.analysis.project.structure.KtModule
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.psi.KtCodeFragment
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 import org.jetbrains.kotlin.resolve.PlatformDependentAnalyzerServices
-import java.util.Objects
+import java.util.*
 
 public class KtDanglingFileModuleImpl(
     file: KtFile,

@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl
 
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.search.SearchScope
+import consulo.content.scope.SearchScope
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.load.java.structure.JavaClass
 
 interface VirtualFileBoundJavaClass : JavaClass {

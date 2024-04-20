@@ -16,10 +16,10 @@
 
 package org.jetbrains.kotlin.load.java.lazy
 
+import jakarta.inject.Inject
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.load.java.structure.JavaClass
 import org.jetbrains.kotlin.resolve.jvm.JavaDescriptorResolver
-import javax.inject.Inject
 
 interface ModuleClassResolver {
     fun resolveClass(javaClass: JavaClass): ClassDescriptor?

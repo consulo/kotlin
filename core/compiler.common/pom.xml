@@ -45,15 +45,15 @@
     </resources>
   </build>
 
-  <groupId>consulo.plugin</groupId>
-  <artifactId>consulo.kotlinc.core.compiler.common</artifactId>
+  <groupId>consulo.kotlinc</groupId>
+  <artifactId>core.compiler.common</artifactId>
   <version>3-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <dependencies>
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.core.util.runtime</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>core.util.runtime</artifactId>
       <version>3-SNAPSHOT</version>
     </dependency>
     <dependency>

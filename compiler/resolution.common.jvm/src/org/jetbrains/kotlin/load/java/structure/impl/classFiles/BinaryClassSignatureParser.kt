@@ -25,7 +25,7 @@ import org.jetbrains.kotlin.utils.SmartList
 import org.jetbrains.kotlin.utils.addToStdlib.flattenTo
 import org.jetbrains.kotlin.utils.compact
 import org.jetbrains.kotlin.utils.createStringInterner
-import org.jetbrains.org.objectweb.asm.Type
+import consulo.internal.org.objectweb.asm.Type
 import java.text.CharacterIterator
 import java.text.StringCharacterIterator
 

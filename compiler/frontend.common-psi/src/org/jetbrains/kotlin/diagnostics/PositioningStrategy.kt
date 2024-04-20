@@ -5,12 +5,12 @@
 
 package org.jetbrains.kotlin.diagnostics
 
-import com.intellij.lang.ASTNode
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiComment
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiErrorElement
-import com.intellij.psi.PsiWhiteSpace
+import consulo.document.util.TextRange
+import consulo.language.ast.ASTNode
+import consulo.language.psi.PsiComment
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiErrorElement
+import consulo.language.psi.PsiWhiteSpace
 import org.jetbrains.kotlin.psi.psiUtil.endOffset
 import org.jetbrains.kotlin.psi.psiUtil.startOffset
 

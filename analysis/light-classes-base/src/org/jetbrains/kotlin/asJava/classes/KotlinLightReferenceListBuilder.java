@@ -5,10 +5,11 @@
 
 package org.jetbrains.kotlin.asJava.classes;
 
-import com.intellij.lang.Language;
-import com.intellij.lang.java.JavaLanguage;
-import com.intellij.psi.*;
-import com.intellij.psi.impl.light.LightReferenceListBuilder;
+import com.intellij.java.language.JavaLanguage;
+import com.intellij.java.language.impl.psi.impl.light.LightReferenceListBuilder;
+import com.intellij.java.language.psi.*;
+import consulo.language.Language;
+import consulo.language.psi.PsiManager;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;

@@ -36,8 +36,8 @@
 		</repository>
 	</repositories>
 
-	<groupId>consulo.plugin</groupId>
-	<artifactId>consulo.kotlinc.parent</artifactId>
+	<groupId>consulo.kotlinc</groupId>
+	<artifactId>parent</artifactId>
 	<version>3-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
@@ -46,14 +46,33 @@
 		<module>_shade</module>
 
 		<module>core/compiler.common</module>
+		<module>core/compiler.common.jvm</module>
 		<module>core/metadata</module>
+		<module>core/metadata.jvm</module>
 		<module>core/util.runtime</module>
+
+		<module>core/descriptors</module>
+		<module>core/descriptors.jvm</module>
+
+		<module>core/deserialization</module>
+		<module>core/deserialization.common</module>
+		<module>core/deserialization.common.jvm</module>
 
 		<module>compiler/psi</module>
 		<module>compiler/frontend.common</module>
+		<module>compiler/frontend.common-psi</module>
+		<module>compiler/frontend.common.jvm</module>
 		<module>compiler/compiler.version</module>
+		<module>compiler/config</module>
 		<module>compiler/container</module>
 
+		<module>compiler/resolution</module>
+		<module>compiler/resolution.common</module>
+		<module>compiler/resolution.common.jvm</module>
+
 		<module>compiler/util</module>
+
+		<module>analysis/light-classes-base</module>
+		<module>analysis/project-structure</module>
 	</modules>
 </project>

@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 
 interface PsiElementWithOrigin<out T> : PsiElement where T : PsiElement {
     val origin: T?

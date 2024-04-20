@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl.source
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiType
-import com.intellij.psi.PsiVariable
+import com.intellij.java.language.psi.PsiMethod
+import com.intellij.java.language.psi.PsiType
+import com.intellij.java.language.psi.PsiVariable
+import consulo.language.psi.PsiElement
 
 interface JavaSourceFactoryOwner {
     val sourceFactory: JavaElementSourceFactory

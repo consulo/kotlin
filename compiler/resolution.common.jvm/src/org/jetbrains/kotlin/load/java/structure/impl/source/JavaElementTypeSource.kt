@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl.source
 
-import com.intellij.psi.PsiType
+import com.intellij.java.language.psi.PsiType
 
 abstract class JavaElementTypeSource<TYPE : PsiType> {
     abstract val type: TYPE

@@ -16,8 +16,7 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl;
 
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiMethod;
+import com.intellij.java.language.psi.PsiMethod;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.load.java.structure.JavaConstructor;
 import org.jetbrains.kotlin.load.java.structure.JavaTypeParameter;

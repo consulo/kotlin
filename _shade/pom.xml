@@ -53,7 +53,11 @@
                 <excludes>
                   <exclude>org.jetbrains.kotlin:*</exclude>
                   <exclude>com.google.guava:*</exclude>
-                  <exlude>org.checkerframework:*</exlude>
+                  <exclude>org.checkerframework:*</exclude>
+                  <exclude>consulo:*</exclude>
+                  <exclude>consulo.plugin:*</exclude>
+                  <exclude>consulo.internal*:*</exclude>
+                  <exclude>one.util:*</exclude>
                 </excludes>
               </artifactSet>
               <transformers>
@@ -70,50 +74,80 @@
     </plugins>
   </build>
 
-  <groupId>consulo.plugin</groupId>
-  <artifactId>consulo.kotlinc.shade</artifactId>
+  <groupId>consulo.kotlinc</groupId>
+  <artifactId>shade</artifactId>
   <version>3-SNAPSHOT</version>
   <packaging>jar</packaging>
 
   <dependencies>
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.compiler.compiler.version</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>analysis.light-classes-base</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.compiler.container</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>compiler.compiler.version</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.compiler.frontend.common</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>compiler.container</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.compiler.psi</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>compiler.frontend.common</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.compiler.util</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>core.descriptors</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.core.metadata</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>core.deserialization.common.jvm</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.core.compiler.common</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>compiler.frontend.common-psi</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.core.util.runtime</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>compiler.frontend.common.jvm</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>analysis.light-classes-base</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>compiler.psi</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>compiler.util</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>core.metadata</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>core.compiler.common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>core.util.runtime</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

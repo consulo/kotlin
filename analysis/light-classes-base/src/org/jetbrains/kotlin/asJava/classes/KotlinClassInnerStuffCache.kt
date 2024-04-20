@@ -5,21 +5,29 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.*
-import com.intellij.psi.impl.PsiClassImplUtil
-import com.intellij.psi.impl.PsiImplUtil
-import com.intellij.psi.impl.PsiSuperMethodImplUtil
-import com.intellij.psi.impl.light.*
-import com.intellij.psi.javadoc.PsiDocComment
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.util.MethodSignature
-import com.intellij.psi.util.MethodSignatureBackedByPsiMethod
-import com.intellij.psi.util.PsiUtil
-import com.intellij.util.ArrayUtil
-import com.intellij.util.IncorrectOperationException
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
+import com.intellij.java.language.impl.psi.impl.PsiClassImplUtil
+import com.intellij.java.language.impl.psi.impl.PsiImplUtil
+import com.intellij.java.language.impl.psi.impl.PsiSuperMethodImplUtil
+import com.intellij.java.language.impl.psi.impl.light.LightIdentifier
+import com.intellij.java.language.impl.psi.impl.light.LightModifierList
+import com.intellij.java.language.impl.psi.impl.light.LightParameter
+import com.intellij.java.language.impl.psi.impl.light.LightParameterListBuilder
+import com.intellij.java.language.impl.psi.impl.light.LightReferenceListBuilder
+import com.intellij.java.language.psi.*
+import com.intellij.java.language.psi.javadoc.PsiDocComment
+import com.intellij.java.language.psi.util.MethodSignature
+import com.intellij.java.language.psi.util.MethodSignatureBackedByPsiMethod
+import com.intellij.java.language.psi.util.PsiUtil
+import consulo.document.util.TextRange
+import consulo.language.impl.psi.LightElement
+import consulo.language.psi.ExternallyDefinedPsiElement
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.language.psi.SyntheticElement
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.language.util.IncorrectOperationException
+import consulo.logging.Logger
+import consulo.util.collection.ArrayUtil
 import org.jetbrains.kotlin.asJava.builder.LightMemberOrigin
 import org.jetbrains.kotlin.asJava.elements.KtLightMethod
 import org.jetbrains.kotlin.asJava.elements.KtLightParameter
@@ -84,7 +92,7 @@ class KotlinClassInnerStuffCache(
 
     private val fieldByNameCache = cache {
         val fields = this.fields.takeIf { it.isNotEmpty() } ?: return@cache emptyMap()
-        Collections.unmodifiableMap(Object2ObjectOpenHashMap<String, PsiField>(fields.size).apply {
+        Collections.unmodifiableMap(HashMap<String, PsiField>(fields.size).apply {
             for (field in fields) {
                 putIfAbsent(field.name, field)
             }
@@ -101,7 +109,7 @@ class KotlinClassInnerStuffCache(
 
     private val methodByNameCache = cache {
         val methods = this.methods.takeIf { it.isNotEmpty() } ?: return@cache emptyMap()
-        Collections.unmodifiableMap(Object2ObjectOpenHashMap<String, Array<PsiMethod>>().apply {
+        Collections.unmodifiableMap(HashMap<String, Array<PsiMethod>>().apply {
             for ((key, list) in methods.groupByTo(HashMap()) { it.name }) {
                 put(key, list.toTypedArray())
             }
@@ -119,7 +127,7 @@ class KotlinClassInnerStuffCache(
     private val innerClassByNameCache = cache {
         val classes = this.innerClasses.takeIf { it.isNotEmpty() } ?: return@cache emptyMap()
 
-        Collections.unmodifiableMap(Object2ObjectOpenHashMap<String, PsiClass>().apply {
+        Collections.unmodifiableMap(HashMap<String, PsiClass>().apply {
             for (psiClass in classes) {
                 val name = psiClass.name
                 if (name == null) {

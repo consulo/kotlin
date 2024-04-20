@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.load.java.structure.impl.classFiles.BinaryJavaAnnota
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.org.objectweb.asm.*
+import consulo.internal.org.objectweb.asm.*
 import java.lang.reflect.Array
 
 internal class AnnotationsCollectorFieldVisitor(

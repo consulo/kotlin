@@ -5,12 +5,13 @@
 
 package org.jetbrains.kotlin.util;
 
-import com.intellij.psi.*;
-import com.intellij.psi.impl.compiled.ClsFieldImpl;
-import com.intellij.psi.impl.java.stubs.PsiFieldStub;
-import com.intellij.psi.impl.source.PsiFieldImpl;
-import com.intellij.psi.tree.IElementType;
-import com.intellij.psi.util.TypeConversionUtil;
+import com.intellij.java.language.impl.psi.impl.compiled.ClsFieldImpl;
+import com.intellij.java.language.impl.psi.impl.java.stubs.PsiFieldStub;
+import com.intellij.java.language.impl.psi.impl.source.PsiFieldImpl;
+import com.intellij.java.language.psi.*;
+import com.intellij.java.language.psi.util.TypeConversionUtil;
+import consulo.language.ast.IElementType;
+import consulo.language.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.load.java.structure.impl.NotEvaluatedConstAware;

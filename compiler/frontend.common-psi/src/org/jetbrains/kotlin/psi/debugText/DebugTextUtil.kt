@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.psi.debugText
 
-import com.intellij.openapi.diagnostic.Logger
+import consulo.logging.Logger
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 

@@ -5,11 +5,11 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiIdentifier
-import com.intellij.psi.PsiMember
-import com.intellij.psi.PsiModifierList
-import com.intellij.psi.javadoc.PsiDocComment
+import com.intellij.java.language.psi.PsiIdentifier
+import com.intellij.java.language.psi.PsiMember
+import com.intellij.java.language.psi.PsiModifierList
+import com.intellij.java.language.psi.javadoc.PsiDocComment
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.asJava.builder.LightMemberOriginForDeclaration
 import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.psi.KtDeclaration

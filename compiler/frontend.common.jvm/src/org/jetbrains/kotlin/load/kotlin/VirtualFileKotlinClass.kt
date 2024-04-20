@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.load.kotlin
 
-import com.intellij.ide.highlighter.JavaClassFileType
-import com.intellij.openapi.diagnostic.ControlFlowException
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.java.language.impl.JavaClassFileType
+import consulo.logging.Logger
+import consulo.util.lang.ControlFlowException
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.load.kotlin.KotlinClassFinder.Result.KotlinClass
 import org.jetbrains.kotlin.load.kotlin.header.KotlinClassHeader
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmMetadataVersion

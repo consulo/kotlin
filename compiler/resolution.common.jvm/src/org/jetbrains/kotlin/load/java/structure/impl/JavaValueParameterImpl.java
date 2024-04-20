@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl;
 
-import com.intellij.psi.PsiAnnotationOwner;
-import com.intellij.psi.PsiParameter;
-import com.intellij.psi.impl.compiled.ClsParameterImpl;
+import com.intellij.java.language.impl.psi.impl.compiled.ClsParameterImpl;
+import com.intellij.java.language.psi.PsiAnnotationOwner;
+import com.intellij.java.language.psi.PsiParameter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.descriptors.Visibilities;

@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl.source
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 
 abstract class JavaElementPsiSource<PSI : PsiElement> {
     abstract val psi: PSI

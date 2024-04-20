@@ -5,15 +5,15 @@
 
 package org.jetbrains.kotlin.asJava
 
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.ModificationTracker
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiElement
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.util.CachedValueProvider
-import com.intellij.psi.util.CachedValuesManager
+import com.intellij.java.language.psi.PsiClass
+import consulo.application.ApplicationManager
+import consulo.application.progress.ProgressManager
+import consulo.application.util.CachedValueProvider
+import consulo.component.util.ModificationTracker
+import consulo.language.psi.PsiElement
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.language.psi.util.LanguageCachedValueUtil
+import consulo.project.Project
 import org.jetbrains.kotlin.analyzer.KotlinModificationTrackerService
 import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
@@ -86,7 +86,7 @@ abstract class KotlinAsJavaSupportBase<TModule : Any>(protected val project: Pro
     protected abstract fun librariesTracker(element: PsiElement): ModificationTracker
 
     override fun getLightFacade(file: KtFile): KtLightClassForFacade? = ifValid(file) {
-        CachedValuesManager.getCachedValue(file) {
+        LanguageCachedValueUtil.getCachedValue(file) {
             cachedValueResult(createLightFacade(file))
         }
     }
@@ -157,7 +157,7 @@ abstract class KotlinAsJavaSupportBase<TModule : Any>(protected val project: Pro
 
             DeclarationLocation.LibrarySources -> {
                 val originalClassOrObject = ApplicationManager.getApplication()
-                    .getService(KotlinDeclarationNavigationPolicy::class.java)
+                    .getInstance(KotlinDeclarationNavigationPolicy::class.java)
                     ?.getOriginalElement(classOrObject) as? KtClassOrObject
 
                 val value = originalClassOrObject?.takeUnless(classOrObject::equals)?.let {
@@ -186,7 +186,7 @@ abstract class KotlinAsJavaSupportBase<TModule : Any>(protected val project: Pro
     }
 
     override fun getLightClass(classOrObject: KtClassOrObject): KtLightClass? = ifValid(classOrObject) {
-        CachedValuesManager.getCachedValue(classOrObject) {
+        LanguageCachedValueUtil.getCachedValue(classOrObject) {
             cachedValueResult(createLightClass(classOrObject))
         }
     }
@@ -205,7 +205,7 @@ abstract class KotlinAsJavaSupportBase<TModule : Any>(protected val project: Pro
     protected abstract fun createInstanceOfLightScript(script: KtScript): KtLightClass?
 
     override fun getLightClassForScript(script: KtScript): KtLightClass? = ifValid(script) {
-        CachedValuesManager.getCachedValue(script) {
+        LanguageCachedValueUtil.getCachedValue(script) {
             cachedValueResult(createLightScript(script))
         }
     }

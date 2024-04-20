@@ -5,14 +5,18 @@
 
 package org.jetbrains.kotlin.asJava.finder
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Condition
-import com.intellij.psi.*
-import com.intellij.psi.impl.compiled.ClsClassImpl
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.util.PsiUtilCore
-import com.intellij.util.SmartList
-import com.intellij.util.containers.ContainerUtil
+import com.intellij.java.language.impl.psi.impl.compiled.ClsClassImpl
+import com.intellij.java.language.psi.PsiClass
+import com.intellij.java.language.psi.PsiElementFinder
+import com.intellij.java.language.psi.PsiJavaPackage
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.language.psi.PsiManager
+import consulo.language.psi.PsiUtilCore
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.project.Project
+import consulo.util.collection.Lists
+import consulo.util.collection.SmartList
 import org.jetbrains.kotlin.asJava.KotlinAsJavaSupport
 import org.jetbrains.kotlin.asJava.hasRepeatableAnnotationContainer
 import org.jetbrains.kotlin.load.java.JvmAbi
@@ -25,6 +29,7 @@ import org.jetbrains.kotlin.psi.KtEnumEntry
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.jvm.KotlinFinderMarker
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
+import java.util.function.Predicate
 
 class JavaElementFinder(
     private val project: Project,
@@ -99,7 +104,7 @@ class JavaElementFinder(
         }
     }
 
-    override fun getClassNames(psiPackage: PsiPackage, scope: GlobalSearchScope): Set<String> {
+    override fun getClassNames(psiPackage: PsiJavaPackage, scope: GlobalSearchScope): Set<String> {
         val packageFQN = FqName(psiPackage.qualifiedName)
 
         val declarations = kotlinAsJavaSupport.findClassOrObjectDeclarationsInPackage(packageFQN, scope)
@@ -115,7 +120,7 @@ class JavaElementFinder(
         return answer
     }
 
-    override fun findPackage(qualifiedNameString: String): PsiPackage? {
+    override fun findPackage(qualifiedNameString: String): PsiJavaPackage? {
         if (!isValidJavaFqName(qualifiedNameString)) {
             return null
         }
@@ -130,12 +135,12 @@ class JavaElementFinder(
 
     }
 
-    override fun getSubPackages(psiPackage: PsiPackage, scope: GlobalSearchScope): Array<PsiPackage> {
+    override fun getSubPackages(psiPackage: PsiJavaPackage, scope: GlobalSearchScope): Array<PsiJavaPackage> {
         val subpackages = kotlinAsJavaSupport.getSubPackages(FqName(psiPackage.qualifiedName), scope)
         return subpackages.map { KtLightPackage(psiManager, it, scope) }.toTypedArray()
     }
 
-    override fun getClasses(psiPackage: PsiPackage, scope: GlobalSearchScope): Array<PsiClass> {
+    override fun getClasses(psiPackage: PsiJavaPackage, scope: GlobalSearchScope): Array<PsiClass> {
         val answer = SmartList<PsiClass>()
         val packageFQN = FqName(psiPackage.qualifiedName)
 
@@ -155,15 +160,15 @@ class JavaElementFinder(
     private fun sortByPreferenceToSourceFile(list: SmartList<PsiClass>, searchScope: GlobalSearchScope) {
         if (list.size < 2) return
         // NOTE: this comparator might violate the contract depending on the scope passed
-        ContainerUtil.quickSort(list, byClasspathComparator(searchScope))
+        Lists.quickSort(list, byClasspathComparator(searchScope))
         list.sortBy { it !is ClsClassImpl }
     }
 
     // TODO: this does not take into account JvmPackageName annotation
-    override fun getPackageFiles(psiPackage: PsiPackage, scope: GlobalSearchScope): Array<PsiFile> =
+    override fun getPackageFiles(psiPackage: PsiJavaPackage, scope: GlobalSearchScope): Array<PsiFile> =
         kotlinAsJavaSupport.findFilesForPackage(FqName(psiPackage.qualifiedName), scope).toTypedArray()
 
-    override fun getPackageFilesFilter(psiPackage: PsiPackage, scope: GlobalSearchScope): Condition<PsiFile> = Condition { input ->
+    override fun getPackageFilesFilter(psiPackage: PsiJavaPackage, scope: GlobalSearchScope): Predicate<PsiFile> = Predicate { input ->
         if (input !is KtFile) {
             true
         } else {
@@ -173,7 +178,7 @@ class JavaElementFinder(
 
     companion object {
         fun getInstance(project: Project): JavaElementFinder =
-            EP.getPoint(project).extensions.firstIsInstanceOrNull()
+            project.getExtensionPoint(JavaElementFinder::class.java).firstIsInstanceOrNull()
                 ?: error(JavaElementFinder::class.java.simpleName + " is not found for project " + project)
 
         fun byClasspathComparator(searchScope: GlobalSearchScope): Comparator<PsiElement> = Comparator { o1, o2 ->

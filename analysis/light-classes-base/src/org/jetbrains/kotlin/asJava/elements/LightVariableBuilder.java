@@ -5,12 +5,14 @@
 
 package org.jetbrains.kotlin.asJava.elements;
 
-import com.intellij.lang.Language;
-import com.intellij.navigation.NavigationItem;
-import com.intellij.psi.*;
-import com.intellij.psi.impl.light.LightElement;
-import com.intellij.psi.impl.light.LightModifierList;
-import com.intellij.util.IncorrectOperationException;
+import com.intellij.java.language.impl.psi.impl.light.LightModifierList;
+import com.intellij.java.language.psi.*;
+import consulo.language.Language;
+import consulo.language.impl.psi.LightElement;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.PsiManager;
+import consulo.language.util.IncorrectOperationException;
+import consulo.navigation.NavigationItem;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
@@ -89,8 +91,8 @@ public class LightVariableBuilder extends LightElement implements PsiVariable, N
         throw new UnsupportedOperationException("setName is not implemented yet in org.jetbrains.kotlin.asJava.light.LightVariableBuilder");
     }
 
-    @Override
-    protected boolean isVisibilitySupported() {
-        return true;
-    }
+    //@Override
+    //protected boolean isVisibilitySupported() {
+    //    return true;
+    //}
 }

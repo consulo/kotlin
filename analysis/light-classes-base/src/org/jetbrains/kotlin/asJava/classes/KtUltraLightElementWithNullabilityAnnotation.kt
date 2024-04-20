@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.psi.PsiModifierListOwner
-import com.intellij.psi.PsiType
+import com.intellij.java.language.psi.PsiModifierListOwner
+import com.intellij.java.language.psi.PsiType
 import org.jetbrains.kotlin.asJava.elements.KtLightDeclaration
 import org.jetbrains.kotlin.psi.KtDeclaration
 

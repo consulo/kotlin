@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.asJava
 
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiModifier
-import com.intellij.psi.SyntheticElement
+import com.intellij.java.language.psi.PsiMethod
+import com.intellij.java.language.psi.PsiModifier
+import consulo.language.psi.SyntheticElement
 
 fun isSyntheticValuesOrValueOfMethod(method: PsiMethod): Boolean {
     if (method is SyntheticElement) {

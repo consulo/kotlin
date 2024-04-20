@@ -5,23 +5,24 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.lang.java.JavaLanguage
-import com.intellij.openapi.fileEditor.FileDocumentManager
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.pom.java.LanguageLevel
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiElementVisitor
-import com.intellij.psi.PsiFileFactory
-import com.intellij.psi.impl.compiled.ClsFileImpl
-import com.intellij.psi.impl.java.stubs.ClsStubPsiFactory
-import com.intellij.psi.impl.java.stubs.PsiJavaFileStub
-import com.intellij.psi.impl.java.stubs.impl.PsiJavaFileStubImpl
-import com.intellij.psi.impl.source.PsiFileImpl
-import com.intellij.psi.impl.source.SourceTreeToPsiMap
-import com.intellij.psi.impl.source.tree.TreeElement
-import com.intellij.psi.util.PsiUtil
-import com.intellij.reference.SoftReference
-import com.intellij.util.AstLoadingFilter
+import com.intellij.java.language.JavaLanguage
+import com.intellij.java.language.LanguageLevel
+import com.intellij.java.language.impl.psi.impl.compiled.ClsFileImpl
+import com.intellij.java.language.impl.psi.impl.java.stubs.ClsStubPsiFactory
+import com.intellij.java.language.impl.psi.impl.java.stubs.PsiJavaFileStub
+import com.intellij.java.language.impl.psi.impl.java.stubs.StubPsiFactory
+import com.intellij.java.language.impl.psi.impl.java.stubs.impl.PsiJavaFileStubImpl
+import com.intellij.java.language.psi.util.PsiUtil
+import consulo.document.FileDocumentManager
+import consulo.language.impl.ast.TreeElement
+import consulo.language.impl.internal.psi.AstLoadingFilter
+import consulo.language.impl.psi.PsiFileImpl
+import consulo.language.impl.psi.SourceTreeToPsiMap
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiElementVisitor
+import consulo.language.psi.PsiFileFactory
+import consulo.util.lang.ref.SoftReference
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
@@ -50,8 +51,12 @@ open class FakeFileForLightClass(
     override fun getPackageName() = packageFqName.asString()
 
     private fun createFakeJavaFileStub(): PsiJavaFileStub {
-        val javaFileStub = PsiJavaFileStubImpl(packageFqName.asString(), /* compiled = */true)
-        javaFileStub.psiFactory = ClsStubPsiFactory.INSTANCE
+        val javaFileStub = object : PsiJavaFileStubImpl(packageFqName.asString(), /* compiled = */true) {
+            override fun getPsiFactory(): StubPsiFactory {
+                return ClsStubPsiFactory.INSTANCE
+            }
+        }
+        //javaFileStub.psiFactory = ClsStubPsiFactory.INSTANCE
         javaFileStub.psi = this
         return javaFileStub
     }
@@ -78,7 +83,7 @@ open class FakeFileForLightClass(
             SoftReference.dereference(myMirrorFileElement)?.let { return@synchronized it }
 
             val file = this.virtualFile
-            AstLoadingFilter.assertTreeLoadingAllowed(file)
+            // TODO internal AstLoadingFilter.assertTreeLoadingAllowed(file)
             val classes: Array<KtLightClass> = this.classes
             val fileName = (if (classes.isNotEmpty()) classes[0].name else file.nameWithoutExtension) + ".java"
             val document = FileDocumentManager.getInstance().getDocument(file) ?: error(file.url)

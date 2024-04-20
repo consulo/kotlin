@@ -5,11 +5,11 @@
 
 package org.jetbrains.kotlin.asJava.elements
 
-import com.intellij.psi.PsiAnnotation
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiModifierList
-import com.intellij.psi.PsiModifierListOwner
-import com.intellij.util.IncorrectOperationException
+import com.intellij.java.language.psi.PsiAnnotation
+import com.intellij.java.language.psi.PsiModifierList
+import com.intellij.java.language.psi.PsiModifierListOwner
+import consulo.language.psi.PsiElement
+import consulo.language.util.IncorrectOperationException
 import org.jetbrains.kotlin.asJava.classes.lazyPub
 import org.jetbrains.kotlin.psi.KtModifierList
 import org.jetbrains.kotlin.psi.KtModifierListOwner

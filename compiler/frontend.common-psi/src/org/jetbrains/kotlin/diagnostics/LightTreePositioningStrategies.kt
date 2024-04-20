@@ -5,12 +5,12 @@
 
 package org.jetbrains.kotlin.diagnostics
 
-import com.intellij.lang.LighterASTNode
-import com.intellij.openapi.util.Ref
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.tree.IElementType
-import com.intellij.psi.tree.TokenSet
-import com.intellij.util.diff.FlyweightCapableTreeStructure
+import consulo.document.util.TextRange
+import consulo.language.ast.IElementType
+import consulo.language.ast.LighterASTNode
+import consulo.language.ast.TokenSet
+import consulo.language.util.FlyweightCapableTreeStructure
+import consulo.util.lang.ref.Ref
 import org.jetbrains.kotlin.KtNodeType
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.KtSourceElement

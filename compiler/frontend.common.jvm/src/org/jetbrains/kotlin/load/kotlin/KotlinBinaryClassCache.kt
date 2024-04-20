@@ -5,12 +5,12 @@
 
 package org.jetbrains.kotlin.load.kotlin
 
-import com.intellij.ide.highlighter.JavaClassFileType
-import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.util.Computable
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.PsiJavaModule
+import com.intellij.java.language.impl.JavaClassFileType
+import com.intellij.java.language.psi.PsiJavaModule
+import consulo.application.ApplicationManager
+import consulo.application.util.function.Computable
+import consulo.disposer.Disposable
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmMetadataVersion
 import java.lang.ref.WeakReference
 import java.util.concurrent.CopyOnWriteArrayList
@@ -78,7 +78,7 @@ class KotlinBinaryClassCache : Disposable {
 
             if (file.name == PsiJavaModule.MODULE_INFO_CLS_FILE) return null
 
-            val service = ApplicationManager.getApplication().getService(KotlinBinaryClassCache::class.java)
+            val service = ApplicationManager.getApplication().getInstance(KotlinBinaryClassCache::class.java)
             val requestCache = service.cache.get()
 
             if (file.modificationStamp == requestCache.modificationStamp && file == requestCache.virtualFile) {

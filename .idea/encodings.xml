@@ -7,12 +7,22 @@
     <file url="file://$PROJECT_DIR$/_global/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/_shade/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/_shade/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/light-classes-base/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/light-classes-base/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/project-structure/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/project-structure/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/compiler.version/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/compiler.version/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/compiler.version/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/compiler.version/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/config/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/config/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/container/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/container/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend.common-psi/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend.common-psi/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend.common.jvm/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend.common.jvm/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/frontend.common/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/frontend.common/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/frontend.common/src/main/java" charset="UTF-8" />
@@ -22,13 +32,33 @@
     <file url="file://$PROJECT_DIR$/compiler/psi/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/psi/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/psi/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/resolution.common.jvm/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/resolution.common.jvm/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/resolution.common/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/resolution.common/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/resolution/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/resolution/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/util/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/util/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/util/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/util/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/compiler.common.jvm/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/compiler.common.jvm/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/core/compiler.common/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/core/compiler.common/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/core/compiler.common/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/descriptors.jvm/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/descriptors.jvm/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/descriptors/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/descriptors/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/deserialization.common.jvm/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/deserialization.common.jvm/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/deserialization.common/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/deserialization.common/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/deserialization/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/deserialization/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/metadata.jvm/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/core/metadata.jvm/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/core/metadata/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/core/metadata/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/core/metadata/src/main/resources" charset="UTF-8" />

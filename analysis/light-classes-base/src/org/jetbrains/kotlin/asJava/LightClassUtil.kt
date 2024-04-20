@@ -5,18 +5,16 @@
 
 package org.jetbrains.kotlin.asJava
 
-import com.intellij.openapi.util.NlsSafe
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiField
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiNamedElement
-import com.intellij.psi.impl.java.stubs.PsiClassStub
-import com.intellij.psi.stubs.PsiFileStub
-import com.intellij.psi.stubs.StubElement
-import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.java.language.impl.psi.impl.java.stubs.PsiClassStub
+import com.intellij.java.language.psi.PsiClass
+import com.intellij.java.language.psi.PsiField
+import com.intellij.java.language.psi.PsiMethod
+import consulo.language.psi.PsiNamedElement
+import consulo.language.psi.stub.PsiFileStub
+import consulo.language.psi.stub.StubElement
+import consulo.language.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.asJava.classes.KtLightClass
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
-import org.jetbrains.kotlin.asJava.elements.KtLightField
 import org.jetbrains.kotlin.asJava.elements.KtLightMethod
 import org.jetbrains.kotlin.asJava.elements.isSetter
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
@@ -69,7 +67,7 @@ object LightClassUtil {
         return wrappers.toList()
     }
 
-    private fun isMangled(wrapperName: @NlsSafe String, prefix: String): Boolean {
+    private fun isMangled(wrapperName: String, prefix: String): Boolean {
         //see KT-54803 for other mangling strategies
         // A memory optimization for `wrapperName.startsWith("$prefix$")`, see KT-63486
         return wrapperName.length > prefix.length

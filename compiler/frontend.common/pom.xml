@@ -36,8 +36,8 @@
     </repository>
   </repositories>
 
-  <groupId>consulo.plugin</groupId>
-  <artifactId>consulo.kotlinc.compiler.frontend.common</artifactId>
+  <groupId>consulo.kotlinc</groupId>
+  <artifactId>compiler.frontend.common</artifactId>
   <version>3-SNAPSHOT</version>
   <packaging>jar</packaging>
   <build>
@@ -69,26 +69,26 @@
     </dependency>
 
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.core.compiler.common</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>core.compiler.common</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.core.metadata</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>core.metadata</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.compiler.util</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>compiler.util</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>consulo.plugin</groupId>
-      <artifactId>consulo.kotlinc.compiler.container</artifactId>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>compiler.container</artifactId>
       <version>${project.version}</version>
     </dependency>
 

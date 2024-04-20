@@ -5,9 +5,11 @@
 
 package org.jetbrains.kotlin.asJava
 
-import com.intellij.lang.jvm.JvmModifier
-import com.intellij.psi.*
-import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.java.language.jvm.JvmModifier
+import com.intellij.java.language.psi.*
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiNamedElement
+import consulo.language.psi.scope.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.project.structure.KtSourceModule
 import org.jetbrains.kotlin.asJava.classes.KtFakeLightClass
 import org.jetbrains.kotlin.asJava.classes.KtLightClass

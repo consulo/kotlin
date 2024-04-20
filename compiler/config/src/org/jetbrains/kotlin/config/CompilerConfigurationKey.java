@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.config;
 
-import com.intellij.openapi.util.Key;
+import consulo.util.dataholder.Key;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 

@@ -7,8 +7,9 @@
 
 package org.jetbrains.kotlin.load.java.structure.impl
 
-import com.intellij.psi.*
-import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.java.language.psi.*
+import consulo.language.psi.PsiPackage
+import consulo.language.psi.scope.GlobalSearchScope
 import org.jetbrains.kotlin.load.java.NULLABILITY_ANNOTATIONS
 import org.jetbrains.kotlin.load.java.structure.*
 import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementSourceFactory
@@ -41,7 +42,7 @@ internal fun classes(classes: Collection<PsiClass>, sourceFactory: JavaElementSo
 }
 
 internal fun packages(
-    packages: Array<PsiPackage>,
+    packages: Array<PsiJavaPackage>,
     scope: GlobalSearchScope,
     sourceFactory: JavaElementSourceFactory,
 ): Collection<JavaPackage> = packages.convert { psi -> JavaPackageImpl(sourceFactory.createPsiSource(psi), scope) }

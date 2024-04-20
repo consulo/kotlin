@@ -5,11 +5,11 @@
 
 package org.jetbrains.kotlin.asJava.classes
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiTypeParameterListOwner
-import com.intellij.psi.impl.light.LightReferenceListBuilder
-import com.intellij.psi.impl.light.LightTypeParameterBuilder
+import com.intellij.java.language.impl.psi.impl.light.LightReferenceListBuilder
+import com.intellij.java.language.impl.psi.impl.light.LightTypeParameterBuilder
+import com.intellij.java.language.psi.PsiTypeParameterListOwner
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
 import org.jetbrains.kotlin.asJava.elements.PsiElementWithOrigin
 import org.jetbrains.kotlin.asJava.unwrapped
 import org.jetbrains.kotlin.psi.KtTypeParameter

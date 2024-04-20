@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.fileClasses
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.psi.util.CachedValueProvider
-import com.intellij.psi.util.CachedValuesManager
+import consulo.application.util.CachedValueProvider
+import consulo.language.psi.util.LanguageCachedValueUtil
+import consulo.logging.Logger
 import org.jetbrains.kotlin.load.java.descriptors.getImplClassNameForDeserialized
 import org.jetbrains.kotlin.load.kotlin.PackagePartClassUtils
 import org.jetbrains.kotlin.name.FqName
@@ -102,7 +102,7 @@ internal class ParsedJvmFileClassAnnotations(val jvmName: String?, val jvmPackag
 
 val KtFile.fileClassInfo: JvmFileClassInfo
     get() {
-        return CachedValuesManager.getCachedValue(this) {
+        return LanguageCachedValueUtil.getCachedValue(this) {
             CachedValueProvider.Result(JvmFileClassUtil.getFileClassInfoNoResolve(this), this)
         }
     }
