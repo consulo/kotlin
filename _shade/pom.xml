@@ -103,6 +103,11 @@
     </dependency>
     <dependency>
       <groupId>consulo.kotlinc</groupId>
+      <artifactId>decompiler-to-psi</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>consulo.kotlinc</groupId>
       <artifactId>compiler.container</artifactId>
       <version>${project.version}</version>
     </dependency>
