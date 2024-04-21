@@ -17,8 +17,8 @@
 package org.jetbrains.kotlin.resolve.calls.util;
 
 import com.google.common.collect.Lists;
-import com.intellij.lang.ASTNode;
-import com.intellij.psi.impl.source.tree.LeafPsiElement;
+import consulo.language.ast.ASTNode;
+import consulo.language.impl.psi.LeafPsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.psi.*;

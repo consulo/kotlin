@@ -16,7 +16,8 @@
 
 package org.jetbrains.kotlin.resolve.lazy
 
-import com.intellij.psi.util.PsiTreeUtil
+import consulo.language.psi.util.PsiTreeUtil
+import jakarta.inject.Inject
 import org.jetbrains.kotlin.context.GlobalContext
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.incremental.KotlinLookupLocation
@@ -28,7 +29,6 @@ import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.BindingTrace
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.storage.LockBasedLazyResolveStorageManager
-import javax.inject.Inject
 
 open class LazyDeclarationResolver constructor(
     globalContext: GlobalContext,

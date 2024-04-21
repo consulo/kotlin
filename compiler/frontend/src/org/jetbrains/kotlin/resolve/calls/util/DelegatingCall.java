@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.calls.util;
 
-import com.intellij.lang.ASTNode;
+import consulo.language.ast.ASTNode;
 import kotlin.annotations.jvm.ReadOnly;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

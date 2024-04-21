@@ -17,7 +17,7 @@
 package org.jetbrains.kotlin.resolve
 
 import com.google.common.collect.ImmutableSet
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.builtins.UnsignedTypes

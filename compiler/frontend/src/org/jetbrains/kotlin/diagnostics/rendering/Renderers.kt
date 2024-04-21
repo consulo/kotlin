@@ -17,9 +17,9 @@
 package org.jetbrains.kotlin.diagnostics.rendering
 
 import com.google.common.collect.Lists
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.util.text.StringUtil
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
+import consulo.logging.Logger
+import consulo.util.lang.StringUtil
 import org.jetbrains.kotlin.analyzer.moduleInfo
 import org.jetbrains.kotlin.analyzer.unwrapPlatform
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns

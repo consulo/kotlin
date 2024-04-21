@@ -17,7 +17,7 @@
 package org.jetbrains.kotlin.resolve
 
 import com.google.common.collect.ImmutableMap
-import com.intellij.openapi.project.Project
+import consulo.project.Project
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.diagnostics.Diagnostic
 import org.jetbrains.kotlin.diagnostics.DiagnosticSink

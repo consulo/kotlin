@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.calls.checkers
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.diagnostics.Errors
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall
 import org.jetbrains.kotlin.types.KotlinType

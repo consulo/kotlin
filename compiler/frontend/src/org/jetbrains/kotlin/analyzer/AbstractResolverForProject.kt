@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.analyzer
 
-import com.intellij.openapi.Disposable
-import com.intellij.openapi.util.ModificationTracker
+import consulo.component.util.ModificationTracker
+import consulo.disposer.Disposable
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.context.ProjectContext
 import org.jetbrains.kotlin.descriptors.*

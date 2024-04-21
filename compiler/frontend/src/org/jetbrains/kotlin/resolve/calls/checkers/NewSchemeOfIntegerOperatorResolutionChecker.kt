@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.calls.checkers
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.SimpleFunctionDescriptor
 import org.jetbrains.kotlin.diagnostics.Errors

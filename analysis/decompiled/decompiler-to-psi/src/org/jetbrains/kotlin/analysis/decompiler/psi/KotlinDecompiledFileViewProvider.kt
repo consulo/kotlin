@@ -2,18 +2,18 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi
 
-import com.intellij.openapi.fileTypes.FileType
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiInvalidElementAccessException
-import com.intellij.psi.PsiManager
-import com.intellij.psi.SingleRootFileViewProvider
-import com.intellij.psi.impl.DebugUtil
-import com.intellij.psi.impl.source.PsiFileImpl
+import consulo.language.impl.DebugUtil
+import consulo.language.impl.file.SingleRootFileViewProvider
+import consulo.language.impl.psi.PsiFileImpl
+import consulo.language.psi.PsiFile
+import consulo.language.psi.PsiInvalidElementAccessException
+import consulo.language.psi.PsiManager
+import consulo.project.Project
+import consulo.virtualFileSystem.VirtualFile
+import consulo.virtualFileSystem.fileType.FileType
 import org.jetbrains.kotlin.analysis.decompiler.psi.file.KtDecompiledFile
-import org.jetbrains.kotlin.idea.KotlinFileType
-import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.idea2.KotlinFileType
+import org.jetbrains.kotlin.idea2.KotlinLanguage
 import org.jetbrains.kotlin.utils.concurrent.block.LockedClearableLazyValue
 
 class KotlinDecompiledFileViewProvider(

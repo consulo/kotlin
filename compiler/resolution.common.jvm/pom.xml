@@ -68,38 +68,34 @@
       <artifactId>compiler.resolution.common</artifactId>
       <version>${project.version}</version>
     </dependency>
+
     <dependency>
       <groupId>consulo.internal.org.objectweb.asm</groupId>
       <artifactId>asm</artifactId>
-      <version>9.6.1-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>consulo.internal.org.objectweb.asm</groupId>
       <artifactId>asm-tree</artifactId>
-      <version>9.6.1-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>consulo.internal.org.objectweb.asm</groupId>
       <artifactId>asm-analysis</artifactId>
-      <version>9.6.1-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>consulo.internal.org.objectweb.asm</groupId>
       <artifactId>asm-commons</artifactId>
-      <version>9.6.1-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>consulo.internal.org.objectweb.asm</groupId>
       <artifactId>asm-util</artifactId>
-      <version>9.6.1-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
 
@@ -115,5 +111,10 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
+    <dependency>
+    <groupId>io.javaslang</groupId>
+    <artifactId>javaslang</artifactId>
+    <optional>true</optional>
+  </dependency>
   </dependencies>
 </project>

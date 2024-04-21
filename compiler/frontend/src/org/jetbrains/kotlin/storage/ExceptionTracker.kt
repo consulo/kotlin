@@ -5,8 +5,9 @@
 
 package org.jetbrains.kotlin.storage
 
-import com.intellij.ide.util.PropertiesComponent
-import com.intellij.openapi.util.ModificationTracker
+import consulo.application.ApplicationPropertiesComponent
+import consulo.component.PropertiesComponent
+import consulo.component.util.ModificationTracker
 import org.jetbrains.kotlin.util.ReenteringLazyValueComputationException
 import org.jetbrains.kotlin.utils.isProcessCanceledException
 import org.jetbrains.kotlin.utils.rethrow
@@ -43,8 +44,8 @@ object CacheResetOnProcessCanceled {
     private const val DEFAULT_VALUE = false
 
     var enabled: Boolean
-        get() = PropertiesComponent.getInstance()?.getBoolean(PROPERTY, DEFAULT_VALUE) ?: DEFAULT_VALUE
+        get() = ApplicationPropertiesComponent.getInstance()?.getBoolean(PROPERTY, DEFAULT_VALUE) ?: DEFAULT_VALUE
         set(value) {
-            PropertiesComponent.getInstance()?.setValue(PROPERTY, value, DEFAULT_VALUE)
+            ApplicationPropertiesComponent.getInstance()?.setValue(PROPERTY, value, DEFAULT_VALUE)
         }
 }

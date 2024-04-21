@@ -2,11 +2,11 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi
 
-import com.intellij.openapi.fileTypes.FileType
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.FileViewProvider
-import com.intellij.psi.PsiManager
-import com.intellij.psi.compiled.ClassFileDecompilers
+import com.intellij.java.language.psi.compiled.ClassFileDecompiler
+import consulo.language.file.FileViewProvider
+import consulo.language.psi.PsiManager
+import consulo.virtualFileSystem.VirtualFile
+import consulo.virtualFileSystem.fileType.FileType
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.analysis.decompiler.psi.file.KtDecompiledFile
 import org.jetbrains.kotlin.analysis.decompiler.psi.text.DecompiledText
@@ -30,7 +30,7 @@ abstract class KotlinMetadataDecompiler<out V : BinaryVersion>(
     private val expectedBinaryVersion: () -> V,
     private val invalidBinaryVersion: () -> V,
     stubVersion: Int
-) : ClassFileDecompilers.Full() {
+) : ClassFileDecompiler.Full() {
     protected open val metadataStubBuilder: KotlinMetadataStubBuilder =
         KotlinMetadataStubBuilder(stubVersion, fileType, serializerProtocol, ::readFileSafely)
 

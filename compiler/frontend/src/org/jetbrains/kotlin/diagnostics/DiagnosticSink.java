@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.diagnostics;
 
-import com.intellij.openapi.util.TextRange;
-import com.intellij.psi.PsiFile;
+import consulo.document.util.TextRange;
+import consulo.language.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages;
 

@@ -6,11 +6,10 @@
 package org.jetbrains.kotlin.checkers.utils
 
 import com.google.common.collect.LinkedListMultimap
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.util.containers.Stack
+import consulo.document.util.TextRange
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.language.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.checkers.*
 import org.jetbrains.kotlin.checkers.diagnostics.*
 import org.jetbrains.kotlin.checkers.diagnostics.factories.DebugInfoDiagnosticFactory

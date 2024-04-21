@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.stub
 
-import com.intellij.psi.stubs.StubElement
+import consulo.language.psi.stub.StubElement
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.psi.KtContextReceiverList
 import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes

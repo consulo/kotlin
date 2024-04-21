@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.diagnostics;
 
-import com.intellij.openapi.util.TextRange;
-import com.intellij.psi.PsiElement;
+import consulo.document.util.TextRange;
+import consulo.language.psi.PsiElement;
 import kotlin.DeprecationLevel;
 
 import java.util.List;

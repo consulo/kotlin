@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.extensions
 
-import com.intellij.openapi.project.Project
+import consulo.project.Project
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.container.ComponentProvider
 import org.jetbrains.kotlin.context.ProjectContext

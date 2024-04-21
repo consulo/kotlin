@@ -19,10 +19,10 @@ package org.jetbrains.kotlin.resolve
 import org.jetbrains.kotlin.util.slicedMap.ReadOnlySlice
 import org.jetbrains.kotlin.util.slicedMap.WritableSlice
 import com.google.common.collect.ImmutableMap
-import com.intellij.openapi.project.Project
+import consulo.component.util.ModificationTracker
 import org.jetbrains.kotlin.diagnostics.Diagnostic
-import com.intellij.psi.PsiElement
-import com.intellij.openapi.util.ModificationTracker
+import consulo.language.psi.PsiElement
+import consulo.project.Project
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
 import org.jetbrains.kotlin.types.KotlinType

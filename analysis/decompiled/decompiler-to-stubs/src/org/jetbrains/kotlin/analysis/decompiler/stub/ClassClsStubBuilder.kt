@@ -2,9 +2,9 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.stub
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.psi.PsiElement
-import com.intellij.psi.stubs.StubElement
+import consulo.language.psi.PsiElement
+import consulo.language.psi.stub.StubElement
+import consulo.logging.Logger
 import org.jetbrains.kotlin.analysis.decompiler.stub.flags.*
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.builtins.isNumberedFunctionClassFqName

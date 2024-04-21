@@ -5,12 +5,12 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.stub.file
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.compiled.ClsStubBuilder
-import com.intellij.psi.impl.compiled.ClassFileStubBuilder
-import com.intellij.psi.stubs.PsiFileStub
-import com.intellij.util.indexing.FileContent
+import com.intellij.java.language.impl.psi.impl.compiled.ClassFileStubBuilder
+import com.intellij.java.language.psi.compiled.ClsStubBuilder
+import consulo.language.psi.stub.FileContent
+import consulo.language.psi.stub.PsiFileStub
+import consulo.logging.Logger
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.SpecialJvmAnnotations
 import org.jetbrains.kotlin.analysis.decompiler.stub.*
 import org.jetbrains.kotlin.constant.ConstantValue

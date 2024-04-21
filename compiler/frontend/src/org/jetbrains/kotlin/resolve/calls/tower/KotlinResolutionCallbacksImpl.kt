@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.calls.tower
 
-import com.intellij.psi.util.PsiTreeUtil
+import consulo.language.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns.isPrimitiveTypeOrNullablePrimitiveType
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns.isUnderKotlinPackage
 import org.jetbrains.kotlin.builtins.createFunctionType
@@ -21,7 +21,6 @@ import org.jetbrains.kotlin.psi.psiUtil.lastBlockStatementOrThis
 import org.jetbrains.kotlin.resolve.*
 import org.jetbrains.kotlin.resolve.calls.ArgumentTypeResolver
 import org.jetbrains.kotlin.resolve.calls.KotlinCallResolver
-import org.jetbrains.kotlin.resolve.calls.util.extractCallableReferenceExpression
 import org.jetbrains.kotlin.resolve.calls.components.*
 import org.jetbrains.kotlin.resolve.calls.components.candidate.CallableReferenceResolutionCandidate
 import org.jetbrains.kotlin.resolve.calls.components.candidate.SimpleResolutionCandidate
@@ -40,6 +39,7 @@ import org.jetbrains.kotlin.resolve.calls.smartcasts.DataFlowInfo
 import org.jetbrains.kotlin.resolve.calls.smartcasts.DataFlowValueFactory
 import org.jetbrains.kotlin.resolve.calls.tasks.TracingStrategyImpl
 import org.jetbrains.kotlin.resolve.calls.util.CallMaker
+import org.jetbrains.kotlin.resolve.calls.util.extractCallableReferenceExpression
 import org.jetbrains.kotlin.resolve.constants.CompileTimeConstant
 import org.jetbrains.kotlin.resolve.constants.IntegerValueTypeConstant
 import org.jetbrains.kotlin.resolve.constants.evaluate.ConstantExpressionEvaluator

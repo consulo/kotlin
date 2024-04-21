@@ -2,8 +2,8 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi
 
-import com.intellij.ide.highlighter.JavaClassFileType
-import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.java.language.impl.JavaClassFileType
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.KotlinMetadataStubBuilder
 import org.jetbrains.kotlin.descriptors.SourceElement

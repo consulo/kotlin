@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.psi.codeFragmentUtil
 
-import com.intellij.openapi.util.Key
+import consulo.util.dataholder.Key
 import org.jetbrains.kotlin.psi.KtCodeFragment
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile

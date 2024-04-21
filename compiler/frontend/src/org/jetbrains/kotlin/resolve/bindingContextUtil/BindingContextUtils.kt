@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve.bindingContextUtil
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.util.PsiTreeUtil
+import consulo.language.psi.PsiElement
+import consulo.language.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor

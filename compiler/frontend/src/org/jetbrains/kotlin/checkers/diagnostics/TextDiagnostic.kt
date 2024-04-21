@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.checkers.diagnostics
 
-import com.intellij.openapi.util.text.StringUtil
-import com.intellij.util.containers.ContainerUtil
+import consulo.util.collection.ContainerUtil
+import consulo.util.lang.StringUtil
 import org.jetbrains.kotlin.checkers.diagnostics.factories.DebugInfoDiagnosticFactory1
 import org.jetbrains.kotlin.checkers.utils.CheckerTestUtil
 import org.jetbrains.kotlin.diagnostics.Diagnostic

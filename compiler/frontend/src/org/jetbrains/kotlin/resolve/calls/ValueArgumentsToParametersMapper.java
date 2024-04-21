@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.calls;
 
-import com.intellij.psi.impl.source.tree.LeafPsiElement;
+import consulo.language.impl.psi.LeafPsiElement;
 import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

@@ -6,8 +6,8 @@
 package org.jetbrains.kotlin.resolve.lazy.descriptors;
 
 import com.google.common.collect.HashMultimap;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiNameIdentifierOwner;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.PsiNameIdentifierOwner;
 import kotlin.Pair;
 import kotlin.annotations.jvm.ReadOnly;
 import kotlin.collections.CollectionsKt;

@@ -16,7 +16,6 @@
 
 package org.jetbrains.kotlin.resolve.scopes
 
-import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.diagnostics.Diagnostic
 import org.jetbrains.kotlin.diagnostics.DiagnosticFactory1

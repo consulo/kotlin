@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.analyzer
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.search.GlobalSearchScope
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.project.Project
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.container.ComponentProvider

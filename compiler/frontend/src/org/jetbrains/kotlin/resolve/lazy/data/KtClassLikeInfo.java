@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.lazy.data;
 
-import com.intellij.psi.PsiElement;
+import consulo.language.psi.PsiElement;
 import kotlin.annotations.jvm.ReadOnly;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

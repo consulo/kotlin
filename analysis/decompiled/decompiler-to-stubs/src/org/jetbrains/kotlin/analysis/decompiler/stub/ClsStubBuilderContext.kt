@@ -2,7 +2,7 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.stub
 
-import com.intellij.openapi.vfs.VirtualFile
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.load.kotlin.KotlinClassFinder
 import org.jetbrains.kotlin.metadata.ProtoBuf

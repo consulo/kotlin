@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.typeBinding
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.descriptors.CallableDescriptor
 import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
 import org.jetbrains.kotlin.psi.KtCallableDeclaration

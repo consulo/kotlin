@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve;
 
-import com.intellij.openapi.project.Project;
+import consulo.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.diagnostics.DiagnosticSink;

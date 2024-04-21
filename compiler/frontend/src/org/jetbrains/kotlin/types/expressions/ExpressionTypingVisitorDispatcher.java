@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.types.expressions;
 
-import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.progress.ProcessCanceledException;
-import com.intellij.openapi.progress.ProgressManager;
-import com.intellij.openapi.project.IndexNotReadyException;
+import consulo.application.dumb.IndexNotReadyException;
+import consulo.application.progress.ProgressManager;
+import consulo.component.ProcessCanceledException;
+import consulo.logging.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.diagnostics.Errors;
@@ -25,12 +25,12 @@ import org.jetbrains.kotlin.resolve.calls.context.CallPosition;
 import org.jetbrains.kotlin.resolve.scopes.LexicalScopeKind;
 import org.jetbrains.kotlin.resolve.scopes.LexicalWritableScope;
 import org.jetbrains.kotlin.types.DeferredType;
+import org.jetbrains.kotlin.types.KotlinType;
 import org.jetbrains.kotlin.types.error.ErrorTypeKind;
 import org.jetbrains.kotlin.types.error.ErrorUtils;
-import org.jetbrains.kotlin.types.KotlinType;
 import org.jetbrains.kotlin.types.expressions.typeInfoFactory.TypeInfoFactoryKt;
-import org.jetbrains.kotlin.util.KotlinFrontEndException;
 import org.jetbrains.kotlin.util.IncrementalTrackerUtilKt;
+import org.jetbrains.kotlin.util.KotlinFrontEndException;
 import org.jetbrains.kotlin.util.PerformanceCounter;
 import org.jetbrains.kotlin.util.ReenteringLazyValueComputationException;
 import org.jetbrains.kotlin.utils.KotlinExceptionWithAttachments;

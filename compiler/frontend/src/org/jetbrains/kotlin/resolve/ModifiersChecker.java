@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.resolve;
 
-import com.intellij.openapi.progress.ProgressManager;
-import com.intellij.psi.PsiElement;
+import consulo.application.progress.ProgressManager;
+import consulo.language.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.config.LanguageFeature;

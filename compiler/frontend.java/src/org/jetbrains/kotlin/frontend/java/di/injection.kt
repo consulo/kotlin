@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.frontend.java.di
 
-import com.intellij.psi.search.GlobalSearchScope
+import consulo.language.psi.scope.GlobalSearchScope
 import org.jetbrains.kotlin.builtins.jvm.JvmBuiltIns
 import org.jetbrains.kotlin.builtins.jvm.JvmBuiltInsPackageFragmentProvider
 import org.jetbrains.kotlin.config.JvmAnalysisFlags

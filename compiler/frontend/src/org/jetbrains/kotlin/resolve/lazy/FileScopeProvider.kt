@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.lazy
 
-import com.intellij.openapi.util.Key
+import consulo.util.dataholder.Key
 import org.jetbrains.kotlin.container.DefaultImplementation
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.UserDataProperty

@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.types.expressions;
 
+import jakarta.inject.Inject;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns;
 import org.jetbrains.kotlin.builtins.PlatformSpecificCastChecker;
@@ -28,8 +29,6 @@ import org.jetbrains.kotlin.resolve.deprecation.DeprecationResolver;
 import org.jetbrains.kotlin.extensions.internal.TypeResolutionInterceptor;
 import org.jetbrains.kotlin.types.WrappedTypeFactory;
 import org.jetbrains.kotlin.types.checker.NewKotlinTypeChecker;
-
-import javax.inject.Inject;
 
 public class ExpressionTypingComponents {
     public GlobalContext globalContext;

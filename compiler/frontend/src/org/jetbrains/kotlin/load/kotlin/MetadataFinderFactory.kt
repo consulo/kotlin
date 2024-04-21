@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.load.kotlin
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.search.GlobalSearchScope
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.project.Project
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.serialization.deserialization.KotlinMetadataFinder
 

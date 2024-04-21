@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve.jvm.modules
 
-import com.intellij.ide.highlighter.JavaFileType
-import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.java.language.impl.JavaFileType
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.name.FqName
 
 interface JavaModule {

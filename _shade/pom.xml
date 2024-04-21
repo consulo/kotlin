@@ -58,6 +58,7 @@
                   <exclude>consulo.plugin:*</exclude>
                   <exclude>consulo.internal*:*</exclude>
                   <exclude>one.util:*</exclude>
+                  <exclude>io.javaslang:*</exclude>
                 </excludes>
               </artifactSet>
               <transformers>
@@ -87,7 +88,17 @@
     </dependency>
     <dependency>
       <groupId>consulo.kotlinc</groupId>
+      <artifactId>decompiler-to-psi</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>consulo.kotlinc</groupId>
       <artifactId>compiler.compiler.version</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>compiler.frontend.java</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -118,6 +129,11 @@
     <dependency>
       <groupId>consulo.kotlinc</groupId>
       <artifactId>compiler.frontend.common.jvm</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>consulo.kotlinc</groupId>
+      <artifactId>compiler.frontend</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

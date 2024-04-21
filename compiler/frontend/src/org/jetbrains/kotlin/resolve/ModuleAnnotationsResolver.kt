@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.resolve
 
-import com.intellij.openapi.project.Project
+import consulo.project.Project
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.name.ClassId
 
@@ -18,6 +18,6 @@ interface ModuleAnnotationsResolver {
 
     companion object {
         fun getInstance(project: Project): ModuleAnnotationsResolver =
-            project.getService(ModuleAnnotationsResolver::class.java)
+            project.getInstance(ModuleAnnotationsResolver::class.java)
     }
 }

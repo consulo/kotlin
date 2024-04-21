@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi
 
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.vfs.VirtualFile
+import consulo.application.ApplicationManager
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.KotlinMetadataStubBuilder
 
 /**
@@ -21,7 +21,7 @@ interface KotlinBuiltInStubVersionOffsetProvider {
 
     companion object {
         fun getVersionOffset(): Int =
-            ApplicationManager.getApplication().getService(KotlinBuiltInStubVersionOffsetProvider::class.java)?.getVersionOffset() ?: 0
+            ApplicationManager.getApplication().getInstance(KotlinBuiltInStubVersionOffsetProvider::class.java)?.getVersionOffset() ?: 0
     }
 }
 
@@ -30,6 +30,6 @@ interface KotlinBuiltInDecompilationInterceptor {
 
     companion object {
         fun readFile(bytes: ByteArray, file: VirtualFile): KotlinMetadataStubBuilder.FileWithMetadata? =
-            ApplicationManager.getApplication().getService(KotlinBuiltInDecompilationInterceptor::class.java)?.readFile(bytes, file)
+            ApplicationManager.getApplication().getInstance(KotlinBuiltInDecompilationInterceptor::class.java)?.readFile(bytes, file)
     }
 }

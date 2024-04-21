@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.stub.file
 
-import com.intellij.openapi.diagnostic.Logger
+import consulo.logging.Logger
 import org.jetbrains.kotlin.load.kotlin.KotlinJvmBinarySourceElement
 import org.jetbrains.kotlin.load.kotlin.findKotlinClass
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmMetadataVersion

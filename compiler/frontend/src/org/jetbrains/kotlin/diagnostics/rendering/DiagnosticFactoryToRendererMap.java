@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.diagnostics.rendering;
 
-import com.intellij.psi.PsiElement;
+import consulo.language.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.config.LanguageVersion;

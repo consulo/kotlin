@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi.text
 
-import com.intellij.openapi.diagnostic.Logger
+import consulo.logging.Logger
 import org.jetbrains.kotlin.analysis.decompiler.psi.file.KtDecompiledFile
 import org.jetbrains.kotlin.analysis.decompiler.stub.COMPILED_DEFAULT_INITIALIZER
 import org.jetbrains.kotlin.builtins.StandardNames

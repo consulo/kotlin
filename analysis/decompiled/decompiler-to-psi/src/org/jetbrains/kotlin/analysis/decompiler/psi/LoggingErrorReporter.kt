@@ -2,7 +2,7 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi
 
-import com.intellij.openapi.diagnostic.Logger
+import consulo.logging.Logger
 import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.serialization.deserialization.ErrorReporter

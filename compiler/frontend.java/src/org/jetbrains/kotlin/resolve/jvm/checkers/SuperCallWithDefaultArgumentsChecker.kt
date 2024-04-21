@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.jvm.checkers
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.resolve.calls.util.getSuperCallExpression
 import org.jetbrains.kotlin.resolve.calls.util.usesDefaultArguments
 import org.jetbrains.kotlin.resolve.calls.checkers.CallChecker

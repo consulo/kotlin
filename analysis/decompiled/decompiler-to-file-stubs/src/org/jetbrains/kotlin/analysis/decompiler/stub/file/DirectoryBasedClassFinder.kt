@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.stub.file
 
-import com.intellij.openapi.vfs.VirtualFile
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.load.java.structure.JavaClass
 import org.jetbrains.kotlin.load.java.structure.classId
 import org.jetbrains.kotlin.load.kotlin.KotlinClassFinder

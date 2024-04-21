@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.types.expressions.unqualifiedSuper
 
-import com.intellij.util.SmartList
+import consulo.util.collection.SmartList
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
 import org.jetbrains.kotlin.descriptors.ClassKind

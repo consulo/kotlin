@@ -16,14 +16,14 @@
 
 package org.jetbrains.kotlin.resolve
 
-import com.intellij.openapi.project.Project
+import consulo.project.Project
 
 interface CodeAnalyzerInitializer {
     fun createTrace(): BindingTrace
 
     companion object {
         fun getInstance(project: Project): CodeAnalyzerInitializer =
-            project.getService(CodeAnalyzerInitializer::class.java)!!
+            project.getInstance(CodeAnalyzerInitializer::class.java)!!
     }
 }
 

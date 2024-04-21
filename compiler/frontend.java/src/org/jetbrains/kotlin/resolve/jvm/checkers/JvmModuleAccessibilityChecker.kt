@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.resolve.jvm.checkers
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
+import consulo.project.Project
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.diagnostics.Diagnostic
 import org.jetbrains.kotlin.load.java.descriptors.getImplClassNameForDeserialized
@@ -58,10 +58,10 @@ class JvmModuleAccessibilityChecker(project: Project) : CallChecker {
     }
 
     private fun diagnosticFor(
-            targetClassOrPackage: ClassOrPackageFragmentDescriptor,
-            originalDescriptor: DeclarationDescriptorWithSource?,
-            fileFromOurModule: VirtualFile?,
-            reportOn: PsiElement
+        targetClassOrPackage: ClassOrPackageFragmentDescriptor,
+        originalDescriptor: DeclarationDescriptorWithSource?,
+        fileFromOurModule: VirtualFile?,
+        reportOn: PsiElement
     ): Diagnostic? {
         val referencedFile = findVirtualFile(targetClassOrPackage, originalDescriptor) ?: return null
 

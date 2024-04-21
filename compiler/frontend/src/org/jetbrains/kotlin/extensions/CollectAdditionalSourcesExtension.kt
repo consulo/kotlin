@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.extensions
 
-import com.intellij.openapi.project.Project
+import consulo.project.Project
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.psi.KtFile
 

@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.extensions.internal
 
-import com.intellij.openapi.project.Project
+import consulo.project.Project
 import org.jetbrains.kotlin.descriptors.impl.AnonymousFunctionDescriptor
 import org.jetbrains.kotlin.extensions.ProjectExtensionDescriptor
 import org.jetbrains.kotlin.psi.KtElement

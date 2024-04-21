@@ -17,7 +17,7 @@
 package org.jetbrains.kotlin.resolve.jvm.jvmSignature
 
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
-import org.jetbrains.org.objectweb.asm.commons.Method
+import consulo.internal.org.objectweb.asm.commons.Method
 
 interface KotlinToJvmSignatureMapper {
     fun mapToJvmMethodSignature(function: FunctionDescriptor): Method

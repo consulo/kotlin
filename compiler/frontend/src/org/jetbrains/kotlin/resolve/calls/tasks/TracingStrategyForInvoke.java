@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.calls.tasks;
 
-import com.intellij.psi.PsiElement;
+import consulo.language.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.builtins.FunctionTypesKt;
 import org.jetbrains.kotlin.descriptors.CallableDescriptor;

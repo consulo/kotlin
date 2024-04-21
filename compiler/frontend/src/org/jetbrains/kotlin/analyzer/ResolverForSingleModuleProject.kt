@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analyzer
 
-import com.intellij.psi.search.GlobalSearchScope
+import consulo.language.psi.scope.GlobalSearchScope
 import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.config.LanguageVersionSettings

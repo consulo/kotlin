@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.resolve
 
-import com.intellij.lang.ASTNode
-import com.intellij.psi.PsiElement
-import com.intellij.psi.tree.TokenSet
+import consulo.language.ast.ASTNode
+import consulo.language.ast.TokenSet
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.*

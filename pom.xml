@@ -62,8 +62,12 @@
 		<module>compiler/frontend.common</module>
 		<module>compiler/frontend.common-psi</module>
 		<module>compiler/frontend.common.jvm</module>
+		<module>compiler/frontend</module>
+		<module>compiler/frontend.java</module>
+
 		<module>compiler/compiler.version</module>
 		<module>compiler/config</module>
+		<module>compiler/config.jvm</module>
 		<module>compiler/container</module>
 
 		<module>compiler/resolution</module>
@@ -74,5 +78,9 @@
 
 		<module>analysis/light-classes-base</module>
 		<module>analysis/project-structure</module>
+
+		<module>analysis/decompiled/decompiler-to-psi</module>
+		<module>analysis/decompiled/decompiler-to-stubs</module>
+		<module>analysis/decompiled/decompiler-to-file-stubs</module>
 	</modules>
 </project>

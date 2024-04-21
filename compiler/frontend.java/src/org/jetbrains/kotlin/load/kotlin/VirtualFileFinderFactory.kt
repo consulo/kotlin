@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.load.kotlin
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.search.GlobalSearchScope
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.project.Project
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 
 interface VirtualFileFinderFactory : MetadataFinderFactory {
@@ -26,6 +26,6 @@ interface VirtualFileFinderFactory : MetadataFinderFactory {
 
     companion object SERVICE {
         fun getInstance(project: Project): VirtualFileFinderFactory =
-            project.getService(VirtualFileFinderFactory::class.java)
+            project.getInstance(VirtualFileFinderFactory::class.java)
     }
 }

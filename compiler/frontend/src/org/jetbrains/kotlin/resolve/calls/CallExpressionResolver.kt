@@ -5,11 +5,12 @@
 
 package org.jetbrains.kotlin.resolve.calls
 
-import com.intellij.lang.ASTNode
-import com.intellij.openapi.util.ThrowableComputable
-import com.intellij.psi.PsiElement
-import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.util.AstLoadingFilter
+import consulo.application.util.function.ThrowableComputable
+import consulo.language.ast.ASTNode
+import consulo.language.impl.internal.psi.AstLoadingFilter
+import consulo.language.psi.PsiElement
+import consulo.language.psi.util.PsiTreeUtil
+import jakarta.inject.Inject
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
@@ -56,7 +57,6 @@ import org.jetbrains.kotlin.types.expressions.ExpressionTypingServices
 import org.jetbrains.kotlin.types.expressions.KotlinTypeInfo
 import org.jetbrains.kotlin.types.expressions.typeInfoFactory.createTypeInfo
 import org.jetbrains.kotlin.types.expressions.typeInfoFactory.noTypeInfo
-import javax.inject.Inject
 
 class CallExpressionResolver(
     private val callResolver: CallResolver,

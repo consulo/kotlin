@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.calls.checkers
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.descriptors.ConstructorDescriptor
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.diagnostics.Errors.CREATING_AN_INSTANCE_OF_ABSTRACT_CLASS

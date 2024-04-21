@@ -17,9 +17,9 @@
 package org.jetbrains.kotlin.resolve
 
 import com.google.common.collect.HashMultimap
-import com.intellij.openapi.util.ThrowableComputable
-import com.intellij.psi.PsiElement
-import com.intellij.util.AstLoadingFilter
+import consulo.application.util.function.ThrowableComputable
+import consulo.language.impl.internal.psi.AstLoadingFilter
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.builtins.*
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings

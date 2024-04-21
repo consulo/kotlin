@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve.calls.model;
 
-import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.util.SmartList;
+import consulo.logging.Logger;
+import consulo.util.collection.SmartList;
 import kotlin.Unit;
 import kotlin.jvm.functions.Function0;
 import org.jetbrains.annotations.NotNull;

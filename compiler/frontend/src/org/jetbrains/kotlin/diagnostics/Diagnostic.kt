@@ -15,8 +15,8 @@
  */
 package org.jetbrains.kotlin.diagnostics
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
 
 interface Diagnostic : UnboundDiagnostic, DiagnosticMarker {
     override val psiElement: PsiElement

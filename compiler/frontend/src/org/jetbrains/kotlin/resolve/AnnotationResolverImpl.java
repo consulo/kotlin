@@ -16,7 +16,8 @@
 
 package org.jetbrains.kotlin.resolve;
 
-import com.intellij.psi.util.PsiTreeUtil;
+import consulo.language.psi.util.PsiTreeUtil;
+import jakarta.inject.Inject;
 import kotlin.Pair;
 import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
@@ -42,11 +43,10 @@ import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyAnnotationDescriptor;
 import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyAnnotationsContextImpl;
 import org.jetbrains.kotlin.resolve.scopes.LexicalScope;
 import org.jetbrains.kotlin.storage.StorageManager;
+import org.jetbrains.kotlin.types.KotlinType;
 import org.jetbrains.kotlin.types.error.ErrorTypeKind;
 import org.jetbrains.kotlin.types.error.ErrorUtils;
-import org.jetbrains.kotlin.types.KotlinType;
 
-import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
 

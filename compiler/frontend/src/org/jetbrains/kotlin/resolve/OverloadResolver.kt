@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve
 
-import com.intellij.psi.PsiElement
-import com.intellij.util.containers.MultiMap
+import consulo.language.psi.PsiElement
+import consulo.util.collection.MultiMap
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.container.DefaultImplementation
 import org.jetbrains.kotlin.descriptors.*

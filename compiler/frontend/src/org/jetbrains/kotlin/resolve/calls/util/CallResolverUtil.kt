@@ -6,7 +6,7 @@
 package org.jetbrains.kotlin.resolve.calls.util
 
 import com.google.common.collect.Lists
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.ReflectionTypes
 import org.jetbrains.kotlin.builtins.isSuspendFunctionType

@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.resolve
 
 import com.google.common.collect.HashMultimap
 import com.google.common.collect.Multimap
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.diagnostics.Errors.*
@@ -34,7 +34,6 @@ import org.jetbrains.kotlin.resolve.deprecation.DeprecationResolver
 import org.jetbrains.kotlin.resolve.lazy.*
 import org.jetbrains.kotlin.resolve.lazy.descriptors.LazyClassDescriptor
 import org.jetbrains.kotlin.types.expressions.ExpressionTypingContext
-import java.util.*
 
 class LazyTopDownAnalyzer(
     private val trace: BindingTrace,

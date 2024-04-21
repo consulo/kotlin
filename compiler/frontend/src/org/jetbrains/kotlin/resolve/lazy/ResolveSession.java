@@ -17,9 +17,10 @@
 package org.jetbrains.kotlin.resolve.lazy;
 
 import com.google.common.collect.Lists;
-import com.intellij.openapi.application.ReadAction;
-import com.intellij.openapi.project.Project;
-import com.intellij.util.containers.ContainerUtil;
+import consulo.application.ReadAction;
+import consulo.project.Project;
+import consulo.util.collection.ContainerUtil;
+import jakarta.inject.Inject;
 import kotlin.annotations.jvm.ReadOnly;
 import kotlin.jvm.functions.Function1;
 import org.jetbrains.annotations.NotNull;
@@ -51,7 +52,6 @@ import org.jetbrains.kotlin.types.WrappedTypeFactory;
 import org.jetbrains.kotlin.types.checker.NewKotlinTypeChecker;
 import org.jetbrains.kotlin.utils.SmartList;
 
-import javax.inject.Inject;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;

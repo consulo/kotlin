@@ -16,7 +16,6 @@
 
 package org.jetbrains.kotlin.types.expressions
 
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
 import org.jetbrains.kotlin.psi.KtLoopExpression
@@ -24,7 +23,6 @@ import org.jetbrains.kotlin.psi.KtTryExpression
 import org.jetbrains.kotlin.resolve.calls.smartcasts.DataFlowInfo
 import org.jetbrains.kotlin.resolve.calls.smartcasts.DataFlowValue
 import org.jetbrains.kotlin.resolve.calls.smartcasts.IdentifierInfo
-import java.util.*
 
 /**
  * The purpose of this class is to find all variable assignments
@@ -37,7 +35,7 @@ class PreliminaryLoopVisitor private constructor() : AssignedVariablesSearcher()
         languageVersionSettings: LanguageVersionSettings
     ): DataFlowInfo {
         var resultFlowInfo = dataFlowInfo
-        val nonTrivialValues = ObjectOpenHashSet<DataFlowValue>().apply {
+        val nonTrivialValues = HashSet<DataFlowValue>().apply {
             addAll(dataFlowInfo.completeNullabilityInfo.iterator().map { it._1 })
             addAll(dataFlowInfo.completeTypeInfo.iterator().map { it._1 })
         }

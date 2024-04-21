@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.types.expressions
 
-import com.intellij.psi.impl.source.tree.LeafPsiElement
-import com.intellij.psi.util.PsiTreeUtil
+import consulo.language.impl.psi.LeafPsiElement
+import consulo.language.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.diagnostics.Errors
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtOperationExpression

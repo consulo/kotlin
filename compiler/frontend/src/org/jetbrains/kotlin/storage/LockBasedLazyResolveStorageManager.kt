@@ -16,7 +16,6 @@
 
 package org.jetbrains.kotlin.storage
 
-import com.intellij.openapi.project.Project
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.diagnostics.Diagnostic
 import org.jetbrains.kotlin.resolve.BindingContext
@@ -24,7 +23,8 @@ import org.jetbrains.kotlin.resolve.BindingTrace
 import org.jetbrains.kotlin.util.slicedMap.ReadOnlySlice
 import org.jetbrains.kotlin.util.slicedMap.WritableSlice
 import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
-import com.intellij.util.containers.ContainerUtil
+import consulo.project.Project
+import consulo.util.collection.ContainerUtil
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.types.KotlinType
 

@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.analyzer
 
-import com.intellij.util.messages.Topic
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 
 interface ModuleDescriptorListener {
@@ -13,7 +12,8 @@ interface ModuleDescriptorListener {
 
     companion object {
         @JvmField
-        val TOPIC: Topic<ModuleDescriptorListener> =
-            Topic.create("ModuleDescriptorListener", ModuleDescriptorListener::class.java)
+        val TOPIC: Class
+        <ModuleDescriptorListener> =
+            ModuleDescriptorListener::class.java
     }
 }

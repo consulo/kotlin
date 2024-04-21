@@ -16,10 +16,12 @@
 
 package org.jetbrains.kotlin.resolve.jvm.modules
 
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.PsiJavaModule
-import com.intellij.psi.PsiModifier
-import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.java.language.psi.PsiJavaModule
+import com.intellij.java.language.psi.PsiModifier
+import consulo.internal.org.objectweb.asm.*
+import consulo.internal.org.objectweb.asm.Opcodes.ACC_TRANSITIVE
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.load.java.JavaClassFinder
 import org.jetbrains.kotlin.load.java.structure.JavaAnnotation
 import org.jetbrains.kotlin.load.java.structure.impl.JavaAnnotationImpl
@@ -31,8 +33,6 @@ import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementSourceFac
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.jvm.KotlinCliJavaFileManager
 import org.jetbrains.kotlin.utils.compact
-import org.jetbrains.org.objectweb.asm.*
-import org.jetbrains.org.objectweb.asm.Opcodes.ACC_TRANSITIVE
 import java.io.IOException
 
 class JavaModuleInfo(

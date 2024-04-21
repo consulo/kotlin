@@ -15,8 +15,8 @@
  */
 package org.jetbrains.kotlin.resolve
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiErrorElement
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiErrorElement
 import org.jetbrains.kotlin.diagnostics.DiagnosticSink
 import org.jetbrains.kotlin.diagnostics.PsiDiagnosticUtils
 import org.jetbrains.kotlin.psi.debugText.getDebugText

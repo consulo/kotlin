@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve.jvm.checkers
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
+import consulo.project.Project
 import org.jetbrains.kotlin.config.JvmAnalysisFlags
 import org.jetbrains.kotlin.config.JvmTarget
 import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor

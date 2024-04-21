@@ -18,10 +18,10 @@ package org.jetbrains.kotlin.resolve
 
 import com.google.common.collect.Maps
 import com.google.common.collect.Sets
-import com.intellij.psi.PsiElement
-import com.intellij.util.SmartList
-import com.intellij.util.containers.ContainerUtil
-import com.intellij.util.containers.SmartHashSet
+import consulo.language.psi.PsiElement
+import consulo.util.collection.ContainerUtil
+import consulo.util.collection.SmartHashSet
+import consulo.util.collection.SmartList
 import org.jetbrains.kotlin.config.LanguageFeature.AbstractClassMemberNotImplementedWithIntermediateAbstractClass
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.*

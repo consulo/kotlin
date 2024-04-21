@@ -7,9 +7,9 @@ package org.jetbrains.kotlin.resolve;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Ref;
-import com.intellij.psi.PsiElement;
+import consulo.language.psi.PsiElement;
+import consulo.project.Project;
+import consulo.util.lang.ref.Ref;
 import kotlin.Pair;
 import kotlin.annotations.jvm.ReadOnly;
 import org.jetbrains.annotations.NotNull;

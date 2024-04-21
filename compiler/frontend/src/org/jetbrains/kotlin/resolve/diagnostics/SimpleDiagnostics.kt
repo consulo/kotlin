@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.diagnostics
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.diagnostics.Diagnostic
 import java.util.ArrayList
 
@@ -32,4 +32,12 @@ class SimpleDiagnostics(diagnostics: Collection<Diagnostic>) : SimpleGenericDiag
     override fun forElement(psiElement: PsiElement): MutableCollection<Diagnostic> = elementsCache.getDiagnostics(psiElement)
 
     override fun noSuppression() = this
+
+    override fun isEmpty(): Boolean {
+        return super<Diagnostics>.isEmpty()
+    }
+
+    override fun iterator(): Iterator<Diagnostic> {
+        return super<Diagnostics>.iterator()
+    }
 }

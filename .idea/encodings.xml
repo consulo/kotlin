@@ -7,6 +7,12 @@
     <file url="file://$PROJECT_DIR$/_global/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/_shade/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/_shade/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/decompiled/decompiler-to-file-stubs/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/decompiled/decompiler-to-file-stubs/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/decompiled/decompiler-to-psi/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/decompiled/decompiler-to-psi/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/decompiled/decompiler-to-stubs/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/decompiled/decompiler-to-stubs/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/analysis/light-classes-base/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/analysis/light-classes-base/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/analysis/project-structure/resources" charset="UTF-8" />
@@ -15,6 +21,8 @@
     <file url="file://$PROJECT_DIR$/compiler/compiler.version/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/compiler.version/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/compiler.version/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/config.jvm/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/config.jvm/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/config/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/config/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/container/resources" charset="UTF-8" />
@@ -27,6 +35,10 @@
     <file url="file://$PROJECT_DIR$/compiler/frontend.common/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/frontend.common/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/frontend.common/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend.java/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend.java/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compiler/frontend/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/psi/${project.directory}/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/psi/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/compiler/psi/src" charset="UTF-8" />

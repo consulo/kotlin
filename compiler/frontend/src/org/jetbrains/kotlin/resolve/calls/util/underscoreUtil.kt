@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.calls.util
 
-import com.intellij.psi.StubBasedPsiElement
+import consulo.language.psi.StubBasedPsiElement
 import org.jetbrains.kotlin.psi.KtNamedDeclaration
 
 /**

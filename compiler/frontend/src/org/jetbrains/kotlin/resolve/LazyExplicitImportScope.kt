@@ -16,7 +16,6 @@
 
 package org.jetbrains.kotlin.resolve
 
-import com.intellij.util.SmartList
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.incremental.components.LookupLocation
@@ -27,6 +26,7 @@ import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.utils.CallOnceFunction
 import org.jetbrains.kotlin.utils.Printer
+import org.jetbrains.kotlin.utils.SmartList
 import org.jetbrains.kotlin.utils.addIfNotNull
 
 class LazyExplicitImportScope(

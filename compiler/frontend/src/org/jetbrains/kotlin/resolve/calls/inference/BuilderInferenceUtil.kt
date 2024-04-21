@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.calls.inference
 
+import jakarta.inject.Inject
 import org.jetbrains.kotlin.builtins.*
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
@@ -44,7 +45,6 @@ import org.jetbrains.kotlin.types.expressions.ExpressionTypingServices
 import org.jetbrains.kotlin.types.expressions.KotlinTypeInfo
 import org.jetbrains.kotlin.types.model.KotlinTypeMarker
 import org.jetbrains.kotlin.types.typeUtil.*
-import javax.inject.Inject
 
 class TypeTemplate(
     val typeVariable: TypeVariable,

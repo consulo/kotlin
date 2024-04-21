@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.checkers
 
-import com.intellij.openapi.util.TextRange
+import consulo.document.util.TextRange
 import org.jetbrains.kotlin.checkers.diagnostics.AbstractTestDiagnostic
 import org.jetbrains.kotlin.checkers.diagnostics.PositionalTextDiagnostic
 import org.jetbrains.kotlin.checkers.diagnostics.TextDiagnostic

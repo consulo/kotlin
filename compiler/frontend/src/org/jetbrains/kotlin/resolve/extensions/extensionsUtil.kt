@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.extensions
 
-import com.intellij.openapi.diagnostic.Logger
+import consulo.logging.Logger
 
 internal inline fun <T : Any, R> withLinkageErrorLogger(receiver: T, block: T.() -> R): R {
     try {

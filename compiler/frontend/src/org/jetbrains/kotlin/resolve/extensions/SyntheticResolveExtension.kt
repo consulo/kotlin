@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve.extensions
 
-import com.intellij.openapi.project.Project
+import consulo.project.Project
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.extensions.ProjectExtensionDescriptor
 import org.jetbrains.kotlin.name.Name

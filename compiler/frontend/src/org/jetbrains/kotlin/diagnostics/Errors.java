@@ -6,8 +6,8 @@
 package org.jetbrains.kotlin.diagnostics;
 
 import com.google.common.collect.ImmutableSet;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.impl.source.tree.LeafPsiElement;
+import consulo.language.impl.psi.LeafPsiElement;
+import consulo.language.psi.PsiElement;
 import kotlin.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.config.LanguageFeature;

@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve;
 
-import com.intellij.openapi.project.Project;
-import com.intellij.util.SmartFMap;
+import consulo.project.Project;
+import consulo.util.collection.SmartFMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.diagnostics.Diagnostic;

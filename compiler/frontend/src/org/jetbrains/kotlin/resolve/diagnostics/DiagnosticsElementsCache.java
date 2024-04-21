@@ -16,15 +16,16 @@
 
 package org.jetbrains.kotlin.resolve.diagnostics;
 
-import com.intellij.openapi.util.NotNullLazyValue;
-import com.intellij.psi.PsiElement;
-import com.intellij.util.containers.MultiMap;
+import consulo.language.psi.PsiElement;
+import consulo.util.collection.MultiMap;
+import consulo.util.lang.lazy.LazyValue;
 import kotlin.collections.CollectionsKt;
 import kotlin.jvm.functions.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.diagnostics.Diagnostic;
 
 import java.util.Collection;
+import java.util.function.Supplier;
 
 import static org.jetbrains.kotlin.utils.PlatformUtilsKt.createConcurrentMultiMap;
 
@@ -32,18 +33,18 @@ public class DiagnosticsElementsCache {
     private final Diagnostics diagnostics;
     private final Function1<Diagnostic, Boolean> filter;
 
-    private final NotNullLazyValue<MultiMap<PsiElement, Diagnostic>> elementToDiagnostic;
+    private final Supplier<MultiMap<PsiElement, Diagnostic>> elementToDiagnostic;
 
     public DiagnosticsElementsCache(Diagnostics diagnostics, Function1<Diagnostic, Boolean> filter) {
         this.diagnostics = diagnostics;
         this.filter = filter;
 
-        elementToDiagnostic = NotNullLazyValue.atomicLazy(() -> buildElementToDiagnosticCache(this.diagnostics, this.filter));
+        elementToDiagnostic = LazyValue.atomicNotNull(() -> buildElementToDiagnosticCache(this.diagnostics, this.filter));
     }
 
     @NotNull
     public Collection<Diagnostic> getDiagnostics(@NotNull PsiElement psiElement) {
-        return elementToDiagnostic.getValue().get(psiElement);
+        return elementToDiagnostic.get().get(psiElement);
     }
 
     private static MultiMap<PsiElement, Diagnostic> buildElementToDiagnosticCache(Diagnostics diagnostics, Function1<Diagnostic, Boolean> filter) {

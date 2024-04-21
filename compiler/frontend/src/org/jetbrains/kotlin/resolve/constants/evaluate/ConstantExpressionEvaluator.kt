@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.resolve.constants.evaluate
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiElement
-import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.psi.util.TypeConversionUtil
+import com.intellij.java.language.psi.util.TypeConversionUtil
+import consulo.language.psi.PsiElement
+import consulo.language.psi.util.PsiTreeUtil
+import consulo.project.Project
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.StandardNames

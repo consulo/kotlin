@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.calls.tower
 
-import com.intellij.psi.impl.source.tree.LeafPsiElement
+import consulo.language.impl.psi.LeafPsiElement
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor

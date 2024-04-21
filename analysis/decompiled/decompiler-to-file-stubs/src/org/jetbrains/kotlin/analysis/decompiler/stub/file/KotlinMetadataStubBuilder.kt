@@ -5,24 +5,19 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.stub.file
 
-import com.intellij.openapi.fileTypes.FileType
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.compiled.ClsStubBuilder
-import com.intellij.psi.impl.compiled.ClassFileStubBuilder
-import com.intellij.psi.stubs.PsiFileStub
-import com.intellij.util.indexing.FileContent
+import com.intellij.java.language.impl.psi.impl.compiled.ClassFileStubBuilder
+import com.intellij.java.language.psi.compiled.ClsStubBuilder
+import consulo.language.psi.stub.FileContent
+import consulo.language.psi.stub.PsiFileStub
+import consulo.virtualFileSystem.VirtualFile
+import consulo.virtualFileSystem.fileType.FileType
 import org.jetbrains.kotlin.analysis.decompiler.stub.*
-import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.SourceElement
-import org.jetbrains.kotlin.load.kotlin.JvmPackagePartSource
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.metadata.deserialization.NameResolverImpl
 import org.jetbrains.kotlin.metadata.deserialization.TypeTable
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.resolve.jvm.JvmClassName
 import org.jetbrains.kotlin.serialization.SerializerExtensionProtocol
 import org.jetbrains.kotlin.serialization.deserialization.ClassDeserializer
 import org.jetbrains.kotlin.serialization.deserialization.ProtoBasedClassDataFinder

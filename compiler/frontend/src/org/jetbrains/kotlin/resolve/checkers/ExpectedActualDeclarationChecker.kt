@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve.checkers
 
-import com.intellij.openapi.vfs.VfsUtilCore
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
+import consulo.virtualFileSystem.util.VirtualFileUtil
 import org.jetbrains.kotlin.config.AnalysisFlags
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.*
@@ -306,7 +306,7 @@ class ExpectedActualDeclarationChecker(
 
     private fun sourceFile(descriptor: MemberDescriptor): File? {
         val containingFile = descriptor.source.containingFile as? PsiSourceFile ?: return null
-        return VfsUtilCore.virtualToIoFile(containingFile.psiFile.virtualFile)
+        return VirtualFileUtil.virtualToIoFile(containingFile.psiFile.virtualFile)
     }
 
     private fun checkActualDeclarationHasExpected(

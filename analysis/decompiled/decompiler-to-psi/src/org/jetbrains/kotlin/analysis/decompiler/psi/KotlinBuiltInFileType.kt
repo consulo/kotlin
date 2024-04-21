@@ -2,22 +2,23 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi
 
-import com.intellij.openapi.fileTypes.FileType
-import com.intellij.openapi.vfs.VirtualFile
-import org.jetbrains.kotlin.idea.KotlinIconProviderService
+import consulo.localize.LocalizeValue
+import consulo.ui.image.Image
+import consulo.virtualFileSystem.VirtualFile
+import consulo.virtualFileSystem.fileType.FileType
+import org.jetbrains.kotlin.idea2.KotlinIconProviderService
 import org.jetbrains.kotlin.serialization.deserialization.builtins.BuiltInSerializerProtocol
-import javax.swing.Icon
 
 object KotlinBuiltInFileType : FileType {
-    override fun getName() = "kotlin_builtins"
+    override fun getId() = "kotlin_builtins"
 
-    override fun getDescription(): String =
+    override fun getDescription(): LocalizeValue =
         KotlinLabelProviderService.getService()?.getLabelForBuiltInFileType()
             ?: DEFAULT_DESCRIPTION
 
     override fun getDefaultExtension() = BuiltInSerializerProtocol.BUILTINS_FILE_EXTENSION
 
-    override fun getIcon(): Icon = KotlinIconProviderService.getInstance().builtInFileIcon
+    override fun getIcon(): Image = KotlinIconProviderService.getInstance().builtInFileIcon
 
     override fun isBinary() = true
 
@@ -25,5 +26,5 @@ object KotlinBuiltInFileType : FileType {
 
     override fun getCharset(file: VirtualFile, content: ByteArray): String? = null
 
-    private const val DEFAULT_DESCRIPTION = "Kotlin built-in declarations"
+    private val DEFAULT_DESCRIPTION = LocalizeValue.of("Kotlin built-in declarations")
 }

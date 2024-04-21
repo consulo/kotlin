@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.resolve.calls.util
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiWhiteSpace
-import com.intellij.psi.util.PsiTreeUtil
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiWhiteSpace
+import consulo.language.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.diagnostics.Diagnostic
 import org.jetbrains.kotlin.diagnostics.Errors

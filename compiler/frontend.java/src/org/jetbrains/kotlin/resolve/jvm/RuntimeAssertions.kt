@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.resolve.jvm
 
-import com.intellij.openapi.util.text.StringUtil
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
+import consulo.util.lang.StringUtil
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.*

@@ -17,9 +17,9 @@
 package org.jetbrains.kotlin.resolve;
 
 import com.google.common.collect.Maps;
-import com.intellij.openapi.progress.ProgressManager;
-import com.intellij.openapi.project.Project;
-import com.intellij.psi.PsiElement;
+import consulo.application.progress.ProgressManager;
+import consulo.language.psi.PsiElement;
+import consulo.project.Project;
 import kotlin.Unit;
 import kotlin.collections.CollectionsKt;
 import kotlin.jvm.functions.Function1;

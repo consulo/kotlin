@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.resolve
 
-import com.intellij.util.SmartList
+import consulo.util.collection.SmartList
 import org.jetbrains.kotlin.builtins.PlatformToKotlinClassMapper
 import org.jetbrains.kotlin.builtins.createFunctionType
 import org.jetbrains.kotlin.config.LanguageFeature

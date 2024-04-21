@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.types.expressions;
 
-import com.intellij.openapi.progress.ProgressManager;
-import com.intellij.psi.tree.IElementType;
+import consulo.application.progress.ProgressManager;
+import consulo.language.ast.IElementType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns;

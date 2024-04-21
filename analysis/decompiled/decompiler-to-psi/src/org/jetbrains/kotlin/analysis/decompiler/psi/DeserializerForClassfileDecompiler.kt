@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.vfs.VirtualFile
+import consulo.logging.Logger
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.DirectoryBasedClassFinder
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.DirectoryBasedDataFinder

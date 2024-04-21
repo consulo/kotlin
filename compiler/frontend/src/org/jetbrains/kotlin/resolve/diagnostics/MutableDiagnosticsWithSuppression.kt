@@ -16,11 +16,11 @@
 
 package org.jetbrains.kotlin.resolve.diagnostics
 
-import com.intellij.openapi.util.CompositeModificationTracker
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.util.CachedValueProvider
-import com.intellij.util.CachedValueImpl
+import consulo.application.util.CachedValueProvider
+import consulo.component.util.CompositeModificationTracker
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiFile
+import consulo.util.lang.lazy.LazyValue
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.diagnostics.Diagnostic
 import org.jetbrains.kotlin.diagnostics.DiagnosticSink
@@ -36,15 +36,15 @@ class MutableDiagnosticsWithSuppression(
     @Volatile
     private var diagnosticsCallback: DiagnosticSink.DiagnosticsCallback? = null
 
-    //NOTE: CachedValuesManager is not used because it requires Project passed to this object
-    private val cache = CachedValueImpl {
-        val allDiagnostics = delegateDiagnostics.noSuppression().all() + diagnosticList
-        CachedValueProvider.Result(DiagnosticsWithSuppression(suppressCache, allDiagnostics), modificationTracker)
-    }
-
-    private fun readonlyView(): DiagnosticsWithSuppression = cache.value!!
-
     override val modificationTracker = CompositeModificationTracker(delegateDiagnostics.modificationTracker)
+
+    //NOTE: CachedValuesManager is not used because it requires Project passed to this object
+    private val cache = LazyValue.notNullWithModCount({
+                                                          val allDiagnostics = delegateDiagnostics.noSuppression().all() + diagnosticList
+                                                          DiagnosticsWithSuppression(suppressCache, allDiagnostics)
+                                                      }, modificationTracker::getModificationCount)
+
+    private fun readonlyView(): DiagnosticsWithSuppression = cache.get()!!
 
     override fun all(): Collection<Diagnostic> = readonlyView().all()
     override fun forElement(psiElement: PsiElement) = readonlyView().forElement(psiElement)

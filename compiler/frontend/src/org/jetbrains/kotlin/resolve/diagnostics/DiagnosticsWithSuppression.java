@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.resolve.diagnostics;
 
-import com.intellij.openapi.util.ModificationTracker;
-import com.intellij.psi.PsiElement;
-import com.intellij.util.containers.FilteringIterator;
+import consulo.component.util.ModificationTracker;
+import consulo.language.psi.PsiElement;
+import consulo.util.collection.FilteringIterator;
 import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.TestOnly;

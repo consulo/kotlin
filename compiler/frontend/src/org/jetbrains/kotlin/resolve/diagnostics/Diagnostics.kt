@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve.diagnostics
 
-import com.intellij.openapi.util.ModificationTracker
-import com.intellij.psi.PsiElement
+import consulo.component.util.ModificationTracker
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.diagnostics.Diagnostic
 import org.jetbrains.kotlin.diagnostics.DiagnosticSink.DiagnosticsCallback
 import org.jetbrains.kotlin.diagnostics.GenericDiagnostics

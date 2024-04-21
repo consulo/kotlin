@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.stub.file
 
-import com.intellij.openapi.vfs.VirtualFile
+import consulo.virtualFileSystem.VirtualFile
 import java.io.DataInput
 import java.io.DataOutput
 

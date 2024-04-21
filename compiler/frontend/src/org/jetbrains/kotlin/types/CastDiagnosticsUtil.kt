@@ -17,7 +17,7 @@
 package org.jetbrains.kotlin.types
 
 import com.google.common.collect.Maps
-import com.intellij.psi.util.PsiTreeUtil
+import consulo.language.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.PlatformSpecificCastChecker
 import org.jetbrains.kotlin.builtins.PlatformToKotlinClassMapper

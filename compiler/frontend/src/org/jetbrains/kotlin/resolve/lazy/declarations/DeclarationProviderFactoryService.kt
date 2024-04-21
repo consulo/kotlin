@@ -16,14 +16,13 @@
 
 package org.jetbrains.kotlin.resolve.lazy.declarations
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.search.DelegatingGlobalSearchScope
-import com.intellij.psi.search.GlobalSearchScope
+import consulo.language.psi.scope.DelegatingGlobalSearchScope
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.project.Project
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.analyzer.ModuleInfo
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.storage.StorageManager
-import java.util.*
 
 abstract class DeclarationProviderFactoryService {
 
@@ -44,7 +43,7 @@ abstract class DeclarationProviderFactoryService {
             moduleContentScope: GlobalSearchScope,
             moduleInfo: ModuleInfo
         ): DeclarationProviderFactory {
-            return project.getService(DeclarationProviderFactoryService::class.java)!!
+            return project.getInstance(DeclarationProviderFactoryService::class.java)!!
                 .create(project, storageManager, syntheticFiles, filteringScope(syntheticFiles, moduleContentScope), moduleInfo)
         }
 

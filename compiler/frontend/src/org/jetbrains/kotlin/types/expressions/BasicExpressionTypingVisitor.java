@@ -17,11 +17,11 @@
 package org.jetbrains.kotlin.types.expressions;
 
 import com.google.common.collect.Lists;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.StubBasedPsiElement;
-import com.intellij.psi.tree.IElementType;
-import com.intellij.psi.tree.TokenSet;
-import com.intellij.psi.util.PsiTreeUtil;
+import consulo.language.ast.IElementType;
+import consulo.language.ast.TokenSet;
+import consulo.language.psi.PsiElement;
+import consulo.language.psi.StubBasedPsiElement;
+import consulo.language.psi.util.PsiTreeUtil;
 import kotlin.Pair;
 import kotlin.TuplesKt;
 import kotlin.collections.CollectionsKt;
@@ -1609,7 +1609,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
     }
 
     private static void checkLiteralPrefixAndSuffix(@NotNull PsiElement expression, ExpressionTypingContext context) {
-        if (expression instanceof StubBasedPsiElement && ((StubBasedPsiElement) expression).getStub() != null) {
+        if (expression instanceof StubBasedPsiElement<?> && ((StubBasedPsiElement) expression).getStub() != null) {
             return;
         }
 

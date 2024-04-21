@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.util.slicedMap;
 
-import com.intellij.openapi.diagnostic.Logger;
+import consulo.logging.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.psi.KtElement;
 import org.jetbrains.kotlin.psi.psiUtil.PsiUtilsKt;

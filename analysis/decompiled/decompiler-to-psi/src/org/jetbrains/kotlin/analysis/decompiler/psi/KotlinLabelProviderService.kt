@@ -5,15 +5,16 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi
 
-import com.intellij.openapi.application.ApplicationManager
+import consulo.application.ApplicationManager
+import consulo.localize.LocalizeValue
 
 abstract class KotlinLabelProviderService {
-    abstract fun getLabelForBuiltInFileType(): String
+    abstract fun getLabelForBuiltInFileType(): LocalizeValue
     abstract fun getLabelForKlibMetaFileType(): String
     abstract fun getLabelForKotlinJavaScriptMetaFileType(): String
 
     companion object {
-        fun getService(): KotlinLabelProviderService? =
-            ApplicationManager.getApplication().getService(KotlinLabelProviderService::class.java)
+        fun getService(): KotlinLabelProviderService =
+            ApplicationManager.getApplication().getInstance(KotlinLabelProviderService::class.java)
     }
 }

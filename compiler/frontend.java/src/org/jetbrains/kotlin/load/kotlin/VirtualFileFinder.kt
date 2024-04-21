@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.load.kotlin
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.search.GlobalSearchScope
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.project.Project
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.load.java.structure.JavaClass

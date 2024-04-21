@@ -17,8 +17,8 @@
 package org.jetbrains.kotlin.resolve;
 
 import com.google.common.collect.ImmutableMap;
-import com.intellij.openapi.progress.ProgressManager;
-import com.intellij.openapi.project.Project;
+import consulo.application.progress.ProgressManager;
+import consulo.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;

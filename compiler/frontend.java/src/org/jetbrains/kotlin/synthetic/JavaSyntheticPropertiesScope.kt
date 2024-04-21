@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.synthetic
 
-import com.intellij.util.SmartList
+import consulo.util.collection.SmartList
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.PropertyDescriptorImpl

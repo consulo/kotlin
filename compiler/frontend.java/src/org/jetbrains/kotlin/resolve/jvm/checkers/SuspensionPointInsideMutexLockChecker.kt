@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.jvm.checkers
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.descriptors.isTopLevelInPackage
 import org.jetbrains.kotlin.psi.KtCallExpression

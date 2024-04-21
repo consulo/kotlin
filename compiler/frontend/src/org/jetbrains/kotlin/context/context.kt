@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.context
 
-import com.intellij.openapi.progress.ProcessCanceledException
-import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.project.Project
+import consulo.application.progress.ProgressManager
+import consulo.component.ProcessCanceledException
+import consulo.project.Project
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.ModuleCapability
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor

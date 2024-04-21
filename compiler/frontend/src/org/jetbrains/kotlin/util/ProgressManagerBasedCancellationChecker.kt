@@ -5,10 +5,13 @@
 
 package org.jetbrains.kotlin.util
 
-import com.intellij.openapi.progress.ProgressManager
+import consulo.application.progress.ProgressManager
 
 object ProgressManagerBasedCancellationChecker : CancellationChecker {
     override fun check() {
         ProgressManager.checkCanceled()
     }
 }
+
+
+// TODO

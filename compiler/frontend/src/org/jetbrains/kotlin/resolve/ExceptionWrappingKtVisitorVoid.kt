@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve
 
-import com.intellij.openapi.progress.ProcessCanceledException
-import com.intellij.psi.PsiElement
+import consulo.component.ProcessCanceledException
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.util.KotlinFrontEndException

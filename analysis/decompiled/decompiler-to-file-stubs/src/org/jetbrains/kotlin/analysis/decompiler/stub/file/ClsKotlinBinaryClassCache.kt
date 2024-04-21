@@ -5,13 +5,13 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.stub.file
 
-import com.intellij.ide.highlighter.JavaClassFileType
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.diagnostic.ControlFlowException
-import com.intellij.openapi.util.Key
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.vfs.VirtualFileWithId
-import com.intellij.reference.SoftReference
+import com.intellij.java.language.impl.JavaClassFileType
+import consulo.application.ApplicationManager
+import consulo.util.dataholder.Key
+import consulo.util.lang.ControlFlowException
+import consulo.util.lang.ref.SoftReference
+import consulo.virtualFileSystem.VirtualFile
+import consulo.virtualFileSystem.VirtualFileWithId
 import org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache
 import org.jetbrains.kotlin.load.kotlin.KotlinJvmBinaryClass
 import org.jetbrains.kotlin.load.kotlin.header.KotlinClassHeader
@@ -108,7 +108,7 @@ class ClsKotlinBinaryClassCache {
         return createHeaderInfo(kotlinBinaryClass)
     }
 
-    private val attributeService = ApplicationManager.getApplication().getService(FileAttributeService::class.java)
+    private val attributeService = ApplicationManager.getApplication().getInstance(FileAttributeService::class.java)
 
     private fun createHeaderInfo(kotlinBinaryClass: KotlinJvmBinaryClass): KotlinBinaryClassHeaderData {
         val classId = kotlinBinaryClass.classId
@@ -154,6 +154,6 @@ class ClsKotlinBinaryClassCache {
 
     companion object {
         fun getInstance(): ClsKotlinBinaryClassCache =
-            ApplicationManager.getApplication().getService(ClsKotlinBinaryClassCache::class.java)
+            ApplicationManager.getApplication().getInstance(ClsKotlinBinaryClassCache::class.java)
     }
 }

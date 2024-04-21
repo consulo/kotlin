@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.checkers
 
-import com.intellij.psi.tree.TokenSet
+import consulo.language.ast.TokenSet
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.diagnostics.Errors.CONFUSING_BRANCH_CONDITION
 import org.jetbrains.kotlin.lexer.KtTokens.*

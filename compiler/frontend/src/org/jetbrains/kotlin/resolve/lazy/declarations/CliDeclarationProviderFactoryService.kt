@@ -16,8 +16,8 @@
 
 package org.jetbrains.kotlin.resolve.lazy.declarations
 
-import com.intellij.openapi.project.Project
-import com.intellij.psi.search.GlobalSearchScope
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.project.Project
 import org.jetbrains.kotlin.analyzer.ModuleInfo
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.storage.StorageManager

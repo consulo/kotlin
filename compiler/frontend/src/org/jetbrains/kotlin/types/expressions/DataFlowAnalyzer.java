@@ -17,8 +17,8 @@
 package org.jetbrains.kotlin.types.expressions;
 
 import com.google.common.collect.Sets;
-import com.intellij.openapi.util.Ref;
-import com.intellij.psi.tree.IElementType;
+import consulo.language.ast.IElementType;
+import consulo.util.lang.ref.Ref;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns;

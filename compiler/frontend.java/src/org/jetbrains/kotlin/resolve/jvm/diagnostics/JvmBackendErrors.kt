@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.jvm.diagnostics
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactoryToRendererMap
 import org.jetbrains.kotlin.diagnostics.SourceElementPositioningStrategies.DECLARATION_SIGNATURE_OR_DEFAULT
 import org.jetbrains.kotlin.diagnostics.error0

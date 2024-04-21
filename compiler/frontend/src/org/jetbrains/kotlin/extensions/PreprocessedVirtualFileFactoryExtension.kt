@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.extensions
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.testFramework.LightVirtualFile
+import consulo.language.file.light.LightVirtualFile
+import consulo.project.Project
+import consulo.virtualFileSystem.VirtualFile
 
 /**
  * The interface for the extensions that are used to substitute VirtualFile on the creation of KtFile, allows to preprocess a file before

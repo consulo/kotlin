@@ -16,9 +16,10 @@
 
 package org.jetbrains.kotlin.load.kotlin
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.StandardFileSystems
-import com.intellij.openapi.vfs.VfsUtilCore
+import consulo.project.Project
+import consulo.util.io.URLUtil
+import consulo.virtualFileSystem.archive.ArchiveVfsUtil
+import consulo.virtualFileSystem.util.VirtualFileUtil
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.load.java.lazy.descriptors.LazyJavaPackageFragment
 import org.jetbrains.kotlin.modules.Module
@@ -37,7 +38,7 @@ interface ModuleVisibilityManager {
 
     object SERVICE {
         @JvmStatic fun getInstance(project: Project): ModuleVisibilityManager =
-            project.getService(ModuleVisibilityManager::class.java)
+            project.getInstance(ModuleVisibilityManager::class.java)
     }
 }
 
@@ -66,12 +67,12 @@ fun isContainedByCompiledPartOfOurModule(descriptor: DeclarationDescriptor, frie
     if (binaryClass is VirtualFileKotlinClass) {
         val file = binaryClass.file
         when (file.fileSystem.protocol) {
-            StandardFileSystems.FILE_PROTOCOL -> {
-                val ioFile = VfsUtilCore.virtualToIoFile(file)
+            URLUtil.FILE_PROTOCOL -> {
+                val ioFile = VirtualFileUtil.virtualToIoFile(file)
                 return ioFile.toPath().startsWith(friendPath.toPath())
             }
-            StandardFileSystems.JAR_PROTOCOL -> {
-                val ioFile = VfsUtilCore.getVirtualFileForJar(file)?.let(VfsUtilCore::virtualToIoFile)
+            URLUtil.JAR_PROTOCOL -> {
+                val ioFile = ArchiveVfsUtil.getVirtualFileForArchive(file)?.let(VirtualFileUtil::virtualToIoFile)
                 return ioFile != null && ioFile.toPath() == friendPath.toPath()
             }
         }

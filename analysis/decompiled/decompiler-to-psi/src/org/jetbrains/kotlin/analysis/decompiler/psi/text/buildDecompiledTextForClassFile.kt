@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi.text
 
-import com.intellij.openapi.vfs.VirtualFile
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.analysis.decompiler.psi.DeserializerForClassfileDecompiler
 import org.jetbrains.kotlin.analysis.decompiler.psi.ResolverForDecompiler
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsClassFinder.findMultifileClassParts

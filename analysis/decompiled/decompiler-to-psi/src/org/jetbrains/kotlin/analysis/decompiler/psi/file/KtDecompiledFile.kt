@@ -2,7 +2,7 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi.file
 
-import com.intellij.openapi.vfs.VirtualFile
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.analysis.decompiler.psi.KotlinDecompiledFileViewProvider
 import org.jetbrains.kotlin.analysis.decompiler.psi.text.DecompiledText
 import org.jetbrains.kotlin.psi.KtFile

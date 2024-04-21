@@ -5,7 +5,8 @@
 
 package org.jetbrains.kotlin.resolve.calls;
 
-import com.intellij.psi.PsiElement;
+import consulo.language.psi.PsiElement;
+import jakarta.inject.Inject;
 import kotlin.Pair;
 import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
@@ -51,7 +52,6 @@ import org.jetbrains.kotlin.types.expressions.ExpressionTypingVisitorDispatcher;
 import org.jetbrains.kotlin.util.OperatorNameConventions;
 import org.jetbrains.kotlin.util.PerformanceCounter;
 
-import javax.inject.Inject;
 import java.util.*;
 
 import static org.jetbrains.kotlin.diagnostics.Errors.*;

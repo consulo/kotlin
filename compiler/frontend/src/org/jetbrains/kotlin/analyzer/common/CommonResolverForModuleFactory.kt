@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.analyzer.common
 
-import com.intellij.psi.search.GlobalSearchScope
+import consulo.language.psi.scope.GlobalSearchScope
 import org.jetbrains.kotlin.analyzer.*
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
@@ -276,7 +276,7 @@ private fun createContainerToResolveCommonCode(
         configureCommonSpecificComponents()
         useInstance(metadataPartProvider)
 
-        val metadataFinderFactory = moduleContext.project.getService(
+        val metadataFinderFactory = moduleContext.project.getInstance(
             MetadataFinderFactory::class.java
         )
             ?: error("No MetadataFinderFactory in project")

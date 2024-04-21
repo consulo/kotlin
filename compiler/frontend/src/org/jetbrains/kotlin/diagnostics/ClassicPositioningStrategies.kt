@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.diagnostics
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiElement
+import consulo.document.util.TextRange
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.cfg.UnreachableCode
 import org.jetbrains.kotlin.descriptors.MemberDescriptor
 import org.jetbrains.kotlin.lexer.KtTokens

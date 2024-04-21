@@ -4,10 +4,10 @@
  */
 package org.jetbrains.kotlin.checkers.utils
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.tree.IElementType
-import com.intellij.psi.tree.TokenSet
-import com.intellij.psi.util.PsiTreeUtil
+import consulo.language.ast.IElementType
+import consulo.language.ast.TokenSet
+import consulo.language.psi.PsiElement
+import consulo.language.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.descriptors.CallableDescriptor
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor

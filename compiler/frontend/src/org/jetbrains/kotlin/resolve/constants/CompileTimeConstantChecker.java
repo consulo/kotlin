@@ -17,7 +17,7 @@
 package org.jetbrains.kotlin.resolve.constants;
 
 import com.google.common.collect.Sets;
-import com.intellij.psi.tree.IElementType;
+import consulo.language.ast.IElementType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.KtNodeTypes;

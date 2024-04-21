@@ -5,16 +5,17 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.psi
 
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.PsiManager
-import com.intellij.psi.compiled.ClassFileDecompilers
+import com.intellij.java.language.psi.compiled.ClassFileDecompiler
+import com.intellij.java.language.psi.compiled.ClassFileDecompilers
+import consulo.language.psi.PsiManager
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.analysis.decompiler.psi.file.KtClsFile
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsClassFinder.isKotlinInternalCompiledFile
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsClassFinder.isMultifileClassPartFile
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.KotlinClsStubBuilder
 
-class KotlinClassFileDecompiler : ClassFileDecompilers.Full() {
+class KotlinClassFileDecompiler : ClassFileDecompiler.Full() {
     private val stubBuilder = KotlinClsStubBuilder()
 
     override fun accepts(file: VirtualFile) = ClsKotlinBinaryClassCache.getInstance().isKotlinJvmCompiledFile(file)

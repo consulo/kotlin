@@ -6,8 +6,8 @@
 package org.jetbrains.kotlin.types.expressions;
 
 import com.google.common.collect.Lists;
-import com.intellij.openapi.util.Pair;
-import com.intellij.psi.PsiElement;
+import consulo.language.psi.PsiElement;
+import consulo.util.lang.Pair;
 import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

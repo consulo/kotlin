@@ -19,7 +19,6 @@ package org.jetbrains.kotlin.resolve.lazy
 import com.google.common.collect.HashMultimap
 import com.google.common.collect.ImmutableListMultimap
 import com.google.common.collect.ListMultimap
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet
 import org.jetbrains.kotlin.builtins.PlatformToKotlinClassMapper
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
@@ -50,6 +49,7 @@ import org.jetbrains.kotlin.util.collectionUtils.concat
 import org.jetbrains.kotlin.utils.Printer
 import org.jetbrains.kotlin.utils.addToStdlib.flatMapToNullable
 import org.jetbrains.kotlin.utils.ifEmpty
+import java.util.HashSet
 
 open class IndexedImports<I : KtImportInfo>(val imports: Array<I>) {
     open fun importsForName(name: Name): Iterable<I> = imports.asIterable()
@@ -130,7 +130,7 @@ open class LazyImportResolver<I : KtImportInfo>(
     }
 
     val allNames: Set<Name>? by components.storageManager.createNullableLazyValue {
-        indexedImports.imports.asIterable().flatMapToNullable(ObjectOpenHashSet()) { getImportScope(it).computeImportedNames() }
+        indexedImports.imports.asIterable().flatMapToNullable(HashSet()) { getImportScope(it).computeImportedNames() }
     }
 
     fun definitelyDoesNotContainName(name: Name): Boolean {

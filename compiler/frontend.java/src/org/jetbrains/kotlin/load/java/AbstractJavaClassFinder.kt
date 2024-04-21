@@ -16,23 +16,23 @@
 
 package org.jetbrains.kotlin.load.java
 
-import com.intellij.ide.highlighter.JavaClassFileType
-import com.intellij.ide.highlighter.JavaFileType
-import com.intellij.openapi.fileTypes.FileTypeRegistry
-import com.intellij.openapi.fileTypes.UnknownFileType
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.search.DelegatingGlobalSearchScope
-import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.java.language.impl.JavaClassFileType
+import com.intellij.java.language.impl.JavaFileType
+import consulo.language.psi.scope.DelegatingGlobalSearchScope
+import consulo.language.psi.scope.GlobalSearchScope
+import consulo.project.Project
+import consulo.virtualFileSystem.VirtualFile
+import consulo.virtualFileSystem.fileType.FileTypeRegistry
+import consulo.virtualFileSystem.fileType.UnknownFileType
+import jakarta.inject.Inject
 import org.jetbrains.kotlin.config.JvmTarget
 import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.idea.KotlinFileType
+import org.jetbrains.kotlin.idea2.KotlinFileType
 import org.jetbrains.kotlin.resolve.BindingTrace
 import org.jetbrains.kotlin.resolve.CodeAnalyzerInitializer
 import org.jetbrains.kotlin.resolve.jvm.JvmCodeAnalyzerInitializer
 import org.jetbrains.kotlin.resolve.jvm.TopPackageNamesProvider
 import org.jetbrains.kotlin.resolve.lazy.KotlinCodeAnalyzer
-import javax.inject.Inject
 
 abstract class AbstractJavaClassFinder : JavaClassFinder {
     protected lateinit var project: Project

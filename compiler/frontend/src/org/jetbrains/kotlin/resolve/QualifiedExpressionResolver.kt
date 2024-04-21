@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.resolve
 
-import com.intellij.codeInsight.completion.CompletionUtilCore
-import com.intellij.psi.impl.source.DummyHolder
-import com.intellij.util.SmartList
+import consulo.language.editor.completion.CompletionUtilCore
+import consulo.language.impl.psi.DummyHolder
+import consulo.util.collection.SmartList
 import org.jetbrains.kotlin.config.AnalysisFlags
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.isLibraryToSourceAnalysisEnabled

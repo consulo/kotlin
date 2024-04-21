@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.types.expressions
 
+import jakarta.inject.Inject
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.ReflectionTypes
 import org.jetbrains.kotlin.builtins.functions.BuiltInFunctionArity
@@ -50,7 +51,6 @@ import org.jetbrains.kotlin.types.expressions.typeInfoFactory.noTypeInfo
 import org.jetbrains.kotlin.types.typeUtil.*
 import org.jetbrains.kotlin.utils.yieldIfNotNull
 import java.util.*
-import javax.inject.Inject
 
 sealed class DoubleColonLHS(val type: KotlinType) {
     /**

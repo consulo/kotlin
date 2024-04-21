@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.stub.file
 
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.ClassFileViewProvider
+import com.intellij.java.language.impl.psi.ClassFileViewProvider
+import consulo.logging.Logger
+import consulo.virtualFileSystem.VirtualFile
 import org.jetbrains.kotlin.load.kotlin.KotlinJvmBinaryClass
 import org.jetbrains.kotlin.load.kotlin.findKotlinClass
 import org.jetbrains.kotlin.load.kotlin.header.KotlinClassHeader

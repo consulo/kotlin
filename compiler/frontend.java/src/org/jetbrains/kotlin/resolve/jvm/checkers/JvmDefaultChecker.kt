@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.jvm.checkers
 
-import com.intellij.openapi.project.Project
+import consulo.project.Project
 import org.jetbrains.kotlin.config.JvmAnalysisFlags
 import org.jetbrains.kotlin.config.JvmDefaultMode
 import org.jetbrains.kotlin.config.JvmDefaultMode.ALL_COMPATIBILITY

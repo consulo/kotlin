@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.diagnostics;
 
-import com.intellij.psi.PsiElement;
+import consulo.language.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 
 public class DiagnosticFactory4<E extends PsiElement, A, B, C, D> extends DiagnosticFactoryWithPsiElement<E, DiagnosticWithParameters4<E, A, B, C, D>> {

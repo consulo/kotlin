@@ -17,7 +17,7 @@
 package org.jetbrains.kotlin.config
 
 import org.jetbrains.kotlin.platform.TargetPlatformVersion
-import org.jetbrains.org.objectweb.asm.Opcodes
+import consulo.internal.org.objectweb.asm.Opcodes
 
 enum class JvmTarget(
     override val description: String,

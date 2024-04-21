@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.cfg
 
-import com.intellij.psi.util.PsiTreeUtil.getParentOfType
+import consulo.language.psi.util.PsiTreeUtil.getParentOfType
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.ClassDescriptorWithResolutionScopes
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor

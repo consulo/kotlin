@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.checkers.diagnostics
 
-import com.intellij.psi.PsiFile
+import consulo.language.psi.PsiFile
 import org.jetbrains.kotlin.diagnostics.Diagnostic
 import org.jetbrains.kotlin.diagnostics.DiagnosticWithParameters1
 

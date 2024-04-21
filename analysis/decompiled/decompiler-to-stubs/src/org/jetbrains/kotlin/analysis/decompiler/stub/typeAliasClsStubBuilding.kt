@@ -2,8 +2,8 @@
 
 package org.jetbrains.kotlin.analysis.decompiler.stub
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.stubs.StubElement
+import consulo.language.psi.PsiElement
+import consulo.language.psi.stub.StubElement
 import org.jetbrains.kotlin.analysis.decompiler.stub.flags.VISIBILITY
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.Flags
