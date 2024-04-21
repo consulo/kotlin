@@ -78,7 +78,6 @@
       <artifactId>compiler.resolution.jvm</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>io.javaslang</groupId>
       <artifactId>javaslang</artifactId>
