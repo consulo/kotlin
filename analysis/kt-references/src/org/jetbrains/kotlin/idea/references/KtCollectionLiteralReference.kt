@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.MultiRangeReference
-import com.intellij.psi.PsiElement
+import consulo.document.util.TextRange
+import consulo.language.psi.MultiRangeReference
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.resolve.ArrayFqNames

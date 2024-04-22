@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.openapi.project.Project
+import consulo.project.Project
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getAssignmentByLHS
@@ -52,7 +52,7 @@ interface ReadWriteAccessChecker {
     }
 
     companion object {
-        fun getInstance(project: Project): ReadWriteAccessChecker = project.getService(ReadWriteAccessChecker::class.java)
+        fun getInstance(project: Project): ReadWriteAccessChecker = project.getInstance(ReadWriteAccessChecker::class.java)
     }
 }
 

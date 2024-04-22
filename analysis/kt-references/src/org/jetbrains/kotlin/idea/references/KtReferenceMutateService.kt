@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.psi.PsiElement
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.name.FqName
 
 /**

@@ -76,6 +76,7 @@
 
 		<module>compiler/util</module>
 
+		<module>analysis/kt-references</module>
 		<module>analysis/light-classes-base</module>
 		<module>analysis/project-structure</module>
 

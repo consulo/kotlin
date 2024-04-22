@@ -5,10 +5,9 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiPolyVariantReference
-import com.intellij.psi.PsiReference
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiPolyVariantReference
+import consulo.language.psi.PsiReference
 import org.jetbrains.kotlin.asJava.unwrapped
 import org.jetbrains.kotlin.kdoc.psi.impl.KDocName
 import org.jetbrains.kotlin.psi.*

@@ -5,10 +5,13 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.*
-import com.intellij.psi.impl.source.resolve.ResolveCache
-import com.intellij.psi.util.MethodSignatureUtil
+import com.intellij.java.language.psi.*
+import com.intellij.java.language.psi.util.MethodSignatureUtil
+import consulo.document.util.TextRange
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiElementResolveResult
+import consulo.language.psi.ResolveResult
+import consulo.language.psi.resolve.ResolveCache
 import org.jetbrains.kotlin.asJava.unwrapped
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtAnnotationEntry

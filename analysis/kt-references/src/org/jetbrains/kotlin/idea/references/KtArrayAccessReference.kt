@@ -5,8 +5,7 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.psi.MultiRangeReference
-import com.intellij.psi.PsiElement
+import consulo.language.psi.MultiRangeReference
 import org.jetbrains.kotlin.lexer.KtToken
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.Name

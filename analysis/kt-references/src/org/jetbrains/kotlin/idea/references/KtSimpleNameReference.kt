@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiElement
+import consulo.document.util.TextRange
+import consulo.language.psi.PsiElement
+import consulo.project.Project
 import org.jetbrains.kotlin.analysis.project.structure.KtCompilerPluginsProvider
 import org.jetbrains.kotlin.analysis.project.structure.KtCompilerPluginsProvider.CompilerPluginType
 import org.jetbrains.kotlin.analysis.project.structure.KtSourceModule
@@ -100,7 +100,7 @@ abstract class KtSimpleNameReference(expression: KtSimpleNameExpression) : KtSim
         }
 
         val reference = binaryExpression.operationReference.reference ?: return false
-        val pluginPresenceService = project.getService(KtCompilerPluginsProvider::class.java)
+        val pluginPresenceService = project.getInstance(KtCompilerPluginsProvider::class.java)
             ?: error("KtAssignResolutionPresenceService is not available as a service")
         return pluginPresenceService.isPluginOfTypeRegistered(sourceModule, CompilerPluginType.ASSIGNMENT)
                 && (reference.resolve() as? KtNamedFunction)?.nameAsName == ASSIGN_METHOD

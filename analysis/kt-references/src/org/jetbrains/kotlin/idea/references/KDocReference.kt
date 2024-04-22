@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiElement
+import consulo.document.util.TextRange
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.kdoc.psi.impl.KDocName
 import org.jetbrains.kotlin.name.Name
 

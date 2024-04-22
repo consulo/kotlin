@@ -5,11 +5,10 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.openapi.components.ServiceManager
-import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiReference
-import com.intellij.util.containers.MultiMap
+import consulo.language.psi.PsiElement
+import consulo.language.psi.PsiReference
+import consulo.project.Project
+import consulo.util.collection.MultiMap
 import org.jetbrains.kotlin.psi.KtElement
 
 interface KotlinPsiReferenceProvider {
@@ -21,7 +20,7 @@ interface KotlinReferenceProviderContributor {
 
     companion object {
         fun getInstance(project: Project): KotlinReferenceProviderContributor =
-            project.getService(KotlinReferenceProviderContributor::class.java)
+            project.getInstance(KotlinReferenceProviderContributor::class.java)
     }
 }
 

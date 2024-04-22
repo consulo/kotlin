@@ -5,15 +5,15 @@
 
 package org.jetbrains.kotlin.plugin.references
 
-import com.intellij.openapi.extensions.ExtensionPointName
-import com.intellij.psi.PsiElement
+import consulo.component.extension.ExtensionPointName
+import consulo.language.psi.PsiElement
 import org.jetbrains.kotlin.idea.references.KtSimpleNameReference
 import org.jetbrains.kotlin.psi.KtPsiFactory
 
 interface SimpleNameReferenceExtension {
     companion object {
         val EP_NAME: ExtensionPointName<SimpleNameReferenceExtension> =
-            ExtensionPointName.create("org.jetbrains.kotlin.simpleNameReferenceExtension")
+            ExtensionPointName.create(SimpleNameReferenceExtension::class.java)
     }
 
     fun isReferenceTo(reference: KtSimpleNameReference, element: PsiElement): Boolean

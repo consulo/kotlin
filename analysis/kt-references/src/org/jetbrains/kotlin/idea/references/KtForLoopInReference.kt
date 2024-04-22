@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.openapi.util.TextRange
+import consulo.document.util.TextRange
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.KtForExpression
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
 abstract class KtForLoopInReference(element: KtForExpression) : KtMultiReference<KtForExpression>(element) {

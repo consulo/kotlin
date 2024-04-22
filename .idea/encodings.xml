@@ -13,6 +13,8 @@
     <file url="file://$PROJECT_DIR$/analysis/decompiled/decompiler-to-psi/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/analysis/decompiled/decompiler-to-stubs/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/analysis/decompiled/decompiler-to-stubs/src" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/kt-references/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/analysis/kt-references/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/analysis/light-classes-base/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/analysis/light-classes-base/src" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/analysis/project-structure/resources" charset="UTF-8" />

@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.openapi.util.TextRange
+import consulo.document.util.TextRange
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtPropertyDelegate
 import org.jetbrains.kotlin.util.OperatorNameConventions
@@ -17,7 +17,7 @@ abstract class KtPropertyDelegationMethodsReference(element: KtPropertyDelegate)
         return TextRange(offset, offset + byKeywordNode.textLength)
     }
 
-       override val resolvesByNames: Collection<Name> get() = NAMES
+    override val resolvesByNames: Collection<Name> get() = NAMES
 
     companion object {
         private val NAMES = listOf(

@@ -5,10 +5,9 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.lang.ASTNode
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.MultiRangeReference
-import com.intellij.psi.PsiElement
+import consulo.document.util.TextRange
+import consulo.language.ast.ASTNode
+import consulo.language.psi.MultiRangeReference
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
@@ -16,7 +15,8 @@ import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForSelectorOrThis
 import org.jetbrains.kotlin.util.OperatorNameConventions
 import java.util.*
 
-abstract class KtInvokeFunctionReference(expression: KtCallExpression) : KtSimpleReference<KtCallExpression>(expression), MultiRangeReference {
+abstract class KtInvokeFunctionReference(expression: KtCallExpression) : KtSimpleReference<KtCallExpression>(expression),
+    MultiRangeReference {
     override val resolvesByNames: Collection<Name> get() = NAMES
 
     override fun getRangeInElement(): TextRange {

@@ -5,14 +5,14 @@
 
 package org.jetbrains.kotlin.idea.references
 
-import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiMethod
+import com.intellij.java.language.psi.PsiMethod
+import consulo.document.util.TextRange
+import consulo.language.psi.PsiElement
+import org.jetbrains.kotlin.asJava.canHaveSyntheticGetter
+import org.jetbrains.kotlin.asJava.canHaveSyntheticSetter
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.resolve.references.ReferenceAccess
-import org.jetbrains.kotlin.asJava.canHaveSyntheticSetter
-import org.jetbrains.kotlin.asJava.canHaveSyntheticGetter
 
 abstract class SyntheticPropertyAccessorReference(
     expression: KtNameReferenceExpression,
