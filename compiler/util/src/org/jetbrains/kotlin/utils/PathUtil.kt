@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.utils
 
-import com.intellij.java.impl.openapi.projectRoots.impl.JavaSdkImpl
+import com.intellij.java.impl.openapi.projectRoots.impl.DefaultJavaSdkTypeImpl
 import consulo.application.ApplicationManager
 import consulo.util.io.ClassPathUtil
 import java.io.File
@@ -175,15 +175,15 @@ object PathUtil {
 
     @JvmStatic
     fun getJdkClassesRootsFromJre(javaHome: String): List<File> =
-        JavaSdkImpl.getJdkClassesRoots(File(javaHome), true)
+        DefaultJavaSdkTypeImpl.getJdkClassesRoots(File(javaHome), true)
 
     @JvmStatic
     fun getJdkClassesRoots(jdkHome: File): List<File> =
-        JavaSdkImpl.getJdkClassesRoots(jdkHome, false)
+        DefaultJavaSdkTypeImpl.getJdkClassesRoots(jdkHome, false)
 
     @JvmStatic
     fun getJdkClassesRootsFromJdkOrJre(javaRoot: File): List<File> {
         val isJdk = File(javaRoot, "jre/lib").exists()
-        return JavaSdkImpl.getJdkClassesRoots(javaRoot, !isJdk)
+        return DefaultJavaSdkTypeImpl.getJdkClassesRoots(javaRoot, !isJdk)
     }
 }
