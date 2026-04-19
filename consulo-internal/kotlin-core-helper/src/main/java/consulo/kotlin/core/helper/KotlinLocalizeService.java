@@ -10,7 +10,7 @@ import consulo.localize.LocalizeValue;
  * remapped Kotlin language and file types.
  *
  * The remapped Kotlin jar calls into this service via bytecode injected by
- * consulo-remap-plugin (see {@code <overrideMethod><body>...</body></overrideMethod>}
+ * maven-java-bytecode-remap-plugin (see {@code <overrideMethod><body>...</body></overrideMethod>}
  * in {@code consulo-internal/remap/remap.xml}) to replace the hardcoded
  * {@code "Kotlin"} strings returned by {@code KotlinLanguage#getDisplayName()} and
  * {@code KotlinFileType#getDescription()}. The implementation lives in the

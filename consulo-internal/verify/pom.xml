@@ -119,7 +119,7 @@
         <plugins>
             <plugin>
                 <groupId>consulo.maven</groupId>
-                <artifactId>consulo-remap-plugin</artifactId>
+                <artifactId>maven-java-bytecode-remap-plugin</artifactId>
                 <version>1.0-SNAPSHOT</version>
                 <executions>
                     <execution>
