@@ -1,0 +1,271 @@
+<remap>
+    <!-- Package-level rules (bulk mapping, lowest priority) -->
+    <packages>
+        <!-- PSI -->
+        <rule from="com.intellij.psi.stubs" to="consulo.language.psi.stub"/>
+        <rule from="com.intellij.psi.search" to="consulo.language.psi.scope"/>
+        <rule from="com.intellij.psi.tree" to="consulo.language.ast"/>
+        <rule from="com.intellij.psi.util" to="consulo.language.psi.util"/>
+        <rule from="com.intellij.psi.impl.source.tree" to="consulo.language.impl.ast"/>
+        <rule from="com.intellij.psi.impl" to="consulo.language.impl.psi"/>
+        <rule from="com.intellij.psi.scope" to="consulo.language.psi.scope"/>
+        <rule from="com.intellij.psi.codeStyle" to="consulo.language.codeStyle"/>
+        <rule from="com.intellij.psi" to="consulo.language.psi"/>
+
+        <!-- Language/Lexer -->
+        <rule from="com.intellij.lexer" to="consulo.language.lexer"/>
+        <rule from="com.intellij.lang.impl" to="consulo.language.parser.impl"/>
+        <rule from="com.intellij.lang" to="consulo.language"/>
+
+        <!-- ExtAPI -->
+        <rule from="com.intellij.extapi.psi" to="consulo.language.impl.psi"/>
+
+        <!-- Platform -->
+        <rule from="com.intellij.openapi.project" to="consulo.project"/>
+        <rule from="com.intellij.openapi.vfs" to="consulo.virtualFileSystem"/>
+        <rule from="com.intellij.openapi.application" to="consulo.application"/>
+        <rule from="com.intellij.openapi.progress" to="consulo.application.progress"/>
+        <rule from="com.intellij.openapi.diagnostic" to="consulo.logging"/>
+        <rule from="com.intellij.openapi.fileTypes" to="consulo.language.file"/>
+        <rule from="com.intellij.openapi.editor" to="consulo.document"/>
+        <rule from="com.intellij.openapi.extensions" to="consulo.component.extension"/>
+        <rule from="com.intellij.openapi.components" to="consulo.component"/>
+        <rule from="com.intellij.openapi.util.registry" to="consulo.application.util.registry"/>
+        <rule from="com.intellij.openapi.util.text" to="consulo.util.lang"/>
+        <rule from="com.intellij.openapi.util.io" to="consulo.util.io"/>
+        <rule from="com.intellij.openapi.util" to="consulo.util.dataholder"/>
+
+        <!-- Navigation -->
+        <rule from="com.intellij.navigation" to="consulo.navigation"/>
+
+        <!-- Util -->
+        <rule from="com.intellij.util.messages" to="consulo.component.messagebus"/>
+        <rule from="com.intellij.util.io" to="consulo.index.io"/>
+        <rule from="com.intellij.util.containers" to="consulo.util.collection"/>
+        <rule from="com.intellij.util.text" to="consulo.util.lang.text"/>
+        <rule from="com.intellij.util" to="consulo.util"/>
+
+        <!-- Test/Mock/Core -->
+        <rule from="com.intellij.mock" to="consulo.test.mock"/>
+        <rule from="com.intellij.core" to="consulo.test.core"/>
+        <rule from="com.intellij.testFramework" to="consulo.test.framework"/>
+    </packages>
+
+    <!-- Per-class overrides (highest priority) -->
+    <classes>
+        <!-- com.intellij.psi split: FileViewProvider goes to consulo.language.file -->
+        <rule from="com.intellij.psi.FileViewProvider" to="consulo.language.file.FileViewProvider"/>
+        <rule from="com.intellij.psi.SingleRootFileViewProvider" to="consulo.language.impl.file.SingleRootFileViewProvider"/>
+        <rule from="com.intellij.psi.PsiClassOwner" to="consulo.language.psi.PsiClassOwner"/>
+
+        <!-- com.intellij.lang split: parser classes → consulo.language.parser -->
+        <rule from="com.intellij.lang.ParserDefinition" to="consulo.language.parser.ParserDefinition"/>
+        <rule from="com.intellij.lang.PsiBuilder" to="consulo.language.parser.PsiBuilder"/>
+        <rule from="com.intellij.lang.PsiBuilderFactory" to="consulo.language.parser.PsiBuilderFactory"/>
+        <rule from="com.intellij.lang.PsiParser" to="consulo.language.parser.PsiParser"/>
+
+        <!-- com.intellij.lang split: AST classes → consulo.language.ast -->
+        <rule from="com.intellij.lang.ASTNode" to="consulo.language.ast.ASTNode"/>
+        <rule from="com.intellij.lang.FileASTNode" to="consulo.language.ast.FileASTNode"/>
+        <rule from="com.intellij.lang.LighterASTNode" to="consulo.language.ast.LighterASTNode"/>
+        <rule from="com.intellij.lang.LighterAST" to="consulo.language.ast.LighterAST"/>
+        <rule from="com.intellij.lang.TreeBackedLighterAST" to="consulo.language.ast.TreeBackedLighterAST"/>
+
+        <!-- com.intellij.openapi.util split -->
+        <rule from="com.intellij.openapi.util.TextRange" to="consulo.document.util.TextRange"/>
+        <rule from="com.intellij.openapi.util.NotNullLazyValue" to="consulo.application.util.NotNullLazyValue"/>
+        <rule from="com.intellij.openapi.util.Iconable" to="consulo.component.util.Iconable"/>
+        <rule from="com.intellij.openapi.util.ModificationTracker" to="consulo.component.util.ModificationTracker"/>
+        <!-- Consulo's FlyweightCapableTreeStructure.getChildren takes SimpleReference
+             (Ref's parent class). Remapping to the base class keeps override chains
+             valid; Ref's constructors exist on SimpleReference too. -->
+        <rule from="com.intellij.openapi.util.Ref" to="consulo.util.lang.ref.SimpleReference"/>
+        <rule from="com.intellij.openapi.util.Key" to="consulo.util.dataholder.Key"/>
+        <rule from="com.intellij.openapi.util.UserDataHolder" to="consulo.util.dataholder.UserDataHolder"/>
+        <rule from="com.intellij.openapi.util.UserDataHolderBase" to="consulo.util.dataholder.UserDataHolderBase"/>
+        <rule from="com.intellij.openapi.util.Computable" to="consulo.util.lang.Computable"/>
+
+        <!-- com.intellij.openapi.fileTypes split -->
+        <rule from="com.intellij.openapi.fileTypes.LanguageFileType" to="consulo.language.file.LanguageFileType"/>
+        <rule from="com.intellij.openapi.fileTypes.FileType" to="consulo.virtualFileSystem.fileType.FileType"/>
+
+        <!-- com.intellij.openapi.editor split -->
+        <rule from="com.intellij.openapi.editor.Document" to="consulo.document.Document"/>
+
+        <!-- Disposable -->
+        <rule from="com.intellij.openapi.Disposable" to="consulo.disposer.Disposable"/>
+
+        <!-- Swing Icon → Consulo Image -->
+        <rule from="javax.swing.Icon" to="consulo.ui.image.Image"/>
+
+        <!-- com.intellij.lang split: parser classes -->
+        <rule from="com.intellij.lang.WhitespacesAndCommentsBinder" to="consulo.language.parser.WhitespacesAndCommentsBinder"/>
+        <rule from="com.intellij.lang.WhitespacesBinders" to="consulo.language.parser.WhitespacesBinders"/>
+        <rule from="com.intellij.lang.LanguageParserDefinitions" to="consulo.language.parser.LanguageParserDefinitions"/>
+
+        <!-- com.intellij.lang.impl split -->
+        <rule from="com.intellij.lang.impl.PsiBuilderAdapter" to="consulo.language.parser.PsiBuilderAdapter"/>
+        <rule from="com.intellij.lang.impl.PsiBuilderImpl" to="consulo.language.impl.internal.parser.PsiBuilderImpl"/>
+
+        <!-- Classes that became interfaces in Consulo -->
+        <rule from="com.intellij.openapi.diagnostic.Logger" to="consulo.logging.Logger" type="interface"/>
+
+        <!-- com.intellij.openapi.diagnostic split -->
+        <rule from="com.intellij.openapi.diagnostic.Attachment" to="consulo.logging.attachment.Attachment"/>
+        <rule from="com.intellij.openapi.diagnostic.ExceptionWithAttachments" to="consulo.logging.attachment.ExceptionWithAttachments"/>
+        <rule from="com.intellij.openapi.diagnostic.ControlFlowException" to="consulo.util.lang.ControlFlowException"/>
+
+        <!-- com.intellij.openapi.util.io: FileUtilRt → FileUtil -->
+        <rule from="com.intellij.openapi.util.io.FileUtilRt" to="consulo.util.io.FileUtil"/>
+
+        <!-- com.intellij.util.containers split: Interner lives in its own artifact
+             (consulo-util-interner), not in consulo.util.collection -->
+        <rule from="com.intellij.util.containers.Interner" to="consulo.util.interner.Interner"/>
+
+        <!-- com.intellij.util split -->
+        <rule from="com.intellij.util.ArrayFactory" to="consulo.util.collection.ArrayFactory"/>
+        <rule from="com.intellij.util.IncorrectOperationException" to="consulo.language.util.IncorrectOperationException"/>
+        <rule from="com.intellij.util.LocalTimeCounter" to="consulo.util.lang.LocalTimeCounter"/>
+        <rule from="com.intellij.util.FileContentUtilCore" to="consulo.document.util.FileContentUtilCore"/>
+        <rule from="com.intellij.util.ReflectionUtil" to="consulo.util.lang.reflect.ReflectionUtil"/>
+
+        <!-- com.intellij.util.diff split -->
+        <rule from="com.intellij.util.diff.FlyweightCapableTreeStructure" to="consulo.language.util.FlyweightCapableTreeStructure"/>
+
+        <!-- com.intellij.psi.search split -->
+        <rule from="com.intellij.psi.search.SearchScope" to="consulo.content.scope.SearchScope"/>
+
+        <!-- com.intellij.psi.tree split -->
+        <rule from="com.intellij.psi.tree.IStubFileElementType" to="consulo.language.psi.stub.IStubFileElementType"/>
+
+        <!-- com.intellij.psi split -->
+        <rule from="com.intellij.psi.TokenType" to="consulo.language.ast.TokenType"/>
+        <rule from="com.intellij.psi.StubBuilder" to="consulo.language.psi.stub.StubBuilder"/>
+
+        <!-- com.intellij.extapi.psi split -->
+        <rule from="com.intellij.extapi.psi.StubBasedPsiElementBase" to="consulo.language.impl.psi.stub.StubBasedPsiElementBase"/>
+
+        <!-- com.intellij.psi.impl split -->
+        <rule from="com.intellij.psi.impl.PsiManagerEx" to="consulo.language.impl.internal.psi.PsiManagerEx"/>
+
+        <!-- com.intellij.psi.impl.source.tree split -->
+        <rule from="com.intellij.psi.impl.source.tree.ICodeFragmentElementType" to="consulo.language.ast.ICodeFragmentElementType"/>
+        <rule from="com.intellij.psi.impl.source.tree.LeafPsiElement" to="consulo.language.psi.LeafPsiElement"/>
+        <rule from="com.intellij.psi.impl.source.tree.LazyParseablePsiElement" to="consulo.language.impl.psi.LazyParseablePsiElement"/>
+
+        <!-- Kotlin extension stubs → Consulo Java static methods -->
+        <rule from="com.intellij.psi.util.PsiUtilCoreKt" to="consulo.language.psi.PsiUtilCore"/>
+
+        <!-- Java PSI interop: these live in the consulo.java-java.language.api plugin,
+             not in consulo.language.psi.* -->
+        <rule from="com.intellij.psi.PsiClassOwner" to="com.intellij.java.language.psi.PsiClassOwner"/>
+        <rule from="com.intellij.psi.PsiClass" to="com.intellij.java.language.psi.PsiClass"/>
+        <rule from="com.intellij.psi.JavaCodeFragment" to="com.intellij.java.language.psi.JavaCodeFragment"/>
+
+        <!-- PsiFileImpl: Consulo dropped the .source subpackage; the class rule beats
+             the package rule com.intellij.psi.impl → consulo.language.impl.psi -->
+        <rule from="com.intellij.psi.impl.source.PsiFileImpl" to="consulo.language.impl.psi.PsiFileImpl"/>
+    </classes>
+
+    <!-- Method renames (applied after class remapping) -->
+    <methods>
+        <rule owner="consulo.application.util.NotNullLazyValue" name="lazy" newName="createValue"/>
+
+        <!-- FileType#getName → getId: IntelliJ calls it getName, Consulo calls it getId.
+             Only the jar's own subclass declarations need renaming — FileType/LanguageFileType
+             live in the Consulo platform and already expose getId. -->
+        <rule owner="org.jetbrains.kotlin.idea.KotlinFileType" name="getName" newName="getId"/>
+        <rule owner="org.jetbrains.kotlin.idea.KotlinModuleFileType" name="getName" newName="getId"/>
+    </methods>
+
+    <!-- Class modifications -->
+    <modifications>
+        <class name="org.jetbrains.kotlin.parsing.KotlinCommonParserDefinition">
+            <overrideMethod name="createLexer">
+                <replaceParam index="0" type="consulo.language.version.LanguageVersion"/>
+            </overrideMethod>
+            <overrideMethod name="createParser">
+                <replaceParam index="0" type="consulo.language.version.LanguageVersion"/>
+            </overrideMethod>
+            <overrideMethod name="getWhitespaceTokens">
+                <addParam index="0" type="consulo.language.version.LanguageVersion"/>
+            </overrideMethod>
+            <overrideMethod name="getCommentTokens">
+                <addParam index="0" type="consulo.language.version.LanguageVersion"/>
+            </overrideMethod>
+            <overrideMethod name="getStringLiteralElements">
+                <addParam index="0" type="consulo.language.version.LanguageVersion"/>
+            </overrideMethod>
+        </class>
+
+        <class name="org.jetbrains.kotlin.parsing.KotlinParserDefinition">
+            <addAnnotation type="consulo.annotation.component.ExtensionImpl"/>
+            <addMethod name="getLanguage" returnType="consulo.language.Language">
+                <getstatic owner="org.jetbrains.kotlin.idea.KotlinLanguage"
+                           name="INSTANCE"
+                           type="org.jetbrains.kotlin.idea.KotlinLanguage"/>
+                <areturn/>
+            </addMethod>
+        </class>
+
+        <!-- Return types change from String to LocalizeValue. Bodies are replaced
+             with a delegation to KotlinLocalizeService (a runtime helper that ships
+             in consulo-internal/kotlin-core-helper). -->
+        <class name="org.jetbrains.kotlin.idea.KotlinLanguage">
+            <overrideMethod name="getDisplayName">
+                <replaceReturn type="consulo.localize.LocalizeValue"/>
+                <body>
+                    <invokestatic owner="consulo.kotlin.core.helper.KotlinLocalizeService"
+                                  name="getInstance"
+                                  desc="()Lconsulo/kotlin/core/helper/KotlinLocalizeService;"
+                                  itf="true"/>
+                    <invokeinterface owner="consulo.kotlin.core.helper.KotlinLocalizeService"
+                                     name="getKotlinLanguageDisplayName"
+                                     desc="()Lconsulo/localize/LocalizeValue;"/>
+                    <areturn/>
+                </body>
+            </overrideMethod>
+        </class>
+
+        <class name="org.jetbrains.kotlin.idea.KotlinFileType">
+            <overrideMethod name="getDescription">
+                <replaceReturn type="consulo.localize.LocalizeValue"/>
+                <body>
+                    <invokestatic owner="consulo.kotlin.core.helper.KotlinLocalizeService"
+                                  name="getInstance"
+                                  desc="()Lconsulo/kotlin/core/helper/KotlinLocalizeService;"
+                                  itf="true"/>
+                    <invokeinterface owner="consulo.kotlin.core.helper.KotlinLocalizeService"
+                                     name="getKotlinFileTypeDescription"
+                                     desc="()Lconsulo/localize/LocalizeValue;"/>
+                    <areturn/>
+                </body>
+            </overrideMethod>
+        </class>
+    </modifications>
+
+    <module name="consulo.kotlin.remapped">
+        <requires>consulo.language.api</requires>
+        <requires>consulo.language.impl</requires>
+        <requires>consulo.component.api</requires>
+        <requires>consulo.project.api</requires>
+        <requires>consulo.application.api</requires>
+        <requires>consulo.document.api</requires>
+        <requires>consulo.virtualFileSystem.api</requires>
+        <requires>consulo.util.dataholder</requires>
+        <requires>consulo.util.lang</requires>
+        <requires>consulo.navigation.api</requires>
+
+        <exports>org/jetbrains/kotlin/psi</exports>
+        <exports>org/jetbrains/kotlin/parsing</exports>
+        <exports>org/jetbrains/kotlin/idea</exports>
+        <exports>org/jetbrains/kotlin/lexer</exports>
+        <exports>org/jetbrains/kotlin/kdoc</exports>
+
+        <provides interface="consulo.component.bind.InjectingBinding">
+            <binding impl="org.jetbrains.kotlin.parsing.KotlinParserDefinition"
+                     api="consulo.language.parser.ParserDefinition"
+                     scope="APPLICATION"/>
+        </provides>
+    </module>
+</remap>

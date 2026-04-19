@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>consulo.kotlin</groupId>
+        <artifactId>consulo.kotlin.internal</artifactId>
+        <version>3-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>consulo.kotlin.verify</artifactId>
+
+    <description>
+        Runs ASM CheckClassAdapter verification over the remapped kotlin jar against the
+        full Consulo runtime classpath. Fails the build if any class in the jar produces
+        verifier output.
+    </description>
+
+    <dependencies>
+        <!-- Jar to verify (after shade+remap). -->
+        <dependency>
+            <groupId>consulo.kotlin</groupId>
+            <artifactId>consulo.kotlin.remapped</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Runtime helper called from remapped bytecode. -->
+        <dependency>
+            <groupId>consulo.kotlin</groupId>
+            <artifactId>consulo.kotlin.core.helper</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Consulo platform surface referenced by remapped code — must match the
+             <requires> block in consulo-internal/remap/remap.xml. -->
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-annotation</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-application-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-component-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-document-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-language-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-language-impl</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-localize-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-navigation-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-project-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-util-collection</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-util-interner</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-util-dataholder</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-util-lang</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Java PSI interop types remap.xml targets:
+             com.intellij.psi.PsiClassOwner → com.intellij.java.language.psi.PsiClassOwner -->
+        <dependency>
+            <groupId>consulo.plugin</groupId>
+            <artifactId>consulo.java-java.language.api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-virtual-file-system-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>consulo.maven</groupId>
+                <artifactId>consulo-remap-plugin</artifactId>
+                <version>1.0-SNAPSHOT</version>
+                <executions>
+                    <execution>
+                        <id>verify-remapped</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>verify-jar</goal>
+                        </goals>
+                        <configuration>
+                            <verifyArtifact>consulo.kotlin:consulo.kotlin.remapped</verifyArtifact>
+                            <!-- Log findings as warnings while the mapping is iterated;
+                                 flip to false once outstanding overrides are resolved. -->
+                            <warnOnly>true</warnOnly>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

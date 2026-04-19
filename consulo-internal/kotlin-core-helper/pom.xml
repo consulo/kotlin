@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>consulo.kotlin</groupId>
+        <artifactId>consulo.kotlin.internal</artifactId>
+        <version>3-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>consulo.kotlin.core.helper</artifactId>
+
+    <description>Runtime helper module for remapped Kotlin code. Holds API-only
+        service interfaces (e.g. KotlinLocalizeService) that the remapped bytecode
+        calls into. Ships alongside the remapped kotlin jar — not shaded, not remapped.
+    </description>
+
+    <build>
+        <sourceDirectory>src/main/java</sourceDirectory>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-annotation</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-application-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-component-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-localize-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+</project>

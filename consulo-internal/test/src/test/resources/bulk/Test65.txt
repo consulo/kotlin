@@ -1,0 +1,5 @@
+KtFile: Test65.kt
+  PACKAGE_DIRECTIVE
+    <empty list>
+  IMPORT_LIST
+    <empty list>
