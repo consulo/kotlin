@@ -78,6 +78,14 @@
             <id>kotlin-bootstrap</id>
             <url>https://maven.pkg.jetbrains.space/kotlin/p/kotlin/bootstrap</url>
         </repository>
+        <repository>
+            <id>consulo</id>
+            <url>https://maven.consulo.dev/repository/snapshots/</url>
+            <snapshots>
+                <enabled>true</enabled>
+                <updatePolicy>interval:60</updatePolicy>
+            </snapshots>
+        </repository>
     </repositories>
 
     <pluginRepositories>
