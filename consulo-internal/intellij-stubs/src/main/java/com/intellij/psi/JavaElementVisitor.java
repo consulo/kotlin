@@ -1,0 +1,62 @@
+package com.intellij.psi;
+
+@SuppressWarnings("all")
+public class JavaElementVisitor extends com.intellij.psi.PsiElementVisitor {
+    public void visitAnnotation(com.intellij.psi.PsiAnnotation annotation) { visitElement(annotation); }
+    public void visitAnnotationArrayInitializer(com.intellij.psi.PsiArrayInitializerMemberValue initializer) { visitElement(initializer); }
+    public void visitAnnotationMethod(com.intellij.psi.PsiAnnotationMethod method) { visitMethod(method); }
+    public void visitAnonymousClass(com.intellij.psi.PsiAnonymousClass c) { visitClass(c); }
+    public void visitArrayAccessExpression(com.intellij.psi.PsiArrayAccessExpression expression) { visitExpression(expression); }
+    public void visitArrayInitializerExpression(com.intellij.psi.PsiArrayInitializerExpression expression) { visitExpression(expression); }
+    public void visitAssignmentExpression(com.intellij.psi.PsiAssignmentExpression expression) { visitExpression(expression); }
+    public void visitBinaryExpression(com.intellij.psi.PsiBinaryExpression expression) { visitPolyadicExpression(expression); }
+    public void visitBlockStatement(com.intellij.psi.PsiBlockStatement statement) { visitStatement(statement); }
+    public void visitBreakStatement(com.intellij.psi.PsiBreakStatement statement) { visitStatement(statement); }
+    public void visitClass(com.intellij.psi.PsiClass c) { visitElement(c); }
+    public void visitClassInitializer(com.intellij.psi.PsiClassInitializer i) { visitElement(i); }
+    public void visitClassObjectAccessExpression(com.intellij.psi.PsiClassObjectAccessExpression expression) { visitExpression(expression); }
+    public void visitCodeBlock(com.intellij.psi.PsiCodeBlock block) { visitElement(block); }
+    public void visitConditionalExpression(com.intellij.psi.PsiConditionalExpression expression) { visitExpression(expression); }
+    public void visitDeclarationStatement(com.intellij.psi.PsiDeclarationStatement statement) { visitStatement(statement); }
+    public void visitEnumConstant(com.intellij.psi.PsiEnumConstant enumConstant) { visitField(enumConstant); }
+    public void visitExpression(com.intellij.psi.PsiExpression expression) { visitElement(expression); }
+    public void visitExpressionList(com.intellij.psi.PsiExpressionList list) { visitElement(list); }
+    public void visitField(com.intellij.psi.PsiField field) { visitVariable(field); }
+    public void visitIdentifier(com.intellij.psi.PsiIdentifier identifier) { visitElement(identifier); }
+    public void visitImportStatement(com.intellij.psi.PsiImportStatement statement) { visitElement(statement); }
+    public void visitInstanceOfExpression(com.intellij.psi.PsiInstanceOfExpression expression) { visitExpression(expression); }
+    public void visitJavaCodeReferenceElement(com.intellij.psi.PsiJavaCodeReferenceElement ref) { visitElement(ref); }
+    public void visitJavaToken(com.intellij.psi.PsiJavaToken token) { visitElement(token); }
+    public void visitKeyword(com.intellij.psi.PsiKeyword keyword) { visitElement(keyword); }
+    public void visitLambdaExpression(com.intellij.psi.PsiLambdaExpression expression) { visitExpression(expression); }
+    public void visitLiteralExpression(com.intellij.psi.PsiLiteralExpression expression) { visitExpression(expression); }
+    public void visitLocalVariable(com.intellij.psi.PsiLocalVariable variable) { visitVariable(variable); }
+    public void visitMethod(com.intellij.psi.PsiMethod method) { visitElement(method); }
+    public void visitMethodCallExpression(com.intellij.psi.PsiMethodCallExpression expression) { visitCallExpression(expression); }
+    public void visitCallExpression(com.intellij.psi.PsiCallExpression callExpression) { visitExpression(callExpression); }
+    public void visitModifierList(com.intellij.psi.PsiModifierList list) { visitElement(list); }
+    public void visitNameValuePair(com.intellij.psi.PsiNameValuePair pair) { visitElement(pair); }
+    public void visitNewExpression(com.intellij.psi.PsiNewExpression expression) { visitCallExpression(expression); }
+    public void visitPackageStatement(com.intellij.psi.PsiPackageStatement statement) { visitElement(statement); }
+    public void visitParameter(com.intellij.psi.PsiParameter parameter) { visitVariable(parameter); }
+    public void visitParameterList(com.intellij.psi.PsiParameterList list) { visitElement(list); }
+    public void visitParenthesizedExpression(com.intellij.psi.PsiParenthesizedExpression expression) { visitExpression(expression); }
+    public void visitPolyadicExpression(com.intellij.psi.PsiPolyadicExpression expression) { visitExpression(expression); }
+    public void visitPostfixExpression(com.intellij.psi.PsiPostfixExpression expression) { visitUnaryExpression(expression); }
+    public void visitPrefixExpression(com.intellij.psi.PsiPrefixExpression expression) { visitUnaryExpression(expression); }
+    public void visitRecordComponent(com.intellij.psi.PsiRecordComponent recordComponent) { visitElement(recordComponent); }
+    public void visitReferenceElement(com.intellij.psi.PsiJavaCodeReferenceElement ref) { visitElement(ref); }
+    public void visitReferenceExpression(com.intellij.psi.PsiReferenceExpression expression) { visitExpression(expression); }
+    public void visitReferenceList(com.intellij.psi.PsiReferenceList list) { visitElement(list); }
+    public void visitReferenceParameterList(com.intellij.psi.PsiReferenceParameterList list) { visitElement(list); }
+    public void visitReturnStatement(com.intellij.psi.PsiReturnStatement statement) { visitStatement(statement); }
+    public void visitStatement(com.intellij.psi.PsiStatement statement) { visitElement(statement); }
+    public void visitSuperExpression(com.intellij.psi.PsiSuperExpression expression) { visitExpression(expression); }
+    public void visitThisExpression(com.intellij.psi.PsiThisExpression expression) { visitExpression(expression); }
+    public void visitTypeCastExpression(com.intellij.psi.PsiTypeCastExpression expression) { visitExpression(expression); }
+    public void visitTypeElement(com.intellij.psi.PsiTypeElement type) { visitElement(type); }
+    public void visitTypeParameter(com.intellij.psi.PsiTypeParameter classParameter) { visitClass(classParameter); }
+    public void visitTypeParameterList(com.intellij.psi.PsiTypeParameterList list) { visitElement(list); }
+    public void visitUnaryExpression(com.intellij.psi.PsiUnaryExpression expression) { visitExpression(expression); }
+    public void visitVariable(com.intellij.psi.PsiVariable variable) { visitElement(variable); }
+}

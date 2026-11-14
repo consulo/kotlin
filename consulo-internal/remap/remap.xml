@@ -161,6 +161,95 @@
         <rule from="com.intellij.psi.PsiClassOwner" to="com.intellij.java.language.psi.PsiClassOwner"/>
         <rule from="com.intellij.psi.PsiClass" to="com.intellij.java.language.psi.PsiClass"/>
         <rule from="com.intellij.psi.JavaCodeFragment" to="com.intellij.java.language.psi.JavaCodeFragment"/>
+        <rule from="com.intellij.psi.PsiAnnotation" to="com.intellij.java.language.psi.PsiAnnotation"/>
+        <rule from="com.intellij.psi.PsiAnnotationMemberValue" to="com.intellij.java.language.psi.PsiAnnotationMemberValue"/>
+        <rule from="com.intellij.psi.PsiAnnotationOwner" to="com.intellij.java.language.psi.PsiAnnotationOwner"/>
+        <rule from="com.intellij.psi.PsiAnnotationMethod" to="com.intellij.java.language.psi.PsiAnnotationMethod"/>
+        <rule from="com.intellij.psi.PsiAnnotationParameterList" to="com.intellij.java.language.psi.PsiAnnotationParameterList"/>
+        <rule from="com.intellij.psi.PsiAnonymousClass" to="com.intellij.java.language.psi.PsiAnonymousClass"/>
+        <rule from="com.intellij.psi.PsiArrayInitializerMemberValue" to="com.intellij.java.language.psi.PsiArrayInitializerMemberValue"/>
+        <rule from="com.intellij.psi.PsiArrayType" to="com.intellij.java.language.psi.PsiArrayType"/>
+        <rule from="com.intellij.psi.PsiClassObjectAccessExpression" to="com.intellij.java.language.psi.PsiClassObjectAccessExpression"/>
+        <rule from="com.intellij.psi.PsiClassType" to="com.intellij.java.language.psi.PsiClassType"/>
+        <rule from="com.intellij.psi.PsiCompiledElement" to="com.intellij.java.language.psi.PsiCompiledElement"/>
+        <rule from="com.intellij.psi.PsiDocCommentOwner" to="com.intellij.java.language.psi.PsiDocCommentOwner"/>
+        <rule from="com.intellij.psi.PsiElementFactory" to="com.intellij.java.language.psi.PsiElementFactory"/>
+        <rule from="com.intellij.psi.PsiElementFinder" to="com.intellij.java.language.psi.PsiElementFinder"/>
+        <rule from="com.intellij.psi.PsiEnumConstant" to="com.intellij.java.language.psi.PsiEnumConstant"/>
+        <rule from="com.intellij.psi.PsiExpression" to="com.intellij.java.language.psi.PsiExpression"/>
+        <rule from="com.intellij.psi.PsiField" to="com.intellij.java.language.psi.PsiField"/>
+        <rule from="com.intellij.psi.PsiJavaCodeReferenceElement" to="com.intellij.java.language.psi.PsiJavaCodeReferenceElement"/>
+        <rule from="com.intellij.psi.PsiJavaModule" to="com.intellij.java.language.psi.PsiJavaModule"/>
+        <rule from="com.intellij.psi.PsiLiteralExpression" to="com.intellij.java.language.psi.PsiLiteralExpression"/>
+        <rule from="com.intellij.psi.PsiMember" to="com.intellij.java.language.psi.PsiMember"/>
+        <rule from="com.intellij.psi.PsiMethod" to="com.intellij.java.language.psi.PsiMethod"/>
+        <rule from="com.intellij.psi.PsiModifier" to="com.intellij.java.language.psi.PsiModifier"/>
+        <rule from="com.intellij.psi.PsiModifierList" to="com.intellij.java.language.psi.PsiModifierList"/>
+        <rule from="com.intellij.psi.PsiModifierListOwner" to="com.intellij.java.language.psi.PsiModifierListOwner"/>
+        <rule from="com.intellij.psi.PsiNameValuePair" to="com.intellij.java.language.psi.PsiNameValuePair"/>
+        <!-- PsiPackage stays in consulo.language.psi — NOT java.language -->
+        <!-- <rule from="com.intellij.psi.PsiPackage" to="com.intellij.java.language.psi.PsiPackage"/> -->
+        <rule from="com.intellij.psi.PsiPackage" to="consulo.language.psi.PsiPackage"/>
+        <rule from="com.intellij.psi.PsiParameter" to="com.intellij.java.language.psi.PsiParameter"/>
+        <rule from="com.intellij.psi.PsiParameterList" to="com.intellij.java.language.psi.PsiParameterList"/>
+        <rule from="com.intellij.psi.PsiPrimitiveType" to="com.intellij.java.language.psi.PsiPrimitiveType"/>
+        <rule from="com.intellij.psi.PsiRecordComponent" to="com.intellij.java.language.psi.PsiRecordComponent"/>
+        <rule from="com.intellij.psi.PsiReferenceExpression" to="com.intellij.java.language.psi.PsiReferenceExpression"/>
+        <rule from="com.intellij.psi.PsiReferenceList" to="com.intellij.java.language.psi.PsiReferenceList"/>
+        <rule from="com.intellij.psi.PsiSubstitutor" to="com.intellij.java.language.psi.PsiSubstitutor"/>
+        <rule from="com.intellij.psi.PsiSyntheticElement" to="com.intellij.java.language.psi.PsiSyntheticElement"/>
+        <rule from="com.intellij.psi.SyntheticElement" to="com.intellij.java.language.psi.SyntheticElement"/>
+        <rule from="com.intellij.psi.PsiType" to="com.intellij.java.language.psi.PsiType"/>
+        <rule from="com.intellij.psi.PsiTypeElement" to="com.intellij.java.language.psi.PsiTypeElement"/>
+        <rule from="com.intellij.psi.PsiTypeParameter" to="com.intellij.java.language.psi.PsiTypeParameter"/>
+        <rule from="com.intellij.psi.PsiTypeParameterList" to="com.intellij.java.language.psi.PsiTypeParameterList"/>
+        <rule from="com.intellij.psi.PsiTypeParameterListOwner" to="com.intellij.java.language.psi.PsiTypeParameterListOwner"/>
+        <rule from="com.intellij.psi.PsiTypeVisitor" to="com.intellij.java.language.psi.PsiTypeVisitor"/>
+        <rule from="com.intellij.psi.PsiVariable" to="com.intellij.java.language.psi.PsiVariable"/>
+        <rule from="com.intellij.psi.PsiWildcardType" to="com.intellij.java.language.psi.PsiWildcardType"/>
+        <rule from="com.intellij.psi.JavaElementVisitor" to="com.intellij.java.language.psi.JavaElementVisitor"/>
+        <rule from="com.intellij.psi.JavaPsiFacade" to="com.intellij.java.language.psi.JavaPsiFacade"/>
+        <rule from="com.intellij.psi.JavaTokenType" to="com.intellij.java.language.psi.JavaTokenType"/>
+        <rule from="com.intellij.psi.CommonClassNames" to="com.intellij.java.language.psi.CommonClassNames"/>
+        <rule from="com.intellij.psi.PsiConstantEvaluationHelper" to="com.intellij.java.language.psi.PsiConstantEvaluationHelper"/>
+
+        <!-- Java PSI util live in same namespace -->
+        <rule from="com.intellij.psi.util.TypeConversionUtil" to="com.intellij.java.language.psi.util.TypeConversionUtil"/>
+        <rule from="com.intellij.psi.util.CachedValue" to="consulo.application.util.CachedValue"/>
+        <rule from="com.intellij.psi.util.CachedValueProvider" to="consulo.application.util.CachedValueProvider"/>
+        <rule from="com.intellij.psi.util.CachedValuesManager" to="consulo.application.util.CachedValuesManager"/>
+
+        <!-- VFS event classes moved from openapi/newvfs to virtualFileSystem/event -->
+        <rule from="com.intellij.openapi.vfs.newvfs.BulkFileListener" to="consulo.virtualFileSystem.event.BulkFileListener"/>
+        <rule from="com.intellij.openapi.vfs.newvfs.events.VFileEvent" to="consulo.virtualFileSystem.event.VFileEvent"/>
+        <rule from="com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent" to="consulo.virtualFileSystem.event.VFileCreateEvent"/>
+        <rule from="com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent" to="consulo.virtualFileSystem.event.VFileDeleteEvent"/>
+        <rule from="com.intellij.openapi.vfs.newvfs.events.VFileContentChangeEvent" to="consulo.virtualFileSystem.event.VFileContentChangeEvent"/>
+        <rule from="com.intellij.openapi.vfs.newvfs.events.VFileCopyEvent" to="consulo.virtualFileSystem.event.VFileCopyEvent"/>
+        <rule from="com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent" to="consulo.virtualFileSystem.event.VFileMoveEvent"/>
+        <rule from="com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent" to="consulo.virtualFileSystem.event.VFilePropertyChangeEvent"/>
+
+        <!-- Processor + CommonProcessors moved to consulo.application.util.function -->
+        <rule from="com.intellij.util.Processor" to="consulo.application.util.function.Processor"/>
+        <rule from="com.intellij.util.CommonProcessors" to="consulo.application.util.function.CommonProcessors"/>
+
+        <!-- PsiModificationTracker is at top-level consulo.language.psi (not .util).
+             Listener is flattened to a separate top-level interface in Consulo. -->
+        <rule from="com.intellij.psi.util.PsiModificationTracker" to="consulo.language.psi.PsiModificationTracker"/>
+        <rule from="com.intellij.psi.util.PsiModificationTracker$Listener" to="consulo.language.psi.PsiModificationTrackerListener"/>
+
+        <!-- PsiPackageImpl lives in the Java impl plugin, not consulo.language.impl.psi.file -->
+        <rule from="com.intellij.psi.impl.file.PsiPackageImpl" to="com.intellij.java.language.impl.psi.impl.file.PsiPackageImpl"/>
+
+        <!-- JavaClassFileType is in Java plugin impl -->
+        <rule from="com.intellij.ide.highlighter.JavaClassFileType" to="com.intellij.java.language.impl.JavaClassFileType"/>
+
+        <!-- DumbAware moved to consulo.application.dumb -->
+        <rule from="com.intellij.openapi.project.DumbAware" to="consulo.application.dumb.DumbAware"/>
+        <rule from="com.intellij.openapi.project.DumbService" to="consulo.application.dumb.DumbService"/>
+
+        <!-- SmartList in consulo.util.collection -->
+        <rule from="com.intellij.util.SmartList" to="consulo.util.collection.SmartList"/>
 
         <!-- PsiFileImpl: Consulo dropped the .source subpackage; the class rule beats
              the package rule com.intellij.psi.impl → consulo.language.impl.psi -->

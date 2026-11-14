@@ -1,19 +1,23 @@
 package com.intellij.psi;
 
 @SuppressWarnings("all")
-public interface PsiPackage extends com.intellij.psi.PsiCheckedRenameElement,com.intellij.navigation.NavigationItem,com.intellij.psi.PsiJvmModifiersOwner,com.intellij.psi.PsiDirectoryContainer,com.intellij.psi.PsiQualifiedNamedElement,com.intellij.lang.jvm.JvmPackage {
-  public abstract java.lang.String getQualifiedName();
-  public abstract com.intellij.psi.PsiPackage getParentPackage();
-  public abstract com.intellij.psi.PsiPackage[] getSubPackages();
-  public abstract com.intellij.psi.PsiPackage[] getSubPackages(com.intellij.psi.search.GlobalSearchScope p0);
-  public abstract com.intellij.psi.PsiClass[] getClasses();
-  public abstract com.intellij.psi.PsiClass[] getClasses(com.intellij.psi.search.GlobalSearchScope p0);
-  public abstract com.intellij.psi.PsiFile[] getFiles(com.intellij.psi.search.GlobalSearchScope p0);
-  public abstract com.intellij.psi.PsiModifierList getAnnotationList();
-  public abstract void handleQualifiedNameChange(java.lang.String p0);
-  public abstract com.intellij.openapi.vfs.VirtualFile[] occursInPackagePrefixes();
-  public abstract java.lang.String getName();
-  public abstract boolean containsClassNamed(java.lang.String p0);
-  public abstract com.intellij.psi.PsiClass[] findClassByShortName(java.lang.String p0, com.intellij.psi.search.GlobalSearchScope p1);
-  public default boolean hasClassWithShortName(java.lang.String p0, com.intellij.psi.search.GlobalSearchScope p1) { return false; }
+public interface PsiPackage extends com.intellij.psi.PsiElement, com.intellij.psi.PsiCheckedRenameElement, com.intellij.psi.PsiModifierListOwner, com.intellij.psi.PsiQualifiedNamedElement {
+    PsiPackage[] EMPTY_ARRAY = new PsiPackage[0];
+    String PACKAGE_INFO_CLASS = "package-info";
+    String PACKAGE_INFO_FILE = "package-info.java";
+    default String getQualifiedName() { return null; }
+    default com.intellij.psi.PsiPackage getParentPackage() { return null; }
+    default com.intellij.psi.PsiPackage[] getSubPackages() { return new com.intellij.psi.PsiPackage[0]; }
+    default com.intellij.psi.PsiPackage[] getSubPackages(com.intellij.psi.search.GlobalSearchScope scope) { return new com.intellij.psi.PsiPackage[0]; }
+    default com.intellij.psi.PsiClass[] getClasses() { return new com.intellij.psi.PsiClass[0]; }
+    default com.intellij.psi.PsiClass[] getClasses(com.intellij.psi.search.GlobalSearchScope scope) { return new com.intellij.psi.PsiClass[0]; }
+    default com.intellij.psi.PsiAnnotationOwner getAnnotationList() { return null; }
+    default String getName() { return null; }
+    default com.intellij.psi.PsiElement setName(String name) { return null; }
+    default com.intellij.psi.PsiClass[] findClassByShortName(String name, com.intellij.psi.search.GlobalSearchScope scope) { return new com.intellij.psi.PsiClass[0]; }
+    default void handleQualifiedNameChange(String newQualifiedName) {}
+    default com.intellij.openapi.vfs.VirtualFile[] occursInPackagePrefixes() { return new com.intellij.openapi.vfs.VirtualFile[0]; }
+    default boolean containsClassNamed(String name) { return false; }
+    default com.intellij.psi.PsiDirectory[] getDirectories() { return new com.intellij.psi.PsiDirectory[0]; }
+    default com.intellij.psi.PsiDirectory[] getDirectories(com.intellij.psi.search.GlobalSearchScope scope) { return new com.intellij.psi.PsiDirectory[0]; }
 }

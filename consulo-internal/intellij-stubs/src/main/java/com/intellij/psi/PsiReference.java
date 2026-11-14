@@ -3,12 +3,12 @@ package com.intellij.psi;
 @SuppressWarnings("all")
 public interface PsiReference {
     PsiReference[] EMPTY_ARRAY = new PsiReference[0];
-    PsiElement getElement();
+    com.intellij.psi.PsiElement getElement();
     com.intellij.openapi.util.TextRange getRangeInElement();
-    PsiElement resolve();
+    com.intellij.psi.PsiElement resolve();
     String getCanonicalText();
-    PsiElement handleElementRename(String p0);
-    PsiElement bindToElement(PsiElement p0);
-    boolean isReferenceTo(PsiElement p0);
+    com.intellij.psi.PsiElement handleElementRename(String newName);
+    com.intellij.psi.PsiElement bindToElement(com.intellij.psi.PsiElement element);
+    boolean isReferenceTo(com.intellij.psi.PsiElement element);
     boolean isSoft();
 }

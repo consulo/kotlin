@@ -1,0 +1,6 @@
+package com.intellij.lang.jvm;
+
+@SuppressWarnings("all")
+public enum JvmModifier {
+    PUBLIC, PROTECTED, PRIVATE, PACKAGE_LOCAL, STATIC, ABSTRACT, FINAL, NATIVE, SYNCHRONIZED, STRICTFP, TRANSIENT, VOLATILE, DEFAULT, OPEN, TRANSITIVE
+}

@@ -2,6 +2,7 @@ package com.intellij.openapi.project;
 
 @SuppressWarnings("all")
 public interface Project extends com.intellij.openapi.components.ComponentManager,com.intellij.openapi.extensions.AreaInstance {
+    com.intellij.util.messages.MessageBus getMessageBus();
   public abstract java.lang.String getName();
   public abstract com.intellij.openapi.vfs.VirtualFile getBaseDir();
   public abstract java.lang.String getBasePath();

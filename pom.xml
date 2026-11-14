@@ -49,6 +49,26 @@
                         <arg>-XXLanguage:+WhenGuards</arg>
                         <arg>-XXLanguage:+ContextParameters</arg>
                         <arg>-Xjvm-default=all</arg>
+                        <!-- Kotlin internal opt-ins used across multiple modules. -->
+                        <arg>-opt-in=kotlin.contracts.ExperimentalContracts</arg>
+                        <arg>-opt-in=kotlin.RequiresOptIn</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.symbols.SymbolInternals</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.PrivateForInline</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.UnresolvedExpressionTypeAccess</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.declarations.ResolveStateAccess</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.declarations.SealedClassInheritorsProviderInternals</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.declarations.utils.SuspiciousValueClassCheck</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.scopes.ScopeFunctionRequiresPrewarm</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.scopes.DelicateScopeAPI</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.symbols.impl.LookupTagInternals</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.symbols.impl.RenderingInternals</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.types.UnexpandedTypeCheck</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.resolve.dfa.cfg.CfgInternals</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.analysis.CheckersComponentInternal</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProviderInternals</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.fir.expressions.UnsafeExpressionUtility</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.types.model.K2Only</arg>
                     </args>
                 </configuration>
             </plugin>
@@ -85,6 +105,10 @@
                 <enabled>true</enabled>
                 <updatePolicy>interval:60</updatePolicy>
             </snapshots>
+        </repository>
+        <repository>
+            <id>intellij-dependencies</id>
+            <url>https://cache-redirector.jetbrains.com/intellij-dependencies</url>
         </repository>
     </repositories>
 
@@ -123,6 +147,12 @@
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-reflect</artifactId>
+            <version>${kotlin.compiler.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-annotations-jvm</artifactId>
             <version>2.2.21</version>
             <scope>provided</scope>
@@ -135,6 +165,32 @@
         <dependency>
             <groupId>it.unimi.dsi</groupId>
             <artifactId>fastutil</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>javax.inject</groupId>
+            <artifactId>javax.inject</artifactId>
+            <version>1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.vavr</groupId>
+            <artifactId>vavr</artifactId>
+            <version>0.10.4</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-collections-immutable-jvm</artifactId>
+            <version>0.4.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <!-- IntelliJ-shaded ASM (package org.jetbrains.org.objectweb.asm.*) —
+             Kotlin compiler modules import from this prefix, not plain ASM. -->
+        <dependency>
+            <groupId>org.jetbrains.intellij.deps</groupId>
+            <artifactId>asm-all</artifactId>
+            <version>9.6.1</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -154,6 +210,17 @@
         <module>consulo-internal</module>
 
         <!-- Tier 1: Compiler infrastructure (IntelliJ compile-only) -->
+        <module>core/metadata.jvm</module>
+        <module>core/compiler.common.jvm</module>
+        <module>core/deserialization.common</module>
+        <module>core/deserialization.common.jvm</module>
+        <module>core/descriptors</module>
+        <module>core/descriptors.jvm</module>
+        <module>core/compiler.common.js</module>
+        <module>core/deserialization</module>
+        <module>compiler/resolution.common</module>
+        <module>compiler/resolution.common.jvm</module>
+        <module>compiler/resolution</module>
         <module>compiler/util</module>
         <module>compiler/container</module>
         <module>compiler/config</module>
@@ -164,5 +231,28 @@
         <module>compiler/psi/psi-api</module>
         <module>compiler/psi/parser</module>
         <module>compiler/psi/psi-impl</module>
+        <module>compiler/psi/psi-utils</module>
+        <module>compiler/psi/psi-frontend-utils</module>
+
+        <!-- Tier 3: Frontend common (PSI-aware + JVM-aware) -->
+        <module>compiler/frontend.common-psi</module>
+        <module>compiler/frontend.common.jvm</module>
+
+        <!-- Tier 4: FIR (K2) -->
+        <module>compiler/fir/cones</module>
+        <module>compiler/fir/tree</module>
+        <module>compiler/fir/providers</module>
+        <module>compiler/fir/semantics</module>
+        <module>compiler/fir/resolve</module>
+        <module>compiler/fir/diagnostic-renderers</module>
+        <module>compiler/fir/fir-deserialization</module>
+        <module>compiler/fir/raw-fir/raw-fir.common</module>
+        <module>compiler/fir/raw-fir/psi2fir</module>
+        <module>compiler/fir/raw-fir/light-tree2fir</module>
+        <module>compiler/fir/checkers</module>
+        <module>compiler/fir/plugin-utils</module>
+
+        <!-- Tier 5: Analysis API -->
+        <module>analysis/analysis-internal-utils</module>
     </modules>
 </project>

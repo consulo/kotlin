@@ -54,6 +54,5 @@ public interface PsiElement extends com.intellij.openapi.util.UserDataHolder,com
   public abstract com.intellij.psi.search.GlobalSearchScope getResolveScope();
   public abstract com.intellij.psi.search.SearchScope getUseScope();
   public abstract com.intellij.lang.ASTNode getNode();
-  public abstract java.lang.String toString();
   public abstract boolean isEquivalentTo(com.intellij.psi.PsiElement p0);
 }
