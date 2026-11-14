@@ -49,6 +49,15 @@
                         <arg>-XXLanguage:+WhenGuards</arg>
                         <arg>-XXLanguage:+ContextParameters</arg>
                         <arg>-Xjvm-default=all</arg>
+                        <!-- Same as upstream common-configuration + dogfoodedExperimentalFeatures. -->
+                        <arg>-Xdont-warn-on-error-suppression</arg>
+                        <arg>-Xskip-prerelease-check</arg>
+                        <arg>-Xexplicit-backing-fields</arg>
+                        <arg>-Xname-based-destructuring=complete</arg>
+                        <arg>-Xcollection-literals</arg>
+                        <arg>-Xcontext-sensitive-resolution</arg>
+                        <arg>-Xexplicit-context-arguments</arg>
+                        <arg>-Xwarning-level=REDUNDANT_CLI_ARG:disabled</arg>
                         <!-- Kotlin internal opt-ins used across multiple modules. -->
                         <arg>-opt-in=kotlin.contracts.ExperimentalContracts</arg>
                         <arg>-opt-in=kotlin.RequiresOptIn</arg>
@@ -87,6 +96,28 @@
                         <goals>
                             <goal>compile</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- copy-resources never deletes, so files removed upstream would stay in filtered-sources -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-clean-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>clean-filtered-sources</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                        <configuration>
+                            <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                            <filesets>
+                                <fileset>
+                                    <directory>${project.build.directory}/filtered-sources</directory>
+                                </fileset>
+                            </filesets>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -182,7 +213,7 @@
         <dependency>
             <groupId>org.jetbrains.kotlinx</groupId>
             <artifactId>kotlinx-collections-immutable-jvm</artifactId>
-            <version>0.4.0</version>
+            <version>0.5.1</version>
             <scope>provided</scope>
         </dependency>
         <!-- IntelliJ-shaded ASM (package org.jetbrains.org.objectweb.asm.*) —
