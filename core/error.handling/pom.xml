@@ -11,22 +11,13 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>consulo.kotlin.compiler.container</artifactId>
+    <artifactId>consulo.kotlin.core.error.handling</artifactId>
 
     <build>
         <sourceDirectory>src</sourceDirectory>
     </build>
 
     <dependencies>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>consulo.kotlin.core.util.runtime</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.inject</groupId>
-            <artifactId>jakarta.inject-api</artifactId>
-        </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.intellij-stubs</artifactId>

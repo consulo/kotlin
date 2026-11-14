@@ -27,5 +27,15 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.intellij-stubs</artifactId>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.core.util.runtime</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.core.error.handling</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>

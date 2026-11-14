@@ -45,12 +45,7 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>consulo.kotlin.compiler.fir.providers</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>consulo.kotlin.compiler.fir.semantics</artifactId>
+            <artifactId>consulo.kotlin.compiler.fir.semantics.api</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

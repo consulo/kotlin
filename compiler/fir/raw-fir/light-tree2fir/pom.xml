@@ -52,5 +52,10 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.intellij-stubs</artifactId>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.multiplatform-parsing</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 </project>

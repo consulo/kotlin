@@ -11,7 +11,7 @@
         <relativePath>../../../pom.xml</relativePath>
     </parent>
 
-    <artifactId>consulo.kotlin.compiler.fir.plugin-utils</artifactId>
+    <artifactId>consulo.kotlin.compiler.fir.plugin.api</artifactId>
 
     <build>
         <sourceDirectory>src</sourceDirectory>
@@ -40,17 +40,17 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>consulo.kotlin.compiler.fir.providers</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>consulo.kotlin.compiler.fir.semantics</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.core.util.runtime</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.fir.semantics.api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.fir.checkers.api</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

@@ -17,7 +17,7 @@
 
     <properties>
         <protobuf.version>4.28.2</protobuf.version>
-        <kotlin.compiler.version>2.4.0-dev-8449</kotlin.compiler.version>
+        <kotlin.compiler.version>2.5.20-dev-4223</kotlin.compiler.version>
     </properties>
 
     <build>
@@ -199,8 +199,10 @@
         <!-- Tier 0: Foundation (no IntelliJ deps) -->
         <module>core/names</module>
         <module>core/util.runtime</module>
+        <module>core/error.handling</module>
         <module>core/language.model</module>
         <module>core/language.targets</module>
+        <module>core/language.targets.jvm</module>
         <module>compiler/compiler.version</module>
         <module>core/language.version-settings</module>
         <module>core/compiler.common</module>
@@ -220,14 +222,13 @@
         <module>core/deserialization</module>
         <module>compiler/resolution.common</module>
         <module>compiler/resolution.common.jvm</module>
-        <module>compiler/resolution</module>
         <module>compiler/util</module>
-        <module>compiler/container</module>
         <module>compiler/config</module>
         <module>compiler/plugin-api</module>
         <module>compiler/frontend.common</module>
 
         <!-- Tier 2: PSI -->
+        <module>compiler/multiplatform-parsing</module>
         <module>compiler/psi/psi-api</module>
         <module>compiler/psi/parser</module>
         <module>compiler/psi/psi-impl</module>
@@ -241,18 +242,20 @@
         <!-- Tier 4: FIR (K2) -->
         <module>compiler/fir/cones</module>
         <module>compiler/fir/tree</module>
-        <module>compiler/fir/providers</module>
-        <module>compiler/fir/semantics</module>
+        <module>compiler/fir/semantics.api</module>
         <module>compiler/fir/resolve</module>
         <module>compiler/fir/diagnostic-renderers</module>
         <module>compiler/fir/fir-deserialization</module>
         <module>compiler/fir/raw-fir/raw-fir.common</module>
         <module>compiler/fir/raw-fir/psi2fir</module>
         <module>compiler/fir/raw-fir/light-tree2fir</module>
-        <module>compiler/fir/checkers</module>
-        <module>compiler/fir/plugin-utils</module>
+        <module>compiler/fir/checkers/checkers.api</module>
+        <module>compiler/fir/checkers/checkers.common</module>
+        <!-- needs fir2ir and fir-serialization since upstream renamed plugin-utils to plugin.api -->
+        <!--<module>compiler/fir/plugin.api</module>-->
 
         <!-- Tier 5: Analysis API -->
-        <module>analysis/analysis-internal-utils</module>
+        <!-- needs analysis-api since upstream merge -->
+        <!--<module>analysis/analysis-internal-utils</module>-->
     </modules>
 </project>

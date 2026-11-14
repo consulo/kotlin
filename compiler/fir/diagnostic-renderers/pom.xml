@@ -25,16 +25,6 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>consulo.kotlin.compiler.fir.providers</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>consulo.kotlin.compiler.fir.semantics</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.compiler.fir.cones</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -56,6 +46,11 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.core.metadata</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.fir.semantics.api</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>
