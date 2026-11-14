@@ -40,6 +40,9 @@ object FirThreadUnsafeCachesFactory : FirCachesFactory() {
 
     override fun <V> createPossiblySoftLazyValue(createValue: () -> V): FirLazyValue<V> =
         createLazyValue(createValue)
+
+    override fun <V, CONTEXT> createLazyValueWithContext(createValue: (CONTEXT) -> V): FirLazyValueWithContext<V, CONTEXT> =
+        FirThreadUnsafeValueWithContext(createValue)
 }
 
 @Suppress("UNCHECKED_CAST")
@@ -61,6 +64,11 @@ private class FirThreadUnsafeCache<K : Any, V, CONTEXT>(
     @FirCacheInternals
     override val cachedValues: Collection<V>
         get() = map.valuesSnapshot.toList()
+
+    @FirCacheInternals
+    override fun clear() {
+        map.clear()
+    }
 }
 
 private class FirThreadUnsafeCacheWithPostCompute<K : Any, V, CONTEXT, DATA>(
@@ -71,7 +79,7 @@ private class FirThreadUnsafeCacheWithPostCompute<K : Any, V, CONTEXT, DATA>(
 
     override fun getValue(key: K, context: CONTEXT): V =
         map.getOrElse(key) {
-            val (createdValue, data) = createValue(key, context)
+            val [createdValue, data] = createValue(key, context)
             map[key] = createdValue
             postCompute(key, createdValue, data)
             createdValue
@@ -84,9 +92,33 @@ private class FirThreadUnsafeCacheWithPostCompute<K : Any, V, CONTEXT, DATA>(
     @FirCacheInternals
     override val cachedValues: Collection<V>
         get() = map.valuesSnapshot.toList()
+
+    @FirCacheInternals
+    override fun clear() {
+        map.clear()
+    }
 }
 
 private class FirThreadUnsafeValue<V>(createValue: () -> V) : FirLazyValue<V>() {
     private val lazyValue by lazy(LazyThreadSafetyMode.NONE, createValue)
     override fun getValue(): V = lazyValue
+}
+
+private class FirThreadUnsafeValueWithContext<V, CONTEXT>(
+    createValue: (CONTEXT) -> V,
+) : FirLazyValueWithContext<V, CONTEXT>() {
+    private object NotComputed
+
+    private var createValue: ((CONTEXT) -> V)? = createValue
+
+    private var value: Any? = NotComputed
+
+    @Suppress("UNCHECKED_CAST")
+    override fun getValue(context: CONTEXT): V {
+        if (value === NotComputed) {
+            value = createValue!!(context)
+            createValue = null
+        }
+        return value as V
+    }
 }

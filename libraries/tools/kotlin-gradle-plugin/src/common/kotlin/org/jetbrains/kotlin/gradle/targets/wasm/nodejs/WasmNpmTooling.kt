@@ -8,8 +8,9 @@ package org.jetbrains.kotlin.gradle.targets.wasm.nodejs
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Provider
-import org.jetbrains.kotlin.gradle.targets.js.NpmPackageVersion
+import org.jetbrains.kotlin.gradle.targets.js.NpmPackageVersionInternal
 import org.jetbrains.kotlin.gradle.targets.web.nodejs.NpmToolingEnv
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 import org.jetbrains.kotlin.gradle.utils.getFile
 import org.jetbrains.kotlin.gradle.utils.toHexString
 import java.io.File
@@ -23,20 +24,26 @@ import java.security.MessageDigest
  * @property installationDir The directory where the NPM dependencies are installed or managed.
  * @property allDeps The list of NPM package versions to be managed, consisting of their names and corresponding versions.
  */
+@ObsoleteNpmDependencyModel
 abstract class WasmNpmTooling internal constructor() {
 
     internal abstract val defaultInstallationDir: DirectoryProperty
 
     abstract val installationDir: DirectoryProperty
 
-    internal abstract val allDeps: ListProperty<NpmPackageVersion>
+    internal abstract val allDeps: ListProperty<NpmPackageVersionInternal>
 
     fun produceEnv(): Provider<NpmToolingEnv> {
         return allDeps.map { allDepsValue ->
             val md = MessageDigest.getInstance("MD5")
-            allDepsValue.forEach { (name, version) ->
+            allDepsValue.forEach { dep ->
+                val name = dep.name.orNull.orEmpty()
+                val requestedVersion = dep.requestedVersion.orNull.orEmpty()
+                val resolvedVersion = dep.resolvedVersion.orNull.orEmpty()
+
                 md.update(name.toByteArray(StandardCharsets.UTF_8))
-                md.update(version.toByteArray(StandardCharsets.UTF_8))
+                md.update(requestedVersion.toByteArray(StandardCharsets.UTF_8))
+                md.update(resolvedVersion.toByteArray(StandardCharsets.UTF_8))
             }
 
             val hashVersion = md.digest().toHexString()

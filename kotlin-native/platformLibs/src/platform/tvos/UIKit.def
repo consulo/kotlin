@@ -1,13 +1,15 @@
-depends = CFCGTypes CFNetwork CoreFoundation CoreFoundationBase CoreGraphics CoreImage CoreText CoreVideo EAGL Foundation IOSurface ImageIO Metal OpenGLESCommon QuartzCore Security Symbols UIUtilities UserNotifications darwin posix
+depends = CFCGTypes CFNetwork CoreFoundation CoreFoundationBase CoreGraphics CoreImage CoreLocation CoreText CoreVideo EAGL Foundation IOSurface ImageIO Metal OpenGLESCommon QuartzCore Security Symbols UIUtilities UserNotifications _LocationEssentials darwin posix
 language = Objective-C
 package = platform.UIKit
 modules = UIKit
+apiNotesSwiftName = true
 
 compilerOpts = -framework UIKit
 linkerOpts = -framework UIKit
 excludedFunctions = UISceneErrorDomain
 
-objcClassesIncludingCategories = NSMutableParagraphStyle NSParagraphStyle NSTextContainer NSTextTab NSTextAttachment
+strictEnums = UIWritingToolsCoordinatorTextAnimation UIWritingToolsCoordinatorTextReplacementReason
+objcClassesIncludingCategories = NSMutableParagraphStyle NSParagraphStyle NSTextContainer NSTextTab NSTextAttachment NSTextStorage
 allowIncludingObjCCategoriesFromDefFile = true
 ---
 @interface NSTextAttachment(K)

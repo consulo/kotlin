@@ -2,6 +2,8 @@
  * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+// KT-86026 TODO: Rework testdata to move functions/globals definitions from .def/.h into separate source files
+
 // TARGET_BACKEND: NATIVE
 // WITH_PLATFORM_LIBS
 // MODULE: lib1

@@ -3,23 +3,25 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package org.jetbrains.kotlin.gradle
 
-import org.gradle.api.tasks.Exec
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.targets.js.npm.LockCopyTask.Companion.KOTLIN_JS_STORE
 import org.jetbrains.kotlin.gradle.targets.js.npm.LockCopyTask.Companion.PACKAGE_LOCK
 import org.jetbrains.kotlin.gradle.targets.js.npm.LockCopyTask.Companion.YARN_LOCK
-import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsEnvSpec
-import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNpmTooling
-import org.jetbrains.kotlin.gradle.targets.wasm.npm.WasmNpmExtension
-import org.jetbrains.kotlin.gradle.targets.wasm.yarn.WasmYarnRootEnvSpec
-import org.jetbrains.kotlin.gradle.targets.wasm.yarn.WasmYarnRootExtension
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.gradle.util.kgpPackageLockJsonFileContent
+import org.jetbrains.kotlin.gradle.util.kgpYarnLockFileContent
 import org.jetbrains.kotlin.gradle.util.replaceText
+import org.jetbrains.kotlin.gradle.util.setupCustomKgpNpmToolingDependenciesDir
 import org.jetbrains.kotlin.test.TestMetadata
 import org.junit.jupiter.api.DisplayName
-import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
 import kotlin.io.path.readText
@@ -31,7 +33,7 @@ class WasmNpmGradlePluginIT : WasmPackageManagerGradlePluginIT() {
 
     override val lockFileName: String = PACKAGE_LOCK
 
-    override val toolingCustomDir: String
+    override val toolingCustomDirName: String
         get() = "npm"
 }
 
@@ -40,11 +42,11 @@ class WasmYarnGradlePluginIT : WasmPackageManagerGradlePluginIT() {
 
     override val lockFileName: String = YARN_LOCK
 
-    override val toolingCustomDir: String
+    override val toolingCustomDirName: String
         get() = "yarn"
 
     @GradleTest
-    @MppGradlePluginTests
+    @WasmJsGradlePluginTests
     @TestMetadata("kotlin-wasm-package-lock-project")
     fun `given project without npm dependencies - when lockfile tasks run - expect tasks succeed - and do not create yarn lock file`(
         gradleVersion: GradleVersion,
@@ -63,7 +65,7 @@ class WasmYarnGradlePluginIT : WasmPackageManagerGradlePluginIT() {
     }
 
     @GradleTest
-    @MppGradlePluginTests
+    @WasmJsGradlePluginTests
     @TestMetadata("kotlin-wasm-package-lock-project")
     fun `given project with npm dependency - when 'store lockfile' task runs - expect task succeeds - and creates yarn lock file`(
         gradleVersion: GradleVersion,
@@ -81,7 +83,7 @@ class WasmYarnGradlePluginIT : WasmPackageManagerGradlePluginIT() {
     }
 
     @GradleTest
-    @MppGradlePluginTests
+    @WasmJsGradlePluginTests
     @TestMetadata("kotlin-wasm-package-lock-project")
     fun `given project with npm dependency and non-empty lock file - when npm dependency is removed - expect KGP deletes empty lock file`(
         gradleVersion: GradleVersion,
@@ -117,7 +119,7 @@ class WasmYarnGradlePluginIT : WasmPackageManagerGradlePluginIT() {
      * We may want to change this in future, to allow users to manually define an empty lockfile.
      */
     @GradleTest
-    @MppGradlePluginTests
+    @WasmJsGradlePluginTests
     @TestMetadata("kotlin-wasm-package-lock-project")
     fun `given project with npm dependency and empty lock file - when npm dependency is removed - expect KGP deletes empty lock file`(
         gradleVersion: GradleVersion,
@@ -183,14 +185,18 @@ class WasmYarnGradlePluginIT : WasmPackageManagerGradlePluginIT() {
     }
 }
 
-@MppGradlePluginTests
+@WasmJsGradlePluginTests
 abstract class WasmPackageManagerGradlePluginIT : KGPBaseTest() {
 
     abstract val yarn: Boolean
 
     abstract val lockFileName: String
 
-    abstract val toolingCustomDir: String
+    /**
+     * The name of the custom directory used to install KGP's npm tooling dependencies,
+     * within the root project directory.
+     */
+    abstract val toolingCustomDirName: String
 
     override val defaultBuildOptions: BuildOptions
         get() = super.defaultBuildOptions.copy(
@@ -263,48 +269,20 @@ abstract class WasmPackageManagerGradlePluginIT : KGPBaseTest() {
     fun testWasmUsePredefinedTooling(gradleVersion: GradleVersion) {
         project("kotlin-wasm-tooling-inside-project", gradleVersion) {
 
-            // extracted as val to be serializable
-            val isYarn = yarn
-            val toolingCustomDir = toolingCustomDir
+            val toolingCustomDir = projectPath.resolve(toolingCustomDirName)
 
-            buildScriptInjection {
-                project.rootProject.extensions.getByType(WasmNpmTooling::class.java).apply {
-                    this.installationDir.fileValue(project.projectDir.resolve(toolingCustomDir))
-                }
-
-                project.tasks.register("toolingInstall", Exec::class.java).configure { task: Exec ->
-                    val nodeJsEnvSpec = project.extensions.getByType(WasmNodeJsEnvSpec::class.java)
-
-                    with(nodeJsEnvSpec) {
-                        task.dependsOn(project.nodeJsSetupTaskProvider)
-                    }
-                    task.workingDir = project.projectDir.resolve(toolingCustomDir)
-
-                    val nodejsExecutable = nodeJsEnvSpec.executable.get()
-
-                    if (isYarn) {
-                        task.executable(nodejsExecutable)
-                        task.args(
-                            listOf(project.rootProject.extensions.getByType(WasmYarnRootEnvSpec::class.java).executable.get())
-                        )
-                        task.dependsOn(WasmYarnRootExtension.get(project.rootProject).yarnSetupTaskProvider)
-                    } else {
-                        task.executable(
-                            project.rootProject.extensions.getByType(WasmNpmExtension::class.java).requireConfigured().executable
-                        )
-                        task.args("install", "--ignore-scripts")
-
-                        val nodePath = File(nodejsExecutable).parent
-                        task.environment["PATH"] =
-                            "$nodePath${File.pathSeparator}${System.getenv("PATH")}"
-                    }
-                }
-            }
+            setupCustomKgpNpmToolingDependenciesDir(
+                toolingCustomDir = toolingCustomDir,
+                useYarn = yarn,
+            )
 
             build(":toolingInstall") {
                 assertTasksExecuted(":toolingInstall")
 
-                assertDirectoryExists(projectPath.resolve("$toolingCustomDir/node_modules"))
+                assertFileExists(toolingCustomDir.resolve("package.json"))
+                assertDirectoryExists(toolingCustomDir.resolve("node_modules"))
+
+                checkLockFiles(isYarn = yarn, toolingCustomDir = toolingCustomDir)
             }
 
             build("build") {
@@ -324,5 +302,68 @@ abstract class WasmPackageManagerGradlePluginIT : KGPBaseTest() {
                 assertTasksExecuted(":kotlinWasmToolingSetup")
             }
         }
+    }
+
+    @DisplayName("Npm Install in the project with braces in path")
+    @GradleTest
+    @TestMetadata("wasm-project-with-(braces)")
+    fun testWasmNpmInstallInProjectWithBraces(gradleVersion: GradleVersion) {
+        project("wasm-project-with-(braces)", gradleVersion) {
+            build("build") {
+                assertTasksExecuted(":kotlinWasmToolingSetup")
+                assertTasksExecuted(":kotlinWasmNpmInstall")
+            }
+        }
+    }
+}
+
+private val json = Json {
+    prettyPrint = true
+    prettyPrintIndent = "  "
+}
+
+/**
+ * Verify the lockfiles exist, and they have not been modified during `npm/yarn install`
+ * (i.e. they are up-to-date and in sync with the `package.json`, so they will work in offline mode).
+ */
+private fun checkLockFiles(
+    isYarn: Boolean,
+    toolingCustomDir: Path,
+) {
+    val lockfile = toolingCustomDir.resolve(if (isYarn) "yarn.lock" else "package-lock.json")
+    assertFileExists(lockfile)
+
+    assertFileNotExists(
+        toolingCustomDir.resolve(if (!isYarn) "yarn.lock" else "package-lock.json")
+    )
+
+    // Must make sure KGP's store lockfiles are not outdated.
+    // Package managers might silently update them after an installation,
+    // which is a problem for offline installs.
+    if (isYarn) {
+        val expectedLockfile = kgpYarnLockFileContent
+        val actualLockfile = lockfile.readText()
+        assertEquals(expectedLockfile, actualLockfile)
+
+    } else {
+        // Only check the `packages` key.
+        // The root package, with key `""`, is for the current project and can be ignored.
+        fun extractPackages(packageLockJson: String) =
+            json.decodeFromString<JsonObject>(packageLockJson)
+                .getValue("packages")
+                .jsonObject
+                .filterKeys { it != "" }
+                .let { json.encodeToString(it) }
+
+        val expectedLockfilePackages =
+            extractPackages(kgpPackageLockJsonFileContent)
+
+        val actualLockfilePackages =
+            extractPackages(lockfile.readText())
+
+        assertEquals(
+            expectedLockfilePackages,
+            actualLockfilePackages,
+        )
     }
 }

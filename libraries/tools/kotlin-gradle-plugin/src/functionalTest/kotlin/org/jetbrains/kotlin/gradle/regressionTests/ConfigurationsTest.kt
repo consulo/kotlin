@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.regressionTests
 
 import org.gradle.api.artifacts.Configuration
@@ -15,9 +13,6 @@ import org.gradle.api.attributes.Attribute
 import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.Usage
-import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.withType
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
@@ -77,60 +72,58 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
 
         commonMainApi.assertHasDependency("non-transitive string notation of junit:junit:4.13.2") {
             this is ModuleDependency &&
-            group == "junit" &&
-            name == "junit" &&
-            version == "4.13.2" &&
-            !isTransitive
+                    group == "junit" &&
+                    name == "junit" &&
+                    version == "4.13.2" &&
+                    !isTransitive
         }
 
         commonMainApi.assertHasDependency("non-transitive dependency notation of kotlin-reflect without version") {
             this is ModuleDependency &&
-            group == "org.jetbrains.kotlin" &&
-            name == "kotlin-reflect" &&
-            version == null &&
-            !isTransitive
+                    group == "org.jetbrains.kotlin" &&
+                    name == "kotlin-reflect" &&
+                    version == null &&
+                    !isTransitive
         }
 
         commonMainApi.assertHasDependency("dependency notation of kotlin-reflect:1.3.0") {
             this is ModuleDependency &&
-            group == "org.jetbrains.kotlin" &&
-            name == "kotlin-reflect" &&
-            version == "1.3.0"
+                    group == "org.jetbrains.kotlin" &&
+                    name == "kotlin-reflect" &&
+                    version == "1.3.0"
         }
 
         commonMainApi.assertHasDependency("project notation of :lib:outputConfiguration") {
             this is ProjectDependency &&
-            path == lib.path &&
-            targetConfiguration == "outputConfiguration"
+                    path == lib.path &&
+                    targetConfiguration == "outputConfiguration"
         }
 
         commonMainImplementation.assertHasDependency("dependency notation of kotlin-reflect:1.2.71") {
             this is ModuleDependency &&
-            group == "org.jetbrains.kotlin" &&
-            name == "kotlin-reflect" &&
-            version == "1.2.71"
+                    group == "org.jetbrains.kotlin" &&
+                    name == "kotlin-reflect" &&
+                    version == "1.2.71"
         }
 
         commonMainCompileOnly.assertHasDependency("dependency notation of kotlin-reflect:1.2.70") {
             this is ModuleDependency &&
-            group == "org.jetbrains.kotlin" &&
-            name == "kotlin-reflect" &&
-            version == "1.2.70"
+                    group == "org.jetbrains.kotlin" &&
+                    name == "kotlin-reflect" &&
+                    version == "1.2.70"
         }
 
         commonMainRuntimeOnly.assertHasDependency("dependency notation of kotlin-reflect:1.2.60") {
             this is ModuleDependency &&
-            group == "org.jetbrains.kotlin" &&
-            name == "kotlin-reflect" &&
-            version == "1.2.60"
+                    group == "org.jetbrains.kotlin" &&
+                    name == "kotlin-reflect" &&
+                    version == "1.2.60"
         }
     }
 
     @Test
     fun `consumable configurations except sourcesElements with platform target are marked with Category LIBRARY`() {
         kotlin.linuxX64()
-        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-        kotlin.iosX64()
         kotlin.iosArm64()
         kotlin.jvm()
         kotlin.js()
@@ -162,7 +155,6 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
             val jsAttribute = Attribute.of(String::class.java)
             js("nodeJs") { attributes { attribute(jsAttribute, "nodeJs") } }
             js("browser") { attributes { attribute(jsAttribute, "browser") } }
-            @OptIn(ExperimentalWasmDsl::class)
             wasmJs()
 
             val allJs = sourceSets.create("allJs")
@@ -195,9 +187,9 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
         val project = buildProjectWithMPP {
             kotlin {
                 js()
-                targets.withType<KotlinJsIrTarget> {
+                targets.withType(KotlinJsIrTarget::class.java) {
                     @Suppress("DEPRECATION")
-                    compilations.getByName("main").dependencies {
+                    it.compilations.getByName("main").dependencies {
                         api("test:compilation-dependency")
                     }
                 }
@@ -296,7 +288,7 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
                     }
 
                     jvm("jvmWithJava") {
-                        @Suppress("DEPRECATION")
+                        @Suppress("DEPRECATION_ERROR")
                         withJava()
                         attributes { attribute(disambiguationAttribute, "jvmWithJava") }
                     }
@@ -479,8 +471,6 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
                 kotlin {
                     jvm()
                     js().nodejs()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                    iosX64()
                     iosArm64()
                 }
             }
@@ -518,9 +508,7 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
             }
         }
 
-        project.dependencies {
-            add("compileOnly", "org:example:1.0")
-        }
+        project.dependencies.add("compileOnly", "org:example:1.0")
 
         project.evaluate()
 
@@ -536,8 +524,6 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
         assertFalse(isTestDependencyPresent("debugUnitTestCompileClasspath"))
         assertFalse(isTestDependencyPresent("debugUnitTestRuntimeClasspath"))
         assertFalse(isTestDependencyPresent("releaseRuntimeClasspath"))
-        assertFalse(isTestDependencyPresent("releaseUnitTestCompileClasspath"))
-        assertFalse(isTestDependencyPresent("releaseUnitTestRuntimeClasspath"))
     }
 
     // See KT-55751
@@ -551,12 +537,7 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
                 jvm { attributes { attribute(distinguishingAttribute, "jvm") } }
                 jvm("jvm2") { attributes { attribute(distinguishingAttribute, "jvm2") } }
 
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                macosX64 {
-                    binaries.framework("main", listOf(NativeBuildType.DEBUG))
-                }
-
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64 {
                     binaries.framework("foo", listOf(NativeBuildType.DEBUG)) { baseName = "foo" }
                     binaries.framework("bar", listOf(NativeBuildType.DEBUG)) { baseName = "bar" }
@@ -604,7 +585,7 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
             plugins.apply("maven-publish")
             kotlin {
                 jvm()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64 {
                     attributes { attribute(attribute, "foo") }
                 }

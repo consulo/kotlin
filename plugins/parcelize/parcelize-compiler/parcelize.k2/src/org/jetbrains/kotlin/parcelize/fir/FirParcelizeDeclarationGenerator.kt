@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.parcelize.fir
 import org.jetbrains.kotlin.GeneratedDeclarationKey
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess
 import org.jetbrains.kotlin.fir.declarations.FirNamedFunction
 import org.jetbrains.kotlin.fir.declarations.utils.modality
@@ -56,15 +57,15 @@ class FirParcelizeDeclarationGenerator(
                             it.fullyExpandedType(session).toRegularClassSymbol(session)?.hasDescribeContentsImplementation() ?: false
                         }
                 runIf(!hasDescribeContentImplementation) {
-                    createMemberFunctionForParcelize(owner, callableId.callableName, session.builtinTypes.intType.coneType)
+                    createMemberFunctionForParcelize(owner, callableId.callableName, StandardTypes.Int)
                 }
             }
             WRITE_TO_PARCEL_NAME -> {
                 val declaredFunctions = owner.declarationSymbols.filterIsInstance<FirNamedFunctionSymbol>()
                 runIf(declaredFunctions.none { it.isWriteToParcel() }) {
-                    createMemberFunctionForParcelize(owner, callableId.callableName, session.builtinTypes.unitType.coneType) {
+                    createMemberFunctionForParcelize(owner, callableId.callableName, StandardTypes.Unit) {
                         valueParameter(DEST_NAME, PARCEL_ID.createConeType(session))
-                        valueParameter(FLAGS_NAME, session.builtinTypes.intType.coneType)
+                        valueParameter(FLAGS_NAME, StandardTypes.Int)
                     }
                 }
             }
@@ -86,7 +87,7 @@ class FirParcelizeDeclarationGenerator(
         if (name != WRITE_TO_PARCEL_NAME) return false
         val parameterSymbols = valueParameterSymbols
         if (parameterSymbols.size != 2) return false
-        val (destSymbol, flagsSymbol) = parameterSymbols
+        val [destSymbol, flagsSymbol] = parameterSymbols
         if (destSymbol.resolvedReturnTypeRef.coneType.classId != PARCEL_ID) return false
         if (!flagsSymbol.resolvedReturnTypeRef.coneType.isInt) return false
         return true

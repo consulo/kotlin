@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
@@ -19,8 +17,7 @@ class CrossCompilationPublishingTests {
     fun `test KT-81134 Gradle configuration failure when accessing publishable property`() {
         with(buildProjectWithMPP {
             kotlin {
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                macosX64()
+                macosArm64()
                 linuxX64()
                 mingwX64()
             }

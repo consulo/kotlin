@@ -1,13 +1,14 @@
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -22,6 +23,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: a
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -38,20 +41,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: null
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: a
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -66,6 +71,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: foo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -82,17 +89,21 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: null
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: foo
   importableFqName: null
 
 KaEnumEntrySymbol:
+  anchorPsi: KtEnumEntry
   annotations: []
   callableId: /MyEnumClass.FirstEntry
-  compilerVisibility: Public
+  contextParameters: []
   contextReceivers: []
-  enumEntryInitializer: KaAnonymousObjectSymbol(<local>/<no name provided>)
+  initializer: KaAnonymousObjectSymbol(<local>/<no name provided>)
   isActual: false
+  isCompanion: true
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -101,28 +112,32 @@ KaEnumEntrySymbol:
   modality: FINAL
   name: FirstEntry
   origin: SOURCE
+  psi: KtEnumEntry
+  realPsi: KtEnumEntry
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: MyEnumClass
+  typeParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
   getContainingJvmClassName: MyEnumClass
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: MyEnumClass.FirstEntry
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -137,6 +152,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: foo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -153,18 +170,23 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: null
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: foo
   importableFqName: null
 
 KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
   annotations: []
   backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Private
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -175,11 +197,14 @@ KaKotlinPropertySymbol:
     name: field
     origin: PROPERTY_BACKING_FIELD
     owningProperty: KaKotlinPropertySymbol(<local>/i)
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     visibility: PRIVATE
     getDispatchReceiver(): KaUsualClassType:
       annotations: []
@@ -188,19 +213,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtPropertyAccessor
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -210,29 +236,33 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: OPEN
     origin: SOURCE
+    psi: KtPropertyAccessor
+    realPsi: KtPropertyAccessor
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: getI
     importableFqName: null
   hasBackingField: false
   hasGetter: true
   hasSetter: false
   initializer: null
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: true
   isStatic: false
@@ -241,6 +271,9 @@ KaKotlinPropertySymbol:
   modality: OPEN
   name: i
   origin: SOURCE
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -256,19 +289,20 @@ KaKotlinPropertySymbol:
   getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
-  javaGetterName: getI
-  javaSetterName: null
+  deprecation: null
   isInline: false
   importableFqName: null
 
 KaEnumEntrySymbol:
+  anchorPsi: KtEnumEntry
   annotations: []
   callableId: /MyEnumClass.SecondEntry
-  compilerVisibility: Public
+  contextParameters: []
   contextReceivers: []
-  enumEntryInitializer: KaAnonymousObjectSymbol(<local>/<no name provided>)
+  initializer: KaAnonymousObjectSymbol(<local>/<no name provided>)
   isActual: false
+  isCompanion: true
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -277,28 +311,32 @@ KaEnumEntrySymbol:
   modality: FINAL
   name: SecondEntry
   origin: SOURCE
+  psi: KtEnumEntry
+  realPsi: KtEnumEntry
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: MyEnumClass
+  typeParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
   getContainingJvmClassName: MyEnumClass
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: MyEnumClass.SecondEntry
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -313,6 +351,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: foo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -329,20 +369,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: null
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: foo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -357,6 +399,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: foo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -365,15 +409,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -385,16 +431,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: i
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
       getContainingJvmClassName: null
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -406,17 +456,21 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: null
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: foo
   importableFqName: null
 
 KaEnumEntrySymbol:
+  anchorPsi: KtEnumEntry
   annotations: []
   callableId: /MyEnumClass.ThirdEntry
-  compilerVisibility: Public
+  contextParameters: []
   contextReceivers: []
-  enumEntryInitializer: KaAnonymousObjectSymbol(<local>/<no name provided>)
+  initializer: KaAnonymousObjectSymbol(<local>/<no name provided>)
   isActual: false
+  isCompanion: true
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -425,28 +479,32 @@ KaEnumEntrySymbol:
   modality: FINAL
   name: ThirdEntry
   origin: SOURCE
+  psi: KtEnumEntry
+  realPsi: KtEnumEntry
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: MyEnumClass
+  typeParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
   getContainingJvmClassName: MyEnumClass
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: MyEnumClass.ThirdEntry
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /MyEnumClass.foo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -461,6 +519,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: foo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -477,20 +537,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: MyEnumClass
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: foo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /MyEnumClass.foo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -505,6 +567,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: foo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -513,15 +577,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -533,16 +599,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: i
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
       getContainingJvmClassName: MyEnumClass
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -554,18 +624,23 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: MyEnumClass
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: foo
   importableFqName: null
 
 KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
   annotations: []
   backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Private
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -576,11 +651,14 @@ KaKotlinPropertySymbol:
     name: field
     origin: PROPERTY_BACKING_FIELD
     owningProperty: KaKotlinPropertySymbol(/MyEnumClass.i)
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     visibility: PRIVATE
     getDispatchReceiver(): KaUsualClassType:
       annotations: []
@@ -589,19 +667,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
     getContainingJvmClassName: MyEnumClass
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   callableId: /MyEnumClass.i
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -611,11 +690,14 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: OPEN
     origin: SOURCE
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getDispatchReceiver(): KaUsualClassType:
@@ -625,19 +707,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
     getContainingJvmClassName: MyEnumClass
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: getI
     importableFqName: null
   hasBackingField: true
   hasGetter: true
   hasSetter: false
   initializer: KaConstantInitializerValue(1)
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: false
   isStatic: false
@@ -646,6 +729,9 @@ KaKotlinPropertySymbol:
   modality: OPEN
   name: i
   origin: SOURCE
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -661,18 +747,16 @@ KaKotlinPropertySymbol:
   getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
   getContainingJvmClassName: MyEnumClass
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
-  javaGetterName: getI
-  javaSetterName: null
+  deprecation: null
   isInline: false
   importableFqName: null
 
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: MyEnumClass
   classKind: ENUM_CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -681,10 +765,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: FINAL
   name: MyEnumClass
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -700,6 +787,6 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(enumEntryOverride.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: MyEnumClass

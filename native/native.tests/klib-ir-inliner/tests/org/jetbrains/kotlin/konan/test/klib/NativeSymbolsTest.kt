@@ -8,10 +8,10 @@ package org.jetbrains.kotlin.konan.test.klib
 import org.jetbrains.kotlin.backend.common.ErrorReportingContext
 import org.jetbrains.kotlin.backend.common.ir.PreSerializationSymbols
 import org.jetbrains.kotlin.backend.konan.ir.BackendNativeSymbols
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.create
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.ir.IrBuiltIns
+import org.jetbrains.kotlin.ir.IrDiagnosticReporter
 import org.jetbrains.kotlin.konan.test.Fir2IrCliNativeFacade
 import org.jetbrains.kotlin.konan.test.FirCliNativeFacade
 import org.jetbrains.kotlin.konan.test.KlibSerializerNativeCliFacade
@@ -20,13 +20,16 @@ import org.jetbrains.kotlin.konan.test.converters.NativeDeserializerFacade
 import org.jetbrains.kotlin.platform.konan.NativePlatforms
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.ir.IrPreSerializationNativeSymbolValidationHandler
-import org.jetbrains.kotlin.test.backend.ir.IrSecondPhaseSymbolValidationHandler
+import org.jetbrains.kotlin.test.backend.ir.IrSecondStageSymbolValidationHandler
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.klib.AbstractSymbolsValidationTest
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.configuration.CommonEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.NativeFirstStageEnvironmentConfigurator
+import org.jetbrains.kotlin.test.services.configuration.NativeSecondStageEnvironmentConfigurator
+import org.jetbrains.kotlin.testFederation.HostDependent
 
+@HostDependent
 @Suppress("JUnitTestCaseWithNoTests")
 class NativeSymbolsTest : AbstractSymbolsValidationTest(
     TargetBackend.NATIVE,
@@ -43,14 +46,20 @@ class NativeSymbolsTest : AbstractSymbolsValidationTest(
         useConfigurators(
             ::CommonEnvironmentConfigurator,
             ::NativeFirstStageEnvironmentConfigurator,
+            ::NativeSecondStageEnvironmentConfigurator,
         )
     }
 }
 
-class NativeSymbolValidationHandler(testServices: TestServices) : IrSecondPhaseSymbolValidationHandler(testServices) {
+class NativeSymbolValidationHandler(testServices: TestServices) : IrSecondStageSymbolValidationHandler(testServices) {
     private val errorReportingContext = object : ErrorReportingContext {
-        override val messageCollector: MessageCollector
+
+        override val diagnosticReporter: IrDiagnosticReporter
             get() = error("should not be called")
+
+        override fun log(message: String) {
+            error("should not be called")
+        }
     }
 
     override fun getSymbols(irBuiltIns: IrBuiltIns): List<PreSerializationSymbols> {

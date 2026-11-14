@@ -1,16 +1,17 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.resolver
 
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.psi.util.parentsOfType
+import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.LLResolutionFacade
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFirFile
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.resolveToFirSymbol
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.ContextCollector
-import org.jetbrains.kotlin.analysis.utils.printer.parentsOfType
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.builder.buildAnonymousFunctionCopy
@@ -18,19 +19,17 @@ import org.jetbrains.kotlin.fir.diagnostics.FirDiagnosticHolder
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.builder.*
 import org.jetbrains.kotlin.fir.expressions.impl.FirResolvedArgumentList
-import org.jetbrains.kotlin.fir.resolve.ResolutionMode
-import org.jetbrains.kotlin.fir.resolve.ScopeSession
+import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.*
 import org.jetbrains.kotlin.fir.resolve.calls.candidate.fullyProcessCandidate
 import org.jetbrains.kotlin.fir.resolve.calls.tower.FirTowerResolver
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeInapplicableCandidateError
-import org.jetbrains.kotlin.fir.resolve.initialTypeOfCandidate
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirBodyResolveTransformer
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirExpressionsResolveTransformer
-import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirAnonymousFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
+import org.jetbrains.kotlin.fir.types.abbreviatedTypeOrSelf
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.name.Name
@@ -42,6 +41,7 @@ import org.jetbrains.kotlin.util.PrivateForInline
 import org.jetbrains.kotlin.utils.exceptions.logErrorWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
+@KaImplementationDetail
 class AllCandidatesResolver(private val firSession: FirSession) {
     private val scopeSession = ScopeSession()
 
@@ -79,7 +79,9 @@ class AllCandidatesResolver(private val firSession: FirSession) {
     ): List<OverloadCandidate> {
         initializeBodyResolveContext(resolutionFacade, element)
 
-        val copiedAccess = copyQualifiedAccess(qualifiedAccess, element) ?: return emptyList()
+        val copiedAccess =
+            copyQualifiedAccess(qualifiedAccess, element, components = bodyResolveComponents) ?: return emptyList()
+
         return run {
             bodyResolveComponents.callResolver
                 .collectAllCandidates(
@@ -101,7 +103,11 @@ class AllCandidatesResolver(private val firSession: FirSession) {
     ): List<OverloadCandidate> {
         initializeBodyResolveContext(resolutionFacade, element)
 
-        val constructedType = delegatedConstructorCall.constructedTypeRef.coneType as ConeClassLikeType
+        val constructedType = delegatedConstructorCall.constructedTypeRef
+            .coneType
+            .abbreviatedTypeOrSelf as? ConeClassLikeType
+            ?: return emptyList()
+
         return run {
             val callInfo = bodyResolveComponents.callResolver.callInfoForDelegatingConstructorCall(
                 delegatedConstructorCall,
@@ -119,7 +125,7 @@ class AllCandidatesResolver(private val firSession: FirSession) {
         }
     }
 
-    @OptIn(PrivateForInline::class, SymbolInternals::class)
+    @OptIn(PrivateForInline::class)
     private fun initializeBodyResolveContext(resolutionFacade: LLResolutionFacade, element: KtElement) {
         val firFile = element.containingKtFile.getOrBuildFirFile(resolutionFacade)
 
@@ -171,7 +177,7 @@ class AllCandidatesResolver(private val firSession: FirSession) {
      * by the compiler (due to the missing type argument), but the `firFile` built during [getAllCandidates] will contain an inapplicable
      * function call `generic<String, String, ERROR>` (with the missing type argument inferred as an error type). The *subsequent*
      * resolution by `bodyResolveComponents.callResolver.collectAllCandidates` feeds this call to
-     * [org.jetbrains.kotlin.fir.resolve.calls.CandidateFactory], which doesn't make any guarantees for inapplicable calls. Hence, the
+     * [org.jetbrains.kotlin.fir.resolve.calls.candidate.CandidateFactory], which doesn't make any guarantees for inapplicable calls. Hence, the
      * resulting candidate is *not* marked as inapplicable and needs to be post-processed.
      */
     private fun OverloadCandidate.preserveCalleeInapplicability() {
@@ -190,9 +196,10 @@ class AllCandidatesResolver(private val firSession: FirSession) {
  * The copied tree is then passed to the [org.jetbrains.kotlin.fir.resolve.calls.overloads.FirOverloadByLambdaReturnTypeResolver]
  * which may modify the tree. In particular, it may change the callee reference and lambdas.
  *
- * There is no goal to make a proper deep copy of the subtree – it is enough to cover the known cases there
+ * There is no goal to make a proper deep copy of the subtree – it is enough to cover the known cases where
  * the modification is possible.
  */
+context(components: BodyResolveComponents)
 private fun copyQualifiedAccess(
     qualifiedAccess: FirQualifiedAccessExpression,
     element: KtElement,
@@ -232,8 +239,12 @@ private fun copyQualifiedAccess(
                 return null
             }
         }
+
+        copyResolvedQualifiedReceiverIfNecessary()
     }
-    is FirPropertyAccessExpression -> buildPropertyAccessExpressionCopy(qualifiedAccess) {}
+    is FirPropertyAccessExpression -> buildPropertyAccessExpressionCopy(qualifiedAccess) {
+        copyResolvedQualifiedReceiverIfNecessary()
+    }
     else -> {
         logger<AllCandidatesResolver>().logErrorWithAttachment("Unsupported qualified access ${qualifiedAccess::class.simpleName}") {
             withFirEntry("qualifiedAccess", qualifiedAccess)
@@ -241,6 +252,33 @@ private fun copyQualifiedAccess(
         }
 
         null
+    }
+}
+
+/**
+ * During construction [FirResolvedQualifier.accessedObjectSymbol] is set to a not-null value if the qualifier
+ * _can_ be used as an expression. Resolution uses this information.
+ *
+ * After resolution, it is set to `null`, if it's not used as expression.
+ *
+ * If we used a qualifier to a class with companion object, which _could_ be used as an expression but isn't, as is, we would miss
+ * candidates from the companion object.
+ *
+ * For this reason, we need to "recreate" qualifiers with [FirResolvedQualifier.accessedObjectSymbol] still intact.
+ */
+context(components: BodyResolveComponents)
+private fun FirQualifiedAccessExpressionBuilder.copyResolvedQualifiedReceiverIfNecessary() {
+    val oldExplicitReceiver = explicitReceiver
+    if (oldExplicitReceiver is FirResolvedQualifier) {
+        explicitReceiver = buildResolvedQualifierCopy(oldExplicitReceiver) {
+            initTypeAndObjectAccess()
+        }
+        if (dispatchReceiver == oldExplicitReceiver) {
+            dispatchReceiver = explicitReceiver
+        }
+        if (extensionReceiver == oldExplicitReceiver) {
+            extensionReceiver = explicitReceiver
+        }
     }
 }
 

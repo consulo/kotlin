@@ -5,27 +5,38 @@
 
 package org.jetbrains.kotlin.analysis.api.fir.test
 
+import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiClass
-import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.analyzeCopy
-import org.jetbrains.kotlin.analysis.api.components.buildSubstitutor
+import com.intellij.psi.search.GlobalSearchScope
+import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationValue
 import org.jetbrains.kotlin.analysis.api.fir.symbols.KaFirPsiJavaClassSymbol
 import org.jetbrains.kotlin.analysis.api.fir.symbols.KaFirPsiJavaTypeParameterSymbol
-import org.jetbrains.kotlin.analysis.api.fir.symbols.KaFirTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirPrimaryConstructorSymbolPointer
+import org.jetbrains.kotlin.analysis.api.javaInterop.namedClassSymbol
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResolutionMode
-import org.jetbrains.kotlin.analysis.api.symbols.KaEnumEntrySymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
-import org.jetbrains.kotlin.analysis.api.types.KaClassType
+import org.jetbrains.kotlin.analysis.api.scopes.memberScope
+import org.jetbrains.kotlin.analysis.api.scopes.staticMemberScope
+import org.jetbrains.kotlin.analysis.api.session.analyze
+import org.jetbrains.kotlin.analysis.api.session.analyzeCopy
+import org.jetbrains.kotlin.analysis.api.session.canBeAnalysed
+import org.jetbrains.kotlin.analysis.api.symbols.*
+import org.jetbrains.kotlin.analysis.api.symbols.pointers.restoreSymbol
+import org.jetbrains.kotlin.analysis.api.types.*
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators.LLSourceLikeTestConfigurator
 import org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiExecutionTest
+import org.jetbrains.kotlin.analysis.test.framework.projectStructure.ktTestModuleStructure
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtPsiFactory
+import org.jetbrains.kotlin.test.services.TestServices
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class AnalysisApiSurfaceTest : AbstractAnalysisApiExecutionTest("testData/surface") {
     override val configurator = LLSourceLikeTestConfigurator()
@@ -60,7 +71,7 @@ class AnalysisApiSurfaceTest : AbstractAnalysisApiExecutionTest("testData/surfac
                 .single()
 
             // Get the implicit primary constructor
-            val constructor = enumEntrySymbol.enumEntryInitializer!!.memberScope.constructors.toList().single()
+            val constructor = enumEntrySymbol.initializer!!.memberScope.constructors.toList().single()
 
             val pointer = constructor.createPointer()
             assertIs<KaFirPrimaryConstructorSymbolPointer>(pointer, "Expected primary constructor pointer")
@@ -82,14 +93,87 @@ class AnalysisApiSurfaceTest : AbstractAnalysisApiExecutionTest("testData/surfac
                 assertEquals(builtinTypes.int, typeArgument.type, "Type argument should be Int after substitution")
             }
 
-            val regularClassSymbol = findClass(ClassId.fromString("test/JavaBox")) as KaNamedClassSymbol
+            val regularClassSymbol = findClass(ClassId.fromString("test/JavaBox")) as KaFirPsiJavaClassSymbol
             val psiBasedClassSymbol = (regularClassSymbol.psi as PsiClass).namedClassSymbol as KaFirPsiJavaClassSymbol
+            assertEquals(regularClassSymbol, psiBasedClassSymbol)
 
-            assertIs<KaFirTypeParameterSymbol>(regularClassSymbol.typeParameters.single())
+            assertIs<KaFirPsiJavaTypeParameterSymbol>(regularClassSymbol.typeParameters.single())
             assertIs<KaFirPsiJavaTypeParameterSymbol>(psiBasedClassSymbol.typeParameters.single())
 
             checkSubstitution(regularClassSymbol)
             checkSubstitution(psiBasedClassSymbol)
+        }
+    }
+
+    @Test
+    fun substitutedAnnotation(testServices: TestServices) {
+        val allFiles = testServices.ktTestModuleStructure.allSourceFiles
+        val commonFile = allFiles.single { it.name == "myFacade.kt" } as KtFile
+        val jvmFile = allFiles.single { it.name == "main.kt" } as KtFile
+
+        val project = commonFile.project
+        val facadeClass = JavaPsiFacade.getInstance(project).findClass(
+            "mypack.MyFacadeKt",
+            GlobalSearchScope.projectScope(project),
+        )
+
+        assertNotNull(facadeClass, "'mypack.MyFacadeKt' light class is not found")
+
+        val facadeMethod = facadeClass.methods.single()
+
+        assertEquals("myCustomName", facadeMethod.name)
+        val psiAnnotation = facadeMethod.annotations.single()
+
+        assertEquals("kotlin.jvm.JvmName", psiAnnotation.qualifiedName)
+
+        analyze(jvmFile) {
+            val function = commonFile.declarations.single() as KtNamedFunction
+            val functionSymbol = function.symbol
+            val annotation = functionSymbol.annotations.single()
+            val constructorSymbol = annotation.constructorSymbol ?: error("The constructor symbol is absent")
+
+            // It has to point to the JVM Stdlib. JVM session cannot depend on classes from klib
+            assertEquals("Library kotlin-stdlib", constructorSymbol.containingModule.moduleDescription)
+            val constructorPsi = constructorSymbol.realPsi ?: error("The real psi is not found")
+
+            // It has to be analyzable
+            assertTrue(constructorPsi.canBeAnalysed())
+        }
+    }
+
+    @Test
+    fun substitutedNestedAnnotation(testServices: TestServices) {
+        val allFiles = testServices.ktTestModuleStructure.allSourceFiles
+        val commonFile = allFiles.single { it.name == "myFacade.kt" } as KtFile
+        val jvmFile = allFiles.single { it.name == "main.kt" } as KtFile
+
+        val project = commonFile.project
+        val facadeClass = JavaPsiFacade.getInstance(project).findClass(
+            "mypack.MyFacadeKt",
+            GlobalSearchScope.projectScope(project),
+        )
+
+        assertNotNull(facadeClass, "'mypack.MyFacadeKt' light class is not found")
+
+        val psiAnnotation = facadeClass.methods.single().annotations.single { it.qualifiedName == "kotlin.Deprecated" }
+        val nestedPsiAnnotation = assertIs<PsiAnnotation>(psiAnnotation.findDeclaredAttributeValue("replaceWith"))
+        assertEquals("kotlin.ReplaceWith", nestedPsiAnnotation.qualifiedName)
+        assertEquals(listOf("expression", "imports"), nestedPsiAnnotation.parameterList.attributes.map { it.name })
+
+        analyze(jvmFile) {
+            val function = commonFile.declarations.single() as KtNamedFunction
+            val annotation = function.symbol.annotations.single()
+            val replaceWith = annotation.arguments.single { it.name.asString() == "replaceWith" }.expression
+            val nestedAnnotation = assertIs<KaAnnotationValue.NestedAnnotationValue>(replaceWith).annotation
+            val constructorSymbol = nestedAnnotation.constructorSymbol ?: error("The constructor symbol is absent")
+
+            // It has to point to the JVM Stdlib. JVM session cannot depend on classes from klib
+            assertEquals("Library kotlin-stdlib", constructorSymbol.containingModule.moduleDescription)
+            val constructorPsi = constructorSymbol.realPsi ?: error("The real psi is not found")
+
+            // It has to be analyzable
+            assertTrue(constructorPsi.canBeAnalysed())
+            assertEquals(listOf("expression", "imports"), constructorSymbol.valueParameters.map { it.name.asString() })
         }
     }
 }

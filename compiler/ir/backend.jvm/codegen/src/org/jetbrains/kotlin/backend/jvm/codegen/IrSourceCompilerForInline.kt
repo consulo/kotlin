@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.backend.jvm.codegen
 
-import com.intellij.openapi.util.TextRange
 import org.jetbrains.kotlin.backend.jvm.JvmBackendErrors
 import org.jetbrains.kotlin.backend.jvm.JvmEvaluatorData
 import org.jetbrains.kotlin.backend.jvm.hasMangledReturnType
@@ -13,13 +12,12 @@ import org.jetbrains.kotlin.backend.jvm.ir.*
 import org.jetbrains.kotlin.codegen.inline.*
 import org.jetbrains.kotlin.codegen.state.GenerationState
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
-import org.jetbrains.kotlin.diagnostics.DiagnosticUtils
+import org.jetbrains.kotlin.diagnostics.PsiDiagnosticUtils
 import org.jetbrains.kotlin.incremental.components.LocationInfo
 import org.jetbrains.kotlin.incremental.components.Position
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
+import org.jetbrains.kotlin.ir.at
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.descriptors.toIrBasedDescriptor
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.ir.expressions.IrLoop
 import org.jetbrains.kotlin.ir.util.*
@@ -38,6 +36,9 @@ class IrSourceCompilerForInline(
     private val data: BlockInfo,
     private val evaluatorData: JvmEvaluatorData?,
 ) : SourceCompilerForInline {
+    private val anonymousObjectCapturedFieldsMatcher =
+        IrAnonymousObjectCapturedFieldsMatcher(codegen, codegen.irFunction.fileParentOrNull, callee.fileParentOrNull)
+
     override val callElementText: String
         get() = ir2string(callElement)
 
@@ -73,9 +74,7 @@ class IrSourceCompilerForInline(
     }
 
     override fun compileInlineFunction(jvmSignature: JvmMethodSignature): SMAPAndMethodNode {
-        generateInlineIntrinsicForIr(callee.toIrBasedDescriptor())?.let {
-            return it
-        }
+        generateInlineIntrinsicForIr(callee)?.let { return it }
         if (jvmSignature.asmMethod.name != callee.name.asString()) {
             val ktFile = codegen.irFunction.fileParent.getKtFile()
             if ((ktFile != null && ktFile.doNotAnalyze == null) || ktFile == null) {
@@ -85,10 +84,8 @@ class IrSourceCompilerForInline(
                     override val position: Position
                         get() =
                             if (ktFile == null) Position.NO_POSITION
-                            else DiagnosticUtils.getLineAndColumnInPsiFile(
-                                ktFile,
-                                TextRange(callElement.startOffset, callElement.endOffset)
-                            ).let { Position(it.line, it.column) }
+                            else PsiDiagnosticUtils.offsetToLineAndColumn(ktFile.viewProvider.document, callElement.startOffset)
+                                .let { Position(it.line, it.column) }
                 })
             }
         }
@@ -118,35 +115,22 @@ class IrSourceCompilerForInline(
         ExpressionCodegen(
             codegen.irFunction, codegen.signature, codegen.frameMap, InstructionAdapter(finallyNode), codegen.classCodegen,
             sourceMapper, codegen.reifiedTypeParametersUsages
-        ).also {
-            it.finallyDepth = curFinallyDepth
-        }.generateFinallyBlocksIfNeeded(returnType, afterReturnLabel, data, target)
-    }
-
-    @OptIn(ObsoleteDescriptorBasedAPI::class)
-    override val isCallInsideSameModuleAsCallee: Boolean
-        get() {
-            val inlineFunModule = callee.fileOrNull?.module
-            val currentlyGeneratedFunModule = codegen.irFunction.fileOrNull?.module
-            check(currentlyGeneratedFunModule != null) {
-                "There is no module for function ${codegen.irFunction.name}:\n${codegen.irFunction.render()}"
-            }
-
-            return if (inlineFunModule == null) {
-                callee.module == codegen.irFunction.module
-            } else {
-                // Check by IR is needed for the evaluate expression in IDE.
-                // When we compile some code fragment with inline function call
-                // that has an anonymous object in callee, we will get incorrect behavior.
-                // Code fragment is wrapped in `EvaluatorModuleDescriptor` and we accidentally
-                // think that inline call and callee are in different modules that leads to an error in
-                // `AnonymousObjectTransformer.doTransform`.
-                inlineFunModule == currentlyGeneratedFunModule
+        ).run {
+            finallyDepth = curFinallyDepth
+            noLineNumberScopeWithCondition(codegen.isNoLineNumberScope) {
+                generateFinallyBlocksIfNeeded(returnType, afterReturnLabel, data, target)
             }
         }
+    }
+
+    override val isCallInsideSameModuleAsCallee: Boolean
+        get() = callee.moduleFragment == codegen.irFunction.moduleFragment
 
     override val isFinallyMarkerRequired: Boolean
         get() = codegen.isFinallyMarkerRequired
+
+    override fun resolveAnonymousObjectCapturedFieldsByConstructorArgument(ownerInternalName: String): List<String?>? =
+        anonymousObjectCapturedFieldsMatcher.resolveAnonymousObjectCapturedFieldsByConstructorArgument(ownerInternalName)
 
     override fun isSuspendLambdaCapturedByOuterObjectOrLambda(name: String): Boolean =
         false // IR does not capture variables through outer this
@@ -164,7 +148,7 @@ class IrSourceCompilerForInline(
 
     // TODO: Find a way to avoid using PSI here
     override fun reportSuspensionPointInsideMonitor(stackTraceElement: String) {
-        codegen.context.ktDiagnosticReporter
+        codegen.context.diagnosticReporter
             .at(callElement.symbol.owner as IrDeclaration)
             .report(JvmBackendErrors.SUSPENSION_POINT_INSIDE_MONITOR, stackTraceElement)
     }

@@ -3,12 +3,13 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName", "DuplicatedCode")
+@file:Suppress("DuplicatedCode")
 
 package org.jetbrains.kotlin.gradle.dependencyResolutionTests.tcs
 
 import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.dependencyResolutionTests.mavenCentralCacheRedirector
+import org.jetbrains.kotlin.gradle.dependencyResolutionTests.kotlinBuildDeps
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.idea.tcs.IdeaKotlinResolvedBinaryDependency
@@ -19,22 +20,11 @@ import org.jetbrains.kotlin.gradle.internal.dsl.KotlinMultiplatformSourceSetConv
 import org.jetbrains.kotlin.gradle.internal.properties.nativeProperties
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.ide.kotlinIdeMultiplatformImport
-import org.jetbrains.kotlin.gradle.util.applyMultiplatformPlugin
-import org.jetbrains.kotlin.gradle.util.buildProject
-import org.jetbrains.kotlin.gradle.util.configureDefaults
-import org.jetbrains.kotlin.gradle.util.enableDefaultStdlibDependency
-import org.jetbrains.kotlin.gradle.util.enableDependencyVerification
-import org.jetbrains.kotlin.gradle.util.provisionKotlinNativeDistribution
+import org.jetbrains.kotlin.gradle.util.*
 import org.jetbrains.kotlin.gradle.utils.androidExtension
-import org.junit.jupiter.api.BeforeEach
 import kotlin.test.Test
 
 class IdeStdlibResolutionTest {
-    // workaround for tests that don't unpack Kotlin Native when using local repo: KT-77580
-    @BeforeEach
-    fun setUp() {
-        provisionKotlinNativeDistribution()
-    }
 
     @Test
     fun `test single jvm target`() {
@@ -258,6 +248,25 @@ class IdeStdlibResolutionTest {
         )
     }
 
+    @Test
+    fun `test stdlib native + js target set`() {
+        val project = createProjectWithDefaultStdlibEnabled()
+        val kotlin = project.multiplatformExtension
+        kotlin.js()
+        kotlin.linuxX64()
+        kotlin.linuxArm64()
+
+        project.evaluate()
+
+        project.assertStdlibDependencies(
+            kotlin.sourceSets.commonMain.get(),
+            listOf(
+                project.stdlibSourceSetDependency("commonMain"),
+                project.stdlibSourceSetDependency("commonNonJvmMain"),
+            )
+        )
+    }
+
     private fun Project.assertStdlibDependencies(sourceSet: KotlinSourceSet, dependencies: Any) {
         project.kotlinIdeMultiplatformImport.resolveDependencies(sourceSet)
             .filterIsInstance<IdeaKotlinResolvedBinaryDependency>()
@@ -266,10 +275,11 @@ class IdeStdlibResolutionTest {
     }
 
     private fun createProjectWithDefaultStdlibEnabled() = buildProject {
+        withTemporaryKotlinNativeHome()
         enableDependencyVerification(false)
         enableDefaultStdlibDependency(true)
         applyMultiplatformPlugin()
-        repositories.mavenLocal()
+        repositories.kotlinBuildDeps()
         repositories.mavenCentralCacheRedirector()
     }
 
@@ -279,7 +289,7 @@ class IdeStdlibResolutionTest {
         applyMultiplatformPlugin()
         plugins.apply("com.android.library")
         androidExtension.configureDefaults()
-        repositories.mavenLocal()
+        repositories.kotlinBuildDeps()
         repositories.mavenCentralCacheRedirector()
         repositories.google()
     }
@@ -287,15 +297,19 @@ class IdeStdlibResolutionTest {
     /**
      * Refers to the 'commonMain' source set of the kotlin stdlib
      */
-    private fun stdlibCommonMainDependency(kotlin: KotlinMultiplatformExtension) =
-        binaryCoordinates("org.jetbrains.kotlin:kotlin-stdlib:commonMain:${kotlin.coreLibrariesVersion}")
+    private fun stdlibCommonMainDependency(kotlin: KotlinMultiplatformExtension) = kotlin.stdlibSourceSetDependency("commonMain")
+
+    private fun Project.stdlibSourceSetDependency(stdlibSourceSetName: String) = multiplatformExtension.stdlibSourceSetDependency(stdlibSourceSetName)
+
+    private fun KotlinMultiplatformExtension.stdlibSourceSetDependency(stdlibSourceSetName: String) =
+        binaryCoordinates("org.jetbrains.kotlin:kotlin-stdlib:$stdlibSourceSetName:${coreKotlinLibrariesVersion.get()}")
 
     private fun jvmStdlibDependencies(kotlin: KotlinMultiplatformExtension) = listOf(
-        binaryCoordinates("org.jetbrains.kotlin:kotlin-stdlib:${kotlin.coreLibrariesVersion}"),
+        binaryCoordinates("org.jetbrains.kotlin:kotlin-stdlib:${kotlin.coreKotlinLibrariesVersion.get()}"),
     )
 
     private fun jsStdlibDependency(kotlin: KotlinMultiplatformExtension) =
-        binaryCoordinates("org.jetbrains.kotlin:kotlin-stdlib-js:${kotlin.coreLibrariesVersion}")
+        binaryCoordinates("org.jetbrains.kotlin:kotlin-stdlib-js:${kotlin.coreKotlinLibrariesVersion.get()}")
 
     private fun nativeStdlibDependency(kotlin: KotlinMultiplatformExtension) =
         binaryCoordinates("org.jetbrains.kotlin.native:stdlib:${kotlin.project.nativeProperties.kotlinNativeVersion.get()}")

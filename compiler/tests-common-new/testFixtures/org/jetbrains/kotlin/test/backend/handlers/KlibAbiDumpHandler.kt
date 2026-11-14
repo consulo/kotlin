@@ -5,19 +5,20 @@
 
 package org.jetbrains.kotlin.test.backend.handlers
 
+import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.library.KotlinIrSignatureVersion
 import org.jetbrains.kotlin.library.abi.*
 import org.jetbrains.kotlin.library.abi.AbiReadingFilter.*
 import org.jetbrains.kotlin.test.directives.KlibAbiDumpDirectives
+import org.jetbrains.kotlin.test.directives.TestDumpDirectives
+import org.jetbrains.kotlin.test.directives.assertEqualsToDump
 import org.jetbrains.kotlin.test.directives.model.singleOrZeroValue
 import org.jetbrains.kotlin.test.model.ArtifactKinds
 import org.jetbrains.kotlin.test.model.BinaryArtifactHandler
 import org.jetbrains.kotlin.test.model.BinaryArtifacts
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
-import org.jetbrains.kotlin.test.services.moduleStructure
 import org.jetbrains.kotlin.test.utils.MultiModuleInfoDumper
-import org.jetbrains.kotlin.test.utils.withExtension
 
 /**
  * Dumps KLIB ABI in the format of [LibraryAbiReader].
@@ -29,11 +30,12 @@ import org.jetbrains.kotlin.test.utils.withExtension
 class KlibAbiDumpHandler(testServices: TestServices) : BinaryArtifactHandler<BinaryArtifacts.KLib>(
     testServices,
     ArtifactKinds.KLib,
-    failureDisablesNextSteps = true,
+    failureDisablesNextSteps = false,
     doNotRunIfThereWerePreviousFailures = true,
 ) {
-    override val directiveContainers get() = listOf(KlibAbiDumpDirectives)
+    override val directiveContainers get() = listOf(TestDumpDirectives, KlibAbiDumpDirectives)
 
+    private val kotlinPackage = AbiCompoundName(StandardNames.BUILT_INS_PACKAGE_NAME.asString())
     private val dumpers = hashMapOf<AbiSignatureVersion, MultiModuleInfoDumper>()
 
     override fun processModule(module: TestModule, info: BinaryArtifacts.KLib) {
@@ -41,7 +43,7 @@ class KlibAbiDumpHandler(testServices: TestServices) : BinaryArtifactHandler<Bin
 
         val libraryAbi = LibraryAbiReader.readAbiInfo(
             info.outputFile,
-            ExcludedPackages(module.directives[KlibAbiDumpDirectives.KLIB_ABI_DUMP_EXCLUDED_PACKAGES]),
+            ExcludedPackages(module.directives[KlibAbiDumpDirectives.KLIB_ABI_DUMP_EXCLUDED_PACKAGES] + kotlinPackage),
             ExcludedClasses(module.directives[KlibAbiDumpDirectives.KLIB_ABI_DUMP_EXCLUDED_CLASSES]),
             NonPublicMarkerAnnotations(module.directives[KlibAbiDumpDirectives.KLIB_ABI_DUMP_NON_PUBLIC_MARKERS])
         )
@@ -56,17 +58,11 @@ class KlibAbiDumpHandler(testServices: TestServices) : BinaryArtifactHandler<Bin
         if (dumpers.isEmpty()) return
 
         assertions.assertAll(
-            dumpers.map { (abiSignatureVersion, dumper) ->
-                val dumpFileExtension = abiDumpFileExtension(abiSignatureVersion.versionNumber)
-                val lambda = {
-                    val expectedFile = testServices
-                        .moduleStructure
-                        .originalTestDataFiles
-                        .first()
-                        .withExtension(dumpFileExtension)
-                    assertions.assertEqualsToFile(expectedFile, dumper.generateResultingDump())
+            dumpers.map { [abiSignatureVersion, dumper] ->
+                return@map {
+                    val dumpFileExtension = abiDumpFileExtension(abiSignatureVersion.versionNumber)
+                    assertEqualsToDump(dumpFileExtension, dumper.generateResultingDump())
                 }
-                lambda
             }
         )
     }

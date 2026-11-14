@@ -5,14 +5,16 @@
 
 package kotlin.script.experimental.jvm.test
 
-import junit.framework.TestCase
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.fail
 import java.io.File
 import java.util.jar.JarFile
 import java.util.jar.JarInputStream
 import kotlin.script.experimental.jvm.util.*
 
-class UtilsTest : TestCase() {
+class UtilsTest {
 
     @Test
     fun testPatternConversionWildcards() {
@@ -51,9 +53,9 @@ class UtilsTest : TestCase() {
                 assertEquals(paths.toSet(), res.mapTo(HashSet()) { it.first })
             }
 
-            res.forEach { (path, bytes) ->
+            res.forEach { [path, bytes] ->
                 val data = File(path).readText()
-                assertEquals("Mismatching data for $path", data, bytes)
+                assertEquals(data, bytes, "Mismatching data for $path")
             }
         }
 
@@ -114,7 +116,7 @@ class UtilsTest : TestCase() {
         }
 
         fun assertMatchingFilesInJarTwoWay(jar: File, pattern: String, vararg expected: Pair<String, String>) {
-            assertFiles( JarFile(jar).filesBy(pattern), *expected)
+            assertFiles( JarFile(jar).use { it.filesBy(pattern) }, *expected)
             assertFiles( JarInputStream(jar.inputStream()).use { it.filesBy(pattern) }, *expected)
         }
 

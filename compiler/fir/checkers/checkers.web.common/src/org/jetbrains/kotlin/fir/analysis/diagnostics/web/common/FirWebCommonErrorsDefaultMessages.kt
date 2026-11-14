@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.CALL_TO_DEFINED_EXTERNALLY_FROM_NON_EXTERNAL_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.CANNOT_CHECK_FOR_EXTERNAL_INTERFACE
+import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.COMPANION_OBJECT_IN_EXTERNAL_INTERFACE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.EXTERNAL_ANONYMOUS_INITIALIZER
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.EXTERNAL_CLASS_CONSTRUCTOR_PROPERTY_PARAMETER
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.EXTERNAL_DELEGATED_CONSTRUCTOR_CALL
@@ -19,22 +20,30 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErro
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.EXTERNAL_INTERFACE_AS_CLASS_LITERAL
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.EXTERNAL_INTERFACE_AS_REIFIED_TYPE_ARGUMENT
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.EXTERNAL_TYPE_EXTENDS_NON_EXTERNAL_TYPE
+import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.INAPPLICABLE_EAGER_INITIALIZATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.INLINE_EXTERNAL_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.WRONG_JS_EXPORT_TARGET_VISIBILITY
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.JSCODE_ARGUMENT_NON_CONST_EXPRESSION
+import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.JS_MODULE_PROHIBITED_ON_EXTERNAL_INTERFACE
+import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.JS_MODULE_PROHIBITED_IN_FILE_WITH_JS_QUALIFIER
+import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.JS_MODULE_PROHIBITED_ON_MEMBER
+import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.JS_MODULE_PROHIBITED_ON_NON_EXTERNAL
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.JS_MODULE_PROHIBITED_ON_VAR
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.MULTIPLE_JS_EXPORT_DEFAULT_IN_ONE_FILE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.NAMED_COMPANION_IN_EXTERNAL_INTERFACE
+import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.NATIVE_ANNOTATIONS_ALLOWED_ONLY_ON_MEMBER_FUN
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.NESTED_CLASS_IN_EXTERNAL_INTERFACE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.NESTED_EXTERNAL_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.NESTED_JS_EXPORT
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.NESTED_JS_MODULE_PROHIBITED
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.NON_ABSTRACT_MEMBER_OF_EXTERNAL_INTERFACE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.NON_EXTERNAL_DECLARATION_IN_INAPPROPRIATE_FILE
+import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.NOT_EXPORTED_OR_EXTERNAL_ACTUAL_DECLARATION_WHILE_EXPECT_IS_EXPORTED
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.UNCHECKED_CAST_TO_EXTERNAL_INTERFACE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.UNSUPPORTED_REFLECTION_API
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.WRONG_BODY_OF_EXTERNAL_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.WRONG_DEFAULT_VALUE_FOR_EXTERNAL_FUN_PARAMETER
+import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.WRONG_EXPORTED_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.WRONG_EXTERNAL_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.WRONG_INITIALIZER_OF_EXTERNAL_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.web.common.FirWebCommonErrors.WRONG_JS_QUALIFIER
@@ -92,9 +101,26 @@ object FirWebCommonErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
             WRONG_JS_EXPORT_TARGET_VISIBILITY,
             "'@JsExport' is only allowed for public declarations. This declaration will not be exported."
         )
+        map.put(WRONG_EXPORTED_DECLARATION, "Declaration of such kind ({0}) cannot be exported to JavaScript.", CommonRenderers.STRING)
+        map.put(
+            NOT_EXPORTED_OR_EXTERNAL_ACTUAL_DECLARATION_WHILE_EXPECT_IS_EXPORTED,
+            "The corresponding expect declaration is marked as exported, but the actual one is not.\nTo fix it, {0}, or remove the ''@JsExport'' annotation from the expect declaration.",
+            CommonRenderers.STRING
+        )
 
         map.put(JSCODE_ARGUMENT_NON_CONST_EXPRESSION, "An argument for the 'js()' function must be a constant string expression.")
         map.put(NAMED_COMPANION_IN_EXTERNAL_INTERFACE, "Named companions are not allowed inside external interfaces.")
+        map.put(
+            COMPANION_OBJECT_IN_EXTERNAL_INTERFACE,
+            """
+            Accessing a companion object of an external interface currently produces an empty JavaScript object.
+            This behavior will change in the future: references to the companion object will compile to JavaScript code that references the interface name and will fail at runtime if that name is not defined.
+
+            To keep the current behavior, annotate the interface with '@JsName("Object")'.
+
+            Read more: https://kotl.in/e4vlc5
+            """.trimIndent()
+        )
         map.put(UNSUPPORTED_REFLECTION_API, "{0}", TO_STRING)
 
         map.put(CALL_TO_DEFINED_EXTERNALLY_FROM_NON_EXTERNAL_DECLARATION, "This property can only be used from external declarations.")
@@ -103,14 +129,44 @@ object FirWebCommonErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
             "External type extends non-external type ''{0}''.",
             FirDiagnosticRenderers.RENDER_TYPE
         )
-        map.put(JS_MODULE_PROHIBITED_ON_VAR, "'@JsModule' annotation is prohibited for 'var' declarations. Use 'val' instead.")
+        map.put(
+            JS_MODULE_PROHIBITED_ON_VAR,
+            "''@{0}'' annotation is prohibited for ''var'' declarations. Use ''val'' instead.",
+            FirDiagnosticRenderers.RENDER_TYPE
+        )
+        map.put(
+            JS_MODULE_PROHIBITED_ON_NON_EXTERNAL,
+            "''@{0}'' annotation is prohibited for non-external declarations.",
+            FirDiagnosticRenderers.RENDER_TYPE
+        )
         map.put(
             NESTED_JS_MODULE_PROHIBITED,
-            "'@JsModule' and '@JsNonModule' cannot appear here since the file is already marked by either '@JsModule' or '@JsNonModule'."
+            "''@{0}'' cannot appear here since the file is already marked with a module annotation.",
+            FirDiagnosticRenderers.RENDER_TYPE
+        )
+        map.put(
+            JS_MODULE_PROHIBITED_ON_MEMBER,
+            "''@{0}'' cannot be applied to a member. Apply it to the top-level declaration or to the file instead.",
+            FirDiagnosticRenderers.RENDER_TYPE
+        )
+        map.put(
+            JS_MODULE_PROHIBITED_ON_EXTERNAL_INTERFACE,
+            "''@{0}'' cannot be applied to an external interface, since it has no runtime value to import.",
+            FirDiagnosticRenderers.RENDER_TYPE
+        )
+        map.put(
+            JS_MODULE_PROHIBITED_IN_FILE_WITH_JS_QUALIFIER,
+            "'@JsModule' cannot be applied to a declaration in a file marked with '@JsQualifier'."
         )
         map.put(
             NON_EXTERNAL_DECLARATION_IN_INAPPROPRIATE_FILE,
             "Only external declarations are allowed in files marked with ''{0}'' annotation.",
+            FirDiagnosticRenderers.RENDER_TYPE
+        )
+        map.put(INAPPLICABLE_EAGER_INITIALIZATION, "'@EagerInitialization' is only applicable to a top-level property with an initializer.")
+        map.put(
+            NATIVE_ANNOTATIONS_ALLOWED_ONLY_ON_MEMBER_FUN,
+            "Annotation ''{0}'' is only allowed on member functions of external declarations.",
             FirDiagnosticRenderers.RENDER_TYPE
         )
     }

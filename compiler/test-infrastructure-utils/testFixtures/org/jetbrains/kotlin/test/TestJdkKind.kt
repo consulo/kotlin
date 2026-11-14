@@ -23,6 +23,9 @@ enum class TestJdkKind(val requiresSeparateProcess: Boolean = false) {
     // Also, now it contains new methods in java.lang.String introduced in JDK 11
     MODIFIED_MOCK_JDK,
 
+    // JDK found at $JDK_1_8
+    FULL_JDK_8,
+
     // JDK found at $JDK_11_0
     FULL_JDK_11(requiresSeparateProcess = true),
 
@@ -31,6 +34,12 @@ enum class TestJdkKind(val requiresSeparateProcess: Boolean = false) {
 
     // JDK found at $JDK_21_0
     FULL_JDK_21(requiresSeparateProcess = true),
+
+    // JDK found at $JDK_25_0
+    FULL_JDK_25(requiresSeparateProcess = true),
+
+    // JDK found at $JDK_VALHALLA
+    FULL_JDK_VALHALLA(requiresSeparateProcess = true),
 
     // JDK found at java.home
     FULL_JDK,

@@ -31,13 +31,17 @@ fun Project.generatedDiagnosticContainersAndCheckerComponents(): TaskProvider<Ja
  * This function creates `generateConfigurationKeys`, which generates
  *   compiler configuration keys passed as arguments (like `CommonConfigurationKeys`)
  */
-fun Project.generatedConfigurationKeys(containerName: String, vararg containerNames: String): TaskProvider<JavaExec> {
+fun Project.generatedConfigurationKeys(
+    containerName: String,
+    vararg containerNames: String,
+    dependOnTaskOutput: Boolean = false,
+): TaskProvider<JavaExec> {
     return generatedSourcesTask(
         taskName = "generateConfigurationKeys",
         generatorProject = ":compiler:config:configuration-keys-generator",
         generatorMainClass = "org.jetbrains.kotlin.config.keys.generator.MainKt",
         argsProvider = { generationRoot -> listOf(generationRoot.toString(), containerName, *containerNames) },
-        dependOnTaskOutput = false
+        dependOnTaskOutput = dependOnTaskOutput,
     )
 }
 
@@ -55,6 +59,9 @@ fun Project.generatedConfigurationKeys(containerName: String, vararg containerNa
  *   Use it with caution
  * @param [additionalInputsToTrack] add files used by generator as generator task input. On change in these files - generator task will re-run
  * instead of being in 'UP-TO-DATE' state
+ * @param [versionDependent] set to true if the generated output depends on the Kotlin version of the build.
+ *   Only such generators are allowed to skip the "Re-generation needed!" check when `kotlin.build.disable.regeneration.check`
+ *   is set during version branching. See KT-91109.
  */
 fun Project.generatedSourcesTask(
     taskName: String,
@@ -62,7 +69,9 @@ fun Project.generatedSourcesTask(
     generatorMainClass: String,
     argsProvider: JavaExec.(generationRoot: Directory) -> List<String> = { listOf(it.toString()) },
     dependOnTaskOutput: Boolean = true,
+    generatedSourceSetKind: GeneratedSourceSetKind = GeneratedSourceSetKind.JvmMain,
     additionalInputsToTrack: (ConfigurableFileCollection) -> Unit = {},
+    versionDependent: Boolean = false,
 ): TaskProvider<JavaExec> {
     val generatorDependencies = configurations.dependencyScope("${taskName}GeneratorDependencies")
     val generatorClasspath = configurations.resolvable("${taskName}GeneratorClasspath") {
@@ -77,7 +86,9 @@ fun Project.generatedSourcesTask(
         generatorMainClass,
         argsProvider,
         dependOnTaskOutput = dependOnTaskOutput,
+        generatedSourceSetKind = generatedSourceSetKind,
         additionalInputsToTrack = additionalInputsToTrack,
+        versionDependent = versionDependent,
     )
 }
 
@@ -91,20 +102,20 @@ fun Project.generatedSourcesTask(
     generatorMainClass: String,
     argsProvider: JavaExec.(generationRoot: Directory) -> List<String> = { listOf(it.toString()) },
     dependOnTaskOutput: Boolean = true,
-    commonSourceSet: Boolean = false,
+    generatedSourceSetKind: GeneratedSourceSetKind = GeneratedSourceSetKind.JvmMain,
     additionalInputsToTrack: (ConfigurableFileCollection) -> Unit = {},
+    versionDependent: Boolean = false,
 ): TaskProvider<JavaExec> {
-    val genPath = if (commonSourceSet) {
-        "common/src/gen"
-    } else {
-        "gen"
-    }
-    val generationRoot = layout.projectDirectory.dir(genPath)
+    val generationRoot = layout.projectDirectory.dir(generatedSourceSetKind.genPath)
     val task = tasks.register<JavaExec>(taskName) {
         workingDir = rootDir
         classpath(generatorClasspath)
         mainClass.set(generatorMainClass)
         systemProperties["line.separator"] = "\n"
+        systemProperties["teamcity"] = kotlinBuildProperties.isTeamcityBuild.get()
+        if (versionDependent) {
+            systemProperties["kotlin.build.disable.regeneration.check"] = kotlinBuildProperties.regenerationCheckDisabled.get()
+        }
         args(argsProvider(generationRoot))
 
         val additionalInputFiles = objects.fileCollection()
@@ -118,21 +129,25 @@ fun Project.generatedSourcesTask(
 
         outputs.dir(generationRoot)
     }
+    registerInAggregateGenerateSources(taskName)
 
     val dependency: Any = when (dependOnTaskOutput) {
         true -> task
         false -> generationRoot
     }
 
-    if (!commonSourceSet) {
-        val javaSourceSets = extensions.getByType<JavaPluginExtension>().sourceSets
-        javaSourceSets.named("main") {
-            java.srcDirs(dependency)
+    when (generatedSourceSetKind.isKmp) {
+        true -> {
+            val kmpSourceSets = extensions.getByType<KotlinMultiplatformExtension>().sourceSets
+            kmpSourceSets.named(generatedSourceSetKind.sourceSetName) {
+                kotlin.srcDirs(dependency)
+            }
         }
-    } else {
-        val kmpSourceSets = extensions.getByType<KotlinMultiplatformExtension>().sourceSets
-        kmpSourceSets.named("commonMain") {
-            kotlin.srcDirs(dependency)
+        false -> {
+            val javaSourceSets = extensions.getByType<JavaPluginExtension>().sourceSets
+            javaSourceSets.named(generatedSourceSetKind.sourceSetName) {
+                java.srcDirs(dependency)
+            }
         }
     }
 
@@ -143,3 +158,12 @@ fun Project.generatedSourcesTask(
     return task
 }
 
+enum class GeneratedSourceSetKind(
+    val genPath: String,
+    val sourceSetName: String,
+    val isKmp: Boolean,
+) {
+    JvmMain(genPath = "gen", sourceSetName = "main", isKmp = false),
+    JvmCommon(genPath = "gen", sourceSetName = "common", isKmp = false),
+    KmpCommon(genPath = "common/src/gen", sourceSetName = "commonMain", isKmp = true),
+}

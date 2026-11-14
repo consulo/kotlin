@@ -5,34 +5,18 @@
 
 package org.jetbrains.kotlin.backend.konan.lower
 
-import org.jetbrains.kotlin.backend.common.BodyLoweringPass
-import org.jetbrains.kotlin.backend.common.FileLoweringPass
-import org.jetbrains.kotlin.backend.common.getCompilerMessageLocation
-import org.jetbrains.kotlin.backend.common.peek
-import org.jetbrains.kotlin.backend.common.pop
-import org.jetbrains.kotlin.backend.common.push
-import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.common.*
 import org.jetbrains.kotlin.backend.konan.InteropFqNames
 import org.jetbrains.kotlin.backend.konan.NativeGenerationState
-import org.jetbrains.kotlin.backend.konan.RuntimeNames
 import org.jetbrains.kotlin.backend.konan.ir.buildSimpleAnnotation
 import org.jetbrains.kotlin.ir.IrStatement
-import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrDeclaration
-import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.IrPackageFragment
-import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
-import org.jetbrains.kotlin.ir.declarations.moduleDescriptor
-import org.jetbrains.kotlin.ir.declarations.name
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrAnnotation
-import org.jetbrains.kotlin.ir.expressions.IrBody
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.objcinterop.isObjCClass
-import org.jetbrains.kotlin.ir.util.fileOrNull
 import org.jetbrains.kotlin.ir.util.getAnnotation
-import org.jetbrains.kotlin.ir.util.getAnnotationStringValue
-import org.jetbrains.kotlin.ir.util.getPackageFragment
+import org.jetbrains.kotlin.ir.util.getConstArgument
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
@@ -65,19 +49,11 @@ private fun getUniqueName(packageFragment: IrPackageFragment, fileName: String) 
 private val IrFile.uniqueName: String
     get() = getUniqueName(this, fileEntry.name)
 
-private fun IrDeclaration.getUniqueName(context: Context) =
-        getUniqueName(this.getPackageFragment(), context.externalDeclarationFileNameProvider.getExternalDeclarationFileName(this))
-
-internal class InteropBridgesNameInventor(val generationState: NativeGenerationState) : FileLoweringPass, BodyLoweringPass {
+internal class InteropBridgesNameInventor(val generationState: NativeGenerationState) : FileLoweringPass {
     private val context = generationState.context
 
     override fun lower(irFile: IrFile) {
         irFile.transformChildrenVoid(InteropBridgeCollector(irFile, irFile.uniqueName))
-    }
-
-    override fun lower(irBody: IrBody, container: IrDeclaration) {
-        val transformer = InteropBridgeCollector(container.fileOrNull, container.getUniqueName(context))
-        irBody.transform(transformer, data = null)
     }
 
     sealed class Bridge(val function: IrSimpleFunction, val annotation: IrAnnotation) {
@@ -189,26 +165,17 @@ internal class InteropBridgesNameInventor(val generationState: NativeGenerationS
                 val newAnnotations = function.annotations.toMutableList()
                 when (bridge) {
                     is Bridge.CToKotlin -> {
-                        val language = annotation.getAnnotationStringValue("language")
-                        val declaration = fixUpAllPlaceHolders(annotation.getAnnotationStringValue("declaration"))
-                        newAnnotations[newAnnotations.indexOf(annotation)] =
-                                buildSimpleAnnotation(
-                                        context.irBuiltIns, function.startOffset, function.endOffset,
-                                        context.symbols.cToKotlinBridge.owner, language, declaration
-                                )
                         newAnnotations.add(
                                 buildSimpleAnnotation(
                                         context.irBuiltIns, function.startOffset, function.endOffset,
                                         context.symbols.exportForCppRuntime.owner, newName
                                 )
                         )
-
-                        generationState.cStubsManager.addStub(location, listOf(declaration), language)
                     }
                     is Bridge.KotlinToC -> {
-                        val language = annotation.getAnnotationStringValue("language")
-                        val impl = fixUpAllPlaceHolders(annotation.getAnnotationStringValue("impl"))
-                        val libraryName = annotation.getAnnotationStringValue("library")
+                        val language = annotation.getConstArgument<String>("language")!!
+                        val impl = fixUpAllPlaceHolders(annotation.getConstArgument<String>("impl")!!)
+                        val libraryName = annotation.getConstArgument<String>("library")!!
                         newAnnotations[newAnnotations.indexOf(annotation)] =
                                 buildSimpleAnnotation(
                                         context.irBuiltIns, function.startOffset, function.endOffset,
@@ -223,7 +190,7 @@ internal class InteropBridgesNameInventor(val generationState: NativeGenerationS
 
                         generationState.cStubsManager.addStub(location, impl.split('\n'), language)
                         if (libraryName.isNotEmpty()) {
-                            val library = generationState.config.librariesWithDependencies().firstOrNull { it.uniqueName == libraryName }
+                            val library = generationState.config.loadedKlibs.all.firstOrNull { it.uniqueName == libraryName }
                                     ?: error("Library with name $libraryName not found in the dependencies")
                             generationState.dependenciesTracker.add(library)
                         }

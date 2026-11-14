@@ -20,7 +20,6 @@ val packagesToRelocate =
         "org.apache",
         "org.jdom",
         "org.picocontainer",
-        "org.jline",
         "org.fusesource",
         "net.jpountz",
         "one.util.streamex",
@@ -30,23 +29,36 @@ val packagesToRelocate =
         "org.codehaus",
         "io.opentelemetry",
         "io.vavr",
-        "org.antlr"
+        "org.antlr",
+        "org.tukaani.xz",
     )
 
-fun ShadowJar.configureEmbeddableCompilerRelocation(withJavaxInject: Boolean = true) {
-    relocate("com.google.protobuf", "org.jetbrains.kotlin.protobuf")
+@JvmOverloads
+fun ShadowJar.configureEmbeddableCompilerRelocation(
+    withJavaxInject: Boolean = true,
+    skipRelocatingStringConstants: Boolean = false,
+) {
+    relocate("com.google.protobuf", "org.jetbrains.kotlin.protobuf") {
+        skipStringConstants = skipRelocatingStringConstants
+    }
     relocate("com.intellij", "$kotlinEmbeddableRootPackage.com.intellij") {
+        skipStringConstants = skipRelocatingStringConstants
         // These are not real packages, but important string constants which are used by xml-reader.
         exclude("com.intellij.projectService")
         exclude("com.intellij.applicationService")
     }
     packagesToRelocate.forEach {
-        relocate(it, "$kotlinEmbeddableRootPackage.$it")
+        relocate(it, "$kotlinEmbeddableRootPackage.$it") {
+            skipStringConstants = skipRelocatingStringConstants
+        }
     }
     if (withJavaxInject) {
-        relocate("javax.inject", "$kotlinEmbeddableRootPackage.javax.inject")
+        relocate("javax.inject", "$kotlinEmbeddableRootPackage.javax.inject") {
+            skipStringConstants = skipRelocatingStringConstants
+        }
     }
     relocate("org.fusesource", "$kotlinEmbeddableRootPackage.org.fusesource") {
+        skipStringConstants = skipRelocatingStringConstants
         exclude("org.fusesource.jansi.internal.CLibrary")
     }
 
@@ -79,7 +91,7 @@ private fun Project.compilerShadowJar(taskName: String, body: ShadowJar.() -> Un
 
 fun Project.embeddableCompiler(
     taskName: String = EMBEDDABLE_COMPILER_TASK_NAME,
-    body: ShadowJar.() -> Unit = {}
+    body: ShadowJar.() -> Unit = {},
 ): TaskProvider<ShadowJar> =
     compilerShadowJar(taskName) {
         configureEmbeddableCompilerRelocation()
@@ -87,7 +99,8 @@ fun Project.embeddableCompiler(
     }
 
 fun Project.rewriteDefaultJarDepsToShadedCompiler(
-    body: ShadowJar.() -> Unit = {}
+    skipRelocatingStringConstants: Boolean = false,
+    body: ShadowJar.() -> Unit = {},
 ): TaskProvider<ShadowJar> {
     val jarTask = tasks.named<Jar>("jar")
     jarTask.configure {
@@ -100,7 +113,10 @@ fun Project.rewriteDefaultJarDepsToShadedCompiler(
         archiveClassifier.unset()
 
         destinationDirectory.set(project.layout.buildDirectory.dir("libs"))
-        configureEmbeddableCompilerRelocation(withJavaxInject = false)
+        configureEmbeddableCompilerRelocation(
+            withJavaxInject = false,
+            skipRelocatingStringConstants = skipRelocatingStringConstants,
+        )
         body()
     }
 }

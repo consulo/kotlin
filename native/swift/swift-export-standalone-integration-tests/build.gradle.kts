@@ -1,5 +1,8 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
+    id("java-test-fixtures")
 }
 
 description = "Infrastructure for running Swift Export Standalone integration tests"
@@ -7,12 +10,18 @@ description = "Infrastructure for running Swift Export Standalone integration te
 dependencies {
     compileOnly(kotlinStdlib())
 
-    api(project(":native:swift:swift-export-standalone"))
-    implementation(project(":native:external-projects-test-utils"))
-    api(testFixtures(project(":native:native.tests")))
-    compileOnly(testFederationRuntime)
+    testFixturesApi(project(":native:swift:swift-export-standalone"))
+    testFixturesImplementation(project(":native:external-projects-test-utils"))
+    testFixturesImplementation(project(":kotlin-util-klib-metadata"))
+    testFixturesApi(testFixtures(project(":native:native.tests")))
+    testFixturesCompileOnly(project(":repo:test-runtime"))
 }
 
 sourceSets {
-    "main" { projectDefault() }
+    "main" { none() }
+    "testFixtures" { projectDefault() }
+}
+
+tasks.named("check") {
+    dependsOn(subprojects.map { "${it.path}:check" })
 }

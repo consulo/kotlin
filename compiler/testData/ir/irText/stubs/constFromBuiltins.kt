@@ -1,6 +1,6 @@
 // DUMP_EXTERNAL_CLASS: kotlin/Int
-// TARGET_BACKEND: JVM_IR
-// IGNORE_BACKEND: JKLIB
-// ^^^^ member scope of kotlin.Int is different for JVM and JKlib stdlibs
+// TARGET_BACKEND: JVM
+// DUMP_IR_DIFFERENCE: JKLIB
+// ^ JKlib reads the builtins from the stdlib KLIB.
 
 val test = Int.MIN_VALUE

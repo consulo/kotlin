@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -16,12 +16,10 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.irAttribute
-import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrTransformer
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.addToStdlib.applyIf
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 import org.jetbrains.kotlin.utils.memoryOptimizedPlus
@@ -86,7 +84,7 @@ abstract class AbstractFunctionReferenceLowering<C : CommonBackendContext>(val c
     override fun lower(irFile: IrFile) {
         irFile.transform(object : IrTransformer<IrDeclaration?>() {
             override fun visitClass(declaration: IrClass, data: IrDeclaration?): IrStatement {
-                if (declaration.isFun || declaration.symbol.isSuspendFunction() || declaration.symbol.isKSuspendFunction()) {
+                if (declaration.isFun || declaration.symbol.isKFunction() || declaration.symbol.isSuspendFunction() || declaration.symbol.isKSuspendFunction()) {
                     declaration.declarationsAtFunctionReferenceLowering = declaration.declarations.toList()
                 }
                 declaration.transformChildren(this, declaration)
@@ -134,35 +132,6 @@ abstract class AbstractFunctionReferenceLowering<C : CommonBackendContext>(val c
         }, null)
     }
 
-    // SAM class used as a superclass can sometimes have type projections.
-    // But that's not suitable for super-types, so we erase them
-    protected fun IrType.removeProjections(): IrType {
-        if (this !is IrSimpleType) return this
-        val arguments = arguments.mapIndexed { index, argument ->
-            val typeParameter = (classifier as IrClassSymbol).owner.typeParameters[index]
-            fun erasedUpperBound() = typeParameter.erasedUpperBound.defaultType
-
-            // Star projections are not allowed in supertype clause
-            if (argument !is IrTypeProjection) return@mapIndexed erasedUpperBound()
-
-            // `in` and `out` projections are not allowed either
-            if (argument.variance != Variance.INVARIANT) return@mapIndexed erasedUpperBound()
-
-            // In case a lambda parameter's type is inferred by the frontend to an intersection type, in IR
-            // it will be approximated to `Nothing` (because intersection types are not representable in IR at all).
-            // Since function parameters are contravariant, `Nothing` is the only type we can approximate an intersection type to.
-            // We cannot use `Nothing` as a parameter type, though —
-            // semantically it would mean that such a function reference can never be invoked, which is not true.
-            // Some targets like Wasm can break because of this.
-            // That's why we treat such type arguments similarly to type projections.
-            // For a concrete example, see this test: compiler/testData/codegen/box/callableReference/kt49526_sam.kt
-            if (typeParameter.variance == Variance.IN_VARIANCE && argument.type.isNothing()) return@mapIndexed erasedUpperBound()
-
-            argument.type
-        }
-        return classifier.typeWith(arguments)
-    }
-
     private fun buildClass(functionReference: IrRichFunctionReference, parent: IrDeclarationParent): IrClass {
         val functionReferenceClass = context.irFactory.buildClass {
             startOffset = functionReference.startOffset
@@ -175,7 +144,9 @@ abstract class AbstractFunctionReferenceLowering<C : CommonBackendContext>(val c
             createThisReceiverParameter()
         }
         val superClassType = getSuperClassType(functionReference)
-        val superInterfaceType = functionReference.type.removeProjections()
+        // SAM class used as a superclass can sometimes have type projections.
+        // But that's not suitable for super-types, so we erase them
+        val superInterfaceType = functionReference.type.removeProjectionsToMakeValidSuperType()
         functionReferenceClass.superTypes =
             listOf(superClassType, superInterfaceType) memoryOptimizedPlus getAdditionalInterfaces(functionReference)
         val constructor = functionReferenceClass.addConstructor {
@@ -288,10 +259,10 @@ abstract class AbstractFunctionReferenceLowering<C : CommonBackendContext>(val c
             val builder = context.createIrBuilder(symbol).applyIf(isLambda) { at(invokeFunction.body!!) }
             body = builder.irBlockBody {
                 val variablesMapping = buildMap {
-                    for ((index, field) in boundFields.withIndex()) {
+                    for ([index, field] in boundFields.withIndex()) {
                         put(invokeFunction.parameters[index], irTemporary(irGetField(irGet(dispatchReceiverParameter!!), field)))
                     }
-                    for ((index, parameter) in nonDispatchParameters.withIndex()) {
+                    for ([index, parameter] in nonDispatchParameters.withIndex()) {
                         val invokeParameter = invokeFunction.parameters[index + boundFields.size]
                         if (parameter.type != invokeParameter.type) {
                             put(invokeParameter, irTemporary(irGet(parameter).implicitCastTo(invokeParameter.type)))
@@ -350,4 +321,52 @@ abstract class AbstractFunctionReferenceLowering<C : CommonBackendContext>(val c
     protected abstract fun getConstructorOrigin(reference: IrRichFunctionReference): IrDeclarationOrigin
     protected abstract fun getInvokeMethodOrigin(reference: IrRichFunctionReference): IrDeclarationOrigin
     protected abstract fun getConstructorCallOrigin(reference: IrRichFunctionReference): IrStatementOrigin?
+}
+
+fun CommonBackendContext.addBoundValueAtOverride(
+    functionReferenceClass: IrClass,
+    fields: List<IrField>,
+    overrideOrigin: IrDeclarationOrigin = IrDeclarationOrigin.DEFINED,
+) {
+    val overridden = functionReferenceClass.superTypes.mapNotNull { superType ->
+        superType.getClass()
+            ?.declarations
+            ?.filterIsInstance<IrSimpleFunction>()
+            ?.singleOrNull { it.name.asString() == "boundValueAt" }
+            ?.symbol
+    }
+    if (overridden.isEmpty()) return
+
+    val function = functionReferenceClass.addFunction {
+        startOffset = SYNTHETIC_OFFSET
+        endOffset = SYNTHETIC_OFFSET
+        name = Name.identifier("boundValueAt")
+        origin = overrideOrigin
+        returnType = overridden[0].owner.returnType
+    }
+    function.parameters += function.createDispatchReceiverParameterWithClassParent()
+    overridden[0].owner.parameters
+        .filter { it.kind == IrParameterKind.Regular }
+        .forEach { function.parameters += it.copyTo(function) }
+    function.overriddenSymbols += overridden
+
+    val anyNType = irBuiltIns.anyNType
+    function.body = createIrBuilder(function.symbol, SYNTHETIC_OFFSET, SYNTHETIC_OFFSET).irBlockBody {
+        +irReturn(irBoundValueAt(function, fields, anyNType))
+    }
+}
+
+private fun IrBuilderWithScope.irBoundValueAt(function: IrFunction, fields: List<IrField>, resultType: IrType): IrExpression {
+    val dispatchReceiver = function.dispatchReceiverParameter!!
+    fun boundValue(field: IrField) = irGetField(irGet(dispatchReceiver), field)
+
+    if (fields.size == 1) {
+        return boundValue(fields[0])
+    }
+
+    val indexParameter = function.parameters.single { it.kind == IrParameterKind.Regular }
+    val branches = (0..<fields.lastIndex).map { index ->
+        irBranch(irEquals(irGet(indexParameter), irInt(index)), boundValue(fields[index]))
+    } + irElseBranch(boundValue(fields.last()))
+    return irWhen(resultType, branches)
 }

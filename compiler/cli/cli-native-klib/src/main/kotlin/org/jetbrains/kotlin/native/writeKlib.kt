@@ -5,13 +5,15 @@
 
 package org.jetbrains.kotlin.native
 
+import org.jetbrains.kotlin.backend.common.IdSignaturesExtractor.ExtractedSignatures
+import org.jetbrains.kotlin.backend.common.IdSignaturesExtractorFromRegularKlib
+import org.jetbrains.kotlin.backend.common.includeSignatureIndex
 import org.jetbrains.kotlin.backend.common.klibAbiVersionForManifest
 import org.jetbrains.kotlin.backend.common.serialization.addLanguageFeaturesToManifest
 import org.jetbrains.kotlin.backend.konan.driver.NativePhaseContext
 import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.konan.config.konanDontCompressKlib
-import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.library.writer.includeBitcode
 import org.jetbrains.kotlin.konan.library.writer.includeNativeIncludedBinaries
 import org.jetbrains.kotlin.konan.library.writer.legacyNativeDependenciesInManifest
@@ -22,12 +24,16 @@ import org.jetbrains.kotlin.library.KlibFormat
 import org.jetbrains.kotlin.library.KotlinLibraryVersioning
 import org.jetbrains.kotlin.library.impl.BuiltInsPlatform
 import org.jetbrains.kotlin.library.loadSizeInfo
+import org.jetbrains.kotlin.library.loader.KlibLoader
+import org.jetbrains.kotlin.library.metadata.addMetadataFlagsToManifest
 import org.jetbrains.kotlin.library.uniqueName
 import org.jetbrains.kotlin.library.writer.KlibWriter
 import org.jetbrains.kotlin.library.writer.includeIr
 import org.jetbrains.kotlin.library.writer.includeMetadata
-import org.jetbrains.kotlin.util.klibMetadataVersionOrDefault
+import org.jetbrains.kotlin.util.metadataVersion
 import java.util.Properties
+import kotlin.io.path.Path
+import kotlin.io.path.writeLines
 
 fun NativePhaseContext.writeKlib(input: KlibWriterInput) {
     val suffix = ".klib"
@@ -41,7 +47,7 @@ fun NativePhaseContext.writeKlib(input: KlibWriterInput) {
     val versions = KotlinLibraryVersioning(
         compilerVersion = KotlinCompilerVersion.getVersion().toString(),
         abiVersion = configuration.klibAbiVersionForManifest(),
-        metadataVersion = configuration.klibMetadataVersionOrDefault(),
+        metadataVersion = configuration.metadataVersion(),
     )
     val target = config.target
     val manifestProperties = config.manifestProperties ?: Properties()
@@ -51,6 +57,7 @@ fun NativePhaseContext.writeKlib(input: KlibWriterInput) {
     }
 
     addLanguageFeaturesToManifest(manifestProperties, configuration.languageVersionSettings)
+    addMetadataFlagsToManifest(manifestProperties, configuration.languageVersionSettings)
 
     if (!dontCompressKlib) {
         if (!klibOutputFileName.endsWith(suffix)) {
@@ -67,10 +74,9 @@ fun NativePhaseContext.writeKlib(input: KlibWriterInput) {
     else input.serializerOutput.neededLibraries
 
     config.writeDependenciesOfProducedKlibTo?.let { path ->
-        val usedDependenciesFile = File(path)
         // We write out the absolute path instead of canonical here to avoid resolving symbolic links
         // as that can make it difficult to map the dependencies back to the command line arguments.
-        usedDependenciesFile.writeLines(linkDependencies.map { it.location.absolutePath }.sorted())
+        Path(path).writeLines(linkDependencies.map { it.path.toAbsolutePath().toString() }.sorted())
     }
 
     val nativeTargetsForManifest = config.nativeTargetsForManifest?.map { it.visibleName }
@@ -95,6 +101,8 @@ fun NativePhaseContext.writeKlib(input: KlibWriterInput) {
             emptyList()
         } else listOf(target.visibleName)
 
+    val klibPath = Path(klibOutputFileName)
+
     KlibWriter {
         format(if (dontCompressKlib) KlibFormat.Directory else KlibFormat.ZipArchive)
         manifest {
@@ -105,13 +113,16 @@ fun NativePhaseContext.writeKlib(input: KlibWriterInput) {
             legacyNativeShortNameInManifest(shortLibraryName)
             legacyNativeDependenciesInManifest(linkDependencies.map { it.uniqueName })
         }
-        includeMetadata(input.serializerOutput.serializedMetadata!!)
+        includeMetadata(input.serializerOutput.serializedMetadata)
         includeIr(input.serializerOutput.serializedIr)
-        includeBitcode(target, config.nativeLibraries)
-        includeNativeIncludedBinaries(target, config.includeBinaries)
-    }.writeTo(klibOutputFileName)
+        includeBitcode(target, config.nativeLibraries.map(::Path))
+        includeNativeIncludedBinaries(target, config.includeBinaries.map(::Path))
+        if (!config.metadataKlib) {
+            includeSignatureIndex(input.serializerOutput.serializedIr?.signatureIndex)
+        }
+    }.writeTo(klibPath)
 
-    loadSizeInfo(File(klibOutputFileName))?.flatten()?.let { stats ->
+    loadSizeInfo(klibPath)?.flatten()?.let { stats ->
         performanceManager?.registerKlibElementStats(stats)
     }
 }

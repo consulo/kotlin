@@ -1,11 +1,11 @@
 packages: 0
 classifiers: 1
   KaNamedClassSymbol:
+    anchorPsi: null
     annotations: []
     classId: foo/AllOpenGenerated
     classKind: CLASS
     companionObject: null
-    compilerVisibility: Public
     contextReceivers: []
     isActual: false
     isData: false
@@ -14,10 +14,13 @@ classifiers: 1
     isFun: false
     isInline: false
     isInner: false
+    isValue: false
     location: TOP_LEVEL
     modality: FINAL
     name: AllOpenGenerated
     origin: PLUGIN
+    psi: null
+    realPsi: null
     superTypes: [
       KaUsualClassType:
         annotations: []

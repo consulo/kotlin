@@ -45,12 +45,14 @@ internal class DescriptorKParameter(
 
     override val type: KType
         get() {
+            val propertyIfAccessor = callable.propertyIfAccessor
             val type = DescriptorKType(descriptor.type) {
                 val descriptor = descriptor
 
                 if (descriptor is ReceiverParameterDescriptor &&
                     callable.instanceReceiverParameter == descriptor &&
-                    (callable.overriddenStorage.isFakeOverride || callable.descriptor.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE)
+                    (propertyIfAccessor.overriddenStorage.isFakeOverride ||
+                            callable.descriptor.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE)
                 ) {
                     (callable.container as? KClassImpl<*>)?.java
                         ?: throw KotlinReflectionInternalError("Cannot determine receiver Java type of inherited declaration: $descriptor")
@@ -58,12 +60,7 @@ internal class DescriptorKParameter(
                     callable.caller.parameterTypes[index]
                 }
             }
-            return when (kind) {
-                KParameter.Kind.INSTANCE -> type
-                else -> callable.overriddenStorage.getTypeSubstitutor(callable.typeParameters, memberNameForDebug = callable.name)
-                    .substitute(type).type
-                    ?: starProjectionInTopLevelTypeIsNotPossible(containerNameForDebug = callable.name)
-            }
+            return if (kind == KParameter.Kind.INSTANCE) type else propertyIfAccessor.substituteType(type)
         }
 
     override val isOptional: Boolean

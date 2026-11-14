@@ -13,6 +13,7 @@ import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.testing.prettyPrinted
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.OS
 import kotlin.test.assertEquals
@@ -20,12 +21,15 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalSerializationApi::class, ExperimentalWasmDsl::class)
 @MppGradlePluginTests
 @DisplayName("Smoke test Gradle publication metadata")
+@MustRunOnChangesInGradle
 @OsCondition(enabledOnCI = [OS.LINUX]) // FIXME: KT-76778
 class KmpGradlePublicationMetadataIT : KGPBaseTest() {
 
     private val json = Json {
         ignoreUnknownKeys = true
     }
+
+    override val defaultBuildOptions: BuildOptions = super.defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899()
 
     // FIXME: Test standard publication with Android - KT-76700
 
@@ -83,7 +87,8 @@ class KmpGradlePublicationMetadataIT : KGPBaseTest() {
 
     @GradleAndroidTest
     @AndroidTestVersions(
-        minVersion = TestVersions.AGP.AGP_88
+        minVersion = TestVersions.AGP.AGP_88,
+        maxVersion = TestVersions.AGP.AGP_813,
     )
     fun `kmp publication with uklibs - with stub jvm target - with KMP android library target`(
         version: GradleVersion,
@@ -93,6 +98,7 @@ class KmpGradlePublicationMetadataIT : KGPBaseTest() {
             version,
             withJvm = false,
             androidVersion = androidVersion,
+            enableLegacyAgpDsl = false,
         ) {
             project.setUklibPublicationStrategy()
             project.plugins.apply("com.android.kotlin.multiplatform.library")
@@ -161,8 +167,16 @@ class KmpGradlePublicationMetadataIT : KGPBaseTest() {
         version: GradleVersion,
         withJvm: Boolean,
         androidVersion: String? = null,
+        enableLegacyAgpDsl: Boolean = true,
         configuration: GradleProjectBuildScriptInjectionContext.() -> Unit = {},
-    ) = project("empty", version, buildOptions = defaultBuildOptions.copy(androidVersion = androidVersion)).apply {
+    ) = project(
+        "empty",
+        version,
+        buildOptions = defaultBuildOptions.copy(
+            androidVersion = androidVersion,
+            enableLegacyAgpDsl = enableLegacyAgpDsl,
+        ),
+    ).apply {
         if (androidVersion != null) {
             addAgpToBuildScriptCompilationClasspath(androidVersion)
         }
@@ -171,7 +185,7 @@ class KmpGradlePublicationMetadataIT : KGPBaseTest() {
             configuration()
             project.applyMultiplatform {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 linuxArm64()
                 linuxX64()

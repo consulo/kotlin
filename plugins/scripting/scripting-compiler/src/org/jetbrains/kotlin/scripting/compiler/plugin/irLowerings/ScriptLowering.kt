@@ -15,7 +15,6 @@ import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.*
@@ -24,6 +23,7 @@ import org.jetbrains.kotlin.ir.declarations.impl.SCRIPT_K2_ORIGIN
 import org.jetbrains.kotlin.ir.descriptors.toIrBasedKotlinType
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
@@ -39,14 +39,18 @@ import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.name.NameUtils
+import org.jetbrains.kotlin.name.ScriptNames
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.renderer.DescriptorRenderer
 import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.topologicalSort
 
-internal class ScriptsToClassesLowering(val context: IrPluginContext, val symbolsForScripting: JvmSymbolsForScripting) : ModuleLoweringPass {
+internal class ScriptsToClassesLowering(
+    val context: IrPluginContext,
+    private val irModuleFragment: IrModuleFragment,
+    val symbolsForScripting: JvmSymbolsForScripting,
+) : ModuleLoweringPass {
     override fun lower(irModule: IrModuleFragment) {
         val scripts = mutableListOf<IrScript>()
         val scriptDependencies = mutableMapOf<IrScript, List<IrScript>>()
@@ -82,7 +86,7 @@ internal class ScriptsToClassesLowering(val context: IrPluginContext, val symbol
             startOffset = 0
             endOffset = fileEntry.maxOffset
             origin = IrDeclarationOrigin.SCRIPT_CLASS
-            name = NameUtils.getScriptTargetClassName(irScript.name)
+            name = ScriptNames.getScriptTargetClassName(irScript.name)
             kind = ClassKind.CLASS
             visibility = DescriptorVisibilities.PUBLIC
             modality = Modality.FINAL
@@ -301,7 +305,7 @@ internal class ScriptsToClassesLowering(val context: IrPluginContext, val symbol
                         ).also { it.parent = irScript }
                     },
                 )
-                implicitReceiversFieldsWithParameters.forEach {(_, param) ->
+                implicitReceiversFieldsWithParameters.forEach { [_, param] ->
                     add(param)
                 }
                 addAll(irScript.providedPropertiesParameters)
@@ -309,9 +313,8 @@ internal class ScriptsToClassesLowering(val context: IrPluginContext, val symbol
             irConstructor.parent = irScript
         }
 
-    @OptIn(ObsoleteDescriptorBasedAPI::class)
     private val scriptingJvmPackage by lazy(LazyThreadSafetyMode.PUBLICATION) {
-        createEmptyExternalPackageFragment(context.moduleDescriptor, FqName("kotlin.script.experimental.jvm"))
+        createEmptyExternalPackageFragment(irModuleFragment, FqName("kotlin.script.experimental.jvm"))
     }
 
     private fun IrClass.addScriptMainFun() {
@@ -420,13 +423,13 @@ private fun IrBuilderWithScope.makeScriptClassConstructorBody(
     if (earlierScriptField != null) {
         +irSetField(irGet(irScriptClass.thisReceiver!!), earlierScriptField, irGet(irScript.earlierScriptsParameter!!))
     }
-    explicitParametersWithFields.forEach { (parameter, field) ->
+    explicitParametersWithFields.forEach { [parameter, field] ->
         +irSetField(
             irGet(irScriptClass.thisReceiver!!),
             field, irGet(parameter.type, explicitParameters.find { it.name == parameter.name }!!.symbol)
         )
     }
-    implicitReceiversFieldsWithParameters.forEach { (field, correspondingParameter) ->
+    implicitReceiversFieldsWithParameters.forEach { [field, correspondingParameter] ->
         +irSetField(
             irGet(irScriptClass.thisReceiver!!),
             field,
@@ -535,7 +538,7 @@ private class ScriptAccessCallsGenerator(
                 }
             val getPrevScriptObjectExpression = builder.irCall(objArrayGet).apply {
                 arguments[0] = irGetEarlierScripts
-                arguments[1] = earlierScriptIndex.toIrConst(objArrayGet.owner.parameters[1].type)
+                arguments[1] = builder.irInt(value = earlierScriptIndex)
             }
             val prevScriptClassType =
                 when {

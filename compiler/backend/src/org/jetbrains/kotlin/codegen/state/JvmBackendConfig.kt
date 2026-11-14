@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.codegen.state
 
 import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
-import org.jetbrains.kotlin.util.jvmMetadataVersion
+import org.jetbrains.kotlin.util.metadataVersion
 
 class JvmBackendConfig(configuration: CompilerConfiguration) {
     val languageVersionSettings: LanguageVersionSettings = configuration.languageVersionSettings
@@ -25,11 +25,7 @@ class JvmBackendConfig(configuration: CompilerConfiguration) {
         else JvmStringConcat.INLINE
 
     val samConversionsScheme: JvmClosureGenerationScheme =
-        configuration.get(JVMConfigurationKeys.SAM_CONVERSIONS)
-            ?: if (languageVersionSettings.supportsFeature(LanguageFeature.SamWrapperClassesAreSynthetic))
-                JvmClosureGenerationScheme.INDY
-            else
-                JvmClosureGenerationScheme.CLASS
+        configuration.get(JVMConfigurationKeys.SAM_CONVERSIONS) ?: JvmClosureGenerationScheme.INDY
 
     val lambdasScheme: JvmClosureGenerationScheme =
         configuration.get(JVMConfigurationKeys.LAMBDAS)
@@ -46,8 +42,7 @@ class JvmBackendConfig(configuration: CompilerConfiguration) {
 
     val isCallAssertionsDisabled: Boolean = configuration.getBoolean(JVMConfigurationKeys.DISABLE_CALL_ASSERTIONS)
     val isReceiverAssertionsDisabled: Boolean =
-        configuration.getBoolean(JVMConfigurationKeys.DISABLE_RECEIVER_ASSERTIONS) ||
-                !languageVersionSettings.supportsFeature(LanguageFeature.NullabilityAssertionOnExtensionReceiver)
+        configuration.getBoolean(JVMConfigurationKeys.DISABLE_RECEIVER_ASSERTIONS)
     val isParamAssertionsDisabled: Boolean = configuration.getBoolean(JVMConfigurationKeys.DISABLE_PARAM_ASSERTIONS)
 
     val assertionsMode: JVMAssertionsMode = configuration.get(JVMConfigurationKeys.ASSERTIONS_MODE, JVMAssertionsMode.DEFAULT)
@@ -58,19 +53,7 @@ class JvmBackendConfig(configuration: CompilerConfiguration) {
         languageVersionSettings.apiVersion >= ApiVersion.KOTLIN_1_4 &&
                 !configuration.getBoolean(JVMConfigurationKeys.NO_UNIFIED_NULL_CHECKS)
 
-    val noSourceCodeInNotNullAssertionExceptions: Boolean =
-        (languageVersionSettings.supportsFeature(LanguageFeature.NoSourceCodeInNotNullAssertionExceptions)
-                // This check is needed because we generate calls to `Intrinsics.checkNotNull` which is only available since 1.4
-                // (when unified null checks were introduced).
-                && unifiedNullChecks)
-                // Never generate source code in assertion exceptions in K2 to make behavior of FIR PSI & FIR light-tree equivalent
-                // (obtaining source code is not supported in light tree).
-                || languageVersionSettings.languageVersion.usesK2
-
     val generateSmapCopyToAnnotation: Boolean = !configuration.getBoolean(JVMConfigurationKeys.NO_SOURCE_DEBUG_EXTENSION)
-
-    val functionsWithInlineClassReturnTypesMangled: Boolean =
-        languageVersionSettings.supportsFeature(LanguageFeature.MangleClassMembersReturningInlineClasses)
 
     val shouldValidateBytecode: Boolean = configuration.getBoolean(JVMConfigurationKeys.VALIDATE_BYTECODE)
 
@@ -81,25 +64,19 @@ class JvmBackendConfig(configuration: CompilerConfiguration) {
 
     val generateParametersMetadata: Boolean = configuration.getBoolean(JVMConfigurationKeys.PARAMETERS_METADATA)
 
-    val shouldInlineConstVals: Boolean = languageVersionSettings.supportsFeature(LanguageFeature.InlineConstVals)
-
     val jvmDefaultMode: JvmDefaultMode = languageVersionSettings.jvmDefaultMode
 
     val disableOptimization: Boolean = configuration.getBoolean(JVMConfigurationKeys.DISABLE_OPTIMIZATION)
 
-    val metadataVersion: BinaryVersion = configuration.jvmMetadataVersion()
+    val metadataVersion: BinaryVersion = configuration.metadataVersion()
 
     val abiStability: JvmAbiStability? = configuration.get(JVMConfigurationKeys.ABI_STABILITY)
 
     val noNewJavaAnnotationTargets: Boolean = configuration.getBoolean(JVMConfigurationKeys.NO_NEW_JAVA_ANNOTATION_TARGETS)
 
-    val supportJvmInlineMultiFieldValueClasses: Boolean = languageVersionSettings.supportsFeature(LanguageFeature.JvmInlineMultiFieldValueClasses)
-
     val enableDebugMode: Boolean = configuration.getBoolean(JVMConfigurationKeys.ENABLE_DEBUG_MODE)
 
     val enhancedCoroutinesDebugging = configuration.getBoolean(JVMConfigurationKeys.ENHANCED_COROUTINES_DEBUGGING)
-
-    val useFir: Boolean = configuration.getBoolean(CommonConfigurationKeys.USE_FIR)
 
     val emitJvmTypeAnnotations: Boolean = configuration.getBoolean(JVMConfigurationKeys.EMIT_JVM_TYPE_ANNOTATIONS)
 
@@ -112,9 +89,14 @@ class JvmBackendConfig(configuration: CompilerConfiguration) {
     val wrapContinuationForTailCallFunctions: Boolean =
         languageVersionSettings.supportsFeature(LanguageFeature.WrapContinuationForTailCallFunctions)
 
+    // The new inline variables scheme: inline marker variables carry inline scope numbers
+    // instead of the old `$iv` suffix depth scheme. Used for Android inline functions debugging.
+    val useInlineScopesNumbers: Boolean =
+        languageVersionSettings.supportsFeature(LanguageFeature.JvmInlineScopesNumbers)
+
     val whenGenerationScheme: JvmWhenGenerationScheme =
         if (target.majorVersion >= JvmTarget.JVM_21.majorVersion)
-            configuration.get(JVMConfigurationKeys.WHEN_GENERATION_SCHEME, JvmWhenGenerationScheme.INLINE)
+            configuration.get(JVMConfigurationKeys.WHEN_GENERATION_SCHEME, JvmWhenGenerationScheme.INDY)
         else JvmWhenGenerationScheme.INLINE
 
     val generateDebugMetadataV2: Boolean = languageVersionSettings.apiVersion >= ApiVersion.KOTLIN_2_3

@@ -1,64 +1,49 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.light.classes.symbol.classes
 
 import com.intellij.psi.*
-import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
+import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
+import org.jetbrains.kotlin.analysis.api.scopes.staticDeclaredMemberScope
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 import org.jetbrains.kotlin.light.classes.symbol.annotations.AbstractClassAdditionalAnnotationsProvider
 import org.jetbrains.kotlin.light.classes.symbol.annotations.GranularAnnotationsBox
 import org.jetbrains.kotlin.light.classes.symbol.annotations.SymbolAnnotationsProvider
-import org.jetbrains.kotlin.light.classes.symbol.cachedValue
 import org.jetbrains.kotlin.light.classes.symbol.fields.SymbolLightField
 import org.jetbrains.kotlin.light.classes.symbol.modifierLists.GranularModifiersBox
 import org.jetbrains.kotlin.light.classes.symbol.modifierLists.SymbolLightClassModifierList
 import org.jetbrains.kotlin.light.classes.symbol.modifierLists.with
-import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.light.classes.symbol.utils.cachedValue
+import org.jetbrains.kotlin.light.classes.symbol.utils.isConstOrJvmField
 import org.jetbrains.kotlin.psi.KtClassOrObject
 
 internal abstract class SymbolLightClassForInterfaceOrAnnotationClass : SymbolLightClassForNamedClassLike {
     constructor(
-        ktModule: KaModule,
+        useSiteModule: KaModule,
         classSymbol: KaNamedClassSymbol,
-        manager: PsiManager,
     ) : super(
-        ktModule = ktModule,
+        useSiteModule = useSiteModule,
         classSymbol = classSymbol,
-        manager = manager,
     ) {
         val classKind = classSymbol.classKind
         require(classKind == KaClassKind.INTERFACE || classKind == KaClassKind.ANNOTATION_CLASS)
     }
 
-    @OptIn(KaImplementationDetail::class)
-    constructor(
-        classOrObject: KtClassOrObject,
-        ktModule: KaModule,
-    ) : this(
-        classOrObjectDeclaration = classOrObject,
-        classSymbolPointer = classOrObject.createSymbolPointer(ktModule),
-        ktModule = ktModule,
-        manager = classOrObject.manager,
-    ) {
-        require(classOrObject is KtClass && (classOrObject.isInterface() || classOrObject.isAnnotation()))
-    }
-
     protected constructor(
         classOrObjectDeclaration: KtClassOrObject?,
         classSymbolPointer: KaSymbolPointer<KaNamedClassSymbol>,
-        ktModule: KaModule,
-        manager: PsiManager,
+        useSiteModule: KaModule,
     ) : super(
         classOrObjectDeclaration = classOrObjectDeclaration,
         classSymbolPointer = classSymbolPointer,
-        ktModule = ktModule,
-        manager = manager,
+        useSiteModule = useSiteModule,
     )
 
     protected open fun computeModifierList(): PsiModifierList? = SymbolLightClassModifierList(
@@ -68,7 +53,7 @@ internal abstract class SymbolLightClassForInterfaceOrAnnotationClass : SymbolLi
             computer = ::computeModifiers
         ),
         annotationsBox = GranularAnnotationsBox(
-            annotationsProvider = SymbolAnnotationsProvider(ktModule, classSymbolPointer),
+            annotationsProvider = SymbolAnnotationsProvider(useSiteModule, symbolPointer),
             additionalAnnotationsProvider = AbstractClassAdditionalAnnotationsProvider,
         ),
     )
@@ -83,9 +68,37 @@ internal abstract class SymbolLightClassForInterfaceOrAnnotationClass : SymbolLi
         withClassSymbol { classSymbol ->
             buildList {
                 addCompanionObjectFieldIfNeeded(this, classSymbol)
-                addFieldsFromCompanionIfNeeded(this, classSymbol, SymbolLightField.FieldNameGenerator())
+                val nameGenerator = SymbolLightField.FieldNameGenerator()
+                addFieldsFromCompanionObjectIfNeeded(this, classSymbol, nameGenerator)
+                addFieldsFromCompanionBlockIfNeeded(this, classSymbol, nameGenerator)
             }
         }
+    }
+
+    /**
+     * Adds the light fields for the `const` and `@JvmField` properties of the companion block, which compile to public static fields of the
+     * interface. The JVM backend moves the backing fields of other companion block properties to a nested class, as an interface can only
+     * have public fields, see `org.jetbrains.kotlin.backend.jvm.lower.JvmInterfacePrivateFieldsLowering`.
+     */
+    context(_: KaSession)
+    private fun addFieldsFromCompanionBlockIfNeeded(
+        result: MutableList<PsiField>,
+        classSymbol: KaNamedClassSymbol,
+        nameGenerator: SymbolLightField.FieldNameGenerator,
+    ) {
+        classSymbol.staticDeclaredMemberScope
+            .callables
+            .filterIsInstance<KaPropertySymbol>()
+            .filter { it.isConstOrJvmField }
+            .forEach {
+                createAndAddField(
+                    lightClass = this@SymbolLightClassForInterfaceOrAnnotationClass,
+                    declaration = it,
+                    nameGenerator = nameGenerator,
+                    isStatic = true,
+                    result = result,
+                )
+            }
     }
 
     override fun getImplementsList(): PsiReferenceList? = null

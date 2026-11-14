@@ -11,28 +11,14 @@ import org.jetbrains.kotlin.test.directives.TestPhaseDirectives.DISABLE_NEXT_PHA
 import org.jetbrains.kotlin.test.directives.TestPhaseDirectives.LATEST_PHASE_IN_PIPELINE
 import org.jetbrains.kotlin.test.directives.TestPhaseDirectives.RUN_PIPELINE_TILL
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
-import org.jetbrains.kotlin.test.model.AbstractTestFacade
-import org.jetbrains.kotlin.test.model.AfterAnalysisChecker
-import org.jetbrains.kotlin.test.model.AnalysisHandler
-import org.jetbrains.kotlin.test.model.ArtifactKinds
-import org.jetbrains.kotlin.test.model.BackendKind
-import org.jetbrains.kotlin.test.model.DeserializerFacade
-import org.jetbrains.kotlin.test.model.FrontendKind
-import org.jetbrains.kotlin.test.model.IrPreSerializationLoweringFacade
-import org.jetbrains.kotlin.test.model.TestArtifactKind
-import org.jetbrains.kotlin.test.model.TestModule
-import org.jetbrains.kotlin.test.utils.firTestDataFile
-import org.jetbrains.kotlin.test.utils.latestLVTestDataFile
-import org.jetbrains.kotlin.test.utils.llFirTestDataFile
-import org.jetbrains.kotlin.test.utils.originalTestDataFile
-import org.jetbrains.kotlin.test.utils.partialBodyTestDataFile
-import org.jetbrains.kotlin.test.utils.reversedTestDataFile
+import org.jetbrains.kotlin.test.model.*
+import org.jetbrains.kotlin.test.utils.*
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 
 class PhasedPipelineChecker(
     testServices: TestServices,
     val defaultRunPipelineTill: TestPhase? = null,
-) : AfterAnalysisChecker(testServices) {
+) : TestFailureSuppressor(testServices) {
     override val order: Order
         get() = Order.P4
 
@@ -40,6 +26,18 @@ class PhasedPipelineChecker(
         get() = listOf(TestPhaseDirectives)
 
     override fun suppressIfNeeded(failedAssertions: List<WrappedException>): List<WrappedException> {
+        return checkPhases(failedAssertions)
+    }
+
+    /**
+     * [suppressIfNeeded] is called only if there were some failures, but the phase directives must be checked
+     * for passing tests as well (e.g., to suggest promoting the phase of a test which passes the whole pipeline).
+     */
+    override fun checkIfTestShouldBeUnmuted() {
+        testServices.assertions.failAll(checkPhases(emptyList()).map { it.cause })
+    }
+
+    private fun checkPhases(failedAssertions: List<WrappedException>): List<WrappedException> {
         latestPhaseDirectiveOr { return failedAssertions + it }
         val targetedPhase = getTargetedPhase()
         if (targetedPhase == null) {
@@ -64,8 +62,8 @@ class PhasedPipelineChecker(
     private fun TestArtifactKind<*>.toPhase(): TestPhase? = when (this) {
         is FrontendKind -> TestPhase.FRONTEND
         is BackendKind -> TestPhase.FIR2IR
-        ArtifactKinds.Jvm -> TestPhase.BACKEND
-        ArtifactKinds.KLib -> TestPhase.BACKEND
+        ArtifactKinds.Jvm -> TestPhase.CODEGEN
+        ArtifactKinds.KLib -> TestPhase.CODEGEN
         else -> error("Cannot infer phase by output artifact kind `${this.javaClass.simpleName}`.")
     }
 
@@ -76,11 +74,11 @@ class PhasedPipelineChecker(
                     TestPhase.FIR2IR
                 is BackendKind -> {
                     require(this is IrPreSerializationLoweringFacade)
-                    TestPhase.BACKEND
+                    TestPhase.LOWERINGS
                 }
                 is ArtifactKinds.KLib -> {
                     require(this is DeserializerFacade)
-                    TestPhase.BACKEND
+                    TestPhase.CODEGEN
                 }
                 else -> error(
                     "Unexpected facade of type ${this.javaClass.simpleName} taking input artifact of kind=$this, " +
@@ -150,10 +148,10 @@ class PhasedPipelineChecker(
         val testDataFile = testServices.moduleStructure.originalTestDataFiles.first()
         val originalFile = testDataFile.originalTestDataFile
         val filesList = when {
-            testDataFile.extension == "nkt" -> listOf(testDataFile)
+            // `.disabled` test data may declare a phase different from the original test data, see `LANGUAGE_FEATURE_TOGGLED`
+            testDataFile.extension == "nkt" || testDataFile.isLfDisabledTestData -> listOf(testDataFile)
             else -> listOf(
                 originalFile,
-                originalFile.firTestDataFile,
                 originalFile.llFirTestDataFile,
                 originalFile.latestLVTestDataFile,
                 originalFile.reversedTestDataFile,
@@ -219,14 +217,15 @@ class PhasedPipelineChecker(
         for (exception in failedAssertions) {
             val targetStorage = when (exception) {
                 is WrappedException.FromMetaInfoHandler -> nonSuppressibleFailures
+                is WrappedException.FromTestPipeline -> nonSuppressibleFailures
                 is WrappedException.FromFacade ->
                     processFailure(exception.failedModule, exception.facade.toPhase(), exception)
                 is WrappedException.WrappedExceptionWithoutModule -> nonSuppressibleFailures
                 is WrappedException.FromHandler ->
-                    processFailure(exception.failedModule, exception.handler.toPhase(), exception)
+                    processFailure(exception.failedModule, exception.phase ?: exception.handler.toPhase(), exception)
                 is WrappedException.FromGroupingFacade,
                 is WrappedException.FromGroupingHandler ->
-                    processFailure(module = null, TestPhase.BACKEND, exception)
+                    processFailure(module = null, TestPhase.CODEGEN, exception)
             }
             targetStorage += exception
         }

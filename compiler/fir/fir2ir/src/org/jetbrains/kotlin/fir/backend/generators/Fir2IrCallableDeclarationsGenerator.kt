@@ -15,7 +15,6 @@ import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertyGetter
 import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertySetter
 import org.jetbrains.kotlin.fir.declarations.utils.*
-import org.jetbrains.kotlin.fir.descriptors.FirModuleDescriptor
 import org.jetbrains.kotlin.fir.descriptors.FirPackageFragmentDescriptor
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
@@ -25,6 +24,7 @@ import org.jetbrains.kotlin.fir.java.declarations.FirJavaField
 import org.jetbrains.kotlin.fir.lazy.Fir2IrLazyClass
 import org.jetbrains.kotlin.fir.references.toResolvedBaseSymbol
 import org.jetbrains.kotlin.fir.resolve.calls.FirSimpleSyntheticPropertySymbol
+import org.jetbrains.kotlin.fir.resolve.getContainingClass
 import org.jetbrains.kotlin.fir.resolve.isFunctionInvoke
 import org.jetbrains.kotlin.fir.resolve.isKFunctionInvoke
 import org.jetbrains.kotlin.fir.resolve.isKSuspendFunctionInvoke
@@ -44,22 +44,24 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrErrorExpressionImpl
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.symbols.impl.*
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classOrFail
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.types.AbstractTypeChecker
+import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
 class Fir2IrCallableDeclarationsGenerator(private val c: Fir2IrComponents) : Fir2IrComponents by c {
     // ------------------------------------ package fragments ------------------------------------
 
-    internal fun createExternalPackageFragment(fqName: FqName, moduleDescriptor: FirModuleDescriptor): IrExternalPackageFragment {
-        return createExternalPackageFragment(FirPackageFragmentDescriptor(fqName, moduleDescriptor))
-    }
-
-    internal fun createExternalPackageFragment(packageFragmentDescriptor: PackageFragmentDescriptor): IrExternalPackageFragment {
-        val symbol = IrExternalPackageFragmentSymbolImpl(packageFragmentDescriptor)
-        return IrExternalPackageFragmentImpl(symbol, packageFragmentDescriptor.fqName)
+    internal fun createExternalPackageFragment(
+        fqName: FqName,
+        module: IrModuleFragment,
+        createPackageFragmentDescriptor: (FqName, ModuleDescriptor) -> PackageFragmentDescriptor = ::FirPackageFragmentDescriptor,
+    ): IrExternalPackageFragment {
+        val symbol = IrExternalPackageFragmentSymbolImpl(createPackageFragmentDescriptor(fqName, module.descriptor))
+        return IrExternalPackageFragmentImpl(symbol, fqName, module)
     }
 
     // ------------------------------------ functions ------------------------------------
@@ -80,10 +82,10 @@ class Fir2IrCallableDeclarationsGenerator(private val c: Fir2IrComponents) : Fir
         val updatedOrigin = when {
             isLambda -> IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA
             isBaseInvokeFunction -> IrDeclarationOrigin.FUNCTION_INTERFACE_MEMBER
-            !predefinedOrigin.isExternal && // we should preserve origin for external enums
-                    namedFunction?.isStatic == true &&
-                    namedFunction.name in Fir2IrDeclarationStorage.ENUM_SYNTHETIC_NAMES
-            -> IrDeclarationOrigin.ENUM_CLASS_SPECIAL_MEMBER
+
+            function.getContainingClass()?.let { function.isGeneratedStaticEnumMember(it) } == true &&
+                    !predefinedOrigin.isExternal // we should preserve origin for external enums
+                -> IrDeclarationOrigin.ENUM_CLASS_SPECIAL_MEMBER
 
             // Kotlin built-in class and Java originated method (Collection.forEach, etc.)
             // It's necessary to understand that such methods do not belong to DefaultImpls but actually generated as default
@@ -127,12 +129,13 @@ class Fir2IrCallableDeclarationsGenerator(private val c: Fir2IrComponents) : Fir
                 returnType = function.returnTypeRef.toIrType(),
                 modality = namedFunction?.modality ?: Modality.FINAL,
                 symbol = symbol,
-                isTailrec = namedFunction?.isTailRec == true,
+                isTailrec = function.isTailRec,
                 isSuspend = isSuspend,
                 isOperator = namedFunction?.isOperator == true,
                 isInfix = namedFunction?.isInfix == true,
                 isExternal = isEffectivelyExternal(namedFunction, irParent),
                 containerSource = namedFunction?.containerSource,
+                companionExtensionClass = function.receiverParameter?.takeIf { function.isCompanionExtension }?.typeRef?.toIrType()?.classOrFail
             ).apply {
                 metadata = FirMetadataSource.Function(function)
                 declarationStorage.withScope(symbol) {
@@ -224,10 +227,8 @@ class Fir2IrCallableDeclarationsGenerator(private val c: Fir2IrComponents) : Fir
         allowLazyDeclarationsCreation: Boolean
     ): IrProperty = convertCatching(property) {
         val origin = when {
-            !predefinedOrigin.isExternal &&
-                    property.isStatic &&
-                    property.name in Fir2IrDeclarationStorage.ENUM_SYNTHETIC_NAMES
-            -> IrDeclarationOrigin.ENUM_CLASS_SPECIAL_MEMBER
+            property.getContainingClass()?.let { property.isGeneratedStaticEnumMember(it) } == true &&
+                    !predefinedOrigin.isExternal -> IrDeclarationOrigin.ENUM_CLASS_SPECIAL_MEMBER
 
             else -> property.computeIrOrigin(
                 predefinedOrigin,
@@ -314,7 +315,7 @@ class Fir2IrCallableDeclarationsGenerator(private val c: Fir2IrComponents) : Fir
                                     val constType = initializer.resolvedType.toIrType()
                                     field.initializer = factory.createExpressionBody(initializer.toIrConst(constType))
                                 } else if (property.isConst) {
-                                    val evaluatedInitializer = property.evaluatedInitializer?.unwrapOr<FirLiteralExpression> {}
+                                    val evaluatedInitializer = property.evaluatedInitializer?.resultOrNull<FirLiteralExpression>()
                                     // The evaluated initializer can be missing in case of an error. It will be reported as diagnostic.
                                     val expression = if (evaluatedInitializer != null) {
                                         evaluatedInitializer.toIrConst(evaluatedInitializer.resolvedType.toIrType())
@@ -453,6 +454,7 @@ class Fir2IrCallableDeclarationsGenerator(private val c: Fir2IrComponents) : Fir
             isInfix = false,
             isExternal = isEffectivelyExternal(propertyAccessor, irParent),
             containerSource = containerSource,
+            companionExtensionClass = property.receiverParameter?.takeIf { property.isCompanionExtension }?.typeRef?.toIrType()?.classOrFail
         ).apply {
             correspondingPropertySymbol = (correspondingProperty as? IrProperty)?.symbol
             if (propertyAccessor != null) {
@@ -618,9 +620,10 @@ class Fir2IrCallableDeclarationsGenerator(private val c: Fir2IrComponents) : Fir
         contextParameters: List<FirValueParameter>,
         parent: IrFunction,
         result: MutableList<IrValueParameter>,
+        typeOrigin: ConversionTypeOrigin = ConversionTypeOrigin.DEFAULT,
     ) {
-        contextParameters.mapIndexedTo(result) { index, contextReceiver ->
-            this.declarationStorage.createAndCacheParameter(contextReceiver).apply {
+        contextParameters.mapTo(result) { contextReceiver ->
+            this.declarationStorage.createAndCacheParameter(contextReceiver, typeOrigin = typeOrigin).apply {
                 this.parent = parent
             }
         }
@@ -668,12 +671,12 @@ class Fir2IrCallableDeclarationsGenerator(private val c: Fir2IrComponents) : Fir
                 }
             }
 
+            val typeOrigin = if (forSetter) ConversionTypeOrigin.SETTER else ConversionTypeOrigin.DEFAULT
+
             // context parameters
             function
                 ?.contextParametersForFunctionOrContainingProperty()
-                ?.let { addContextParametersTo(it, parent, this) }
-
-            val typeOrigin = if (forSetter) ConversionTypeOrigin.SETTER else ConversionTypeOrigin.DEFAULT
+                ?.let { addContextParametersTo(it, parent, this, typeOrigin) }
 
             // extension receiver
             if (function?.isCompanionExtension != true && parentProperty?.isCompanionExtension != true) {
@@ -781,7 +784,7 @@ class Fir2IrCallableDeclarationsGenerator(private val c: Fir2IrComponents) : Fir
                 if (!skipDefaultParameter && defaultValue != null) {
                     this.defaultValue = when {
                         forcedDefaultValueConversion && defaultValue !is FirExpressionStub -> {
-                            val valueToConvert = valueParameter.evaluatedInitializer?.unwrapOr<FirExpression> {} ?: defaultValue
+                            val valueToConvert = valueParameter.evaluatedInitializer?.resultOrNull<FirExpression>() ?: defaultValue
                             valueToConvert.asCompileTimeIrInitializerForAnnotationParameter()
                         }
                         useStubForDefaultValueStub || defaultValue !is FirExpressionStub ->
@@ -964,10 +967,8 @@ class Fir2IrCallableDeclarationsGenerator(private val c: Fir2IrComponents) : Fir
         }
 
         private fun computeContainingClass(parent: IrDeclarationParent?): IrClass? {
-            return if (parent is IrClass && !parent.isNonCachedSourceFileFacade) {
+            return runIf(parent is IrClass && !parent.isNonCachedSourceFileFacade) {
                 parent
-            } else {
-                null
             }
         }
     }
@@ -979,13 +980,13 @@ class Fir2IrCallableDeclarationsGenerator(private val c: Fir2IrComponents) : Fir
             || origin == IrDeclarationOrigin.FAKE_OVERRIDE
             // When `firAnnotationContainer` is not in a compile target file, we will not fill contents for
             // this annotation container later. Therefore, we have to set its annotations here.
-            || firAnnotationContainer.isDeclaredInFilesBeingCompiled()
+            || firAnnotationContainer.isDeclaredOutsideFilesBeingCompiled()
         ) {
             annotationGenerator.generate(this, firAnnotationContainer)
         }
     }
 
-    private fun FirAnnotationContainer.isDeclaredInFilesBeingCompiled(): Boolean {
+    private fun FirAnnotationContainer.isDeclaredOutsideFilesBeingCompiled(): Boolean {
         val filesBeingCompiled = filesBeingCompiled
         if (filesBeingCompiled == null || this !is FirDeclaration) return false
         return moduleData.session.firProvider.getContainingFile(symbol) !in filesBeingCompiled

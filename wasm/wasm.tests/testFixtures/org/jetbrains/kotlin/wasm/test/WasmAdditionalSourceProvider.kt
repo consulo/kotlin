@@ -5,15 +5,48 @@
 
 package org.jetbrains.kotlin.wasm.test
 
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.model.RegisteredDirectives
 import org.jetbrains.kotlin.test.model.TestFile
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.*
+import org.jetbrains.kotlin.test.services.sourceProviders.MainFunctionForBlackBoxTestsSourceProvider.Companion.detectPackage
+import org.jetbrains.kotlin.test.services.sourceProviders.SourceContentView
+import org.jetbrains.kotlin.test.services.sourceProviders.getSourceContent
+import org.jetbrains.kotlin.test.testInfraError
 import java.io.File
-import java.io.FileFilter
+
+private val WASI_BOX_METHOD_REGEX =
+    Regex("""(^|\n)(?!(?:\w+\s+)*suspend\s)(?:\w+\s+)*\bfun\s+box\(\)\s*(?::\s*String|=)""")
+
+internal fun containsWasiBoxMethod(
+    file: TestFile,
+    sourceContentView: SourceContentView = SourceContentView.ORIGINAL,
+    sourceFileProvider: SourceFileProvider? = null,
+): Boolean {
+    if (!file.isKtFile) return false
+    val content = getSourceContent(file, sourceContentView, sourceFileProvider)
+    return WASI_BOX_METHOD_REGEX.containsMatchIn(content)
+}
+
+internal fun findWasiBoxMethodFile(
+    files: List<TestFile>,
+    sourceContentView: SourceContentView = SourceContentView.ORIGINAL,
+    sourceFileProvider: SourceFileProvider? = null,
+): TestFile? {
+    val filesWithBoxMethod = files.filter {
+        containsWasiBoxMethod(it, sourceContentView, sourceFileProvider)
+    }
+    return when (filesWithBoxMethod.size) {
+        0 -> null
+        1 -> filesWithBoxMethod.single()
+        else -> testInfraError(
+            "The WASI box helper requires exactly one source file with a synchronous `box()` function, but found " +
+                    "${filesWithBoxMethod.joinToString { it.relativePath }}."
+        )
+    }
+}
 
 class WasmWasiBoxTestHelperSourceProvider(testServices: TestServices) : AdditionalSourceProvider(testServices) {
     override fun produceAdditionalFiles(
@@ -21,22 +54,17 @@ class WasmWasiBoxTestHelperSourceProvider(testServices: TestServices) : Addition
         module: TestModule,
         testModuleStructure: TestModuleStructure
     ): List<TestFile> {
-        val fileWithBoxFun = module.files.singleOrNull {
-            it.isKtFile && it.originalContent.contains(Regex("\\bfun\\s+box\\(\\)\\s*(?::\\s*String|=)"))
-        }
+        // ModuleStructureExtractor invokes this provider before it registers the structure in TestServices.
+        val fileWithBoxFun = findWasiBoxMethodFile(module.files, SourceContentView.ORIGINAL) ?: return emptyList()
 
-        // no box function
-        if (fileWithBoxFun == null) return emptyList()
-
-        val matchResult = Regex("^package\\s+([\\w.]+)", RegexOption.MULTILINE).find(fileWithBoxFun.originalContent)
+        val p = detectPackage(fileWithBoxFun, SourceContentView.ORIGINAL)
 
         val boxTestRunFile = this::class.java.classLoader.getResource("wasiAdditionalFiles/wasiBoxTestRun.kt")!!
         val boxTestRunTestFile = boxTestRunFile.toTestFile()
 
         // no package
-        if (matchResult == null) return listOf(boxTestRunTestFile)
+        if (p == null) return listOf(boxTestRunTestFile)
 
-        val p = matchResult.groupValues[1]
         return listOf(
             TestFile(
                 boxTestRunTestFile.name,
@@ -57,9 +85,11 @@ class WasmAdditionalSourceProvider(testServices: TestServices) : AdditionalSourc
         testModuleStructure: TestModuleStructure
     ): List<TestFile> {
         if (WasmEnvironmentConfigurationDirectives.NO_COMMON_FILES in module.directives) return emptyList()
-        // For multiplatform projects, add the files only to common modules with no dependencies.
-        if (module.languageVersionSettings.supportsFeature(LanguageFeature.MultiPlatformProjects) &&
-            module.allDependencies.isNotEmpty()) {
+        if (module.allDependencies.isNotEmpty() &&
+            // This optimization (don't add additional files to modules with dependencies) should not be done
+            // for tests which golden data depends on sourcemaps, for ex, stepping tests.
+            WasmEnvironmentConfigurationDirectives.GENERATE_SOURCE_MAP !in module.directives
+        ) {
             return emptyList()
         }
         return getAdditionalGlobalFiles() + getAdditionalLocalFiles(module.files.first().originalFile.parent)

@@ -16,11 +16,13 @@
 
 package org.jetbrains.kotlin.konan.properties
 
+import org.jetbrains.kotlin.io.propertyList
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.Configurables
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.util.*
 import java.io.File
+import java.util.Properties
 
 interface TargetableExternalStorage {
     fun targetString(key: String): String?
@@ -36,7 +38,7 @@ interface TargetableExternalStorage {
 abstract class KonanPropertiesLoader(
     override val target: KonanTarget,
     val properties: Properties,
-    private val dependenciesRoot: String?,
+    protected val dependenciesRoot: String?,
     private val host: KonanTarget = HostManager.host,
     private val progressCallback: ProgressCallback,
 ) : Configurables {

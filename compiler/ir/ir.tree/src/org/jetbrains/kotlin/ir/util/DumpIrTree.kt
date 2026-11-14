@@ -36,12 +36,15 @@ import org.jetbrains.kotlin.utils.addToStdlib.runIf
 
 fun IrElement.dump(options: DumpIrTreeOptions = DumpIrTreeOptions()): String =
     try {
-        StringBuilder().also { sb ->
-            accept(DumpIrTreeVisitor(sb, options), "")
-        }.toString()
+        dumpOrFail(options)
     } catch (e: Exception) {
         "(Full dump is not available: ${e.message})\n" + render(options)
     }
+
+fun IrElement.dumpOrFail(options: DumpIrTreeOptions = DumpIrTreeOptions()): String =
+    StringBuilder().also { sb ->
+        accept(DumpIrTreeVisitor(sb, options), "")
+    }.toString()
 
 fun IrFile.dumpTreesFromLineNumber(lineNumber: Int, options: DumpIrTreeOptions = DumpIrTreeOptions()): String {
     val correctedLineNumber = if (shouldSkipDump()) UNDEFINED_OFFSET else lineNumber
@@ -60,13 +63,10 @@ fun IrFile.dumpTreesFromLineNumber(lineNumber: Int, options: DumpIrTreeOptions =
  * @property declarationFlagsFilter The filter that allows filtering declaration flags like `fake_override`, `inline` etc. both
  *   in declarations and in declaration references. See [FlagsFilter] for more details.
  * @property renderOriginForExternalDeclarations If `true`, we only print a declaration's origin if it is not
- * [IrDeclarationOrigin.DEFINED]. If `false`, we don't print the [IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB] origin as well.
+ * [IrDeclarationOrigin.DEFINED]. If `false`, we don't print [IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB] and
+ * [IrDeclarationOrigin.IR_EXTERNAL_JAVA_DECLARATION_STUB] origins as well.
  * @property printSignatures Whether to print signatures for nodes that have public signatures
  * @property printAnnotationsWithSourceRetention If annotations with SOURCE retention should be printed.
- * @property printAnnotationsInFakeOverrides If annotations in fake override functions/properties should be printed.
- *   Note: The main goal of introducing this flag is an attempt to work around the problem with incorrect offsets
- *   in annotations, which should be finally fixed in KT-74938.
- *   TODO: Drop this flag in KT-74938.
  * @property printDispatchReceiverTypeInFakeOverrides If the dispatch receiver type should be printed.
  *   Otherwise, it will be substituted with some fixed placeholder value.
  * @property printParameterNamesInOverriddenSymbols If names of value parameters should be printed in overridden function symbols.
@@ -93,7 +93,6 @@ data class DumpIrTreeOptions(
     val printFilePath: Boolean = true,
     val printExpectDeclarations: Boolean = true,
     val printAnnotationsWithSourceRetention: Boolean = true,
-    val printAnnotationsInFakeOverrides: Boolean = true,
     val printDispatchReceiverTypeInFakeOverrides: Boolean = true,
     val printParameterNamesInOverriddenSymbols: Boolean = true,
     val printFakeOverrideSymbolsInPropertiesOfAnonymousClasses: Boolean = true,
@@ -161,7 +160,7 @@ internal fun List<IrDeclaration>.stableOrdered(): List<IrDeclaration> {
 
     forEach {
         val shouldPreserveRelativeOrder = when (it) {
-            is IrProperty -> it.backingField != null && !it.isConst
+            is IrProperty -> it.backingField?.initializer != null && !it.isConst
             is IrAnonymousInitializer, is IrEnumEntry, is IrField -> true
             else -> false
         }
@@ -259,17 +258,16 @@ class DumpIrTreeVisitor(
         declaration.dumpLabeledElementWith(data) {
             declaration.typeParameters.dumpElements()
             declaration.parameters.dumpElements()
-            if (options.printAnnotationsInFakeOverrides || !declaration.isFakeOverride) {
-                dumpAnnotations(declaration)
-            }
+            dumpAnnotations(declaration)
             declaration.correspondingPropertySymbol?.dumpAsDeclaration("correspondingProperty")
+            declaration.companionExtensionClass?.dumpAsReference("companionExtension")
             declaration.overriddenSymbols.dumpFakeOverrideSymbols()
             declaration.body?.accept(this, "")
         }
     }
 
     private fun dumpAnnotations(element: IrAnnotationContainer) {
-        element.annotations.filterOutSourceRetentions(options).dumpItems("annotations") { irAnnotation: IrConstructorCall ->
+        element.annotations.filterOutSourceRetentions(options).dumpItems("annotations") { irAnnotation: IrAnnotation ->
             printer.println(elementRenderer.renderAsAnnotation(irAnnotation))
         }
     }
@@ -287,9 +285,7 @@ class DumpIrTreeVisitor(
     override fun visitProperty(declaration: IrProperty, data: String) {
         if (declaration.isHidden()) return
         declaration.dumpLabeledElementWith(data) {
-            if (options.printAnnotationsInFakeOverrides || !declaration.isFakeOverride) {
-                dumpAnnotations(declaration)
-            }
+            dumpAnnotations(declaration)
             if (options.printFakeOverrideSymbolsInPropertiesOfAnonymousClasses ||
                 !declaration.parent.let { it is IrClass && it.name == SpecialNames.NO_NAME_PROVIDED }
             ) declaration.overriddenSymbols.dumpFakeOverrideSymbols()
@@ -467,7 +463,7 @@ class DumpIrTreeVisitor(
     override fun visitDynamicOperatorExpression(expression: IrDynamicOperatorExpression, data: String) {
         expression.dumpLabeledElementWith(data) {
             expression.receiver.accept(this, "receiver")
-            for ((i, arg) in expression.arguments.withIndex()) {
+            for ([i, arg] in expression.arguments.withIndex()) {
                 arg.accept(this, i.toString())
             }
         }
@@ -475,7 +471,7 @@ class DumpIrTreeVisitor(
 
     override fun visitConstantArray(expression: IrConstantArray, data: String) {
         expression.dumpLabeledElementWith(data) {
-            for ((i, value) in expression.elements.withIndex()) {
+            for ([i, value] in expression.elements.withIndex()) {
                 value.accept(this, i.toString())
             }
         }
@@ -483,7 +479,7 @@ class DumpIrTreeVisitor(
 
     override fun visitConstantObject(expression: IrConstantObject, data: String) {
         expression.dumpLabeledElementWith(data) {
-            for ((index, argument) in expression.valueArguments.withIndex()) {
+            for ([index, argument] in expression.valueArguments.withIndex()) {
                 argument.accept(this, expression.constructor.owner.parameters[index].name.toString())
             }
         }

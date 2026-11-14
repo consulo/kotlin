@@ -1,4 +1,6 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("org.jetbrains.kotlin.jvm")
     id("gradle-plugin-api-reference") apply false
 }
@@ -16,4 +18,4 @@ dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:$coreDepsVersion")
 }
 
-exposeSourcesForDocumentationEmbedding(setOf(kotlin.sourceSets.getByName("main")))
+exposeSourcesForDocumentationEmbedding(setOf(kotlin.sourceSets.main.get()))

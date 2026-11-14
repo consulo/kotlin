@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.wasm.test
 
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.platform.wasm.WasmPlatforms
 import org.jetbrains.kotlin.platform.wasm.WasmTarget
@@ -16,44 +15,48 @@ import org.jetbrains.kotlin.test.TestInfrastructureInternals
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.builders.configureFirHandlersStep
+import org.jetbrains.kotlin.test.builders.configureIrHandlersStep
 import org.jetbrains.kotlin.test.builders.firHandlersStep
-import org.jetbrains.kotlin.test.builders.wasmArtifactsHandlersStep
 import org.jetbrains.kotlin.test.configuration.commonFirHandlersForCodegenTest
-import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.IGNORE_BACKEND_K2_MULTI_MODULE
-import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives
-import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
-import org.jetbrains.kotlin.test.directives.JsEnvironmentConfigurationDirectives
-import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives
-import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.LANGUAGE
-import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives
+import org.jetbrains.kotlin.test.configuration.commonIrHandlersForCodegenTest
+import org.jetbrains.kotlin.test.directives.*
+import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.IGNORE_BACKEND_MULTI_MODULE
 import org.jetbrains.kotlin.test.directives.model.ValueDirective
-import org.jetbrains.kotlin.test.frontend.fir.Fir2IrResultsConverter
-import org.jetbrains.kotlin.test.frontend.fir.FirFrontendFacade
 import org.jetbrains.kotlin.test.frontend.fir.FirMetaInfoDiffSuppressor
 import org.jetbrains.kotlin.test.frontend.fir.FirOutputArtifact
 import org.jetbrains.kotlin.test.frontend.fir.handlers.FirCfgConsistencyHandler
 import org.jetbrains.kotlin.test.frontend.fir.handlers.FirCfgDumpHandler
 import org.jetbrains.kotlin.test.frontend.fir.handlers.FirDumpHandler
 import org.jetbrains.kotlin.test.frontend.fir.handlers.FirResolvedTypesVerifier
-import org.jetbrains.kotlin.test.model.*
+import org.jetbrains.kotlin.test.model.AbstractTestFacade
+import org.jetbrains.kotlin.test.model.AnalysisHandler
+import org.jetbrains.kotlin.test.model.BinaryArtifacts
+import org.jetbrains.kotlin.test.model.FrontendKinds
 import org.jetbrains.kotlin.test.services.AdditionalSourceProvider
 import org.jetbrains.kotlin.test.services.SplittingModuleTransformerForBoxTests
 import org.jetbrains.kotlin.test.services.SplittingTestConfigurator
 import org.jetbrains.kotlin.test.services.configuration.JsEnvironmentConfigurator
-import org.jetbrains.kotlin.wasm.test.converters.FirWasmKlibSerializerFacade
 import org.jetbrains.kotlin.wasm.test.converters.WasmBackendFacade
 import org.jetbrains.kotlin.wasm.test.handlers.WasiBoxRunner
 import org.jetbrains.kotlin.wasm.test.handlers.WasmBoxRunner
 import org.jetbrains.kotlin.wasm.test.handlers.WasmDebugRunner
+import org.jetbrains.kotlin.wasm.test.handlers.WasmLocalVariableDebugRunner
 import org.jetbrains.kotlin.wasm.test.providers.WasmJsSteppingTestAdditionalSourceProvider
+import org.jetbrains.kotlin.wasm.test.utils.configureIgnoredTestSuppressor
 
 fun TestConfigurationBuilder.configureCodegenFirHandlerSteps() {
     configureFirHandlersStep {
         commonFirHandlersForCodegenTest()
     }
-    useAfterAnalysisCheckers(
+    useFailureSuppressors(
         ::FirMetaInfoDiffSuppressor
     )
+}
+
+fun TestConfigurationBuilder.configureCodegenIrHandlerSteps() {
+    configureIrHandlersStep {
+        commonIrHandlersForCodegenTest()
+    }
 }
 
 abstract class AbstractFirWasmTest(
@@ -64,15 +67,6 @@ abstract class AbstractFirWasmTest(
 ) : AbstractWasmBlackBoxCodegenTestBase<FirOutputArtifact, IrBackendInput, BinaryArtifacts.KLib>(
     FrontendKinds.FIR, targetBackend, targetPlatform, pathToTestDir, testGroupOutputDirPrefix
 ) {
-    override val frontendFacade: Constructor<FrontendFacade<FirOutputArtifact>>
-        get() = ::FirFrontendFacade
-
-    override val frontendToBackendConverter: Constructor<Frontend2BackendConverter<FirOutputArtifact, IrBackendInput>>
-        get() = ::Fir2IrResultsConverter
-
-    override val backendFacade: Constructor<BackendFacade<IrBackendInput, BinaryArtifacts.KLib>>
-        get() = ::FirWasmKlibSerializerFacade
-
     override val afterBackendFacade: Constructor<AbstractTestFacade<BinaryArtifacts.KLib, BinaryArtifacts.Wasm>>
         get() = ::WasmBackendFacade
 
@@ -93,12 +87,8 @@ abstract class AbstractFirWasmTest(
                     ::FirResolvedTypesVerifier,
                 )
             }
-            defaultDirectives {
-                LANGUAGE with listOf(
-                    "-${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                    "-${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-                )
-            }
+
+            configureIgnoredTestSuppressor()
         }
     }
 }
@@ -114,73 +104,6 @@ open class AbstractFirWasmJsTest(
         get() = WasmTarget.JS
 }
 
-open class AbstractFirWasmJsCodegenBoxTest(
-    pathToTestDir: String = "compiler/testData/codegen/",
-    testGroupOutputDirPrefix: String = "codegen/firBox/"
-) : AbstractFirWasmJsTest(
-    pathToTestDir = pathToTestDir,
-    testGroupOutputDirPrefix = testGroupOutputDirPrefix
-) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        builder.configureCodegenFirHandlerSteps()
-    }
-}
-
-open class AbstractFirWasmJsCodegenBoxWithInlinedFunInKlibTest(
-    pathToTestDir: String = "compiler/testData/codegen/",
-    testGroupOutputDirPrefix: String = "codegen/boxInlKlib/"
-) : AbstractFirWasmJsCodegenBoxTest(
-    pathToTestDir = pathToTestDir,
-    testGroupOutputDirPrefix = testGroupOutputDirPrefix
-) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            defaultDirectives {
-                LANGUAGE with listOf(
-                    "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                    "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-                )
-            }
-        }
-    }
-}
-
-open class AbstractFirWasmJsSyntheticAccessorsTest(
-    pathToTestDir: String = "compiler/testData/klib/syntheticAccessors",
-    testGroupOutputDirPrefix: String = "codegen/syntheticAccessors/"
-) : AbstractFirWasmJsCodegenBoxWithInlinedFunInKlibTest(
-    pathToTestDir = pathToTestDir,
-    testGroupOutputDirPrefix = testGroupOutputDirPrefix
-)
-
-open class AbstractFirWasmJsCodegenSplittingWithInlinedFunInKlibTest() : AbstractFirWasmJsCodegenBoxWithInlinedFunInKlibTest(
-    testGroupOutputDirPrefix = "codegen/boxSplitted/"
-) {
-    override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>?
-        get() = listOf(IGNORE_BACKEND_K2_MULTI_MODULE)
-
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        @OptIn(TestInfrastructureInternals::class)
-        builder.useModuleStructureTransformers(
-            ::SplittingModuleTransformerForBoxTests
-        )
-        builder.useMetaTestConfigurators(::SplittingTestConfigurator)
-    }
-}
-
-open class AbstractFirWasmJsCodegenBoxInlineTest : AbstractFirWasmJsTest(
-    "compiler/testData/codegen/boxInline/",
-    "codegen/firBoxInline/"
-) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        builder.configureCodegenFirHandlerSteps()
-    }
-}
-
 open class AbstractFirWasmJsCodegenInteropTest : AbstractFirWasmJsTest(
     "compiler/testData/codegen/boxWasmJsInterop",
     "codegen/firWasmJsInterop"
@@ -188,18 +111,26 @@ open class AbstractFirWasmJsCodegenInteropTest : AbstractFirWasmJsTest(
     override fun configure(builder: TestConfigurationBuilder) {
         super.configure(builder)
         builder.configureCodegenFirHandlerSteps()
+        builder.configureCodegenIrHandlerSteps()
     }
 }
 
-open class AbstractFirWasmJsTranslatorTest : AbstractFirWasmJsTest(
-    "js/js.translator/testData/box/",
-    "js.translator/firBox"
-)
+open class AbstractFirWasmJsCodegenIrCheckTest : AbstractFirWasmJsTest(
+    "compiler/testData/codegen/wasmIrChecks",
+    "codegen/wasmIrChecks"
+) {
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        builder.configureCodegenFirHandlerSteps()
+        builder.configureCodegenIrHandlerSteps()
+    }
+}
 
 open class AbstractFirWasmJsSteppingTest(
+    pathToTestDir: String = "compiler/testData/debug/stepping/",
     testGroupOutputDirPrefix: String = "debug/stepping/firBox"
 ) : AbstractFirWasmJsTest(
-    "compiler/testData/debug/stepping/",
+    pathToTestDir,
     testGroupOutputDirPrefix
 ) {
     override val wasmBoxTestRunner: Constructor<AnalysisHandler<BinaryArtifacts.Wasm>>
@@ -218,29 +149,11 @@ open class AbstractFirWasmJsSteppingTest(
     }
 }
 
-open class AbstractFirWasmJsSteppingWithInlinedFunInKlibTest(
-    testGroupOutputDirPrefix: String = "debug/firSteppingWithInlinedFunInKlib/"
-) : AbstractFirWasmJsSteppingTest(
-    testGroupOutputDirPrefix = testGroupOutputDirPrefix
-) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            defaultDirectives {
-                LANGUAGE with listOf(
-                    "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                    "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-                )
-            }
-        }
-    }
-}
-
 open class AbstractFirWasmJsSteppingSplitTest : AbstractFirWasmJsSteppingTest(
     testGroupOutputDirPrefix = "debug/firSteppingSplit/"
 ) {
     override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>?
-        get() = listOf(IGNORE_BACKEND_K2_MULTI_MODULE)
+        get() = listOf(IGNORE_BACKEND_MULTI_MODULE)
 
     override fun configure(builder: TestConfigurationBuilder) {
         super.configure(builder)
@@ -254,22 +167,12 @@ open class AbstractFirWasmJsSteppingSplitTest : AbstractFirWasmJsSteppingTest(
     }
 }
 
-open class AbstractFirWasmJsSteppingSplitWithInlinedFunInKlibTest : AbstractFirWasmJsSteppingWithInlinedFunInKlibTest(
-    testGroupOutputDirPrefix = "debug/firSteppingSplit/"
+open class AbstractFirWasmJsLocalVariableTest : AbstractFirWasmJsSteppingTest(
+    pathToTestDir = "compiler/testData/debug/localVariables/",
+    testGroupOutputDirPrefix = "debug/localVariables/firBox"
 ) {
-    override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>?
-        get() = listOf(IGNORE_BACKEND_K2_MULTI_MODULE)
-
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            @OptIn(TestInfrastructureInternals::class)
-            useModuleStructureTransformers(
-                ::SplittingModuleTransformerForBoxTests
-            )
-            useMetaTestConfigurators(::SplittingTestConfigurator)
-        }
-    }
+    override val wasmBoxTestRunner: Constructor<AnalysisHandler<BinaryArtifacts.Wasm>>
+        get() = ::WasmLocalVariableDebugRunner
 }
 
 open class AbstractFirWasmWasiTest(
@@ -302,22 +205,7 @@ open class AbstractFirWasmWasiCodegenBoxTest(
     override fun configure(builder: TestConfigurationBuilder) {
         super.configure(builder)
         builder.configureCodegenFirHandlerSteps()
-    }
-}
-
-open class AbstractFirWasmWasiCodegenBoxWithInlinedFunInKlibTest : AbstractFirWasmWasiCodegenBoxTest(
-    testGroupOutputDirPrefix = "codegen/wasiBoxInlKlib/"
-) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            defaultDirectives {
-                LANGUAGE with listOf(
-                    "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                    "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-                )
-            }
-        }
+        builder.configureCodegenIrHandlerSteps()
     }
 }
 

@@ -50,6 +50,8 @@ object StandardClassIds {
     val Nothing = "Nothing".baseId()
     val Unit = "Unit".baseId()
     val Any = "Any".baseId()
+    val NonError = "NonError".baseId()
+    val RichError = "RichError".baseId()
     val Enum = "Enum".baseId()
     val Annotation = "Annotation".baseId()
     val Array = "Array".baseId()
@@ -109,6 +111,7 @@ object StandardClassIds {
     val elementTypeByUnsignedArrayType = unsignedArrayTypeByElementType.inverseMap()
 
     val constantAllowedTypes = primitiveTypes + unsignedTypes + String
+    val allIntegerTypes = signedIntegerTypes + unsignedTypes
 
     val Continuation = "Continuation".coroutinesId()
     val CoroutineContext = "CoroutineContext".coroutinesId()
@@ -186,6 +189,8 @@ object StandardClassIds {
         Long to AtomicLongArray,
     )
 
+    val ClassCastException = "ClassCastException".baseId()
+
     object Annotations {
         val Suppress = "Suppress".baseId()
         val PublishedApi = "PublishedApi".baseId()
@@ -198,8 +203,14 @@ object StandardClassIds {
         val DslMarker = "DslMarker".baseId()
         val IntroducedAt = "IntroducedAt".baseId()
 
+        val NumericClass = "NumericClass".baseId()
+
+        val LowPriorityInOverloadResolution = "LowPriorityInOverloadResolution".internalId()
+
         val ConsistentCopyVisibility = "ConsistentCopyVisibility".baseId()
         val ExposedCopyVisibility = "ExposedCopyVisibility".baseId()
+
+        val WillBecomeValue = "WillBecomeValue".baseId()
 
         val HidesMembers = "HidesMembers".internalId()
         val DynamicExtension = "DynamicExtension".internalId()
@@ -235,6 +246,8 @@ object StandardClassIds {
         val MustUseReturnValues = "MustUseReturnValues".baseId()
         val IgnorableReturnValue = "IgnorableReturnValue".baseId()
 
+        val EqualityBound = "EqualityBound".baseId()
+
         val AccessibleLateinitPropertyLiteral = "AccessibleLateinitPropertyLiteral".internalId()
 
         val OptionalExpectation = "OptionalExpectation".baseId()
@@ -244,8 +257,10 @@ object StandardClassIds {
         val jvmStatic = "JvmStatic".jvmId()
         val jvmName = "JvmName".jvmId()
         val Transient = "Transient".jvmId()
+        val JvmInline = "JvmInline".jvmId()
 
         val jsExport = "JsExport".jsId()
+        val jsImplicitExport = "JsImplicitExport".jsId()
         val jsExportIgnore = jsExport.createNestedClassId(Name.identifier("Ignore"))
         val jsExportDefault = jsExport.createNestedClassId(Name.identifier("Default"))
         val jsNoDispatchReceiver = "JsNoDispatchReceiver".jsId()
@@ -261,16 +276,32 @@ object StandardClassIds {
 
         val UsedFromCompilerGeneratedCode = "UsedFromCompilerGeneratedCode".internalId()
 
+        /**
+         * `kotlin.internal.ReflectionPackageName`: a file annotation making the backend store the given package name
+         * in the reflective information of the classes declared in the file, instead of the real one.
+         *
+         * Used by the test infrastructure, which renames packages when compiling several tests into one batch.
+         */
+        val ReflectionPackageName = "ReflectionPackageName".internalId()
+
         object ParameterNames {
             val value = Name.identifier("value")
 
             val retentionValue = value
             val targetAllowedTargets = Name.identifier("allowedTargets")
 
+            val equalityBound = Name.identifier("bound")
+
             val sinceKotlinVersion = Name.identifier("version")
+
+            val actualizations = Name.identifier("actualizations")
 
             val deprecatedMessage = Name.identifier("message")
             val deprecatedLevel = Name.identifier("level")
+            val deprecatedReplaceWith = Name.identifier("replaceWith")
+
+            val replaceWithExpression = Name.identifier("expression")
+            val replaceWithImports = Name.identifier("imports")
 
             val deprecatedSinceKotlinWarningSince = Name.identifier("warningSince")
             val deprecatedSinceKotlinErrorSince = Name.identifier("errorSince")
@@ -296,6 +327,8 @@ object StandardClassIds {
         val atomicReferenceCompareAndExchange = "compareAndExchange".callableId(AtomicReference)
         val atomicArrayCompareAndSetAt = "compareAndSetAt".callableId(AtomicArray)
         val atomicArrayCompareAndExchangeAt = "compareAndExchangeAt".callableId(AtomicArray)
+
+        val throwNoWhenBranchMatchedException = "throwNoWhenBranchMatchedException".callableId(BASE_INTERNAL_PACKAGE)
     }
 
     object Collections {
@@ -344,4 +377,4 @@ private fun String.callableId(classId: ClassId) = CallableId(classId, Name.ident
 
 private fun String.jsId() = ClassId(StandardClassIds.BASE_JS_PACKAGE, Name.identifier(this))
 
-private fun <K, V> Map<K, V>.inverseMap(): Map<V, K> = entries.associate { (k, v) -> v to k }
+private fun <K, V> Map<K, V>.inverseMap(): Map<V, K> = entries.associate { [k, v] -> v to k }

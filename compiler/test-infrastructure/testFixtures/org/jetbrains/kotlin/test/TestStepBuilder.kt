@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.test
 
 import org.jetbrains.kotlin.test.model.*
 import org.jetbrains.kotlin.test.services.CompilationStage
+import org.jetbrains.kotlin.test.services.TestPhase
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.utils.bind
 
@@ -27,7 +28,7 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
         @TestInfrastructureInternals
         abstract override fun createTestStep(testServices: TestServices): FacadeStep
 
-        class NonGroupingPhase<InputArtifact, OutputArtifact>(
+        class NonGroupingStage<InputArtifact, OutputArtifact>(
             facade: Constructor<AbstractTestFacade<InputArtifact, OutputArtifact>>,
         ) : FacadeStepBuilder<
                 InputArtifact,
@@ -42,18 +43,18 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
             }
         }
 
-        class GroupingPhase<InputArtifact, OutputArtifact>(
-            facade: Constructor<AbstractGroupingPhaseTestFacade<InputArtifact, OutputArtifact>>,
+        class GroupingStage<InputArtifact, OutputArtifact>(
+            facade: Constructor<AbstractGroupingStageTestFacade<InputArtifact, OutputArtifact>>,
         ) : FacadeStepBuilder<
                 InputArtifact,
                 OutputArtifact,
-                AbstractGroupingPhaseTestFacade<InputArtifact, OutputArtifact>,
-                TestStep.GroupingPhaseStep.FacadeStep<InputArtifact, OutputArtifact>
+                AbstractGroupingStageTestFacade<InputArtifact, OutputArtifact>,
+                TestStep.GroupingStageStep.FacadeStep<InputArtifact, OutputArtifact>
                 >(facade) where InputArtifact : ResultingArtifact<InputArtifact>,
                                 OutputArtifact : ResultingArtifact<OutputArtifact> {
             @TestInfrastructureInternals
-            override fun createTestStep(testServices: TestServices): TestStep.GroupingPhaseStep.FacadeStep<InputArtifact, OutputArtifact> {
-                return TestStep.GroupingPhaseStep.FacadeStep(facade.invoke(testServices))
+            override fun createTestStep(testServices: TestServices): TestStep.GroupingStageStep.FacadeStep<InputArtifact, OutputArtifact> {
+                return TestStep.GroupingStageStep.FacadeStep(facade.invoke(testServices))
             }
         }
     }
@@ -96,9 +97,10 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
 
         protected abstract fun createStep(handlers: List<Handler>): HandlersStep
 
-        class NonGroupingPhase<InputArtifact, InputArtifactKind>(
+        class NonGroupingStage<InputArtifact, InputArtifactKind>(
             artifactKind: InputArtifactKind,
             compilationStage: CompilationStage,
+            val stepPhase: TestPhase?,
         ) : HandlersStepBuilder<
                 InputArtifact,
                 InputArtifactKind,
@@ -108,23 +110,23 @@ sealed class TestStepBuilder<InputArtifact, OutputArtifact, out FacadeStep>
                 where InputArtifact : ResultingArtifact<InputArtifact>,
                       InputArtifactKind : TestArtifactKind<InputArtifact> {
             override fun createStep(handlers: List<AnalysisHandler<InputArtifact>>): TestStep.NonGroupingStep.HandlersStep<InputArtifact> {
-                return TestStep.NonGroupingStep.HandlersStep(artifactKind, handlers)
+                return TestStep.NonGroupingStep.HandlersStep(artifactKind, handlers, stepPhase)
             }
         }
 
-        class GroupingPhase<InputArtifact, InputArtifactKind>(
+        class GroupingStage<InputArtifact, InputArtifactKind>(
             artifactKind: InputArtifactKind,
             compilationStage: CompilationStage,
         ) : HandlersStepBuilder<
                 InputArtifact,
                 InputArtifactKind,
-                GroupingPhaseHandler<InputArtifact>,
-                TestStep.GroupingPhaseStep.HandlersStep<InputArtifact>>
+                GroupingStageHandler<InputArtifact>,
+                TestStep.GroupingStageStep.HandlersStep<InputArtifact>>
             (artifactKind, compilationStage)
                 where InputArtifact : ResultingArtifact<InputArtifact>,
                       InputArtifactKind : TestArtifactKind<InputArtifact> {
-            override fun createStep(handlers: List<GroupingPhaseHandler<InputArtifact>>): TestStep.GroupingPhaseStep.HandlersStep<InputArtifact> {
-                return TestStep.GroupingPhaseStep.HandlersStep(artifactKind, handlers)
+            override fun createStep(handlers: List<GroupingStageHandler<InputArtifact>>): TestStep.GroupingStageStep.HandlersStep<InputArtifact> {
+                return TestStep.GroupingStageStep.HandlersStep(artifactKind, handlers)
             }
         }
     }

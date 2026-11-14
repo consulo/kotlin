@@ -1,10 +1,14 @@
 import org.jetbrains.kotlin.buildtools.api.ExecutionPolicy
 import org.jetbrains.kotlin.buildtools.api.KotlinLogger
 import org.jetbrains.kotlin.buildtools.api.ProjectId
+import org.jetbrains.kotlin.buildtools.internal.ExecutionContext
 import org.jetbrains.kotlin.buildtools.internal.CancellableBuildOperationImpl
+import org.jetbrains.kotlin.buildtools.internal.DaemonConnectionRegistry
 import org.jetbrains.kotlin.buildtools.internal.KotlinToolchainsImpl
 import org.jetbrains.kotlin.buildtools.internal.Options
+import org.jetbrains.kotlin.buildtools.internal.classloading.LruClassLoadersCache
 import org.jetbrains.kotlin.progress.CompilationCanceledException
+import java.io.File
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -24,12 +28,16 @@ private class ExampleCancellableOperation(override val options: Options = Option
         projectId: ProjectId,
         executionPolicy: ExecutionPolicy,
         logger: KotlinLogger?,
+        executionContext: ExecutionContext,
     ) {
         repeat(10) {
             Thread.sleep(100)
             cancellationHandle.checkCanceled()
         }
     }
+
+    override val usesApplicationEnvironment: Boolean
+        get() = false
 }
 
 
@@ -49,7 +57,10 @@ class CancellableOperationTest {
                         operation.execute(
                             ProjectId.RandomProjectUUID(),
                             KotlinToolchainsImpl().createInProcessExecutionPolicy(),
-                            null
+                            executionContext = ExecutionContext(
+                                LruClassLoadersCache(0, this::class.java.classLoader),
+                                DaemonConnectionRegistry(lazy { File(".") })
+                            ),
                         )
                     )
                 } catch (_: CompilationCanceledException) {

@@ -1,16 +1,19 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("gradle-plugin-published-compiler-dependency-configuration")
+    id("gradle-plugin-compiler-dependency-configuration")
 }
 
 description = "Common klib metadata reader and writer"
 
 dependencies {
+    compileOnly(project(":core:descriptors"))
+
     compileOnly(project(":compiler:config.jvm"))
-    compileOnly(project(":compiler:frontend"))
-    compileOnly(project(":core:deserialization"))
+    compileOnly(project(":core:deserialization.common"))
     compileOnly(project(":core:compiler.common.native"))
-    compileOnly(project(":compiler:serialization"))
+    compileOnly(project(":compiler:serialization.common"))
     compileOnly(project(":native:kotlin-native-utils"))
     compileOnly(project(":native:native.config"))
 

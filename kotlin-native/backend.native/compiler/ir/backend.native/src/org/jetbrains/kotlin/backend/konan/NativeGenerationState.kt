@@ -1,12 +1,11 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.backend.konan
 
 import llvm.*
-import org.jetbrains.kotlin.backend.common.phaser.BackendContextHolder
 import org.jetbrains.kotlin.backend.common.serialization.FingerprintHash
 import org.jetbrains.kotlin.backend.common.serialization.Hash128Bits
 import org.jetbrains.kotlin.backend.konan.driver.BasicNativeBackendPhaseContext
@@ -17,9 +16,13 @@ import org.jetbrains.kotlin.backend.konan.llvm.runtime.RuntimeModule
 import org.jetbrains.kotlin.backend.konan.llvm.runtime.RuntimeModulesConfig
 import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExport
 import org.jetbrains.kotlin.backend.konan.serialization.CacheDeserializationStrategy
+import org.jetbrains.kotlin.backend.konan.serialization.PartialCacheInfo
 import org.jetbrains.kotlin.backend.konan.serialization.SerializedClassFields
 import org.jetbrains.kotlin.backend.konan.serialization.SerializedEagerInitializedFile
 import org.jetbrains.kotlin.backend.konan.serialization.SerializedInlineFunctionReference
+import org.jetbrains.kotlin.backend.konan.serialization.SerializedObjCAdapter
+import org.jetbrains.kotlin.backend.konan.serialization.SerializedTrivialGetter
+import org.jetbrains.kotlin.ir.IrDiagnosticReporter
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.konan.config.konanHome
 import org.jetbrains.kotlin.util.PerformanceManager
@@ -55,14 +58,17 @@ internal class NativeGenerationState(
         config: NativeSecondStageCompilationConfig,
         // TODO: Get rid of this property completely once transition to the dynamic driver is complete.
         //  It will reduce code coupling and make it easier to create NativeGenerationState instances.
-        val context: Context,
-        val cacheDeserializationStrategy: CacheDeserializationStrategy?,
+        val context: NativeBackendContext,
+        val cacheInfo: PartialCacheInfo?,
         val dependenciesTracker: DependenciesTracker,
         val llvmModuleSpecification: LlvmModuleSpecification,
         val outputFiles: OutputFiles,
         val llvmModuleName: String,
         override val performanceManager: PerformanceManager?,
-) : BasicNativeBackendPhaseContext(config), BackendContextHolder, LlvmIrHolder, BitcodePostProcessingContext {
+) : BasicNativeBackendPhaseContext(config), NativeLoweringContext by context, LlvmIrHolder, BitcodePostProcessingContext {
+    val cacheDeserializationStrategy: CacheDeserializationStrategy?
+        get() = cacheInfo?.strategy
+
     val outputFile = outputFiles.mainFileName
 
     var klibHash: FingerprintHash = FingerprintHash(Hash128Bits(0U, 0U))
@@ -70,11 +76,15 @@ internal class NativeGenerationState(
     val inlineFunctionBodies = mutableListOf<SerializedInlineFunctionReference>()
     val classFields = mutableListOf<SerializedClassFields>()
     val eagerInitializedFiles = mutableListOf<SerializedEagerInitializedFile>()
+    val trivialGetters = mutableListOf<SerializedTrivialGetter>()
+    // KT-89121: `@BindClassToObjCName` adapters of the library being cached, for the final binary to use them.
+    val objCAdapters = mutableListOf<SerializedObjCAdapter>()
+
     var coroutinesLivenessAnalysisPhasePerformed = false
 
     lateinit var fileLowerState: FileLowerState
 
-    val producedLlvmModuleContainsStdlib get() = llvmModuleSpecification.containsModule(context.stdlibModule)
+    val producedLlvmModuleContainsStdlib = llvmModuleSpecification.containsModule(context.irLinker.getBuiltInsModule())
 
     internal val runtimeModulesConfig = RuntimeModulesConfig(config)
 
@@ -92,7 +102,10 @@ internal class NativeGenerationState(
     val cStubsManager = CStubsManager(config.target, this)
     lateinit var llvmDeclarations: LlvmDeclarations
 
-    val virtualFunctionTrampolines = mutableMapOf<IrSimpleFunction, LlvmCallable>()
+    val virtualFunctionTrampolines = mutableMapOf<IrSimpleFunction, LlvmFunction>()
+
+    val bindClassToObjCNameClassAdapters = mutableMapOf<String, ConstPointer>()
+    val bindClassToObjCNameInterfaceAdapters = mutableMapOf<String, ConstPointer>()
 
     lateinit var objCExport: ObjCExport
 
@@ -112,6 +125,16 @@ internal class NativeGenerationState(
             context.inVerbosePhase = value
         }
 
+    override fun log(message: String) {
+        super<BasicNativeBackendPhaseContext>.log(message)
+    }
+
+    override val diagnosticReporter: IrDiagnosticReporter
+        get() = super.diagnosticReporter
+
+    override val config: NativeSecondStageCompilationConfig
+        get() = super.config
+
     override fun dispose() {
         if (isDisposed) return
 
@@ -129,9 +152,6 @@ internal class NativeGenerationState(
 
         isDisposed = true
     }
-
-    override val heldBackendContext: Context
-        get() = context
 
     override val llvmModule: LLVMModuleRef
         get() = llvm.module

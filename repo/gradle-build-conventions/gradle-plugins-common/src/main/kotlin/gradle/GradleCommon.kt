@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -20,6 +20,7 @@ import org.gradle.api.attributes.java.TargetJvmEnvironment
 import org.gradle.api.attributes.java.TargetJvmVersion
 import org.gradle.api.attributes.plugin.GradlePluginApiVersion
 import org.gradle.api.component.AdhocComponentWithVariants
+import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.JavaBasePlugin
@@ -162,17 +163,6 @@ fun Project.createGradleCommonSourceSet(): SourceSet {
     val commonSourceSet = sourceSets.create(commonSourceSetName) {
         excludeGradleCommonDependencies(this)
 
-        repositories {
-            exclusiveContent {
-                forRepository {
-                    maven(url = "https://repo.gradle.org/gradle/libs-releases")
-                }
-                filter {
-                    includeGroup("org.gradle.experimental")
-                }
-            }
-        }
-
         // Adding Gradle API to separate configuration, so version will not leak into variants
         val commonGradleApiConfiguration = configurations.dependencyScope("commonGradleApiCompileOnly")
 
@@ -239,8 +229,6 @@ fun Project.createGradleCommonSourceSet(): SourceSet {
         // Common outputs will also produce '${project.name}.kotlin_module' file, so we need to avoid
         // files clash
         compilerOptions.moduleName.set("${this@createGradleCommonSourceSet.name}_${commonSourceSet.name}")
-        // Workaround for https://youtrack.jetbrains.com/issue/KT-80750
-        compilerOptions.freeCompilerArgs.add("-Xjspecify-annotations=ignore")
         configureGradleCompatibility()
     }
 
@@ -368,7 +356,11 @@ fun Project.reconfigureMainSourcesSetForGradlePlugin(
             "compileOnly"("org.jetbrains.kotlin:kotlin-stdlib:${GradlePluginVariant.GRADLE_MIN.bundledKotlinVersion}.0")
             // Decoupling gradle-api artifact from current project Gradle version. Later would be useful for
             // gradle plugin variants
-            "compileOnly"("dev.gradleplugins:gradle-api:${GradlePluginVariant.GRADLE_MIN.gradleApiVersion}")
+            "compileOnly"("org.gradle.experimental:gradle-public-api:${GradlePluginVariant.GRADLE_MIN.gradleApiVersion}") {
+                capabilities {
+                    requireCapability("org.gradle.experimental:gradle-public-api-internal")
+                }
+            }
             if (this@reconfigureMainSourcesSetForGradlePlugin.name !in testPlugins) {
                 "api"(project(":kotlin-gradle-plugin-api"))
             }
@@ -403,6 +395,11 @@ fun Project.reconfigureMainSourcesSetForGradlePlugin(
                     attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
                     attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
                 }
+            }
+
+            tasks.named<Jar>(sourceSets.getByName("main").sourcesJarTaskName) {
+                addEmbeddedSources()
+                addEmbeddedSources(sourceSets.getByName("main").embeddedConfigurationName)
             }
         }
 
@@ -598,13 +595,17 @@ private fun Project.createGradlePluginVariant(
 
     dependencies {
         variantSourceSet.compileOnlyConfigurationName("org.jetbrains.kotlin:kotlin-stdlib:${GradlePluginVariant.GRADLE_MIN.bundledKotlinVersion}.0")
-        if (variant == GradlePluginVariant.GRADLE_813) {
-            // Workaround until 'dev.gradleplugins:gradle-api:8.13' will be published
-            variantSourceSet.compileOnlyConfigurationName("org.jetbrains.intellij.deps:gradle-api:${variant.gradleApiVersion}")
-            variantSourceSet.compileOnlyConfigurationName("javax.inject:javax.inject:1")
-        } else {
-            variantSourceSet.compileOnlyConfigurationName("dev.gradleplugins:gradle-api:${variant.gradleApiVersion}")
+        variantSourceSet.compileOnlyConfigurationName("org.gradle.experimental:gradle-public-api:${variant.gradleApiVersion}") {
+            capabilities {
+                requireCapability("org.gradle.experimental:gradle-public-api-internal")
+            }
+            if (variant <= GradlePluginVariant.GRADLE_96) {
+                // gradle-public-api 9.6 pins org.jetbrains:annotations with `strictly`, conflicting with our own version.
+                // Gradle 9.7+ no longer depends on it, so remove this once KGP requires 9.7+.
+                exclude(group = "org.jetbrains", module = "annotations")
+            }
         }
+
         if (this@createGradlePluginVariant.name !in testPlugins) {
             variantSourceSet.apiConfigurationName(project(":kotlin-gradle-plugin-api"))
         }
@@ -715,32 +716,55 @@ fun Project.configureBuildToolsApiVersionForGradleCompatibility() {
             val kgpCompilerMajorVersion = kgpCompilerVersion.substringBeforeLast(".").let { KotlinVersion.fromVersion(it) }
             languageVersion.set(kgpCompilerMajorVersion)
             apiVersion.set(kgpCompilerMajorVersion)
+            freeCompilerArgs.add("-Xwarning-level=DEPRECATED_LANGUAGE_VERSION:disabled")
         }
     }
-    project.extra["kotlin.compiler.runViaBuildToolsApi"] = true
 }
 
-// Will allow combining outputs of multiple SourceSets
+// Shares expensive shadowing of common inputs while allowing final jars to combine multiple SourceSet outputs.
 fun Project.publishShadowedJar(
     sourceSet: SourceSet,
     commonSourceSet: SourceSet,
 ) {
     val jarTask = tasks.named<Jar>(sourceSet.jarTaskName)
+    val embeddableJarTaskName = "embeddable${sourceSet.jarTaskName.replaceFirstChar { it.uppercase() }}"
+    val internalJarsDirectory = project.layout.buildDirectory.dir("intermediates/embeddableJars")
+    val baselineShadowJarTask = if (EMBEDDABLE_BASELINE_TASK_NAME in tasks.names) {
+        tasks.named<ShadowJar>(EMBEDDABLE_BASELINE_TASK_NAME)
+    } else {
+        tasks.register<ShadowJar>(EMBEDDABLE_BASELINE_TASK_NAME) {
+            destinationDirectory.set(internalJarsDirectory)
+            archiveBaseName.set("${project.name}-embeddable-baseline")
+            addEmbeddedRuntime()
+            from(commonSourceSet.output)
 
-    val shadowJarTask = tasks.register<ShadowJar>(
-        "$EMBEDDABLE_COMPILER_TASK_NAME${sourceSet.jarTaskName.replaceFirstChar { it.uppercase() }}"
-    ) {
-        destinationDirectory.set(project.layout.buildDirectory.dir("libs"))
-        setupPublicJar(
-            jarTask.flatMap { it.archiveBaseName },
-            jarTask.flatMap { it.archiveClassifier }
-        )
-        addEmbeddedRuntime()
+            configureEmbeddableCompilerRelocation(withJavaxInject = false)
+        }
+    }
+    val specificShadowJarTask = tasks.register<ShadowJar>("${embeddableJarTaskName}Specific") {
+        destinationDirectory.set(internalJarsDirectory)
+        archiveBaseName.set("${project.name}-${sourceSet.name}-embeddable-specific")
         addEmbeddedRuntime(sourceSet.embeddedConfigurationName)
         from(sourceSet.output)
-        from(commonSourceSet.output)
 
         configureEmbeddableCompilerRelocation(withJavaxInject = false)
+    }
+    val embeddableJarTask = tasks.register<Jar>(embeddableJarTaskName) {
+        duplicatesStrategy = DuplicatesStrategy.FAIL
+        destinationDirectory.set(project.layout.buildDirectory.dir("libs"))
+
+        setupPublicJar(
+            baseName = jarTask.flatMap { it.archiveBaseName },
+            classifier = jarTask.flatMap { it.archiveClassifier }
+        )
+
+        from(baselineShadowJarTask.map { task -> zipTree(task.archiveFile.get()) }) {
+            exclude("META-INF/MANIFEST.MF")
+        }
+
+        from(specificShadowJarTask.map { task -> zipTree(task.archiveFile.get()) }) {
+            exclude("META-INF/MANIFEST.MF")
+        }
     }
 
     // Removing artifact produced by Jar task
@@ -756,19 +780,21 @@ fun Project.publishShadowedJar(
             .artifacts.removeAll { true }
     }
 
-    // Adding instead artifact from shadow jar task
+    // Adding instead artifact from embeddable jar task
     configurations {
         artifacts {
             if (sourceSet.name == SourceSet.MAIN_SOURCE_SET_NAME) {
-                add("${sourceSet.runtimeElementsConfigurationName}$FIXED_CONFIGURATION_SUFFIX", shadowJarTask)
-                add("${sourceSet.apiElementsConfigurationName}$FIXED_CONFIGURATION_SUFFIX", shadowJarTask)
+                add("${sourceSet.runtimeElementsConfigurationName}$FIXED_CONFIGURATION_SUFFIX", embeddableJarTask)
+                add("${sourceSet.apiElementsConfigurationName}$FIXED_CONFIGURATION_SUFFIX", embeddableJarTask)
             } else {
-                add(sourceSet.apiElementsConfigurationName, shadowJarTask)
-                add(sourceSet.runtimeElementsConfigurationName, shadowJarTask)
+                add(sourceSet.apiElementsConfigurationName, embeddableJarTask)
+                add(sourceSet.runtimeElementsConfigurationName, embeddableJarTask)
             }
         }
     }
 }
+
+private const val EMBEDDABLE_BASELINE_TASK_NAME = "embeddableBaselineJar"
 
 fun Project.addBomCheckTask() {
     val checkBomTask = tasks.register("checkGradlePluginsBom") {
@@ -908,21 +934,15 @@ fun Project.excludeGradleEmbeddedStdlibFromTestTasksRuntimeClasspath() {
     }
 }
 
-private fun Project.gradleEmbeddedStdlib(): File = (dependencies.gradleApi() as FileCollectionDependency).files.single { it.name.startsWith("kotlin-stdlib") }
+private fun Project.gradleEmbeddedStdlib(): File =
+    (dependencies.gradleApi() as FileCollectionDependency).files.single { it.name.startsWith("kotlin-stdlib") }
 
 fun Project.createGradlePluginVariants(
     commonSourceSet: SourceSet,
     publishShadowedJar: Boolean,
 ) {
     listOf(
-        GradlePluginVariant.GRADLE_80,
-        GradlePluginVariant.GRADLE_81,
-        GradlePluginVariant.GRADLE_82,
-        GradlePluginVariant.GRADLE_85,
-        GradlePluginVariant.GRADLE_86,
-        GradlePluginVariant.GRADLE_88,
-        GradlePluginVariant.GRADLE_811,
-        GradlePluginVariant.GRADLE_813,
+        GradlePluginVariant.GRADLE_96,
     ).forEach { variant ->
         createGradlePluginVariant(
             variant = variant,

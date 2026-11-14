@@ -243,7 +243,7 @@ suspend fun acceptTest(test: Test) {
 }
 
 @JsExport
-interface HolderOfParentSuspendFun1<T> {
+interface HolderOfParentSuspendFun1<T> : IntermediateImplicitExportInterface {
     suspend fun parentSuspendFun1(someValue: String = "1"): T
 }
 
@@ -317,4 +317,41 @@ suspend fun assertIntermediateNotExportedInterface(holder: IntermediateNotExport
         NotExportedParent::class.js, ExportedChild::class.js -> "NotExportedParent Intermediate"
         else /* TypeScript */ -> "IntermediateTypeScriptSuspendFun1"
     })
+}
+
+@JsExport
+abstract class AbstractWithSuspend {
+    abstract suspend fun value(): String
+}
+
+@JsExport
+class KotlinImplWithSuspend : AbstractWithSuspend() {
+    override suspend fun value(): String = "KotlinImplWithSuspend"
+}
+
+@JsExport
+abstract class AbstractWithSuspendAndDefaultArgument {
+    abstract suspend fun value(suffix: String = "!"): String
+}
+
+@JsExport
+class KotlinImplWithSuspendAndDefaultArg : AbstractWithSuspendAndDefaultArgument() {
+    override suspend fun value(suffix: String): String = "KotlinImplWithSuspendAndDefaultArg$suffix"
+}
+
+@JsExport
+suspend fun acceptAbstractWithSuspend(x: AbstractWithSuspend) = x.value()
+
+@JsExport
+suspend fun acceptAbstractWithSuspendAndDefaultArgument(x: AbstractWithSuspendAndDefaultArgument, suffix: String?) =
+    if (suffix == null) x.value() else x.value(suffix)
+
+// FILE: another_file.kt
+package foo
+
+// This check is needed for the kotlinx.coroutines Flow export
+@Suppress("INVISIBLE_REFERENCE")
+@JsImplicitExport(true)
+interface IntermediateImplicitExportInterface {
+    suspend fun withDefaultImpl() = "OK"
 }

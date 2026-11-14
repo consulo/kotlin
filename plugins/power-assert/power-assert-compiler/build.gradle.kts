@@ -4,25 +4,28 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
 description = "Kotlin Power-Assert Compiler Plugin"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
-val junit5Classpath by configurations.creating
+val junit5Classpath = configurations.create("junit5Classpath")
 
-val powerAssertRuntimeClasspath by configurations.dependencyScope("powerAssertRuntimeClasspath")
-val powerAssertJvmRuntimeClasspath by configurations.resolvable("powerAssertJvmRuntimeClasspath") {
+val powerAssertRuntimeClasspath = configurations.dependencyScope("powerAssertRuntimeClasspath").get()
+
+val powerAssertJvmRuntimeClasspath = configurations.resolvable("powerAssertJvmRuntimeClasspath") {
     extendsFrom(powerAssertRuntimeClasspath)
-}
-val powerAssertJsRuntimeClasspath by configurations.resolvable("powerAssertJsRuntimeClasspath") {
+}.get()
+
+val powerAssertJsRuntimeClasspath = configurations.resolvable("powerAssertJsRuntimeClasspath") {
     extendsFrom(powerAssertRuntimeClasspath)
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(KotlinUsages.KOTLIN_RUNTIME))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.js)
     }
-}
+}.get()
 
 dependencies {
     embedded(project(":kotlin-power-assert-compiler-plugin.common")) { isTransitive = false }
@@ -37,6 +40,7 @@ dependencies {
     testFixturesApi(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
+    testFixturesApi(testFixtures(project(":compiler:jvm.tests")))
     testFixturesImplementation(testFixtures(project(":generators:test-generator")))
 
     testRuntimeOnly(commonDependency("org.codehaus.woodstox:stax2-api"))
@@ -50,7 +54,10 @@ optInToExperimentalCompilerApi()
 
 sourceSets {
     "main" { none() }
-    "test" { generatedTestDir() }
+    "test" {
+        generatedTestDir()
+        projectDefault()
+    }
     "testFixtures" { projectDefault() }
 }
 
@@ -59,10 +66,9 @@ publish()
 runtimeJar()
 sourcesJar()
 javadocJar()
-testsJar()
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5) {
+    testTask {
         addClasspathProperty(junit5Classpath, "junit5.classpath")
         addClasspathProperty(powerAssertJvmRuntimeClasspath, "powerAssertRuntime.jvm.classpath")
         addClasspathProperty(powerAssertJsRuntimeClasspath, "powerAssertRuntime.js.classpath")
@@ -71,7 +77,6 @@ projectTests {
     testGenerator("org.jetbrains.kotlin.powerassert.TestGeneratorKt", generateTestsInBuildDirectory = true)
 
     withJvmStdlibAndReflect()
-    withScriptRuntime()
     withTestJar()
     withMockJdkAnnotationsJar()
     withMockJdkRuntime()

@@ -65,6 +65,7 @@ sealed class CallKind(
         CheckCallModifiers,
         EagerResolveOfCallableReferences,
         EagerResolveOfCollectionLiteral,
+        EagerResolveOfContextSensitiveSimpleName,
         CheckLowPriorityInOverloadResolution,
         ProcessDynamicExtensionAnnotation,
         LowerPriorityIfDynamic,
@@ -72,10 +73,14 @@ sealed class CallKind(
         CheckIncompatibleTypeVariableUpperBounds,
         TypeParameterAsCallable,
         TypeVariablesInExplicitReceivers,
+        InferThrowableTypeParameterToUpperBound,
         CheckLambdaAgainstTypeVariableContradiction,
     )
 
     /**
+     * NB! Only used for non-trivial collection literals in `WithExpectedType` or `ContextDependent` call kinds.
+     * The other collection literals fallback earlier.
+     *
      * For collection literal, we only need stages that either:
      * 1. are part of candidate constraint system construction, or
      * 2. in green code, ensure that we choose the correct one among operator `of`s ([MapArguments], [CheckCallModifiers], ...)
@@ -100,8 +105,10 @@ sealed class CallKind(
             CheckContextArguments,
             CheckShadowedImplicits,
             EagerResolveOfCollectionLiteral,
+            EagerResolveOfContextSensitiveSimpleName,
             EagerResolveOfCallableReferences,
             CheckLambdaAgainstTypeVariableContradiction,
+            InferThrowableTypeParameterToUpperBound,
             CheckIncompatibleTypeVariableUpperBounds,
         )
     )
@@ -120,6 +127,7 @@ sealed class CallKind(
         CheckShadowedImplicits,
         EagerResolveOfCallableReferences,
         EagerResolveOfCollectionLiteral,
+        EagerResolveOfContextSensitiveSimpleName,
         ConstraintSystemForks,
         CheckIncompatibleTypeVariableUpperBounds,
         CheckLambdaAgainstTypeVariableContradiction,
@@ -135,6 +143,7 @@ sealed class CallKind(
         CollectTypeVariableUsagesInfo,
         CheckDispatchReceiver,
         CheckExtensionReceiver,
+        CheckContextArguments,
         CheckShadowedImplicits,
         CheckCallableReferenceExpectedType,
         CheckLowPriorityInOverloadResolution,
@@ -173,6 +182,7 @@ class ResolutionSequenceBuilder(
     var resolveCallableReferenceArguments: Boolean = false,
     var checkCallableReferenceExpectedType: Boolean = false,
     val checkContextParameters: Boolean = false,
+    val inferThrowableTypeParameterToUpperBound: Boolean = false,
 ) {
     fun build(): CallKind {
         val stages = mutableListOf<ResolutionStage>().apply {
@@ -184,6 +194,7 @@ class ResolutionSequenceBuilder(
             if (checkDispatchReceiver) add(CheckDispatchReceiver)
             if (checkExtensionReceiver) add(CheckExtensionReceiver)
             if (checkArguments) add(CheckArguments)
+            if (inferThrowableTypeParameterToUpperBound) add(InferThrowableTypeParameterToUpperBound)
             if (checkContextParameters) add(CheckContextArguments)
             if (resolveCallableReferenceArguments) add(EagerResolveOfCallableReferences)
             if (checkLowPriorityInOverloadResolution) add(CheckLowPriorityInOverloadResolution)

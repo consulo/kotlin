@@ -8,9 +8,8 @@ public final class InitBlockKt /* InitBlockKt*/ {
   public static final void setResult(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() java.lang.String);//  setResult(@org.jetbrains.annotations.NotNull() java.lang.String)
 }
 
-@<error>()
-@<error>()
 @kotlin.OptIn(markerClass = {kotlin.ExperimentalStdlibApi.class})
+@kotlin.jvm.JvmInline()
 public final class StringWrapper /* StringWrapper*/ {
   @org.jetbrains.annotations.NotNull()
   private final @org.jetbrains.annotations.NotNull() java.lang.String s;

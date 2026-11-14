@@ -6,9 +6,12 @@
 package org.jetbrains.kotlin.config.keys.generator
 
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.components.ClassLoadersCache
 import org.jetbrains.kotlin.config.HmppCliModuleStructure
 import org.jetbrains.kotlin.config.IrVerificationMode
 import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.config.MessageCollectorAccess
+import org.jetbrains.kotlin.config.ParserMode
 import org.jetbrains.kotlin.config.keys.generator.model.KeysContainer
 import org.jetbrains.kotlin.config.phaser.PhaseConfig
 import org.jetbrains.kotlin.incremental.components.*
@@ -34,7 +37,7 @@ object CommonConfigurationKeysContainer : KeysContainer("org.jetbrains.kotlin.co
     val IMPORT_TRACKER by key<ImportTracker>(throwOnNull = false)
     val METADATA_VERSION by key<BinaryVersion>()
     val USE_FIR by key<Boolean>()
-    val USE_LIGHT_TREE by key<Boolean>()
+    val PARSER_MODE by key<ParserMode>(defaultValue = "ParserMode.Default")
     val HMPP_MODULE_STRUCTURE by key<HmppCliModuleStructure>()
     val METADATA_KLIB by key<Boolean>()
     val USE_FIR_EXTRA_CHECKERS by key<Boolean>()
@@ -44,15 +47,16 @@ object CommonConfigurationKeysContainer : KeysContainer("org.jetbrains.kotlin.co
     val DUMP_MODEL by key<String>()
     val INCREMENTAL_COMPILATION by key<Boolean>()
     val ALLOW_ANY_SCRIPTS_IN_SOURCE_ROOTS by key<Boolean>()
-    val IGNORE_CONST_OPTIMIZATION_ERRORS by key<Boolean>()
 
-    val MESSAGE_COLLECTOR_KEY by key<MessageCollector>(defaultValue = "MessageCollector.NONE", accessorName = "messageCollector")
+    val MESSAGE_COLLECTOR_KEY by key<MessageCollector>(
+        defaultValue = "MessageCollector.NONE",
+        accessorName = "messageCollector",
+        annotations = listOf(MessageCollectorAccess())
+    )
 
     val VERIFY_IR by key<IrVerificationMode>()
-    val ENABLE_IR_VISIBILITY_CHECKS by key<Boolean>("Checks pre-lowering IR for visibility violations.")
-    val ENABLE_IR_VARARG_TYPES_CHECKS by key<Boolean>("Checks IR for vararg types mismatches.")
-    val ENABLE_IR_NESTED_OFFSETS_CHECKS by key<Boolean>("Checks that offsets of nested IR elements conform to offsets of their containers.")
-
+    val DISABLE_IR_CHECKERS by key<List<String>>("Disable specific IR checkers by simple class name or group tag")
+    val ADDITIONAL_IR_CHECKERS by key<List<String>>("Enable optional IR checkers by simple class name or group tag")
     val PHASE_CONFIG by key<PhaseConfig>()
 
     val DONT_CREATE_SEPARATE_SESSION_FOR_SCRIPTS by key<Boolean>("Should be used only in tests, impossible to set via compiler arguments.")
@@ -70,4 +74,6 @@ object CommonConfigurationKeysContainer : KeysContainer("org.jetbrains.kotlin.co
     )
 
     val TARGET_PLATFORM by key<TargetPlatform>()
+
+    val CLASSLOADERS_CACHE by key<ClassLoadersCache>("Cache for classloaders to be used by compiler plugins (e.g. Kapt)", throwOnNull = false)
 }

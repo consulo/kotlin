@@ -99,6 +99,9 @@ class WasmSerializer(outputStream: OutputStream) {
         serializeMap(definedRttiSuperType, ::serializeIdSignature, ::serializeClassSuperType)
     }
 
+    private fun serializeEquivalentDeclarations(declarations: List<Pair<String, IdSignature>>) =
+        serializeList(declarations) { serializePair(it, ::serializeString, ::serializeIdSignature) }
+
     fun serializeCompiledLinkerData(linkerData: WasmCompiledLinkerDataFileFragment) = with(linkerData) {
         serializeGlobalLiterals(globalLiterals)
         serializeMap(globalLiteralsId, ::serializeString, ::serializeIntSymbol)
@@ -108,13 +111,15 @@ class WasmSerializer(outputStream: OutputStream) {
         serializeMap(jsModuleImports, ::serializeIdSignature, ::serializeString)
         serializeMap(jsBuiltinsPolyfills, ::serializeString, ::serializeString)
         serializeList(exports, ::serializeWasmExport)
-        serializeList(mainFunctionWrappers, ::serializeIdSignature)
+        serializeList(mainFunctionWrappers, ::serializeMainFunctionWrapper)
         serializeList(testFunctionDeclarators, ::serializeIdSignature)
-        serializeList(equivalentFunctions) { serializePair(it, ::serializeString, ::serializeIdSignature) }
+        serializeEquivalentDeclarations(equivalentFunctions)
+        serializeEquivalentDeclarations(equivalentTypes)
         serializeSet(jsModuleAndQualifierReferences, ::serializeJsModuleAndQualifierReference)
         serializeList(classAssociatedObjectsInstanceGetters, ::serializeClassAssociatedObjects)
         serializeList(objectInstanceFieldInitializers, ::serializeIdSignature)
         serializeList(nonConstantFieldInitializers, ::serializeIdSignature)
+        serializeSet(wasmReferencedFunctions, ::serializeIdSignature)
     }
 
     private fun serializeWasmFunction(func: WasmFunction) =
@@ -150,11 +155,17 @@ class WasmSerializer(outputStream: OutputStream) {
             serializeList(funcType.resultTypes, ::serializeWasmType)
         }
 
+    private fun serializeWasmContType(funcType: WasmContType) =
+        serializeNamedModuleField(funcType) {
+            serializeWasmHeapType(funcType.funType)
+        }
+
     private fun serializeWasmTypeDeclaration(typeDecl: WasmTypeDeclaration): Unit =
         when (typeDecl) {
             is WasmFunctionType -> withTag(TypeDeclarationTags.FUNCTION) { serializeWasmFunctionType(typeDecl) }
             is WasmStructDeclaration -> withTag(TypeDeclarationTags.STRUCT) { serializeWasmStructDeclaration(typeDecl) }
             is WasmArrayDeclaration -> withTag(TypeDeclarationTags.ARRAY) { serializeWasmArrayDeclaration(typeDecl) }
+            is WasmContType -> withTag(TypeDeclarationTags.CONT) { serializeWasmContType(typeDecl) }
         }
 
     private fun serializeWasmStructDeclaration(structDecl: WasmStructDeclaration) {
@@ -222,6 +233,7 @@ class WasmSerializer(outputStream: OutputStream) {
             WasmHeapType.Simple.NoExtern -> setTag(HeapTypeTags.NO_EXTERN)
             WasmHeapType.Simple.None -> setTag(HeapTypeTags.NONE)
             WasmHeapType.Simple.NoFunc -> setTag(HeapTypeTags.NO_FUNC)
+            WasmHeapType.Simple.NoCont -> setTag(HeapTypeTags.NO_CONT)
             WasmHeapType.Simple.Struct -> setTag(HeapTypeTags.STRUCT)
             is GcHeapTypeSymbol -> withTag(HeapTypeTags.HEAP_GC_TYPE) { serializeIdSignature(type.type) }
             is VTableHeapTypeSymbol -> withTag(HeapTypeTags.HEAP_VT_TYPE) { serializeIdSignature(type.type) }
@@ -282,7 +294,7 @@ class WasmSerializer(outputStream: OutputStream) {
 
     private fun serializeWasmImmediate(i: WasmImmediate): Unit =
         when (i) {
-            is WasmImmediate.BlockType.Function -> withTag(ImmediateTags.BLOCK_TYPE_FUNCTION) { serializeWasmSymbolReadOnly(i.type, ::serializeWasmFunctionType) }
+            is WasmImmediate.BlockType.Function -> withTag(ImmediateTags.BLOCK_TYPE_FUNCTION) { serializeWasmImmediate(i.type) }
             is WasmImmediate.BlockType.Value -> withTagNullable(ImmediateTags.BLOCK_TYPE_VALUE, i.type) { serializeWasmType(i.type!!) }
             is WasmImmediate.Catch -> withTag(ImmediateTags.CATCH) { serializeCatchImmediate(i) }
             is WasmImmediate.ConstF32 -> withTag(ImmediateTags.CONST_F32) { body.writeUInt32(i.rawBits) }
@@ -315,8 +327,19 @@ class WasmSerializer(outputStream: OutputStream) {
             is WasmImmediate.TableIdx -> withTag(ImmediateTags.TABLE_INDEX) { serializeWasmSymbolReadOnly(i.value) { serializeInt(it) } }
             is WasmImmediate.TagIdx -> withTag(ImmediateTags.TAG_INDEX) { serializeWasmSymbolReadOnly(i.value) { serializeInt(it) } }
             is WasmImmediate.ValTypeVector -> withTag(ImmediateTags.VALUE_TYPE_VECTOR) { serializeList(i.value, ::serializeWasmType) }
+            is WasmImmediate.ContHandle -> withTag(ImmediateTags.CONT_HANDLE) { serializeWasmContHandle(i) }
             else -> error("Unknown WasmImmediate type: ${i::class.simpleName}")
         }
+
+    private fun serializeWasmContHandle(contHandle: WasmImmediate.ContHandle) {
+        val type = when (contHandle.type) {
+            WasmImmediate.ContHandle.ContHandleType.ON -> ImmediateContTags.ON
+            WasmImmediate.ContHandle.ContHandleType.ON_SWITCH -> ImmediateContTags.ON_SWITCH
+        }
+        withTag(type) {
+            serializeList(contHandle.immediates, ::serializeWasmImmediate)
+        }
+    }
 
     private fun serializeCatchImmediate(catch: WasmImmediate.Catch) {
         val type = when (catch.type) {
@@ -387,6 +410,11 @@ class WasmSerializer(outputStream: OutputStream) {
         serializeWasmSymbolReadOnly(descriptor.declarationName, ::serializeString)
     }
 
+    private fun serializeMainFunctionWrapper(wrapper: MainFunctionWrapper) {
+        serializeString(wrapper.fqName)
+        serializeIdSignature(wrapper.function)
+    }
+
     private fun <A, B> serializePair(pair: Pair<A, B>, serializeAFunc: (A) -> Unit, serializeBFunc: (B) -> Unit) {
         serializeAFunc(pair.first)
         serializeBFunc(pair.second)
@@ -404,7 +432,7 @@ class WasmSerializer(outputStream: OutputStream) {
 
     private fun <K, V> serializeMap(map: Map<K, V>, serializeKeyFunc: (K) -> Unit, serializeValueFunc: (V) -> Unit) {
         serializeInt(map.size)
-        map.forEach { (key, value) ->
+        map.forEach { [key, value] ->
             serializeKeyFunc(key)
             serializeValueFunc(value)
         }

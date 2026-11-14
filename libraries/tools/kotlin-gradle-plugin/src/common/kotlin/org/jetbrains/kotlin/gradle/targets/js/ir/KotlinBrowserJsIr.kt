@@ -6,36 +6,33 @@
 package org.jetbrains.kotlin.gradle.targets.js.ir
 
 import org.gradle.api.Action
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation.Companion.TEST_COMPILATION_NAME
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBrowserDsl
+import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBrowserTestDsl
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.targets.js.testing.karma.KotlinKarma
-import org.jetbrains.kotlin.gradle.targets.js.webTargetVariant
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
-import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootExtension
+import org.jetbrains.kotlin.gradle.targets.wasm.dsl.KotlinWasmJsBrowserDsl
+import org.jetbrains.kotlin.gradle.targets.web.WebIsolatedProjectsSupport
+import org.jetbrains.kotlin.gradle.targets.web.webIsolatedProjectsSupport
+import org.jetbrains.kotlin.gradle.tasks.KotlinWasmDevServer
 import org.jetbrains.kotlin.gradle.utils.withType
 import javax.inject.Inject
 
+@OptIn(ExperimentalWasmDsl::class)
 abstract class KotlinBrowserJsIr @Inject constructor(target: KotlinJsIrTarget) :
     KotlinJsIrNpmBasedSubTarget(target, "browser"),
-    KotlinJsBrowserDsl {
+    KotlinJsBrowserDsl,
+    KotlinWasmJsBrowserDsl {
 
     override val testTaskDescription: String
         get() = "Run all ${target.name} tests inside browser using karma and webpack"
 
     override fun configureTestDependencies(test: KotlinJsTest, binary: JsIrBinary) {
-        with(nodeJsEnvSpec) {
-            test.dependsOn(project.nodeJsSetupTaskProvider)
-        }
-        test.dependsOn(nodeJsRoot.packageManagerExtension.map { it.postInstallTasks })
-        test.dependsOn(
-            nodeJsRoot.npmInstallTaskProvider,
-        )
-        if (target.webTargetVariant(jsVariant = false, wasmVariant = true)) {
-            test.dependsOn((nodeJsRoot as WasmNodeJsRootExtension).toolingInstallTaskProvider)
-        }
-
+        test.dependsOnNpmTooling(binary.compilation)
         test.dependsOn(binary.linkSyncTask)
     }
 
@@ -46,8 +43,10 @@ abstract class KotlinBrowserJsIr @Inject constructor(target: KotlinJsIrTarget) :
             }
         }
 
-        if (target.platformType != KotlinPlatformType.wasm && test.enabled) {
-            nodeJsRoot.taskRequirements.addTaskRequirements(test)
+        if (project.webIsolatedProjectsSupport == WebIsolatedProjectsSupport.Off) {
+            if (target.platformType != KotlinPlatformType.wasm && test.enabled) {
+                nodeJsRoot.taskRequirements.addTaskRequirements(test)
+            }
         }
     }
 
@@ -82,6 +81,25 @@ abstract class KotlinBrowserJsIr @Inject constructor(target: KotlinJsIrTarget) :
                 it.configureBuild(body)
             }
     }
+
+    @ExperimentalWasmDsl
+    override fun devServer(body: Action<KotlinWasmDevServer>) {
+        subTargetConfigurators
+            .withType<NoBundleConfigurator>()
+            .configureEach {
+                it.configureRun(body)
+            }
+    }
+
+    private val testDsl: Lazy<KotlinJsBrowserTestImpl> = lazy {
+        project.objects.createKotlinJsBrowserTestImpl(target.compilations.getByName(TEST_COMPILATION_NAME))
+    }
+
+    override val test: KotlinJsBrowserTestDsl get() = testDsl.value
+
+    override fun test(body: Action<KotlinJsBrowserTestDsl>) = body.execute(test)
+
+    internal fun usedJsBrowserTestDsl() = testDsl.isInitialized()
 
     companion object {
         internal const val WEBPACK_TASK_NAME = "webpack"

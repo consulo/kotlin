@@ -4,15 +4,16 @@ import org.gradle.api.tasks.Internal
 import org.gradle.work.DisableCachingByDefault
 import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.targets.js.AbstractSetupTask
+import org.jetbrains.kotlin.gradle.targets.web.ObsoleteJsAndWasmToolingProvisioning
 import org.jetbrains.kotlin.gradle.targets.web.nodejs.BaseNodeJsEnvSpec
+import org.jetbrains.kotlin.gradle.targets.web.nodejs.toolchain.extractNodeJs
+import org.jetbrains.kotlin.gradle.targets.web.nodejs.toolchain.setUpNodeJs
 import org.jetbrains.kotlin.gradle.utils.getFile
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
 import javax.inject.Inject
 
 @DisableCachingByDefault
+@ObsoleteJsAndWasmToolingProvisioning
 abstract class NodeJsSetupTask @Inject constructor(
     settings: BaseNodeJsEnvSpec,
 ) : AbstractSetupTask<NodeJsEnv, BaseNodeJsEnvSpec>(settings) {
@@ -34,50 +35,11 @@ abstract class NodeJsSetupTask @Inject constructor(
     private val executable = env.map { it.executable }
 
     override fun extract(archive: File) {
-        var fixBrokenSymLinks = false
-
-        val destination = destinationProvider.getFile()
-        fs.copy {
-            it.from(
-                when {
-                    archive.name.endsWith("zip") -> archiveOperations.zipTree(archive)
-                    else -> {
-                        fixBrokenSymLinks = true
-                        archiveOperations.tarTree(archive)
-                    }
-                }
-            )
-            it.into(destination.parentFile)
-        }
-
-        fixBrokenSymlinks(destination, isWindows.get(), fixBrokenSymLinks)
-
-        if (!isWindows.get()) {
-            File(executable.get()).setExecutable(true)
-        }
+        archiveOperations.extractNodeJs(fs, archive, destinationProvider.getFile().parentFile)
+        setUpNodeJs(logger, archive, destinationProvider.getFile(), isWindows.get(), executable.get())
     }
 
-    private fun fixBrokenSymlinks(destinationDir: File, isWindows: Boolean, necessaryToFix: Boolean) {
-        if (necessaryToFix) {
-            val nodeBinDir = computeNodeBinDir(destinationDir, isWindows).toPath()
-            fixBrokenSymlink("npm", nodeBinDir, destinationDir, isWindows)
-            fixBrokenSymlink("npx", nodeBinDir, destinationDir, isWindows)
-        }
-    }
-
-    private fun fixBrokenSymlink(
-        name: String,
-        nodeBinDirPath: Path,
-        nodeDirProvider: File,
-        isWindows: Boolean,
-    ) {
-        val script = nodeBinDirPath.resolve(name)
-        val scriptFile = computeNpmScriptFile(nodeDirProvider, name, isWindows)
-        if (Files.deleteIfExists(script)) {
-            Files.createSymbolicLink(script, nodeBinDirPath.relativize(Paths.get(scriptFile)))
-        }
-    }
-
+    @ObsoleteJsAndWasmToolingProvisioning
     companion object {
         @InternalKotlinGradlePluginApi
         const val BASE_NAME: String = "nodeJsSetup"

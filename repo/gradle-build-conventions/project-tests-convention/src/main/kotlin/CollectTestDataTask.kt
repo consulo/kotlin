@@ -34,6 +34,12 @@ abstract class CollectTestDataTask : DefaultTask() {
     @get:OutputFile
     abstract val targetFile: RegularFileProperty
 
+    @get:Input
+    abstract val filePatterns: ListProperty<String>
+
+    @get:Input
+    abstract val excludeFilePatterns: ListProperty<String>
+
     @TaskAction
     fun run() {
         val directories = testDataFiles.get()
@@ -45,7 +51,10 @@ abstract class CollectTestDataTask : DefaultTask() {
         outFile.parentFile.mkdirs()
 
         val text = directories.flatMap { directory ->
-            directory.asFileTree.matching { include("**/*.kt", "**/*.kt.can-freeze-ide") }.files
+            directory.asFileTree.matching {
+                include(filePatterns.get())
+                exclude(excludeFilePatterns.get())
+            }.files
         }.sorted().joinToString("\n") {
             it.relativeTo(rootDir).path.replace('\\', '/')
         }

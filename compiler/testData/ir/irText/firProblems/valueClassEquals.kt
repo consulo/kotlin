@@ -1,10 +1,8 @@
-// TARGET_BACKEND: JVM
 // WITH_STDLIB
-// LANGUAGE: +JvmInlineMultiFieldValueClasses
+// WORKS_WHEN_VALUE_CLASS
+// DUMP_IR_DIFFERENCE: JVM
 
-import kotlin.jvm.JvmInline
-
-@JvmInline
+OPTIONAL_JVM_INLINE_ANNOTATION
 value class Z(val s: String)
 
 val equals = Z::equals

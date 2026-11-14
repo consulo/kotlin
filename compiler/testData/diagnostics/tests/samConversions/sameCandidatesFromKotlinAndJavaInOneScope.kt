@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +SamConversionForKotlinFunctions +SamConversionPerArgument
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER,-UNUSED_VARIABLE
 
 // FILE: Action.java

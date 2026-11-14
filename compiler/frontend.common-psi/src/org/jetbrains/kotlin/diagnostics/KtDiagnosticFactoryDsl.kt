@@ -23,6 +23,11 @@ fun warningWithoutSource(): SourcelessDiagnosticFactoryDelegateProvider {
 }
 
 context(container: KtDiagnosticsContainer)
+fun infoWithoutSource(): SourcelessDiagnosticFactoryDelegateProvider {
+    return SourcelessDiagnosticFactoryDelegateProvider(Severity.INFO, container)
+}
+
+context(container: KtDiagnosticsContainer)
 inline fun <reified P : PsiElement> warning0(
     positioningStrategy: AbstractSourceElementPositioningStrategy = SourceElementPositioningStrategies.DEFAULT
 ): DiagnosticFactory0DelegateProvider {
@@ -30,10 +35,31 @@ inline fun <reified P : PsiElement> warning0(
 }
 
 context(container: KtDiagnosticsContainer)
+inline fun <reified P : PsiElement> strongWarning0(
+    positioningStrategy: AbstractSourceElementPositioningStrategy = SourceElementPositioningStrategies.DEFAULT
+): DiagnosticFactory0DelegateProvider {
+    return DiagnosticFactory0DelegateProvider(Severity.STRONG_WARNING, positioningStrategy, P::class, container)
+}
+
+context(container: KtDiagnosticsContainer)
+inline fun <reified P : PsiElement, A> strongWarning1(
+    positioningStrategy: AbstractSourceElementPositioningStrategy = SourceElementPositioningStrategies.DEFAULT
+): DiagnosticFactory1DelegateProvider<A> {
+    return DiagnosticFactory1DelegateProvider(Severity.STRONG_WARNING, positioningStrategy, P::class, container)
+}
+
+context(container: KtDiagnosticsContainer)
 inline fun <reified P : PsiElement, A> warning1(
     positioningStrategy: AbstractSourceElementPositioningStrategy = SourceElementPositioningStrategies.DEFAULT
 ): DiagnosticFactory1DelegateProvider<A> {
     return DiagnosticFactory1DelegateProvider(Severity.WARNING, positioningStrategy, P::class, container)
+}
+
+context(container: KtDiagnosticsContainer)
+inline fun <reified P : PsiElement, A, B> strongWarning2(
+    positioningStrategy: AbstractSourceElementPositioningStrategy = SourceElementPositioningStrategies.DEFAULT
+): DiagnosticFactory2DelegateProvider<A, B> {
+    return DiagnosticFactory2DelegateProvider(Severity.STRONG_WARNING, positioningStrategy, P::class, container)
 }
 
 context(container: KtDiagnosticsContainer)

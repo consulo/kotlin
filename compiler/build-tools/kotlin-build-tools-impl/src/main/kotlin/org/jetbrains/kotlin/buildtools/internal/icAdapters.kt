@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.buildtools.internal.BaseIncrementalCompilationConfig
 import org.jetbrains.kotlin.buildtools.internal.BaseIncrementalCompilationConfigurationImpl.Companion.KEEP_IC_CACHES_IN_MEMORY
 import org.jetbrains.kotlin.buildtools.internal.BaseIncrementalCompilationConfigurationImpl.Companion.MONOTONOUS_INCREMENTAL_COMPILE_SET_EXPANSION
 import org.jetbrains.kotlin.buildtools.internal.BaseIncrementalCompilationConfigurationImpl.Companion.UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM
+import org.jetbrains.kotlin.buildtools.internal.js.JsHistoryBasedIncrementalCompilationConfigurationImpl
 import org.jetbrains.kotlin.buildtools.internal.jvm.HasSnapshotBasedIcOptionsAccessor
 import org.jetbrains.kotlin.buildtools.internal.jvm.JvmSnapshotBasedIncrementalCompilationOptionsImpl
 import org.jetbrains.kotlin.incremental.ChangedFiles
@@ -53,14 +54,23 @@ internal fun HasSnapshotBasedIcOptionsAccessor.extractIncrementalCompilationFeat
     val options = this
     return IncrementalCompilationFeatures(
         usePreciseJavaTracking = options[JvmSnapshotBasedIncrementalCompilationOptionsImpl.PRECISE_JAVA_TRACKING],
-        withAbiSnapshot = false,
         preciseCompilationResultsBackup = options[BACKUP_CLASSES],
         keepIncrementalCompilationCachesInMemory = options[KEEP_IC_CACHES_IN_MEMORY],
         enableUnsafeIncrementalCompilationForMultiplatform = options[UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM],
         enableMonotonousIncrementalCompileSetExpansion = options[MONOTONOUS_INCREMENTAL_COMPILE_SET_EXPANSION],
+        enableErrorRecoveryRound = options[JvmSnapshotBasedIncrementalCompilationOptionsImpl.ENABLE_ERROR_RECOVERY_ROUND],
     )
 }
-
+internal fun JsHistoryBasedIncrementalCompilationConfigurationImpl.extractIncrementalCompilationFeatures(): IncrementalCompilationFeatures {
+    return IncrementalCompilationFeatures(
+        usePreciseJavaTracking = false,
+        preciseCompilationResultsBackup = this[BACKUP_CLASSES],
+        keepIncrementalCompilationCachesInMemory = this[KEEP_IC_CACHES_IN_MEMORY],
+        enableUnsafeIncrementalCompilationForMultiplatform = this[UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM],
+        enableMonotonousIncrementalCompileSetExpansion = this[MONOTONOUS_INCREMENTAL_COMPILE_SET_EXPANSION],
+        enableErrorRecoveryRound = false,
+    )
+}
 
 internal val HasSnapshotBasedIcOptionsAccessor.classpathChanges: ClasspathChanges.ClasspathSnapshotEnabled
     get() {

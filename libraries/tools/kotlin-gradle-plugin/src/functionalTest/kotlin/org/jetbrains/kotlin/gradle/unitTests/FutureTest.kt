@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.jetbrains.kotlin.gradle.idea.testFixtures.utils.deserialize
@@ -157,7 +155,7 @@ class FutureTest {
     }
 
     @Test
-    fun `test - future with CoroutineStart 'Default'`() = project.runLifecycleAwareTest {
+    fun `test - future with CoroutineStart Default`() = project.runLifecycleAwareTest {
         val future = project.future(CoroutineStart.Default) {}
         assertFailsWith<IllegalLifecycleException> { future.getOrThrow() }
         future.await()

@@ -1,6 +1,8 @@
 description = "Kotlin Daemon"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
@@ -9,6 +11,7 @@ dependencies {
     compileOnly(project(":compiler:incremental-compilation-impl"))
     compileOnly(intellijCore())
     compileOnly(libs.intellij.fastutil)
+    compileOnly(libs.guava)
 
     runtimeOnly(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
 

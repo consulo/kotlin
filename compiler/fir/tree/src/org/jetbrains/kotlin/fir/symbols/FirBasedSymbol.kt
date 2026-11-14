@@ -1,22 +1,24 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.fir.symbols
 
 import org.jetbrains.kotlin.KtSourceElement
+import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.fir.FirAnnotationContainer
 import org.jetbrains.kotlin.fir.FirImplementationDetail
 import org.jetbrains.kotlin.fir.FirModuleData
-import org.jetbrains.kotlin.fir.declarations.FirDeclaration
-import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
-import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
-import org.jetbrains.kotlin.fir.declarations.resolvePhase
+import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.expressions.FirAnnotationCall
 import org.jetbrains.kotlin.fir.expressions.arguments
+import org.jetbrains.kotlin.fir.references.FirControlFlowGraphReference
 import org.jetbrains.kotlin.fir.symbols.impl.FirBackingFieldSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirPropertyAccessorSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
 import org.jetbrains.kotlin.fir.types.classLikeLookupTagIfAny
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirSymbolIdEntry
@@ -67,6 +69,22 @@ abstract class FirBasedSymbol<out E : FirDeclaration> : DeclarationSymbolMarker 
         get() = fir.resolvedAnnotationClassIds(this)
 }
 
+/**
+ * The [FirControlFlowGraphReference] of the declaration of this symbol, or `null` if the declaration is not a
+ * [FirControlFlowGraphOwner], or is one which gets no graph of its own – a declaration without a body, or a local property, which is a
+ * statement of its container graph.
+ *
+ * A graph is built during [BODY_RESOLVE][FirResolvePhase.BODY_RESOLVE], which this property requests. Reading
+ * [FirControlFlowGraphOwner.controlFlowGraphReference] off the declaration directly answers `null` for a declaration which is not
+ * resolved yet instead, and in the Analysis API that is the case for every declaration nobody has asked about so far.
+ */
+val FirBasedSymbol<*>.resolvedControlFlowGraphReference: FirControlFlowGraphReference?
+    get() {
+        val owner = fir as? FirControlFlowGraphOwner ?: return null
+        lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
+        return owner.controlFlowGraphReference
+    }
+
 @SymbolInternals
 fun FirAnnotationContainer.resolvedCompilerRequiredAnnotations(anchorElement: FirBasedSymbol<*>): List<FirAnnotation> {
     if (annotations.isEmpty()) return emptyList()
@@ -103,13 +121,46 @@ private fun List<FirAnnotation>.resolveAnnotationsWithArguments(anchorElement: F
     anchorElement.lazyResolveToPhase(phase)
 }
 
-private fun FirAnnotationContainer.isDefinitelyEmpty(anchorElement: FirBasedSymbol<*>): Boolean {
-    if (annotations.isEmpty()) {
-        if (anchorElement !is FirBackingFieldSymbol) return true
-        if (anchorElement.propertySymbol.annotations.none { it.useSiteTarget == null }) return true
-    }
-    return false
+private fun FirAnnotationContainer.isDefinitelyEmpty(anchorElement: FirBasedSymbol<*>): Boolean = when {
+    // Check the property first: resolution adds moved annotations to this declaration before it removes them from the property
+    anchorElement.mayReceivePropertyAnnotations() -> false
+    else -> annotations.isEmpty()
 }
+
+/**
+ * Whether resolution to [FirResolvePhase.TYPES] may move annotations of the containing property to [this] symbol.
+ */
+private fun FirBasedSymbol<*>.mayReceivePropertyAnnotations(): Boolean = when (this) {
+    is FirBackingFieldSymbol -> propertySymbol.annotations.any {
+        when (it.useSiteTarget) {
+            null, AnnotationUseSiteTarget.FIELD, AnnotationUseSiteTarget.ALL -> true
+            else -> false
+        }
+    }
+
+    // Annotations with the `all` use-site target are copied to the getter and the setter parameter
+    is FirPropertyAccessorSymbol -> isGetter && propertySymbol.hasAllUseSiteTargetAnnotations()
+    is FirValueParameterSymbol -> {
+        val setterSymbol = containingDeclarationSymbol as? FirPropertyAccessorSymbol
+        setterSymbol != null && setterSymbol.isSetter && setterSymbol.propertySymbol.hasAllUseSiteTargetAnnotations()
+    }
+
+    else -> false
+}
+
+private fun FirPropertySymbol.hasAllUseSiteTargetAnnotations(): Boolean = annotations.any {
+    it.useSiteTarget == AnnotationUseSiteTarget.ALL
+}
+
+
+/**
+ * Whether [this] symbol might have annotations.
+ *
+ * - `false` means that [this] symbol definitely doesn't have annotations.
+ * - `true` means that [this] symbol might have annotations.
+ */
+val FirBasedSymbol<*>.mightHaveAnnotations: Boolean
+    get() = !fir.isDefinitelyEmpty(this)
 
 @SymbolInternals
 fun FirAnnotationContainer.resolvedAnnotationsWithClassIds(anchorElement: FirBasedSymbol<*>): List<FirAnnotation> {

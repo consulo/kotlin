@@ -13,6 +13,7 @@ import com.intellij.pom.tree.TreeAspect
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.impl.source.tree.TreeCopyHandler
+import org.jetbrains.kotlin.CoreEnvironmentDeprecation
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.cli.create
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
@@ -20,6 +21,7 @@ import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.platform.konan.isNative
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getChildOfType
 import org.jetbrains.kotlin.psi.psiUtil.getChildrenOfType
@@ -27,6 +29,8 @@ import org.jetbrains.kotlin.psi.psiUtil.nextLeaf
 import org.jetbrains.kotlin.psi.psiUtil.prevLeaf
 import org.jetbrains.kotlin.resolve.ImportPath
 import org.jetbrains.kotlin.test.TestInfrastructureInternals
+import org.jetbrains.kotlin.test.checkTestInfrastructure
+import org.jetbrains.kotlin.test.impl.shouldIsolateTestInGroupingConfiguration
 import org.jetbrains.kotlin.test.model.TestFile
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.decapitalizeSmart
@@ -54,13 +58,18 @@ import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
  * Note that packages with fully qualified names starting with "kotlin." and "helpers." are kept unchanged.
  * Examples: package kotlin.coroutines -> package kotlin.coroutines
  *           import kotlin.test.* -> import kotlin.test.*
+ *
+ * If the platform supports it (see [ReflectionPackageNameAnnotation]), every patched file is additionally annotated
+ * with the file annotation preserving the original package name in the reflective information. Otherwise, tests
+ * asserting fully qualified names would produce different results in grouping and non-grouping modes.
  */
 class BatchingPackageInserter(testServices: TestServices) : ReversibleSourceFilePreprocessor(testServices) {
     companion object {
+        val HELPERS_PACKAGE_FQNAME = FqName("helpers")
         private val lock = Any()
 
         fun computePackage(testInfo: KotlinTestInfo): String {
-            val (className, methodName, _) = testInfo
+            (val className, val methodName) = testInfo
             val classPart = className.substringAfter("$")
                 .split("$")
                 .map { it.decapitalizeSmart() }
@@ -77,7 +86,7 @@ class BatchingPackageInserter(testServices: TestServices) : ReversibleSourceFile
         }
     }
 
-    private val packageMapping: MutableMap<FqName, FqName> = mutableMapOf()
+    private val packageMapping: MutableMap<FqName, FqName?> = mutableMapOf()
 
     override fun process(file: TestFile, content: String): String {
         shouldNotBeCalled()
@@ -85,16 +94,35 @@ class BatchingPackageInserter(testServices: TestServices) : ReversibleSourceFile
 
     @TestInfrastructureInternals
     override fun processModule(module: TestModule, filesContent: MutableMap<TestFile, String>) {
+        val isNative = testServices.targetPlatformProvider.getTargetPlatform(module).isNative()
+        if (testServices.shouldIsolateTestInGroupingConfiguration(fileGenerationPhase = true)) {
+            return // Without grouping, packages are not altered, since no clashes can happen.
+        }
         // At this point we can't get `project` from `compilerConfigurationProvider`, as it will cause infinite recursion.
         val psiFactory = createPsiFactory()
         val additionalBasePackage = FqName(computePackage(testServices.testInfo))
-        val ktFiles = filesContent.mapValues { (file, content) -> psiFactory.createFile(file.name, content) }
+        val ktFiles = filesContent.filter { it.key.isKtFile }
+            .mapValues { [file, content] -> psiFactory.createFile(file.name, content) }
         ktFiles.values.map { it.packageFqName }.associateWithTo(packageMapping) { packageFqName ->
-            additionalBasePackage.child(packageFqName)
+            additionalBasePackage.child(packageFqName).takeUnless {
+                packageFqName == StandardNames.BUILT_INS_PACKAGE_FQ_NAME
+                        || packageFqName == StandardNames.KOTLIN_INTERNAL_FQ_NAME
+                        // On Native the `helpers` package directive IS patched (`transformHelpersPackage = isNative`
+                        // below), so we must allow the mapping to actually produce a new FQN for it. On non-Native
+                        // (Wasm/JS) the `helpers` package stays unpatched because `transformHelpersPackage = false`
+                        // skips it on the import side as well — keeping the original FQN here is consistent in that case.
+                        || (!isNative && packageFqName == HELPERS_PACKAGE_FQNAME)
+            }
         }
-        val patcher = PackageNamePatcher(psiFactory, packageMapping, additionalBasePackage)
+        val patcher = PackageNamePatcher(
+            psiFactory,
+            packageMapping,
+            additionalBasePackage,
+            transformHelpersPackage = isNative,
+            reflectionPackageNameAnnotation = testServices.reflectionPackageNameAnnotation,
+        )
         ktFiles.values.forEach { it.accept(patcher, emptySet()) }
-        for ((testFile, ktFile) in ktFiles) {
+        for ([testFile, ktFile] in ktFiles) {
             filesContent[testFile] = ktFile.text
         }
     }
@@ -102,11 +130,54 @@ class BatchingPackageInserter(testServices: TestServices) : ReversibleSourceFile
     override fun revert(file: TestFile, actualContent: String): String {
         var content = actualContent
         val additionalPackage = computePackage(testServices.testInfo)
-        content = content.replace("@file:kotlin.native.internal.ReflectionPackageName(.*)\n".toRegex(), "")
+        testServices.reflectionPackageNameAnnotation?.let { annotation ->
+            content = content.replace(annotation.generatedFileAnnotationsRegex) { matchResult ->
+                if (!annotation.originalFileSuppressAnnotationWasCommented(matchResult.value)) {
+                    return@replace ""
+                }
+
+                val generatedSuppression = matchResult.groups["generatedSuppression"]?.value
+                checkTestInfrastructure(generatedSuppression != null) {
+                    "Generated file annotation block contains no generated file-level Suppress annotation: ${matchResult.value}"
+                }
+                removeGeneratedInvisibleReferenceFromFileSuppression(
+                    generatedSuppression,
+                    annotation.originalFileSuppressAnnotationHadTrailingComma(matchResult.value),
+                )
+            }
+        }
         content = content.replace("package $additionalPackage\n", "")
         content = content.replace("$additionalPackage.", "")
         content = content.stripAdditionalEmptyLines(file)
         return content
+    }
+
+    private fun removeGeneratedInvisibleReferenceFromFileSuppression(
+        annotationText: String,
+        originalHadTrailingComma: Boolean,
+    ): String {
+        val invisibleReferenceArgumentRegex = "(?:<![^>]*!>|<!>)?\"INVISIBLE_REFERENCE\"(?:<![^>]*!>|<!>)?"
+        val invisibleReferenceArgument = Regex(invisibleReferenceArgumentRegex)
+        val lineBreak = annotationText.takeLastWhile { it == '\r' || it == '\n' }
+        val annotationWithoutLineBreak = annotationText.removeSuffix(lineBreak)
+        val argumentsStart = annotationWithoutLineBreak.indexOf('(') + 1
+        val argumentsEnd = annotationWithoutLineBreak.lastIndexOf(')')
+        val arguments = annotationWithoutLineBreak.substring(argumentsStart, argumentsEnd)
+        checkTestInfrastructure(invisibleReferenceArgument.containsMatchIn(arguments)) {
+            "Generated file-level Suppress annotation contains no generated \"INVISIBLE_REFERENCE\" argument: $annotationText"
+        }
+
+        val argumentsWithoutInvisibleReference = if (originalHadTrailingComma) {
+            arguments.replace(invisibleReferenceArgument, "")
+        } else {
+            arguments
+                .replace(Regex(",\\s*$invisibleReferenceArgumentRegex\\s*"), "")
+                .replace(Regex("$invisibleReferenceArgumentRegex\\s*,\\s*"), "")
+                .replace(invisibleReferenceArgument, "")
+        }
+        return annotationWithoutLineBreak.substring(0, argumentsStart) +
+                argumentsWithoutInvisibleReference +
+                annotationWithoutLineBreak.substring(argumentsEnd) + lineBreak
     }
 
     private fun String.stripAdditionalEmptyLines(file: TestFile): String {
@@ -121,6 +192,7 @@ class BatchingPackageInserter(testServices: TestServices) : ReversibleSourceFile
     private fun createPsiFactory(): KtPsiFactory {
         val configuration = CompilerConfiguration.create()
 
+        @OptIn(CoreEnvironmentDeprecation::class)
         val environment = KotlinCoreEnvironment.createForProduction(
             projectDisposable = testServices.compilerConfigurationProvider.testRootDisposable,
             configuration = configuration,
@@ -143,11 +215,12 @@ class BatchingPackageInserter(testServices: TestServices) : ReversibleSourceFile
 
     class PackageNamePatcher(
         val psiFactory: KtPsiFactory, // psiFactory
-        val oldToNewPackageNameMapping: Map<FqName, FqName>,
+        val oldToNewPackageNameMapping: Map<FqName, FqName?>,
         val basePackageName: FqName,
+        val transformHelpersPackage: Boolean,
+        val reflectionPackageNameAnnotation: ReflectionPackageNameAnnotation? = null,
     ) : KtVisitor<Unit, Set<Name>>() {
         companion object {
-            private val HELPERS_PACKAGE_NAME = Name.identifier("helpers")
             private val KOTLINX_PACKAGE_NAME = Name.identifier("kotlinx")
             private val CNAMES_PACKAGE_NAME = Name.identifier("cnames")
             private val OBJCNAMES_PACKAGE_NAME = Name.identifier("objcnames")
@@ -165,25 +238,115 @@ class BatchingPackageInserter(testServices: TestServices) : ReversibleSourceFile
             val oldPackageDirective = file.packageDirective
             val oldPackageName = oldPackageDirective?.fqName ?: FqName.ROOT
 
-            val newPackageName = oldToNewPackageNameMapping.getValue(file.packageFqNameForKLib)
-            val newPackageDirective = psiFactory.createPackageDirective(newPackageName)
+            oldToNewPackageNameMapping.getValue(file.packageFqNameForKLib)?.let { newPackageName ->
+                val newPackageDirective = psiFactory.createPackageDirective(newPackageName)
 
-            if (oldPackageDirective != null) {
-                // Replace old package directive by the new one.
-                oldPackageDirective.replace(newPackageDirective).ensureSurroundedByNewLines()
-            } else {
-                // Insert the package directive immediately after file-level annotations.
-                file.addAfter(newPackageDirective, file.fileAnnotationList).ensureSurroundedByNewLines()
+                if (oldPackageDirective != null) {
+                    // Replace old package directive by the new one.
+                    oldPackageDirective.replace(newPackageDirective).ensureSurroundedByNewLines()
+                } else {
+                    // Insert the package directive immediately after file-level annotations.
+                    file.addAfter(newPackageDirective, file.fileAnnotationList).ensureSurroundedByNewLines()
+                }
             }
 
             if (!file.name.endsWith(".def")) { // don't process .def file contents after the package directive
-                // Add @ReflectionPackageName annotation to make the compiler use the original package name in the reflective information.
-                val annotationText =
-                    "kotlin.native.internal.ReflectionPackageName(${oldPackageName.asString().quoteAsKotlinStringLiteral()})"
-                val fileAnnotationList = psiFactory.createFileAnnotationListWithAnnotation(annotationText)
-                file.addAnnotations(fileAnnotationList)
-
+                // Make the compiler use the original package name in the reflective information.
+                reflectionPackageNameAnnotation?.let { annotation ->
+                    addGeneratedFileAnnotations(
+                        file,
+                        annotation,
+                        oldPackageName,
+                    )
+                }
                 visitKtElement(file, file.collectAccessibleDeclarationNames())
+            }
+        }
+
+        private fun addGeneratedFileAnnotations(
+            file: KtFile,
+            annotation: ReflectionPackageNameAnnotation,
+            oldPackageName: FqName,
+        ) {
+            val fileSuppressAnnotations = file.fileAnnotationList
+                ?.annotationEntries
+                ?.filter { it.shortName?.asString() == "Suppress" }
+                .orEmpty()
+            val hasInvisibleReferenceFileSuppression = fileSuppressAnnotations.any {
+                it.text.contains("\"INVISIBLE_REFERENCE\"")
+            }
+            val fileSuppressAnnotationToComment = fileSuppressAnnotations.firstOrNull()
+                ?.takeUnless { hasInvisibleReferenceFileSuppression }
+            val originalFileSuppressAnnotationText = fileSuppressAnnotationToComment?.text
+            val generatedAnnotationTexts = buildList {
+                if (originalFileSuppressAnnotationText == null && !hasInvisibleReferenceFileSuppression) {
+                    add("Suppress(\"INVISIBLE_REFERENCE\")")
+                } else if (originalFileSuppressAnnotationText != null) {
+                    val closingParenthesisIndex = originalFileSuppressAnnotationText.lastIndexOf(')')
+                    checkTestInfrastructure(closingParenthesisIndex >= 0) {
+                        "File-level Suppress annotation has no closing parenthesis: $originalFileSuppressAnnotationText"
+                    }
+                    val textBeforeClosingParenthesis = originalFileSuppressAnnotationText.substring(0, closingParenthesisIndex)
+                    val separator = if (
+                        textBeforeClosingParenthesis.trimEnd().endsWith('(') ||
+                        textBeforeClosingParenthesis.trimEnd().endsWith(',')
+                    ) {
+                        ""
+                    } else {
+                        ", "
+                    }
+                    add(
+                        (textBeforeClosingParenthesis + separator +
+                                "\"INVISIBLE_REFERENCE\"" + originalFileSuppressAnnotationText.substring(closingParenthesisIndex))
+                            .removePrefix("@file:")
+                            .removePrefix("@")
+                    )
+                }
+                add(annotation.render(oldPackageName.asString()))
+            }
+            val oldFileAnnotationList = file.fileAnnotationList
+            if (fileSuppressAnnotationToComment != null) {
+                val marker = fileSuppressAnnotationToComment.replace(
+                    psiFactory.createComment(
+                        annotation.renderGeneratedFileAnnotationsMarker(
+                            hasOriginalFileSuppressAnnotation = true,
+                            hasOriginalInvisibleReferenceFileSuppression = false,
+                            originalFileSuppressAnnotationText = originalFileSuppressAnnotationText,
+                        )
+                    )
+                )
+                marker.addGeneratedFileAnnotationsAfterMarker(generatedAnnotationTexts)
+                return
+            }
+
+            val marker = psiFactory.createComment(
+                annotation.renderGeneratedFileAnnotationsMarker(
+                    hasOriginalFileSuppressAnnotation = fileSuppressAnnotations.isNotEmpty(),
+                    hasOriginalInvisibleReferenceFileSuppression = hasInvisibleReferenceFileSuppression,
+                )
+            )
+            if (oldFileAnnotationList != null) {
+                oldFileAnnotationList.add(marker).ensureSurroundedByNewLines()
+                generatedAnnotationTexts.forEach { annotationText ->
+                    oldFileAnnotationList.add(psiFactory.createFileAnnotation(annotationText)).ensureSurroundedByNewLines()
+                }
+            } else {
+                file.addBefore(marker, file.packageDirective).ensureSurroundedByNewLines()
+                val generatedFileAnnotationList = psiFactory.createFileAnnotationListWithAnnotation(generatedAnnotationTexts.first())
+                generatedAnnotationTexts.drop(1).forEach { annotationText ->
+                    generatedFileAnnotationList.add(psiFactory.createFileAnnotation(annotationText)).ensureSurroundedByNewLines()
+                }
+                file.addBefore(generatedFileAnnotationList, file.packageDirective).ensureSurroundedByNewLines()
+            }
+        }
+
+        private fun PsiElement.addGeneratedFileAnnotationsAfterMarker(annotationTexts: List<String>) {
+            var previousElement = this
+            for (annotationText in annotationTexts) {
+                previousElement = previousElement.parent.addAfter(
+                    psiFactory.createFileAnnotation(annotationText),
+                    previousElement,
+                ).ensureSurroundedByNewLines()
             }
         }
 
@@ -194,8 +357,9 @@ class BatchingPackageInserter(testServices: TestServices) : ReversibleSourceFile
             val importedFqName = importDirective.importedFqName
             if (importedFqName == null
                 || importedFqName.startsWith(StandardNames.BUILT_INS_PACKAGE_NAME)
+                || importedFqName.startsWith(StandardNames.KOTLIN_INTERNAL_FQ_NAME)
                 || importedFqName.startsWith(KOTLINX_PACKAGE_NAME)
-                || importedFqName.startsWith(HELPERS_PACKAGE_NAME)
+                || (!transformHelpersPackage && importedFqName.startsWith(HELPERS_PACKAGE_FQNAME))
                 || importedFqName.startsWith(CNAMES_PACKAGE_NAME)
                 || importedFqName.startsWith(OBJCNAMES_PACKAGE_NAME)
                 || importedFqName.startsWith(PLATFORM_PACKAGE_NAME)
@@ -246,7 +410,7 @@ class BatchingPackageInserter(testServices: TestServices) : ReversibleSourceFile
             declarationWithBody: KtDeclarationWithBody,
             parentAccessibleDeclarationNames: Set<Name>,
         ) {
-            val (expressions, nonExpressions) = declarationWithBody.getChildrenOfType<KtElement>().partition { it is KtExpression }
+            val [expressions, nonExpressions] = declarationWithBody.getChildrenOfType<KtElement>().partition { it is KtExpression }
 
             val accessibleDeclarationNames =
                 parentAccessibleDeclarationNames + declarationWithBody.collectAccessibleDeclarationNames()
@@ -285,7 +449,7 @@ class BatchingPackageInserter(testServices: TestServices) : ReversibleSourceFile
                         .getChildOfType<KtProperty>()!!
                         .getChildOfType<KtDotQualifiedExpression>()!!
 
-                    dotQualifiedExpression.replace(newDotQualifiedExpression) as KtDotQualifiedExpression
+                    dotQualifiedExpression.rawReplace(newDotQualifiedExpression) as KtDotQualifiedExpression
                 } ?: dotQualifiedExpression
 
             super.visitDotQualifiedExpression(newDotQualifiedExpression, accessibleDeclarationNames)
@@ -362,7 +526,7 @@ internal fun PsiElement.ensureSurroundedByNewLines(): PsiElement =
     ensureHasNewLineBefore().ensureHasNewLineAfter()
 
 private fun PsiElement.ensureHasNewLineBefore(): PsiElement {
-    val (fileBoundaryReached, whiteSpaceBefore) = whiteSpaceBefore()
+    val [fileBoundaryReached, whiteSpaceBefore] = whiteSpaceBefore()
     if (!fileBoundaryReached and !whiteSpaceBefore.endsWith("\n")) {
         parent.addBefore(KtPsiFactory(project).createWhiteSpace("\n"), this)
     }
@@ -370,7 +534,7 @@ private fun PsiElement.ensureHasNewLineBefore(): PsiElement {
 }
 
 private fun PsiElement.ensureHasNewLineAfter(): PsiElement {
-    val (fileBoundaryReached, whiteSpaceAfter) = whiteSpaceAfter()
+    val [fileBoundaryReached, whiteSpaceAfter] = whiteSpaceAfter()
     if (!fileBoundaryReached and !whiteSpaceAfter.startsWith("\n")) {
         parent.addAfter(KtPsiFactory(project).createWhiteSpace("\n"), this)
     }
@@ -417,7 +581,7 @@ private fun PsiElement.whiteSpaceAfter(): Pair<Boolean, String> {
  * Returns the expression to be parsed by Kotlin as a string literal with given contents.
  * i.e. transforms `foo$bar` to `"foo\$bar"`.
  */
-private fun String.quoteAsKotlinStringLiteral(): String = buildString {
+internal fun String.quoteAsKotlinStringLiteral(): String = buildString {
     append('"')
 
     this@quoteAsKotlinStringLiteral.forEach { c ->
@@ -526,7 +690,9 @@ private fun FqName.removeSuffix(suffix: FqName): FqName {
     val suffixPathSegments = suffix.pathSegments()
 
     val suffixStart = pathSegments.size - suffixPathSegments.size
-    check(suffixPathSegments == pathSegments.subList(suffixStart, pathSegments.size))
+    checkTestInfrastructure(suffixPathSegments == pathSegments.subList(suffixStart, pathSegments.size)) {
+        "Suffix $suffix is not a suffix of $this"
+    }
 
     return FqName(pathSegments.take(suffixStart).joinToString("."))
 }

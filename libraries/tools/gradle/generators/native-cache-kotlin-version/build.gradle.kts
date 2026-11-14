@@ -1,7 +1,8 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     application
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -17,7 +18,5 @@ application {
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5) {
-        useJUnitPlatform()
-    }
+    testTask()
 }

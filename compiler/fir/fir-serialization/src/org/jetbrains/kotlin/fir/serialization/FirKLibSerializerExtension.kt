@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.fir.serialization
 
 import com.intellij.lang.LighterASTNode
 import com.intellij.openapi.util.Ref
+import org.jetbrains.kotlin.KtRealSourceElementKind
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.*
@@ -22,8 +23,10 @@ import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.metadata.serialization.MutableVersionRequirementTable
 import org.jetbrains.kotlin.protobuf.GeneratedMessageLite
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.serialization.deserialization.DYNAMIC_TYPE_DESERIALIZER_ID
 
+@OptIn(K1Deprecation::class)
 class FirKLibSerializerExtension(
     override val session: FirSession,
     override val scopeSession: ScopeSession,
@@ -59,6 +62,17 @@ class FirKLibSerializerExtension(
         super.serializeConstructor(constructor, proto, childSerializer)
     }
 
+    override fun serializeTypeAlias(typeAlias: FirTypeAlias, proto: ProtoBuf.TypeAlias.Builder) {
+        typeAlias.setFileId(proto, KlibMetadataProtoBuf.typeAliasFile)
+        typeAlias.setKDoc(proto, KlibMetadataProtoBuf.typeAliasKdoc)
+        super.serializeTypeAlias(typeAlias, proto)
+    }
+
+    override fun serializeEnumEntry(enumEntry: FirEnumEntry, proto: ProtoBuf.EnumEntry.Builder) {
+        enumEntry.setKDoc(proto, KlibMetadataProtoBuf.enumEntryKdoc)
+        super.serializeEnumEntry(enumEntry, proto)
+    }
+
     override fun serializeProperty(
         property: FirProperty,
         proto: ProtoBuf.Property.Builder,
@@ -67,6 +81,8 @@ class FirKLibSerializerExtension(
     ) {
         property.setFileId(proto, KlibMetadataProtoBuf.propertyFile)
         property.setKDoc(proto, KlibMetadataProtoBuf.propertyKdoc)
+        property.getter?.setAccessorKDoc(proto, KlibMetadataProtoBuf.propertyGetterKdoc)
+        property.setter?.setAccessorKDoc(proto, KlibMetadataProtoBuf.propertySetterKdoc)
         super.serializeProperty(property, proto, versionRequirementTable, childSerializer)
     }
 
@@ -95,11 +111,22 @@ class FirKLibSerializerExtension(
     }
 
     private fun FirDeclaration.findKDocString(): String? =
-        source?.let {
+        source?.let { source ->
             val kidsRef = Ref<Array<LighterASTNode?>>()
-            it.treeStructure.getChildren(it.lighterASTNode, kidsRef)
-            kidsRef.get().singleOrNull { it?.tokenType == KtTokens.DOC_COMMENT }?.toString()
+            source.treeStructure.getChildren(source.lighterASTNode, kidsRef)
+            // Use the first attached KDoc.
+            val docComment = kidsRef.get().firstOrNull { it?.tokenType == KtTokens.DOC_COMMENT } ?: return@let null
+            source.treeStructure.toString(docComment).toString()
         }
+
+    private fun FirPropertyAccessor.setAccessorKDoc(
+        proto: ProtoBuf.Property.Builder,
+        extension: GeneratedMessageLite.GeneratedExtension<ProtoBuf.Property, String>,
+    ) {
+        if (source?.kind is KtRealSourceElementKind) {
+            setKDoc(proto, extension)
+        }
+    }
 
     @Suppress("Reformat")
     private fun <

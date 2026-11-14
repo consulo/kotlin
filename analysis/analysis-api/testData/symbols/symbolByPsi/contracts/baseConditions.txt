@@ -1,23 +1,29 @@
 KaAnonymousFunctionSymbol:
+  anchorPsi: KtFunctionLiteral
   annotations: []
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
   location: LOCAL
   modality: FINAL
   origin: SOURCE
+  psi: KtFunctionLiteral
+  realPsi: KtFunctionLiteral
   receiverParameter: KaReceiverParameterSymbol:
+    anchorPsi: KtFunctionLiteral
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -27,33 +33,38 @@ KaAnonymousFunctionSymbol:
     name: <receiver>
     origin: SOURCE
     owningCallableSymbol: KaAnonymousFunctionSymbol(<local>/<no name provided>)
+    psi: KtFunctionLiteral
+    realPsi: KtFunctionLiteral
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/contracts/ContractBuilder
+    typeParameters: []
     visibility: PUBLIC
     getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: kotlin/Unit
+  typeParameters: []
   valueParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /decode
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: [
@@ -66,15 +77,17 @@ KaNamedFunctionSymbol:
             KaContractExplicitParameterValue:
               symbol:
                 KaValueParameterSymbol:
+                  anchorPsi: KtParameter
                   annotations: []
                   callableId: null
-                  compilerVisibility: Public
+                  contextParameters: []
                   contextReceivers: []
-                  generatedPrimaryConstructorProperty: null
                   hasDeclaredDefaultValue: false
                   hasDefaultValue: false
                   isActual: false
+                  isCompanion: false
                   isCrossinline: false
+                  isDelegated: false
                   isExpect: false
                   isExtension: false
                   isExternal: false
@@ -86,22 +99,27 @@ KaNamedFunctionSymbol:
                   modality: FINAL
                   name: encoded
                   origin: SOURCE
+                  primaryConstructorProperty: null
+                  psi: KtParameter
+                  realPsi: KtParameter
                   receiverParameter: null
                   returnType: KaUsualClassType:
                     annotations: []
                     typeArguments: []
                     type: kotlin/String?
+                  typeParameters: []
                   visibility: PUBLIC
                   getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
                   getContainingJvmClassName: BaseConditionsKt
                   getContainingModule: KaSourceModule "Sources of main"
-                  deprecationStatus: null
+                  deprecation: null
                   importableFqName: null
           isNegated: true
   ]
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -116,6 +134,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: decode
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -124,15 +144,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -144,16 +166,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: encoded
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/String?
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
       getContainingJvmClassName: BaseConditionsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -161,30 +187,37 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: BaseConditionsKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: decode
   importableFqName: decode
 
 KaAnonymousFunctionSymbol:
+  anchorPsi: KtFunctionLiteral
   annotations: []
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
   location: LOCAL
   modality: FINAL
   origin: SOURCE
+  psi: KtFunctionLiteral
+  realPsi: KtFunctionLiteral
   receiverParameter: KaReceiverParameterSymbol:
+    anchorPsi: KtFunctionLiteral
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -194,33 +227,38 @@ KaAnonymousFunctionSymbol:
     name: <receiver>
     origin: SOURCE
     owningCallableSymbol: KaAnonymousFunctionSymbol(<local>/<no name provided>)
+    psi: KtFunctionLiteral
+    realPsi: KtFunctionLiteral
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/contracts/ContractBuilder
+    typeParameters: []
     visibility: PUBLIC
     getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: kotlin/Unit
+  typeParameters: []
   valueParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /decodeFake
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: [
@@ -233,15 +271,17 @@ KaNamedFunctionSymbol:
             KaContractExplicitParameterValue:
               symbol:
                 KaValueParameterSymbol:
+                  anchorPsi: KtParameter
                   annotations: []
                   callableId: null
-                  compilerVisibility: Public
+                  contextParameters: []
                   contextReceivers: []
-                  generatedPrimaryConstructorProperty: null
                   hasDeclaredDefaultValue: false
                   hasDefaultValue: false
                   isActual: false
+                  isCompanion: false
                   isCrossinline: false
+                  isDelegated: false
                   isExpect: false
                   isExtension: false
                   isExternal: false
@@ -253,22 +293,27 @@ KaNamedFunctionSymbol:
                   modality: FINAL
                   name: encoded
                   origin: SOURCE
+                  primaryConstructorProperty: null
+                  psi: KtParameter
+                  realPsi: KtParameter
                   receiverParameter: null
                   returnType: KaUsualClassType:
                     annotations: []
                     typeArguments: []
                     type: kotlin/String?
+                  typeParameters: []
                   visibility: PUBLIC
                   getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
                   getContainingJvmClassName: BaseConditionsKt
                   getContainingModule: KaSourceModule "Sources of main"
-                  deprecationStatus: null
+                  deprecation: null
                   importableFqName: null
           isNegated: false
   ]
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -283,6 +328,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: decodeFake
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -291,15 +338,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -311,16 +360,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: encoded
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/String?
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
       getContainingJvmClassName: BaseConditionsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -328,30 +381,37 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: BaseConditionsKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: decodeFake
   importableFqName: decodeFake
 
 KaAnonymousFunctionSymbol:
+  anchorPsi: KtFunctionLiteral
   annotations: []
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
   location: LOCAL
   modality: FINAL
   origin: SOURCE
+  psi: KtFunctionLiteral
+  realPsi: KtFunctionLiteral
   receiverParameter: KaReceiverParameterSymbol:
+    anchorPsi: KtFunctionLiteral
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -361,33 +421,38 @@ KaAnonymousFunctionSymbol:
     name: <receiver>
     origin: SOURCE
     owningCallableSymbol: KaAnonymousFunctionSymbol(<local>/<no name provided>)
+    psi: KtFunctionLiteral
+    realPsi: KtFunctionLiteral
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/contracts/ContractBuilder
+    typeParameters: []
     visibility: PUBLIC
     getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: kotlin/Unit
+  typeParameters: []
   valueParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /decodeIfString
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: [
@@ -400,15 +465,17 @@ KaNamedFunctionSymbol:
             KaContractExplicitParameterValue:
               symbol:
                 KaValueParameterSymbol:
+                  anchorPsi: KtParameter
                   annotations: []
                   callableId: null
-                  compilerVisibility: Public
+                  contextParameters: []
                   contextReceivers: []
-                  generatedPrimaryConstructorProperty: null
                   hasDeclaredDefaultValue: false
                   hasDefaultValue: false
                   isActual: false
+                  isCompanion: false
                   isCrossinline: false
+                  isDelegated: false
                   isExpect: false
                   isExtension: false
                   isExternal: false
@@ -420,16 +487,20 @@ KaNamedFunctionSymbol:
                   modality: FINAL
                   name: encoded
                   origin: SOURCE
+                  primaryConstructorProperty: null
+                  psi: KtParameter
+                  realPsi: KtParameter
                   receiverParameter: null
                   returnType: KaUsualClassType:
                     annotations: []
                     typeArguments: []
                     type: kotlin/Any
+                  typeParameters: []
                   visibility: PUBLIC
                   getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
                   getContainingJvmClassName: BaseConditionsKt
                   getContainingModule: KaSourceModule "Sources of main"
-                  deprecationStatus: null
+                  deprecation: null
                   importableFqName: null
           type:
             KaUsualClassType:
@@ -441,6 +512,7 @@ KaNamedFunctionSymbol:
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -455,6 +527,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: decodeIfString
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -463,15 +537,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -483,16 +559,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: encoded
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Any
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
       getContainingJvmClassName: BaseConditionsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -500,30 +580,37 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: BaseConditionsKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: decodeIfString
   importableFqName: decodeIfString
 
 KaAnonymousFunctionSymbol:
+  anchorPsi: KtFunctionLiteral
   annotations: []
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
   location: LOCAL
   modality: FINAL
   origin: SOURCE
+  psi: KtFunctionLiteral
+  realPsi: KtFunctionLiteral
   receiverParameter: KaReceiverParameterSymbol:
+    anchorPsi: KtFunctionLiteral
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -533,33 +620,38 @@ KaAnonymousFunctionSymbol:
     name: <receiver>
     origin: SOURCE
     owningCallableSymbol: KaAnonymousFunctionSymbol(<local>/<no name provided>)
+    psi: KtFunctionLiteral
+    realPsi: KtFunctionLiteral
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/contracts/ContractBuilder
+    typeParameters: []
     visibility: PUBLIC
     getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: kotlin/Unit
+  typeParameters: []
   valueParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /decodeNotNumber
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: [
@@ -572,15 +664,17 @@ KaNamedFunctionSymbol:
             KaContractExplicitParameterValue:
               symbol:
                 KaValueParameterSymbol:
+                  anchorPsi: KtParameter
                   annotations: []
                   callableId: null
-                  compilerVisibility: Public
+                  contextParameters: []
                   contextReceivers: []
-                  generatedPrimaryConstructorProperty: null
                   hasDeclaredDefaultValue: false
                   hasDefaultValue: false
                   isActual: false
+                  isCompanion: false
                   isCrossinline: false
+                  isDelegated: false
                   isExpect: false
                   isExtension: false
                   isExternal: false
@@ -592,16 +686,20 @@ KaNamedFunctionSymbol:
                   modality: FINAL
                   name: encoded
                   origin: SOURCE
+                  primaryConstructorProperty: null
+                  psi: KtParameter
+                  realPsi: KtParameter
                   receiverParameter: null
                   returnType: KaUsualClassType:
                     annotations: []
                     typeArguments: []
                     type: kotlin/Any
+                  typeParameters: []
                   visibility: PUBLIC
                   getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
                   getContainingJvmClassName: BaseConditionsKt
                   getContainingModule: KaSourceModule "Sources of main"
-                  deprecationStatus: null
+                  deprecation: null
                   importableFqName: null
           type:
             KaUsualClassType:
@@ -613,6 +711,7 @@ KaNamedFunctionSymbol:
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -627,6 +726,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: decodeNotNumber
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -635,15 +736,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -655,16 +758,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: encoded
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Any
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(baseConditions.kt)
       getContainingJvmClassName: BaseConditionsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -672,6 +779,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: BaseConditionsKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: decodeNotNumber
   importableFqName: decodeNotNumber

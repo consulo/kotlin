@@ -3,6 +3,22 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+uint16_t kotlin_CharSequence_get__TypesOfArguments__Swift_Int32____reverse_swift(void * self, int32_t index);
+
+int32_t kotlin_CharSequence_length_get__reverse_swift(void * self);
+
+void * kotlin_CharSequence_subSequence__TypesOfArguments__Swift_Int32_Swift_Int32____reverse_swift(void * self, int32_t startIndex, int32_t endIndex);
+
+int8_t kotlin_collections_ByteIterator_nextByte__reverse_swift(void * self);
+
+uint16_t kotlin_collections_CharIterator_nextChar__reverse_swift(void * self);
+
+void * kotlin_text_Appendable_append__TypesOfArguments__Swift_Optional_anyU20ExportedKotlinPackages_kotlin_CharSequence__Swift_Int32_Swift_Int32____reverse_swift(void * self, void * _Nullable value, int32_t startIndex, int32_t endIndex);
+
+void * kotlin_text_Appendable_append__TypesOfArguments__Swift_Optional_anyU20ExportedKotlinPackages_kotlin_CharSequence_____reverse_swift(void * self, void * _Nullable value);
+
+void * kotlin_text_Appendable_append__TypesOfArguments__Swift_Unicode_UTF16_CodeUnit____reverse_swift(void * self, uint16_t value);
+
 int8_t kotlin_ByteArray_get__TypesOfArguments__Swift_Int32__(void * self, int32_t index);
 
 void * kotlin_ByteArray_iterator(void * self);
@@ -25,9 +41,13 @@ int32_t kotlin_CharSequence_length_get(void * self);
 
 void * kotlin_CharSequence_subSequence__TypesOfArguments__Swift_Int32_Swift_Int32__(void * self, int32_t startIndex, int32_t endIndex);
 
+_Bool kotlin_collections_ByteIterator_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
+
 int8_t kotlin_collections_ByteIterator_next(void * self);
 
 int8_t kotlin_collections_ByteIterator_nextByte(void * self);
+
+_Bool kotlin_collections_CharIterator_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
 
 uint16_t kotlin_collections_CharIterator_next(void * self);
 
@@ -142,8 +162,6 @@ NSString * kotlin_text_StringBuilder_substring__TypesOfArguments__Swift_Int32_Sw
 NSString * kotlin_text_StringBuilder_substring__TypesOfArguments__Swift_Int32__(void * self, int32_t startIndex);
 
 _Bool kotlin_text_StringBuilder_toCharArray__TypesOfArguments__ExportedKotlinPackages_kotlin_CharArray_Swift_Int32_Swift_Int32_Swift_Int32__(void * self, void * destination, int32_t destinationOffset, int32_t startIndex, int32_t endIndex);
-
-NSString * kotlin_text_StringBuilder_toString(void * self);
 
 _Bool kotlin_text_StringBuilder_trimToSize(void * self);
 

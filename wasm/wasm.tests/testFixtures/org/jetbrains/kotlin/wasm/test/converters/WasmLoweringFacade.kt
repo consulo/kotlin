@@ -5,39 +5,39 @@
 
 package org.jetbrains.kotlin.wasm.test.converters
 
-import org.jetbrains.kotlin.backend.wasm.WasmCompilerResult
-import org.jetbrains.kotlin.backend.wasm.WasmIrModuleConfiguration
-import org.jetbrains.kotlin.backend.wasm.compileWasmIrToBinary
-import org.jetbrains.kotlin.backend.wasm.ic.IrFactoryImplForWasmIC
-import org.jetbrains.kotlin.backend.wasm.linkWasmIr
-import org.jetbrains.kotlin.cli.pipeline.web.wasm.WholeWorldCompiler
-import org.jetbrains.kotlin.cli.pipeline.web.wasm.WholeWorldMultiModuleCompiler
+import org.jetbrains.kotlin.backend.common.phaser.then
+import org.jetbrains.kotlin.backend.wasm.*
+import org.jetbrains.kotlin.cli.common.diagnosticsCollector
+import org.jetbrains.kotlin.cli.pipeline.executePhaseIsolatedWithActions
+import org.jetbrains.kotlin.cli.pipeline.web.WasmIntermediatePipelineArtifact
+import org.jetbrains.kotlin.cli.pipeline.web.WebLoadedIrPipelineArtifact
+import org.jetbrains.kotlin.cli.pipeline.web.wasm.*
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.perfManager
 import org.jetbrains.kotlin.config.phaseConfig
 import org.jetbrains.kotlin.config.phaser.PhaseConfig
 import org.jetbrains.kotlin.config.phaser.PhaseSet
-import org.jetbrains.kotlin.ir.backend.js.MainModule
 import org.jetbrains.kotlin.js.config.*
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.platform.wasm.WasmTarget
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.test.DebugMode
+import org.jetbrains.kotlin.test.backend.ir.DeserializedFromKlibBackendInput
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
 import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives.FORCE_DEBUG_FRIENDLY_COMPILATION
 import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives.GENERATE_DWARF
-import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives.USE_NEW_EXCEPTION_HANDLING_PROPOSAL
-import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives.USE_OLD_EXCEPTION_HANDLING_PROPOSAL
+import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives.USE_STACK_SWITCHING_PROPOSAL
 import org.jetbrains.kotlin.test.directives.model.RegisteredDirectives
+import org.jetbrains.kotlin.test.frontend.fir.processErrorFromCliPhase
 import org.jetbrains.kotlin.test.model.*
 import org.jetbrains.kotlin.test.services.*
 import org.jetbrains.kotlin.test.services.configuration.WasmEnvironmentConfigurator
+import org.jetbrains.kotlin.test.services.configuration.WasmEnvironmentConfigurator.Companion.WASM_BASE_FILE_NAME
+import org.jetbrains.kotlin.test.services.configuration.useNewExceptionHandling
+import org.jetbrains.kotlin.test.testInfraError
 import org.jetbrains.kotlin.util.PhaseType
-import org.jetbrains.kotlin.util.tryMeasurePhaseTime
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlin.wasm.config.*
-import org.jetbrains.kotlin.wasm.test.handlers.WASM_BASE_FILE_NAME
 import org.jetbrains.kotlin.wasm.test.handlers.getWasmTestOutputDirectory
 import org.jetbrains.kotlin.wasm.test.tools.WasmOptimizer
 import java.io.File
@@ -48,8 +48,8 @@ internal fun CompilerConfiguration.configureWith(directives: RegisteredDirective
     wasmGenerateDwarf = GENERATE_DWARF in directives
     generateDts = WasmEnvironmentConfigurationDirectives.CHECK_TYPESCRIPT_DECLARATIONS in directives
     useDebuggerCustomFormatters = debugMode >= DebugMode.DEBUG || useDebuggerCustomFormatters
-    wasmUseNewExceptionProposal =
-        (USE_OLD_EXCEPTION_HANDLING_PROPOSAL !in directives) && (USE_NEW_EXCEPTION_HANDLING_PROPOSAL in directives || wasmTarget == WasmTarget.WASI)
+    wasmUseNewExceptionProposal = directives.useNewExceptionHandling(wasmTarget)
+    wasmUseStackSwitchingProposal = USE_STACK_SWITCHING_PROPOSAL in directives
     wasmForceDebugFriendlyCompilation = FORCE_DEBUG_FRIENDLY_COMPILATION in directives
     useDebuggerCustomFormatters = debugMode >= DebugMode.DEBUG || useDebuggerCustomFormatters
     wasmGenerateWat = debugMode >= DebugMode.DEBUG || wasmGenerateWat
@@ -69,7 +69,10 @@ class WasmLoweringFacade(
 
     override fun transform(module: TestModule, inputArtifact: IrBackendInput): BinaryArtifacts.Wasm? {
         require(WasmEnvironmentConfigurator.isMainModule(module, testServices))
-        require(inputArtifact is IrBackendInput.DeserializedFromKlibBackendInput<*>)
+        require(inputArtifact is DeserializedFromKlibBackendInput<*>)
+        val cliInputArtifact = inputArtifact.cliArtifact as? WebLoadedIrPipelineArtifact
+            ?: testInfraError("WasmLoweringFacade expects WebLoadedIrPipelineArtifact")
+
 
         val configuration = testServices.compilerConfigurationProvider.getCompilerConfiguration(module)
         val moduleInfo = inputArtifact.moduleInfo
@@ -86,7 +89,6 @@ class WasmLoweringFacade(
             PhaseConfig()
         }
 
-        val mainModule = MainModule.Klib(inputArtifact.klib.absolutePath)
         with(configuration) {
             phaseConfig = phaseConfigToConfigure
             outputName = WASM_BASE_FILE_NAME
@@ -95,76 +97,71 @@ class WasmLoweringFacade(
         }
 
         val testPackage = extractTestPackage(testServices)
-        val exportedBoxDeclaration = setOf(FqName.fromSegments(listOfNotNull(testPackage, "box")))
+        configuration.wasmTestBoxFunctionToExport = FqName.fromSegments(listOfNotNull(testPackage, "box"))
 
         configuration.perfManager?.notifyPhaseFinished(PhaseType.Initialization)
 
-        val irFactory = moduleInfo.symbolTable.irFactory as IrFactoryImplForWasmIC
-
-        val compiler = if (configuration.wasmGenerateClosedWorldMultimodule) {
-            WholeWorldMultiModuleCompiler(configuration, irFactory)
+        val backendIrGenerationPhase = if (configuration.wasmGenerateClosedWorldMultimodule) {
+            WasmMultiModuleBackendIrGenerationPipelinePhase
         } else {
-            WholeWorldCompiler(configuration, irFactory)
+            WasmWholeWorldBackendIrGenerationPipelinePhase
         }
 
-        val loweredIr = configuration.perfManager.tryMeasurePhaseTime(PhaseType.IrLowering) {
-            compiler.lowerIr(moduleInfo, mainModule, exportedBoxDeclaration)
+        val loweredIr = (WasmIrLinkingPipelinePhase then WasmIrLoweringPipelinePhase).executePhaseIsolatedWithActions(cliInputArtifact)
+            ?: return processErrorFromCliPhase(configuration, testServices)
+
+        if (configuration.diagnosticsCollector.hasErrors) {
+            return processErrorFromCliPhase(inputArtifact.cliArtifact.configuration, testServices)
         }
 
-        val parameters = configuration.perfManager.tryMeasurePhaseTime(PhaseType.Backend) {
-            configuration.dce = false
-            compiler.compileIr(loweredIr)
-        }
-        val compilationSet = makeCompilationSet(parameters)
+        configuration.dce = false
+        val intermediateArtifact = backendIrGenerationPhase.executePhaseIsolatedWithActions(loweredIr)
+            ?: return processErrorFromCliPhase(configuration, testServices)
+        val compilationSet = makeCompilationSet(intermediateArtifact)
 
         configuration.dce = true
-        val dceParameters = compiler.compileIr(loweredIr)
-        val dceCompilationSet = makeCompilationSet(dceParameters)
+        val dceIntermediateArtifact = backendIrGenerationPhase.executePhaseIsolatedWithActions(loweredIr)
+            ?: return processErrorFromCliPhase(configuration, testServices)
+        val dceCompilationSet = makeCompilationSet(dceIntermediateArtifact)
 
         val runOptimiser = WasmEnvironmentConfigurationDirectives.RUN_THIRD_PARTY_OPTIMIZER in testServices.moduleStructure.allDirectives
         val optimised = runIf(runOptimiser) {
             val multiModuleOptimization = configuration.wasmGenerateClosedWorldMultimodule
             val optimisedResult = dceCompilationSet.compilerResult.runThirdPartyOptimizer(multiModule = multiModuleOptimization)
             val optimisedDependencies = dceCompilationSet.compilationDependencies.map {
-                BinaryArtifacts.WasmCompilationSet(
-                    compiledModule = it.compiledModule,
+                WasmCompilationSet(
                     compilerResult = it.compilerResult.runThirdPartyOptimizer(multiModule = multiModuleOptimization)
                 )
             }
-            BinaryArtifacts.WasmCompilationSet(
-                compiledModule = dceCompilationSet.compiledModule,
+            WasmCompilationSet(
                 compilerResult = optimisedResult,
                 compilationDependencies = optimisedDependencies
             )
         }
 
-        return BinaryArtifacts.Wasm.CompilationSets(
+        return WasmCompilationSetsBinaryArtifact(
             compilation = compilationSet,
             dceCompilation = dceCompilationSet,
             optimisedCompilation = optimised,
         )
     }
 
-    fun makeCompilationSet(parameters: List<WasmIrModuleConfiguration>): BinaryArtifacts.WasmCompilationSet {
-        val compilationSets = parameters.map { current ->
-            val linkedModule = linkWasmIr(current)
-            val compilerResult = compileWasmIrToBinary(current, linkedModule)
-            BinaryArtifacts.WasmCompilationSet(linkedModule, compilerResult)
-        }
+    fun makeCompilationSet(intermediateArtifact: WasmIntermediatePipelineArtifact): WasmCompilationSet {
+        val compilationSets = WasmOutputGenerationPipelinePhase.executePhase(intermediateArtifact).result.map(::WasmCompilationSet)
 
         val main = compilationSets.last()
         val dependencies = compilationSets.dropLast(1)
 
-        return BinaryArtifacts.WasmCompilationSet(
-            main.compiledModule,
+        return WasmCompilationSet(
             main.compilerResult,
             dependencies
         )
     }
 
     private fun WasmCompilerResult.runThirdPartyOptimizer(multiModule: Boolean): WasmCompilerResult {
-        val (newWasm, newWat) = supportedOptimizer.run(wasm, withText = wat != null, multiModule = multiModule)
+        (val newWasm = wasm, val newWat = wat) = supportedOptimizer.run(wasm, withText = wat != null, multiModule = multiModule)
         return WasmCompilerResult(
+            linkedModule = linkedModule,
             wat = newWat,
             jsWrapper = jsWrapper,
             wasm = newWasm,

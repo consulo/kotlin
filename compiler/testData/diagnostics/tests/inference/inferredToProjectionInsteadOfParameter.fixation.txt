@@ -7,6 +7,7 @@ CHOSEN for fixation: TypeVariable(C) --- Readiness(
     	false HAS_NO_DEPENDENCIES_TO_OTHER_VARIABLES
     	false HAS_PROPER_NON_TRIVIAL_CONSTRAINTS
     	false HAS_PROPER_NON_TRIVIAL_CONSTRAINTS_OTHER_THAN_INCORPORATED_FROM_DECLARED_UPPER_BOUND
+    	false REIFIED
     	false HAS_PROPER_FLEXIBLE_LOWER_CONSTRAINT
     	false HAS_PROPER_NON_ILT_CONSTRAINT
     	false HAS_NO_EXPLICIT_LOWER_NOTHING_CONSTRAINT
@@ -24,6 +25,7 @@ CHOSEN for fixation: TypeVariable(K) --- Readiness(
     	false HAS_NO_DEPENDENCIES_TO_OTHER_VARIABLES
     	 true HAS_PROPER_NON_TRIVIAL_CONSTRAINTS
     	 true HAS_PROPER_NON_TRIVIAL_CONSTRAINTS_OTHER_THAN_INCORPORATED_FROM_DECLARED_UPPER_BOUND
+    	false REIFIED
     	false HAS_PROPER_FLEXIBLE_LOWER_CONSTRAINT
     	 true HAS_PROPER_NON_ILT_CONSTRAINT
     	 true HAS_NO_EXPLICIT_LOWER_NOTHING_CONSTRAINT
@@ -43,6 +45,7 @@ TypeVariable(C) --- Readiness(
     	 true HAS_NO_DEPENDENCIES_TO_OTHER_VARIABLES
     	false HAS_PROPER_NON_TRIVIAL_CONSTRAINTS
     	false HAS_PROPER_NON_TRIVIAL_CONSTRAINTS_OTHER_THAN_INCORPORATED_FROM_DECLARED_UPPER_BOUND
+    	false REIFIED
     	false HAS_PROPER_FLEXIBLE_LOWER_CONSTRAINT
     	false HAS_PROPER_NON_ILT_CONSTRAINT
     	 true HAS_NO_EXPLICIT_LOWER_NOTHING_CONSTRAINT
@@ -52,8 +55,6 @@ TypeVariable(C) --- Readiness(
      <: Marker<TypeVariable(C)>
      <: F (inferred during fixation)
      = F (inferred during fixation)
-     <: Marker<out F> (inferred during fixation)
-     <: Marker<F> (inferred during fixation)
 ********************************
 CHOSEN for fixation: TypeVariable(C) --- Readiness(
     	 true ALLOWED
@@ -64,6 +65,7 @@ CHOSEN for fixation: TypeVariable(C) --- Readiness(
     	 true HAS_NO_DEPENDENCIES_TO_OTHER_VARIABLES
     	 true HAS_PROPER_NON_TRIVIAL_CONSTRAINTS
     	 true HAS_PROPER_NON_TRIVIAL_CONSTRAINTS_OTHER_THAN_INCORPORATED_FROM_DECLARED_UPPER_BOUND
+    	false REIFIED
     	false HAS_PROPER_FLEXIBLE_LOWER_CONSTRAINT
     	 true HAS_PROPER_NON_ILT_CONSTRAINT
     	 true HAS_NO_EXPLICIT_LOWER_NOTHING_CONSTRAINT
@@ -72,7 +74,5 @@ CHOSEN for fixation: TypeVariable(C) --- Readiness(
     )
      <: Marker<TypeVariable(C)>
      = F
-     <: Marker<out F>
-     <: Marker<F>
     FIXED TO: F
 ********************************

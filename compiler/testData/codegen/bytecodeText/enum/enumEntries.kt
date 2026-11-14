@@ -1,5 +1,4 @@
-// TARGET_BACKEND: JVM_IR
-// LANGUAGE: +EnumEntries
+// TARGET_BACKEND: JVM
 
 enum class MyEnum {
     E

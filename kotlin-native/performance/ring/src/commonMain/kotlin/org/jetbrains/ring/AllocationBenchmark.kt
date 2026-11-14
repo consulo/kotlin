@@ -5,9 +5,16 @@
 
 package org.jetbrains.ring
 
-var counter = 0
+import kotlinx.benchmark.*
+import org.jetbrains.benchmarksLauncher.SkipWhenBaseOnly
 
-open class AllocationBenchmark {
+private const val BENCHMARK_SIZE = 1000
+
+private var counter = 0
+
+@State(Scope.Benchmark)
+@Measurement(time = 100, timeUnit = BenchmarkTimeUnit.MILLISECONDS)
+class AllocationBenchmark : SkipWhenBaseOnly() {
 
     class MyClass {
         fun inc() {
@@ -15,11 +22,13 @@ open class AllocationBenchmark {
         }
     }
 
-    //Benchmark
-    fun allocateObjects() {
+    @Benchmark
+    fun allocateObjects(bh: Blackhole) {
+        skipWhenBaseOnly()
         repeat(BENCHMARK_SIZE) {
             MyClass().inc()
         }
+        bh.consume(counter)
     }
 
 }

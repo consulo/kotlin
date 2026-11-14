@@ -1,13 +1,14 @@
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /primitive
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -22,6 +23,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: primitive
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -30,15 +33,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -50,16 +55,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: a
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(varargFunctions.kt)
       getContainingJvmClassName: VarargFunctionsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -67,20 +76,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: VarargFunctionsKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: primitive
   importableFqName: primitive
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /nullablePrimitive
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -95,6 +106,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: nullablePrimitive
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -103,15 +116,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -123,16 +138,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: b
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Float?
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(varargFunctions.kt)
       getContainingJvmClassName: VarargFunctionsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -140,20 +159,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: VarargFunctionsKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: nullablePrimitive
   importableFqName: nullablePrimitive
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /nonPrimitive
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -168,6 +189,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: nonPrimitive
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -176,15 +199,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -196,16 +221,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: c
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Any
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(varargFunctions.kt)
       getContainingJvmClassName: VarargFunctionsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -213,20 +242,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: VarargFunctionsKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: nonPrimitive
   importableFqName: nonPrimitive
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /error
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -241,6 +272,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: error
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -249,15 +282,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -269,15 +304,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: d
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaClassErrorType:
         annotations: []
         type: ERROR_TYPE
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(varargFunctions.kt)
       getContainingJvmClassName: VarargFunctionsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -285,6 +324,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: VarargFunctionsKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: error
   importableFqName: error

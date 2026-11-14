@@ -29,13 +29,25 @@ KtTypeParameter(122,131): 'T: MyEnum'
   null
 
 KtTypeReference(125,131): 'MyEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtUserType(125,131): 'MyEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtNameReferenceExpression(125,131): 'MyEnum'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtParameterList(144,152): '(arg: T)'
   null
@@ -44,16 +56,31 @@ KtParameter(145,151): 'arg: T'
   null
 
 KtTypeReference(150,151): 'T'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtUserType(150,151): 'T'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtNameReferenceExpression(150,151): 'T'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtNameReferenceExpression(155,158): 'arg'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       arg: T
     ]
@@ -68,18 +95,19 @@ KtBlockExpression(179,210): '{'
   null
 
 KtCallExpression(185,208): 'boundHolder(EnumValue1)'
-  KaSymbolResolutionError:
-    candidateSymbols = [
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
       /boundHolder(arg: T): T
     ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable(INAPPLICABLE): /boundHolder>
 
 KtNameReferenceExpression(185,196): 'boundHolder'
-  KaSymbolResolutionError:
-    candidateSymbols = [
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
       /boundHolder(arg: T): T
     ]
-    diagnostic = ERROR<OTHER_ERROR: Inapplicable(INAPPLICABLE): /boundHolder>
 
 KtValueArgumentList(196,208): '(EnumValue1)'
   null
@@ -88,9 +116,13 @@ KtValueArgument(197,207): 'EnumValue1'
   null
 
 KtNameReferenceExpression(197,207): 'EnumValue1'
-  KaSymbolResolutionError:
-    candidateSymbols = []
-    diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'EnumValue1'.>
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: Used
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum.EnumValue1
+    ]
 
 KtNamedFunction(212,271): 'fun testFunBound2() {'
   null
@@ -102,13 +134,16 @@ KtBlockExpression(232,271): '{'
   null
 
 KtCallExpression(238,269): 'boundHolder<MyEnum>(EnumValue1)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /boundHolder(arg: T): T
     ]
 
 KtNameReferenceExpression(238,249): 'boundHolder'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /boundHolder(arg: T): T
     ]
@@ -120,13 +155,25 @@ KtTypeProjection(250,256): 'MyEnum'
   null
 
 KtTypeReference(250,256): 'MyEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtUserType(250,256): 'MyEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtNameReferenceExpression(250,256): 'MyEnum'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtValueArgumentList(257,269): '(EnumValue1)'
   null
@@ -135,7 +182,10 @@ KtValueArgument(258,268): 'EnumValue1'
   null
 
 KtNameReferenceExpression(258,268): 'EnumValue1'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: Used
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MyEnum.EnumValue1
     ]
@@ -153,13 +203,25 @@ KtTypeParameter(285,294): 'T: MyEnum'
   null
 
 KtTypeReference(288,294): 'MyEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtUserType(288,294): 'MyEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtNameReferenceExpression(288,294): 'MyEnum'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtParameterList(314,324): '(value: T)'
   null
@@ -168,37 +230,58 @@ KtParameter(315,323): 'value: T'
   null
 
 KtTypeReference(322,323): 'T'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtUserType(322,323): 'T'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtNameReferenceExpression(322,323): 'T'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtBlockExpression(325,352): '{'
   null
 
 KtBinaryExpression(331,350): 'value == EnumValue1'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Enum.equals(<dispatch receiver>: kotlin.Enum<E>, other: kotlin.Any?): kotlin.Boolean
     ]
 
 KtNameReferenceExpression(331,336): 'value'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       value: T
     ]
 
 KtOperationReferenceExpression(337,339): '=='
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Enum.equals(<dispatch receiver>: kotlin.Enum<E>, other: kotlin.Any?): kotlin.Boolean
     ]
 
 KtNameReferenceExpression(340,350): 'EnumValue1'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: Used
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MyEnum.EnumValue1
     ]
@@ -213,13 +296,25 @@ KtTypeParameter(359,368): 'T: MyEnum'
   null
 
 KtTypeReference(362,368): 'MyEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtUserType(362,368): 'MyEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtNameReferenceExpression(362,368): 'MyEnum'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtParameterList(382,392): '(value: T)'
   null
@@ -228,37 +323,58 @@ KtParameter(383,391): 'value: T'
   null
 
 KtTypeReference(390,391): 'T'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtUserType(390,391): 'T'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtNameReferenceExpression(390,391): 'T'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtBlockExpression(393,420): '{'
   null
 
 KtBinaryExpression(399,418): 'value == EnumValue1'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Enum.equals(<dispatch receiver>: kotlin.Enum<E>, other: kotlin.Any?): kotlin.Boolean
     ]
 
 KtNameReferenceExpression(399,404): 'value'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       value: T
     ]
 
 KtOperationReferenceExpression(405,407): '=='
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Enum.equals(<dispatch receiver>: kotlin.Enum<E>, other: kotlin.Any?): kotlin.Boolean
     ]
 
 KtNameReferenceExpression(408,418): 'EnumValue1'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: Used
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MyEnum.EnumValue1
     ]

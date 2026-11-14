@@ -1,19 +1,25 @@
 import com.github.gradle.node.npm.task.NpmTask
+import org.gradle.kotlin.dsl.support.serviceOf
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrLink
 import java.io.FileOutputStream
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("multiplatform")
     alias(libs.plugins.gradle.node)
     idea
-    id("nodejs-cache-redirector-configuration")
+    id("nodejs-configuration")
 }
 
 description = "Kotlin-test integration tests for JS"
 
+val buildFeatures = serviceOf<BuildFeatures>()
+
 node {
-    version.set(nodejsVersion)
+    version.set(nodejsLtsVersion)
     download.set(true)
+    distBaseUrl.set(null as String?)
 }
 
 idea {
@@ -22,21 +28,23 @@ idea {
 
 kotlin {
     js {
-        nodejs {
-            testTask {
-                enabled = false
+        if (!buildFeatures.isolatedProjects.active.get()) {
+            nodejs {
+                testTask {
+                    enabled = false
+                }
             }
         }
     }
 
     sourceSets {
-        val jsMain by getting {
+        val jsMain = getByName("jsMain") {
             kotlin.srcDir("src/main/kotlin")
             dependencies {
                 implementation(project(":kotlin-stdlib"))
             }
         }
-        val jsTest by getting {
+        val jsTest = getByName("jsTest") {
             kotlin.srcDir("src/test/kotlin")
             dependencies {
                 implementation(project(":kotlin-test"))
@@ -44,61 +52,62 @@ kotlin {
         }
     }
 }
+if (!buildFeatures.isolatedProjects.active.get()) {
+    val compileTestDevelopmentExecutableKotlinJs = tasks.named<KotlinJsIrLink>("compileTestDevelopmentExecutableKotlinJs") {
+        compilerOptions.moduleName = "kotlin-kotlin-test-js-it-test"
+    }
 
-val compileTestDevelopmentExecutableKotlinJs = tasks.named<KotlinJsIrLink>("compileTestDevelopmentExecutableKotlinJs") {
-    compilerOptions.moduleName = "kotlin-kotlin-test-js-it-test"
-}
+    val populateNodeModules = tasks.register<Copy>("populateNodeModules") {
+        dependsOn("compileTestDevelopmentExecutableKotlinJs")
+        from(compileTestDevelopmentExecutableKotlinJs.map { it.destinationDirectory })
 
-val populateNodeModules = tasks.register<Copy>("populateNodeModules") {
-    dependsOn("compileTestDevelopmentExecutableKotlinJs")
-    from(compileTestDevelopmentExecutableKotlinJs.map { it.destinationDirectory })
+        into(layout.buildDirectory.dir("node_modules"))
+    }
 
-    into(layout.buildDirectory.dir("node_modules"))
-}
-
-fun createFrameworkTest(name: String): TaskProvider<NpmTask> {
-    return tasks.register("test$name", NpmTask::class.java) {
-        dependsOn(compileTestDevelopmentExecutableKotlinJs, populateNodeModules, "npmInstall")
-        val testName = name
-        val lowerName = name.lowercase()
-        val tcOutput = layout.buildDirectory.file("tc-${lowerName}.log")
-        val stdOutput = layout.buildDirectory.file("test-${lowerName}.log")
-        val errOutput = layout.buildDirectory.file("test-${lowerName}.err.log")
-        val exitCodeFile = layout.buildDirectory.file("test-${lowerName}.exit-code")
+    fun createFrameworkTest(name: String): TaskProvider<NpmTask> {
+        return tasks.register("test$name", NpmTask::class.java) {
+            dependsOn(compileTestDevelopmentExecutableKotlinJs, populateNodeModules, "npmInstall")
+            val testName = name
+            val lowerName = name.lowercase()
+            val tcOutput = layout.buildDirectory.file("tc-${lowerName}.log")
+            val stdOutput = layout.buildDirectory.file("test-${lowerName}.log")
+            val errOutput = layout.buildDirectory.file("test-${lowerName}.err.log")
+            val exitCodeFile = layout.buildDirectory.file("test-${lowerName}.exit-code")
 //        inputs.files(sourceSets.test.output)
-        inputs.dir(layout.buildDirectory.dir("node_modules"))
-        outputs.files(tcOutput, stdOutput, errOutput, exitCodeFile)
+            inputs.dir(layout.buildDirectory.dir("node_modules"))
+            outputs.files(tcOutput, stdOutput, errOutput, exitCodeFile)
 
-        args.set(listOf("run", "test-$lowerName"))
+            args.set(listOf("run", "test-$lowerName"))
 //        args("run")
 //        args("test-$lowerName")
-        group = "verification"
+            group = "verification"
 
-        execOverrides {
-            isIgnoreExitValue = true
-            standardOutput = FileOutputStream(stdOutput.get().asFile)
-            errorOutput = FileOutputStream(errOutput.get().asFile)
-        }
-        doLast {
-            println(tcOutput.get().asFile.readText())
-            if (exitCodeFile.get().asFile.readText() != "0" /* && !rootProject.ignoreTestFailures*/) {
-                throw GradleException("$testName integration test failed")
+            execOverrides {
+                isIgnoreExitValue = true
+                standardOutput = FileOutputStream(stdOutput.get().asFile)
+                errorOutput = FileOutputStream(errOutput.get().asFile)
             }
+            doLast {
+                println(tcOutput.get().asFile.readText())
+                if (exitCodeFile.get().asFile.readText() != "0") {
+                    throw GradleException("$testName integration test failed")
+                }
 
+            }
         }
     }
-}
 
-val frameworkTests = listOf(
+    val frameworkTests = listOf(
 //    "Jest",
-    "Jasmine",
-    "Mocha",
-    "Qunit",
+        "Jasmine",
+        "Mocha",
+        "Qunit",
 //    "Tape"
-).map {
-    createFrameworkTest(it)
-}
+    ).map {
+        createFrameworkTest(it)
+    }
 
-tasks.check {
-    frameworkTests.forEach { dependsOn(it) }
+    tasks.check {
+        frameworkTests.forEach { dependsOn(it) }
+    }
 }

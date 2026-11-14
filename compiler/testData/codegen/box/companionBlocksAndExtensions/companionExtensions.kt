@@ -1,5 +1,5 @@
-// LANGUAGE: +CompanionBlocksAndExtensions
-// IGNORE_BACKEND: ANDROID
+// LANGUAGE: +CompanionBlocks +CompanionExtensions
+// DUMP_KLIB_ABI: DEFAULT
 class C
 
 companion fun C.func(s: String) = s

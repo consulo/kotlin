@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.gradle.targets.js.npm.fromSrcPackageJson
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.OS
 import kotlin.io.path.deleteRecursively
@@ -52,6 +53,7 @@ class NpmGradlePluginIT : PackageManagerGradlePluginIT() {
 
     override val mismatchReportMessage: String = LockCopyTask.packageLockMismatchMessage(upgradeTaskName)
 
+    @TestMetadata("kotlin-js-package-lock-project")
     @DisplayName("package-lock is OS independent")
     @GradleTest
     @JsGradlePluginTests
@@ -67,6 +69,7 @@ class NpmGradlePluginIT : PackageManagerGradlePluginIT() {
         }
     }
 
+    @TestMetadata("js-composite-build")
     @GradleTest
     @JsGradlePluginTests
     fun `when transitive npm dependency version changes - expect package json is rebuilt`(
@@ -159,8 +162,38 @@ class YarnGradlePluginIT : PackageManagerGradlePluginIT() {
     override val setProperty: (String) -> String = { " = $it" }
 
     override val mismatchReportMessage: String = YarnPlugin.yarnLockMismatchMessage(upgradeTaskName)
+
+    @TestMetadata("js-composite-build")
+    @DisplayName("js composite build works with lock file persistence")
+    @GradleTest
+    @JsGradlePluginTests
+    fun yarnStoreLockAlwaysTriggersNpmInstall(gradleVersion: GradleVersion) {
+        project(
+            "js-composite-build",
+            gradleVersion,
+        ) {
+            // 1st run
+            build(upgradeTaskName) {
+                assertTasksExecuted(":kotlinNpmInstall")
+            }
+
+            // 1st run, npmInstall should be up to date
+            // --force flag is not set because upgradeTaskName is not requested
+            // all input/outputs didn't change since last run
+            build(storeTaskName) {
+                assertTasksUpToDate(":kotlinNpmInstall")
+            }
+
+            // 3rd run, npmInstall must re-run
+            // upgradeTaskName is requested, so --force flag is set
+            build(upgradeTaskName) {
+                assertTasksExecuted(":kotlinNpmInstall")
+            }
+        }
+    }
 }
 
+@MustRunOnChangesInGradle
 abstract class PackageManagerGradlePluginIT : KGPBaseTest() {
 
     abstract val yarn: Boolean
@@ -196,6 +229,7 @@ abstract class PackageManagerGradlePluginIT : KGPBaseTest() {
             ),
         ).disableIsolatedProjectsBecauseOfJsAndWasmKT75899()
 
+    @TestMetadata("js-composite-build")
     @DisplayName("js composite build works with lock file persistence")
     @GradleTest
     @JsGradlePluginTests
@@ -203,8 +237,6 @@ abstract class PackageManagerGradlePluginIT : KGPBaseTest() {
         project(
             "js-composite-build",
             gradleVersion,
-            // `:compileKotlinJs` task is not compatible with CC on Gradle 7
-            buildOptions = defaultBuildOptions.disableConfigurationCacheForGradle7(gradleVersion),
         ) {
             testJsCompositeBuildWithUpgradeLockFile(
                 upgradeTaskName,
@@ -232,6 +264,7 @@ abstract class PackageManagerGradlePluginIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-js-package-lock-project")
     @DisplayName("Failing with lock file update")
     @GradleTest
     @JsGradlePluginTests
@@ -486,6 +519,7 @@ abstract class PackageManagerGradlePluginIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("nodeJsDownload")
     @DisplayName("Lock file persistence")
     @GradleTest
     @JsGradlePluginTests
@@ -513,6 +547,7 @@ abstract class PackageManagerGradlePluginIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("nodeJsDownload")
     @DisplayName("Package manager ignore scripts")
     @GradleTest
     @JsGradlePluginTests
@@ -582,6 +617,7 @@ abstract class PackageManagerGradlePluginIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-js-package-lock-project")
     @DisplayName("Change rootPackageJson after its generation")
     @GradleTest
     @JsGradlePluginTests
@@ -634,6 +670,7 @@ abstract class PackageManagerGradlePluginIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("js-only-npm")
     @DisplayName("Ensure that gradle offline mode passes --offline argument to npm executable")
     @GradleTest
     @JsGradlePluginTests

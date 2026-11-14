@@ -5,56 +5,71 @@
 
 package org.jetbrains.kotlin.gradle.util
 
+import java.io.File
+import java.nio.file.Path
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.readText
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import org.gradle.kotlin.dsl.kotlin
 import org.gradle.util.GradleVersion
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.KotlinPublicationFormat
+import org.jetbrains.kotlin.gradle.swiftexport.ExperimentalSwiftExportDsl
 import org.jetbrains.kotlin.gradle.testbase.EnvironmentalVariables
 import org.jetbrains.kotlin.gradle.testbase.EnvironmentalVariablesOverride
 import org.jetbrains.kotlin.gradle.testbase.GradleProject
 import org.jetbrains.kotlin.gradle.testbase.KGPBaseTest
+import org.jetbrains.kotlin.gradle.testbase.TestProject
 import org.jetbrains.kotlin.gradle.testbase.buildScriptInjection
 import org.jetbrains.kotlin.gradle.testbase.compileStubSourceWithSourceSetName
 import org.jetbrains.kotlin.gradle.testbase.plugins
 import org.jetbrains.kotlin.gradle.testbase.project
 import org.jetbrains.kotlin.gradle.testbase.settingsBuildScriptInjection
+import org.jetbrains.kotlin.gradle.testing.prettyPrinted
+import org.jetbrains.kotlin.gradle.uklibs.GradleMetadata
 import org.jetbrains.kotlin.gradle.uklibs.PublishedProject
 import org.jetbrains.kotlin.gradle.uklibs.PublisherConfiguration
+import org.jetbrains.kotlin.gradle.uklibs.Variant
+import org.jetbrains.kotlin.gradle.uklibs.VariantFile
 import org.jetbrains.kotlin.gradle.uklibs.applyMultiplatform
 import org.jetbrains.kotlin.gradle.uklibs.publish
-import java.io.File
-import java.nio.file.Path
-import kotlin.io.path.absolutePathString
-import kotlin.io.path.readText
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.jetbrains.kotlin.gradle.utils.normalizedAbsolutePath
 
 @OptIn(EnvironmentalVariablesOverride::class)
 internal fun GradleProject.swiftExportEmbedAndSignEnvVariables(
     testBuildDir: Path,
     archs: List<String> = listOf("arm64"),
-    sdk: String = "iphoneos",
-    iphoneOsDeploymentTarget: String = "14.1",
+    platform: String = "iphoneos",
+    iphoneOsDeploymentTarget: String = "18.0",
+    customVariables: Map<String, String> = emptyMap(),
 ) = EnvironmentalVariables(
-    "CONFIGURATION" to "Debug",
-    "SDK_NAME" to sdk,
-    "ARCHS" to archs.joinToString(" "),
-    "ONLY_ACTIVE_ARCH" to "YES",
-    "TARGET_BUILD_DIR" to testBuildDir.absolutePathString(),
-    "FRAMEWORKS_FOLDER_PATH" to "build/xcode-derived",
-    "PLATFORM_NAME" to sdk,
-    "DEPLOYMENT_TARGET_SETTING_NAME" to "IPHONEOS_DEPLOYMENT_TARGET",
-    "IPHONEOS_DEPLOYMENT_TARGET" to iphoneOsDeploymentTarget,
-    "BUILT_PRODUCTS_DIR" to projectPath.resolve("build/builtProductsDir").absolutePathString(),
+    buildMap {
+        put("CONFIGURATION", "Debug")
+        put("ARCHS", archs.joinToString(" "))
+        put("ONLY_ACTIVE_ARCH", "YES")
+        put("TARGET_BUILD_DIR", testBuildDir.absolutePathString())
+        put("FRAMEWORKS_FOLDER_PATH", "build/xcode-derived")
+        put("PLATFORM_NAME", platform)
+        put("DEPLOYMENT_TARGET_SETTING_NAME", "IPHONEOS_DEPLOYMENT_TARGET")
+        put("IPHONEOS_DEPLOYMENT_TARGET", iphoneOsDeploymentTarget)
+        put("BUILT_PRODUCTS_DIR", projectPath.resolve("build/builtProductsDir").absolutePathString())
+        putAll(customVariables)
+    }
 )
 
 internal fun KGPBaseTest.publishMultiplatformLibrary(
     gradleVersion: GradleVersion,
     projectName: String = "multiplatformLibrary",
+    libraryVersion: String = "1.0",
     configure: KotlinMultiplatformExtension.() -> Unit = {
         iosArm64()
         sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
@@ -69,13 +84,43 @@ internal fun KGPBaseTest.publishMultiplatformLibrary(
     buildScriptInjection {
         project.applyMultiplatform(configure)
     }
-}.publish(publisherConfiguration = PublisherConfiguration())
+}.publish(publisherConfiguration = PublisherConfiguration(version = libraryVersion))
+
+/**
+ * A library named `producer` with an iosArm64 target, published as a Kotlin Archive, optionally with the
+ * Swift Export DSL configured.
+ */
+@OptIn(ExperimentalKotlinGradlePluginApi::class, ExperimentalSwiftExportDsl::class)
+internal fun KGPBaseTest.swiftExportKotlinArchiveProducer(
+    gradleVersion: GradleVersion,
+    withSwiftExport: Boolean = true,
+): TestProject = project("empty", gradleVersion) {
+    plugins { kotlin("multiplatform") }
+    settingsBuildScriptInjection {
+        settings.rootProject.name = "producer"
+    }
+    buildScriptInjection {
+        project.applyMultiplatform {
+            iosArm64()
+            sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
+            publishing {
+                publicationFormat.set(KotlinPublicationFormat.KOTLIN_ARCHIVE)
+            }
+        }
+        if (withSwiftExport) {
+            export.swift {
+                moduleName.set("Foo")
+                rootPackage.set("org.bar.foo")
+            }
+        }
+    }
+}
 
 internal fun swiftCompile(workingDir: File, libDir: File, source: File, target: String) = runProcess(
     listOf(
         "xcrun", "--sdk", "iphonesimulator", "swiftc", "${source.relativeTo(workingDir).path}",
-        "-I", libDir.absolutePath, "-target", target,
-        "-Xlinker", "-L", "-Xlinker", libDir.absolutePath, "-Xlinker", "-lShared",
+        "-I", libDir.normalizedAbsolutePath().toString(), "-target", target,
+        "-Xlinker", "-L", "-Xlinker", libDir.normalizedAbsolutePath().toString(), "-Xlinker", "-lShared",
         "-framework", "Foundation", "-framework", "UIKit"
     ),
     workingDir
@@ -130,13 +175,13 @@ private fun swiftSymbolgraphExtract(
         "xcrun", "swift", "symbolgraph-extract",
         "-module-name", moduleName,
         "-target", target,
-        "-output-dir", outputDir.absolutePath,
+        "-output-dir", outputDir.normalizedAbsolutePath().toString(),
         "-sdk", sdkPath,
         "-skip-synthesized-members"
     )
     searchPaths.forEach { path ->
         command.add("-I")
-        command.add(path.absolutePath)
+        command.add(path.normalizedAbsolutePath().toString())
     }
 
     return runProcess(command, workingDir)
@@ -310,7 +355,7 @@ internal fun assertAllSwiftModuleSymbols(
     val swiftModuleDirs = allDirEntries.filter { it.isDirectory && it.name.endsWith(".swiftmodule") }
 
     assert(swiftModuleDirs.isNotEmpty()) {
-        "No .swiftmodule directories found in: ${builtProductsDir.absolutePath}\n" +
+        "No .swiftmodule directories found in: ${builtProductsDir.normalizedAbsolutePath().toString()}\n" +
                 "Directory contents: ${allDirEntries.map { it.name }}"
     }
 
@@ -326,4 +371,76 @@ internal fun assertAllSwiftModuleSymbols(
     }
 
     assertEquals(expectedSymbolsByModule, actualSymbolsByModule)
+}
+
+private val gradleMetadataJson = Json { ignoreUnknownKeys = true }
+
+private const val SWIFT_EXPORT_METADATA_ELEMENTS = "swiftExportMetadataElements"
+
+private fun PublishedProject.rootComponentVariants(): Set<Variant> = gradleMetadataJson
+    .decodeFromString<GradleMetadata>(rootComponent.gradleMetadata.readText())
+    .variants
+
+/**
+ * Asserts that the published root component declares the Swift Export metadata variant with the attributes
+ * consumers match on, and that it carries the metadata artifact.
+ */
+internal fun PublishedProject.assertSwiftExportMetadataVariantExistsInRootComponent() {
+    assertEquals(
+        Variant(
+            name = SWIFT_EXPORT_METADATA_ELEMENTS,
+            attributes = mapOf(
+                "org.gradle.category" to "library",
+                "org.gradle.usage" to "swiftExportMetadata",
+            ),
+            availableAt = null,
+            files = listOf(
+                VariantFile(
+                    name = "swiftExportMetadata",
+                    url = "$name-$version-swift-export-metadata.json",
+                )
+            ),
+        ).prettyPrinted,
+        rootComponentVariants().single { it.name == SWIFT_EXPORT_METADATA_ELEMENTS }.prettyPrinted
+    )
+}
+
+/**
+ * Stronger than checking that the artifact is missing, which also passes when the variant is published with a
+ * different file.
+ */
+internal fun PublishedProject.assertSwiftExportMetadataVariantMissingInRootComponent() {
+    assertNull(
+        rootComponentVariants().find { it.name == SWIFT_EXPORT_METADATA_ELEMENTS },
+        "The root component should not declare a $SWIFT_EXPORT_METADATA_ELEMENTS variant"
+    )
+}
+
+/**
+ * Under the Kotlin Archive format the variant is replaced by the archive, so it has the `-published` suffix
+ * and the compression attribute.
+ */
+internal fun PublishedProject.assertSwiftExportMetadataKarVariantExistsInRootComponent() {
+    assertEquals(
+        Variant(
+            name = "$SWIFT_EXPORT_METADATA_ELEMENTS-published",
+            attributes = mapOf(
+                "org.gradle.category" to "library",
+                "org.gradle.usage" to "swiftExportMetadata",
+                "org.jetbrains.kotlin.kar.compression.method" to "xz",
+            ),
+            availableAt = null,
+            files = listOf(
+                VariantFile(
+                    name = "$name.kar.xz",
+                    url = "$name-$version.kar.xz",
+                )
+            ),
+        ).prettyPrinted,
+        rootComponentVariants().single { it.name == "$SWIFT_EXPORT_METADATA_ELEMENTS-published" }.prettyPrinted
+    )
+    assertNull(
+        rootComponentVariants().find { it.name == SWIFT_EXPORT_METADATA_ELEMENTS },
+        "Under the Kotlin Archive format only the -published variant must be declared"
+    )
 }

@@ -1,6 +1,8 @@
 import org.gradle.plugin.compatibility.compatibility
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("gradle-plugin-common-configuration")
 }
 

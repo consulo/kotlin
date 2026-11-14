@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +ProperComputationOrderOfTailrecDefaultParameters
+// RUN_PIPELINE_TILL: CODEGEN
 import kotlin.reflect.KClass
 
 fun withEffects(): String = "OK"

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -10,24 +10,44 @@ import com.intellij.lang.ASTNode;
 import com.intellij.lang.Language;
 import com.intellij.psi.*;
 import com.intellij.psi.impl.source.PsiFileImpl;
-import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.psi.stubs.StubElement;
+import com.intellij.psi.tree.IElementType;
 import com.intellij.util.IncorrectOperationException;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.idea.KotlinLanguage;
-import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementType;
+import org.jetbrains.kotlin.psi.stubs.elements.KtTokenSets;
 
-import java.util.Arrays;
-import java.util.List;
 
+/**
+ * Base implementation of {@link KtElement} that may be backed either by the AST tree or by a stub.
+ *
+ * <p>Stubs are a compact, serializable representation of a declaration's structure that can be built and queried without parsing the full
+ * source. They power fast indexing and are used for library and decompiled sources, so that such files do not have to be fully parsed until
+ * their bodies are actually needed. Subclasses read their data from the stub when one is present, and fall back to the AST otherwise.
+ *
+ * <p>This is an internal implementation base class of the Kotlin PSI and is not intended to be used or subclassed outside of the
+ * PSI implementation.
+ *
+ * @param <T> the type of stub backing this element
+ */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public class KtElementImplStub<T extends StubElement<?>> extends StubBasedPsiElementBase<T>
         implements KtElement, StubBasedPsiElement<T> {
-    public KtElementImplStub(@NotNull T stub, @NotNull IStubElementType nodeType) {
+    @KtImplementationDetail
+    public KtElementImplStub(@NotNull T stub, @NotNull IElementType nodeType) {
         super(stub, nodeType);
     }
 
+    @KtImplementationDetail
     public KtElementImplStub(@NotNull ASTNode node) {
         super(node);
+    }
+
+    @Override
+    public IElementType getIElementType() {
+        return getElementTypeImpl();
     }
 
     @NotNull
@@ -37,9 +57,8 @@ public class KtElementImplStub<T extends StubElement<?>> extends StubBasedPsiEle
     }
 
     @Override
-    @SuppressWarnings("deprecation") // KT-78356
     public String toString() {
-        return getElementType().toString();
+        return getIElementType().toString();
     }
 
     @Override
@@ -94,14 +113,25 @@ public class KtElementImplStub<T extends StubElement<?>> extends StubBasedPsiEle
         return visitor.visitKtElement(this, data);
     }
 
+    /**
+     * Deletes this element.
+     * <p>
+     * When {@link KtPsiMutationService} is registered, as in the IntelliJ Kotlin plugin, the deletion may also adjust the surrounding code,
+     * e.g., delete a semicolon that follows the element. Without the service, it performs only the plain platform deletion.
+     */
     @Override
     public void delete() throws IncorrectOperationException {
-        KtElementUtilsKt.deleteSemicolon(this);
+        KtPsiMutationServiceKt.deleteWithMutationService(this, mutationService -> mutationService.deleteElement(this));
+    }
+
+    @Override
+    @KtIdeApi
+    public void rawDelete() throws IncorrectOperationException {
         super.delete();
     }
 
     @Override
-    @SuppressWarnings("deprecation") // KT-78356
+    @SuppressWarnings("deprecation") // the overridden KtElement#getReference is deprecated
     public PsiReference getReference() {
         PsiReference[] references = getReferences();
         return (references.length > 0) ? references[0] : null;
@@ -114,16 +144,38 @@ public class KtElementImplStub<T extends StubElement<?>> extends StubBasedPsiEle
     }
 
     @NotNull
-    @SuppressWarnings("deprecation") // KT-78356
-    protected <PsiT extends KtElementImplStub<?>, StubT extends StubElement<?>> List<PsiT> getStubOrPsiChildrenAsList(
-            @NotNull KtStubElementType<StubT, PsiT> elementType
-    ) {
-        return Arrays.asList(getStubOrPsiChildren(elementType, elementType.getArrayFactory()));
-    }
-
-    @NotNull
     @Override
     public KtElement getPsiOrParent() {
         return this;
+    }
+
+    /**
+     * The expressions this element holds, taken from its stub, or an empty array if the stub does not have them.
+     *
+     * <p>An expression is stubbed only where {@link KtTokenSets#STUBBED_EXPRESSIONS} covers its element type, so a
+     * caller has to fall back to the AST when nothing is found: the expression may still be there, merely not stubbed.
+     *
+     * <p>The expression is told apart from the other children by its element type alone. No child of a declaration
+     * that is not its initializer, expression body or default value has one of these types, and the references
+     * inside a type reference are grandchildren, out of reach of a direct lookup.
+     *
+     * <p>Nothing is looked up once the AST is loaded: the stub carries no data the AST does not have here, so the
+     * caller may as well read the AST it already paid for.
+     */
+    @NotNull
+    protected final KtExpression[] getExpressionsFromStub() {
+        T stub = getStub();
+        if (stub == null) return KtExpression.EMPTY_ARRAY;
+
+        return stub.getChildrenByType(KtTokenSets.STUBBED_EXPRESSIONS, KtExpression.EMPTY_ARRAY);
+    }
+
+    /**
+     * @see #getExpressionsFromStub()
+     */
+    @Nullable
+    protected final KtExpression getExpressionFromStub() {
+        KtExpression[] expressions = getExpressionsFromStub();
+        return expressions.length != 0 ? expressions[0] : null;
     }
 }

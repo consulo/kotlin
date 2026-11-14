@@ -5,33 +5,22 @@
 
 package org.jetbrains.kotlin.statistics.metrics
 
+import org.jetbrains.kotlin.statistics.DEFAULT_SEPARATOR
 import org.jetbrains.kotlin.statistics.ValueAnonymizer
 import org.jetbrains.kotlin.statistics.anonymizeComponentVersion
-import org.jetbrains.kotlin.statistics.sha256
 import kotlin.math.abs
 
+enum class StringListOverridePolicy {
+    CONCAT,
+}
 
-enum class StringOverridePolicy: IMetricContainerFactory<String> {
-    OVERRIDE {
-        override fun newMetricContainer(): IMetricContainer<String> = OverrideMetricContainer<String>()
-
-        override fun fromStringRepresentation(state: String): IMetricContainer<String>? = OverrideMetricContainer(state)
-    },
-    OVERRIDE_VERSION_IF_NOT_SET {
-        override fun newMetricContainer(): IMetricContainer<String> = OverrideVersionMetricContainer()
-
-        override fun fromStringRepresentation(state: String): IMetricContainer<String>? = OverrideVersionMetricContainer(state)
-    },
-    CONCAT {
-        override fun newMetricContainer(): IMetricContainer<String> = ConcatMetricContainer()
-
-        override fun fromStringRepresentation(state: String): IMetricContainer<String>? = ConcatMetricContainer(state.split(ConcatMetricContainer.SEPARATOR))
-    }
-
+enum class StringOverridePolicy {
+    OVERRIDE,
+    OVERRIDE_VERSION_IF_NOT_SET
     //Should be useful counting container?
 }
 
-private fun applyIfLong(v: String, action: (Long) -> IMetricContainer<Long>) : IMetricContainer<Long>? {
+private fun applyIfLong(v: String, action: (Long) -> IMetricContainer<Long>): IMetricContainer<Long>? {
     val longVal = v.toLongOrNull()
     return if (longVal == null) {
         null
@@ -40,69 +29,45 @@ private fun applyIfLong(v: String, action: (Long) -> IMetricContainer<Long>) : I
     }
 }
 
-enum class NumberOverridePolicy: IMetricContainerFactory<Long> {
-    OVERRIDE {
-        override fun newMetricContainer(): IMetricContainer<Long> = OverrideMetricContainer<Long>()
-
-        override fun fromStringRepresentation(state: String): IMetricContainer<Long>? = applyIfLong(state) {
-            OverrideMetricContainer(it)
-        }
-    },
-    SUM {
-        override fun newMetricContainer(): IMetricContainer<Long> = SumMetricContainer()
-
-        override fun fromStringRepresentation(state: String): IMetricContainer<Long>? = applyIfLong(state) {
-            SumMetricContainer(it)
-        }
-    },
-    AVERAGE {
-        override fun newMetricContainer(): IMetricContainer<Long> = AverageMetricContainer()
-
-        override fun fromStringRepresentation(state: String): IMetricContainer<Long>? = applyIfLong(state) {
-            AverageMetricContainer(it)
-        }
-    }
+enum class NumberOverridePolicy  {
+    OVERRIDE,
+    SUM,
+    AVERAGE
 }
 
-enum class BooleanOverridePolicy: IMetricContainerFactory<Boolean> {
-    OVERRIDE {
-        override fun newMetricContainer(): IMetricContainer<Boolean> = OverrideMetricContainer<Boolean>()
-
-        override fun fromStringRepresentation(state: String): IMetricContainer<Boolean>? = OverrideMetricContainer(state.toBoolean())
-    },
-    OR {
-        override fun newMetricContainer(): IMetricContainer<Boolean> = OrMetricContainer()
-
-        override fun fromStringRepresentation(state: String): IMetricContainer<Boolean>? = OrMetricContainer(state.toBoolean())
-    }
+enum class BooleanOverridePolicy {
+    OVERRIDE,
+    OR,
 
     // may be add disctribution counter metric container
 }
 
 enum class BooleanAnonymizationPolicy : ValueAnonymizer<Boolean> {
     SAFE {
-        override fun anonymize(t: Boolean) = t
+        override fun anonymize(t: Boolean, separator: String) = t
     }
 }
 
 abstract class StringAnonymizationPolicy : ValueAnonymizer<String> {
 
-    abstract fun validationRegexp(): String
+    abstract fun validationRegexp(separator: String = DEFAULT_SEPARATOR): String
 
     class AllowedListAnonymizer(val allowedValues: Collection<String>) : StringAnonymizationPolicy() {
         companion object {
             const val UNEXPECTED_VALUE = "UNEXPECTED-VALUE"
         }
 
-        override fun validationRegexp(): String {
-            return "^((${UNEXPECTED_VALUE}|${allowedValues.joinToString("|")})${ConcatMetricContainer.SEPARATOR}?)+$"
+        constructor(vararg allowedValues: String) : this(allowedValues.toList())
+
+        override fun validationRegexp(separator: String): String {
+            return "^((${UNEXPECTED_VALUE}|${allowedValues.joinToString("|") { Regex.escape(it) }})($separator)?)+$"
         }
 
-        override fun anonymize(t: String): String {
-            return if (t.matches(Regex(validationRegexp()))) {
+        override fun anonymize(t: String, separator: String): String {
+            return if (t.matches(Regex(validationRegexp(separator)))) {
                 t
             } else {
-                t.split(ConcatMetricContainer.SEPARATOR).joinToString(ConcatMetricContainer.SEPARATOR) {
+                t.split(separator).joinToString(separator) {
                     if (allowedValues.contains(it))
                         it
                     else
@@ -113,27 +78,27 @@ abstract class StringAnonymizationPolicy : ValueAnonymizer<String> {
     }
 
     class RegexControlled(private val regex: String, private val anonymizeInIde: Boolean) : StringAnonymizationPolicy() {
-        override fun validationRegexp() = regex
+        override fun validationRegexp(separator: String): String = regex
 
-        override fun anonymize(t: String) = t
+        override fun anonymize(t: String, separator: String) = t
 
         override fun anonymizeOnIdeSize() = anonymizeInIde
 
     }
 
     class ComponentVersionAnonymizer() : StringAnonymizationPolicy() {
-        override fun validationRegexp() = "(\\d+).(\\d+).(\\d+)-?(dev|snapshot|m\\d?|rc\\d?|beta\\d?)?"
+        override fun validationRegexp(separator: String): String = "(\\d+).(\\d+).(\\d+)-?(dev|snapshot|m\\d?|rc\\d?|beta\\d?)?"
 
-        override fun anonymize(t: String) = anonymizeComponentVersion(t)
+        override fun anonymize(t: String, separator: String) = anonymizeComponentVersion(t)
     }
 }
 
 enum class NumberAnonymizationPolicy : ValueAnonymizer<Long> {
     SAFE {
-        override fun anonymize(t: Long) = t
+        override fun anonymize(t: Long, separator: String) = t
     },
     RANDOM_10_PERCENT {
-        override fun anonymize(t: Long): Long {
+        override fun anonymize(t: Long, separator: String): Long {
             if (abs(t) < 10) return t
             val sign = if (t < 0)
                 -1

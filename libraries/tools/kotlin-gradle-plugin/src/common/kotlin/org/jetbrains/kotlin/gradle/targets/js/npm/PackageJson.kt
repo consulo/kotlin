@@ -3,19 +3,23 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:Suppress("TYPEALIAS_EXPANSION_DEPRECATION")
+
 package org.jetbrains.kotlin.gradle.targets.js.npm
 
-import com.google.gson.*
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonParser
 import org.gradle.api.Action
 import org.gradle.api.GradleException
-import org.jetbrains.kotlin.gradle.internal.ensureParentDirsCreated
 import java.io.File
 import java.io.Serializable
+import kotlin.io.path.createDirectories
 
 // Gson set nulls reflectively no matter on default values and non-null types
 class PackageJson(
     var name: String,
-    var version: String
+    var version: String,
 ) : Serializable {
     internal val customFields = mutableMapOf<String, Any?>()
 
@@ -97,13 +101,16 @@ class PackageJson(
             .registerTypeAdapterFactory(PackageJsonTypeAdapter())
             .create()
 
-        packageJsonFile.ensureParentDirsCreated()
+        packageJsonFile.toPath().parent.createDirectories()
+
         val jsonTree = gson.toJsonTree(this)
         val previous = if (packageJsonFile.exists()) {
             packageJsonFile.reader().use {
                 JsonParser.parseReader(it)
             }
-        } else null
+        } else {
+            null
+        }
 
         if (jsonTree != previous) {
             packageJsonFile.writer().use {
@@ -124,7 +131,7 @@ internal fun packageJson(
     main: String,
     types: String? = null,
     npmDependencies: Collection<NpmDependencyDeclaration>,
-    packageJsonHandlers: List<Action<PackageJson>>
+    packageJsonHandlers: List<Action<PackageJson>>,
 ): PackageJson {
 
     val packageJson = PackageJson(
@@ -144,11 +151,12 @@ internal fun packageJson(
 
     npmDependencies.forEach {
         val dependency = dependencies.getValue(it.name)
+
         when (it.scope) {
-            NpmDependency.Scope.NORMAL -> packageJson.dependencies[it.name] = dependency
-            NpmDependency.Scope.DEV -> packageJson.devDependencies[it.name] = dependency
-            NpmDependency.Scope.OPTIONAL -> packageJson.optionalDependencies[it.name] = dependency
-            NpmDependency.Scope.PEER -> packageJson.peerDependencies[it.name] = dependency
+            NpmDependencyScopeDeprecated.NORMAL -> packageJson.dependencies[it.name] = dependency
+            NpmDependencyScopeDeprecated.DEV -> packageJson.devDependencies[it.name] = dependency
+            NpmDependencyScopeDeprecated.OPTIONAL -> packageJson.optionalDependencies[it.name] = dependency
+            NpmDependencyScopeDeprecated.PEER -> packageJson.peerDependencies[it.name] = dependency
         }
     }
 
@@ -162,7 +170,7 @@ internal fun packageJson(
 private fun chooseVersion(
     module: String,
     oldVersion: String?,
-    newVersion: String
+    newVersion: String,
 ): String {
     if (oldVersion == null) {
         return newVersion
@@ -175,5 +183,12 @@ private fun chooseVersion(
             """.trimIndent()
         )
 }
+
+@kotlinx.serialization.Serializable
+internal data class PackageJsonDependencies(
+    val dependencies: Map<String, String> = emptyMap(),
+    val peerDependencies: Map<String, String> = emptyMap(),
+    val optionalDependencies: Map<String, String> = emptyMap(),
+)
 
 internal const val fakePackageJsonValue = "FAKE"

@@ -5,14 +5,14 @@
 
 package org.jetbrains.kotlin.code
 
-import org.jetbrains.kotlin.test.testFramework.KtUsefulTestCase
-import org.jetbrains.kotlin.test.testFramework.KtUsefulTestCase.assertEmpty
-import org.junit.Test
+import org.junit.jupiter.api.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import java.io.File
 
 class LicensesTests {
     companion object {
-        private const val licenseReadmePath = "license/README.md"
+        private const val LICENSE_README_PATH = "license/README.md"
     }
 
     @Test
@@ -23,7 +23,7 @@ class LicensesTests {
         val linksUsages = mutableSetOf<String>()
         val linksDefinitions = mutableSetOf<String>()
 
-        val readmeFile = File(licenseReadmePath)
+        val readmeFile = File(LICENSE_README_PATH)
         readmeFile.useLines { lineSequence ->
             lineSequence.forEach { line ->
                 val definitionMatch = linkDefinitionRegExp.matchEntire(line)
@@ -35,17 +35,17 @@ class LicensesTests {
             }
         }
 
-        KtUsefulTestCase.assertOrderedEquals(
-            "Incorrect links definitions usage in $readmeFile. Expected - links definitions. Actual - links usages",
+        assertEquals(
+            linksDefinitions.sorted(),
             linksUsages.sorted(),
-            linksDefinitions.sorted()
+            "Incorrect links definitions usage in $readmeFile. Expected - links definitions. Actual - links usages",
         )
     }
 
     @Test
     fun testLicensesAreExistingFiles() {
         val licenseReferenceRegexp = Regex("\\[([^]]*third_party/[^]]*\\.txt)]")
-        val readmeFile = File(licenseReadmePath)
+        val readmeFile = File(LICENSE_README_PATH)
         val linkedInReadme = readmeFile.useLines { lineSequence ->
             lineSequence.flatMap { line ->
                 licenseReferenceRegexp.findAll(line).map { it.groups[1]?.value ?: error("Should be present because of match") }
@@ -53,6 +53,6 @@ class LicensesTests {
         }
 
         val missingFiles = linkedInReadme.filterNot { path -> File(path).exists() }
-        assertEmpty("Files for licenses are missing", missingFiles)
+        assertTrue(missingFiles.isEmpty(), "Files for licenses are missing: $missingFiles")
     }
 }

@@ -3,6 +3,8 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+import org.gradle.api.provider.Provider
+
 val KotlinBuildProperties.includeJava9: Boolean
     get() = booleanProperty("kotlin.build.java9", true).get()
 
@@ -14,10 +16,6 @@ val KotlinBuildProperties.postProcessing: Boolean get() = isTeamcityBuild.get() 
 val KotlinBuildProperties.relocation: Boolean get() = postProcessing
 
 val KotlinBuildProperties.proguard: Boolean get() = postProcessing && booleanProperty("kotlin.build.proguard", isTeamcityBuild).get()
-
-val KotlinBuildProperties.jarCompression: Boolean get() = booleanProperty("kotlin.build.jar.compression", isTeamcityBuild).get()
-
-val KotlinBuildProperties.ignoreTestFailures: Boolean get() = booleanProperty("ignoreTestFailures", isTeamcityBuild).get()
 
 val KotlinBuildProperties.disableWerror: Boolean
     get() = booleanProperty("kotlin.build.disable.werror").get() || useFir.get() || booleanProperty("test.progressive.mode").get()
@@ -45,9 +43,6 @@ val KotlinBuildProperties.isNativeRuntimeDebugInfoEnabled: Boolean
 
 val KotlinBuildProperties.junit5NumberOfThreadsForParallelExecution: Int?
     get() = intProperty("kotlin.test.junit5.maxParallelForks").orNull
-
-val KotlinBuildProperties.useFirWithLightTree: Boolean
-    get() = booleanProperty("kotlin.build.useFirLT").get()
 
 val KotlinBuildProperties.useFirTightIC: Boolean
     get() = booleanProperty("kotlin.build.useFirIC").get()
@@ -95,3 +90,26 @@ val KotlinBuildProperties.buildPlatformLibsByBootstrapCompiler: Boolean
  */
 val KotlinBuildProperties.alignKotlinNativeVersionInTCBuilds: Boolean
     get() = isTeamcityBuild.get() && booleanProperty("kotlin.align.versions.kotlin-native.in.tc.builds", true).get()
+
+/**
+ * Overrides the maximum heap size for all standard test JVMs.
+ * The value must use JVM size notation with a `k`, `m`, or `g` suffix.
+ */
+val KotlinBuildProperties.testXmx: Provider<Size>
+    get() = stringProperty("kotlin.test.xmx").map { Size.fromJvmArg(it) }
+
+/**
+ * Overrides the initial heap size for all standard test JVMs.
+ * The value must use JVM size notation with a `k`, `m`, or `g` suffix.
+ */
+val KotlinBuildProperties.testXms: Provider<Size>
+    get() = stringProperty("kotlin.test.xms").map { Size.fromJvmArg(it) }
+
+/**
+ * Overrides the garbage collector for all standard test JVMs.
+ * Supported values are `G1` and `Parallel`.
+ */
+val KotlinBuildProperties.testGarbageCollector: Provider<GarbageCollector>
+    get() = stringProperty("kotlin.test.garbage.collector").map { raw ->
+        if (raw.isEmpty()) null else GarbageCollector.valueOf(raw)
+    }

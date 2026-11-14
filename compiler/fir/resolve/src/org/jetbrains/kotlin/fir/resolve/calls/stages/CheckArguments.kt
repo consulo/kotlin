@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.calls.inference.isSubtypeConstraintCompatible
 import org.jetbrains.kotlin.types.model.anySuperTypeConstructor
 import org.jetbrains.kotlin.types.model.typeConstructor
+import org.jetbrains.kotlin.util.OnlyForDefaultLanguageFeatureDisabled
 
 internal object CheckArguments : ResolutionStage() {
     context(sink: CheckerSink, context: ResolutionContext)
@@ -32,8 +33,12 @@ internal object CheckArguments : ResolutionStage() {
         val argumentMapping = candidate.argumentMapping
         val isInvokeFromExtensionFunctionType = candidate.isInvokeFromExtensionFunctionType
 
+        // A contradiction which appeared before the arguments are checked (e.g., because of explicit type arguments)
+        // has already been reported by an earlier stage with a more precise diagnostic, see KT-76718
+        val contradictionIsAlreadyReported = candidate.system.hasContradiction && candidate.diagnostics.anyUnsuccessful
+
         val contextArgumentsOfInvoke = candidate.expectedContextParameterCountForInvoke ?: 0
-        for ((index, argument) in candidate.arguments.withIndex()) {
+        for ([index, argument] in candidate.arguments.withIndex()) {
             if (index < contextArgumentsOfInvoke) continue
 
             val expression = argument.expression
@@ -52,7 +57,9 @@ internal object CheckArguments : ResolutionStage() {
 
         when {
             candidate.system.hasContradiction && candidate.callInfo.arguments.isNotEmpty() -> {
-                sink.yieldDiagnostic(InapplicableCandidate)
+                if (!contradictionIsAlreadyReported) {
+                    sink.yieldDiagnostic(InapplicableCandidate)
+                }
             }
 
             // Logic description: only candidates from Kotlin, but using Java SAM types, are discriminated
@@ -66,6 +73,10 @@ internal object CheckArguments : ResolutionStage() {
                 ) {
                     sink.markCandidateForCompatibilityResolve()
                 }
+            }
+
+            candidate.shouldHaveLowPriorityDueToNumericClassConversion() -> {
+                sink.reportDiagnostic(LowerPriorityForNumericClassConversion)
             }
         }
     }
@@ -83,13 +94,14 @@ internal object CheckArguments : ResolutionStage() {
         argument.coneTypeOrNull.ensureResolvedTypeDeclaration(context.session)
         val expectedType = prepareExpectedType(callInfo, argument, parameter)
         ArgumentCheckingProcessor.resolveArgumentExpression(
-            this,
+            csBuilder,
             atom,
+            containingCallCandidate = this,
             expectedType,
             sink,
             context,
             isReceiver,
-            isDispatch = false
+            isDispatch = false,
         )
     }
 }
@@ -123,6 +135,7 @@ private fun Candidate.prepareExpectedType(
             }
         }
             ?: getExpectedTypeWithImplicitIntegerCoercion(context.session, argument, parameter, basicExpectedType)
+            ?: getExpectedTypeNumericClassConversion(context.session, argument, basicExpectedType)
             ?: basicExpectedType
     return this.substitutor.substituteOrSelf(expectedType)
 }
@@ -152,6 +165,10 @@ private fun FirExpression.shouldUseSamConversion(
     candidateExpectedType: ConeKotlinType,
 ): Boolean {
     val unwrapped = unwrapArgument()
+
+    if (unwrapped is FirCollectionLiteral) {
+        return false
+    }
 
     // Always apply SAM conversion on lambdas and callable references
     if (unwrapped is FirAnonymousFunctionExpression || unwrapped is FirCallableReferenceAccess) {
@@ -198,7 +215,7 @@ private fun FirExpression.isCallWithGenericReturnTypeAndMatchingLambda(): Boolea
     val postponedAtoms = namedReferenceWithCandidate()?.candidate?.postponedAtoms ?: return false
     return postponedAtoms.any {
         it is ConeLambdaWithTypeVariableAsExpectedTypeAtom &&
-                it.expectedType.typeConstructor(session.typeContext) == expressionType.typeConstructor(session.typeContext)
+                it.expectedType.typeConstructor(c = session.typeContext) == expressionType.typeConstructor(c = session.typeContext)
     }
 }
 
@@ -225,6 +242,25 @@ private fun getExpectedTypeWithImplicitIntegerCoercion(
     return argumentType?.withNullabilityOf(candidateExpectedType, session.typeContext)
 }
 
+@OptIn(UnresolvedExpressionTypeAccess::class)
+private fun Candidate.getExpectedTypeNumericClassConversion(
+    session: FirSession,
+    argument: FirExpression,
+    candidateExpectedType: ConeKotlinType,
+): ConeKotlinType? = argument.coneTypeOrNull
+    ?.let { getExpectedTypeWithNumericClassConversion(session, argument, it, candidateExpectedType) }
+
+fun Candidate.getExpectedTypeWithNumericClassConversion(
+    session: FirSession,
+    expression: FirExpression,
+    argumentType: ConeKotlinType,
+    candidateExpectedType: ConeKotlinType,
+): ConeKotlinType? {
+    if (!isNumericConversionPossibleBetween(from = argumentType, to = candidateExpectedType, session)) return null
+    return argumentType.withNullabilityOf(candidateExpectedType, session.typeContext)
+        .also { markUseOfNumericClassConversion(expression, candidateExpectedType) }
+}
+
 private fun FirExpression.namedReferenceWithCandidate(): FirNamedReferenceWithCandidate? =
     when (this) {
         is FirResolvable -> calleeReference as? FirNamedReferenceWithCandidate
@@ -235,5 +271,6 @@ private fun FirExpression.namedReferenceWithCandidate(): FirNamedReferenceWithCa
 context(context: ResolutionContext)
 private fun CheckerSink.markCandidateForCompatibilityResolve() {
     if (disableCompatibilityModeForNewInference()) return
+    @OptIn(OnlyForDefaultLanguageFeatureDisabled::class) // DisableCompatibilityModeForNewInference
     reportDiagnostic(LowerPriorityToPreserveCompatibilityDiagnostic)
 }

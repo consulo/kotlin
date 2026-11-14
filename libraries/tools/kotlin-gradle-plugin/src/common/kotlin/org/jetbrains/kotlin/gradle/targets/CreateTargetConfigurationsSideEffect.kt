@@ -12,12 +12,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.publishing.configureResourcesPublicationAttributes
 import org.jetbrains.kotlin.gradle.plugin.mpp.publishing.configureSourcesPublicationAttributes
 import org.jetbrains.kotlin.gradle.plugin.mpp.resources.resourcesPublicationExtension
-import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
-import org.jetbrains.kotlin.gradle.utils.addSecondaryOutgoingJvmClassesVariant
-import org.jetbrains.kotlin.gradle.utils.maybeCreateConsumable
-import org.jetbrains.kotlin.gradle.utils.maybeCreateConsumableCompat
-import org.jetbrains.kotlin.gradle.utils.maybeCreateDependencyScope
-import org.jetbrains.kotlin.gradle.utils.setInvisibleIfSupported
+import org.jetbrains.kotlin.gradle.utils.*
 
 internal val CreateTargetConfigurationsSideEffect = KotlinTargetSideEffect { target ->
     val project = target.project
@@ -68,7 +63,7 @@ internal val CreateTargetConfigurationsSideEffect = KotlinTargetSideEffect { tar
             attributes.attribute(Category.CATEGORY_ATTRIBUTE, project.categoryByName(Category.LIBRARY))
             val runtimeConfiguration = mainCompilation.internal.configurations.deprecatedRuntimeConfiguration
             extendsFrom(implementationConfiguration)
-            extendsFrom(runtimeOnlyConfiguration)
+            runtimeOnlyConfiguration?.let { extendsFrom(it) }
             runtimeConfiguration?.let { extendsFrom(it) }
             usesPlatformOf(target)
         }
@@ -100,7 +95,8 @@ internal val CreateTargetConfigurationsSideEffect = KotlinTargetSideEffect { tar
         val testCompilation = target.compilations.getByName(KotlinCompilation.TEST_COMPILATION_NAME)
         val compileTestsConfiguration = testCompilation.internal.configurations.deprecatedCompileConfiguration
 
-        val testImplementationConfiguration = configurations.maybeCreateDependencyScope(testCompilation.legacyImplementationConfigurationName)
+        val testImplementationConfiguration =
+            configurations.maybeCreateDependencyScope(testCompilation.legacyImplementationConfigurationName)
 
         @Suppress("TYPEALIAS_EXPANSION_DEPRECATION_ERROR")
         val testRuntimeOnlyConfiguration = when (testCompilation) {
@@ -111,7 +107,7 @@ internal val CreateTargetConfigurationsSideEffect = KotlinTargetSideEffect { tar
 
         compileConfiguration?.let { compileTestsConfiguration?.extendsFrom(it) }
         testImplementationConfiguration.extendsFrom(implementationConfiguration)
-        testRuntimeOnlyConfiguration?.extendsFrom(runtimeOnlyConfiguration)
+        runtimeOnlyConfiguration?.let { testRuntimeOnlyConfiguration?.extendsFrom(it) }
 
         @Suppress("TYPEALIAS_EXPANSION_DEPRECATION_ERROR")
         if (mainCompilation is DeprecatedKotlinCompilationToRunnableFiles &&
@@ -120,17 +116,6 @@ internal val CreateTargetConfigurationsSideEffect = KotlinTargetSideEffect { tar
             val runtimeConfiguration = mainCompilation.internal.configurations.deprecatedRuntimeConfiguration
             val testRuntimeConfiguration = testCompilation.internal.configurations.deprecatedRuntimeConfiguration
             runtimeConfiguration?.let { testRuntimeConfiguration?.extendsFrom(it) }
-        }
-    }
-
-    if (target is KotlinJsIrTarget && !target.isMpp) {
-        target.project.configurations.maybeCreateConsumable(
-            target.commonFakeApiElementsConfigurationName
-        ).apply {
-            setInvisibleIfSupported()
-            description = "Common Fake API elements for main."
-            KotlinUsages.configureProducerApiUsage(this, target)
-            attributes.attribute(KotlinPlatformType.attribute, KotlinPlatformType.common)
         }
     }
 }

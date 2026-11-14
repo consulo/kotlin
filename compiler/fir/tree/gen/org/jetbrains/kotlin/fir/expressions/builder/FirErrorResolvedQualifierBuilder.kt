@@ -23,29 +23,30 @@ import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.expressions.impl.FirErrorResolvedQualifierImpl
 import org.jetbrains.kotlin.fir.resolve.FirResolvedSymbolOrigin
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.FirTypeProjection
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 
 @FirBuilderDsl
 class FirErrorResolvedQualifierBuilder : FirAbstractResolvedQualifierBuilder, FirAnnotationContainerBuilder, FirExpressionBuilder {
     override var source: KtSourceElement? = null
     override var contextSensitiveAlternative: FirPropertyAccessExpression? = null
     override var coneTypeOrNull: ConeKotlinType? = null
-    override val annotations: MutableList<FirAnnotation> = mutableListOf()
+    override val annotations: MutableList<FirAnnotation> = []
     override lateinit var packageFqName: FqName
     override var relativeClassFqName: FqName? = null
-    override var symbol: FirClassLikeSymbol<*>? = null
+    override var qualifierSymbol: FirClassLikeSymbol<*>? = null
+    override var accessedObjectSymbol: FirRegularClassSymbol? = null
     override var explicitParent: FirResolvedQualifier? = null
-    override var isNullableLHSForCallableReference: Boolean = false
-    override var resolvedLHSTypeForCallableReferenceOrNull: ConeKotlinType? = null
+    override var isNullableLhsForCallableReference: Boolean = false
+    override var resolvedLhsTypeForCallableReferenceOrNull: ConeKotlinType? = null
     override var resolvedToCompanionObject: Boolean by kotlin.properties.Delegates.notNull<Boolean>()
-    override var canBeValue: Boolean = false
-    override var isFullyQualified: Boolean = false
-    override val nonFatalDiagnostics: MutableList<ConeDiagnostic> = mutableListOf()
+    override val nonFatalDiagnostics: MutableList<ConeDiagnostic> = []
     override var resolvedSymbolOrigin: FirResolvedSymbolOrigin? = null
-    override val typeArguments: MutableList<FirTypeProjection> = mutableListOf()
+    override var originalNameForContextSensitiveResolution: Name? = null
+    override val typeArguments: MutableList<FirTypeProjection> = []
     lateinit var diagnostic: ConeDiagnostic
 
     override fun build(): FirErrorResolvedQualifier {
@@ -56,27 +57,20 @@ class FirErrorResolvedQualifierBuilder : FirAbstractResolvedQualifierBuilder, Fi
             annotations.toMutableOrEmpty(),
             packageFqName,
             relativeClassFqName,
-            symbol,
+            qualifierSymbol,
+            accessedObjectSymbol,
             explicitParent,
-            isNullableLHSForCallableReference,
-            resolvedLHSTypeForCallableReferenceOrNull,
+            isNullableLhsForCallableReference,
+            resolvedLhsTypeForCallableReferenceOrNull,
             resolvedToCompanionObject,
-            canBeValue,
-            isFullyQualified,
             nonFatalDiagnostics.toMutableOrEmpty(),
             resolvedSymbolOrigin,
+            originalNameForContextSensitiveResolution,
             typeArguments.toMutableOrEmpty(),
             diagnostic,
         )
     }
 
-
-    @Deprecated("Modification of 'classId' has no impact for FirErrorResolvedQualifierBuilder", level = DeprecationLevel.HIDDEN)
-    override var classId: ClassId?
-        get() = throw IllegalStateException()
-        set(_) {
-            throw IllegalStateException()
-        }
 }
 
 @OptIn(ExperimentalContracts::class)

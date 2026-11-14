@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.jps.build
 
 import com.intellij.testFramework.RunAll
-import com.intellij.testFramework.UsefulTestCase
 import com.intellij.util.ThrowableRunnable
 import org.jetbrains.kotlin.TestWithWorkingDir
 import org.jetbrains.kotlin.build.JvmSourceRoot
@@ -32,13 +31,18 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.test.TestDataAssertions
 import org.jetbrains.kotlin.test.kotlinPathsForDistDirectoryForTests
+import org.jetbrains.kotlin.test.testFramework.KtUsefulTestCase.assertSameLinesWithFile
 import org.jetbrains.kotlin.utils.PathUtil
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeEach
 import java.io.*
 
 abstract class AbstractJvmLookupTrackerTest : AbstractLookupTrackerTest() {
 
     private val sourceToOutputMapping = hashMapOf<File, MutableSet<File>>()
 
+    @BeforeEach
     override fun setUp() {
         super.setUp()
         sourceToOutputMapping.clear()
@@ -66,10 +70,6 @@ abstract class AbstractJvmLookupTrackerTest : AbstractLookupTrackerTest() {
         }
     }
 
-    open fun configureAdditionalArgs(args: K2JVMCompilerArguments) {
-        args.useFirLT = false
-    }
-
     override fun runCompiler(filesToCompile: Iterable<File>, env: JpsCompilerEnvironment): Any? {
         val moduleFile = makeModuleFile(
             name = "test",
@@ -87,7 +87,6 @@ abstract class AbstractJvmLookupTrackerTest : AbstractLookupTrackerTest() {
             buildFile = moduleFile.canonicalPath
             reportOutputFiles = true
         }
-        configureAdditionalArgs(args)
         val argsArray = ArgumentUtils.convertArgumentsToStringList(args).toTypedArray()
 
         try {
@@ -118,6 +117,7 @@ abstract class AbstractLookupTrackerTest : TestWithWorkingDir() {
     protected open var filterBuiltins = false
     protected open var distinguishPackageAndClassLookups = true
 
+    @BeforeEach
     override fun setUp() {
         super.setUp()
         srcDir = File(workingDir, "src").apply { mkdirs() }
@@ -125,6 +125,7 @@ abstract class AbstractLookupTrackerTest : TestWithWorkingDir() {
         enableICFixture.setUp()
     }
 
+    @AfterEach
     override fun tearDown() {
         RunAll(
             ThrowableRunnable { enableICFixture.tearDown() },
@@ -139,7 +140,7 @@ abstract class AbstractLookupTrackerTest : TestWithWorkingDir() {
     protected open val buildLogFinder: BuildLogFinder
         get() = BuildLogFinder(isGradleEnabled = false)
 
-    fun doTest(path: String) {
+    fun runTest(path: String) {
         val sb = StringBuilder()
         fun StringBuilder.indentln(string: String) {
             appendLine("  $string")
@@ -187,7 +188,7 @@ abstract class AbstractLookupTrackerTest : TestWithWorkingDir() {
             filesToLookups.add(originalFilesToLookups())
 
         }
-        for ((i, modifications) in steps.withIndex()) {
+        for ([i, modifications] in steps.withIndex()) {
             dirtyFiles = modifications.mapNotNullTo(HashSet()) { it.perform(workingDir, workToOriginalFileMap) }
             make(dirtyFiles).apply {
                 logOutput("STEP ${i + 1}")
@@ -196,13 +197,13 @@ abstract class AbstractLookupTrackerTest : TestWithWorkingDir() {
         }
 
         buildLogFinder.findBuildLog(testDir)?.let { expectedBuildLog ->
-            UsefulTestCase.assertSameLinesWithFile(expectedBuildLog.canonicalPath, sb.toString())
+            assertSameLinesWithFile(expectedBuildLog.canonicalPath, sb.toString())
         }
 
         assertEquals(steps.size + 1, filesToLookups.size)
-        for ((i, lookupsAtStepI) in filesToLookups.withIndex()) {
+        for ([i, lookupsAtStepI] in filesToLookups.withIndex()) {
             val step = if (i == 0) "INITIAL BUILD" else "STEP $i"
-            for ((file, lookups) in lookupsAtStepI) {
+            for ([file, lookups] in lookupsAtStepI) {
                 checkLookupsInFile(step, file, lookups)
             }
         }
@@ -247,7 +248,13 @@ abstract class AbstractLookupTrackerTest : TestWithWorkingDir() {
         val text = expectedFile.readText().replace(COMMENT_WITH_LOOKUP_INFO, "")
         val lines = text.lines().toMutableList()
 
-        for ((line, lookupsFromLine) in lookupsFromFile.groupBy { it.position.line }) {
+        val lookupsWithoutPosition = lookupsFromFile.filter { it.position.line <= 0 }
+        assert(lookupsWithoutPosition.isEmpty()) {
+            "Lookups without position after $step in ${expectedFile.name}:\n" +
+                    lookupsWithoutPosition.joinToString("\n") { "  lookup without position: ${it.scopeFqName.ifEmpty { "<root>" }}/${it.name}" }
+        }
+
+        for ([line, lookupsFromLine] in lookupsFromFile.groupBy { it.position.line }) {
             val columnToLookups = lookupsFromLine.groupBy { it.position.column }.toList().sortedBy { it.first }
 
             val lineContent = lines[line - 1]
@@ -255,7 +262,7 @@ abstract class AbstractLookupTrackerTest : TestWithWorkingDir() {
 
             var start = 0
 
-            for ((column, lookupsFromColumn) in columnToLookups) {
+            for ([column, lookupsFromColumn] in columnToLookups) {
                 val end = column - 1
                 parts.add(lineContent.subSequence(start, end))
 

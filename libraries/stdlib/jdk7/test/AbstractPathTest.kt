@@ -19,6 +19,7 @@ abstract class AbstractPathTest {
         return this
     }
 
+    @IgnorableReturnValue
     fun Path.cleanupRecursively(): Path {
         cleanUpActions.add(this to { it.deleteRecursively() })
         return this
@@ -26,7 +27,7 @@ abstract class AbstractPathTest {
 
     @AfterTest
     fun cleanUp() {
-        for ((path, action) in cleanUpActions) {
+        for ([path, action] in cleanUpActions) {
             try {
                 action(path)
             } catch (e: Throwable) {
@@ -35,6 +36,7 @@ abstract class AbstractPathTest {
         }
     }
 
+    @IgnorableReturnValue
     fun Path.tryCreateSymbolicLinkTo(original: Path): Path? {
         return try {
             this.createSymbolicLinkPointingTo(original)

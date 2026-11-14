@@ -75,7 +75,7 @@ Warning: this flag is not intended for production use. If you want to configure 
     @Argument(
         value = "-XXexplicit-return-types",
         valueDescription = "{strict|warning|disable}",
-        description = """Force the compiler to report errors on all public API declarations without an explicit return type.
+        description = """Force the compiler to report errors on all public API declarations and non-local functions without an explicit return type.
 Use the 'warning' level to issue warnings instead of errors.
 This flag partially enables functionality of `-Xexplicit-api` flag, so please don't use them altogether""",
     )
@@ -99,7 +99,6 @@ This flag partially enables functionality of `-Xexplicit-api` flag, so please do
         value = "-Xallow-any-scripts-in-source-roots",
         description = "Allow compiling scripts along with regular Kotlin sources.",
     )
-    @Disables(LanguageFeature.SkipStandaloneScriptsInSourceRoots)
     var allowAnyScriptsInSourceRoots: Boolean = false
         set(value) {
             checkFrozen()
@@ -163,13 +162,24 @@ This flag partially enables functionality of `-Xexplicit-api` flag, so please do
         }
 
     @Argument(
+        value = "-Xallow-returns-result-of",
+        description = "Allows to use `returnsResultOf()` in `contract {}` block of function body. This contract provides additional information for return value checker. Enabling this feature will force compiler to produce pre-release binaries, because this functions with this contract cannot be read correctly by Kotlin 2.3 and lower.",
+    )
+    @Enables(LanguageFeature.AllowReturnsResultOfContract)
+    var allowReturnsResultOf: Boolean = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
         value = "-Xannotation-default-target",
         valueDescription = "first-only|first-only-warn|param-property",
         description = """Change the default annotation targets for constructor properties:
 -Xannotation-default-target=first-only:      use the first of the following allowed targets: '@param:', '@property:', '@field:';
 -Xannotation-default-target=first-only-warn: same as first-only, and raise warnings when both '@param:' and either '@property:' or '@field:' are allowed;
 -Xannotation-default-target=param-property:  use '@param:' target if applicable, and also use the first of either '@property:' or '@field:';
-default: 'first-only-warn' in language version 2.2+, 'first-only' in version 2.1 and before.""",
+default: 'param-property' in language version 2.4+, 'first-only-warn' in language versions 2.2 & 2.3, 'first-only' in version 2.1 and before.""",
     )
     @Disables(LanguageFeature.AnnotationDefaultTargetMigrationWarning, "first-only")
     @Enables(LanguageFeature.AnnotationDefaultTargetMigrationWarning, "first-only-warn")
@@ -188,6 +198,17 @@ default: 'first-only-warn' in language version 2.2+, 'first-only' in version 2.1
     )
     @Enables(LanguageFeature.AnnotationAllUseSiteTarget)
     var annotationTargetAll: Boolean = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xcallable-references-to-contextual",
+        description = "Enable callable references to contextual declarations.",
+    )
+    @Enables(LanguageFeature.CallableReferencesToContextual)
+    var callableReferencesToContextual: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -221,6 +242,29 @@ default: 'first-only-warn' in language version 2.2+, 'first-only' in version 2.1
 They should be a subset of sources passed as free arguments.""",
     )
     var commonSources: Array<String> = emptyArray()
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xcompanion-blocks",
+        description = "Enables companion blocks.",
+    )
+    @Enables(LanguageFeature.CompanionBlocks)
+    var companionBlocks: Boolean = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xcompanion-blocks-and-extensions",
+        description = "Enables companion blocks and extensions.",
+    )
+    @Enables(LanguageFeature.CompanionBlocks)
+    @Enables(LanguageFeature.CompanionExtensions)
+    var companionBlocksAndExtensions: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -276,17 +320,6 @@ Multiple constraints can be specified by repeating this option. Cycles in constr
         }
 
     @Argument(
-        value = "-Xcontext-receivers",
-        description = "Enable experimental context receivers.",
-    )
-    @Enables(LanguageFeature.ContextReceivers)
-    var contextReceivers: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
         value = "-Xcontext-sensitive-resolution",
         description = "Enable experimental context-sensitive resolution.",
     )
@@ -312,20 +345,11 @@ Multiple constraints can be specified by repeating this option. Cycles in constr
         value = "-Xdetailed-perf",
         description = """Enable more detailed performance statistics (Experimental).
 For Native, the performance report includes execution time and lines processed per second for every individual lowering.
-For WASM and JS, the performance report includes execution time and lines per second for each lowering of the first stage of compilation.""",
+For WASM and JS, the performance report includes execution time and lines per second for each lowering of the first stage of compilation.
+Additionally enables measurements for User and CPU time for all targets. Note that this could cause performance degradation on Linux
+  machines, so use this mode with caution.""",
     )
     var detailedPerf: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
-        value = "-Xdirect-java-actualization",
-        description = "Enable experimental direct Java actualization support.",
-    )
-    @Enables(LanguageFeature.DirectJavaActualization)
-    var directJavaActualization: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -342,10 +366,33 @@ For WASM and JS, the performance report includes execution time and lines per se
         }
 
     @Argument(
+        value = "-Xdisable-ir-checkers",
+        valueDescription = "<checker1>,<checker2>",
+        description = """A list of IR checkers to disable, specified by a simple name of the checker class. A name of an annotation can also be used to match all tagged checkers.
+Only has effect if '-Xverify-ir' is not 'none'.""",
+    )
+    var disableIrCheckers: Array<String> = emptyArray()
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
         value = "-Xdisable-phases",
         description = "Disable backend phases.",
     )
     var disablePhases: Array<String> = emptyArray()
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xdo-not-normalize-nan-values-in-const-context",
+        description = "Disables `NormalizeNaNValuesInConstContext` language feature.`",
+    )
+    @Disables(LanguageFeature.NormalizeNaNValuesInConstContext)
+    var doNotNormalizeNanValuesInConstContext: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -405,10 +452,46 @@ Example: `path/to/dir/*.log` creates logs like `path/to/dir/my-module_2025-06-20
         }
 
     @Argument(
+        value = "-Xeager-lambda-analysis",
+        description = "Enable eager analysis of lambda bodies to improve overload resolution by the lambda's return type.",
+    )
+    @Enables(LanguageFeature.EagerLambdaAnalysis)
+    @Enables(LanguageFeature.InferThrowableTypeParameterToUpperBound)
+    @Enables(LanguageFeature.CallCompletionRefinementsFor25)
+    var eagerLambdaAnalysis: Boolean = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xenable-additional-ir-checkers",
+        valueDescription = "<checker1>,<checker2>",
+        description = """A list of IR checkers to enable, specified by a simple name of the checker class.
+It may only be used with specific checkers that are not enabled by default, and which are prepared to be enabled this way. Only has effect if '-Xverify-ir' is not 'none'.""",
+    )
+    var enableAdditionalIrCheckers: Array<String> = emptyArray()
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
         value = "-Xenable-incremental-compilation",
         description = "Enable incremental compilation.",
     )
     var incrementalCompilation: Boolean? = null
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xescaping-functions",
+        valueDescription = "<+|-><fq.name>",
+        description = "Add (+) or remove (-) a callable whose functional arguments are analyzed for escaping mutable variables. Callables are specified by their fully qualified name.",
+    )
+    var escapingFunctions: Array<String> = emptyArray()
         set(value) {
             checkFrozen()
             field = value
@@ -460,12 +543,21 @@ Use the 'warning' level to issue warnings instead of errors.""",
         }
 
     @Argument(
+        value = "-Xfir-aggressive-pruning",
+        description = "Enable or disable FirAggressivePruningProcessor, which prunes unreachable private members during body resolve.",
+    )
+    var firAggressivePruning: Boolean? = null
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
         value = "-Xfragment-dependency",
         valueDescription = "<fragment name>:<path>",
         description = """Declare common klib dependencies for the specific fragment.
 This argument is required for any HMPP module except the platform leaf module: it takes dependencies from -cp/-libraries.
-The argument should be used only if the new compilation scheme is enabled with -Xseparate-kmp-compilation
-""",
+The argument should be used only if the new compilation scheme is enabled with -Xseparate-kmp-compilation""",
         delimiter = Argument.Delimiters.none,
     )
     var fragmentDependencies: Array<String> = emptyArray()
@@ -479,8 +571,7 @@ The argument should be used only if the new compilation scheme is enabled with -
         valueDescription = "<fragment name>:<path>",
         description = """Declare common klib friend dependencies for the specific fragment.
 This argument can be specified for any HMPP module except the platform leaf module: it takes dependencies from the platform specific friend module arguments.
-The argument should be used only if the new compilation scheme is enabled with -Xseparate-kmp-compilation
-""",
+The argument should be used only if the new compilation scheme is enabled with -Xseparate-kmp-compilation""",
         delimiter = Argument.Delimiters.none,
     )
     var fragmentFriendDependencies: Array<String> = emptyArray()
@@ -523,6 +614,17 @@ The argument should be used only if the new compilation scheme is enabled with -
         }
 
     @Argument(
+        value = "-Xfull-value-classes",
+        description = "Enable experimental language support for full value classes.",
+    )
+    @Enables(LanguageFeature.FullValueClasses)
+    var fullValueClasses: Boolean = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
         value = "-Xheader-mode",
         description = """Enable header compilation mode.
 In this mode, the compiler produces class files that only contain the 'skeleton' of the classes to be
@@ -551,35 +653,14 @@ with bodies.""",
         }
 
     @Argument(
-        value = "-Xignore-const-optimization-errors",
-        description = "Ignore all compilation exceptions while optimizing some constant expressions.",
+        value = "-Xintrinsic-const-evaluation",
+        description = "Enables `IntrinsicConstEvaluation` language feature.`",
     )
-    var ignoreConstOptimizationErrors: Boolean = false
+    @Enables(LanguageFeature.IntrinsicConstEvaluation)
+    var intrinsicConstEvaluation: Boolean = false
         set(value) {
             checkFrozen()
             field = value
-        }
-
-    @Argument(
-        value = "-Xinline-classes",
-        description = "Enable experimental inline classes.",
-    )
-    @Enables(LanguageFeature.InlineClasses)
-    var inlineClasses: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
-        value = "-Xintellij-plugin-root",
-        valueDescription = "<path>",
-        description = "Path to 'kotlin-compiler.jar' or the directory where the IntelliJ IDEA configuration files can be found.",
-    )
-    var intellijPluginRoot: String? = null
-        set(value) {
-            checkFrozen()
-            field = if (value.isNullOrEmpty()) null else value
         }
 
     @Argument(
@@ -624,9 +705,11 @@ with bodies.""",
             field = if (value.isNullOrEmpty()) null else value
         }
 
+    @all:Deprecated("")
     @Argument(
         value = "-Xmulti-dollar-interpolation",
         description = "Enable experimental multi-dollar interpolation.",
+        deprecatedVersion = "2.5.0",
     )
     @Enables(LanguageFeature.MultiDollarInterpolation)
     var multiDollarInterpolation: Boolean = false
@@ -657,8 +740,11 @@ with bodies.""",
     @Enables(LanguageFeature.NameBasedDestructuring, "only-syntax")
     @Enables(LanguageFeature.NameBasedDestructuring, "name-mismatch")
     @Enables(LanguageFeature.NameBasedDestructuring, "complete")
+    @Disables(LanguageFeature.DeprecateNameMismatchInShortDestructuringWithParentheses, "only-syntax")
     @Enables(LanguageFeature.DeprecateNameMismatchInShortDestructuringWithParentheses, "name-mismatch")
     @Enables(LanguageFeature.DeprecateNameMismatchInShortDestructuringWithParentheses, "complete")
+    @Disables(LanguageFeature.EnableNameBasedDestructuringShortForm, "only-syntax")
+    @Disables(LanguageFeature.EnableNameBasedDestructuringShortForm, "name-mismatch")
     @Enables(LanguageFeature.EnableNameBasedDestructuringShortForm, "complete")
     var nameBasedDestructuring: String? = null
         set(value) {
@@ -678,30 +764,6 @@ with bodies.""",
         }
 
     @Argument(
-        value = "-Xnew-inference",
-        description = "Enable the new experimental generic type inference algorithm.",
-    )
-    @Enables(LanguageFeature.NewInference)
-    @Enables(LanguageFeature.SamConversionPerArgument)
-    @Enables(LanguageFeature.FunctionReferenceWithDefaultValueAsOtherType)
-    @Enables(LanguageFeature.DisableCompatibilityModeForNewInference)
-    var newInference: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
-        value = "-Xno-check-actual",
-        description = "Do not check for the presence of the 'actual' modifier in multiplatform projects.",
-    )
-    var noCheckActual: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
         value = "-Xno-inline",
         description = "Disable method inlining.",
     )
@@ -711,9 +773,11 @@ with bodies.""",
             field = value
         }
 
+    @all:Deprecated("")
     @Argument(
         value = "-Xnon-local-break-continue",
         description = "Enable experimental non-local break and continue.",
+        deprecatedVersion = "2.5.0",
     )
     @Enables(LanguageFeature.BreakContinueInInlineLambdas)
     var nonLocalBreakContinue: Boolean = false
@@ -824,16 +888,6 @@ with bodies.""",
         }
 
     @Argument(
-        value = "-Xrepl",
-        description = "Run Kotlin REPL (deprecated)",
-    )
-    var repl: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
         value = "-Xreport-all-warnings",
         description = "Report all warnings even if errors are found.",
     )
@@ -865,10 +919,21 @@ with bodies.""",
 
     @Argument(
         value = "-Xreturn-value-checker",
-        valueDescription = "{check|full|disable}",
-        description = "Set improved unused return value checker mode. Use 'check' to run checker only and use 'full' to also enable automatic annotation insertion.",
+        valueDescription = "{check|full|disable|default}",
+        description = "Set improved unused return value checker mode. Use 'check' to run checker only and use 'full' to also enable automatic annotation insertion. 'default' mode is based on the current language version: Since Kotlin 2.5, checker is enabled by default.",
     )
-    var returnValueChecker: String = "disable"
+    var returnValueChecker: String = "default"
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xrich-errors",
+        description = "Enable experimental language support for Rich Errors.",
+    )
+    @Enables(LanguageFeature.RichErrors)
+    var richErrors: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -915,11 +980,11 @@ with bodies.""",
         }
 
     @Argument(
-        value = "-Xsuppress-api-version-greater-than-language-version-error",
-        description = """Suppress error about API version greater than language version.
-Warning: This is temporary solution (see KT-63712) intended to be used only for stdlib build.""",
+        value = "-Xstrict-equality-for-structural-classes",
+        description = "Report warnings on inapplicable equalities with data, value, and enum classes.",
     )
-    var suppressApiVersionGreaterThanLanguageVersionError: Boolean = false
+    @Enables(LanguageFeature.StrictEqualsForStructuralClasses)
+    var strictEqualityForStructuralClasses: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -935,66 +1000,13 @@ Warning: This is temporary solution (see KT-63712) intended to be used only for 
             field = value
         }
 
-    @Argument(
-        value = "-Xsuppress-warning",
-        valueDescription = "<WARNING_NAME>",
-        description = "Suppress specified warning module-wide. This option is deprecated in favor of \"-Xwarning-level\" flag",
-    )
-    var suppressedDiagnostics: Array<String> = emptyArray()
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
-        value = "-Xunrestricted-builder-inference",
-        description = "Eliminate builder inference restrictions, for example by allowing type variables to be returned from builder inference calls.",
-    )
-    @Enables(LanguageFeature.UnrestrictedBuilderInference)
-    var unrestrictedBuilderInference: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Deprecated("This flag is deprecated")
-    @Argument(
-        value = "-Xuse-fir-experimental-checkers",
-        description = "Enable experimental frontend IR checkers that are not yet ready for production.",
-    )
-    var useFirExperimentalCheckers: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
+    @all:Deprecated("")
     @Argument(
         value = "-Xuse-fir-ic",
-        description = """Compile using frontend IR internal incremental compilation.
-Warning: This feature is not yet production-ready.""",
+        description = "Compile using frontend IR internal incremental compilation.",
+        deprecatedVersion = "2.5.0",
     )
     var useFirIC: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
-        value = "-Xuse-fir-lt",
-        description = "Compile using the LightTree parser with the frontend IR.",
-    )
-    var useFirLT: Boolean = true
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
-        value = "-Xuse-k2",
-        description = "Compile using the experimental K2 compiler pipeline. No compatibility guarantees are provided yet.",
-        isObsolete = true,
-    )
-    var useK2: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -1022,26 +1034,6 @@ Warning: This feature is not yet production-ready.""",
         }
 
     @Argument(
-        value = "-Xverify-ir-nested-offsets",
-        description = "Check that offsets of nested IR elements conform to offsets of their containers. Only has effect if '-Xverify-ir' is not 'none'.",
-    )
-    var verifyIrNestedOffsets: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
-        value = "-Xverify-ir-visibility",
-        description = "Check for visibility violations in IR when validating it before running any lowerings. Only has effect if '-Xverify-ir' is not 'none'.",
-    )
-    var verifyIrVisibility: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
         value = "-Xwarning-level",
         valueDescription = "<WARNING_NAME>:(error|warning|disabled)",
         description = """Set the severity of the given warning.
@@ -1055,9 +1047,11 @@ Warning: This feature is not yet production-ready.""",
             field = value
         }
 
+    @all:Deprecated("")
     @Argument(
         value = "-Xwhen-guards",
         description = "Enable experimental language support for when guards.",
+        deprecatedVersion = "2.5.0",
     )
     @Enables(LanguageFeature.WhenGuards)
     var whenGuards: Boolean = false

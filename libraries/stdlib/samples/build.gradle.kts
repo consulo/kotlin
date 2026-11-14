@@ -1,10 +1,12 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
 dependencies {
     api(project(":kotlin-stdlib-jdk8"))
-    testImplementation(kotlinTest("junit"))
+    testImplementation(kotlinTest("junit5"))
 }
 
 sourceSets {
@@ -13,9 +15,13 @@ sourceSets {
     }
 }
 
+tasks.test.configure {
+    useJUnitPlatform()
+}
+
 tasks.compileTestKotlin {
     compilerOptions {
-        freeCompilerArgs.add("-Xcontext-parameters")
+        freeCompilerArgs.add("-Xcompanion-blocks")
         optIn.addAll(
                 "kotlin.ExperimentalStdlibApi",
                 "kotlin.ExperimentalUnsignedTypes",

@@ -6,13 +6,15 @@
 package org.jetbrains.kotlin.psi;
 
 import com.intellij.lang.ASTNode;
-import com.intellij.psi.PsiElement;
 import com.intellij.psi.search.LocalSearchScope;
 import com.intellij.psi.search.SearchScope;
 import com.intellij.psi.util.PsiTreeUtil;
+import kotlin.DeprecationLevel;
+import kotlin.ReplaceWith;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.KtStubBasedElementTypes;
+import org.jetbrains.kotlin.KtNodeTypes;
 import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.psi.stubs.KotlinTypeParameterStub;
 import org.jetbrains.kotlin.types.Variance;
@@ -26,14 +28,19 @@ import org.jetbrains.kotlin.types.Variance;
  * //        ^
  * }</pre>
  */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public class KtTypeParameter extends KtNamedDeclarationStub<KotlinTypeParameterStub> {
+    /** A shared empty array, which can be reused to avoid unnecessary allocations. */
+    public static final KtTypeParameter[] EMPTY_ARRAY = new KtTypeParameter[0];
 
+    @KtImplementationDetail
     public KtTypeParameter(@NotNull ASTNode node) {
         super(node);
     }
 
+    @KtImplementationDetail
     public KtTypeParameter(@NotNull KotlinTypeParameterStub stub) {
-        super(stub, KtStubBasedElementTypes.TYPE_PARAMETER);
+        super(stub, KtNodeTypes.TYPE_PARAMETER);
     }
 
     @Override
@@ -41,6 +48,10 @@ public class KtTypeParameter extends KtNamedDeclarationStub<KotlinTypeParameterS
         return visitor.visitTypeParameter(this, data);
     }
 
+    /**
+     * Returns the declaration-site variance of this type parameter: {@link Variance#OUT_VARIANCE} for {@code out},
+     * {@link Variance#IN_VARIANCE} for {@code in}, or {@link Variance#INVARIANT} if no variance modifier is present.
+     */
     @NotNull
     public Variance getVariance() {
         KtModifierList modifierList = getModifierList();
@@ -51,31 +62,32 @@ public class KtTypeParameter extends KtNamedDeclarationStub<KotlinTypeParameterS
         return Variance.INVARIANT;
     }
 
+    /**
+     * @deprecated Use {@code org.jetbrains.kotlin.idea.base.psi.KotlinPsiModificationUtils.setTypeParameterExtendsBound(this, typeReference)}
+     * instead.
+     */
     @Nullable
+    @kotlin.Deprecated(
+            message = "Use 'org.jetbrains.kotlin.idea.base.psi.KotlinPsiModificationUtils.setTypeParameterExtendsBound(this, typeReference)' instead.",
+            replaceWith = @ReplaceWith(
+                    expression = "this.setTypeParameterExtendsBound(typeReference)",
+                    imports = "org.jetbrains.kotlin.idea.base.psi.setTypeParameterExtendsBound"
+            ),
+            level = DeprecationLevel.HIDDEN
+    )
+    @Deprecated
     public KtTypeReference setExtendsBound(@Nullable KtTypeReference typeReference) {
-        KtTypeReference currentExtendsBound = getExtendsBound();
-        if (currentExtendsBound != null) {
-            if (typeReference == null) {
-                PsiElement colon = findChildByType(KtTokens.COLON);
-                if (colon != null) colon.delete();
-                currentExtendsBound.delete();
-                return null;
-            }
-            return (KtTypeReference) currentExtendsBound.replace(typeReference);
-        }
-
-        if (typeReference != null) {
-            PsiElement colon = addAfter(new KtPsiFactory(getProject()).createColon(), getNameIdentifier());
-            return (KtTypeReference) addAfter(typeReference, colon);
-        }
-
-        return null;
+        return KtPsiMutationService.getInstance().setTypeParameterExtendsBound(this, typeReference);
     }
 
+    /**
+     * Returns the inline upper bound written after {@code :} (as in {@code <T : Comparable<T>>}), or {@code null} if this type parameter
+     * has no inline bound. Bounds declared in a {@code where} clause are exposed via {@link
+     * KtTypeParameterListOwner#getTypeConstraints()} instead.
+     */
     @Nullable
-    @SuppressWarnings("deprecation") // KT-78356
     public KtTypeReference getExtendsBound() {
-        return getStubOrPsiChild(KtStubBasedElementTypes.TYPE_REFERENCE);
+        return getStubOrPsiChild(KtNodeTypes.TYPE_REFERENCE, KtTypeReference.class);
     }
 
     @NotNull

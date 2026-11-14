@@ -1,10 +1,10 @@
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/OptIn(markerClass = [kotlin.contracts.ExperimentalContracts::class])
       psi: KtAnnotationEntry
   ]
   callableId: /check
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: [
@@ -17,15 +17,17 @@ KaNamedFunctionSymbol:
             KaContractExplicitParameterValue:
               symbol:
                 KaValueParameterSymbol:
+                  anchorPsi: KtParameter
                   annotations: []
                   callableId: null
-                  compilerVisibility: Public
+                  contextParameters: []
                   contextReceivers: []
-                  generatedPrimaryConstructorProperty: null
                   hasDeclaredDefaultValue: false
                   hasDefaultValue: false
                   isActual: false
+                  isCompanion: false
                   isCrossinline: false
+                  isDelegated: false
                   isExpect: false
                   isExtension: false
                   isExternal: false
@@ -37,21 +39,26 @@ KaNamedFunctionSymbol:
                   modality: FINAL
                   name: value
                   origin: SOURCE
+                  primaryConstructorProperty: null
+                  psi: KtParameter
+                  realPsi: KtParameter
                   receiverParameter: null
                   returnType: KaUsualClassType:
                     annotations: []
                     typeArguments: []
                     type: kotlin/Boolean
+                  typeParameters: []
                   visibility: PUBLIC
                   getContainingFileSymbol: KaFileSymbol(returnsContract.kt)
                   getContainingJvmClassName: ReturnsContractKt
                   getContainingModule: KaSourceModule "Sources of main"
-                  deprecationStatus: null
+                  deprecation: null
                   importableFqName: null
   ]
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -66,6 +73,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: check
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -74,15 +83,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -94,16 +105,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: value
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Boolean
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(returnsContract.kt)
       getContainingJvmClassName: ReturnsContractKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -111,6 +126,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: ReturnsContractKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: check
   importableFqName: check

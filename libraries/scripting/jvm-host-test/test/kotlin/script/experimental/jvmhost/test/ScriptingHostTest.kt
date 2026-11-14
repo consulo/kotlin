@@ -40,6 +40,7 @@ import kotlin.script.templates.standard.SimpleScriptTemplate
 import kotlin.test.*
 
 @ResourceLock(Resources.SYSTEM_OUT)
+@Suppress("DEPRECATION") // SimpleScriptTemplate: checks the mapping of the legacy standard templates
 class ScriptingHostTest {
 
     @Test
@@ -60,9 +61,7 @@ class ScriptingHostTest {
     fun testSourceWithName() {
         val greeting = "Hello from script!"
         val output = captureOut {
-            val host =
-                if (isRunningTestOnK2) BasicJvmScriptingHost()
-                else BasicJvmScriptingHost.createLegacy()
+            val host = BasicJvmScriptingHost()
             host.evalWithTemplate<SimpleScript>(
                 "println(\"$greeting\")".toScriptSource("name"),
                 compilation = {
@@ -115,14 +114,13 @@ class ScriptingHostTest {
         val greeting = "Hello from script classes!"
         val outDir = Files.createTempDirectory("saveToClassesOut").toFile()
         val compilationConfiguration = createJvmCompilationConfigurationFromTemplate<SimpleScriptTemplate>()
-        val host =
-            if (isRunningTestOnK2) BasicJvmScriptingHost(evaluator = BasicJvmScriptClassFilesGenerator(outDir))
-            else BasicJvmScriptingHost.createLegacy(evaluator = BasicJvmScriptClassFilesGenerator(outDir))
+        val host = BasicJvmScriptingHost(evaluator = BasicJvmScriptClassFilesGenerator(outDir))
         host.eval("println(\"$greeting\")".toScriptSource(name = "SavedScript.kts"), compilationConfiguration, null).throwOnFailure()
-        val classloader = URLClassLoader(arrayOf(outDir.toURI().toURL()), ScriptingHostTest::class.java.classLoader)
-        val scriptClass = classloader.loadClass("SavedScript")
-        val output = captureOut {
-            scriptClass.newInstance()
+        val output = URLClassLoader(arrayOf(outDir.toURI().toURL()), ScriptingHostTest::class.java.classLoader).use { classloader ->
+            val scriptClass = classloader.loadClass("SavedScript")
+            captureOut {
+                scriptClass.newInstance()
+            }
         }
         assertEquals(greeting, output)
     }
@@ -132,15 +130,14 @@ class ScriptingHostTest {
         val greeting = "Hello from script jar!"
         val outJar = Files.createTempFile("saveToJar", ".jar").toFile()
         val compilationConfiguration = createJvmCompilationConfigurationFromTemplate<SimpleScriptTemplate>()
-        val host =
-            if (isRunningTestOnK2) BasicJvmScriptingHost(evaluator = BasicJvmScriptJarGenerator(outJar))
-            else BasicJvmScriptingHost.createLegacy(evaluator = BasicJvmScriptJarGenerator(outJar))
+        val host = BasicJvmScriptingHost(evaluator = BasicJvmScriptJarGenerator(outJar))
         host.eval("println(\"$greeting\")".toScriptSource(name = "SavedScript.kts"), compilationConfiguration, null).throwOnFailure()
         Thread.sleep(100)
-        val classloader = URLClassLoader(arrayOf(outJar.toURI().toURL()), ScriptingHostTest::class.java.classLoader)
-        val scriptClass = classloader.loadClass("SavedScript")
-        val output = captureOut {
-            scriptClass.newInstance()
+        val output = URLClassLoader(arrayOf(outJar.toURI().toURL()), ScriptingHostTest::class.java.classLoader).use { classloader ->
+            val scriptClass = classloader.loadClass("SavedScript")
+            captureOut {
+                scriptClass.newInstance()
+            }
         }
         assertEquals(greeting, output)
     }
@@ -153,9 +150,8 @@ class ScriptingHostTest {
             updateClasspath(classpathFromClass<SimpleScriptTemplate>())
             updateClasspath(KotlinJars.kotlinScriptStandardJarsWithReflect)
         }
-        val compiler =
-            if (isRunningTestOnK2) JvmScriptCompiler()
-            else JvmScriptCompiler.createLegacy()
+        val compiler = JvmScriptCompiler()
+
         val scriptName = "SavedRunnableScript"
         val compiledScript = runBlocking {
             compiler("println(\"$greeting\")".toScriptSource(name = "$scriptName.kts"), compilationConfiguration).throwOnFailure()
@@ -169,19 +165,20 @@ class ScriptingHostTest {
         Thread.sleep(100)
 
         val classpathFromJar = run {
-            val manifest = JarFile(outJar).manifest
+            val manifest = JarFile(outJar).use { it.manifest }
             manifest.mainAttributes.getValue("Class-Path").split(" ") // TODO: quoted paths
                 .map { File(it).toURI().toURL() }
         } + outJar.toURI().toURL()
 
         fun checkInvokeMain(baseClassLoader: ClassLoader?) {
-            val classloader = URLClassLoader(classpathFromJar.toTypedArray(), baseClassLoader)
-            val scriptClass = classloader.loadClass(scriptName)
-            val mainMethod = scriptClass.methods.find { it.name == "main" }
-            assertNotNull(mainMethod)
-            val output = captureOutAndErr {
-                mainMethod.invoke(null, emptyArray<String>())
-            }.toList().filterNot(String::isEmpty).joinToString("\n")
+            val output = URLClassLoader(classpathFromJar.toTypedArray(), baseClassLoader).use { classloader ->
+                val scriptClass = classloader.loadClass(scriptName)
+                val mainMethod = scriptClass.methods.find { it.name == "main" }
+                assertNotNull(mainMethod)
+                captureOutAndErr {
+                    mainMethod.invoke(null, emptyArray<String>())
+                }.toList().filterNot(String::isEmpty).joinToString("\n")
+            }
             assertEquals(greeting, output)
         }
 
@@ -548,7 +545,7 @@ class ScriptingHostTest {
             }
             assertTrue(comp0 is ResultWithDiagnostics.Failure)
             val errors = comp0.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
-            assertTrue( errors.any { it.message.contains( "Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type ") })
+            assertTrue( errors.any { it.message.contains( "Unsafe call on receiver of nullable type") })
 
             // runtime
             fun evalWith(evalConfig: ScriptEvaluationConfiguration) =
@@ -611,7 +608,7 @@ class ScriptingHostTest {
     @Test
     fun testKotlinPackage() {
         val greeting = "Hello from script!"
-        val error = "Only the Kotlin standard library is allowed to use the 'kotlin' package"
+        val error = "Only the Kotlin standard library is allowed to use the 'kotlin' package."
         val script = "package kotlin\nprintln(\"$greeting\")"
         val res0 = evalScript(script)
         assertTrue(res0.reports.any { it.message == error })
@@ -625,6 +622,63 @@ class ScriptingHostTest {
             assertTrue(res1 is ResultWithDiagnostics.Success)
         }
         assertEquals(greeting, output)
+    }
+
+    @Test
+    fun testRefinedCompilerOptionsOfImportedScriptAreAppliedWithBaseOptionsOnce() {
+        val importedScript = "package kotlin\nval importedValue = 42".toScriptSource("imported.kts")
+        val mainScript = "println(\"Hello from main!\")".toScriptSource("main.kts")
+        val compilationConfiguration = createJvmCompilationConfigurationFromTemplate<SimpleScriptTemplate> {
+            // a duplicated warning level is reported as an error
+            compilerOptions("-Xwarning-level=UNUSED_VARIABLE:disabled")
+            refineConfiguration {
+                beforeCompiling { ctx ->
+                    when (ctx.script.name) {
+                        "main.kts" -> ctx.compilationConfiguration.with {
+                            importScripts(importedScript)
+                            compilerOptions.append("-opt-in=kotlin.ExperimentalStdlibApi")
+                        }
+                        "imported.kts" -> ctx.compilationConfiguration.with {
+                            compilerOptions.append(K2JVMCompilerArguments::allowKotlinPackage.cliArgument)
+                        }
+                        else -> ctx.compilationConfiguration
+                    }.asSuccess()
+                }
+            }
+        }
+        val output = captureOut {
+            val res = makeScriptingHost().eval(mainScript, compilationConfiguration, null)
+            assertTrue(res is ResultWithDiagnostics.Success, "Unexpected failure:\n  ${res.reports.joinToString("\n  ") { it.message }}")
+        }
+        assertEquals("Hello from main!", output)
+    }
+
+    @Test
+    fun testSameRefinedCompilerOptionsOfMainAndImportedScriptAreAppliedOnce() {
+        val importedScript = "val importedValue = 42".toScriptSource("imported.kts")
+        val mainScript = "println(\"Hello from main!\")".toScriptSource("main.kts")
+        val compilationConfiguration = createJvmCompilationConfigurationFromTemplate<SimpleScriptTemplate> {
+            refineConfiguration {
+                beforeCompiling { ctx ->
+                    when (ctx.script.name) {
+                        "main.kts" -> ctx.compilationConfiguration.with {
+                            importScripts(importedScript)
+                            // a duplicated warning level is reported as an error
+                            compilerOptions.append("-Xwarning-level=UNUSED_VARIABLE:disabled")
+                        }
+                        "imported.kts" -> ctx.compilationConfiguration.with {
+                            compilerOptions.append("-Xwarning-level=UNUSED_VARIABLE:disabled")
+                        }
+                        else -> ctx.compilationConfiguration
+                    }.asSuccess()
+                }
+            }
+        }
+        val output = captureOut {
+            val res = makeScriptingHost().eval(mainScript, compilationConfiguration, null)
+            assertTrue(res is ResultWithDiagnostics.Success, "Unexpected failure:\n  ${res.reports.joinToString("\n  ") { it.message }}")
+        }
+        assertEquals("Hello from main!", output)
     }
 
     private fun doDiamondImportTest(evaluationConfiguration: ScriptEvaluationConfiguration? = null): List<String> {
@@ -674,12 +728,9 @@ class ScriptingHostTest {
     @Test
     fun testCompileOptionsLanguageVersion() {
         val script = """
-            fun test() {
-                while (true) {
-                    run {
-                        break
-                    }
-                }
+            fun main() {
+                // FF: UnnamedLocalVariables
+                val _ = minOf(1, 2)
             }
         """.trimIndent()
         val compilationConfiguration1 = createJvmCompilationConfigurationFromTemplate<SimpleScriptTemplate> {
@@ -687,13 +738,12 @@ class ScriptingHostTest {
                 CommonCompilerArguments::languageVersion.cliArgument,
                 LanguageVersion.FIRST_SUPPORTED.versionString,
                 CommonCompilerArguments::suppressVersionWarnings.cliArgument,
-                CommonCompilerArguments::whenGuards.cliArgument,
             )
         }
         val res = makeScriptingHost().eval(script.toScriptSource(), compilationConfiguration1, null)
         assertTrue(res is ResultWithDiagnostics.Failure)
-        res.reports.find { it.message.startsWith("The feature \"break continue in inline lambdas\" is only available since language version 2.2") }
-            ?: fail("Error report about language version not found. Reported:\n  ${res.reports.joinToString("\n  ") { it.message }}")
+        if (res.reports.none { it.message.startsWith("The feature \"unnamed local variables\" is only available since language version 2.5") })
+            fail("Error report about language version not found. Reported:\n  ${res.reports.joinToString("\n  ") { it.message }}")
     }
 
     @Test
@@ -705,8 +755,8 @@ class ScriptingHostTest {
         }) {}
         assertTrue(res1 is ResultWithDiagnostics.Failure)
         val regex = "Unresolved reference\\W+println".toRegex()
-        res1.reports.find { it.message.contains(regex) }
-            ?: fail("Expected unresolved reference report. Reported:\n  ${res1.reports.joinToString("\n  ") { it.message }}")
+        if (res1.reports.none { it.message.contains(regex) })
+            fail("Expected unresolved reference report. Reported:\n  ${res1.reports.joinToString("\n  ") { it.message }}")
 
         val res2 = evalScriptWithConfiguration(script, compilation = {
             refineConfiguration {
@@ -730,7 +780,7 @@ class ScriptingHostTest {
         }
         val res1 = makeScriptingHost().eval(script.toScriptSource(), compilationConfiguration1, null)
         assertTrue(
-            res1 is ResultWithDiagnostics.Failure && res1.reports.find { it.message == "Invalid argument: -jvm-target->1.8" } != null,
+            res1 is ResultWithDiagnostics.Failure && res1.reports.find { it.message == "Invalid argument: '-jvm-target->1.8'." } != null,
             "Expected failure with invalid JVM target option, but got: $res1"
         )
 
@@ -745,7 +795,7 @@ class ScriptingHostTest {
         }
         val res2 = makeScriptingHost().eval(script.toScriptSource(), compilationConfiguration2, null)
         assertTrue(
-            res2 is ResultWithDiagnostics.Failure && res2.reports.find { it.message == "Invalid argument: -jvm-target->1.6" } != null,
+            res2 is ResultWithDiagnostics.Failure && res2.reports.find { it.message == "Invalid argument: '-jvm-target->1.6'." } != null,
             "Expected failure with invalid JVM target option, but got: $res2"
         )
     }
@@ -765,8 +815,8 @@ class ScriptingHostTest {
         }
         val res = makeScriptingHost().eval(script.toScriptSource(), compilationConfiguration, null)
         assertTrue(res is ResultWithDiagnostics.Success)
-        assertNotNull(res.reports.find { it.message == "Flag is not supported by this version of the compiler: -Xunknown1" })
-        assertNotNull(res.reports.find { it.message == "Flag is not supported by this version of the compiler: -Xunknown2" })
+        assertNotNull(res.reports.find { it.message == "Flag is not supported by this version of the compiler: '-Xunknown1'." })
+        assertNotNull(res.reports.find { it.message == "Flag is not supported by this version of the compiler: '-Xunknown2'." })
     }
 
     @Test
@@ -806,9 +856,7 @@ class ScriptingHostTest {
         val compilationConfiguration = createJvmCompilationConfigurationFromTemplate<SimpleScriptTemplate> {
             compilerOptions(K2JVMCompilerArguments::jvmTarget.cliArgument, target)
         }
-        val compiler =
-            if (isRunningTestOnK2) JvmScriptCompiler()
-            else JvmScriptCompiler.createLegacy()
+        val compiler = JvmScriptCompiler()
         val compiledScript = runBlocking { compiler(script.toScriptSource(name = "SavedScript.kts"), compilationConfiguration) }
         assertTrue(compiledScript is ResultWithDiagnostics.Success)
 
@@ -839,9 +887,7 @@ class ScriptingHostTest {
     fun testCompiledScriptClassLoader() {
         val script = "val x = 1"
         val scriptCompilationConfiguration = createJvmCompilationConfigurationFromTemplate<SimpleScriptTemplate>()
-        val compiler =
-            if (isRunningTestOnK2) JvmScriptCompiler()
-            else JvmScriptCompiler.createLegacy()
+        val compiler = JvmScriptCompiler()
         val compiledScript = runBlocking {
             val res = compiler(script.toScriptSource(), scriptCompilationConfiguration).throwOnFailure()
             (res as ResultWithDiagnostics.Success<CompiledScript>).value
@@ -861,8 +907,8 @@ class ScriptingHostTest {
         assertNotNull(classAsResourceUrl)
         assertNotNull(classAssResourceStream)
 
-        val classAsResourceData = classAsResourceUrl.openConnection().getInputStream().readBytes()
-        val classAsResourceStreamData = classAssResourceStream.readBytes()
+        val classAsResourceData = classAsResourceUrl.openConnection().getInputStream().use { it.readBytes() }
+        val classAsResourceStreamData = classAssResourceStream.use { it.readBytes() }
 
         assertContentEquals(classAsResourceData, classAsResourceStreamData)
 
@@ -878,7 +924,7 @@ internal fun runScriptFromJar(jar: File): List<String> {
     val r = run {
         val process = processBuilder.start()
         process.waitFor(10, TimeUnit.SECONDS)
-        val out = process.inputStream.reader().readText()
+        val out = process.inputStream.reader().use { it.readText() }
         if (process.isAlive) {
             process.destroyForcibly()
             "Error: timeout, killing script process\n$out"
@@ -921,6 +967,7 @@ private fun evalScriptWithResult(
 ): ResultValue =
     evalScriptWithConfiguration(script, host, compilation, evaluation).throwOnFailure().valueOrNull()!!.returnValue
 
+@Suppress("DEPRECATION") // SimpleScriptTemplate
 internal fun evalScriptWithConfiguration(
     script: String,
     host: BasicScriptingHost = makeScriptingHost(),
@@ -942,9 +989,7 @@ private fun ScriptDefinition.evalScriptAndCheckOutput(script: String, expectedOu
     assertEquals(expectedOutput, output)
 }
 
-private fun makeScriptingHost(): BasicJvmScriptingHost =
-    if (isRunningTestOnK2) BasicJvmScriptingHost()
-    else BasicJvmScriptingHost.createLegacy()
+private fun makeScriptingHost(): BasicJvmScriptingHost = BasicJvmScriptingHost()
 
 internal fun ScriptCompilationConfiguration.Builder.makeSimpleConfigurationWithTestImport() {
     updateClasspath(classpathFromClass<ScriptingHostTest>()) // the lambda below should be in the classpath

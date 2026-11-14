@@ -1,7 +1,7 @@
 // CHECK_TYPESCRIPT_DECLARATIONS
 // RUN_PLAIN_BOX_FUNCTION
 // SKIP_NODE_JS
-// LANGUAGE: +JsStaticInInterface +JsAllowExportingSuspendFunctions +JsExportInterfacesInImplementableWay
+// LANGUAGE: +JsStaticInInterface +JsExportInterfacesInImplementableWay
 // OPT_IN: kotlin.js.ExperimentalJsNoRuntime
 // INFER_MAIN_MODULE
 // WITH_STDLIB
@@ -60,8 +60,15 @@ interface IFoo<T : Comparable<T>> : ExportedParent {
 
     val propertyWithDefaultGetter: String
         get() = "KOTLIN IMPLEMENTATION ${propertyWithDefaultSetter}"
-}
 
+    fun getT(): T
+
+    @get:JsName("getTWithDefaultImpl")
+    @set:JsName("setTWithDefaultImpl")
+    var tWithDefaultImpl: T
+        get() = getT()
+        set(value) {}
+}
 
 @JsExport
 fun makeFunInterfaceWithSam(): FunIFace = FunIFace { x -> "SAM ${x}" }
@@ -94,6 +101,25 @@ suspend fun justCallParentAsyncMethod(foo: IFoo<*>): String =
 @JsExport
 suspend fun justCallSuspendWithDefaultImplementation(foo: IFoo<*>): String =
     foo.suspendWithDefaultImplementation()
+
+@JsExport
+suspend fun callTypeScriptDefaultSuspend(value: TypeScriptDefaultSuspend): String =
+    value.suspendDefault()
+
+@JsExport
+interface TypeScriptDefaultSuspend {
+    fun marker(): String
+    suspend fun suspendDefault(): String = "DEFAULT ${marker()}"
+}
+
+@JsExport
+suspend fun callTsAbstractSuspend(value: TsSuspendDispatch): String =
+    value.abstractSuspend()
+
+@JsExport
+interface TsSuspendDispatch {
+    suspend fun abstractSuspend(): String
+}
 
 @JsExport
 fun callingWithDefaultsWithoutParameter(foo: IFoo<*>): String =
@@ -159,6 +185,8 @@ class KotlinFooImpl : IFoo<String> {
 
      override fun delegatingToSuperDefaultImplementation(): String =
          super.delegatingToSuperDefaultImplementation()
+
+    override fun getT(): String = "KOTLIN IMPLEMENTATION"
 }
 
 @JsExport
@@ -178,6 +206,17 @@ fun interface NoRuntimeFunIface {
 interface ChildOfNoRuntime : NoRuntimeIface {
     fun child(): String
 }
+
+@JsExport
+@JsNoRuntime
+interface Listener {
+    val id: String
+    fun onStart(): String
+}
+
+@JsExport
+fun beginWork(listener: Listener): String =
+    "${listener.id}:${listener.onStart()}"
 
 // Implementation of @JsNoRuntime interfaces should be possible and must not introduce any brand properties
 @JsExport
@@ -233,9 +272,113 @@ interface NoRuntimeLeaf : MidNormal {
 
 @JsExport
 @JsNoRuntime
-interface ShouldBeNotImplementable {
+interface ShouldBeNotImplementableWithIgnoredProperty {
     fun leaf(): String
 
     @JsExport.Ignore
     val ignored: Boolean
 }
+
+@JsExport
+@JsNoRuntime
+interface ShouldBeNotImplementableWithIgnoredFun {
+    fun leaf(): String
+
+    @JsExport.Ignore
+    fun ignoredFun(): String
+}
+
+@JsExport
+@JsNoRuntime
+interface ShouldBeNotImplementableWithIgnoredSuspend {
+    fun leaf(): String
+
+    @JsExport.Ignore
+    suspend fun ignoredSuspend(): String
+}
+
+@JsExport
+interface SuperOfSealed1 {
+    fun sos1()
+}
+
+@JsExport
+interface SuperOfSealed2 {
+    fun sos2()
+}
+
+@JsExport
+sealed interface Sealed : SuperOfSealed1, SuperOfSealed2 {
+    val value: String
+
+    data class A(override val value: String): Sealed {
+        override fun sos1() {}
+        override fun sos2() {}
+    }
+
+    interface B: Sealed, FunIFace
+}
+
+@JsExport
+interface InterfaceInheritingFromSealed : Sealed.B {
+    val value2: String
+}
+
+@JsExport
+class ClassInheritingFromSealed : Sealed.B {
+    override val value: String
+        get() = "ClassInheritingFromSealed"
+
+    override fun sos1() {}
+    override fun sos2() {}
+
+    override fun apply(x: String): String = x
+}
+
+@JsExport
+sealed interface SealedNonExportedImplementor {
+    val value: String
+}
+
+@JsExport
+data class SealedNonExportedImplementorA(override val value: String): SealedNonExportedImplementor
+
+@JsExport.Ignore
+interface SealedNonExportedImplementorB: SealedNonExportedImplementor
+
+@JsExport
+@JsNoRuntime
+sealed interface SealedNoRuntime {
+    val value: String
+}
+
+@JsExport
+data class SealedNoRuntimeA(override val value: String): SealedNoRuntime
+
+@JsExport
+interface SealedNoRuntimeB: SealedNoRuntime
+
+@JsExport
+interface InterfaceInheritingFromSealedNoRuntime : SealedNoRuntimeB {
+    val value2: String
+}
+
+@JsExport
+class ClassInheritingFromSealedNoRuntime : SealedNoRuntimeB {
+    override val value: String
+        get() = "ClassInheritingFromSealedNoRuntime"
+}
+
+@JsExport
+@JsNoRuntime
+sealed interface SealedNoRuntimeWithNonExportedImplementor {
+    val value: String
+}
+
+@JsExport
+data class SealedNoRuntimeWithNonExportedImplementorA(override val value: String): SealedNoRuntimeWithNonExportedImplementor
+
+@JsExport.Ignore
+interface SealedNoRuntimeWithNonExportedImplementorB: SealedNoRuntimeWithNonExportedImplementor
+
+

@@ -29,6 +29,23 @@ open class FirCallArgumentsRenderer {
         printer.print(")")
     }
 
+    /**
+     * Unlike [renderArgumentsWithEvaluated], the mapping is rendered as a single trailing block:
+     * there is no correspondence between its entries and [arguments] yet, as several arguments can
+     * be collapsed into one vararg entry.
+     */
+    open fun renderArgumentsWithCompilerRequired(
+        arguments: List<FirExpression>,
+        argumentMapping: FirAnnotationArgumentMapping,
+    ) {
+        renderArguments(arguments)
+        if (argumentMapping.mapping.isEmpty()) return
+
+        printer.print(" [compilerRequired = ")
+        renderArgumentMapping(argumentMapping)
+        printer.print("]")
+    }
+
     open fun renderArgumentsWithEvaluated(arguments: FirResolvedArgumentList, argumentMapping: FirAnnotationArgumentMapping) {
         printer.print("(")
         arguments.mapping.renderSeparatedWithEvaluatedValue(argumentMapping.mapping)
@@ -36,8 +53,8 @@ open class FirCallArgumentsRenderer {
     }
 
     private fun Map<Name, FirElement>.renderSeparated() {
-        for ((index, element) in this.entries.withIndex()) {
-            val (name, argument) = element
+        for ([index, element] in this.entries.withIndex()) {
+            val [name, argument] = element
             if (index > 0) {
                 printer.print(", ")
             }
@@ -47,8 +64,8 @@ open class FirCallArgumentsRenderer {
     }
 
     private fun Map<FirExpression, FirValueParameter>.renderSeparatedWithEvaluatedValue(evaluated: Map<Name, FirExpression>) {
-        for ((index, element) in this.entries.withIndex()) {
-            val (expression, parameter) = element
+        for ([index, element] in this.entries.withIndex()) {
+            val [expression, parameter] = element
             val name = parameter.name
             if (index > 0) {
                 printer.print(", ")

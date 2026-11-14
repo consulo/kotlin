@@ -43,12 +43,23 @@ abstract class Assertions {
     abstract fun assertTrue(value: Boolean, message: (() -> String)? = null)
     abstract fun assertFalse(value: Boolean, message: (() -> String)? = null)
     abstract fun assertNotNull(value: Any?, message: (() -> String)? = null)
-    abstract fun <T> assertSameElements(expected: Collection<T>, actual: Collection<T>, message: (() -> String)?)
 
+    /**
+     * Asserts that all the elements from [expected] are contained in [actual] and vice versa.
+     * The order doesn't matter.
+     */
+    abstract fun <T> assertSameElements(expected: Collection<T>, actual: Collection<T>, message: (() -> String)? = null)
+
+    /**
+     * Asserts that all [expected] elements are contained in [collection].
+     */
     fun <T> assertContainsElements(collection: Collection<T>, vararg expected: T) {
         assertContainsElements(collection, expected.toList())
     }
 
+    /**
+     * Asserts that all [expected] elements are contained in [collection].
+     */
     fun <T> assertContainsElements(collection: Collection<T>, expected: Collection<T>) {
         val copy = ArrayList(collection)
         copy.retainAll(expected)
@@ -65,6 +76,12 @@ abstract class Assertions {
 
     abstract fun failAll(exceptions: List<Throwable>)
     abstract fun assertAll(conditions: List<() -> Unit>)
+
+    /**
+     * This method is used to unfold an exception in case the exception represents
+     * a group of failed exceptions thrown by [assertAll].
+     */
+    open fun unfoldException(e: Throwable): List<Throwable> = listOf(e)
 
     fun assertAll(vararg conditions: () -> Unit) {
         assertAll(conditions.toList())

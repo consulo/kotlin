@@ -5,266 +5,423 @@
 
 package org.jetbrains.kotlin.analysis.api.fir.components
 
-import com.intellij.openapi.diagnostic.logger
-import org.jetbrains.kotlin.KtFakeSourceElementKind
-import org.jetbrains.kotlin.KtSourceElement
-import org.jetbrains.kotlin.analysis.api.KaNonPublicApi
-import org.jetbrains.kotlin.analysis.api.diagnostics.KaDiagnostic
-import org.jetbrains.kotlin.analysis.api.fir.*
-import org.jetbrains.kotlin.analysis.api.fir.references.*
-import org.jetbrains.kotlin.analysis.api.fir.symbols.KaFirArrayOfSymbolProvider.arrayOfSymbol
-import org.jetbrains.kotlin.analysis.api.fir.utils.firSymbol
-import org.jetbrains.kotlin.analysis.api.fir.utils.processEqualsFunctions
-import org.jetbrains.kotlin.analysis.api.fir.utils.withSymbolAttachment
-import org.jetbrains.kotlin.analysis.api.getModule
-import org.jetbrains.kotlin.analysis.api.impl.base.components.KaBaseResolver
-import org.jetbrains.kotlin.analysis.api.impl.base.components.withPsiValidityAssertion
-import org.jetbrains.kotlin.analysis.api.impl.base.resolution.*
-import org.jetbrains.kotlin.analysis.api.impl.base.util.KaNonBoundToPsiErrorDiagnostic
+import com.intellij.psi.tree.TokenSet
+import com.intellij.psi.util.parentOfType
+import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
+import org.jetbrains.kotlin.analysis.api.fir.components.resolver.*
+import org.jetbrains.kotlin.analysis.api.fir.resolution.*
+import org.jetbrains.kotlin.analysis.api.impl.base.util.withPsiEntry
+import org.jetbrains.kotlin.analysis.api.internals.KaInternalsResolver
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
+import org.jetbrains.kotlin.analysis.api.projectStructure.kaModule
 import org.jetbrains.kotlin.analysis.api.resolution.*
 import org.jetbrains.kotlin.analysis.api.signatures.KaCallableSignature
-import org.jetbrains.kotlin.analysis.api.signatures.KaFunctionSignature
-import org.jetbrains.kotlin.analysis.api.signatures.KaVariableSignature
 import org.jetbrains.kotlin.analysis.api.symbols.*
-import org.jetbrains.kotlin.analysis.api.types.KaSubstitutor
-import org.jetbrains.kotlin.analysis.api.types.KaType
-import org.jetbrains.kotlin.analysis.api.utils.errors.withPsiEntry
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFir
-import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFirSafe
-import org.jetbrains.kotlin.analysis.low.level.api.fir.api.resolveToFirSymbolOfTypeSafe
-import org.jetbrains.kotlin.analysis.low.level.api.fir.resolver.AllCandidatesResolver
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.findStringPlusSymbol
-import org.jetbrains.kotlin.analysis.utils.printer.parentOfType
 import org.jetbrains.kotlin.fir.FirElement
-import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
-import org.jetbrains.kotlin.fir.declarations.*
-import org.jetbrains.kotlin.fir.diagnostics.ConeDiagnostic
+import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.diagnostics.FirDiagnosticHolder
-import org.jetbrains.kotlin.fir.expressions.*
-import org.jetbrains.kotlin.fir.expressions.builder.buildFunctionCall
-import org.jetbrains.kotlin.fir.psi
-import org.jetbrains.kotlin.fir.realPsi
-import org.jetbrains.kotlin.fir.references.*
-import org.jetbrains.kotlin.fir.resolve.FirResolvedSymbolOrigin
-import org.jetbrains.kotlin.fir.resolve.ResolutionMode
-import org.jetbrains.kotlin.fir.resolve.calls.candidate.Candidate
-import org.jetbrains.kotlin.fir.resolve.calls.stages.TypeArgumentMapping
-import org.jetbrains.kotlin.fir.resolve.createConeDiagnosticForCandidateWithError
-import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeDiagnosticWithCandidates
-import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeHiddenCandidateError
-import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
-import org.jetbrains.kotlin.fir.resolve.substitution.substitutorByMap
-import org.jetbrains.kotlin.fir.resolve.toArrayOfFactoryName
-import org.jetbrains.kotlin.fir.resolve.transformers.unwrapAtoms
-import org.jetbrains.kotlin.fir.scopes.getDeclaredConstructors
+import org.jetbrains.kotlin.fir.expressions.FirDelegatedConstructorCall
+import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
+import org.jetbrains.kotlin.fir.expressions.FirFunctionCallOrigin
+import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.scopes.impl.declaredMemberScope
-import org.jetbrains.kotlin.fir.scopes.impl.toConeType
-import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
-import org.jetbrains.kotlin.fir.symbols.SymbolInternals
-import org.jetbrains.kotlin.fir.symbols.impl.*
-import org.jetbrains.kotlin.fir.types.*
+import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
+import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
+import org.jetbrains.kotlin.fir.types.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
-import org.jetbrains.kotlin.fir.utils.exceptions.withFirSymbolEntry
-import org.jetbrains.kotlin.idea.references.KDocReference
 import org.jetbrains.kotlin.idea.references.KtReference
-import org.jetbrains.kotlin.idea.references.KtSimpleNameReference
-import org.jetbrains.kotlin.kdoc.psi.impl.KDocName
 import org.jetbrains.kotlin.lexer.KtTokens
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.KtPsiUtil.deparenthesize
-import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
-import org.jetbrains.kotlin.psi.psiUtil.getPossiblyQualifiedCallExpression
-import org.jetbrains.kotlin.psi.psiUtil.topParenthesizedParentOrMe
-import org.jetbrains.kotlin.resolve.ArrayFqNames
-import org.jetbrains.kotlin.resolve.calls.inference.buildCurrentSubstitutor
-import org.jetbrains.kotlin.resolve.calls.tasks.ExplicitReceiverKind
-import org.jetbrains.kotlin.toKtPsiSourceElement
-import org.jetbrains.kotlin.types.Variance
+import org.jetbrains.kotlin.resolution.KtResolvable
+import org.jetbrains.kotlin.resolution.KtResolvableCall
 import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.util.OperatorNameConventions.EQUALS
-import org.jetbrains.kotlin.utils.addToStdlib.runIf
-import org.jetbrains.kotlin.utils.addToStdlib.safeAs
-import org.jetbrains.kotlin.utils.exceptions.*
+import org.jetbrains.kotlin.utils.exceptions.checkWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.rethrowExceptionWithDetails
+import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 internal class KaFirResolver(
     override val analysisSessionProvider: () -> KaFirSession,
-) : KaBaseResolver<KaFirSession>(), KaFirSessionComponent {
-    /**
-     * Notes on the implementation:
-     *
-     * ## Invoke calls
-     *
-     * For expressions like `Bar()`, if `Bar` implicitly points to the companion object,
-     * and `()` is an implicit `invoke` operator call, we cannot use [getOrBuildFir]
-     * on `Bar` reference to get the corresponding [FirResolvedQualifier].
-     *
-     * Instead, we have to find the whole [FirImplicitInvokeCall] for the `Bar()` call,
-     * and use explicit receiver from there as the correct qualifier.
-     *
-     * ## Qualified expressions
-     *
-     * For expressions like `Foo.Bar`, if `Bar` implicitly points to the companion object,
-     * there is actually no [FirResolvedQualifier] for the `Foo` alone -
-     * only for the whole `Foo.Bar`.
-     *
-     * So, when you want to check if `Foo` points to the companion object
-     * and call [getOrBuildFir] on it, you receive the qualifier for the
-     * whole `Foo.Bar`.
-     *
-     * Fortunately, you cannot have two references implicitly pointing to the
-     * companion object in a single dot-qualified expression - only the
-     * last reference in the chain can do that.
-     *
-     * So, if the PSI element of the [KtReference] and the whole [FirResolvedQualifier]
-     * are different, we can certainly say that the [KtReference] does not
-     * point to the companion object.
-     */
-    override fun KtReference.isImplicitReferenceToCompanion(): Boolean = withPsiValidityAssertion(element) {
-        if (this !is KtSimpleNameReference) {
-            return false
+) : KaFirSessionComponent(), KaInternalsResolver {
+    override fun tryResolveSymbols(resolvable: KtResolvable): KaSymbolResolutionAttempt? = withValidityAssertion {
+        when (resolvable) {
+            is KtOperationReferenceExpression -> resolvable.tryResolveSymbolsForOperationReference()
+            is KtResolvableCall -> resolvable.tryResolveSymbolsForResolvableCall()
+            else -> resolvable.tryResolveSymbolsForElement()
         }
-
-        val implicitInvokeCall = run {
-            val parentCallExpression = element.parent as? KtCallExpression
-            parentCallExpression?.getOrBuildFir(analysisSession.resolutionFacade) as? FirImplicitInvokeCall
-        }
-
-        val wholeQualifier = implicitInvokeCall?.explicitReceiver
-            ?: element.getOrBuildFir(analysisSession.resolutionFacade)
-
-        if (wholeQualifier !is FirResolvedQualifier) return false
-
-        return wholeQualifier.resolvedToCompanionObject
     }
 
-    override val KtReference.usesContextSensitiveResolution: Boolean
-        get() = withPsiValidityAssertion(element) {
-            if (this !is KtSimpleNameReference) {
-                return false
+    override fun resolveToSymbols(reference: KtReference): Collection<KaSymbol> = withPsiValidityAssertion(reference.element) {
+        with(reference as? KaResolvableReferenceBridge) {
+            if (this != null) {
+                analysisSession.resolveToSymbols()
+            } else {
+                emptyList()
             }
-
-            val fir = element.getOrBuildFir(analysisSession.resolutionFacade) ?: return false
-            when (fir) {
-                is FirResolvedTypeRef -> fir.resolvedSymbolOrigin == FirResolvedSymbolOrigin.ContextSensitive
-                is FirResolvedQualifier -> fir.resolvedSymbolOrigin == FirResolvedSymbolOrigin.ContextSensitive
-                else -> {
-                    val firReference = fir.toReference(analysisSession.firSession) ?: return false
-                    firReference.isContextSensitive
-                }
-            }
-        }
-
-    @KaNonPublicApi
-    override fun KDocReference.resolveToSymbolWithClassicKDocResolver(): KaSymbol? = withValidityAssertion {
-        val element = this.element
-        val fullFqName = generateSequence(element) { it.parent as? KDocName }.last().getQualifiedNameAsFqName()
-        val selectedFqName = element.getQualifiedNameAsFqName()
-        return ClassicKDocReferenceResolver.resolveKdocFqName(
-            analysisSession,
-            selectedFqName,
-            fullFqName,
-            element,
-        ).firstOrNull()
-    }
-
-    override fun performSymbolResolution(psi: KtElement): KaSymbolResolutionAttempt? = wrapError(psi) {
-        analysisSession.cacheStorage.resolveSymbolCache.value.getOrPut(psi) {
-            resolveSymbol(psi)
-        }
-    }
-
-    @OptIn(KtExperimentalApi::class)
-    override fun performSymbolResolution(reference: KtReference): KaSymbolResolutionAttempt? {
-        if (reference !is KaFirReference) {
-            return null
-        }
-
-        return when (reference) {
-            // For most constructions the element could be used instead
-            is KaFirArrayAccessReference,
-            is KaFirCollectionLiteralReference,
-            is KaFirConstructorDelegationReference,
-            is KaFirDestructuringDeclarationReference,
-            is KaFirForLoopInReference,
-            is KaFirPropertyDelegationMethodsReference,
-            is KaFirSimpleNameReference,
-            is KaFirKDocReference,
-                -> tryResolveSymbolsForReferenceViaElement(reference)
-
-            is KaFirDefaultAnnotationArgumentReference -> tryResolveSymbolsForDefaultAnnotationArgumentReference(reference)
-            is KaFirInvokeFunctionReference -> tryResolveSymbolsForInvokeReference(reference)
         }
     }
 
     /**
-     * Some elements require special adjusting on psi or fir level:
-     *
-     * - For [KtDestructuringDeclarationEntry], [getOrBuildFir] returns [FirProperty] (a declaration).
-     *   The actual resolution target is in [FirProperty.initializer] (e.g., [FirComponentCall] or [FirErrorExpression]).
-     *
-     * - For [KtPropertyDelegate], [getOrBuildFir] should be called on the property to handle the type specially.
-     *   The actual resolution target is in [FirProperty.delegate] (e.g., [FirFunctionCall]), which conflicts with the regular logic.
+     * Technically, symbol resolution can be more efficient than calls,
+     * because calls require collecting more information (e.g., argument mappings).
+     * However, the tradeoff is almost complete code duplication and duplicate caches that seem too high.
+     * In reality, the reuse of call resolution is actually a benefit because its result is cached and
+     * effectively reused at all entry points into the resolver API
      */
-    private fun KtElement.getOrBuildFirWithAdjustments(): FirElement? = when (this) {
-        is KtPropertyDelegate -> (parent as? KtElement)?.getOrBuildFir(resolutionFacade)
-        else -> when (val fir = getOrBuildFir(resolutionFacade)) {
-            is FirProperty if this is KtDestructuringDeclarationEntry -> fir.initializer
-            else -> fir
-        }
-    }
-
-    private fun resolveSymbol(psi: KtElement): KaSymbolResolutionAttempt? = when (psi) {
-        is KDocName -> resolveKDocName(psi)
-        else -> psi.getOrBuildFirWithAdjustments()?.unwrapSafeCall()?.toKaSymbolResolutionAttempt(psi)
-    }
-
-    private fun resolveKDocName(psi: KDocName): KaSymbolResolutionAttempt? {
-        val fullFqName = generateSequence(psi) { it.parent as? KDocName }.last().getQualifiedNameAsFqName()
-        val selectedFqName = psi.getQualifiedNameAsFqName()
-        val containedTagSectionIfSubject = psi.getTagIfSubject()?.knownTag
-
-        val symbols = KDocReferenceResolver.resolveKdocFqName(
-            analysisSession = analysisSession,
-            selectedFqName = selectedFqName,
-            fullFqName = fullFqName,
-            contextElement = psi,
-            containedTagSectionIfSubject = containedTagSectionIfSubject,
-        )
-
-        if (symbols.isEmpty()) return null
-        return KaBaseSymbolResolutionSuccess(backingSymbols = symbols.toList())
-    }
-
-    private fun FirElement.toKaSymbolResolutionAttempt(psi: KtElement): KaSymbolResolutionAttempt? = when (this) {
-        is FirDiagnosticHolder -> toKaSymbolResolutionError(psi)
-        is FirResolvable -> toKaSymbolResolutionAttempt(psi)
-        is FirReference -> toKaSymbolResolutionAttempt(psi)
-        is FirReturnExpression -> toKaSymbolResolutionAttempt(psi)
-        is FirResolvedQualifier -> toKaSymbolResolutionAttempt()
+    private fun KtResolvableCall.tryResolveSymbolsForResolvableCall(): KaSymbolResolutionAttempt? = when (this) {
+        // Both reference kinds may stand in either type or call positions, and in some cases the symbol-based
+        // result is more specific (e.g., it prefers classes to constructors).
+        // For enum entry super-type references this also means the enclosing enum class is returned instead of
+        // the synthetic constructor of the call form.
+        is KtNameReferenceExpression, is KtEnumEntrySuperclassReferenceExpression -> tryResolveSymbolsForElement()
         else -> null
+    } ?: when (val callAttempt = tryResolveCall(this)) {
+        is KaSimpleCallResolutionAttempt -> callAttempt.toSimpleSymbolResolutionAttempt()
+        is KaMultiCallResolutionAttempt -> callAttempt.toSymbolResolutionAttempt()
+        null -> null
     }
 
-    override fun KtReference.resolveToSymbols(): Collection<KaSymbol> = withPsiValidityAssertion(element) {
-        return doResolveToSymbols(this)
+    /**
+     * Logic for operations might be non-trivial, so it is more efficient to rely on the call resolution
+     *
+     * @see tryResolveSymbolsForResolvableCall
+     */
+    private fun KtOperationReferenceExpression.tryResolveSymbolsForOperationReference(): KaSymbolResolutionAttempt? {
+        return when (val callAttempt = tryResolveCall(this)) {
+            is KaSimpleCallResolutionError -> callAttempt.toSimpleSymbolResolutionAttempt()
+
+            // Single variable access is not expected to be a result of the symbol resolve (the assignment use case)
+            is KaSimpleCallResolutionSuccess if callAttempt.call !is KaVariableAccessCall -> callAttempt.toSimpleSymbolResolutionAttempt()
+            is KaMultiCallResolutionAttempt -> when (callAttempt) {
+                is KaCompoundArrayAccessCallResolutionAttempt -> mergeSymbolAttempts(
+                    listOf(
+                        callAttempt.operationCallAttempt.toSimpleSymbolResolutionAttempt(),
+                        callAttempt.setterCallAttempt.toSimpleSymbolResolutionAttempt(),
+                    )
+                )
+
+                is KaCompoundVariableAccessCallResolutionAttempt -> callAttempt.operationCallAttempt.toSimpleSymbolResolutionAttempt()
+                else -> callAttempt.toSymbolResolutionAttempt()
+            }
+
+            else -> null
+        }
     }
 
-    private fun doResolveToSymbols(reference: KtReference): Collection<KaSymbol> {
+    private fun KtResolvable.tryResolveSymbolsForElement(): KaSymbolResolutionAttempt? {
+        checkValidity()
+        return performSymbolResolution(this)
+    }
+
+    override fun resolveSuccessfulSymbols(resolvable: KtResolvable): Collection<KaSymbol> = withValidityAssertion {
+        tryResolveSymbols(resolvable)?.successfulSymbols ?: emptyList()
+    }
+
+    override fun resolveSuccessfulSymbol(resolvable: KtResolvable): KaSymbol? = withValidityAssertion {
+        resolveSuccessfulSymbols(resolvable).singleOrNull()
+    }
+
+    private inline fun <reified R : KaSymbol> KtResolvable.resolveSymbolSafe(): R? = resolveSuccessfulSymbol(this) as? R
+
+    override fun resolveSuccessfulSymbol(annotationEntry: KtAnnotationEntry): KaConstructorSymbol? = annotationEntry.resolveSymbolSafe()
+    override fun resolveSuccessfulSymbol(superTypeCallEntry: KtSuperTypeCallEntry): KaConstructorSymbol? =
+        superTypeCallEntry.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(constructorDelegationCall: KtConstructorDelegationCall): KaConstructorSymbol? =
+        constructorDelegationCall.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(constructorDelegationReferenceExpression: KtConstructorDelegationReferenceExpression): KaConstructorSymbol? =
+        constructorDelegationReferenceExpression.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(callElement: KtCallElement): KaFunctionSymbol? = callElement.resolveSymbolSafe()
+    override fun resolveSuccessfulSymbol(callableReferenceExpression: KtCallableReferenceExpression): KaCallableSymbol? =
+        callableReferenceExpression.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(arrayAccessExpression: KtArrayAccessExpression): KaNamedFunctionSymbol? =
+        arrayAccessExpression.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(collectionLiteralExpression: KtCollectionLiteralExpression): KaNamedFunctionSymbol? =
+        collectionLiteralExpression.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(enumEntrySuperclassReferenceExpression: KtEnumEntrySuperclassReferenceExpression): KaNamedClassSymbol? =
+        enumEntrySuperclassReferenceExpression.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(labelReferenceExpression: KtLabelReferenceExpression): KaDeclarationSymbol? =
+        labelReferenceExpression.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(returnExpression: KtReturnExpression): KaFunctionSymbol? = returnExpression.resolveSymbolSafe()
+    override fun resolveSuccessfulSymbol(whenConditionInRange: KtWhenConditionInRange): KaNamedFunctionSymbol? =
+        whenConditionInRange.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(destructuringDeclarationEntry: KtDestructuringDeclarationEntry): KaCallableSymbol? =
+        destructuringDeclarationEntry.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(qualifiedExpression: KtQualifiedExpression): KaCallableSymbol? =
+        qualifiedExpression.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(constructorCalleeExpression: KtConstructorCalleeExpression): KaConstructorSymbol? =
+        constructorCalleeExpression.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(instanceExpressionWithLabel: KtInstanceExpressionWithLabel): KaDeclarationSymbol? =
+        instanceExpressionWithLabel.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(nullableType: KtNullableType): KaClassifierSymbol? = nullableType.resolveSymbolSafe()
+    override fun resolveSuccessfulSymbol(functionType: KtFunctionType): KaClassSymbol? = functionType.resolveSymbolSafe()
+    override fun resolveSuccessfulSymbol(typeReference: KtTypeReference): KaClassifierSymbol? = typeReference.resolveSymbolSafe()
+    override fun resolveSuccessfulSymbol(classLiteralExpression: KtClassLiteralExpression): KaClassifierSymbol? =
+        classLiteralExpression.resolveSymbolSafe()
+
+    override fun resolveSuccessfulSymbol(superTypeEntry: KtSuperTypeEntry): KaClassifierSymbol? = superTypeEntry.resolveSymbolSafe()
+    override fun resolveSuccessfulSymbol(delegatedSuperTypeEntry: KtDelegatedSuperTypeEntry): KaClassifierSymbol? =
+        delegatedSuperTypeEntry.resolveSymbolSafe()
+
+    override fun resolveToSymbol(reference: KtReference): KaSymbol? = withPsiValidityAssertion(reference.element) {
+        return resolveToSymbols(reference).singleOrNull()
+    }
+
+    private fun KtElement.tryResolveCallImpl(): KaCallResolutionAttempt? {
+        val unwrappedElement = unwrapResolvableCall()
+        return unwrappedElement?.let(::performCallResolution)
+    }
+
+    override fun tryResolveCall(resolvableCall: KtResolvableCall): KaCallResolutionAttempt? = withValidityAssertion {
+        resolvableCall.checkValidity()
+        resolvableCall.tryResolveCallImpl()
+    }
+
+    override fun resolveSuccessfulCall(resolvableCall: KtResolvableCall): KaSimpleOrMultiCall? = tryResolveCall(resolvableCall)?.successful
+
+    private inline fun <reified R : KaSimpleOrMultiCall> KtResolvableCall.resolveCallSafe(): R? = resolveSuccessfulCall(this) as? R
+
+    private inline fun <reified S : KaCallableSymbol, C : KaCallableSignature<S>, reified R : KaSimpleCall<S, C>> KtResolvableCall.resolveSimpleCallSafe(): R? {
+        val call = resolveSuccessfulCall(this) ?: return null
         checkWithAttachment(
-            reference is KaFirReference,
-            { "${reference::class.simpleName} is not extends ${KaFirReference::class.simpleName}" },
+            call is KaSimpleCall<*, *>,
+            { "Expected call of type ${KaSimpleCall::class.simpleName}, got ${call::class.simpleName}" },
         ) {
-            withPsiEntry("reference", reference.element)
+            withPsiEntry("psi", this@resolveSimpleCallSafe)
         }
 
-        with(reference) {
-            return analysisSession.resolveToSymbols()
+        val callableSymbol = call.symbol
+        checkWithAttachment(
+            callableSymbol is S,
+            { "Expected symbol of type ${S::class.simpleName}, got ${callableSymbol::class.simpleName}" },
+        ) {
+            withEntry("symbol", callableSymbol) {
+                KaDebugRenderer(renderExtra = true).render(analysisSession, callableSymbol)
+            }
+
+            withPsiEntry("psi", this@resolveSimpleCallSafe)
+        }
+
+        checkWithAttachment(
+            call is R,
+            { "Expected call of type ${R::class.simpleName}, got ${call::class.simpleName}" }
+        ) {
+            withEntry("symbol", callableSymbol) {
+                KaDebugRenderer(renderExtra = true).render(analysisSession, callableSymbol)
+            }
+
+            withPsiEntry("psi", this@resolveSimpleCallSafe)
+        }
+
+        return call
+    }
+
+    override fun resolveSuccessfulCall(annotationEntry: KtAnnotationEntry): KaAnnotationCall? = annotationEntry.resolveSimpleCallSafe()
+    override fun resolveSuccessfulCall(superTypeCallEntry: KtSuperTypeCallEntry): KaFunctionCall<KaConstructorSymbol>? =
+        superTypeCallEntry.resolveSimpleCallSafe()
+
+    override fun resolveSuccessfulCall(constructorDelegationCall: KtConstructorDelegationCall): KaDelegatedConstructorCall? =
+        constructorDelegationCall.resolveSimpleCallSafe()
+
+    override fun resolveSuccessfulCall(constructorDelegationReferenceExpression: KtConstructorDelegationReferenceExpression): KaDelegatedConstructorCall? =
+        constructorDelegationReferenceExpression.resolveSimpleCallSafe()
+
+    override fun resolveSuccessfulCall(callElement: KtCallElement): KaFunctionCall<*>? = callElement.resolveCallSafe()
+    override fun resolveSuccessfulCall(callableReferenceExpression: KtCallableReferenceExpression): KaCallableReferenceCall<*, *>? =
+        callableReferenceExpression.resolveCallSafe()
+
+    override fun resolveSuccessfulCall(arrayAccessExpression: KtArrayAccessExpression): KaFunctionCall<KaNamedFunctionSymbol>? =
+        arrayAccessExpression.resolveSimpleCallSafe()
+
+    override fun resolveSuccessfulCall(collectionLiteralExpression: KtCollectionLiteralExpression): KaFunctionCall<KaNamedFunctionSymbol>? =
+        collectionLiteralExpression.resolveSimpleCallSafe()
+
+    override fun resolveSuccessfulCall(enumEntrySuperclassReferenceExpression: KtEnumEntrySuperclassReferenceExpression): KaDelegatedConstructorCall? =
+        enumEntrySuperclassReferenceExpression.resolveSimpleCallSafe()
+
+    override fun resolveSuccessfulCall(whenConditionInRange: KtWhenConditionInRange): KaFunctionCall<KaNamedFunctionSymbol>? =
+        whenConditionInRange.resolveSimpleCallSafe()
+
+    override fun resolveSuccessfulCall(destructuringDeclarationEntry: KtDestructuringDeclarationEntry): KaSimpleCall<*, *>? =
+        destructuringDeclarationEntry.resolveCallSafe()
+
+    override fun resolveSuccessfulCall(qualifiedExpression: KtQualifiedExpression): KaSimpleCall<*, *>? = qualifiedExpression.resolveCallSafe()
+    override fun resolveSuccessfulCall(forExpression: KtForExpression): KaForLoopCall? = forExpression.resolveCallSafe()
+    override fun resolveSuccessfulCall(propertyDelegate: KtPropertyDelegate): KaDelegatedPropertyCall? = propertyDelegate.resolveCallSafe()
+
+    override fun tryResolveCall(forExpression: KtForExpression): KaForLoopCallResolutionAttempt? =
+        forExpression.tryResolveCallImpl() as? KaForLoopCallResolutionAttempt
+
+    override fun tryResolveCall(propertyDelegate: KtPropertyDelegate): KaDelegatedPropertyCallResolutionAttempt? =
+        propertyDelegate.tryResolveCallImpl() as? KaDelegatedPropertyCallResolutionAttempt
+
+    override fun resolveSuccessfulCall(constructorCalleeExpression: KtConstructorCalleeExpression): KaFunctionCall<KaConstructorSymbol>? =
+        constructorCalleeExpression.resolveSimpleCallSafe()
+
+    override fun resolveSuccessfulCall(nameReferenceExpression: KtNameReferenceExpression): KaSimpleCall<*, *>? =
+        nameReferenceExpression.resolveCallSafe()
+
+    override fun resolveToCall(element: KtElement): KaCallInfo? = element.withPsiValidityAssertion {
+        when (val attempt = element.tryResolveCallImpl()) {
+            is KaSimpleCallResolutionError -> KaFirErrorCallInfo(attempt.candidateCalls.map { it.asKaCall() }, attempt.diagnostic)
+            is KaSimpleCallResolutionSuccess -> KaFirSuccessCallInfo(attempt.call.asKaCall())
+            is KaMultiCallResolutionAttempt -> attempt.toCallInfo()
+            null -> null
         }
     }
 
-    override fun performCallResolution(psi: KtElement): KaCallResolutionAttempt? = wrapError(psi) {
+    private fun KtElement.collectCallCandidatesImpl(): List<KaCallCandidate> {
+        val unwrappedElement = unwrapResolvableCall()
+        return unwrappedElement?.let(::performCallCandidatesCollection).orEmpty()
+    }
+
+    override fun collectCallCandidates(resolvableCall: KtResolvableCall): List<KaCallCandidate> = withValidityAssertion {
+        resolvableCall.checkValidity()
+        resolvableCall.collectCallCandidatesImpl()
+    }
+
+    override fun resolveToCallCandidates(element: KtElement): List<KaCallCandidateInfo> = element.withPsiValidityAssertion {
+        element.collectCallCandidatesImpl().map(KaCallCandidate::asKaCallCandidateInfo)
+    }
+
+    private fun canBeResolvedAsCall(ktElement: KtElement): Boolean = when (ktElement) {
+        is KtBinaryExpression -> ktElement.operationToken !in nonCallBinaryOperator
+        is KtPrefixExpression -> true
+        is KtPostfixExpression -> ktElement.operationToken != KtTokens.EXCLEXCL
+        is KtCallElement -> true
+        is KtConstructorCalleeExpression -> true
+        is KtQualifiedExpression -> true
+        is KtNameReferenceExpression -> ktElement.parent !is KtInstanceExpressionWithLabel
+        is KtArrayAccessExpression -> true
+        is KtCallableReferenceExpression -> true
+        is KtWhenConditionInRange -> true
+        is KtCollectionLiteralExpression -> true
+        is KtConstructorDelegationReferenceExpression -> true
+        is KtEnumEntrySuperclassReferenceExpression -> true
+        is KtDestructuringDeclarationEntry -> true
+        is KtForExpression -> true
+        is KtPropertyDelegate -> true
+        else -> false
+    }
+
+    private fun KtElement.unwrapResolvableCall(): KtElement? = when (this) {
+        is KtOperationReferenceExpression -> parent as? KtElement
+        else -> this
+    }?.takeIf(::canBeResolvedAsCall)
+
+    private fun KaMultiCallResolutionAttempt.toSymbolResolutionAttempt(): KaSymbolResolutionAttempt =
+        mergeSymbolAttempts(simpleAttempts.map { it.toSimpleSymbolResolutionAttempt() })
+
+    private fun KaSimpleCallResolutionAttempt.toSimpleSymbolResolutionAttempt(): KaSimpleSymbolResolutionAttempt = when (this) {
+        is KaSimpleCallResolutionSuccess -> KaFirSimpleSymbolResolutionSuccess(backingSymbol = call.symbol)
+        is KaSimpleCallResolutionError -> KaFirSimpleSymbolResolutionError(
+            backingDiagnostic = diagnostic,
+            backingCandidateSymbols = candidateCalls.map { it.symbol },
+        )
+    }
+
+    /**
+     * Merges individual symbol resolution attempts into a single result, satisfying the
+     * [KaCompoundSymbolResolutionError] contract: at most one [KaSimpleSymbolResolutionSuccess]
+     * (combining all successful symbols) and at least one [KaSimpleSymbolResolutionError].
+     */
+    private fun mergeSymbolAttempts(symbolAttempts: List<KaSimpleSymbolResolutionAttempt>): KaSymbolResolutionAttempt {
+        val successSymbols = mutableListOf<KaSymbol>()
+        val errors = mutableListOf<KaSimpleSymbolResolutionError>()
+
+        for (attempt in symbolAttempts) when (attempt) {
+            is KaSimpleSymbolResolutionSuccess -> successSymbols.addAll(attempt.symbols)
+            is KaSimpleSymbolResolutionError -> errors.add(attempt)
+        }
+
+        if (errors.isEmpty()) {
+            return KaFirSimpleSymbolResolutionSuccess(successSymbols)
+        }
+
+        if (symbolAttempts.size == 1) {
+            return errors.single()
+        }
+
+        val merged = buildList {
+            if (successSymbols.isNotEmpty()) {
+                add(KaFirSimpleSymbolResolutionSuccess(successSymbols))
+            }
+
+            addAll(errors)
+        }
+
+        return KaFirCompoundSymbolResolutionError(backingAttempts = merged)
+    }
+
+    @Deprecated(
+        message = "Use `KtSimpleNameExpression` instead",
+        replaceWith = ReplaceWith("(element as? KtSimpleNameExpression)?.isImplicitReferenceToCompanion() == true"),
+    )
+    override fun isImplicitReferenceToCompanion(reference: KtReference): Boolean = withPsiValidityAssertion(reference.element) {
+        (reference.element as? KtSimpleNameExpression)?.let { isImplicitReferenceToCompanion(it) } == true
+    }
+
+    private companion object {
+        private val nonCallBinaryOperator: TokenSet = TokenSet.create(
+            KtTokens.ELVIS,
+            KtTokens.EQEQEQ,
+            KtTokens.EXCLEQEQEQ,
+            KtTokens.ANDAND,
+            KtTokens.OROR,
+        )
+    }
+
+    override fun isImplicitReferenceToCompanion(simpleNameExpression: KtSimpleNameExpression): Boolean =
+        simpleNameExpression.withPsiValidityAssertion {
+            isImplicitReferenceToCompanionImpl(simpleNameExpression)
+        }
+
+    override fun contextSensitiveResolutionStatus(simpleNameExpression: KtSimpleNameExpression): KaContextSensitiveResolutionStatus =
+        simpleNameExpression.withPsiValidityAssertion {
+            contextSensitiveResolutionStatusImpl(simpleNameExpression)
+        }
+
+    private fun performSymbolResolution(psi: KtElement): KaSymbolResolutionAttempt? = wrapError(psi) {
+        when (psi) {
+            // A user type redirects to its inner reference expression, which is cached on its own,
+            // so we don't store a duplicate cache entry for the user type itself.
+            is KtUserType -> psi.referenceExpression?.let(::performSymbolResolution)
+            // A nullable type strips the nullability marker and resolves through its inner type element.
+            is KtNullableType -> psi.innerType?.let(::performSymbolResolution)
+            // A type reference delegates to the inner type element. Dynamic and intersection types
+            // are not `KtResolvable`, so this redirect doesn't reach them — for those `typeElement`
+            // values, `performSymbolResolution` falls through and returns `null`.
+            is KtTypeReference -> psi.typeElement?.let(::performSymbolResolution)
+            // A class literal expression (`Foo::class`) resolves to the classifier on its left-hand side.
+            // The receiver is a name reference or qualified expression, both of which are already cached.
+            is KtClassLiteralExpression -> psi.receiverExpression?.let(::performSymbolResolution)
+            // A no-parens super-type entry (`class Foo : Bar`) resolves through its type reference.
+            is KtSuperTypeEntry -> psi.typeReference?.let(::performSymbolResolution)
+            // A delegated super-type entry (`class Foo : Bar by baz`) resolves through its type reference;
+            // the `by` delegate expression is intentionally not the resolution target.
+            is KtDelegatedSuperTypeEntry -> psi.typeReference?.let(::performSymbolResolution)
+            else -> analysisSession.cacheStorage.resolveSymbolCache.value.getOrPut(psi) {
+                resolveSymbol(psi)
+            }
+        }
+    }
+
+    private fun performCallResolution(psi: KtElement): KaCallResolutionAttempt? = wrapError(psi) {
         analysisSession.cacheStorage.resolveCallCache.value.getOrPut(psi) {
             val attempts = resolveCall(
                 psi,
@@ -294,7 +451,7 @@ internal class KaFirResolver(
         }
     }
 
-    override fun performCallCandidatesCollection(psi: KtElement): List<KaCallCandidate> = wrapError(psi) {
+    private fun performCallCandidatesCollection(psi: KtElement): List<KaCallCandidate> = wrapError(psi) {
         resolveCall(
             psi,
             onError = { _, _ -> emptyList() },
@@ -308,122 +465,7 @@ internal class KaFirResolver(
         )
     }
 
-    private fun FirResolvable.toKaSymbolResolutionAttempt(psi: KtElement): KaSymbolResolutionAttempt? {
-        val calleeReference = when {
-            /**
-             * FIR doesn't have a dedicated element for label in `super@Foo.something()` statement
-             *
-             * ```kotlin
-             * interface A { fun a() {} }
-             *
-             * class Foo : A {
-             *     fun foo() {
-             *         super@F<caret>oo.a()
-             *     }
-             * }
-             * ```
-             */
-            psi is KtLabelReferenceExpression && calleeReference is FirSuperReference && this is FirQualifiedAccessExpression -> {
-                (dispatchReceiver as? FirThisReceiverExpression)?.calleeReference
-            }
-
-            else -> calleeReference
-        }
-
-        return calleeReference?.toKaSymbolResolutionAttempt(psi)
-    }
-
-    private fun FirReference.toKaSymbolResolutionAttempt(psi: KtElement): KaSymbolResolutionAttempt? {
-        if (this is FirDiagnosticHolder) {
-            return toKaSymbolResolutionError(psi)
-        }
-
-        val firSymbolToBuild = when (this) {
-            is FirSuperReference -> {
-                val resolvedTypeRef = superTypeRef as? FirResolvedTypeRef ?: return null
-                resolvedTypeRef.toRegularClassSymbol(analysisSession.firSession)
-            }
-
-            else -> when (val symbol = symbol) {
-                is FirReceiverParameterSymbol if symbol.fir is FirScriptReceiverParameter -> {
-                    // Probably the workaround for a script receiver parameter should be dropped
-                    // as soon as `KaScriptSymbol` API will be properly designed KT-76360
-                    // (currently we don't have a dedicated KaSymbol for script receiver parameter)
-                    symbol.containingDeclarationSymbol
-                }
-
-                is FirNamedFunctionSymbol if psi is KtNameReferenceExpression && symbol.name == OperatorNameConventions.INVOKE -> {
-                    invokeFunctionReceiver(psi)?.let { return it }
-                    symbol
-                }
-
-                else -> symbol
-            }
-        }
-
-        val symbol = when (val symbol = firSymbolToBuild?.buildSymbol(firSymbolBuilder)) {
-            is KaConstructorSymbol if psi is KtNameReferenceExpression -> with(analysisSession) {
-                // Callee reference for a constructor call is supposed to refer to the class
-                // while the entire call refers to the constructor.
-                // `KaSymbol` instead of `FirSymbol` is checked intentionally to properly support
-                // type-aliased constructors
-                symbol.containingDeclaration
-            }
-
-            else -> symbol
-        } ?: return null
-
-        return KaBaseSymbolResolutionSuccess(backingSymbol = symbol)
-    }
-
-    /**
-     * [KtNameReferenceExpression] maps directly to the invoke function, so the corresponding [KtCallExpression]
-     * has to be checked to get the real callee
-     *
-     * @see getContainingCallExpressionForCalleeExpression
-     */
-    private fun invokeFunctionReceiver(psi: KtNameReferenceExpression): KaSymbolResolutionAttempt? {
-        val callExpression = psi.getContainingCallExpressionForCalleeExpression() ?: return null
-        val implicitInvokeCall = callExpression.getOrBuildFirSafe<FirImplicitInvokeCall>(analysisSession.resolutionFacade) ?: return null
-        return implicitInvokeCall.explicitReceiver?.toKaSymbolResolutionAttempt(psi)
-    }
-
-    /**
-     * TODO: support corner cases such as packages
-     *
-     * @see FirReferenceResolveHelper
-     */
-    private fun FirResolvedQualifier.toKaSymbolResolutionAttempt(): KaSymbolResolutionAttempt? {
-        val referencedSymbol = when (val symbol = symbol) {
-            // Note: we want to consider the companion object only for regular class qualifiers (and not for typealiased ones)
-            is FirRegularClassSymbol if (resolvedToCompanionObject) -> symbol.companionObjectSymbol
-            else -> symbol
-        }
-
-        return referencedSymbol?.buildSymbol(firSymbolBuilder)?.let(::KaBaseSymbolResolutionSuccess)
-    }
-
-    private fun FirDiagnosticHolder.toKaSymbolResolutionError(psi: KtElement): KaSymbolResolutionError =
-        KaBaseSymbolResolutionError(
-            backingDiagnostic = createKaDiagnostic(psi),
-            backingCandidateSymbols = diagnostic.getCandidateSymbols().map(firSymbolBuilder::buildSymbol),
-        )
-
-    private fun FirReturnExpression.toKaSymbolResolutionAttempt(
-        psi: KtElement,
-    ): KaSymbolResolutionAttempt = when (val firFunctionSymbol = target.labeledElement.symbol) {
-        is FirErrorFunctionSymbol -> {
-            val diagnostic = firFunctionSymbol.fir.createKaDiagnostic(psi)
-            KaBaseSymbolResolutionError(backingCandidateSymbols = emptyList(), backingDiagnostic = diagnostic)
-        }
-
-        else -> {
-            val kaSymbol = firFunctionSymbol.buildSymbol(firSymbolBuilder)
-            KaBaseSymbolResolutionSuccess(kaSymbol)
-        }
-    }
-
-    private val equalsSymbolInAny: FirNamedFunctionSymbol? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+    internal val equalsSymbolInAny: FirNamedFunctionSymbol? by lazy(LazyThreadSafetyMode.PUBLICATION) {
         val session = analysisSession.firSession
         val anyFirClass = session.builtinTypes.anyType.toRegularClassSymbol(session) ?: return@lazy null
         val scope = session.declaredMemberScope(
@@ -455,11 +497,15 @@ internal class KaFirResolver(
             ?: containingUnaryExpressionForIncOrDec
             ?: psi.getContainingDotQualifiedExpressionForSelectorExpression()
             ?: psi.getConstructorDelegationCallForDelegationReferenceExpression()
+            ?: psi.getConstructorCallForNameReferenceExpression()
+            ?: psi.getContainingCallableReferenceExpressionForCalleeExpression()
             ?: psi
 
         val resolveFragmentOfCall = psiToResolve == containingBinaryExpressionForLhs || psiToResolve == containingUnaryExpressionForIncOrDec
         return when (val fir = psiToResolve.getOrBuildFirWithAdjustments()) {
             null -> emptyList()
+            // Type references are not supposed to be covered by the call resolution. The symbol resolution will be used instead
+            is FirResolvedTypeRef if psiToResolve is KtSimpleNameExpression -> emptyList()
             is FirDiagnosticHolder -> fir.onError(psiToResolve, resolveFragmentOfCall)
             else -> {
                 fir.onSuccess(
@@ -471,176 +517,19 @@ internal class KaFirResolver(
         }
     }
 
-    private val stringPlusSymbol by lazy(LazyThreadSafetyMode.PUBLICATION) {
+    internal val stringPlusSymbol by lazy(LazyThreadSafetyMode.PUBLICATION) {
         findStringPlusSymbol(analysisSession.firSession)
     }
 
-    private fun FirElement.toKaResolutionAttempt(
-        psi: KtElement,
-        resolveCalleeExpressionOfFunctionCall: Boolean,
-        resolveFragmentOfCall: Boolean,
-    ): KaCallResolutionAttempt? {
-        // FIR does not have an intermediate symbol of String.plus() function call in case of folded string literals.
-        //
-        // Example:
-        // Expression `"a" + "b" + "c"` is represented by one FirStringConcatenationCall containing `"a"`, `"b"`, and `"c"` as arguments.
-        //
-        // We have to patch `FirElement.toKtCallInfo` to return String.plus() call info for contained binary expressions.
-        if (this is FirStringConcatenationCall && this.isFoldedStrings && psi is KtBinaryExpression) {
-            val leftArg = psi.left ?: return null
-            val rightArg = psi.right ?: return null
-            val signature = stringPlusSymbol?.toKaSignature() ?: return null
-            return KaBaseCallResolutionSuccess(
-                backingCall = KaBaseSimpleFunctionCall(
-                    backingPartiallyAppliedSymbol = KaBasePartiallyAppliedSymbol(
-                        backingSignature = signature,
-                        dispatchReceiver = KaBaseExplicitReceiverValue(
-                            expression = leftArg,
-                            backingType = analysisSession.builtinTypes.string,
-                            isSafeNavigation = false,
-                        ),
-                        extensionReceiver = null,
-                        contextArguments = emptyList(),
-                    ),
-                    backingArgumentMapping = mapOf(rightArg to signature.valueParameters.first()),
-                    backingTypeArgumentsMapping = emptyMap(),
-                )
-            )
-        }
-
-        if (this is FirResolvedQualifier) {
-            val callExpression = (psi as? KtExpression)?.getPossiblyQualifiedCallExpression()
-            if (callExpression != null) {
-                val constructors = findQualifierConstructors()
-                val calls = toKaCalls(constructors)
-                return KaBaseCallResolutionError(
-                    backedDiagnostic = inapplicableCandidateDiagnostic(),
-                    backingCandidateCalls = calls,
-                )
-            }
-        }
-
-        if (this is FirImplicitInvokeCall) {
-
-            // If we have a PSI expression like `Foo.Bar.Baz()` and try to resolve `Bar` part,
-            // and the only FIR that we have for that PSI is an implicit invoke call, that means that
-            // `Foo.Bar` is definitely not a property access - otherwise it would have had its own FIR.
-            // So, it does not make sense to try to resolve such parts of qualifiers as KaCallResolutionSuccess
-            if ((psi as? KtExpression)?.getPossiblyQualifiedCallExpression() == null) {
-                return null
-            }
-
-            if (resolveCalleeExpressionOfFunctionCall) {
-                // For implicit invoke, we resolve the calleeExpression of the CallExpression to the call that creates the receiver of this
-                // implicit invoke call. For example,
-                // ```
-                // fun test(f: () -> Unit) {
-                //   f() // calleeExpression `f` resolves to the local variable access, while `f()` resolves to the implicit `invoke` call.
-                //       // This way `f` is also the explicit receiver of this implicit `invoke` call
-                // }
-                // ```
-                val psiToResolve = (psi as? KtCallExpression)?.calleeExpression ?: psi
-                return explicitReceiver?.toKaResolutionAttempt(
-                    psiToResolve,
-                    resolveCalleeExpressionOfFunctionCall = false,
-                    resolveFragmentOfCall = resolveFragmentOfCall
-                )
-            }
-        }
-
-        fun <T> transformErrorReference(
-            call: FirElement,
-            calleeReference: T,
-        ): KaCallResolutionError where T : FirNamedReference, T : FirDiagnosticHolder = transformErrorReference(
-            psi = psi,
-            call = call,
-            diagnosticHolder = calleeReference,
-            calleeReference = calleeReference,
-            resolveFragmentOfCall = resolveFragmentOfCall,
-        )
-
-        return when (this) {
-            // FIR does not resolve to a symbol for equality calls.
-            is FirEqualityOperatorCall -> toKaResolutionAttempt(psi)
-            is FirResolvable, is FirVariableAssignment -> {
-                when (val calleeReference = toReference(analysisSession.firSession)) {
-                    is FirResolvedErrorReference -> transformErrorReference(this, calleeReference)
-                    is FirResolvedNamedReference -> when (calleeReference.resolvedSymbol) {
-                        // `calleeReference.resolvedSymbol` isn't guaranteed to be callable. For example, function type parameters used in
-                        // expression positions (e.g. `T` in `println(T)`) are parsed as `KtSimpleNameExpression` and built into
-                        // `FirPropertyAccessExpression` (which is `FirResolvable`).
-                        is FirCallableSymbol<*> -> createKaCallResolutionAttempt(
-                            psi = psi,
-                            fir = this,
-                            calleeReference = calleeReference,
-                            candidate = null,
-                            resolveFragmentOfCall = resolveFragmentOfCall,
-                        )
-
-                        else -> null
-                    }
-
-                    is FirErrorNamedReference -> transformErrorReference(this, calleeReference)
-                    // Unresolved delegated constructor call is untransformed and end up as an `FirSuperReference`
-                    is FirSuperReference -> {
-                        val delegatedConstructorCall = this as? FirDelegatedConstructorCall ?: return null
-                        val errorTypeRef = delegatedConstructorCall.constructedTypeRef as? FirErrorTypeRef ?: return null
-                        val psiSource = psi.toKtPsiSourceElement()
-                        val kaDiagnostic = errorTypeRef.diagnostic.asKaDiagnostic(source ?: psiSource, psiSource) ?: return null
-                        KaBaseCallResolutionError(
-                            backedDiagnostic = kaDiagnostic,
-                            backingCandidateCalls = emptyList(),
-                        )
-                    }
-
-                    else -> null
-                }
-            }
-
-            is FirCollectionLiteral -> toKaResolutionAttempt()
-            is FirComparisonExpression -> compareToCall.toKaResolutionAttempt(
-                psi,
-                resolveCalleeExpressionOfFunctionCall,
-                resolveFragmentOfCall
-            )
-
-            is FirSafeCallExpression -> selector.toKaResolutionAttempt(
-                psi,
-                resolveCalleeExpressionOfFunctionCall,
-                resolveFragmentOfCall
-            )
-
-            is FirSmartCastExpression -> originalExpression.toKaResolutionAttempt(
-                psi, resolveCalleeExpressionOfFunctionCall, resolveFragmentOfCall
-            )
-
-            is FirWhileLoop if psi is KtForExpression -> resolveForLoopCall(this, psi)
-            is FirProperty if psi is KtPropertyDelegate -> resolveDelegatedPropertyCall(this, psi)
-
-            else -> null
-        }
-    }
-
-    private fun inapplicableCandidateDiagnostic(): KaDiagnostic {
-        return KaNonBoundToPsiErrorDiagnostic(factoryName = FirErrors.OTHER_ERROR.name, "Inapplicable candidate", token)
-    }
-
     /**
-     * When resolving the calleeExpression of a `KtCallExpression`, we resolve the entire `KtCallExpression` instead. This way, the
-     * corresponding FIR element is the `FirFunctionCall`, etc. Implicit invoke is then specially handled after obtaining the
-     * `FirImplicitInvokeCall`.
-     *
-     * Note that, if the calleeExpression is already a KtCallExpression, then we don't do this because such a callExpression can be properly
-     * resolved to the desired FIR element. That is, cases like `getHighLevelFunction()()` just works, where the both `KtCallExpression`
-     * resolve to the desired FIR element.
+     * When resolving the callableReference of a [KtCallableReferenceExpression], we resolve the entire [KtCallableReferenceExpression] instead.
+     * This way, the corresponding FIR element is the [FirFunctionCall], etc.
      */
-    private fun KtElement.getContainingCallExpressionForCalleeExpression(): KtCallExpression? {
-        if (this !is KtExpression) return null
-        val calleeExpression = deparenthesize(this) ?: return null
-        if (calleeExpression is KtCallExpression) return null
-        val callExpression = parentOfType<KtCallExpression>() ?: return null
-        if (deparenthesize(callExpression.calleeExpression) != calleeExpression) return null
-        return callExpression
+    private fun KtElement.getContainingCallableReferenceExpressionForCalleeExpression(): KtCallableReferenceExpression? {
+        if (this !is KtSimpleNameExpression) return null
+
+        val callableReferenceExpression = parent as? KtCallableReferenceExpression ?: return null
+        return callableReferenceExpression.takeIf { it.callableReference == this }
     }
 
     /**
@@ -700,1510 +589,40 @@ internal class KaFirResolver(
         return takeIf { it is KtConstructorDelegationReferenceExpression }?.parent as? KtConstructorDelegationCall
     }
 
-    private fun createKaCall(
-        psi: KtElement,
-        fir: FirResolvable,
-        candidate: Candidate?,
-        resolveFragmentOfCall: Boolean,
-    ): KaSingleOrMultiCall? = createKaCallResolutionAttempt(
-        psi = psi,
-        fir = fir,
-        calleeReference = fir.calleeReference,
-        candidate = candidate,
-        resolveFragmentOfCall = resolveFragmentOfCall,
-    )?.successfulCall
-
-    private fun Candidate.toFirTypeArgumentsMapping(symbol: FirCallableSymbol<*>): Map<FirTypeParameterSymbol, ConeKotlinType> {
-        val typeParameters = symbol.typeParameterSymbols.ifEmpty { return emptyMap() }
-
-        // Maps a type parameter `A` into a type variable `TypeVariable(A)` type
-        val candidateSubstitutor = substitutor
-
-        // Maps the type variable `TypeVariable(A)` into the resulting type
-        val systemSubstitutor = system.asReadOnlyStorage().buildCurrentSubstitutor(system, emptyMap()) as ConeSubstitutor
-
-        val typeMapping = typeArgumentMapping as? TypeArgumentMapping.Mapped
-        return buildMap {
-            for ((index, parameterSymbol) in typeParameters.withIndex()) {
-                val explicitTypeArgument = typeMapping?.get(index) as? FirTypeProjectionWithVariance
-                if (explicitTypeArgument != null) {
-                    put(parameterSymbol, explicitTypeArgument.typeRef.coneType)
-                    continue
-                }
-
-                val parameterType = parameterSymbol.toConeType()
-                val typeVariable = candidateSubstitutor.substituteOrNull(parameterType) ?: continue
-                val resultingType = systemSubstitutor.substituteOrNull(typeVariable) ?: continue
-                put(parameterSymbol, resultingType)
-            }
-        }
-    }
-
-    private class TypeArgumentsMappingResult(
-        val targetSymbol: FirCallableSymbol<*>,
-        val firTypeArgumentsMapping: Map<FirTypeParameterSymbol, ConeKotlinType>,
-        val typeArgumentsMapping: Map<KaTypeParameterSymbol, KaType>,
-    )
-
-    private fun computeTypeArgumentsMapping(
-        fir: FirElement,
-        calleeReference: FirReference?,
-        candidate: Candidate?,
-    ): TypeArgumentsMappingResult? {
-        val targetSymbol = candidate?.symbol
-            ?: calleeReference?.toResolvedBaseSymbol()
-            ?: return null
-        if (targetSymbol !is FirCallableSymbol<*>) return null
-        if (targetSymbol is FirErrorFunctionSymbol || targetSymbol is FirErrorPropertySymbol) return null
-
-        val firTypeArgumentsMapping = candidate?.toFirTypeArgumentsMapping(targetSymbol) ?: when (fir) {
-            is FirQualifiedAccessExpression -> fir.toFirTypeArgumentsMapping(targetSymbol)
-            is FirVariableAssignment -> fir.unwrapLValue()?.toFirTypeArgumentsMapping(targetSymbol).orEmpty()
-            is FirDelegatedConstructorCall -> fir.toFirTypeArgumentsMapping(targetSymbol)
-            else -> emptyMap()
-        }
-
-        val typeArgumentsMapping = firTypeArgumentsMapping.asKaTypeParametersMapping()
-        return TypeArgumentsMappingResult(targetSymbol, firTypeArgumentsMapping, typeArgumentsMapping)
-    }
-
-    private fun createKaCallResolutionAttempt(
-        psi: KtElement,
-        fir: FirElement,
-        calleeReference: FirReference?,
-        candidate: Candidate?,
-        resolveFragmentOfCall: Boolean,
-    ): KaCallResolutionAttempt? {
-        if (fir is FirSmartCastExpression) {
-            return (fir.originalExpression as? FirResolvable)?.let {
-                createKaCallResolutionAttempt(
-                    psi = psi,
-                    fir = it,
-                    calleeReference = calleeReference,
-                    candidate = candidate,
-                    resolveFragmentOfCall = resolveFragmentOfCall,
-                )
-            }
-        }
-
-        val mappingResult = computeTypeArgumentsMapping(fir, calleeReference, candidate) ?: return null
-        return handleCompoundAccessCall(
-            psi = psi,
-            fir = fir,
-            resolveFragmentOfCall = resolveFragmentOfCall,
-            typeArgumentsMapping = mappingResult.typeArgumentsMapping,
-        ) ?: buildKaCall(
-            psi = psi,
-            fir = fir,
-            calleeReference = calleeReference,
-            candidate = candidate,
-            mappingResult = mappingResult,
-        )?.let(::KaBaseCallResolutionSuccess)
-    }
-
     /**
-     * Core call construction logic. Assumes the caller has already handled compound access.
-     */
-    private fun buildKaCall(
-        psi: KtElement,
-        fir: FirElement,
-        calleeReference: FirReference?,
-        candidate: Candidate?,
-        mappingResult: TypeArgumentsMappingResult,
-    ): KaSingleCall<*, *>? {
-        val targetSymbol = mappingResult.targetSymbol
-        val firTypeArgumentsMapping = mappingResult.firTypeArgumentsMapping
-        val typeArgumentsMapping = mappingResult.typeArgumentsMapping
-
-        val signature = with(analysisSession) {
-            val substitutor = substitutorByMap(firTypeArgumentsMapping, firSession).toKaSubstitutor()
-
-            // This is crucial to create a signature by Fir symbol as it can be call-site substitution
-            val unsubstitutedSignature = targetSymbol.toKaSignature()
-            unsubstitutedSignature.substitute(substitutor)
-        }
-
-        var argumentsHaveExtensionReceiver = false
-        var argumentsContextParameterCount = 0
-        var isImplicitInvoke = false
-
-        fun buildFunctionCall(
-            partiallyAppliedSymbol: KaPartiallyAppliedFunctionSymbol<KaFunctionSymbol>,
-            argumentMapping: Map<KtExpression, KaVariableSignature<KaParameterSymbol>>,
-            typeArgumentsMapping: Map<KaTypeParameterSymbol, KaType>,
-        ): KaFunctionCall<*> = if (isImplicitInvoke) {
-            val functionSymbol = partiallyAppliedSymbol.symbol
-            requireWithAttachment(
-                functionSymbol is KaNamedFunctionSymbol,
-                { "Expected ${KaNamedFunctionSymbol::class.simpleName}, but got ${functionSymbol::class.simpleName}" },
-            ) {
-                withSymbolAttachment("function", analysisSession, functionSymbol)
-            }
-
-            @Suppress("UNCHECKED_CAST")
-            KaBaseImplicitInvokeCall(
-                backingPartiallyAppliedSymbol = partiallyAppliedSymbol as KaPartiallyAppliedFunctionSymbol<KaNamedFunctionSymbol>,
-                backingArgumentMapping = argumentMapping,
-                backingTypeArgumentsMapping = typeArgumentsMapping,
-            )
-        } else {
-            KaBaseSimpleFunctionCall(
-                backingPartiallyAppliedSymbol = partiallyAppliedSymbol,
-                backingArgumentMapping = argumentMapping,
-                backingTypeArgumentsMapping = typeArgumentsMapping,
-            )
-        }
-
-        fun createKtPartiallyAppliedSymbolForImplicitInvoke(
-            dispatchReceiver: FirExpression?,
-            extensionReceiver: FirExpression?,
-            explicitReceiverKind: ExplicitReceiverKind,
-            contextArguments: List<FirExpression>,
-        ): KaPartiallyAppliedSymbol<KaCallableSymbol, KaCallableSignature<KaCallableSymbol>> {
-            isImplicitInvoke = true
-
-            // For implicit invoke, the explicit receiver is always set in FIR and this receiver is the variable or property that has
-            // the `invoke` member function. In this case, we use the `calleeExpression` in the `KtCallExpression` as the PSI
-            // representation of this receiver. Caller can then use this PSI for further call resolution, which is implemented by the
-            // parameter `resolveCalleeExpressionOfFunctionCall` in `toKtCallInfo`.
-            var explicitReceiverPsi = when (psi) {
-                is KtQualifiedExpression -> psi.selectorExpression
-                    ?: errorWithAttachment("missing selectorExpression in PSI ${psi::class.simpleName} for FirImplicitInvokeCall") {
-                        withPsiEntry("psi", psi, analysisSession::getModule)
-                    }
-
-                is KtExpression -> psi
-                else -> errorWithAttachment("unexpected PSI ${psi::class.simpleName} for FirImplicitInvokeCall") {
-                    withPsiEntry("psi", psi, analysisSession::getModule)
-                }
-            }
-
-            if (explicitReceiverPsi is KtCallExpression) {
-                explicitReceiverPsi = explicitReceiverPsi.calleeExpression
-                    ?: errorWithAttachment("missing calleeExpression in PSI ${psi::class.simpleName} for FirImplicitInvokeCall") {
-                        withPsiEntry("psi", psi, analysisSession::getModule)
-                    }
-            }
-
-            // Specially handle @ExtensionFunctionType and @ContextFunctionTypeParams
-            dispatchReceiver?.resolvedType?.let { resolvedType ->
-                argumentsHaveExtensionReceiver = resolvedType.isExtensionFunctionType
-                argumentsContextParameterCount = resolvedType.contextParameterNumberForFunctionType
-            }
-
-            val dispatchReceiverValue: KaReceiverValue?
-            val extensionReceiverValue: KaReceiverValue?
-            when (explicitReceiverKind) {
-                ExplicitReceiverKind.DISPATCH_RECEIVER -> {
-                    checkWithAttachment(
-                        dispatchReceiver != null,
-                        { "Dispatch receiver must be not null if explicitReceiverKind is DISPATCH_RECEIVER" },
-                    ) {
-                        withPsiEntry("explicitReceiverPsi", explicitReceiverPsi)
-                        extensionReceiver?.let { withFirEntry("extensionReceiver", it) }
-                        withFirSymbolEntry("target", targetSymbol)
-                    }
-
-                    dispatchReceiverValue = KaBaseExplicitReceiverValue(
-                        expression = explicitReceiverPsi,
-                        backingType = dispatchReceiver.resolvedType.asKaType(),
-                        isSafeNavigation = false,
-                    )
-
-                    extensionReceiverValue = if (argumentsHaveExtensionReceiver) {
-                        when (fir) {
-                            is FirFunctionCall -> fir.arguments.drop(argumentsContextParameterCount).firstOrNull()?.toKaReceiverValue()
-                            is FirPropertyAccessExpression -> fir.explicitReceiver?.toKaReceiverValue()
-                            else -> null
-                        }
-                    } else {
-                        extensionReceiver?.toKaReceiverValue()
-                    }
-                }
-
-                ExplicitReceiverKind.EXTENSION_RECEIVER -> {
-                    checkWithAttachment(
-                        extensionReceiver != null,
-                        { "Extension receiver must be not null if explicitReceiverKind is EXTENSION_RECEIVER" }
-                    ) {
-                        withPsiEntry("explicitReceiverPsi", explicitReceiverPsi)
-                        dispatchReceiver?.let { withFirEntry("dispatchReceiver", it) }
-                        withFirSymbolEntry("target", targetSymbol)
-                    }
-
-                    dispatchReceiverValue = dispatchReceiver?.toKaReceiverValue()
-                    extensionReceiverValue = KaBaseExplicitReceiverValue(
-                        expression = explicitReceiverPsi,
-                        backingType = extensionReceiver.resolvedType.asKaType(),
-                        isSafeNavigation = false,
-                    )
-                }
-
-                else -> {
-                    errorWithAttachment("Implicit invoke call can not have no explicit receiver") {
-                        withPsiEntry("explicitReceiverPsi", explicitReceiverPsi)
-                        withFirSymbolEntry("targetSymbol", targetSymbol)
-                        dispatchReceiver?.let { withFirEntry("dispatchReceiver", it) }
-                        extensionReceiver?.let { withFirEntry("extensionReceiver", it) }
-                    }
-                }
-            }
-
-            // In regular invoke functions (explicitly declared operator invoke functions) context arguments are available on the fir call,
-            // while for functional types they explicitly passed as regular arguments
-            val adjustedContextArguments = contextArguments.ifEmpty {
-                (fir as? FirFunctionCall)?.arguments?.take(argumentsContextParameterCount).orEmpty()
-            }
-
-            return KaBasePartiallyAppliedSymbol(
-                backingSignature = signature,
-                dispatchReceiver = dispatchReceiverValue,
-                extensionReceiver = extensionReceiverValue,
-                contextArguments = adjustedContextArguments.toKaContextParameterValues(),
-            )
-        }
-
-        val partiallyAppliedSymbol = when {
-            candidate != null -> when {
-                fir is FirImplicitInvokeCall ||
-                        calleeReference?.calleeOrCandidateName != OperatorNameConventions.INVOKE && targetSymbol.isInvokeFunction() -> {
-
-                    // Implicit invoke (e.g., `x()`) will have a different callee symbol (e.g., `x`) than the candidate (e.g., `invoke`).
-                    createKtPartiallyAppliedSymbolForImplicitInvoke(
-                        dispatchReceiver = candidate.dispatchReceiver?.expression,
-                        extensionReceiver = candidate.chosenExtensionReceiver?.expression,
-                        explicitReceiverKind = candidate.explicitReceiverKind,
-                        contextArguments = candidate.contextArguments(),
-                    )
-                }
-
-                else -> KaBasePartiallyAppliedSymbol(
-                    backingSignature = signature,
-                    dispatchReceiver = candidate.dispatchReceiver?.expression?.toKaReceiverValue(),
-                    extensionReceiver = candidate.chosenExtensionReceiver?.expression?.toKaReceiverValue(),
-                    contextArguments = candidate.contextArguments().toKaContextParameterValues(),
-                )
-            }
-
-            fir is FirImplicitInvokeCall -> {
-                val explicitReceiverKind = if (fir.explicitReceiver == fir.dispatchReceiver) {
-                    ExplicitReceiverKind.DISPATCH_RECEIVER
-                } else {
-                    ExplicitReceiverKind.EXTENSION_RECEIVER
-                }
-
-                createKtPartiallyAppliedSymbolForImplicitInvoke(
-                    dispatchReceiver = fir.dispatchReceiver,
-                    extensionReceiver = fir.extensionReceiver,
-                    explicitReceiverKind = explicitReceiverKind,
-                    contextArguments = fir.contextArguments,
-                )
-            }
-
-            fir is FirQualifiedAccessExpression -> KaBasePartiallyAppliedSymbol(
-                backingSignature = signature,
-                dispatchReceiver = fir.dispatchReceiver?.toKaReceiverValue(),
-                extensionReceiver = fir.extensionReceiver?.toKaReceiverValue(),
-                contextArguments = fir.contextArguments.toKaContextParameterValues(),
-            )
-
-            fir is FirVariableAssignment -> KaBasePartiallyAppliedSymbol(
-                backingSignature = signature,
-                dispatchReceiver = fir.dispatchReceiver?.toKaReceiverValue(),
-                extensionReceiver = fir.extensionReceiver?.toKaReceiverValue(),
-                contextArguments = fir.contextArguments.toKaContextParameterValues(),
-            )
-
-            fir is FirDelegatedConstructorCall -> KaBasePartiallyAppliedSymbol(
-                backingSignature = signature,
-                dispatchReceiver = fir.dispatchReceiver?.toKaReceiverValue(),
-                extensionReceiver = null,
-                contextArguments = fir.contextArguments.toKaContextParameterValues(),
-            )
-
-            else -> KaBasePartiallyAppliedSymbol(
-                backingSignature = signature,
-                dispatchReceiver = null,
-                extensionReceiver = null,
-                contextArguments = emptyList(),
-            )
-        }
-
-        return when (fir) {
-            is FirAnnotationCall -> {
-                if (partiallyAppliedSymbol.symbol !is KaConstructorSymbol) return null
-                @Suppress("UNCHECKED_CAST") // safe because of the above check on targetKtSymbol
-                KaBaseAnnotationCall(
-                    backingPartiallyAppliedSymbol = partiallyAppliedSymbol as KaPartiallyAppliedFunctionSymbol<KaConstructorSymbol>,
-                    backingArgumentMapping = fir.createArgumentMapping(signatureOfCallee = partiallyAppliedSymbol.signature as KaFunctionSignature<*>),
-                )
-            }
-
-            is FirDelegatedConstructorCall -> {
-                if (partiallyAppliedSymbol.symbol !is KaConstructorSymbol) return null
-                @Suppress("UNCHECKED_CAST") // safe because of the above check on targetKtSymbol
-                KaBaseDelegatedConstructorCall(
-                    backingPartiallyAppliedSymbol = partiallyAppliedSymbol as KaPartiallyAppliedFunctionSymbol<KaConstructorSymbol>,
-                    backingKind = if (fir.isThis) KaDelegatedConstructorCall.Kind.THIS_CALL else KaDelegatedConstructorCall.Kind.SUPER_CALL,
-                    backingArgumentMapping = fir.createArgumentMapping(signatureOfCallee = partiallyAppliedSymbol.signature as KaFunctionSignature<*>),
-                    backingTypeArgumentsMapping = typeArgumentsMapping,
-                )
-            }
-
-            is FirVariableAssignment -> {
-                if (partiallyAppliedSymbol.symbol !is KaVariableSymbol) return null
-                val rhs = fir.rValue.psi as? KtExpression
-                @Suppress("UNCHECKED_CAST") // safe because of the above check on targetKtSymbol
-                KaBaseSimpleVariableAccessCall(
-                    backingPartiallyAppliedSymbol = partiallyAppliedSymbol as KaPartiallyAppliedVariableSymbol<KaVariableSymbol>,
-                    backingTypeArgumentsMapping = typeArgumentsMapping,
-                    backingKind = KaBaseVariableWriteAccess(value = rhs),
-                    backingIsContextSensitive = calleeReference?.isContextSensitive == true,
-                )
-            }
-
-            is FirPropertyAccessExpression, is FirCallableReferenceAccess, is FirFunctionCall, is FirErrorExpression -> when (partiallyAppliedSymbol.symbol) {
-                is KaVariableSymbol -> {
-                    @Suppress("UNCHECKED_CAST") // safe because of the above check on targetKtSymbol
-                    KaBaseSimpleVariableAccessCall(
-                        backingPartiallyAppliedSymbol = partiallyAppliedSymbol as KaPartiallyAppliedVariableSymbol<KaVariableSymbol>,
-                        backingTypeArgumentsMapping = typeArgumentsMapping,
-                        backingKind = KaBaseVariableReadAccess,
-                        backingIsContextSensitive = calleeReference?.isContextSensitive == true,
-                    )
-                }
-
-                is KaFunctionSymbol -> {
-                    val argumentMapping = if (candidate is Candidate) {
-                        runIf(candidate.argumentMappingInitialized) { candidate.argumentMapping.unwrapAtoms() }
-                    } else {
-                        (fir as? FirCall)?.resolvedArgumentMappingIncludingContextArguments
-                    }
-
-                    val argumentCountToDrop = argumentsContextParameterCount + (if (argumentsHaveExtensionReceiver) 1 else 0)
-                    val argumentMappingWithoutExtensionReceiverAndContextArguments = argumentMapping?.entries?.drop(argumentCountToDrop)
-
-                    @Suppress("UNCHECKED_CAST") // safe because of the above check on targetKtSymbol
-                    buildFunctionCall(
-                        partiallyAppliedSymbol = partiallyAppliedSymbol as KaPartiallyAppliedFunctionSymbol<KaFunctionSymbol>,
-                        argumentMapping = argumentMappingWithoutExtensionReceiverAndContextArguments
-                            ?.createArgumentMapping(partiallyAppliedSymbol.signature)
-                            .orEmpty(),
-                        typeArgumentsMapping = typeArgumentsMapping,
-                    )
-                }
-            }
-
-            else -> null
-        }
-    }
-
-    /**
-     * Handle compound assignment with array access convention
-     */
-    private fun createKaCallForArrayAccessConvention(
-        psi: KtElement,
-        fir: FirElement,
-        accessExpression: KtExpression?,
-        callProvider: (KtElement, FirFunctionCall, KtArrayAccessExpression) -> KaCallResolutionAttempt?,
-    ): KaCallResolutionAttempt? {
-        if (fir !is FirFunctionCall || fir.calleeReference.name != OperatorNameConventions.SET || accessExpression !is KtArrayAccessExpression) {
-            return null
-        }
-
-        return callProvider(psi, fir, accessExpression)
-    }
-
-    /**
-     * Handle compound assignment with variable
-     */
-    private fun createKaCallForVariableAccessConvention(
-        psi: KtElement,
-        fir: FirElement,
-        accessExpression: KtExpression?,
-        resolveFragmentOfCall: Boolean,
-        typeArgumentsMapping: Map<KaTypeParameterSymbol, KaType>,
-        compoundOperationProvider: (KaFunctionCall<KaNamedFunctionSymbol>) -> KaCompoundOperation,
-        rhsExpression: KtExpression?,
-    ): KaCallResolutionAttempt? {
-        if (fir !is FirVariableAssignment || accessExpression !is KtQualifiedExpression && accessExpression !is KtNameReferenceExpression) {
-            return null
-        }
-
-        val variableSymbol = fir.toPartiallyAppliedSymbol() ?: return null
-        val variableAccessCall = KaBaseSimpleVariableAccessCall(
-            backingPartiallyAppliedSymbol = variableSymbol,
-            backingTypeArgumentsMapping = typeArgumentsMapping,
-            backingKind = KaBaseVariableReadAccess,
-            backingIsContextSensitive = fir.calleeReference?.isContextSensitive == true,
-        )
-
-        if (resolveFragmentOfCall) {
-            return KaBaseCallResolutionSuccess(backingCall = variableAccessCall)
-        }
-
-        // Extract operation call
-        val firOperationCall = fir.rValue as? FirFunctionCall
-            ?: getInitializerOfReferencedLocalVariable(fir.rValue) ?: return null
-
-
-        val operationError = findErrorCall(firOperationCall, psi)
-        val operationAttempt: KaSingleCallResolutionAttempt
-        val compoundOperation: KaCompoundOperation?
-
-        if (operationError != null) {
-            operationAttempt = operationError
-            compoundOperation = null
-        } else {
-            val operationCall = buildOperationCallForCompoundVariableAccess(firOperationCall, accessExpression, rhsExpression)
-                ?: return null
-            operationAttempt = KaBaseCallResolutionSuccess(backingCall = operationCall)
-            compoundOperation = compoundOperationProvider(operationCall)
-        }
-
-        val variableAttempt = KaBaseCallResolutionSuccess(backingCall = variableAccessCall)
-        return KaBaseCompoundVariableAccessCallResolutionAttempt(
-            backingCompoundOperation = compoundOperation,
-            backingVariableCallAttempt = variableAttempt,
-            backingOperationCallAttempt = operationAttempt,
-        )
-    }
-
-    private fun createKaCallForCompoundAccessConvention(
-        psi: KtElement,
-        fir: FirElement,
-        accessExpression: KtExpression?,
-        rhsExpression: KtExpression?,
-        resolveFragmentOfCall: Boolean,
-        typeArgumentsMapping: Map<KaTypeParameterSymbol, KaType>,
-        callProvider: (KtElement, FirFunctionCall, KtArrayAccessExpression) -> KaCallResolutionAttempt?,
-        compoundOperationProvider: (KaFunctionCall<KaNamedFunctionSymbol>) -> KaCompoundOperation,
-    ): KaCallResolutionAttempt? = createKaCallForArrayAccessConvention(
-        psi = psi,
-        fir = fir,
-        accessExpression = accessExpression,
-        callProvider = callProvider,
-    ) ?: createKaCallForVariableAccessConvention(
-        psi = psi,
-        fir = fir,
-        accessExpression = accessExpression,
-        rhsExpression = rhsExpression,
-        resolveFragmentOfCall = resolveFragmentOfCall,
-        typeArgumentsMapping = typeArgumentsMapping,
-        compoundOperationProvider = compoundOperationProvider,
-    )
-
-    private fun transformErrorReference(
-        psi: KtElement,
-        call: FirElement,
-        diagnosticHolder: FirDiagnosticHolder,
-        calleeReference: FirNamedReference?,
-        resolveFragmentOfCall: Boolean,
-    ): KaCallResolutionError {
-        val diagnostic = diagnosticHolder.diagnostic
-        val kaDiagnostic = diagnosticHolder.createKaDiagnostic(psi)
-
-        if (diagnostic is ConeHiddenCandidateError) {
-            return KaBaseCallResolutionError(
-                backedDiagnostic = kaDiagnostic,
-                backingCandidateCalls = emptyList(),
-            )
-        }
-
-        val candidateCalls = if (diagnostic is ConeDiagnosticWithCandidates) {
-            diagnostic.candidates.mapNotNull {
-                if (it is Candidate) {
-                    val attempt = createKaCallResolutionAttempt(
-                        psi = psi,
-                        fir = call,
-                        calleeReference = calleeReference,
-                        candidate = it,
-                        resolveFragmentOfCall = resolveFragmentOfCall,
-                    ) as? KaCallResolutionSuccess
-
-                    attempt?.call
-                } else {
-                    null
-                }
-            }
-        } else {
-            val attempt = createKaCallResolutionAttempt(
-                psi = psi,
-                fir = call,
-                calleeReference = calleeReference,
-                candidate = null,
-                resolveFragmentOfCall = resolveFragmentOfCall
-            ) as? KaCallResolutionSuccess
-
-            listOfNotNull(attempt?.call)
-        }
-
-        return KaBaseCallResolutionError(
-            backedDiagnostic = kaDiagnostic,
-            backingCandidateCalls = candidateCalls,
-        )
-    }
-
-    private fun FirExpression.asFunctionOperatorCall(
-        expectedSourceKind: KtFakeSourceElementKind,
-    ): FirFunctionCall? = (this as? FirFunctionCall)?.takeIf {
-        it.origin == FirFunctionCallOrigin.Operator && it.source?.kind == expectedSourceKind
-    }
-
-    private fun resolveForLoopCall(firLoop: FirWhileLoop, psi: KtForExpression): KaCallResolutionAttempt? {
-        val firHasNextCall = firLoop.condition.asFunctionOperatorCall(KtFakeSourceElementKind.DesugaredForLoop) ?: return null
-
-        val iteratorPropertyAccess = firHasNextCall.explicitReceiver as? FirQualifiedAccessExpression ?: return null
-        val iteratorPropertySymbol = (iteratorPropertyAccess.calleeReference as? FirResolvedNamedReference)
-            ?.resolvedSymbol as? FirPropertySymbol ?: return null
-
-        @OptIn(SymbolInternals::class)
-        val firIteratorCall = iteratorPropertySymbol.fir
-            .initializer
-            ?.asFunctionOperatorCall(KtFakeSourceElementKind.DesugaredForLoop)
-            ?: return null
-
-        @OptIn(SymbolInternals::class)
-        val firNextCall = (firLoop.block.statements.firstOrNull() as? FirProperty)
-            ?.initializer
-            ?.asFunctionOperatorCall(KtFakeSourceElementKind.DesugaredForLoop)
-            ?: return null
-
-        val iteratorAttempt = resolveSingleSubCall(firIteratorCall, psi)
-        val hasNextAttempt = resolveSingleSubCall(firHasNextCall, psi)
-        val nextAttempt = resolveSingleSubCall(firNextCall, psi)
-
-        return KaBaseForLoopCallResolutionAttempt(
-            backingIteratorCallAttempt = iteratorAttempt,
-            backingHasNextCallAttempt = hasNextAttempt,
-            backingNextCallAttempt = nextAttempt,
-        )
-    }
-
-    private fun resolveDelegatedPropertyCall(firProperty: FirProperty, psi: KtPropertyDelegate): KaCallResolutionAttempt? {
-        if (firProperty.delegate == null) return null
-
-        val firGetValueCall = (firProperty.getter?.body?.statements?.singleOrNull() as? FirReturnExpression)
-            ?.result
-            ?.asFunctionOperatorCall(KtFakeSourceElementKind.DelegatedPropertyAccessor)
-
-        val firSetValueCall = (firProperty.setter?.body?.statements?.singleOrNull() as? FirReturnExpression)
-            ?.result
-            ?.asFunctionOperatorCall(KtFakeSourceElementKind.DelegatedPropertyAccessor)
-
-        val firProvideDelegateCall = firProperty.delegate
-            ?.asFunctionOperatorCall(KtFakeSourceElementKind.DelegatedPropertyAccessor)
-
-        // The getter is mandatory
-        if (firGetValueCall == null) return null
-
-        val getterAttempt = resolveSingleSubCall(firGetValueCall, psi)
-        val setterAttempt = firSetValueCall?.let { resolveSingleSubCall(it, psi) }
-        val provideDelegateAttempt = firProvideDelegateCall?.let { resolveSingleSubCall(it, psi) }
-
-        return KaBaseDelegatedPropertyCallResolutionAttempt(
-            backingValueGetterCallAttempt = getterAttempt,
-            backingValueSetterCallAttempt = setterAttempt,
-            backingProvideDelegateCallAttempt = provideDelegateAttempt,
-        )
-    }
-
-    private fun findErrorCall(
-        call: FirFunctionCall,
-        psi: KtElement,
-    ): KaCallResolutionError? = when (val ref = call.calleeReference) {
-        is FirDiagnosticHolder -> transformErrorReference(
-            psi = psi,
-            call = call,
-            diagnosticHolder = ref,
-            calleeReference = ref,
-            resolveFragmentOfCall = false,
-        )
-
-        else -> null
-    }
-
-    /**
-     * Resolves a [FirFunctionCall] into a [KaSingleCallResolutionAttempt].
-     * If the call has an error, returns [KaCallResolutionError]; otherwise builds a [KaCallResolutionSuccess].
-     */
-    private fun resolveSingleSubCall(call: FirFunctionCall, psi: KtElement): KaSingleCallResolutionAttempt {
-        findErrorCall(call, psi)?.let { return it }
-
-        return when (val kaCall = buildNamedFunctionCall(call)) {
-            null -> KaBaseCallResolutionError(
-                backedDiagnostic = KaNonBoundToPsiErrorDiagnostic(
-                    factoryName = FirErrors.OTHER_ERROR.name,
-                    defaultMessage = "Failed to build call",
-                    token = token,
-                ),
-                backingCandidateCalls = emptyList(),
-            )
-
-            else -> KaBaseCallResolutionSuccess(backingCall = kaCall)
-        }
-    }
-
-    private fun buildNamedFunctionCall(firFunctionCall: FirFunctionCall): KaFunctionCall<KaNamedFunctionSymbol>? {
-        val functionSymbol = (firFunctionCall.calleeReference as? FirResolvedNamedReference)
-            ?.resolvedSymbol as? FirNamedFunctionSymbol ?: return null
-
-        val firTypeArgumentsMapping = firFunctionCall.toFirTypeArgumentsMapping(functionSymbol)
-        val typeArgumentsMapping = firTypeArgumentsMapping.asKaTypeParametersMapping()
-
-        val kaSignature = with(analysisSession) {
-            val substitutor = substitutorByMap(firTypeArgumentsMapping, firSession).toKaSubstitutor()
-            functionSymbol.toKaSignature().substitute(substitutor)
-        }
-
-        val partiallyAppliedSymbol = KaBasePartiallyAppliedSymbol(
-            backingSignature = kaSignature,
-            dispatchReceiver = firFunctionCall.dispatchReceiver?.toKaReceiverValue(),
-            extensionReceiver = firFunctionCall.extensionReceiver?.toKaReceiverValue(),
-            contextArguments = firFunctionCall.contextArguments.toKaContextParameterValues(),
-        )
-
-        @Suppress("UNCHECKED_CAST")
-        return KaBaseSimpleFunctionCall(
-            backingPartiallyAppliedSymbol = partiallyAppliedSymbol,
-            backingArgumentMapping = emptyMap(),
-            backingTypeArgumentsMapping = typeArgumentsMapping,
-        ) as KaFunctionCall<KaNamedFunctionSymbol>
-    }
-
-    private fun handleCompoundAccessCall(
-        psi: KtElement,
-        fir: FirElement,
-        resolveFragmentOfCall: Boolean,
-        typeArgumentsMapping: Map<KaTypeParameterSymbol, KaType>,
-    ): KaCallResolutionAttempt? {
-        return when (psi) {
-            is KtBinaryExpression if psi.operationToken in KtTokens.AUGMENTED_ASSIGNMENTS -> {
-                val rightOperandPsi = deparenthesize(psi.right) ?: return null
-                val leftOperandPsi = deparenthesize(psi.left) ?: return null
-                val compoundAssignKind = psi.getCompoundAssignKind()
-
-                createKaCallForCompoundAccessConvention(
-                    psi = psi,
-                    fir = fir,
-                    accessExpression = leftOperandPsi,
-                    rhsExpression = rightOperandPsi,
-                    resolveFragmentOfCall = resolveFragmentOfCall,
-                    typeArgumentsMapping = typeArgumentsMapping,
-                    callProvider = { psi, fir, arrayAccessExpression ->
-                        createCompoundArrayAccessCall(
-                            psi = psi,
-                            firCall = fir,
-                            lhsArrayAccessExpression = arrayAccessExpression,
-                            rhsExpression = rightOperandPsi,
-                            resolveFragmentOfCall = resolveFragmentOfCall,
-                            compoundOperationProvider = { KaBaseCompoundAssignOperation(it, compoundAssignKind, rightOperandPsi) },
-                        )
-                    },
-                    compoundOperationProvider = { KaBaseCompoundAssignOperation(it, compoundAssignKind, rightOperandPsi) },
-                )
-            }
-
-            is KtUnaryExpression if psi.operationToken in KtTokens.INCREMENT_AND_DECREMENT -> {
-                val precedence = when (psi) {
-                    is KtPostfixExpression -> KaCompoundUnaryOperation.Precedence.POSTFIX
-                    else -> KaCompoundUnaryOperation.Precedence.PREFIX
-                }
-
-                val incOrDecOperationKind = psi.getInOrDecOperationKind()
-                val baseExpression = deparenthesize(psi.baseExpression)
-
-                createKaCallForCompoundAccessConvention(
-                    psi = psi,
-                    fir = fir,
-                    accessExpression = baseExpression,
-                    rhsExpression = null,
-                    resolveFragmentOfCall = resolveFragmentOfCall,
-                    typeArgumentsMapping = typeArgumentsMapping,
-                    callProvider = { psi, firCall, ktExpression ->
-                        createCompoundArrayAccessCall(
-                            psi = psi,
-                            firCall = firCall,
-                            lhsArrayAccessExpression = ktExpression,
-                            rhsExpression = null,
-                            resolveFragmentOfCall = resolveFragmentOfCall,
-                            compoundOperationProvider = { KaBaseCompoundUnaryOperation(it, incOrDecOperationKind, precedence) },
-                        )
-                    },
-                    compoundOperationProvider = { KaBaseCompoundUnaryOperation(it, incOrDecOperationKind, precedence) },
-                )
-            }
-            else -> null
-        }
-    }
-
-    private fun createCompoundArrayAccessCall(
-        psi: KtElement,
-        firCall: FirFunctionCall,
-        lhsArrayAccessExpression: KtArrayAccessExpression,
-        rhsExpression: KtExpression?,
-        resolveFragmentOfCall: Boolean,
-        compoundOperationProvider: (KaFunctionCall<KaNamedFunctionSymbol>) -> KaCompoundOperation,
-    ): KaCallResolutionAttempt? {
-        // The last argument of `set` is the new value to be set. This value should be a call to the respective `plus`, `minus`,
-        // `times`, `div`, or `rem` function.
-        val firOperationCall = firCall.arguments.lastOrNull() as? FirFunctionCall ?: return null
-
-        // The explicit receiver for both `get` and `set` call should be the array expression.
-        val firExplicitReceiver = firOperationCall.explicitReceiver ?: return null
-        val firGetCall = firExplicitReceiver as? FirFunctionCall // case for array access and prefix
-            ?: getInitializerOfReferencedLocalVariable(firExplicitReceiver) // case for postfix
-            ?: return null
-
-        val indexExpressions = lhsArrayAccessExpression.indexExpressions
-        val arrayExpression = lhsArrayAccessExpression.arrayExpression
-
-        // Build getter call or error
-        val getterError = findErrorCall(firGetCall, psi)
-        val getterAttempt: KaSingleCallResolutionAttempt
-        if (getterError != null) {
-            getterAttempt = getterError
-        } else {
-            val getPartiallyAppliedSymbol = firGetCall.toPartiallyAppliedSymbol(arrayExpression) ?: return null
-            val getArgumentMapping = indexExpressions.zip(getPartiallyAppliedSymbol.signature.valueParameters).toMap()
-            val getCall = KaBaseSimpleFunctionCall(
-                backingPartiallyAppliedSymbol = getPartiallyAppliedSymbol,
-                backingArgumentMapping = getArgumentMapping,
-                backingTypeArgumentsMapping = firCall
-                    .toFirTypeArgumentsMapping(symbol = getPartiallyAppliedSymbol.symbol.firSymbol)
-                    .asKaTypeParametersMapping(),
-            ).let {
-                @Suppress("UNCHECKED_CAST")
-                it as KaFunctionCall<KaNamedFunctionSymbol>
-            }
-
-            getterAttempt = KaBaseCallResolutionSuccess(backingCall = getCall)
-        }
-
-        if (resolveFragmentOfCall) {
-            return getterAttempt
-        }
-
-        // Build operation call or error
-        val operationError = findErrorCall(firOperationCall, psi)
-        val operationAttempt: KaSingleCallResolutionAttempt
-        val compoundOperation: KaCompoundOperation?
-        if (operationError != null) {
-            operationAttempt = operationError
-            compoundOperation = null
-        } else {
-            // The explicit receiver in this case is a synthetic FirFunctionCall to `get`, which does not have a corresponding PSI. So
-            // we use the `lhsArrayAccessExpression` as the supplement.
-            val operationPartiallyAppliedSymbol = firOperationCall.toPartiallyAppliedSymbol(lhsArrayAccessExpression) ?: return null
-            val operationArgumentsMapping = listOfNotNull(lhsArrayAccessExpression, rhsExpression)
-                .zip(operationPartiallyAppliedSymbol.signature.valueParameters)
-                .toMap()
-            val operationCall = KaBaseSimpleFunctionCall(
-                backingPartiallyAppliedSymbol = operationPartiallyAppliedSymbol,
-                backingArgumentMapping = operationArgumentsMapping,
-                backingTypeArgumentsMapping = firCall
-                    .toFirTypeArgumentsMapping(symbol = operationPartiallyAppliedSymbol.symbol.firSymbol)
-                    .asKaTypeParametersMapping(),
-            ).let {
-                @Suppress("UNCHECKED_CAST")
-                it as KaFunctionCall<KaNamedFunctionSymbol>
-            }
-
-            operationAttempt = KaBaseCallResolutionSuccess(backingCall = operationCall)
-            compoundOperation = compoundOperationProvider(operationCall)
-        }
-
-        // Build setter call or error
-        val setterError = findErrorCall(firCall, psi)
-        val setterAttempt: KaSingleCallResolutionAttempt
-        if (setterError != null) {
-            setterAttempt = setterError
-        } else {
-            val setPartiallyAppliedSymbol = firCall.toPartiallyAppliedSymbol(arrayExpression) ?: return null
-            val setArgumentsMapping = mapOf(indexExpressions.last() to setPartiallyAppliedSymbol.signature.valueParameters.last())
-            val setCall = KaBaseSimpleFunctionCall(
-                backingPartiallyAppliedSymbol = setPartiallyAppliedSymbol,
-                backingArgumentMapping = setArgumentsMapping,
-                backingTypeArgumentsMapping = firCall
-                    .toFirTypeArgumentsMapping(symbol = setPartiallyAppliedSymbol.symbol.firSymbol)
-                    .asKaTypeParametersMapping(),
-            ).let {
-                @Suppress("UNCHECKED_CAST")
-                it as KaFunctionCall<KaNamedFunctionSymbol>
-            }
-
-            setterAttempt = KaBaseCallResolutionSuccess(backingCall = setCall)
-        }
-
-        return KaBaseCompoundArrayAccessCallResolutionAttempt(
-            backingCompoundOperation = compoundOperation,
-            backingIndexArguments = indexExpressions,
-            backingGetterCallAttempt = getterAttempt,
-            backingOperationCallAttempt = operationAttempt,
-            backingSetterCallAttempt = setterAttempt,
-        )
-    }
-
-    @OptIn(SymbolInternals::class)
-    private fun getInitializerOfReferencedLocalVariable(variableReference: FirExpression): FirFunctionCall? {
-        return variableReference.toReference(resolutionFacade.useSiteFirSession)
-            ?.toResolvedVariableSymbol()
-            ?.fir
-            ?.initializer as? FirFunctionCall
-    }
-
-    private fun buildOperationCallForCompoundVariableAccess(
-        firOperationCall: FirFunctionCall,
-        leftOperandPsi: KtExpression,
-        rightOperandPsi: KtExpression?,
-    ): KaFunctionCall<KaNamedFunctionSymbol>? {
-        val operationPartiallyAppliedSymbol = firOperationCall.toPartiallyAppliedSymbol(leftOperandPsi) ?: return null
-
-        val operationArgumentsMapping = listOfNotNull(leftOperandPsi, rightOperandPsi)
-            .zip(operationPartiallyAppliedSymbol.signature.valueParameters)
-            .toMap()
-
-        val functionCall = KaBaseSimpleFunctionCall(
-            backingPartiallyAppliedSymbol = operationPartiallyAppliedSymbol,
-            backingArgumentMapping = operationArgumentsMapping,
-            backingTypeArgumentsMapping = firOperationCall
-                .toFirTypeArgumentsMapping(symbol = operationPartiallyAppliedSymbol.symbol.firSymbol)
-                .asKaTypeParametersMapping(),
-        )
-
-        @Suppress("UNCHECKED_CAST")
-        return functionCall as KaFunctionCall<KaNamedFunctionSymbol>
-    }
-
-    private fun FirVariableAssignment.toPartiallyAppliedSymbol(): KaPartiallyAppliedVariableSymbol<KaVariableSymbol>? {
-        val variableRef = calleeReference as? FirResolvedNamedReference ?: return null
-        val variableSymbol = variableRef.resolvedSymbol as? FirVariableSymbol<*> ?: return null
-        val substitutor = unwrapLValue()?.createConeSubstitutorFromTypeArguments(rootModuleSession) ?: return null
-        val kaSignature = variableSymbol.toKaSignature()
-        return KaBasePartiallyAppliedSymbol(
-            backingSignature = kaSignature.substitute(substitutor.toKaSubstitutor()),
-            dispatchReceiver = dispatchReceiver?.toKaReceiverValue(),
-            extensionReceiver = extensionReceiver?.toKaReceiverValue(),
-            contextArguments = contextArguments.toKaContextParameterValues(),
-        )
-    }
-
-    private fun FirFunctionCall.toPartiallyAppliedSymbol(
-        explicitReceiverPsiSupplement: KtExpression? = null,
-    ): KaPartiallyAppliedFunctionSymbol<KaNamedFunctionSymbol>? {
-        val operationSymbol = (calleeReference as? FirResolvedNamedReference)?.resolvedSymbol as? FirNamedFunctionSymbol ?: return null
-        val substitutor = createConeSubstitutorFromTypeArguments(rootModuleSession) ?: return null
-        val explicitReceiver = this.explicitReceiver
-        val dispatchReceiver = this.dispatchReceiver
-        val extensionReceiver = this.extensionReceiver
-
-        checkWithAttachment(
-            (explicitReceiver != null) == (explicitReceiverPsiSupplement != null),
-            { "FIR and PSI for explicit receiver are inconsistent (one of them is null)" }
-        ) {
-            withPsiEntry("explicitReceiverPsi", explicitReceiverPsiSupplement)
-            if (explicitReceiver != null) {
-                withFirEntry("explicitReceiverFir", explicitReceiver)
-            } else {
-                withEntry("explicitReceiverFir", "null")
-            }
-        }
-
-        val dispatchReceiverValue = if (explicitReceiverPsiSupplement != null && explicitReceiver == dispatchReceiver) {
-            explicitReceiverPsiSupplement.toExplicitReceiverValue(dispatchReceiver!!.resolvedType.asKaType())
-        } else {
-            dispatchReceiver?.toKaReceiverValue()
-        }
-
-        val extensionReceiverValue = if (explicitReceiverPsiSupplement != null && explicitReceiver == extensionReceiver) {
-            explicitReceiverPsiSupplement.toExplicitReceiverValue(extensionReceiver!!.resolvedType.asKaType())
-        } else {
-            extensionReceiver?.toKaReceiverValue()
-        }
-
-        val kaSignature = operationSymbol.toKaSignature()
-        return KaBasePartiallyAppliedSymbol(
-            backingSignature = kaSignature.substitute(substitutor.toKaSubstitutor()),
-            dispatchReceiver = dispatchReceiverValue,
-            extensionReceiver = extensionReceiverValue,
-            contextArguments = contextArguments.toKaContextParameterValues(),
-        )
-    }
-
-    private fun List<FirExpression>.toKaContextParameterValues(): List<KaReceiverValue> = mapNotNull { expression ->
-        val receiverValue = expression.toKaReceiverValue()
-        if (receiverValue == null && expression !is FirErrorExpression) {
-            logger<KaFirResolver>().logErrorWithAttachment("Unexpected null receiver value for context argument") {
-                withFirEntry("expression", expression)
-            }
-        }
-
-        receiverValue
-    }
-
-    private fun FirExpression.toKaReceiverValue(): KaReceiverValue? {
-        return when (this) {
-            is FirSmartCastExpression -> {
-                val result = originalExpression.toKaReceiverValue()
-                if (result != null && isStable) {
-                    KaBaseSmartCastedReceiverValue(result, smartcastType.coneType.asKaType())
-                } else {
-                    result
-                }
-            }
-
-            is FirThisReceiverExpression if isImplicit -> {
-                val symbol = when (val firSymbol = calleeReference.boundSymbol) {
-                    is FirClassSymbol<*> -> firSymbol.toKaSymbol()
-                    is FirReceiverParameterSymbol -> firSymbolBuilder.callableBuilder.buildExtensionReceiverSymbol(firSymbol)
-                        ?: return null
-
-                    is FirTypeAliasSymbol, is FirTypeParameterSymbol -> errorWithFirSpecificEntries(
-                        message = "Unexpected ${FirThisOwnerSymbol::class.simpleName}: ${firSymbol::class.simpleName}",
-                        fir = firSymbol.fir
-                    )
-
-                    null -> return null
-                }
-
-                KaBaseImplicitReceiverValue(symbol, resolvedType.asKaType())
-            }
-
-            is FirPropertyAccessExpression if source?.kind is KtFakeSourceElementKind.ImplicitContextParameterArgument -> {
-                val firSymbol = calleeReference.symbol ?: return null
-
-                require(firSymbol is FirValueParameterSymbol) { "Unexpected symbol ${firSymbol::class.simpleName}" }
-                val symbol = firSymbolBuilder.variableBuilder.buildParameterSymbol(firSymbol)
-                KaBaseImplicitReceiverValue(symbol, resolvedType.asKaType())
-            }
-
-            is FirResolvedQualifier if this.source?.kind is KtFakeSourceElementKind.ImplicitReceiver -> {
-                val symbol = this.symbol ?: return null
-                KaBaseImplicitReceiverValue(symbol.toKaSymbol(), resolvedType.asKaType())
-            }
-
-            else -> {
-                val psi = psi
-                if (psi !is KtExpression) return null
-                psi.toExplicitReceiverValue(resolvedType.asKaType())
-            }
-        }
-    }
-
-    private fun FirCallableSymbol<*>.toKaSignature(): KaCallableSignature<KaCallableSymbol> =
-        firSymbolBuilder.callableBuilder.buildCallableSignature(this)
-
-    private fun FirClassLikeSymbol<*>.toKaSymbol(): KaClassLikeSymbol = firSymbolBuilder.classifierBuilder.buildClassLikeSymbol(this)
-
-    private fun FirNamedFunctionSymbol.toKaSignature(): KaFunctionSignature<KaNamedFunctionSymbol> =
-        firSymbolBuilder.functionBuilder.buildNamedFunctionSignature(this)
-
-    private fun FirVariableSymbol<*>.toKaSignature(): KaVariableSignature<KaVariableSymbol> =
-        firSymbolBuilder.variableBuilder.buildVariableLikeSignature(this)
-
-    private fun FirQualifiedAccessExpression.toFirTypeArgumentsMapping(symbol: FirCallableSymbol<*>): Map<FirTypeParameterSymbol, ConeKotlinType> {
-        return toFirTypeArgumentsMapping(typeArguments, symbol)
-    }
-
-    private fun FirResolvedQualifier.toFirTypeArgumentsMapping(symbol: FirCallableSymbol<*>): Map<FirTypeParameterSymbol, ConeKotlinType> {
-        return toFirTypeArgumentsMapping(typeArguments, symbol)
-    }
-
-    private fun FirDelegatedConstructorCall.toFirTypeArgumentsMapping(symbol: FirCallableSymbol<*>): Map<FirTypeParameterSymbol, ConeKotlinType> {
-        val typeParameters = symbol.typeParameterSymbols.ifEmpty { return emptyMap() }
-        val typeArguments = constructedTypeRef.coneType.typeArguments
-        // In all cases, the size of arguments and parameters is the same,
-        // so this check exists just to be sure
-        if (typeArguments.size != typeParameters.size) return emptyMap()
-
-        return buildMap(typeArguments.size) {
-            for ((index, projection) in typeArguments.withIndex()) {
-                if (projection !is ConeKotlinType) return emptyMap()
-                put(typeParameters[index], projection)
-            }
-        }
-    }
-
-    /**
-     * Maps [typeArguments] to the type parameters of [symbol].
+     * When resolving [KtNameReferenceExpression], we instead resolve the containing [KtConstructorCalleeExpression].
+     * This way the corresponding FIR element is a call instead of the reference
      *
-     * If too many type arguments are provided, a mapping is still created. Extra type arguments are simply ignored. If this wasn't the
-     * case, the resulting [KaCallResolutionSuccess] would contain no type arguments at all, which can cause problems later. If too few type arguments are
-     * provided, an empty map is returned defensively so that [toFirTypeArgumentsMapping] doesn't conjure any error types. If you want to map
-     * too few type arguments meaningfully, please provide filler types explicitly.
+     * ### Example:
+     *
+     * ```kotlin
+     * open class A
+     * class B: A()
+     * ```
+     *
+     * Here `A()` is represented as:
+     * - SUPER_TYPE_CALL_ENTRY (`A()`)
+     *   - CONSTRUCTOR_CALLEE (`A`)
+     *     - TYPE_REFERENCE (`A`)
+     *       - USER_TYPE (`A`)
+     *         - REFERENCE_EXPRESSION (`A`)
+     *
+     * As a result, the reference expression cannot be resolved to a constructor call since regular unwraps like [getContainingCallExpressionForCalleeExpression]
+     * is not enough to traverse through [KtTypeReference].
+     *
+     * The same is applicable for [KtAnnotationEntry].
      */
-    private fun toFirTypeArgumentsMapping(
-        typeArguments: List<FirTypeProjection>,
-        symbol: FirCallableSymbol<*>,
-    ): Map<FirTypeParameterSymbol, ConeKotlinType> {
-        val typeParameters = symbol.typeParameterSymbols
-        if (typeParameters.isEmpty()) return emptyMap()
-        if (typeArguments.size < typeParameters.size) return emptyMap()
-
-        val result = mutableMapOf<FirTypeParameterSymbol, ConeKotlinType>()
-
-        for ((index, typeParameter) in typeParameters.withIndex()) {
-            // After resolution all type arguments should be usual types (not FirPlaceholderProjection)
-            val typeArgument = typeArguments[index]
-            if (typeArgument !is FirTypeProjectionWithVariance || typeArgument.variance != Variance.INVARIANT) return emptyMap()
-            result[typeParameter] = typeArgument.typeRef.coneType
+    private fun KtElement.getConstructorCallForNameReferenceExpression(): KtConstructorCalleeExpression? {
+        if (this !is KtNameReferenceExpression) {
+            return null
         }
 
-        return result
-    }
+        val userType = parent as? KtUserType ?: return null
 
-    private fun FirCollectionLiteral.toTypeArgumentsMapping(symbol: KaDeclarationSymbol): Map<KaTypeParameterSymbol, KaType> {
-        val elementType = resolvedType.arrayElementType()?.asKaType() ?: return emptyMap()
-        val typeParameter = symbol.typeParameters.singleOrNull() ?: return emptyMap()
-        return mapOf(typeParameter to elementType)
-    }
-
-    // TODO: Refactor common code with FirElement.toKtCallInfo() when other FirResolvables are handled
-    private fun FirElement.collectCallCandidates(
-        psi: KtElement,
-        resolveCalleeExpressionOfFunctionCall: Boolean,
-        resolveFragmentOfCall: Boolean,
-    ): List<KaCallCandidate> {
-        if (resolveCalleeExpressionOfFunctionCall && this is FirImplicitInvokeCall) {
-            // For implicit invoke, we resolve the calleeExpression of the CallExpression to the call that creates the receiver of this
-            // implicit invoke call. For example,
-            // ```
-            // fun test(f: () -> Unit) {
-            //   f() // calleeExpression `f` resolves to the local variable access, while `f()` resolves to the implicit `invoke` call.
-            //       // This way `f` is also the explicit receiver of this implicit `invoke` call
-            // }
-            // ```
-            return explicitReceiver?.collectCallCandidates(
-                psi,
-                resolveCalleeExpressionOfFunctionCall = false,
-                resolveFragmentOfCall = resolveFragmentOfCall,
-            ) ?: emptyList()
-        }
-
-        return when (this) {
-            is FirFunctionCall, is FirPropertyAccessExpression -> collectCallCandidates(psi, resolveFragmentOfCall)
-            is FirSafeCallExpression -> selector.collectCallCandidates(
-                psi = psi,
-                resolveCalleeExpressionOfFunctionCall = resolveCalleeExpressionOfFunctionCall,
-                resolveFragmentOfCall = resolveFragmentOfCall,
-            )
-
-            is FirComparisonExpression -> compareToCall.collectCallCandidates(
-                psi = psi,
-                resolveCalleeExpressionOfFunctionCall = resolveCalleeExpressionOfFunctionCall,
-                resolveFragmentOfCall = resolveFragmentOfCall,
-            )
-
-            is FirResolvedQualifier -> toKaCallCandidates()
-            is FirDelegatedConstructorCall -> collectCallCandidatesForDelegatedConstructorCall(psi, resolveFragmentOfCall)
-            else -> toKaResolutionAttempt(psi, resolveCalleeExpressionOfFunctionCall, resolveFragmentOfCall).toKaCallCandidates()
-        }
-    }
-
-    private fun FirResolvedQualifier.toKaCallCandidates(): List<KaCallCandidate> {
-        return toKaCalls(findQualifierConstructors()).map {
-            KaBaseInapplicableCallCandidate(
-                backingCandidate = it,
-                backingIsInBestCandidates = false,
-                backingDiagnostic = inapplicableCandidateDiagnostic()
-            )
-        }
-    }
-
-    private fun FirResolvedQualifier.findQualifierConstructors(): List<FirConstructorSymbol> {
-        val classSymbol = this.symbol?.fullyExpandedClass(analysisSession.firSession) ?: return emptyList()
-        return classSymbol.unsubstitutedScope(
-            analysisSession.firSession,
-            analysisSession.getScopeSessionFor(analysisSession.firSession),
-            withForcedTypeCalculator = true,
-            memberRequiredPhase = null,
-        ).getDeclaredConstructors()
-    }
-
-    private fun Map<FirTypeParameterSymbol, ConeKotlinType>.asKaTypeParametersMapping(): Map<KaTypeParameterSymbol, KaType> {
-        return map { (key, value) ->
-            firSymbolBuilder.classifierBuilder.buildTypeParameterSymbol(key) to value.asKaType()
-        }.toMap()
-    }
-
-    private fun FirResolvedQualifier.toKaCalls(constructors: List<FirConstructorSymbol>): List<KaFunctionCall<*>> =
-        constructors.map { constructor ->
-            val signature = constructor.toKaSignature()
-            val partiallyAppliedSymbol = KaBasePartiallyAppliedSymbol(
-                backingSignature = signature as KaFunctionSignature<*>,
-                dispatchReceiver = null,
-                extensionReceiver = null,
-                contextArguments = emptyList(),
-            )
-
-            val firTypeArgumentsMapping = toFirTypeArgumentsMapping(constructor)
-            val typeArgumentsMapping = firTypeArgumentsMapping.asKaTypeParametersMapping()
-            KaBaseSimpleFunctionCall(
-                backingPartiallyAppliedSymbol = partiallyAppliedSymbol,
-                backingArgumentMapping = emptyMap(),
-                backingTypeArgumentsMapping = typeArgumentsMapping,
-            )
-        }
-
-    private fun FirQualifiedAccessExpression.collectCallCandidates(
-        psi: KtElement,
-        resolveFragmentOfCall: Boolean,
-    ): List<KaCallCandidate> {
-        // If a function call is resolved to an implicit invoke call, the FirImplicitInvokeCall will have the `invoke()` function as the
-        // callee and the variable as the explicit receiver. To correctly get all candidates, we need to get the original function
-        // call's explicit receiver (if there is any) and callee (i.e., the variable).
-        val unwrappedExplicitReceiver = explicitReceiver?.unwrapSmartcastExpression()
-        val isUnwrappedImplicitInvokeCall = this is FirImplicitInvokeCall && unwrappedExplicitReceiver is FirPropertyAccessExpression
-        val originalFunctionCall = if (isUnwrappedImplicitInvokeCall) {
-            val originalCallee = unwrappedExplicitReceiver.calleeReference.safeAs<FirNamedReference>() ?: return emptyList()
-            buildFunctionCall {
-                // NOTE: We only need to copy the explicit receiver and not the dispatch and extension receivers as only the explicit
-                // receiver is needed by the resolver. The dispatch and extension receivers are only assigned after resolution when a
-                // candidate is selected.
-                source = this@collectCallCandidates.source
-                annotations.addAll(this@collectCallCandidates.annotations)
-                typeArguments.addAll(this@collectCallCandidates.typeArguments)
-                explicitReceiver = unwrappedExplicitReceiver.explicitReceiver
-                argumentList = this@collectCallCandidates.argumentList
-                calleeReference = originalCallee
-            }
-        } else {
-            this
-        }
-
-        val calleeName = originalFunctionCall.calleeOrCandidateName ?: return emptyList()
-        val candidates = AllCandidatesResolver(analysisSession.firSession).getAllCandidates(
-            analysisSession.resolutionFacade,
-            originalFunctionCall,
-            calleeName,
-            psi,
-            ResolutionMode.ContextIndependent,
-        )
-
-        return candidates.mapNotNull {
-            convertToKaCallCandidate(
-                resolvable = originalFunctionCall,
-                element = psi,
-                candidate = it.candidate,
-                isInBestCandidates = it.isInBestCandidates,
-                resolveFragmentOfCall = resolveFragmentOfCall,
-                isUnwrappedImplicitInvokeCall = isUnwrappedImplicitInvokeCall,
-            )
-        }
-    }
-
-    private fun FirDelegatedConstructorCall.collectCallCandidatesForDelegatedConstructorCall(
-        psi: KtElement,
-        resolveFragmentOfCall: Boolean,
-    ): List<KaCallCandidate> {
-        fun findDerivedClass(psi: KtElement): KtClassOrObject? {
-            val parent = psi.parent
-            return when (psi) {
-                is KtConstructorDelegationCall -> (parent as? KtSecondaryConstructor)?.containingClassOrObject
-                is KtSuperTypeCallEntry -> {
-                    (parent as? KtSuperTypeList)?.parent as? KtClassOrObject
-                        ?: ((parent as? KtInitializerList)?.parent as? KtEnumEntry)?.containingClassOrObject
-                }
-                is KtConstructorCalleeExpression -> (parent as? KtElement)?.let(::findDerivedClass)
-                is KtEnumEntrySuperclassReferenceExpression -> psi.getReferencedNameElement() as? KtClassOrObject
-                else -> null
-            }
-        }
-
-        val derivedClass = findDerivedClass(psi)?.resolveToFirSymbolOfTypeSafe<FirClassSymbol<*>>(resolutionFacade) ?: return emptyList()
-
-        val candidates = AllCandidatesResolver(analysisSession.firSession)
-            .getAllCandidatesForDelegatedConstructor(analysisSession.resolutionFacade, this, derivedClass, psi)
-
-        return candidates.mapNotNull {
-            convertToKaCallCandidate(
-                resolvable = this,
-                element = psi,
-                candidate = it.candidate,
-                isInBestCandidates = it.isInBestCandidates,
-                resolveFragmentOfCall = resolveFragmentOfCall,
-                isUnwrappedImplicitInvokeCall = false,
-            )
-        }
-    }
-
-    private fun KaCallResolutionAttempt?.toKaCallCandidates(): List<KaCallCandidate> = when (this) {
-        is KaCallResolutionSuccess -> listOf(KaBaseApplicableCallCandidate(backingCandidate = call, backingIsInBestCandidates = true))
-        is KaCallResolutionError -> candidateCalls.map {
-            KaBaseInapplicableCallCandidate(
-                backingCandidate = it,
-                backingIsInBestCandidates = true,
-                backingDiagnostic = diagnostic,
-            )
-        }
-
-        is KaMultiCallResolutionAttempt -> fold(
-            onSuccess = { listOf(KaBaseApplicableCallCandidate(backingCandidate = it, backingIsInBestCandidates = true)) },
-            onFailure = { attempts -> attempts.flatMap { it.toKaCallCandidates() } },
-        )
-
-        null -> emptyList()
-    }
-
-    private fun convertToKaCallCandidate(
-        resolvable: FirResolvable,
-        element: KtElement,
-        candidate: Candidate,
-        isInBestCandidates: Boolean,
-        resolveFragmentOfCall: Boolean,
-        isUnwrappedImplicitInvokeCall: Boolean,
-    ): KaCallCandidate? {
-        val call = createKaCall(element, resolvable, candidate, resolveFragmentOfCall) ?: return null
-
-        if (candidate.isSuccessful) {
-            return KaBaseApplicableCallCandidate(
-                backingCandidate = call,
-                backingIsInBestCandidates = if (isUnwrappedImplicitInvokeCall) {
-                    call is KaImplicitInvokeCall
-                } else {
-                    isInBestCandidates
-                }
-            )
-        }
-
-        val diagnostic = createConeDiagnosticForCandidateWithError(candidate.lowestApplicability, candidate)
-        if (diagnostic is ConeHiddenCandidateError) return null
-        val kaDiagnostic = resolvable.source?.let { diagnostic.asKaDiagnostic(it, element.toKtPsiSourceElement()) }
-            ?: KaNonBoundToPsiErrorDiagnostic(factoryName = FirErrors.OTHER_ERROR.name, diagnostic.reason, token)
-
-        return KaBaseInapplicableCallCandidate(
-            backingCandidate = call,
-            backingIsInBestCandidates = isInBestCandidates,
-            backingDiagnostic = kaDiagnostic,
-        )
-    }
-
-    private val FirResolvable.calleeOrCandidateName: Name?
-        get() = this.calleeReference.calleeOrCandidateName
-
-    private val FirReference.calleeOrCandidateName: Name?
-        get() {
-            if (this !is FirNamedReference) return null
-
-            // In most cases, we can get the callee name from the callee's candidate symbols. However, there is at least one case where we
-            // cannot do so:
-            // ```
-            // fun x(c: Char) {}
-            // fun call(x: kotlin.Int) {
-            //   operator fun Int.invoke(a: Int) {}
-            //   operator fun Int.invoke(b: Boolean) {}
-            //   <expr>x()</expr>
-            // }
-            // ```
-            // The candidates for the call will both be `invoke`. We can keep it simple by getting the name from the callee reference's PSI
-            // element (`x` in the above example) if possible.
-            return when (val psi = psi) {
-                is KtNameReferenceExpression -> psi.getReferencedNameAsName()
-                else -> {
-                    // This could be KtArrayAccessExpression or KtOperationReferenceExpression.
-                    // Note: All candidate symbols should have the same name. We go by the symbol because `calleeReference.name` will include
-                    // the applicability if not successful.
-                    getCandidateSymbols().firstOrNull()?.safeAs<FirCallableSymbol<*>>()?.name
-                }
-            }
-        }
-
-    private val unresolvedArrayOfDiagnostic: KaDiagnostic
-        get() = KaNonBoundToPsiErrorDiagnostic(
-            factoryName = FirErrors.OTHER_ERROR.name,
-            defaultMessage = "type of arrayOf call is not resolved",
-            token = token
-        )
-
-    private fun FirCollectionLiteral.toKaResolutionAttempt(): KaCallResolutionAttempt? {
-        val arrayOfSymbol = with(analysisSession) {
-            val type = resolvedType as? ConeClassLikeType ?: return run {
-                val defaultArrayOfSymbol = arrayOfSymbol(ArrayFqNames.ARRAY_OF_FUNCTION) ?: return null
-                val substitutor = createSubstitutorFromTypeArguments(defaultArrayOfSymbol)
-                val partiallyAppliedSymbol = KaBasePartiallyAppliedSymbol(
-                    backingSignature = with(useSiteSession) { defaultArrayOfSymbol.substitute(substitutor) },
-                    dispatchReceiver = null,
-                    extensionReceiver = null,
-                    contextArguments = emptyList(),
-                )
-
-                KaBaseCallResolutionError(
-                    backedDiagnostic = unresolvedArrayOfDiagnostic,
-                    backingCandidateCalls = listOf(
-                        KaBaseSimpleFunctionCall(
-                            backingPartiallyAppliedSymbol = partiallyAppliedSymbol,
-                            backingArgumentMapping = createArgumentMapping(defaultArrayOfSymbol, substitutor),
-                            backingTypeArgumentsMapping = toTypeArgumentsMapping(defaultArrayOfSymbol),
-                        )
-                    ),
-                )
-            }
-
-            val factoryName = toArrayOfFactoryName(
-                expectedType = type,
-                session = analysisSession.firSession,
-                eagerlyReturnNonPrimitive = true
-            ) ?: return null
-
-            arrayOfSymbol(factoryName)
-        } ?: return null
-
-        val substitutor = createSubstitutorFromTypeArguments(arrayOfSymbol)
-        val partiallyAppliedSymbol = KaBasePartiallyAppliedSymbol(
-            backingSignature = with(analysisSession) { arrayOfSymbol.substitute(substitutor) },
-            dispatchReceiver = null,
-            extensionReceiver = null,
-            contextArguments = emptyList(),
-        )
-
-        return KaBaseCallResolutionSuccess(
-            backingCall = KaBaseSimpleFunctionCall(
-                backingPartiallyAppliedSymbol = partiallyAppliedSymbol,
-                backingArgumentMapping = createArgumentMapping(arrayOfSymbol, substitutor),
-                backingTypeArgumentsMapping = toTypeArgumentsMapping(arrayOfSymbol),
-            )
-        )
-    }
-
-    private fun FirCollectionLiteral.createSubstitutorFromTypeArguments(arrayOfSymbol: KaNamedFunctionSymbol): KaSubstitutor {
-        val firSymbol = arrayOfSymbol.firSymbol
-        // No type parameter means this is an arrayOf call of primitives, in which case there is no type arguments
-        val typeParameter = firSymbol.fir.typeParameters.singleOrNull() ?: return KaSubstitutor.Empty(token)
-
-        val elementType = resolvedType.arrayElementType() ?: return KaSubstitutor.Empty(token)
-        val coneSubstitutor = substitutorByMap(mapOf(typeParameter.symbol to elementType), rootModuleSession)
-        return firSymbolBuilder.typeBuilder.buildSubstitutor(coneSubstitutor)
-    }
-
-    private fun FirEqualityOperatorCall.toKaResolutionAttempt(psi: KtElement): KaCallResolutionAttempt? {
-        val binaryExpression = deparenthesize(psi as? KtExpression) as? KtBinaryExpression ?: return null
-        val leftPsi = binaryExpression.left ?: return null
-        val rightPsi = binaryExpression.right ?: return null
-        return when (operation) {
-            FirOperation.EQ, FirOperation.NOT_EQ -> {
-                val leftOperand = arguments.firstOrNull() ?: return null
-
-                val equalsSymbol = getEqualsSymbol() ?: return null
-                val kaSignature = equalsSymbol.toKaSignature()
-                KaBaseCallResolutionSuccess(
-                    backingCall = KaBaseSimpleFunctionCall(
-                        backingPartiallyAppliedSymbol = KaBasePartiallyAppliedSymbol(
-                            backingSignature = kaSignature,
-                            dispatchReceiver = KaBaseExplicitReceiverValue(
-                                expression = leftPsi,
-                                backingType = leftOperand.resolvedType.asKaType(),
-                                isSafeNavigation = false,
-                            ),
-                            extensionReceiver = null,
-                            contextArguments = emptyList(),
-                        ),
-                        backingArgumentMapping = mapOf(rightPsi to kaSignature.valueParameters.first()),
-                        backingTypeArgumentsMapping = emptyMap(),
-                    )
-                )
-            }
-
-            else -> null
-        }
-    }
-
-    private fun FirEqualityOperatorCall.getEqualsSymbol(): FirNamedFunctionSymbol? {
-        var equalsSymbol: FirNamedFunctionSymbol? = null
-        processEqualsFunctions(analysisSession.firSession, analysisSession) {
-            if (equalsSymbol != null) return@processEqualsFunctions
-            equalsSymbol = it
-        }
-
-        return equalsSymbol ?: equalsSymbolInAny
-    }
-
-    private fun FirCall.createArgumentMapping(signatureOfCallee: KaFunctionSignature<*>): Map<KtExpression, KaVariableSignature<KaParameterSymbol>> {
-        return resolvedArgumentMappingIncludingContextArguments?.entries.createArgumentMapping(signatureOfCallee)
-    }
-
-    private fun Collection<MutableMap.MutableEntry<FirExpression, FirValueParameter>>?.createArgumentMapping(
-        signatureOfCallee: KaFunctionSignature<*>,
-    ): Map<KtExpression, KaVariableSignature<KaParameterSymbol>> {
-        if (isNullOrEmpty()) return emptyMap()
-
-        val paramSignatureByName = buildMap {
-            fun associate(parameters: List<KaVariableSignature<KaParameterSymbol>>) = parameters.forEach { parameter ->
-                // We intentionally use `symbol.name` instead of `name` here, since
-                // the '@ParameterName' does not affect 'FirValueParameter.name'
-                put(parameter.symbol.name, parameter)
-            }
-
-            associate(signatureOfCallee.valueParameters)
-            associate(signatureOfCallee.contextParameters)
-        }
-
-        val argumentMapping = LinkedHashMap<KtExpression, KaVariableSignature<KaParameterSymbol>>(size)
-        this.forEach { (firExpression, firValueParameter) ->
-            val parameterSymbol = paramSignatureByName[firValueParameter.name] ?: return@forEach
-            mapArgumentExpressionToParameter(firExpression, parameterSymbol, argumentMapping)
-        }
-
-        return argumentMapping
-    }
-
-    private fun FirCollectionLiteral.createArgumentMapping(
-        arrayOfSymbol: KaNamedFunctionSymbol,
-        substitutor: KaSubstitutor,
-    ): Map<KtExpression, KaVariableSignature<KaParameterSymbol>> {
-        val arguments = argumentList.arguments
-        if (arguments.isEmpty()) return emptyMap()
-
-        val argumentMapping = LinkedHashMap<KtExpression, KaVariableSignature<KaParameterSymbol>>(arguments.size)
-        val parameterSymbol = arrayOfSymbol.valueParameters.single()
-
-        for (firExpression in arguments) {
-            mapArgumentExpressionToParameter(
-                firExpression,
-                with(analysisSession) { parameterSymbol.substitute(substitutor) },
-                argumentMapping,
-            )
-        }
-
-        return argumentMapping
-    }
-
-    private fun mapArgumentExpressionToParameter(
-        argumentExpression: FirExpression,
-        parameterSymbol: KaVariableSignature<KaParameterSymbol>,
-        argumentMapping: LinkedHashMap<KtExpression, KaVariableSignature<KaParameterSymbol>>,
-    ) {
-        if (argumentExpression is FirVarargArgumentsExpression) {
-            for (varargArgument in argumentExpression.arguments) {
-                val valueArgument = varargArgument.findSourceKtExpressionForCallArgument() ?: return
-                argumentMapping[valueArgument] = parameterSymbol
-            }
-        } else {
-            val valueArgument = argumentExpression.findSourceKtExpressionForCallArgument() ?: return
-            argumentMapping[valueArgument] = parameterSymbol
-        }
-    }
-
-    private fun FirExpression.findSourceKtExpressionForCallArgument(): KtExpression? {
-        // For smart-casted expression, refer to the source of the original expression
-        // For spread, named, and lambda arguments, the source is the KtValueArgument.
-        // For other arguments (including array indices), the source is the KtExpression.
-        return when (this) {
-            is FirFunctionTypeConversionExpression ->
-                expression.realPsi as? KtExpression
-            is FirSmartCastExpression ->
-                originalExpression.realPsi as? KtExpression
-            is FirNamedArgumentExpression, is FirSpreadArgumentExpression ->
-                realPsi.safeAs<KtValueArgument>()?.getArgumentExpression()
-            is FirAnonymousFunctionExpression ->
-                realPsi?.parent as? KtLabeledExpression ?: realPsi as? KtExpression
-            is FirWhenSubjectExpression ->
-                // The subject variable is not processed here as we don't have KtExpression to represent it.
-                // K1 creates a fake expression in this case.
-                whenSubject?.findSourceKtExpressionForCallArgument()
-            // FirBlock is a fake container for desugared expressions like `++index` or `++list[0]`
-            is FirBlock -> psi as? KtExpression
-            else -> realPsi as? KtExpression
-        }?.topParenthesizedParentOrMe()
+        // We could consider only one level of KtUserType since only in this case it is basically a "constructor callee".
+        // Otherwise, it is just a part of the qulified name
+        val typeReference = userType.parent as? KtTypeReference ?: return null
+        return typeReference.parent as? KtConstructorCalleeExpression
     }
 
     private inline fun <R> wrapError(element: KtElement, action: () -> R): R = try {
@@ -2213,20 +632,8 @@ internal class KaFirResolver(
             "Error during resolving call ${element::class}",
             exception = e,
         ) {
-            withPsiEntry("psi", element, analysisSession::getModule)
+            withPsiEntry("psi", element) { context(analysisSession) { it.kaModule } }
             element.getOrBuildFir(resolutionFacade)?.let { withFirEntry("fir", it) }
         }
     }
-
-    private fun createKaDiagnostic(
-        source: KtSourceElement?,
-        coneDiagnostic: ConeDiagnostic,
-        psi: KtElement?,
-    ): KaDiagnostic = source?.let { coneDiagnostic.asKaDiagnostic(it, psi?.toKtPsiSourceElement()) }
-        ?: KaNonBoundToPsiErrorDiagnostic(factoryName = FirErrors.OTHER_ERROR.name, coneDiagnostic.reason, token)
-
-    private fun FirDiagnosticHolder.createKaDiagnostic(psi: KtElement?): KaDiagnostic = createKaDiagnostic(source, diagnostic, psi)
 }
-
-private val FirReference.isContextSensitive: Boolean
-    get() = this is FirResolvedNamedReference && resolvedSymbolOrigin == FirResolvedSymbolOrigin.ContextSensitive

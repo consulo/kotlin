@@ -10,7 +10,7 @@ import java.io.Serializable
 
 internal class SynchronizedMetricsContainer : NonSynchronizedMetricsContainer(), Serializable {
 
-    private val metricsLock = Object()
+    private val metricsLock = Any()
 
     override fun report(metric: BooleanMetrics, value: Boolean, subprojectName: String?, weight: Long?): Boolean {
         synchronized(metricsLock) {
@@ -25,6 +25,18 @@ internal class SynchronizedMetricsContainer : NonSynchronizedMetricsContainer(),
     }
 
     override fun report(metric: StringMetrics, value: String, subprojectName: String?, weight: Long?): Boolean {
+        synchronized(metricsLock) {
+            return super.report(metric, value, subprojectName, weight)
+        }
+    }
+
+    override fun report(metric: StringListMetrics, value: List<String>, subprojectName: String?, weight: Long?): Boolean {
+        synchronized(metricsLock) {
+            return super.report(metric, value, subprojectName, weight)
+        }
+    }
+
+    override fun report(metric: StringListMetrics, value: String, subprojectName: String?, weight: Long?): Boolean {
         synchronized(metricsLock) {
             return super.report(metric, value, subprojectName, weight)
         }

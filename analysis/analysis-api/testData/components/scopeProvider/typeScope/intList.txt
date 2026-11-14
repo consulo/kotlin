@@ -189,15 +189,16 @@ KaFunctionSignature:
 
 Declaration Scope:
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/collections/List.contains
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -212,6 +213,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: contains
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -220,15 +223,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -240,23 +245,28 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: element
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaTypeParameterType:
         annotations: []
         type: E
+      typeParameters: []
       visibility: PUBLIC
   ]
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/collections/List.containsAll
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -271,6 +281,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: containsAll
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -279,15 +291,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -299,6 +313,9 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: elements
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
@@ -308,19 +325,21 @@ KaNamedFunctionSymbol:
             type: E
         ]
         type: kotlin/collections/Collection<E>
+      typeParameters: []
       visibility: PUBLIC
   ]
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/collections/List.get
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -335,6 +354,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: get
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaTypeParameterType:
     annotations: []
@@ -342,15 +363,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -362,24 +385,29 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: index
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
   ]
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/collections/List.indexOf
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -394,6 +422,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: indexOf
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -402,15 +432,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -422,23 +454,28 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: element
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaTypeParameterType:
         annotations: []
         type: E
+      typeParameters: []
       visibility: PUBLIC
   ]
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/collections/List.isEmpty
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -453,6 +490,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: isEmpty
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -462,15 +501,16 @@ KaNamedFunctionSymbol:
   valueParameters: []
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/collections/List.iterator
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -485,6 +525,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: iterator
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -498,15 +540,16 @@ KaNamedFunctionSymbol:
   valueParameters: []
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/collections/List.lastIndexOf
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -521,6 +564,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: lastIndexOf
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -529,15 +574,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -549,23 +596,28 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: element
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaTypeParameterType:
         annotations: []
         type: E
+      typeParameters: []
       visibility: PUBLIC
   ]
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/collections/List.listIterator
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -580,6 +632,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: listIterator
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -593,15 +647,16 @@ KaNamedFunctionSymbol:
   valueParameters: []
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/collections/List.listIterator
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -616,6 +671,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: listIterator
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -628,15 +685,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -648,24 +707,29 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: index
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
   ]
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/collections/List.subList
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -680,6 +744,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: subList
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -692,15 +758,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -712,22 +780,28 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: fromIndex
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -739,22 +813,30 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: toIndex
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
   ]
   visibility: PUBLIC
 KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
   annotations: []
   backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Private
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -765,23 +847,27 @@ KaKotlinPropertySymbol:
     name: field
     origin: PROPERTY_BACKING_FIELD
     owningProperty: KaKotlinPropertySymbol(kotlin/collections/List.size)
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     visibility: PRIVATE
   callableId: kotlin/collections/List.size
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -791,11 +877,14 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: ABSTRACT
     origin: LIBRARY
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
   hasBackingField: false
@@ -803,12 +892,12 @@ KaKotlinPropertySymbol:
   hasSetter: false
   initializer: null
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: true
   isStatic: false
@@ -817,6 +906,9 @@ KaKotlinPropertySymbol:
   modality: ABSTRACT
   name: size
   origin: LIBRARY
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -826,15 +918,16 @@ KaKotlinPropertySymbol:
   typeParameters: []
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Any.equals
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -849,6 +942,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: equals
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -857,15 +952,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -877,24 +974,29 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Any?
+      typeParameters: []
       visibility: PUBLIC
   ]
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Any.hashCode
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -909,6 +1011,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: hashCode
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -918,15 +1022,16 @@ KaNamedFunctionSymbol:
   valueParameters: []
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Any.toString
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -941,6 +1046,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: toString
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -950,15 +1057,16 @@ KaNamedFunctionSymbol:
   valueParameters: []
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/List.getFirst
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -973,6 +1081,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: getFirst
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaTypeParameterType:
     annotations: []
@@ -981,15 +1091,16 @@ KaNamedFunctionSymbol:
   valueParameters: []
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/List.getLast
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1004,6 +1115,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: getLast
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaTypeParameterType:
     annotations: []

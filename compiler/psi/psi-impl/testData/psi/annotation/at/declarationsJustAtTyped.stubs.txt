@@ -1,7 +1,7 @@
 FILE[kind=File[packageFqName=<root>]]
   PACKAGE_DIRECTIVE
   IMPORT_LIST
-  CLASS[classId=/A, fqName=A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=A, superNames=[]]
+  CLASS[classId=/A, fqName=A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=A, superNames=[]]
     MODIFIER_LIST[private]
       ANNOTATION
         ANNOTATION_ENTRY[hasValueArguments=true, shortName=Ann1]
@@ -39,12 +39,12 @@ FILE[kind=File[packageFqName=<root>]]
             USER_TYPE
               REFERENCE_EXPRESSION[referencedName=Int]
     CLASS_BODY
-      FUN[fqName=A.foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=foo]
+      FUNCTION[fqName=A.foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=foo]
         MODIFIER_LIST[]
         VALUE_PARAMETER_LIST
-        CLASS[classId=null, fqName=null, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=true, isTopLevel=false, name=LocalClass, superNames=[]]
+        CLASS[classId=null, fqName=null, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=false, name=LocalClass, superNames=[]]
           MODIFIER_LIST[]
-        FUN[fqName=null, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=inlineLocal]
+        FUNCTION[fqName=null, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=inlineLocal]
           MODIFIER_LIST[private]
             ANNOTATION
               ANNOTATION_ENTRY[hasValueArguments=false, shortName=inline2]
@@ -53,21 +53,6 @@ FILE[kind=File[packageFqName=<root>]]
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=inline2]
           VALUE_PARAMETER_LIST
-        FUN[fqName=null, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=null]
-          VALUE_PARAMETER_LIST
-            VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=x]
-              MODIFIER_LIST[]
-                ANNOTATION_ENTRY[hasValueArguments=true, shortName=ann]
-                  CONSTRUCTOR_CALLEE
-                    TYPE_REFERENCE
-                      USER_TYPE
-                        REFERENCE_EXPRESSION[referencedName=ann]
-                  VALUE_ARGUMENT_LIST
-                    VALUE_ARGUMENT[isSpread=false]
-                      INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=1]
-              TYPE_REFERENCE
-                USER_TYPE
-                  REFERENCE_EXPRESSION[referencedName=Int]
       PROPERTY[fqName=A.x, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=x]
         TYPE_REFERENCE
           USER_TYPE
@@ -75,3 +60,4 @@ FILE[kind=File[packageFqName=<root>]]
         PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=false, isGetter=true, mayHaveContract=false]
           MODIFIER_LIST[private open]
           VALUE_PARAMETER_LIST
+          INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=1]

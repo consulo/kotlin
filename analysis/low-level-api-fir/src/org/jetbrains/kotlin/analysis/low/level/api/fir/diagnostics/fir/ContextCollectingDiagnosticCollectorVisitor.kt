@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -9,7 +9,6 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.ContextByDesignationColle
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.FirDesignation
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.collectDesignation
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.withFirDesignationEntry
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.containingClassIdOrNull
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.isLocalForLazyResolutionPurposes
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
@@ -21,7 +20,6 @@ import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.isLocal
 import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.resolve.toSymbol
-import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
@@ -69,6 +67,15 @@ private class ContextCollectingDiagnosticCollectorVisitor private constructor(
 }
 
 internal object PersistenceContextCollector {
+    /**
+     * Builds the [CheckerContextForProvider] of [declaration] by walking the designation path from [firFile] down to it.
+     *
+     * The path declarations are not resolved here. [ContextCollectingDiagnosticCollectorVisitor] never descends into their content – it
+     * steps straight to the next declaration of the designation – so the context is built from their symbols, their annotations and their
+     * `@Suppress` arguments only. The annotations resolve themselves on demand via
+     * [resolvedAnnotationsWithArguments][org.jetbrains.kotlin.fir.symbols.FirBasedSymbol.resolvedAnnotationsWithArguments], and the
+     * [declaration] itself is resolved by its own [FileStructureElementDiagnosticRetriever][org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostics.FileStructureElementDiagnosticRetriever].
+     */
     fun collectContext(
         sessionHolder: SessionAndScopeSessionHolder,
         firFile: FirFile,
@@ -93,10 +100,6 @@ internal object PersistenceContextCollector {
         }
 
         val designation = declaration.collectDesignation(firFile)
-        designation.path.asReversed().forEach {
-            it.lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
-        }
-
         return ContextCollectingDiagnosticCollectorVisitor.collect(sessionHolder, designation)
     }
 }

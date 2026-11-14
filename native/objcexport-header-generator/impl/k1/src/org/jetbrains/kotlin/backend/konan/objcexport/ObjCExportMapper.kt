@@ -5,11 +5,14 @@
 
 package org.jetbrains.kotlin.backend.konan.objcexport
 
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.allOverriddenDescriptors
+import org.jetbrains.kotlin.backend.konan.descriptors.isDeserializedAndHasCompanionExtensionReceiver
 import org.jetbrains.kotlin.backend.konan.descriptors.isArray
 import org.jetbrains.kotlin.backend.konan.descriptors.isInterface
 import org.jetbrains.kotlin.builtins.*
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.nativeBinaryOptions.UnitSuspendFunctionObjCExport
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
@@ -20,20 +23,29 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.resolve.DataClassResolver
 import org.jetbrains.kotlin.resolve.deprecation.DeprecationInfo
 import org.jetbrains.kotlin.resolve.deprecation.DeprecationLevelValue
-import org.jetbrains.kotlin.resolve.deprecation.DeprecationResolver
+import org.jetbrains.kotlin.backend.konan.objcexport.deprecation.DeprecationResolver
 import org.jetbrains.kotlin.resolve.descriptorUtil.*
+import org.jetbrains.kotlin.storage.LockBasedStorageManager
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
+import org.jetbrains.kotlin.utils.addToStdlib.skipNext
 
 @InternalKotlinNativeApi
 class ObjCExportMapper(
-    internal val deprecationResolver: DeprecationResolver? = null,
+    languageVersionSettings: LanguageVersionSettings,
     private val local: Boolean = false,
     internal val unitSuspendFunctionExport: UnitSuspendFunctionObjCExport,
     internal val entryPoints: ObjCEntryPoints = ObjCEntryPoints.ALL,
 ) {
+    @OptIn(K1Deprecation::class)
+    internal val deprecationResolver: DeprecationResolver = DeprecationResolver(
+        storageManager = LockBasedStorageManager.NO_LOCKS,
+        languageVersionSettings = languageVersionSettings,
+        deprecationSettings = Default,
+    )
+
     fun getCustomTypeMapper(descriptor: ClassDescriptor): CustomTypeMapper? = CustomTypeMappers.getMapper(descriptor)
 
     val hiddenTypes: Set<ClassId> get() = CustomTypeMappers.hiddenTypes
@@ -127,6 +139,9 @@ fun ObjCExportMapper.shouldBeExposed(descriptor: CallableMemberDescriptor): Bool
     // KT-42641. Don't expose componentN methods of data classes
     // because they are useless in Objective-C/Swift.
     isComponentNMethod(descriptor) && descriptor.overriddenDescriptors.isEmpty() -> false
+    descriptor.contextReceiverParameters.isNotEmpty() -> false
+    @OptIn(K1Deprecation::class)
+    descriptor.isDeserializedAndHasCompanionExtensionReceiver -> false
     descriptor.isHiddenFromObjC() -> false
     !entryPoints.shouldBeExposed(descriptor) -> false
     else -> true
@@ -138,7 +153,6 @@ private fun AnnotationDescriptor.hidesFromObjC(): Boolean =
 private fun CallableMemberDescriptor.isHiddenFromObjC(): Boolean = when {
     // Note: the front-end checker requires all overridden descriptors to be either refined or not refined.
     overriddenDescriptors.isNotEmpty() -> overriddenDescriptors.first().isHiddenFromObjC()
-    contextReceiverParameters.isNotEmpty() -> true
     else -> annotations.any(AnnotationDescriptor::hidesFromObjC)
 }
 
@@ -154,12 +168,11 @@ internal fun ClassDescriptor.isHiddenFromObjC(): Boolean = when {
 internal fun ObjCExportMapper.shouldBeExposed(descriptor: ClassDescriptor): Boolean =
     shouldBeVisible(descriptor) && !isSpecialMapped(descriptor) && !descriptor.defaultType.isObjCObjectType()
 
+@OptIn(K1Deprecation::class)
 private fun ObjCExportMapper.isHiddenByDeprecation(descriptor: CallableMemberDescriptor): Boolean {
     // Note: ObjCExport generally expect overrides of exposed methods to be exposed.
     // So don't hide a "deprecated hidden" method which overrides non-hidden one:
-    if (deprecationResolver != null && deprecationResolver.isDeprecatedHidden(descriptor) &&
-        descriptor.overriddenDescriptors.all { isHiddenByDeprecation(it) }
-    ) {
+    if (deprecationResolver.isDeprecatedHidden(descriptor) && descriptor.overriddenDescriptors.all { isHiddenByDeprecation(it) }) {
         return true
     }
 
@@ -173,8 +186,9 @@ private fun ObjCExportMapper.isHiddenByDeprecation(descriptor: CallableMemberDes
     return false
 }
 
+@OptIn(K1Deprecation::class)
 internal fun ObjCExportMapper.getDeprecation(descriptor: DeclarationDescriptor): DeprecationInfo? {
-    deprecationResolver?.getDeprecations(descriptor).orEmpty().maxByOrNull {
+    deprecationResolver.getDeprecations(descriptor).orEmpty().maxByOrNull {
         when (it.deprecationLevel) {
             DeprecationLevelValue.WARNING -> 1
             DeprecationLevelValue.ERROR -> 2
@@ -192,8 +206,8 @@ internal fun ObjCExportMapper.getDeprecation(descriptor: DeclarationDescriptor):
     return null
 }
 
+@OptIn(K1Deprecation::class)
 private fun ObjCExportMapper.isHiddenByDeprecation(descriptor: ClassDescriptor): Boolean {
-    if (deprecationResolver == null) return false
     if (deprecationResolver.isDeprecatedHidden(descriptor)) return true
 
     // Note: ObjCExport requires super class of exposed class to be exposed.
@@ -421,17 +435,18 @@ private fun ObjCExportMapper.bridgeMethodImpl(descriptor: FunctionDescriptor): M
 
     val convertExceptionsToErrors = doesThrow(descriptor)
 
+    @OptIn(K1Deprecation::class)
     val kotlinParameters = descriptor.allParameters.iterator()
 
     val isTopLevel = isTopLevel(descriptor)
 
     val receiver = if (descriptor is ConstructorDescriptor && descriptor.constructedClass.isArray) {
-        kotlinParameters.next()
+        kotlinParameters.skipNext()
         MethodBridgeReceiver.Factory
     } else if (isTopLevel) {
         MethodBridgeReceiver.Static
     } else {
-        kotlinParameters.next()
+        kotlinParameters.skipNext()
         MethodBridgeReceiver.Instance
     }
 

@@ -1,3 +1,4 @@
+// DUMP_IR_DIFFERENCE: NATIVE, JS_IR
 import kotlinx.atomicfu.locks.*
 import kotlin.test.*
 

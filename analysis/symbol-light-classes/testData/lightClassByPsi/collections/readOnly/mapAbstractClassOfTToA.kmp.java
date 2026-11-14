@@ -2,17 +2,35 @@ public final class A /* test.A*/ {
   public  A();//  .ctor()
 }
 
-public abstract class TAMap /* test.TAMap*/<T>  implements java.util.Map<T, @org.jetbrains.annotations.NotNull() test.A>, kotlin.collections.Map<T, @org.jetbrains.annotations.NotNull() test.A>, kotlin.jvm.internal.markers.KMappedMarker {
+public abstract class TAMap /* test.TAMap*/<T>  implements java.util.Map<T, @org.jetbrains.annotations.NotNull() test.A>, kotlin.jvm.internal.markers.KMappedMarker {
   public  TAMap();//  .ctor()
 }
 
-public abstract class TAMap2 /* test.TAMap2*/<T>  implements java.util.Map<T, @org.jetbrains.annotations.NotNull() test.A>, kotlin.collections.Map<T, @org.jetbrains.annotations.NotNull() test.A>, kotlin.jvm.internal.markers.KMappedMarker {
+public abstract class TAMap2 /* test.TAMap2*/<T>  implements java.util.Map<T, @org.jetbrains.annotations.NotNull() test.A>, kotlin.jvm.internal.markers.KMappedMarker {
   @java.lang.Override()
-  @kotlin.SinceKotlin(version = @kotlin.SinceKotlin)
+  @kotlin.SinceKotlin(version = @kotlin.SinceKotlin(version = "2.0"))
   @kotlin.js.ExperimentalJsCollectionsApi()
   @kotlin.js.ExperimentalJsExport()
+  @kotlin.js.JsDontExportDefaultImplementation()
   @org.jetbrains.annotations.NotNull()
   public @org.jetbrains.annotations.NotNull() kotlin.js.collections.JsReadonlyMap<T, @org.jetbrains.annotations.NotNull() test.A> asJsReadonlyMapView();//  asJsReadonlyMapView()
+
+  @java.lang.Override()
+  @kotlin.js.JsExport.Ignore()
+  @org.jetbrains.annotations.Nullable()
+  public @org.jetbrains.annotations.Nullable() test.A get(T);//  get(T)
+
+  @java.lang.Override()
+  @kotlin.js.JsExport.Ignore()
+  public boolean containsKey(T);//  containsKey(T)
+
+  @java.lang.Override()
+  @kotlin.js.JsExport.Ignore()
+  public boolean containsValue(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() test.A);//  containsValue(@org.jetbrains.annotations.NotNull() test.A)
+
+  @java.lang.Override()
+  @kotlin.js.JsExport.Ignore()
+  public boolean isEmpty();//  isEmpty()
 
   @java.lang.Override()
   @org.jetbrains.annotations.NotNull()
@@ -25,19 +43,6 @@ public abstract class TAMap2 /* test.TAMap2*/<T>  implements java.util.Map<T, @o
   @java.lang.Override()
   @org.jetbrains.annotations.NotNull()
   public @org.jetbrains.annotations.NotNull() java.util.Set<T> getKeys();//  getKeys()
-
-  @java.lang.Override()
-  @org.jetbrains.annotations.Nullable()
-  public @org.jetbrains.annotations.Nullable() test.A get(T);//  get(T)
-
-  @java.lang.Override()
-  public boolean containsKey(T);//  containsKey(T)
-
-  @java.lang.Override()
-  public boolean containsValue(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() test.A);//  containsValue(@org.jetbrains.annotations.NotNull() test.A)
-
-  @java.lang.Override()
-  public boolean isEmpty();//  isEmpty()
 
   @java.lang.Override()
   public int getSize();//  getSize()
@@ -45,7 +50,7 @@ public abstract class TAMap2 /* test.TAMap2*/<T>  implements java.util.Map<T, @o
   public  TAMap2();//  .ctor()
 }
 
-public class TAMap3 /* test.TAMap3*/<T>  implements java.util.Map<T, @org.jetbrains.annotations.NotNull() test.A>, kotlin.collections.Map<T, @org.jetbrains.annotations.NotNull() test.A>, kotlin.jvm.internal.markers.KMappedMarker {
+public class TAMap3 /* test.TAMap3*/<T>  implements java.util.Map<T, @org.jetbrains.annotations.NotNull() test.A>, kotlin.jvm.internal.markers.KMappedMarker {
   @java.lang.Override()
   @org.jetbrains.annotations.NotNull()
   public @org.jetbrains.annotations.NotNull() java.util.Collection<@org.jetbrains.annotations.NotNull() test.A> getValues();//  getValues()
@@ -57,6 +62,10 @@ public class TAMap3 /* test.TAMap3*/<T>  implements java.util.Map<T, @org.jetbra
   @java.lang.Override()
   @org.jetbrains.annotations.NotNull()
   public @org.jetbrains.annotations.NotNull() java.util.Set<T> getKeys();//  getKeys()
+
+  @java.lang.Override()
+  @org.jetbrains.annotations.NotNull()
+  public @org.jetbrains.annotations.NotNull() test.A getOrDefault(T, @org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() test.A);//  getOrDefault(T, @org.jetbrains.annotations.NotNull() test.A)
 
   @java.lang.Override()
   @org.jetbrains.annotations.Nullable()

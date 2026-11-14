@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.standalone.fir.test.configurators.Analy
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.symbols.AbstractSingleSymbolByPsiTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.symbols.AbstractSingleSymbolByPsiTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,7 +33,6 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirStandaloneModeTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.Source,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Standalone,
@@ -71,6 +69,12 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
   }
 
   @Test
+  @TestMetadata("annotationPropertyOfUnsignedType.kt")
+  public void testAnnotationPropertyOfUnsignedType() {
+    run("annotationPropertyOfUnsignedType.kt");
+  }
+
+  @Test
   @TestMetadata("annotationPropertyWithComplexDefaultValue.kt")
   public void testAnnotationPropertyWithComplexDefaultValue() {
     run("annotationPropertyWithComplexDefaultValue.kt");
@@ -101,6 +105,12 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
   }
 
   @Test
+  @TestMetadata("delegatedLocalVariable.kt")
+  public void testDelegatedLocalVariable() {
+    run("delegatedLocalVariable.kt");
+  }
+
+  @Test
   @TestMetadata("ExpandedParameterType.kt")
   public void testExpandedParameterType() {
     run("ExpandedParameterType.kt");
@@ -110,6 +120,12 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
   @TestMetadata("ExpandedReturnType.kt")
   public void testExpandedReturnType() {
     run("ExpandedReturnType.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitBackingFieldWithAnnotations.kt")
+  public void testExplicitBackingFieldWithAnnotations() {
+    run("explicitBackingFieldWithAnnotations.kt");
   }
 
   @Test
@@ -140,6 +156,18 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
   @TestMetadata("functionWithDefinitelyNotNullType.kt")
   public void testFunctionWithDefinitelyNotNullType() {
     run("functionWithDefinitelyNotNullType.kt");
+  }
+
+  @Test
+  @TestMetadata("functionWithEscapedJvmName.kt")
+  public void testFunctionWithEscapedJvmName() {
+    run("functionWithEscapedJvmName.kt");
+  }
+
+  @Test
+  @TestMetadata("functionWithEscapedName.kt")
+  public void testFunctionWithEscapedName() {
+    run("functionWithEscapedName.kt");
   }
 
   @Test
@@ -212,6 +240,24 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
   @TestMetadata("innerTypeAlias.kt")
   public void testInnerTypeAlias() {
     run("innerTypeAlias.kt");
+  }
+
+  @Test
+  @TestMetadata("internalFunctionWithEscapedName.kt")
+  public void testInternalFunctionWithEscapedName() {
+    run("internalFunctionWithEscapedName.kt");
+  }
+
+  @Test
+  @TestMetadata("jvmRecordInternalProperty.kt")
+  public void testJvmRecordInternalProperty() {
+    run("jvmRecordInternalProperty.kt");
+  }
+
+  @Test
+  @TestMetadata("jvmRecordPropertyOfUnsignedType.kt")
+  public void testJvmRecordPropertyOfUnsignedType() {
+    run("jvmRecordPropertyOfUnsignedType.kt");
   }
 
   @Test
@@ -311,9 +357,39 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
   }
 
   @Test
+  @TestMetadata("parameterWithImplicitDefaultValueInActualConstructor.kt")
+  public void testParameterWithImplicitDefaultValueInActualConstructor() {
+    run("parameterWithImplicitDefaultValueInActualConstructor.kt");
+  }
+
+  @Test
+  @TestMetadata("parameterWithImplicitDefaultValueInActualSecondaryConstructor.kt")
+  public void testParameterWithImplicitDefaultValueInActualSecondaryConstructor() {
+    run("parameterWithImplicitDefaultValueInActualSecondaryConstructor.kt");
+  }
+
+  @Test
+  @TestMetadata("parameterWithImplicitDefaultValueInExpectSuperclass.kt")
+  public void testParameterWithImplicitDefaultValueInExpectSuperclass() {
+    run("parameterWithImplicitDefaultValueInExpectSuperclass.kt");
+  }
+
+  @Test
   @TestMetadata("parameterWithImplicitDefaultValueInOverride.kt")
   public void testParameterWithImplicitDefaultValueInOverride() {
     run("parameterWithImplicitDefaultValueInOverride.kt");
+  }
+
+  @Test
+  @TestMetadata("parameterWithImplicitDefaultValueInOverrideAndActual.kt")
+  public void testParameterWithImplicitDefaultValueInOverrideAndActual() {
+    run("parameterWithImplicitDefaultValueInOverrideAndActual.kt");
+  }
+
+  @Test
+  @TestMetadata("parameterWithImplicitDefaultValueInTransitiveOverride.kt")
+  public void testParameterWithImplicitDefaultValueInTransitiveOverride() {
+    run("parameterWithImplicitDefaultValueInTransitiveOverride.kt");
   }
 
   @Test
@@ -353,6 +429,18 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
   }
 
   @Test
+  @TestMetadata("propertyWithDotName.kt")
+  public void testPropertyWithDotName() {
+    run("propertyWithDotName.kt");
+  }
+
+  @Test
+  @TestMetadata("propertyWithEscapedName.kt")
+  public void testPropertyWithEscapedName() {
+    run("propertyWithEscapedName.kt");
+  }
+
+  @Test
   @TestMetadata("propertyWithInlineGetterAndSetter.kt")
   public void testPropertyWithInlineGetterAndSetter() {
     run("propertyWithInlineGetterAndSetter.kt");
@@ -365,9 +453,27 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
   }
 
   @Test
+  @TestMetadata("propertyWithIsPrefixedName.kt")
+  public void testPropertyWithIsPrefixedName() {
+    run("propertyWithIsPrefixedName.kt");
+  }
+
+  @Test
+  @TestMetadata("propertyWithJvmNameOnAccessors.kt")
+  public void testPropertyWithJvmNameOnAccessors() {
+    run("propertyWithJvmNameOnAccessors.kt");
+  }
+
+  @Test
   @TestMetadata("propertyWithReceiverAnnotation.kt")
   public void testPropertyWithReceiverAnnotation() {
     run("propertyWithReceiverAnnotation.kt");
+  }
+
+  @Test
+  @TestMetadata("propertyWithoutName.kt")
+  public void testPropertyWithoutName() {
+    run("propertyWithoutName.kt");
   }
 
   @Test
@@ -466,12 +572,6 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
     run("typeAnnotationsWithTypeAlias.kt");
   }
 
-  @Test
-  @TestMetadata("valueClass.kt")
-  public void testValueClass() {
-    run("valueClass.kt");
-  }
-
   @Nested
   @TestMetadata("analysis/analysis-api/testData/symbols/singleSymbolByPsi/annotations")
   @TestDataPath("$PROJECT_ROOT")
@@ -483,6 +583,96 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
     @Test
     public void testAllFilesPresentInAnnotations() {
       KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/symbols/singleSymbolByPsi/annotations"), Pattern.compile("^(.+)\\.(kt)$"), null, true, "withTestCompilerPluginEnabled");
+    }
+
+    @Test
+    @TestMetadata("annotatedAnonymousFunWithParenthesesAndMultipleAnnotations.kt")
+    public void testAnnotatedAnonymousFunWithParenthesesAndMultipleAnnotations() {
+      run("annotatedAnonymousFunWithParenthesesAndMultipleAnnotations.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedAnonymousFunction.kt")
+    public void testAnnotatedAnonymousFunction() {
+      run("annotatedAnonymousFunction.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedAnonymousFunctionWithLabel.kt")
+    public void testAnnotatedAnonymousFunctionWithLabel() {
+      run("annotatedAnonymousFunctionWithLabel.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedAnonymousObject.kt")
+    public void testAnnotatedAnonymousObject() {
+      run("annotatedAnonymousObject.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedAnonymousObjectWithParentheses.kt")
+    public void testAnnotatedAnonymousObjectWithParentheses() {
+      run("annotatedAnonymousObjectWithParentheses.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedLabeledLambda.kt")
+    public void testAnnotatedLabeledLambda() {
+      run("annotatedLabeledLambda.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedLabeledLambdaWithParentheses.kt")
+    public void testAnnotatedLabeledLambdaWithParentheses() {
+      run("annotatedLabeledLambdaWithParentheses.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedLambda.kt")
+    public void testAnnotatedLambda() {
+      run("annotatedLambda.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedLambdaWithParentheses1.kt")
+    public void testAnnotatedLambdaWithParentheses1() {
+      run("annotatedLambdaWithParentheses1.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedLambdaWithParentheses2.kt")
+    public void testAnnotatedLambdaWithParentheses2() {
+      run("annotatedLambdaWithParentheses2.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedLambdaWithParenthesesAndMultipleAnnotations.kt")
+    public void testAnnotatedLambdaWithParenthesesAndMultipleAnnotations() {
+      run("annotatedLambdaWithParenthesesAndMultipleAnnotations.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedLocalClassWithLabel.kt")
+    public void testAnnotatedLocalClassWithLabel() {
+      run("annotatedLocalClassWithLabel.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedLocalFunctionWithLabel.kt")
+    public void testAnnotatedLocalFunctionWithLabel() {
+      run("annotatedLocalFunctionWithLabel.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedLocalTypealiasWithLabel.kt")
+    public void testAnnotatedLocalTypealiasWithLabel() {
+      run("annotatedLocalTypealiasWithLabel.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedLocalValWithLabel.kt")
+    public void testAnnotatedLocalValWithLabel() {
+      run("annotatedLocalValWithLabel.kt");
     }
 
     @Test
@@ -540,9 +730,45 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
     }
 
     @Test
+    @TestMetadata("genericAnnotation.kt")
+    public void testGenericAnnotation() {
+      run("genericAnnotation.kt");
+    }
+
+    @Test
+    @TestMetadata("illegalAnnotationClass.kt")
+    public void testIllegalAnnotationClass() {
+      run("illegalAnnotationClass.kt");
+    }
+
+    @Test
     @TestMetadata("jvmName.kt")
     public void testJvmName() {
       run("jvmName.kt");
+    }
+
+    @Test
+    @TestMetadata("malformedAnnotatedFunctionLiteral.kt")
+    public void testMalformedAnnotatedFunctionLiteral() {
+      run("malformedAnnotatedFunctionLiteral.kt");
+    }
+
+    @Test
+    @TestMetadata("malformedFunctionLiteralWithMultipleAnnotations.kt")
+    public void testMalformedFunctionLiteralWithMultipleAnnotations() {
+      run("malformedFunctionLiteralWithMultipleAnnotations.kt");
+    }
+
+    @Test
+    @TestMetadata("typeParameterAsAnnotation.kt")
+    public void testTypeParameterAsAnnotation() {
+      run("typeParameterAsAnnotation.kt");
+    }
+
+    @Test
+    @TestMetadata("unresolvedAnnotation.kt")
+    public void testUnresolvedAnnotation() {
+      run("unresolvedAnnotation.kt");
     }
 
     @Test
@@ -599,6 +825,56 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
     @TestMetadata("ofOperatorWithoutOperator.kt")
     public void testOfOperatorWithoutOperator() {
       run("ofOperatorWithoutOperator.kt");
+    }
+  }
+
+  @Nested
+  @TestMetadata("analysis/analysis-api/testData/symbols/singleSymbolByPsi/companionBlocks")
+  @TestDataPath("$PROJECT_ROOT")
+  public class CompanionBlocks {
+    private void run(String fileName) {
+      runTest("analysis/analysis-api/testData/symbols/singleSymbolByPsi/companionBlocks/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInCompanionBlocks() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/symbols/singleSymbolByPsi/companionBlocks"), Pattern.compile("^(.+)\\.(kt)$"), null, true, "withTestCompilerPluginEnabled");
+    }
+
+    @Test
+    @TestMetadata("companionMethod.kt")
+    public void testCompanionMethod() {
+      run("companionMethod.kt");
+    }
+
+    @Test
+    @TestMetadata("companionProperty.kt")
+    public void testCompanionProperty() {
+      run("companionProperty.kt");
+    }
+
+    @Test
+    @TestMetadata("staticFunction.kt")
+    public void testStaticFunction() {
+      run("staticFunction.kt");
+    }
+
+    @Test
+    @TestMetadata("staticFunctionAndRegular.kt")
+    public void testStaticFunctionAndRegular() {
+      run("staticFunctionAndRegular.kt");
+    }
+
+    @Test
+    @TestMetadata("staticProperty.kt")
+    public void testStaticProperty() {
+      run("staticProperty.kt");
+    }
+
+    @Test
+    @TestMetadata("staticPropertyAndRegular.kt")
+    public void testStaticPropertyAndRegular() {
+      run("staticPropertyAndRegular.kt");
     }
   }
 
@@ -903,6 +1179,12 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
     @TestMetadata("returnsNullContract.kt")
     public void testReturnsNullContract() {
       run("returnsNullContract.kt");
+    }
+
+    @Test
+    @TestMetadata("returnsParameterContract.kt")
+    public void testReturnsParameterContract() {
+      run("returnsParameterContract.kt");
     }
 
     @Test
@@ -1352,6 +1634,30 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
     }
 
     @Test
+    @TestMetadata("annotatedMemberLevelDestructuringDeclaration.kt")
+    public void testAnnotatedMemberLevelDestructuringDeclaration() {
+      run("annotatedMemberLevelDestructuringDeclaration.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedMemberLevelDestructuringEntry.kt")
+    public void testAnnotatedMemberLevelDestructuringEntry() {
+      run("annotatedMemberLevelDestructuringEntry.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedTopLevelDestructuringDeclaration.kt")
+    public void testAnnotatedTopLevelDestructuringDeclaration() {
+      run("annotatedTopLevelDestructuringDeclaration.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedTopLevelDestructuringEntry.kt")
+    public void testAnnotatedTopLevelDestructuringEntry() {
+      run("annotatedTopLevelDestructuringEntry.kt");
+    }
+
+    @Test
     @TestMetadata("anonymousObjectInInvalidPosition.kt")
     public void testAnonymousObjectInInvalidPosition() {
       run("anonymousObjectInInvalidPosition.kt");
@@ -1403,6 +1709,18 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
     @TestMetadata("incompleteFunctionTypeParameter.kt")
     public void testIncompleteFunctionTypeParameter() {
       run("incompleteFunctionTypeParameter.kt");
+    }
+
+    @Test
+    @TestMetadata("incompleteLateinitVariable1.kt")
+    public void testIncompleteLateinitVariable1() {
+      run("incompleteLateinitVariable1.kt");
+    }
+
+    @Test
+    @TestMetadata("incompleteLateinitVariable2.kt")
+    public void testIncompleteLateinitVariable2() {
+      run("incompleteLateinitVariable2.kt");
     }
 
     @Test
@@ -1505,6 +1823,206 @@ public class FirStandaloneNormalAnalysisSourceModuleWasmWasiSingleSymbolByPsiTes
     @TestMetadata("valPropertyWithSetter2.kt")
     public void testValPropertyWithSetter2() {
       run("valPropertyWithSetter2.kt");
+    }
+  }
+
+  @Nested
+  @TestMetadata("analysis/analysis-api/testData/symbols/singleSymbolByPsi/valueClasses")
+  @TestDataPath("$PROJECT_ROOT")
+  public class ValueClasses {
+    private void run(String fileName) {
+      runTest("analysis/analysis-api/testData/symbols/singleSymbolByPsi/valueClasses/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInValueClasses() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/symbols/singleSymbolByPsi/valueClasses"), Pattern.compile("^(.+)\\.(kt)$"), null, true, "withTestCompilerPluginEnabled");
+    }
+
+    @Test
+    @TestMetadata("explicitInlineValueClass.kt")
+    public void testExplicitInlineValueClass() {
+      run("explicitInlineValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("explicitInlineValueClassFeatureEnabled.kt")
+    public void testExplicitInlineValueClassFeatureEnabled() {
+      run("explicitInlineValueClassFeatureEnabled.kt");
+    }
+
+    @Test
+    @TestMetadata("explicitInlineValueClassFeatureEnabledCommon.kt")
+    public void testExplicitInlineValueClassFeatureEnabledCommon() {
+      run("explicitInlineValueClassFeatureEnabledCommon.kt");
+    }
+
+    @Test
+    @TestMetadata("explicitInlineValueClassFeatureEnabledJs.kt")
+    public void testExplicitInlineValueClassFeatureEnabledJs() {
+      run("explicitInlineValueClassFeatureEnabledJs.kt");
+    }
+
+    @Test
+    @TestMetadata("explicitInlineValueClassMultipleFields.kt")
+    public void testExplicitInlineValueClassMultipleFields() {
+      run("explicitInlineValueClassMultipleFields.kt");
+    }
+
+    @Test
+    @TestMetadata("explicitInlineValueClassWithJvmInline.kt")
+    public void testExplicitInlineValueClassWithJvmInline() {
+      run("explicitInlineValueClassWithJvmInline.kt");
+    }
+
+    @Test
+    @TestMetadata("explicitInlineValueClassWithJvmInlineCommon.kt")
+    public void testExplicitInlineValueClassWithJvmInlineCommon() {
+      run("explicitInlineValueClassWithJvmInlineCommon.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassAbstract.kt")
+    public void testFullValueClassAbstract() {
+      run("fullValueClassAbstract.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassInSignature.kt")
+    public void testFullValueClassInSignature() {
+      run("fullValueClassInSignature.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassMemberFunction.kt")
+    public void testFullValueClassMemberFunction() {
+      run("fullValueClassMemberFunction.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassMultipleFields.kt")
+    public void testFullValueClassMultipleFields() {
+      run("fullValueClassMultipleFields.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassNoFields.kt")
+    public void testFullValueClassNoFields() {
+      run("fullValueClassNoFields.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassPrimaryConstructor.kt")
+    public void testFullValueClassPrimaryConstructor() {
+      run("fullValueClassPrimaryConstructor.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassSealed.kt")
+    public void testFullValueClassSealed() {
+      run("fullValueClassSealed.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassSingleField.kt")
+    public void testFullValueClassSingleField() {
+      run("fullValueClassSingleField.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassSingleFieldCommon.kt")
+    public void testFullValueClassSingleFieldCommon() {
+      run("fullValueClassSingleFieldCommon.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassUnderlyingProperty.kt")
+    public void testFullValueClassUnderlyingProperty() {
+      run("fullValueClassUnderlyingProperty.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithSuperClass.kt")
+    public void testFullValueClassWithSuperClass() {
+      run("fullValueClassWithSuperClass.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueObject.kt")
+    public void testFullValueObject() {
+      run("fullValueObject.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClass.kt")
+    public void testInlineClass() {
+      run("inlineClass.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassCommon.kt")
+    public void testInlineClassCommon() {
+      run("inlineClassCommon.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassFeatureDisabled.kt")
+    public void testInlineClassFeatureDisabled() {
+      run("inlineClassFeatureDisabled.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassFeatureDisabledCommon.kt")
+    public void testInlineClassFeatureDisabledCommon() {
+      run("inlineClassFeatureDisabledCommon.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassFeatureDisabledJs.kt")
+    public void testInlineClassFeatureDisabledJs() {
+      run("inlineClassFeatureDisabledJs.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassFeatureEnabled.kt")
+    public void testInlineClassFeatureEnabled() {
+      run("inlineClassFeatureEnabled.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassFeatureEnabledCommon.kt")
+    public void testInlineClassFeatureEnabledCommon() {
+      run("inlineClassFeatureEnabledCommon.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassFeatureEnabledJsWasm.kt")
+    public void testInlineClassFeatureEnabledJsWasm() {
+      run("inlineClassFeatureEnabledJsWasm.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassJs.kt")
+    public void testInlineClassJs() {
+      run("inlineClassJs.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassLegacy.kt")
+    public void testInlineClassLegacy() {
+      run("inlineClassLegacy.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassUnderlyingProperty.kt")
+    public void testInlineClassUnderlyingProperty() {
+      run("inlineClassUnderlyingProperty.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassUnderlyingPropertyWithInlineClassType.kt")
+    public void testInlineClassUnderlyingPropertyWithInlineClassType() {
+      run("inlineClassUnderlyingPropertyWithInlineClassType.kt");
     }
   }
 }

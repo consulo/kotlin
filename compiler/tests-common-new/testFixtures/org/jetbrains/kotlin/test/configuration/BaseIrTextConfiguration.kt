@@ -18,30 +18,38 @@ import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.DUMP_IR
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.DUMP_KT_IR
 import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives.DIAGNOSTICS
 import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives.REPORT_ONLY_EXPLICITLY_DEFINED_DEBUG_INFO
+import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives.DISABLE_WITH_PARSER
+import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives.FIR_DUMP
 import org.jetbrains.kotlin.test.directives.KlibAbiDumpDirectives.DUMP_KLIB_ABI
 import org.jetbrains.kotlin.test.directives.KlibAbiDumpDirectives.KlibAbiDumpMode
 import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives
-import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.LINK_VIA_SIGNATURES_K1
 import org.jetbrains.kotlin.test.directives.TestPhaseDirectives.LATEST_PHASE_IN_PIPELINE
 import org.jetbrains.kotlin.test.directives.configureFirParser
 import org.jetbrains.kotlin.test.frontend.fir.handlers.FirDumpHandler
 import org.jetbrains.kotlin.test.frontend.fir.handlers.FirScopeDumpHandler
 import org.jetbrains.kotlin.test.model.BackendKinds
 import org.jetbrains.kotlin.test.services.TestPhase
+import org.jetbrains.kotlin.test.services.fir.FirSpecificParserSuppressor
 
 fun TestConfigurationBuilder.setupDefaultDirectivesForIrTextTest() {
+    setupDefaultDirectivesForIrDumps()
+
     defaultDirectives {
-        +DUMP_IR
         +DUMP_KT_IR
-        +LINK_VIA_SIGNATURES_K1
         +REPORT_ONLY_EXPLICITLY_DEFINED_DEBUG_INFO
         DIAGNOSTICS with "-warnings"
         DUMP_KLIB_ABI with KlibAbiDumpMode.DEFAULT
-        LATEST_PHASE_IN_PIPELINE with TestPhase.BACKEND
+        LATEST_PHASE_IN_PIPELINE with TestPhase.CODEGEN
     }
 }
 
-fun TestStepBuilder.HandlersStepBuilder.NonGroupingPhase<IrBackendInput, BackendKinds.IrBackend>.setupIrTextDumpHandlers() {
+fun TestConfigurationBuilder.setupDefaultDirectivesForIrDumps() {
+    defaultDirectives {
+        +DUMP_IR
+    }
+}
+
+fun TestStepBuilder.HandlersStepBuilder.NonGroupingStage<IrBackendInput, BackendKinds.IrBackend>.setupIrTextDumpHandlers() {
     useHandlers(
         ::IrTextDumpHandler,
         ::IrTreeVerifierHandler,
@@ -65,4 +73,13 @@ fun TestConfigurationBuilder.additionalK2ConfigurationForIrTextTest(parser: FirP
             LanguageSettingsDirectives.LANGUAGE with "+ExplicitBackingFields"
         }
     }
+
+    forTestsMatching("compiler/testData/ir/irText/headerMode/*") {
+        defaultDirectives {
+            DISABLE_WITH_PARSER with FirParser.Psi
+            +FIR_DUMP
+        }
+    }
+
+    useMetaTestConfigurators(::FirSpecificParserSuppressor)
 }

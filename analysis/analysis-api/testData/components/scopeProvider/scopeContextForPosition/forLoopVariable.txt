@@ -12,11 +12,14 @@ scopes:
     classifiers: 0
     callables: 1
       KaLocalVariableSymbol:
+        anchorPsi: KtNameReferenceExpression
         annotations: []
         callableId: null
-        compilerVisibility: Local
+        contextParameters: []
         contextReceivers: []
         isActual: false
+        isCompanion: false
+        isDelegated: false
         isExpect: false
         isExtension: false
         isExternal: false
@@ -26,6 +29,8 @@ scopes:
         modality: FINAL
         name: <iterator>
         origin: SOURCE
+        psi: null
+        realPsi: null
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
@@ -36,6 +41,7 @@ scopes:
               type: kotlin/Int
           ]
           type: kotlin/collections/Iterator<kotlin/Int>
+        typeParameters: []
         visibility: LOCAL
     constructors: 0
 
@@ -50,15 +56,17 @@ scopes:
     classifiers: 0
     callables: 1
       KaValueParameterSymbol:
+        anchorPsi: KtParameter
         annotations: []
         callableId: null
-        compilerVisibility: Public
+        contextParameters: []
         contextReceivers: []
-        generatedPrimaryConstructorProperty: null
         hasDeclaredDefaultValue: false
         hasDefaultValue: false
         isActual: false
+        isCompanion: false
         isCrossinline: false
+        isDelegated: false
         isExpect: false
         isExtension: false
         isExternal: false
@@ -70,6 +78,9 @@ scopes:
         modality: FINAL
         name: list
         origin: SOURCE
+        primaryConstructorProperty: null
+        psi: KtParameter
+        realPsi: KtParameter
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
@@ -80,6 +91,7 @@ scopes:
               type: kotlin/Int
           ]
           type: kotlin/collections/List<kotlin/Int>
+        typeParameters: []
         visibility: PUBLIC
     constructors: 0
 
@@ -94,15 +106,16 @@ scopes:
     classifiers: 0
     callables: 1
       KaNamedFunctionSymbol:
+        anchorPsi: KtNamedFunction
         annotations: []
         callableId: test/usage
-        compilerVisibility: Public
         contextParameters: []
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
         isActual: false
         isBuiltinFunctionInvoke: false
+        isCompanion: false
         isExpect: false
         isExtension: false
         isExternal: false
@@ -117,6 +130,8 @@ scopes:
         modality: FINAL
         name: usage
         origin: SOURCE
+        psi: KtNamedFunction
+        realPsi: KtNamedFunction
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
@@ -125,15 +140,17 @@ scopes:
         typeParameters: []
         valueParameters: [
           KaValueParameterSymbol:
+            anchorPsi: KtParameter
             annotations: []
             callableId: null
-            compilerVisibility: Public
+            contextParameters: []
             contextReceivers: []
-            generatedPrimaryConstructorProperty: null
             hasDeclaredDefaultValue: false
             hasDefaultValue: false
             isActual: false
+            isCompanion: false
             isCrossinline: false
+            isDelegated: false
             isExpect: false
             isExtension: false
             isExternal: false
@@ -145,6 +162,9 @@ scopes:
             modality: FINAL
             name: list
             origin: SOURCE
+            primaryConstructorProperty: null
+            psi: KtParameter
+            realPsi: KtParameter
             receiverParameter: null
             returnType: KaUsualClassType:
               annotations: []
@@ -155,6 +175,7 @@ scopes:
                   type: kotlin/Int
               ]
               type: kotlin/collections/List<kotlin/Int>
+            typeParameters: []
             visibility: PUBLIC
         ]
         visibility: PUBLIC

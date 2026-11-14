@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.compilerFacility.AbstractCompilerFacilityTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.compilerFacility.AbstractCompilerFacilityTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,7 +33,6 @@ public class FirIdeNormalAnalysisLibrarySourceModuleCompilerFacilityTestGenerate
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.LibrarySource,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -89,6 +87,12 @@ public class FirIdeNormalAnalysisLibrarySourceModuleCompilerFacilityTestGenerate
   }
 
   @Test
+  @TestMetadata("companionBlockDelegatedProperty.kt")
+  public void testCompanionBlockDelegatedProperty() {
+    run("companionBlockDelegatedProperty.kt");
+  }
+
+  @Test
   @TestMetadata("defaultImpls.kt")
   public void testDefaultImpls() {
     run("defaultImpls.kt");
@@ -113,6 +117,48 @@ public class FirIdeNormalAnalysisLibrarySourceModuleCompilerFacilityTestGenerate
   }
 
   @Test
+  @TestMetadata("explicitInlineValueClass.kt")
+  public void testExplicitInlineValueClass() {
+    run("explicitInlineValueClass.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitInlineValueClassFromAbiJar.kt")
+  public void testExplicitInlineValueClassFromAbiJar() {
+    run("explicitInlineValueClassFromAbiJar.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitInlineValueClassFromLibrary.kt")
+  public void testExplicitInlineValueClassFromLibrary() {
+    run("explicitInlineValueClassFromLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassFromAbiJar.kt")
+  public void testFullValueClassFromAbiJar() {
+    run("fullValueClassFromAbiJar.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassFromAbiJarWithoutFeature.kt")
+  public void testFullValueClassFromAbiJarWithoutFeature() {
+    run("fullValueClassFromAbiJarWithoutFeature.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassFromLibrary.kt")
+  public void testFullValueClassFromLibrary() {
+    run("fullValueClassFromLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClasses.kt")
+  public void testFullValueClasses() {
+    run("fullValueClasses.kt");
+  }
+
+  @Test
   @TestMetadata("imports.kt")
   public void testImports() {
     run("imports.kt");
@@ -134,6 +180,12 @@ public class FirIdeNormalAnalysisLibrarySourceModuleCompilerFacilityTestGenerate
   @TestMetadata("inlineFuncInDependencyOfDependency.kt")
   public void testInlineFuncInDependencyOfDependency() {
     run("inlineFuncInDependencyOfDependency.kt");
+  }
+
+  @Test
+  @TestMetadata("inlineFunctionWithAnonymousObjectFromLibrary.kt")
+  public void testInlineFunctionWithAnonymousObjectFromLibrary() {
+    run("inlineFunctionWithAnonymousObjectFromLibrary.kt");
   }
 
   @Test
@@ -249,6 +301,18 @@ public class FirIdeNormalAnalysisLibrarySourceModuleCompilerFacilityTestGenerate
     @Test
     public void testAllFilesPresentInCodeFragments() {
       KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/components/compilerFacility/compilation/codeFragments"), Pattern.compile("^(.+)\\.(kt)$"), null, true, "reifiedTypeParams");
+    }
+
+    @Test
+    @TestMetadata("annotatedAssignment.kt")
+    public void testAnnotatedAssignment() {
+      run("annotatedAssignment.kt");
+    }
+
+    @Test
+    @TestMetadata("annotatedAssignmentSameLine.kt")
+    public void testAnnotatedAssignmentSameLine() {
+      run("annotatedAssignmentSameLine.kt");
     }
 
     @Test
@@ -384,6 +448,18 @@ public class FirIdeNormalAnalysisLibrarySourceModuleCompilerFacilityTestGenerate
     }
 
     @Test
+    @TestMetadata("fullValueClassCapture.kt")
+    public void testFullValueClassCapture() {
+      run("fullValueClassCapture.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassReceiver.kt")
+    public void testFullValueClassReceiver() {
+      run("fullValueClassReceiver.kt");
+    }
+
+    @Test
     @TestMetadata("implicitlyReturnedLocalObject.kt")
     public void testImplicitlyReturnedLocalObject() {
       run("implicitlyReturnedLocalObject.kt");
@@ -504,6 +580,18 @@ public class FirIdeNormalAnalysisLibrarySourceModuleCompilerFacilityTestGenerate
     }
 
     @Test
+    @TestMetadata("privateTopLevelNameClash.kt")
+    public void testPrivateTopLevelNameClash() {
+      run("privateTopLevelNameClash.kt");
+    }
+
+    @Test
+    @TestMetadata("privateTopLevelNameClashOtherFile.kt")
+    public void testPrivateTopLevelNameClashOtherFile() {
+      run("privateTopLevelNameClashOtherFile.kt");
+    }
+
+    @Test
     @TestMetadata("resultNothing.kt")
     public void testResultNothing() {
       run("resultNothing.kt");
@@ -531,6 +619,12 @@ public class FirIdeNormalAnalysisLibrarySourceModuleCompilerFacilityTestGenerate
     @TestMetadata("syntaxError.kt")
     public void testSyntaxError() {
       run("syntaxError.kt");
+    }
+
+    @Test
+    @TestMetadata("valueClassWithAnnotatedUnderlyingType.kt")
+    public void testValueClassWithAnnotatedUnderlyingType() {
+      run("valueClassWithAnnotatedUnderlyingType.kt");
     }
 
     @Nested
@@ -694,6 +788,12 @@ public class FirIdeNormalAnalysisLibrarySourceModuleCompilerFacilityTestGenerate
       @TestMetadata("localFunctionExtensionReceiverClosure.kt")
       public void testLocalFunctionExtensionReceiverClosure() {
         run("localFunctionExtensionReceiverClosure.kt");
+      }
+
+      @Test
+      @TestMetadata("localFunctionInExplicitBackingField.kt")
+      public void testLocalFunctionInExplicitBackingField() {
+        run("localFunctionInExplicitBackingField.kt");
       }
 
       @Test
@@ -876,6 +976,12 @@ public class FirIdeNormalAnalysisLibrarySourceModuleCompilerFacilityTestGenerate
       @TestMetadata("lambdaContent.kt")
       public void testLambdaContent() {
         run("lambdaContent.kt");
+      }
+
+      @Test
+      @TestMetadata("localFunctionInExplicitBackingField.kt")
+      public void testLocalFunctionInExplicitBackingField() {
+        run("localFunctionInExplicitBackingField.kt");
       }
 
       @Test

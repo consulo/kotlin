@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.fir.declarationNameInvalidChars
 import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
 import org.jetbrains.kotlin.fir.generatedContextParameterName
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
+import org.jetbrains.kotlin.fir.resolve.symbol
 import org.jetbrains.kotlin.fir.resolve.toClassSymbol
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
@@ -39,9 +40,9 @@ internal fun FirCallableDeclaration.setUnnamedContextParameterNames() {
 
     val nameGroups = contextParameterNames.entries.groupBy({ it.value }, { it.key })
 
-    for ((contextParameter, baseName) in contextParameterNames) {
+    for ([contextParameter, baseName] in contextParameterNames) {
         val currentNameGroup = nameGroups[baseName]!!
-        val suffix = if (currentNameGroup.size == 1) "" else "#" + (currentNameGroup.indexOf(contextParameter) + 1)
+        val suffix = if (currentNameGroup.size == 1) "" else "$" + (currentNameGroup.indexOf(contextParameter) + 1)
         contextParameter.generatedContextParameterName = Name.identifier($$"$context-$$baseName$$suffix")
     }
 }
@@ -60,7 +61,7 @@ private fun ConeKotlinType.erasedUpperBoundName(tryApproximation: Boolean): Name
             }
             bounds.first().coneType.erasedUpperBoundName(tryApproximation)
         }
-        is ConeLookupTagBasedType -> fullyExpandedType().lookupTagIfAny?.name
+        is ConeClassLikeType -> fullyExpandedType().lookupTagIfAny?.name
         is ConeDefinitelyNotNullType -> original.erasedUpperBoundName(tryApproximation)
         is ConeFlexibleType -> upperBound.erasedUpperBoundName(tryApproximation)
         else if tryApproximation -> {
@@ -72,5 +73,5 @@ private fun ConeKotlinType.erasedUpperBoundName(tryApproximation: Boolean): Name
     }
 }
 
-private fun String.replaceInvalidChars(invalidChars: Set<Char>) =
+private fun String.replaceInvalidChars(invalidChars: Set<Char>): String =
     invalidChars.fold(this) { acc, ch -> if (ch in acc) acc.replace(ch, '_') else acc }

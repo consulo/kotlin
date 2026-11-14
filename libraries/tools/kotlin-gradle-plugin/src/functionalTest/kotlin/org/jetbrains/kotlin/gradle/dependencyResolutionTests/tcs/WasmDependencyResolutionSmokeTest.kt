@@ -3,13 +3,9 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-@file:OptIn(ExperimentalWasmDsl::class)
-
 package org.jetbrains.kotlin.gradle.dependencyResolutionTests.tcs
 
-import org.jetbrains.kotlin.gradle.util.mockGenerateProjectStructureMetadataTaskOutputs
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.dependencyResolutionTests.kotlinBuildDeps
 import org.jetbrains.kotlin.gradle.dependencyResolutionTests.mavenCentralCacheRedirector
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.idea.tcs.IdeaKotlinSourceDependency.Type.Regular
@@ -18,6 +14,7 @@ import org.jetbrains.kotlin.gradle.plugin.ide.kotlinIdeMultiplatformImport
 import org.jetbrains.kotlin.gradle.util.applyMultiplatformPlugin
 import org.jetbrains.kotlin.gradle.util.buildProject
 import org.jetbrains.kotlin.gradle.util.enableDependencyVerification
+import org.jetbrains.kotlin.gradle.util.mockGenerateProjectStructureMetadataTaskOutputs
 import kotlin.test.Test
 
 class WasmDependencyResolutionSmokeTest {
@@ -31,7 +28,7 @@ class WasmDependencyResolutionSmokeTest {
         rootProject.subprojects { project ->
             project.enableDependencyVerification(false)
             project.applyMultiplatformPlugin()
-            project.repositories.mavenLocal()
+            project.repositories.kotlinBuildDeps()
             project.repositories.mavenCentralCacheRedirector()
         }
 

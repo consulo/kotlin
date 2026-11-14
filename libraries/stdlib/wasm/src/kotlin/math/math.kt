@@ -373,25 +373,6 @@ public actual fun round(x: Double): Double = kotlin.math.fdlibm.rint(x)
 public actual fun abs(x: Double): Double = kotlin.wasm.internal.wasm_f64_abs(x)
 
 /**
- * Returns the sign of the given value [x]:
- *   - `-1.0` if the value is negative,
- *   - zero if the value is zero,
- *   - `1.0` if the value is positive
- *
- * Special case:
- *   - `sign(NaN)` is `NaN`
- *
- * @sample samples.math.MathSamples.Doubles.signFun
- */
-@SinceKotlin("1.2")
-public actual fun sign(x: Double): Double = when {
-    x.isNaN() -> Double.NaN
-    x > 0.0 -> 1.0
-    x < 0.0 -> -1.0
-    else -> x
-}
-
-/**
  * Returns the smaller of two values.
  *
  * If either value is `NaN`, then the result is `NaN`.
@@ -468,20 +449,6 @@ public actual fun Double.pow(n: Int): Double = kotlin.math.fdlibm.__ieee754_pow(
 public actual val Double.absoluteValue: Double get() = kotlin.wasm.internal.wasm_f64_abs(this)
 
 /**
- * Returns the sign of this value:
- *   - `-1.0` if the value is negative,
- *   - zero if the value is zero,
- *   - `1.0` if the value is positive
- *
- * Special case:
- *   - `NaN.sign` is `NaN`
- *
- * @sample samples.math.MathSamples.Doubles.sign
- */
-@SinceKotlin("1.2")
-public actual val Double.sign: Double get() = sign(this)
-
-/**
  * Returns this value with the sign bit same as of the [sign] value.
  *
  * If [sign] is `NaN` the sign of the result is undefined.
@@ -500,35 +467,11 @@ public actual fun Double.withSign(sign: Double): Double = kotlin.wasm.internal.w
 public actual fun Double.withSign(sign: Int): Double = kotlin.wasm.internal.wasm_f64_copysign(this, sign.toDouble())
 
 /**
- * Returns the ulp (unit in the last place) of this value.
- *
- * An ulp is a positive distance between this value and the next nearest [Double] value larger in magnitude.
- *
- * Special cases:
- *   - `NaN.ulp` is `NaN`
- *   - `x.ulp` is `+Inf` when `x` is `+Inf` or `-Inf`
- *   - `0.0.ulp` is `Double.MIN_VALUE`
- *
- * @see nextUp
- * @see nextDown
- * @see nextTowards
- * @sample samples.math.MathSamples.Doubles.ulp
- * @sample samples.math.MathSamples.Doubles.discreteValues
- */
-@SinceKotlin("1.2")
-public actual val Double.ulp: Double get() = when {
-    this < 0 -> (-this).ulp
-    this.isNaN() || this == Double.POSITIVE_INFINITY -> this
-    this == Double.MAX_VALUE -> this - this.nextDown()
-    else -> this.nextUp() - this
-}
-
-/**
  * Returns the [Double] value nearest to this value in a direction of positive infinity.
  *
  * Special cases:
- *   - `NaN.nextUp() is `NaN`
- *   - `Double.POSITIVE_INFINITY.nextUp() is `+Infinity`
+ *   - `NaN.nextUp()` is `NaN`
+ *   - `Double.POSITIVE_INFINITY.nextUp()` is `+Infinity`
  *   - `0.0.nextUp()` is `Double.MIN_VALUE`
  *
  * @see nextTowards
@@ -548,8 +491,8 @@ public actual fun Double.nextUp(): Double = when {
  * Returns the [Double] value nearest to this value in a direction of negative infinity.
  *
  * Special cases:
- *   - `NaN.nextDown() is `NaN`
- *   - `Double.NEGATIVE_INFINITY.nextDown() is `-Infinity`
+ *   - `NaN.nextDown()` is `NaN`
+ *   - `Double.NEGATIVE_INFINITY.nextDown()` is `-Infinity`
  *   - `0.0.nextDown()` is `-Double.MIN_VALUE`
  *
  * @see nextUp
@@ -595,9 +538,17 @@ public actual fun Double.nextTowards(to: Double): Double = kotlin.math.fdlibm.ne
 @SinceKotlin("1.2")
 public actual fun Double.roundToInt(): Int = when {
     isNaN() -> throw IllegalArgumentException("Cannot round NaN value.")
-    this > Int.MAX_VALUE -> Int.MAX_VALUE
-    this < Int.MIN_VALUE -> Int.MIN_VALUE
-    else -> floor(this + 0.5).toInt()
+    // Compared to native implementation, this one lacks saturation checks. This makes it faster on Wasm, with the saturation still coming
+    // from the toInt call at the end.
+    else -> {
+        val floored = floor(this)
+        // Even though `this - floor(this)` is not guaranteed to be exact when `-0.5 < x < 0` (see Sterbenz lemma), it does not matter when
+        // ties are resolved towards positive infinity, because:
+        // - `floor` is -1 for every number within the range
+        // - hence the result of the above subtraction, `d`, is `0.5 < d < 1.0` and cannot be rounded to anything below 0.5 because 0.5 is
+        // exactly representable.
+        (if (this - floored >= 0.5) floored + 1.0 else floored).toInt()
+    }
 }
 
 /**
@@ -614,9 +565,11 @@ public actual fun Double.roundToInt(): Int = when {
 @SinceKotlin("1.2")
 public actual fun Double.roundToLong(): Long = when {
     isNaN() -> throw IllegalArgumentException("Cannot round NaN value.")
-    this > Long.MAX_VALUE -> Long.MAX_VALUE
-    this < Long.MIN_VALUE -> Long.MIN_VALUE
-    else -> floor(this + 0.5).toLong()
+    // See the comments in Double.roundToInt().
+    else -> {
+        val floored = floor(this)
+        (if (this - floored >= 0.5) floored + 1.0 else floored).toLong()
+    }
 }
 
 // endregion
@@ -989,25 +942,6 @@ public actual fun round(x: Float): Float = round(x.toDouble()).toFloat()
 public actual fun abs(x: Float): Float = kotlin.wasm.internal.wasm_f32_abs(x)
 
 /**
- * Returns the sign of the given value [x]:
- *   - `-1.0` if the value is negative,
- *   - zero if the value is zero,
- *   - `1.0` if the value is positive
- *
- * Special case:
- *   - `sign(NaN)` is `NaN`
- *
- * @sample samples.math.MathSamples.Floats.signFun
- */
-@SinceKotlin("1.2")
-public actual fun sign(x: Float): Float = when {
-    x.isNaN() -> Float.NaN
-    x > 0.0f -> 1.0f
-    x < 0.0f -> -1.0f
-    else -> x
-}
-
-/**
  * Returns the smaller of two values.
  *
  * If either value is `NaN`, then the result is `NaN`.
@@ -1086,20 +1020,6 @@ public actual fun Float.pow(n: Int): Float = kotlin.math.fdlibm.__ieee754_pow(th
 public actual val Float.absoluteValue: Float get() = kotlin.wasm.internal.wasm_f32_abs(this)
 
 /**
- * Returns the sign of this value:
- *   - `-1.0` if the value is negative,
- *   - zero if the value is zero,
- *   - `1.0` if the value is positive
- *
- * Special case:
- *   - `NaN.sign` is `NaN`
- *
- * @sample samples.math.MathSamples.Floats.sign
- */
-@SinceKotlin("1.2")
-public actual val Float.sign: Float get() = sign(this)
-
-/**
  * Returns this value with the sign bit same as of the [sign] value.
  *
  * If [sign] is `NaN` the sign of the result is undefined.
@@ -1117,7 +1037,6 @@ public actual fun Float.withSign(sign: Float): Float = kotlin.wasm.internal.wasm
 @SinceKotlin("1.2")
 public actual fun Float.withSign(sign: Int): Float = kotlin.wasm.internal.wasm_f32_copysign(this, sign.toFloat())
 
-
 /**
  * Rounds this [Float] value to the nearest integer and converts the result to [Int].
  * Ties are rounded towards positive infinity.
@@ -1130,11 +1049,15 @@ public actual fun Float.withSign(sign: Int): Float = kotlin.wasm.internal.wasm_f
  * @sample samples.math.MathSamples.Floats.roundToInt
  */
 @SinceKotlin("1.2")
-public actual fun Float.roundToInt(): Int = when {
-    isNaN() -> throw IllegalArgumentException("Cannot round NaN value.")
-    this > Int.MAX_VALUE -> Int.MAX_VALUE
-    this < Int.MIN_VALUE -> Int.MIN_VALUE
-    else -> floor(this + 0.5f).toInt()
+public actual fun Float.roundToInt(): Int = if (isNaN()) {
+    throw IllegalArgumentException("Cannot round NaN value.")
+} else {
+    // This implementation is correct because when |this| < 2^32, double precision is enough to not have rounding issues that would arise
+    // without the double widening (like KT-89074), otherwise `this` is already integral, with the addition either being exact (thanks to
+    // double precision) or with numbers being far enough apart for the rounding mode to play any role.
+    //
+    // This approach also makes it fast on Wasm.
+    floor(toDouble() + 0.5).toInt()
 }
 
 /**
@@ -1149,11 +1072,11 @@ public actual fun Float.roundToInt(): Int = when {
  * @sample samples.math.MathSamples.Floats.roundToLong
  */
 @SinceKotlin("1.2")
-public actual fun Float.roundToLong(): Long = when {
-    isNaN() -> throw IllegalArgumentException("Cannot round NaN value.")
-    this > Long.MAX_VALUE -> Long.MAX_VALUE
-    this < Long.MIN_VALUE -> Long.MIN_VALUE
-    else -> floor(this + 0.5f).toLong()
+public actual fun Float.roundToLong(): Long = if (isNaN()) {
+    throw IllegalArgumentException("Cannot round NaN value.")
+} else {
+    // See the comment in Float.roundToInt().
+    floor(toDouble() + 0.5).toLong()
 }
 
 // endregion
@@ -1172,34 +1095,6 @@ public actual fun Float.roundToLong(): Long = when {
  */
 @SinceKotlin("1.2")
 public actual fun abs(n: Int): Int = if (n < 0) -n else n
-
-/**
- * Returns the smaller of two values.
- *
- * @sample samples.math.MathSamples.Ints.min
- */
-@SinceKotlin("1.2")
-public actual fun min(a: Int, b: Int): Int = if (a < b) a else b
-
-/**
- * Returns the greater of two values.
- *
- * @sample samples.math.MathSamples.Ints.max
- */
-@SinceKotlin("1.2")
-public actual fun max(a: Int, b: Int): Int = if (a > b) a else b
-
-/**
- * Returns the absolute value of this value.
- *
- * Special cases:
- *   - `Int.MIN_VALUE.absoluteValue` is `Int.MIN_VALUE` due to an overflow
- *
- * @see abs function
- * @sample samples.math.MathSamples.Ints.absoluteValue
- */
-@SinceKotlin("1.2")
-public actual val Int.absoluteValue: Int get() = abs(this)
 
 /**
  * Returns the sign of this value:
@@ -1223,34 +1118,6 @@ public actual val Int.sign: Int get() = (this shr (Int.SIZE_BITS - 1)) or (-this
  */
 @SinceKotlin("1.2")
 public actual fun abs(n: Long): Long = if (n < 0) -n else n
-
-/**
- * Returns the smaller of two values.
- *
- * @sample samples.math.MathSamples.Longs.min
- */
-@SinceKotlin("1.2")
-public actual fun min(a: Long, b: Long): Long = if (a <= b) a else b
-
-/**
- * Returns the greater of two values.
- *
- * @sample samples.math.MathSamples.Longs.max
- */
-@SinceKotlin("1.2")
-public actual fun max(a: Long, b: Long): Long = if (a >= b) a else b
-
-/**
- * Returns the absolute value of this value.
- *
- * Special cases:
- *   - `Long.MIN_VALUE.absoluteValue` is `Long.MIN_VALUE` due to an overflow
- *
- * @see abs function
- * @sample samples.math.MathSamples.Longs.absoluteValue
- */
-@SinceKotlin("1.2")
-public actual val Long.absoluteValue: Long get() = abs(this)
 
 /**
  * Returns the sign of this value:

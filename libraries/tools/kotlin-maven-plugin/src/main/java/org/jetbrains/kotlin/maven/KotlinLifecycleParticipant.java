@@ -16,6 +16,8 @@ import org.codehaus.plexus.logging.Logger;
 import org.codehaus.plexus.util.xml.Xpp3Dom;
 
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Properties;
 
@@ -136,7 +138,6 @@ public class KotlinLifecycleParticipant extends AbstractMavenLifecycleParticipan
      * <ol>
      *   <li>{@code maven.compiler.release} (maven-compiler-plugin config or property)</li>
      *   <li>{@code maven.compiler.target}</li>
-     *   <li>JDK version requirement from {@code maven-toolchains-plugin} configuration</li>
      * </ol>
      *
      * <p>Package-private for testing.
@@ -166,7 +167,7 @@ public class KotlinLifecycleParticipant extends AbstractMavenLifecycleParticipan
         if (target != null) {
             String jvmTarget = normalizeToKotlinJvmTarget(target);
             if (jvmTarget != null) {
-                return new JvmTargetResolution(jvmTarget, false, "maven.compiler.target=" + jvmTarget);
+                return new JvmTargetResolution(jvmTarget, false, "maven.compiler.target=" + target);
             } else {
                 if (logger != null) {
                     logger.warn("maven.compiler.target=" + target + " is not supported as a Kotlin jvmTarget. Skipping auto-detection.");
@@ -282,19 +283,47 @@ public class KotlinLifecycleParticipant extends AbstractMavenLifecycleParticipan
     private void addSourceRoots(MavenProject project, Plugin kotlinMavenPlugin) {
         File baseDir = project.getBasedir();
 
-        if (!hasUserDefinedSourceDirs(kotlinMavenPlugin, COMPILE_GOAL)) {
+        if (!hasUserDefinedSourceDirs(kotlinMavenPlugin, COMPILE_GOAL) && !hasMavenBuildSourceDirectoryOverride(project)) {
             File mainKotlinSource = new File(baseDir, "src/main/kotlin");
             if (mainKotlinSource.exists()) {
                 project.addCompileSourceRoot(mainKotlinSource.getAbsolutePath());
             }
         }
 
-        if (!hasUserDefinedSourceDirs(kotlinMavenPlugin, TEST_COMPILE_GOAL)) {
+        if (!hasUserDefinedSourceDirs(kotlinMavenPlugin, TEST_COMPILE_GOAL) && !hasMavenBuildTestSourceDirectoryOverride(project)) {
             File testKotlinSource = new File(baseDir, "src/test/kotlin");
             if (testKotlinSource.exists()) {
                 project.addTestCompileSourceRoot(testKotlinSource.getAbsolutePath());
             }
         }
+    }
+
+    static boolean hasMavenBuildSourceDirectoryOverride(MavenProject project) {
+        String sourceDir = project.getBuild().getSourceDirectory();
+        if (sourceDir == null) return false;
+
+        Path configured = Paths.get(sourceDir);
+        if (!configured.isAbsolute()) {
+            configured = Paths.get(project.getBasedir().getPath()).resolve(configured);
+        }
+
+        Path expected = Paths.get(project.getBasedir().getPath(), "src", "main", "java");
+
+        return !configured.normalize().equals(expected.normalize());
+    }
+
+    static boolean hasMavenBuildTestSourceDirectoryOverride(MavenProject project) {
+        String testSourceDir = project.getBuild().getTestSourceDirectory();
+        if (testSourceDir == null) return false;
+
+        Path configured = Paths.get(testSourceDir);
+        if (!configured.isAbsolute()) {
+            configured = Paths.get(project.getBasedir().getPath()).resolve(configured);
+        }
+
+        Path expected = Paths.get(project.getBasedir().getPath(), "src", "test", "java");
+
+        return !configured.normalize().equals(expected.normalize());
     }
 
     private boolean hasUserDefinedSourceDirs(Plugin plugin, String goal) {

@@ -1,12 +1,12 @@
 
 
 // FILE: test.kt
-fun box(): Int {
+fun box(): String {
     if (
         getB() ==
         getA())
-        return 0
-    return getB()
+        return "0"
+    return getB().toString()
 }
 
 fun getA() = 3
@@ -15,7 +15,7 @@ inline fun getB(): Int {
     return 1
 }
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:6 box
 // test.kt:15 box
 // test.kt:7 box
@@ -35,6 +35,8 @@ inline fun getB(): Int {
 // test.kt:9 box
 // test.kt:15 box
 // test.kt:9 box
+// test.kt:9 box
+// test.kt:9 box
 // test.kt:10 box
 
 // EXPECTATIONS JS_IR
@@ -50,4 +52,4 @@ inline fun getB(): Int {
 // test.kt:6 $box (8)
 // test.kt:9 $box (11)
 // test.kt:15 $box (11, 4)
-// test.kt:9 $box (4)
+// test.kt:9 $box (18, 4)

@@ -16,13 +16,18 @@
 
 package org.jetbrains.kotlin.psi;
 
-import kotlin.annotations.jvm.ReadOnly;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 
+/**
+ * Represents an element that contains a list of declarations, such as a file, a class or object body, or a script.
+ *
+ * <p>This interface groups only the directly nested declarations; it does not recurse into them, and it does not include declarations
+ * synthesized by the compiler.
+ */
 public interface KtDeclarationContainer {
+    /** Returns the declarations directly contained in this element, in their source order. Returns an empty list if there are none. */
     @NotNull
-    @ReadOnly
     List<KtDeclaration> getDeclarations();
 }

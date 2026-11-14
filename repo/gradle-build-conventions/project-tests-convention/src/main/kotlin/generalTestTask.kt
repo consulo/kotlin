@@ -4,88 +4,26 @@
  */
 
 import org.gradle.api.Project
-import org.gradle.api.file.FileCollection
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileSystemOperations
-import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.internal.tasks.testing.filter.DefaultTestFilter
-import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.testing.Test
-import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.project
 import org.gradle.kotlin.dsl.support.serviceOf
-import org.gradle.kotlin.dsl.withNormalizer
 import org.gradle.process.CommandLineArgumentProvider
 import java.io.File
-import java.lang.Character.isLowerCase
-import java.lang.Character.isUpperCase
 import java.nio.file.Files
 import javax.inject.Inject
 
 
-// Mixing JUnit4 and Junit5 in one module proved to be problematic, consider using separate modules instead
-enum class JUnitMode {
-    JUnit4, JUnit5
-}
-
-private abstract class MuteWithDatabaseArgumentProvider @Inject constructor(objects: ObjectFactory) : CommandLineArgumentProvider {
-    @get:InputFile
-    @get:PathSensitive(PathSensitivity.NONE)
-    val mutesFile: RegularFileProperty = objects.fileProperty()
-
-    override fun asArguments(): Iterable<String> =
-        listOf("-Dorg.jetbrains.kotlin.test.mutes.file=${mutesFile.get().asFile.canonicalPath}")
-}
-
-private fun Test.muteWithDatabase() {
-    jvmArgumentProviders.add(
-        project.objects.newInstance<MuteWithDatabaseArgumentProvider>().apply {
-            mutesFile.fileValue(File(project.rootDir, "tests/mute-common.csv"))
-        })
-    systemProperty("org.jetbrains.kotlin.skip.muted.tests", if (project.rootProject.hasProperty("skipMutedTests")) "true" else "false")
-    // This system property is only useful for JUnit Platform, but it does no harm on JUnit4
-    systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
-}
-
-/*
- * Workaround for TW-92736
- * TC parallelTests.excludesFile may contain invalid entries leading to skipping large groups of tests.
- */
-private fun Test.cleanupInvalidExcludePatternsForTCParallelTests(excludesFilePath: String) {
-    val candidateTestClassNames = mutableSetOf<String>()
-    candidateClassFiles.visit {
-        if (!isDirectory && name.endsWith(".class")) {
-            candidateTestClassNames.add(path.substringBefore(".class").replace('/', '.'))
-        }
-    }
-
-    val parallelTestsExcludes = File(excludesFilePath).readLines().filter { !it.startsWith("#") }.toSet()
-    val excludePatterns = filter.excludePatterns
-
-    parallelTestsExcludes.forEach {
-        if (!candidateTestClassNames.contains(it)) {
-            logger.warn("WARNING: parallelTests excludesFile contains class name missing in test classes: $it")
-            logger.warn("Removing '$it.*' from `excludePatterns`")
-            excludePatterns.remove("$it.*")
-        }
-    }
-
-    filter.setExcludePatterns(*excludePatterns.toTypedArray())
-}
-
 abstract class GeneralTestArgumentProvider @Inject constructor() : CommandLineArgumentProvider {
     @get:Inject
     protected abstract val providers: ProviderFactory
-
-    @get:Internal
-    abstract val projectName: Property<String>
-
-    @get:Internal
-    abstract val taskName: Property<String>
 
     @get:InputFile
     @get:Optional
@@ -95,126 +33,113 @@ abstract class GeneralTestArgumentProvider @Inject constructor() : CommandLineAr
         .filter { it.exists() }
 
     @get:Internal
-    val tempDir: Provider<String> =
-        providers.environmentVariable("TMPDIR").orElse(providers.systemProperty("java.io.tmpdir"))
+    abstract val tempDir: DirectoryProperty
 
+    /**
+     * Directory for unified JVM GC logs (`-Xlog:gc*`) of the forked test JVMs.
+     * Intentionally not an output: the logs are diagnostics for OOM investigations and must not affect caching.
+     */
     @get:Internal
-    val prefix = projectName.zip(taskName) { projectName, taskName -> "${projectName}Project_${taskName}_" }
+    abstract val gcLogDirectory: DirectoryProperty
 
-    override fun asArguments(): Iterable<String?> = listOfNotNull(
-        excludesFile.orNull?.let { "-Dteamcity.build.parallelTests.excludesFile=${excludesFile.get().path}" },
-        tempDir.orNull?.let { "-Djava.io.tmpdir=" + Files.createTempDirectory(File(it).toPath(), prefix.get()).toString() },
-    )
+    /** Major version of the JDK that launches the tests; some GC flags exist only in a range of JDK versions. */
+    @get:Internal
+    abstract val javaMajorVersion: Property<Int>
+
+    override fun asArguments(): Iterable<String?> = buildList {
+        excludesFile.orNull?.let { add("-Dteamcity.build.parallelTests.excludesFile=${it.path}") }
+        tempDir.orNull?.let { add("-Djava.io.tmpdir=${it.asFile.path}") }
+        if (javaMajorVersion.get() < 25) {
+            // With many concurrent test threads, an allocation stalled by the GC locker (JNI critical sections,
+            // e.g. zip inflation) gives up after only 2 retries and throws OOM before a full GC gets a chance (JDK-8192647).
+            // JDK 25 reworked the GC locker so that a GC always runs, and removed this flag: passing it there fails JVM startup.
+            add("-XX:+UnlockDiagnosticVMOptions")
+            add("-XX:GCLockerRetryAllocationCount=100")
+        }
+        gcLogDirectory.orNull?.let { dir ->
+            // The JVM refuses to start if the log file cannot be created, so the directory has to exist up front.
+            val logDir = dir.asFile.apply { mkdirs() }
+            // `%p` is expanded to the PID by the JVM, so every forked test JVM writes its own file.
+            // Rotation keeps the last 100 MB per JVM, which covers the run-up to an OOM.
+            val logFile = logDir.resolve("gc-%p.log")
+            if (javaMajorVersion.get() >= 9) {
+                add("-Xlog:gc*:file=$logFile:time,uptime,level,tags:filecount=5,filesize=20m")
+            } else {
+                // JDK 8 has no unified logging (`-Xlog` is rejected as an unrecognized option).
+                add("-Xloggc:$logFile")
+                add("-XX:+PrintGCDetails")
+                add("-XX:+PrintGCDateStamps")
+                add("-XX:+UseGCLogFileRotation")
+                add("-XX:NumberOfGCLogFiles=5")
+                add("-XX:GCLogFileSize=20M")
+            }
+        }
+    }
 }
 
-/**
- * @param parallel is redundant if @param jUnit5Enabled is true, because
- *   JUnit5 supports parallel test execution by itself, without gradle help
- */
+val testMaxHeapSizeTiny get() = 256.MiB
+val testMaxHeapSizeSmall get() = 1.GiB
+val testMaxHeapSizeMedium get() = 2.GiB
+val testMaxHeapSizeLarge get() = 4.GiB
+val testMaxHeapSizeHuge get() = 8.GiB
+
+internal val testDefaultMaxHeapSize = testMaxHeapSizeMedium
+internal val testDefaultMinHeapSize = 64.MiB
+internal val testDefaultMaxMetaspaceSize = 512.MiB
+internal val testDefaultReservedCodeCacheSize = 256.MiB
+internal val testDefaultGC = GarbageCollector.G1
+
 internal fun Project.createGeneralTestTask(
     taskName: String = "test",
-    parallel: Boolean = false,
-    jUnitMode: JUnitMode,
-    maxHeapSizeMb: Int? = null,
-    minHeapSizeMb: Int? = null,
-    maxMetaspaceSizeMb: Int = 512,
-    reservedCodeCacheSizeMb: Int = 256,
+    javaLauncher: JdkMajorVersion = DEFAULT_JAVA_LAUNCHER_FOR_TESTS,
+    maxHeapSize: Size = testDefaultMaxHeapSize,
+    minHeapSize: Size = testDefaultMinHeapSize,
+    maxMetaspaceSize: Size = testDefaultMaxMetaspaceSize,
+    reservedCodeCacheSize: Size = testDefaultReservedCodeCacheSize,
+    garbageCollector: GarbageCollector? = testDefaultGC,
     defineJDKEnvVariables: List<JdkMajorVersion> = emptyList(),
     body: Test.() -> Unit = {},
 ): TaskProvider<Test> {
-    if (jUnitMode == JUnitMode.JUnit5) {
-        project.dependencies {
-            "testRuntimeOnly"(project(":compiler:tests-mutes:mutes-junit5"))
-        }
-    } else {
-        project.dependencies {
-            "testRuntimeOnly"(project(":compiler:tests-mutes:mutes-junit4"))
-        }
-    }
+
+    val properties = kotlinBuildProperties
+    val effectiveXmx = properties.testXmx.orElse(maxHeapSize)
+    val effectiveXms = properties.testXms.orElse(minHeapSize)
+    val effectiveGC = properties.testGarbageCollector.orElse(provider { garbageCollector })
+
     val shouldInstrument = project.providers.gradleProperty("kotlin.test.instrumentation.disable")
         .orNull?.toBoolean() != true
-    if (shouldInstrument) {
-        evaluationDependsOn(":test-instrumenter")
-    }
-    return getOrCreateTask<Test>(taskName) {
-        if (taskName != "test" && classpath.isEmpty) {
+
+    val testTaskInitializer = fun Test.() {
+        this.javaLauncher.set(getToolchainLauncherFor(javaLauncher))
+
+        // Only `test` gets its classpath from the java plugin; other tasks, including `testDataManagerWarmup`
+        // (configured with `taskName == "test"`), need this fallback. Checking the name first also avoids
+        // resolving the classpath of `test` during configuration.
+        if (name != "test" && classpath.isEmpty) {
             classpath = sourceSets.getByName("test").runtimeClasspath
             testClassesDirs = sourceSets.getByName("test").output.classesDirs
         }
-        inputs.file(
-            rootProject.tasks.named("createIdeaHomeForTests")
-                .map { task -> task.outputs.files.singleFile.resolve("build.txt") })
-            .withPathSensitivity(PathSensitivity.RELATIVE).withPathSensitivity(PathSensitivity.RELATIVE)
-
-        muteWithDatabase()
-        if (jUnitMode == JUnitMode.JUnit4) {
-            jvmArgumentProviders.add {
-                listOf(
-                    "-javaagent:${classpath.find { it.name.contains("junit-foundation") }?.absolutePath ?:
-                    error("junit-foundation not found in ${classpath.joinToString("\n")}")}"
-                )
-            }
-        }
-
-        doFirst {
-            if (jUnitMode == JUnitMode.JUnit5) return@doFirst
-
-            val commandLineIncludePatterns = commandLineIncludePatterns.toMutableSet()
-            val patterns = filter.includePatterns + commandLineIncludePatterns
-            if (patterns.isEmpty() || patterns.any { '*' in it }) return@doFirst
-            patterns.forEach { pattern ->
-                var isClassPattern = false
-                val maybeMethodName = pattern.substringAfterLast('.')
-                val maybeClassFqName = if (maybeMethodName.isFirstChar(::isLowerCase)) {
-                    pattern.substringBeforeLast('.')
-                } else {
-                    isClassPattern = true
-                    pattern
-                }
-
-                if (!maybeClassFqName.substringAfterLast('.').isFirstChar(::isUpperCase)) {
-                    return@forEach
-                }
-
-                val classFileNameWithoutExtension = maybeClassFqName.replace('.', '/')
-                val classFileName = "$classFileNameWithoutExtension.class"
-
-                if (isClassPattern) {
-                    val innerClassPattern = "$pattern$*"
-                    if (pattern in commandLineIncludePatterns) {
-                        commandLineIncludePatterns.add(innerClassPattern)
-                        (filter as? DefaultTestFilter)?.setCommandLineIncludePatterns(commandLineIncludePatterns)
-                    } else {
-                        filter.includePatterns.add(innerClassPattern)
-                    }
-                }
-
-                include { treeElement ->
-                    val path = treeElement.path
-                    if (treeElement.isDirectory) {
-                        classFileNameWithoutExtension.startsWith(path)
-                    } else {
-                        if (path == classFileName) return@include true
-                        if (!path.endsWith(".class")) return@include false
-                        path.startsWith("$classFileNameWithoutExtension$")
-                    }
-                }
-            }
-        }
+        val ideaHomeForTests =
+            this.project.configurations.detachedConfiguration(this.project.dependencies.project(":", configuration = "ideaHomeForTests"))
+        jvmArgumentProviders.add(this.project.objects.newInstance(SystemPropertyClasspathDirectoryProvider::class.java).apply {
+            property.set("idea.home.path")
+            classpath.from(ideaHomeForTests)
+            directory.value(ideaHomePathForTests())
+        })
 
         if (shouldInstrument) {
-            val instrumentationArgsProperty = project.providers.gradleProperty("kotlin.test.instrumentation.args")
-            val testInstrumenterJar: FileCollection =
-                configurations.detachedConfiguration(dependencies.create(dependencies.project(":test-instrumenter")))
-                    .also { it.isTransitive = false }
-            inputs.files(testInstrumenterJar)
-                .withNormalizer(ClasspathNormalizer::class)
-                .withPropertyName("testInstrumenterClasspath")
-            doFirst {
-                val agent = testInstrumenterJar.singleFile
-                val args = instrumentationArgsProperty.orNull?.let { "=$it" }.orEmpty()
-                jvmArgs("-javaagent:$agent$args")
+            val agentJar = configurations.detachedConfiguration(dependencies.project(":test-instrumenter")).apply { isTransitive = false }
+            val bootClasspathJar = configurations.detachedConfiguration(dependencies.project(":test-instrumenter", "bootClasspath"))
+            val debugProperty = kotlinBuildProperties.booleanProperty("test.instrumenter.debug")
+
+            systemProperty("test.instrumenter.debug", debugProperty.get())
+
+            val testInstrumentationProvider = objects.newInstance<TestInstrumentationArgumentProvider>().apply {
+                this.agentJar.from(agentJar)
+                this.bootClasspathJar.from(bootClasspathJar)
+                this.debug.set(debugProperty)
             }
+            jvmArgumentProviders.add(testInstrumentationProvider)
         }
 
         // The glibc default number of memory pools on 64bit systems is 8 times the number of CPU cores
@@ -228,77 +153,89 @@ internal fun Project.createGeneralTestTask(
             "-ea",
             "-XX:+HeapDumpOnOutOfMemoryError",
             "-XX:+UseCodeCacheFlushing",
-            "-XX:ReservedCodeCacheSize=${reservedCodeCacheSizeMb}m",
-            "-XX:MaxMetaspaceSize=${maxMetaspaceSizeMb}m",
-            "-XX:CICompilerCount=2",
-            "-Djna.nosys=true"
+            "-XX:ReservedCodeCacheSize=${reservedCodeCacheSize.toJvmArg()}",
+            "-XX:MaxMetaspaceSize=${maxMetaspaceSize.toJvmArg()}",
+            "-Djna.nosys=true",
         )
+
+        when (effectiveGC.orNull) {
+            GarbageCollector.G1 -> jvmArgs("-XX:+UseG1GC")
+            GarbageCollector.Parallel -> jvmArgs("-XX:+UseParallelGC")
+            null -> Unit
+        }
 
         val nativeMemoryTracking = project.providers.gradleProperty("kotlin.build.test.process.NativeMemoryTracking")
         if (nativeMemoryTracking.isPresent) {
             jvmArgs("-XX:NativeMemoryTracking=${nativeMemoryTracking.get()}")
         }
 
-        val junit5ParallelTestWorkers =
-            project.kotlinBuildProperties.junit5NumberOfThreadsForParallelExecution ?: Runtime.getRuntime().availableProcessors()
-
-        val memoryPerTestProcessMb = if (jUnitMode == JUnitMode.JUnit5)
-            totalMaxMemoryForTestsMb.coerceIn(defaultMaxMemoryPerTestWorkerMb, defaultMaxMemoryPerTestWorkerMb * junit5ParallelTestWorkers)
-        else
-            defaultMaxMemoryPerTestWorkerMb
-
-        maxHeapSize = "${maxHeapSizeMb ?: (memoryPerTestProcessMb - maxMetaspaceSizeMb - reservedCodeCacheSizeMb)}m"
-
-        if (minHeapSizeMb != null) {
-            minHeapSize = "${minHeapSizeMb}m"
-        }
+        this.maxHeapSize = effectiveXmx.get().toJvmArg()
+        this.minHeapSize = effectiveXms.get().toJvmArg()
 
         systemProperty("idea.is.unit.test", "true")
-        systemProperty("idea.home.path", project.ideaHomePathForTests().get().asFile.canonicalPath)
         systemProperty("idea.use.native.fs.for.win", false)
         systemProperty("java.awt.headless", "true")
         environment("NO_FS_ROOTS_ACCESS_CHECK", "true")
-        environment("PROJECT_CLASSES_DIRS", project.testSourceSet.output.classesDirs.asPath)
         environment("PROJECT_BUILD_DIR", project.layout.buildDirectory.get().asFile)
-        systemProperty("kotlin.test.update.test.data", if (project.rootProject.hasProperty("kotlin.test.update.test.data")) "true" else "false")
-        systemProperty("cacheRedirectorEnabled", project.rootProject.findProperty("cacheRedirectorEnabled")?.toString() ?: "false")
+        systemProperty(
+            "kotlin.test.update.test.data",
+            project.kotlinBuildProperties.booleanProperty("kotlin.test.update.test.data", false).get()
+        )
+        systemProperty("cacheRedirectorEnabled", project.kotlinBuildProperties.isCacheRedirectorEnabled.get())
+        // `-Pkotlin.test.grouping.engine.retry.failed.tests.isolated=false` turns the retries off in `CompilerTestGroupingTestEngine`.
+        // This might be useful for debugging grouped test failures.
+        val retryFailedGroupingTests = project.providers.gradleProperty("kotlin.test.grouping.engine.retry.failed.tests.isolated")
+        if (retryFailedGroupingTests.isPresent) {
+            systemProperty("kotlin.test.grouping.engine.retry.failed.tests.isolated", retryFailedGroupingTests.get())
+        }
         project.kotlinBuildProperties.junit5NumberOfThreadsForParallelExecution?.let { n ->
             systemProperty("junit.jupiter.execution.parallel.config.strategy", "fixed")
             systemProperty("junit.jupiter.execution.parallel.config.fixed.parallelism", n)
         }
 
         val testArgumentProvider = objects.newInstance<GeneralTestArgumentProvider>().also {
-            it.projectName.set(project.name)
-            it.taskName.set(name)
+            it.gcLogDirectory.set(project.layout.buildDirectory.dir("test-gc-logs/$name"))
+            // Read from the task's final launcher, not the `javaLauncher` parameter:
+            // some modules reassign `Test.javaLauncher` in their own configuration (e.g. fir2ir to JDK 8).
+            it.javaMajorVersion.set(this.javaLauncher.map { launcher -> launcher.metadata.languageVersion.asInt() })
         }
         jvmArgumentProviders.add(testArgumentProvider)
 
+        val baseTempDir = project.providers.environmentVariable("TMPDIR").orElse(project.providers.systemProperty("java.io.tmpdir"))
+        val prefix = "${this.project.name}Project_${this.name}_"
+
         systemProperty("idea.ignore.disabled.plugins", "true")
 
+        val providerFactory = project.providers
         doFirst {
-            if (testArgumentProvider.excludesFile.isPresent) {
-                cleanupInvalidExcludePatternsForTCParallelTests(testArgumentProvider.excludesFile.get().path) // Workaround for TW-92736
+            baseTempDir
+                .orElse(providerFactory.provider { throw IllegalStateException("Failed to get temp dir") })
+                .get()
+                .let { dir ->
+                    testArgumentProvider.tempDir.set(Files.createTempDirectory(File(dir).toPath(), prefix).toFile())
+                }
+
+            // workaround for a Gradle bug: https://github.com/gradle/gradle/issues/37539
+            // the tests won't be skipped by Gradle but will be disabled by TCParallelTestsExecutionCondition
+            // this can be removed after Gradle updated to a version with the fix (likely 9.6.0)
+            val excludesFile = testArgumentProvider.excludesFile
+            if (excludesFile.isPresent) {
+                logger.warn("Removing excludes set by TeamCity")
+                val parallelTestsExcludes = File(excludesFile.get().path).readLines().filter { !it.startsWith("#") }.toSet()
+                filter.excludePatterns.removeAll(parallelTestsExcludes)
             }
         }
 
         val fs = project.serviceOf<FileSystemOperations>()
         doLast {
-            File(testArgumentProvider.tempDir.get(), testArgumentProvider.prefix.get()).let {
-                try {
-                    fs.delete {
-                        delete(it)
-                    }
-                } catch (e: Exception) {
-                    logger.warn("Can't delete test temp root folder $it", e.printStackTrace())
+            val dir = testArgumentProvider.tempDir.get()
+            try {
+                fs.delete {
+                    delete(dir)
                 }
+            } catch (e: Exception) {
+                logger.warn("Can't delete test temp root folder ${dir.asFile}", e)
             }
-        }
-
-        if (parallel && jUnitMode != JUnitMode.JUnit5) {
-            val forks = (totalMaxMemoryForTestsMb / memoryPerTestProcessMb).coerceAtMost(16)
-            maxParallelForks =
-                project.providers.gradleProperty("kotlin.test.maxParallelForks").orNull?.toInt()
-                    ?: forks.coerceIn(1, Runtime.getRuntime().availableProcessors())
         }
 
         if (!kotlinBuildProperties.isTeamcityBuild.get()) {
@@ -309,9 +246,29 @@ internal fun Project.createGeneralTestTask(
         }
         body()
     }
-}
 
-private val defaultMaxMemoryPerTestWorkerMb = 1600
+    // A special mock test task is required for the test data manager
+    // to be able to fully reuse its configuration without forcing real tests execution.
+    // Mirrors only `test`: other general test tasks (e.g., `codebaseTest`) must not add their configuration to it.
+    // `getOrCreateTask` like for `test` itself, so a repeated `testTask { ... }` configures both the same way.
+    if (taskName == "test") {
+        project.pluginManager.withPlugin("test-data-manager") {
+            getOrCreateTask<Test>("testDataManagerWarmup") {
+                description = "Carries Test configuration for test-data-manager"
+
+                testTaskInitializer()
+                // The IDE offers every `Test` task whose `testClassesDirs` cover a test source as a gutter run option.
+                // The test data manager reads only `classpath`, so dropping them hides the carrier from the gutter.
+                testClassesDirs = files()
+                onlyIf("configuration carrier; tests must not be executed") {
+                    false
+                }
+            }
+        }
+    }
+
+    return getOrCreateTask<Test>(taskName, testTaskInitializer)
+}
 
 private val Test.commandLineIncludePatterns: Set<String>
     get() = (filter as? DefaultTestFilter)?.commandLineIncludePatterns.orEmpty()

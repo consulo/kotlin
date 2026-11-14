@@ -57,6 +57,34 @@ public class ContextCollectorScriptTestGenerated extends AbstractContextCollecto
   }
 
   @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/contextCollector/classMembers")
+  @TestDataPath("$PROJECT_ROOT")
+  public class ClassMembers {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/contextCollector/classMembers/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInClassMembers() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/contextCollector/classMembers"), Pattern.compile("^(.+)\\.(kts)$"), null, true);
+    }
+  }
+
+  @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/contextCollector/codeFragments")
+  @TestDataPath("$PROJECT_ROOT")
+  public class CodeFragments {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/contextCollector/codeFragments/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInCodeFragments() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/contextCollector/codeFragments"), Pattern.compile("^(.+)\\.(kts)$"), null, true);
+    }
+  }
+
+  @Nested
   @TestMetadata("analysis/low-level-api-fir/testData/contextCollector/contextParameters")
   @TestDataPath("$PROJECT_ROOT")
   public class ContextParameters {
@@ -99,6 +127,58 @@ public class ContextCollectorScriptTestGenerated extends AbstractContextCollecto
   }
 
   @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/contextCollector/expressionStability")
+  @TestDataPath("$PROJECT_ROOT")
+  public class ExpressionStability {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/contextCollector/expressionStability/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInExpressionStability() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/contextCollector/expressionStability"), Pattern.compile("^(.+)\\.(kts)$"), null, true);
+    }
+  }
+
+  @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/contextCollector/fileMembers")
+  @TestDataPath("$PROJECT_ROOT")
+  public class FileMembers {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/contextCollector/fileMembers/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInFileMembers() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/contextCollector/fileMembers"), Pattern.compile("^(.+)\\.(kts)$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("scriptAnnotationArgument.kts")
+    public void testScriptAnnotationArgument() {
+      run("scriptAnnotationArgument.kts");
+    }
+
+    @Test
+    @TestMetadata("scriptDanglingModifierList.kts")
+    public void testScriptDanglingModifierList() {
+      run("scriptDanglingModifierList.kts");
+    }
+
+    @Test
+    @TestMetadata("scriptDeclaration.kts")
+    public void testScriptDeclaration() {
+      run("scriptDeclaration.kts");
+    }
+
+    @Test
+    @TestMetadata("scriptStatement.kts")
+    public void testScriptStatement() {
+      run("scriptStatement.kts");
+    }
+  }
+
+  @Nested
   @TestMetadata("analysis/low-level-api-fir/testData/contextCollector/scripts")
   @TestDataPath("$PROJECT_ROOT")
   public class Scripts {
@@ -115,6 +195,12 @@ public class ContextCollectorScriptTestGenerated extends AbstractContextCollecto
     @TestMetadata("defaultImports.test.kts")
     public void testDefaultImports_test() {
       run("defaultImports.test.kts");
+    }
+
+    @Test
+    @TestMetadata("explicitBackingField.kts")
+    public void testExplicitBackingField() {
+      run("explicitBackingField.kts");
     }
 
     @Test

@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.fir.checkers.generator.diagnostics
 
 import com.intellij.psi.PsiElement
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.fir.checkers.generator.diagnostics.model.DiagnosticList
 import org.jetbrains.kotlin.fir.checkers.generator.diagnostics.model.PositioningStrategy
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
@@ -16,10 +17,10 @@ import org.jetbrains.kotlin.util.PrivateForInline
 @OptIn(PrivateForInline::class)
 object WASM_DIAGNOSTICS_LIST : DiagnosticList("FirWasmErrors") {
     val ANNOTATIONS by object : DiagnosticGroup("Annotations") {
-        val JS_MODULE_PROHIBITED_ON_NON_EXTERNAL by error<KtElement>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT)
-        val NATIVE_ANNOTATIONS_ALLOWED_ONLY_ON_MEMBER_FUN by error<KtElement>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT) {
-            parameter<ConeKotlinType>("type")
-        }
+        val JS_MODULE_PROHIBITED_ON_VAR_IN_MODULE_FILE by deprecationError<KtElement>(
+            LanguageFeature.ProhibitVarInJsModuleFile,
+            PositioningStrategy.VAL_OR_VAR_NODE,
+        )
     }
 
     val EXTERNALS by object : DiagnosticGroup("Externals") {
@@ -47,6 +48,9 @@ object WASM_DIAGNOSTICS_LIST : DiagnosticList("FirWasmErrors") {
     val WASM_INTEROP by object : DiagnosticGroup("Wasm interop") {
         val NESTED_WASM_EXPORT by error<KtElement>()
         val WASM_EXPORT_ON_EXTERNAL_DECLARATION by error<KtElement>()
+        val WASM_EXPORT_UNSUPPORTED_FUNCTION_KIND by error<KtElement>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT) {
+            parameter<String>("kind")
+        }
         val JS_AND_WASM_EXPORTS_ON_SAME_DECLARATION by error<KtElement>()
         val NESTED_WASM_IMPORT by error<KtElement>()
         val WASM_IMPORT_ON_NON_EXTERNAL_DECLARATION by error<KtElement>()
@@ -60,6 +64,12 @@ object WASM_DIAGNOSTICS_LIST : DiagnosticList("FirWasmErrors") {
         }
         val EXTERNAL_DECLARATION_WITH_CONTEXT_PARAMETERS by error<KtElement>()
         val EXPORT_DECLARATION_WITH_CONTEXT_PARAMETERS by error<KtElement>()
+        val RESERVED_WORD_AS_JS_EXPORT_NAME by error<KtElement>() {
+            parameter<String>("name")
+        }
+        val INTERNAL_WASM_EXPORT_NAME_AS_JS_EXPORT_NAME by error<KtElement>() {
+            parameter<String>("name")
+        }
     }
 
     val WASI by object : DiagnosticGroup("WASI") {

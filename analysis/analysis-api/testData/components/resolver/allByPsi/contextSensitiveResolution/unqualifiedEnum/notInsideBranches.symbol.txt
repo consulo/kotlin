@@ -32,19 +32,34 @@ KtParameter(110,117): 's: Some'
   null
 
 KtTypeReference(113,117): 'Some'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Some
+    ]
 
 KtUserType(113,117): 'Some'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Some
+    ]
 
 KtNameReferenceExpression(113,117): 'Some'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Some
+    ]
 
 KtWhenExpression(121,173): 'when (s) {'
   null
 
 KtNameReferenceExpression(127,128): 's'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       s: Some
     ]
@@ -56,13 +71,19 @@ KtWhenConditionWithExpression(136,141): 'FIRST'
   null
 
 KtNameReferenceExpression(136,141): 'FIRST'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: Used
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /Some.FIRST
     ]
 
 KtNameReferenceExpression(145,151): 'SECOND'
-  KaSymbolResolutionError:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionError:
     candidateSymbols = []
     diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'SECOND'.>
 
@@ -73,12 +94,18 @@ KtWhenConditionWithExpression(156,162): 'SECOND'
   null
 
 KtNameReferenceExpression(156,162): 'SECOND'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: Used
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /Some.SECOND
     ]
 
 KtNameReferenceExpression(166,171): 'FIRST'
-  KaSymbolResolutionError:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionError:
     candidateSymbols = []
     diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'FIRST'.>

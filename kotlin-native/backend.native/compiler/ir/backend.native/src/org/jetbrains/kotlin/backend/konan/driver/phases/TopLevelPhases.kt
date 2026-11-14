@@ -5,19 +5,28 @@
 
 package org.jetbrains.kotlin.backend.konan.driver.phases
 
-import org.jetbrains.kotlin.backend.common.phaser.PhaseEngine
+import llvm.LLVMModuleRef
+import org.jetbrains.kotlin.backend.common.ModuleLoweringPass
+import org.jetbrains.kotlin.backend.common.lower.RedundantCastsRemoverLowering
+import org.jetbrains.kotlin.backend.common.lower.inline.InlineCallCycleCheckerLowering
+import org.jetbrains.kotlin.backend.common.lower.optimizations.PropertyAccessorInlineLowering
+import org.jetbrains.kotlin.backend.common.phaser.*
+import org.jetbrains.kotlin.backend.common.serialization.kotlinLibrary
 import org.jetbrains.kotlin.backend.konan.*
-import org.jetbrains.kotlin.backend.konan.driver.PerformanceManagerContext
+import org.jetbrains.kotlin.backend.konan.driver.BasicNativeBackendPhaseContext
 import org.jetbrains.kotlin.backend.konan.driver.NativeBackendPhaseContext
+import org.jetbrains.kotlin.backend.konan.driver.PerformanceManagerContext
 import org.jetbrains.kotlin.backend.konan.driver.utilities.CExportFiles
 import org.jetbrains.kotlin.backend.konan.driver.utilities.createTempFiles
-import org.jetbrains.kotlin.backend.konan.ir.konanLibrary
+import org.jetbrains.kotlin.backend.konan.ir.FunctionsWithoutBoundCheckGenerator
+import org.jetbrains.kotlin.backend.konan.lower.*
 import org.jetbrains.kotlin.backend.konan.serialization.CacheDeserializationStrategy
 import org.jetbrains.kotlin.backend.konan.serialization.PartialCacheInfo
 import org.jetbrains.kotlin.cli.common.config.kotlinSourceRoots
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.LoggingContext
 import org.jetbrains.kotlin.config.phaser.NamedCompilerPhase
+import org.jetbrains.kotlin.ir.IrBasedFunctionFactory.Companion.isFunctionInterfaceFile
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
@@ -27,63 +36,67 @@ import org.jetbrains.kotlin.ir.declarations.impl.IrModuleFragmentImpl
 import org.jetbrains.kotlin.ir.declarations.path
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.konan.TempFiles
+import org.jetbrains.kotlin.konan.config.nomain
 import org.jetbrains.kotlin.konan.config.verifyBitcode
-import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.Family
-import org.jetbrains.kotlin.library.impl.javaFile
-import org.jetbrains.kotlin.util.PerformanceManager
-import org.jetbrains.kotlin.util.PerformanceManagerImpl
-import org.jetbrains.kotlin.util.PhaseType
-import org.jetbrains.kotlin.util.tryMeasureDynamicPhaseTime
-import org.jetbrains.kotlin.util.tryMeasurePhaseTime
+import org.jetbrains.kotlin.library.isNativeStdlib
+import org.jetbrains.kotlin.util.*
+import org.jetbrains.kotlin.utils.atMostOne
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.io.path.Path
+import kotlin.io.path.createFile
+import kotlin.io.path.name
+import kotlin.io.path.writeLines
 
-internal fun PhaseEngine<NativeBackendPhaseContext>.runFrontend(config: NativeSecondStageCompilationConfig, environment: KotlinCoreEnvironment): FrontendPhaseOutput.Full? {
+private fun TempFiles.createBitcodeFile(fileName: String) = create(fileName, ".bc").toFile()
+
+internal fun PhaseEngine<NativeBackendPhaseContext>.runK1Frontend(config: NativeSecondStageCompilationConfig, environment: KotlinCoreEnvironment): K1FrontendPhaseOutput? {
     val languageVersion = config.languageVersionSettings.languageVersion
     val kotlinSourceRoots = environment.configuration.kotlinSourceRoots
     if (languageVersion.usesK2 && kotlinSourceRoots.isNotEmpty()) {
         throw Error("Attempt to run K1 from unsupported LV=${languageVersion}")
     }
 
-    val frontendOutput = useContext(FrontendContextImpl(config)) { it.runPhase(FrontendPhase, environment) }
-    return frontendOutput as? FrontendPhaseOutput.Full
+    return useContext(BasicNativeBackendPhaseContext(config)) { it.runPhase(K1FrontendPhase, environment) }
 }
 
-internal fun PhaseEngine<NativeBackendPhaseContext>.linkKlibs(
-        frontendOutput: FrontendPhaseOutput.Full,
-): LinkKlibsOutput = linkKlibs(frontendOutput, {}).first
+internal fun PhaseEngine<NativeBackendPhaseContext>.linkKlibs(frontendOutput: K1FrontendPhaseOutput): LinkKlibsOutput {
+    return linkKlibs(frontendOutput, {}).first
+}
 
 internal fun <T> PhaseEngine<NativeBackendPhaseContext>.linkKlibs(
-        frontendOutput: FrontendPhaseOutput.Full,
-        produceAdditionalOutput: (PhaseEngine<out LinkKlibsContext>) -> T
+    frontendOutput: K1FrontendPhaseOutput,
+    produceAdditionalOutput: (PhaseEngine<out LinkKlibsContext>) -> T
 ): Pair<LinkKlibsOutput, T> {
     val config = this.context.config
-    val psiToIrContext = LinkKlibsContextImpl(config, frontendOutput.moduleDescriptor, frontendOutput.bindingContext)
-    val (linkKlibsOutput, additionalOutput) = useContext(psiToIrContext) { psiToIrEngine ->
+    val psiToIrContext = LinkKlibsContextImpl(config)
+    val [linkKlibsOutput, additionalOutput] = useContext(psiToIrContext) { psiToIrEngine ->
         val additionalOutput = produceAdditionalOutput(psiToIrEngine)
-        val linkKlibsInput = LinkKlibsInput(frontendOutput.moduleDescriptor, frontendOutput.environment)
+        val linkKlibsInput = LinkKlibsInput(frontendOutput.moduleDescriptor)
         val output = psiToIrEngine.runAndMeasurePhase(LinkKlibsPhase, linkKlibsInput)
-        psiToIrEngine.runSpecialBackendChecks(output.irModule, output.irBuiltIns, output.symbols)
+        output.irModulesToCompile.forEach { module ->
+            psiToIrEngine.runSpecialBackendChecks(module, output.irBuiltIns, output.symbols)
+        }
         output to additionalOutput
     }
-    runAndMeasurePhase(CopyDefaultValuesToActualPhase, Pair(linkKlibsOutput.irModule, linkKlibsOutput.irBuiltIns))
     return linkKlibsOutput to additionalOutput
 }
 
-internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.runBackend(backendContext: Context, irModule: IrModuleFragment, performanceManager: PerformanceManager?) {
+internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.runBackend(backendContext: NativeBackendContext, irModules: List<IrModuleFragment>, performanceManager: PerformanceManager?) {
     val config = context.config
     useContext(backendContext) { backendEngine ->
-        backendEngine.runAndMeasurePhase(functionsWithoutBoundCheck)
+        // This phase adds declarations to the shared built-ins, independently of the input module.
+        backendEngine.runModuleWisePhase(createModulePhases(::FunctionsWithoutBoundCheckGenerator).first(), listOf(irModules.first()))
 
         fun createGenerationState(fragment: BackendJobFragment): NativeGenerationState {
-            val outputPath = config.cacheSupport.tryGetImplicitOutput(fragment.cacheDeserializationStrategy) ?: config.outputPath
+            val outputPath = config.cacheSupport.tryGetImplicitOutput(fragment.cacheInfo) ?: config.outputPath
             val outputFiles = OutputFiles(outputPath, config.target, config.produce)
             val generationState = NativeGenerationState(context.config, backendContext,
-                    fragment.cacheDeserializationStrategy, fragment.dependenciesTracker, fragment.llvmModuleSpecification, outputFiles,
+                    fragment.cacheInfo, fragment.dependenciesTracker, fragment.llvmModuleSpecification, outputFiles,
                     llvmModuleName = "out", // TODO: Currently, all llvm modules are named as "out" which might lead to collisions.
                     fragment.performanceManager
             )
@@ -116,27 +129,30 @@ internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.runBackend(backendCo
             }
         }
 
-        fun NativeGenerationState.runSpecifiedLowerings(fragment: BackendJobFragment, loweringsToLaunch: LoweringList) {
-            runEngineForLowerings {
-                val module = fragment.irModule
-                partiallyLowerModuleWithDependencies(module, loweringsToLaunch, performanceManager)
-            }
-        }
+        fun List<Pair<BackendJobFragment, NativeGenerationState>>.runSpecifiedLowerings(loweringsToLaunch: LoweringList) =
+                forEach { [fragment, state] ->
+                    state.runEngineForLowerings {
+                        val module = fragment.irModule
+                        partiallyLowerModuleWithDependencies(module, loweringsToLaunch)
+                    }
+                }
 
-        fun NativeGenerationState.runSpecifiedLowerings(fragment: BackendJobFragment, moduleLowering: ModuleLowering) {
-            runEngineForLowerings {
-                val module = fragment.irModule
-                partiallyLowerModuleWithDependencies(module, moduleLowering, performanceManager)
-            }
-        }
+        fun List<Pair<BackendJobFragment, NativeGenerationState>>.runSpecifiedLowering(phase: (NativeLoweringContext) -> ModuleLoweringPass) =
+                forEach { [fragment, state] ->
+                    state.runEngineForLowerings {
+                        val module = fragment.irModule
+                        partiallyLowerModuleWithDependencies(module, createModulePhases(phase).first())
+                    }
+                }
 
-        fun NativeGenerationState.finalizeLowerings(fragment: BackendJobFragment) {
-            runEngineForLowerings {
-                val module = fragment.irModule
-                val dependenciesToCompile = findDependenciesToCompile()
-                mergeDependencies(module, dependenciesToCompile)
-            }
-        }
+        fun List<Pair<BackendJobFragment, NativeGenerationState>>.finalizeLowerings() =
+                forEach { [fragment, state] ->
+                    state.runEngineForLowerings {
+                        val module = fragment.irModule
+                        val dependenciesToCompile = findDependenciesToCompile()
+                        mergeDependencies(module, dependenciesToCompile)
+                    }
+                }
 
         fun List<BackendJobFragment>.runAllLowerings(): List<NativeGenerationState> {
             val generationStates = this.map { fragment -> createGenerationState(fragment) }
@@ -149,8 +165,8 @@ internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.runBackend(backendCo
             // stage, because otherwise we may be actually validating a partially lowered IR that may not pass certain checks
             // (like IR visibility checks).
             // This is what we call a 'lowering synchronization point'.
-            fragmentWithState.forEach { (fragment, state) -> state.runSpecifiedLowerings(fragment, validateIrBeforeLowering) }
-            fragmentWithState.forEach { (fragment, state) -> state.runSpecifiedLowerings(fragment, checkInlineCallCyclesPhase) }
+            fragmentWithState.runSpecifiedLowering(::IrValidationBeforeLoweringsKlibSecondStagePhase)
+            fragmentWithState.runSpecifiedLowering(::InlineCallCycleCheckerLowering)
 
             run {
                 // This is a so-called "KLIB Common Lowerings Prefix".
@@ -162,29 +178,30 @@ internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.runBackend(backendCo
                 // synthetic accessors) have been already applied.
                 // To avoid overcomplicating things and to keep running the preceding lowerings with "modify-only-lowered-file"
                 // invariant, we would like to put a synchronization point immediately before "InlineAllFunctions".
-                fragmentWithState.forEach { (fragment, state) -> state.runSpecifiedLowerings(fragment, getLoweringsUpToAndIncludingSyntheticAccessors()) }
-                fragmentWithState.forEach { (fragment, state) -> state.runSpecifiedLowerings(fragment, validateIrAfterInliningOnlyPrivateFunctions) }
-                fragmentWithState.forEach { (fragment, state) -> state.runSpecifiedLowerings(fragment, listOf(inlineAllFunctionsPhase)) }
-                fragmentWithState.forEach { (fragment, state) -> state.runSpecifiedLowerings(fragment, listOf(specialObjCValidationPhase, redundantCastsRemoverPhase)) }
+                fragmentWithState.runSpecifiedLowerings(getLoweringsUpToAndIncludingSyntheticAccessors())
+                fragmentWithState.runSpecifiedLowering(::IrValidationAfterInliningPrivateFunctionsKlibPhase)
+                fragmentWithState.runSpecifiedLowerings(createFilePhases(::NativeAllFunctionInlining))
+                fragmentWithState.runSpecifiedLowerings(
+                        createFilePhases(::SpecialObjCValidationLowering, ::RedundantCastsRemoverLowering)
+                )
             }
 
-            fragmentWithState.forEach { (fragment, state) -> state.runSpecifiedLowerings(fragment, validateIrAfterInliningAllFunctions) }
-            fragmentWithState.forEach { (fragment, state) -> state.runSpecifiedLowerings(fragment, listOf(constEvaluationPhase)) }
-            fragmentWithState.forEach { (fragment, state) -> state.runSpecifiedLowerings(fragment, state.context.config.getLoweringsAfterInlining()) }
-            fragmentWithState.forEach { (fragment, state) -> state.runSpecifiedLowerings(fragment, validateIrAfterLowering) }
+            fragmentWithState.runSpecifiedLowering(::IrValidationAfterInliningAllFunctionsKlibSecondStagePhase)
+            fragmentWithState.runSpecifiedLowerings(context.config.getLoweringsAfterInlining())
+            fragmentWithState.runSpecifiedLowering(::IrValidationAfterLoweringsSecondStagePhase)
 
-            fragmentWithState.forEach { (fragment, state) -> state.finalizeLowerings(fragment) }
+            fragmentWithState.finalizeLowerings()
 
             return generationStates
         }
 
         fun runAfterLowerings(fragment: BackendJobFragment, generationState: NativeGenerationState) {
-            val tempFiles = createTempFiles(config, fragment.cacheDeserializationStrategy)
+            val tempFiles = createTempFiles(config, fragment.cacheInfo)
             val outputFiles = generationState.outputFiles
             if (context.config.produce.isHeaderCache) {
                 newEngine(generationState) { generationStateEngine ->
                     generationStateEngine.runAndMeasurePhase(SaveAdditionalCacheInfoPhase)
-                    File(outputFiles.nativeBinaryFile).createNew()
+                    Path(outputFiles.nativeBinaryFile).createFile()
                     generationStateEngine.runAndMeasurePhase(FinalizeCachePhase, outputFiles)
                 }
                 return
@@ -192,29 +209,26 @@ internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.runBackend(backendCo
             try {
                 fragment.performanceManager?.notifyPhaseStarted(PhaseType.Backend)
                 backendEngine.useContext(generationState, copyState = true) { generationStateEngine ->
-                    val bitcodeFile = tempFiles.create(generationState.llvmModuleName, ".bc").javaFile()
+                    val bitcodeFile = tempFiles.createBitcodeFile(generationState.llvmModuleName)
                     val cExportFiles = if (config.produceCInterface) {
                         CExportFiles(
-                                cppAdapter = tempFiles.create("api", ".cpp").javaFile(),
-                                bitcodeAdapter = tempFiles.create("api", ".bc").javaFile(),
-                                header = outputFiles.cAdapterHeader.javaFile(),
-                                def = if (config.target.family == Family.MINGW) outputFiles.cAdapterDef.javaFile() else null,
+                                cppAdapter = tempFiles.create("api", ".cpp").toFile(),
+                                bitcodeAdapter = tempFiles.createBitcodeFile("api"),
+                                header = outputFiles.cAdapterHeader.toFile(),
+                                def = if (config.target.family == Family.MINGW) outputFiles.cAdapterDef.toFile() else null,
                         )
                     } else null
                     // TODO: Make this work if we first compile all the fragments and only after that run the link phases.
                     generationStateEngine.compileModule(fragment.irModule, backendContext.irBuiltIns, bitcodeFile, cExportFiles)
                     // Split here
-                    val dependenciesTrackingResult = generationState.dependenciesTracker.collectResult()
-                    val depsFilePath = config.writeSerializedDependencies
-                    if (!depsFilePath.isNullOrEmpty()) {
-                        depsFilePath.File().writeLines(DependenciesTrackingResult.serialize(dependenciesTrackingResult))
-                    }
+                    val dependenciesTrackingResult = generationStateEngine.collectAndMaybeSerializeDependencies()
                     val moduleCompilationOutput = ModuleCompilationOutput(bitcodeFile, dependenciesTrackingResult)
                     generationStateEngine.compileAndLink(
                             moduleCompilationOutput,
                             outputFiles.mainFileName,
                             outputFiles,
                             tempFiles,
+                            generationState.cacheInfo,
                     )
                 }
             } finally {
@@ -223,15 +237,14 @@ internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.runBackend(backendCo
             }
         }
 
-        val fragments = backendEngine.splitIntoFragments(irModule, performanceManager)
-        val fragmentsList = fragments.toList()
+        val fragmentsList = irModules.flatMap { backendEngine.splitIntoFragments(it, performanceManager).toList() }
         val generationStates = performanceManager.tryMeasurePhaseTime(PhaseType.IrLowering) {
             fragmentsList.runAllLowerings()
         }
 
         val threadsCount = context.config.threadsCount
         if (threadsCount == 1) {
-            fragmentsList.zip(generationStates).forEach { (fragment, generationState) ->
+            fragmentsList.zip(generationStates).forEach { [fragment, generationState] ->
                 runAfterLowerings(fragment, generationState)
             }
         } else {
@@ -244,7 +257,7 @@ internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.runBackend(backendCo
                 // which is run sequentially, and everything else which is run in parallel.
                 val executor = Executors.newFixedThreadPool(threadsCount)
                 val thrownFromThread = AtomicReference<Throwable?>(null)
-                val tasks = fragmentsList.zip(generationStates).map { (fragment, generationState) ->
+                val tasks = fragmentsList.zip(generationStates).map { [fragment, generationState] ->
                     Callable {
                         try {
                             // Currently, it's not possible to initialize the correct thread on `PerformanceManager` creation
@@ -264,7 +277,7 @@ internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.runBackend(backendCo
         }
 
         if (performanceManager != null) {
-            fragments.forEach {
+            fragmentsList.forEach {
                 performanceManager.addOtherUnitStats(it.performanceManager?.unitStats)
             }
         }
@@ -276,14 +289,29 @@ internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.runBitcodeBackend(
 ) {
     useContext(context) { bitcodeEngine ->
         val tempFiles = createTempFiles(context.config, null)
-        val bitcodeFile = tempFiles.create(context.config.shortModuleName ?: "out", ".bc").javaFile()
+        val bitcodeFile = tempFiles.createBitcodeFile(context.config.shortModuleName ?: "out")
         val outputPath = context.config.outputPath
         val outputFiles = OutputFiles(outputPath, context.config.target, context.config.produce)
         bitcodeEngine.runBitcodePostProcessing()
+        runInsertEntryPointAliasPhaseIfNeededTo(context.llvm.module)
         runAndMeasurePhase(WriteBitcodeFilePhase, WriteBitcodeFileInput(context.llvm.module, bitcodeFile))
         val moduleCompilationOutput = ModuleCompilationOutput(bitcodeFile, dependencies)
-        compileAndLink(moduleCompilationOutput, outputFiles.mainFileName, outputFiles, tempFiles)
+        // This is the bitcode-to-binary path of a two-stage compilation, so there is no batch:
+        // at most the single library from -Xadd-cache is being cached.
+        val cacheInfo = context.config.librariesToCache.values.atMostOne()
+        compileAndLink(moduleCompilationOutput, outputFiles.mainFileName, outputFiles, tempFiles, cacheInfo)
     }
+}
+
+private fun PhaseEngine<NativeGenerationState>.collectAndMaybeSerializeDependencies(): DependenciesTrackingResult {
+    val deps = context.dependenciesTracker.collectResult()
+    val depsFilePath = context.config.writeSerializedDependencies ?: return deps
+
+    if (depsFilePath.isNotEmpty()) {
+        Path(depsFilePath).writeLines(DependenciesTrackingResult.serialize(deps))
+    }
+
+    return deps
 }
 
 private fun isReferencedByNativeRuntime(declarations: List<IrDeclaration>): Boolean =
@@ -296,30 +324,32 @@ private fun isReferencedByNativeRuntime(declarations: List<IrDeclaration>): Bool
 
 private data class BackendJobFragment(
         val irModule: IrModuleFragment,
-        val cacheDeserializationStrategy: CacheDeserializationStrategy?,
+        val cacheInfo: PartialCacheInfo?,
         val dependenciesTracker: DependenciesTracker,
         val llvmModuleSpecification: LlvmModuleSpecification,
         val performanceManager: PerformanceManager?,
 )
 
-private fun PhaseEngine<out Context>.splitIntoFragments(
+private fun PhaseEngine<out NativeBackendContext>.splitIntoFragments(
         input: IrModuleFragment,
         mainPerfManager: PerformanceManager?,
 ): Sequence<BackendJobFragment> {
     val config = context.config
     return if (context.config.producePerFileCache) {
         val files = input.files.toList()
-        val containsStdlib = config.libraryToCache!!.klib == context.stdlibModule.konanLibrary
+        val library = input.kotlinLibrary!!
+        val containsStdlib = library.isNativeStdlib
 
         files.asSequence().filter { !it.isFunctionInterfaceFile }.map { file ->
             val cacheDeserializationStrategy = CacheDeserializationStrategy.SingleFile(file.path, file.packageFqName.asString())
+            val cacheInfo = PartialCacheInfo(library, cacheDeserializationStrategy)
             val llvmModuleSpecification = CacheLlvmModuleSpecification(
                     config.cachedLibraries,
-                    PartialCacheInfo(config.libraryToCache!!.klib, cacheDeserializationStrategy),
-                    containsStdlib = containsStdlib
+                    cacheInfo,
             )
-            val dependenciesTracker = DependenciesTrackerImpl(llvmModuleSpecification, context.config, context)
+            val dependenciesTracker = DependenciesTrackerImpl(llvmModuleSpecification, config, context, config.librariesToCache.getValue(library))
             val fragment = IrModuleFragmentImpl(input.descriptor)
+            fragment.kotlinLibrary = input.kotlinLibrary
             fragment.files += file
             if (containsStdlib && cacheDeserializationStrategy.containsKFunctionImpl)
                 fragment.files += files.filter { it.isFunctionInterfaceFile }
@@ -334,29 +364,39 @@ private fun PhaseEngine<out Context>.splitIntoFragments(
             }
             BackendJobFragment(
                     fragment,
-                    cacheDeserializationStrategy,
+                    cacheInfo,
                     dependenciesTracker,
                     llvmModuleSpecification,
                     PerformanceManagerImpl.createChildIfNeeded(mainPerfManager, start = false),
             )
         }
     } else {
+        val cacheInfo = config.librariesToCache.values.atMostOne()
         val llvmModuleSpecification = if (config.produce.isCache) {
-            val containsStdlib = config.libraryToCache!!.klib == context.stdlibModule.konanLibrary
-            CacheLlvmModuleSpecification(config.cachedLibraries, context.config.libraryToCache!!, containsStdlib = containsStdlib)
+            CacheLlvmModuleSpecification(config.cachedLibraries, cacheInfo!!)
         } else {
             DefaultLlvmModuleSpecification(config.cachedLibraries)
         }
         sequenceOf(
                 BackendJobFragment(
                         input,
-                        context.config.libraryToCache?.strategy,
-                        DependenciesTrackerImpl(llvmModuleSpecification, context.config, context),
+                        cacheInfo,
+                        DependenciesTrackerImpl(llvmModuleSpecification, context.config, context, cacheInfo),
                         llvmModuleSpecification,
                         PerformanceManagerImpl.createChildIfNeeded(mainPerfManager, start = false),
                 )
         )
     }
+}
+
+/**
+ * Runs the [InsertEntryPointAliasPhase] when the compiler produces a program, unless `nomain` is set.
+ */
+private fun <C : NativeBackendPhaseContext> PhaseEngine<C>.runInsertEntryPointAliasPhaseIfNeededTo(llvmModule: LLVMModuleRef) {
+    val config = context.config
+    if (config.produce != CompilerOutputKind.PROGRAM || config.configuration.nomain) return
+    val entryPointName = config.entryPointName
+    runAndMeasurePhase(InsertEntryPointAliasPhase, InsertEntryPointAliasInput(llvmModule, entryPointName))
 }
 
 internal data class ModuleCompilationOutput(
@@ -378,38 +418,36 @@ internal fun PhaseEngine<NativeGenerationState>.compileModule(
         cExportFiles: CExportFiles?,
 ) {
     runBackendCodegen(module, irBuiltIns, cExportFiles)
-    val checkExternalCalls = context.config.checkStateAtExternalCalls
-    if (checkExternalCalls) {
-        runAndMeasurePhase(CheckExternalCallsPhase)
-    }
-    newEngine(context as BitcodePostProcessingContext) { it.runBitcodePostProcessing() }
-    if (checkExternalCalls) {
-        runAndMeasurePhase(RewriteExternalCallsCheckerGlobals)
-    }
-    if (context.config.produce.isFullCache) {
-        runAndMeasurePhase(SaveAdditionalCacheInfoPhase)
-    }
+    runPostCodegen()
+    runInsertEntryPointAliasPhaseIfNeededTo(context.llvm.module)
     runAndMeasurePhase(WriteBitcodeFilePhase, WriteBitcodeFileInput(context.llvm.module, bitcodeFile))
 }
 
+internal fun PhaseEngine<NativeGenerationState>.runPostCodegen() {
+    newEngine(context as BitcodePostProcessingContext) { it.runBitcodePostProcessing() }
+    if (context.config.produce.isFullCache) {
+        runAndMeasurePhase(SaveAdditionalCacheInfoPhase)
+    }
+}
 
 internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.compileAndLink(
         moduleCompilationOutput: ModuleCompilationOutput,
         linkerOutputFile: String,
         outputFiles: OutputFiles,
         temporaryFiles: TempFiles,
+        cacheInfo: PartialCacheInfo?,
 ) {
-    val compilationResult = temporaryFiles.create(File(outputFiles.nativeBinaryFile).name, ".o").javaFile()
+    val compilationResult = temporaryFiles.create(Path(outputFiles.nativeBinaryFile).name, ".o").toFile()
     runAndMeasurePhase(ObjectFilesPhase, ObjectFilesPhaseInput(moduleCompilationOutput.bitcodeFile, compilationResult))
     val linkerOutputKind = determineLinkerOutput(context)
-    val (linkerInput, cacheBinaries) = run {
+    val [linkerInput, cacheBinaries] = run {
         val resolvedCacheBinaries by lazy { resolveCacheBinaries(context.config.cachedLibraries, moduleCompilationOutput.dependenciesTrackingResult) }
         when {
             context.config.produce == CompilerOutputKind.STATIC_CACHE -> {
                 compilationResult to ResolvedCacheBinaries(emptyList(), emptyList())
             }
             shouldPerformPreLink(context.config, resolvedCacheBinaries, linkerOutputKind) -> {
-                val prelinkResult = temporaryFiles.create("withStaticCaches", ".o").javaFile()
+                val prelinkResult = temporaryFiles.create("withStaticCaches", ".o").toFile()
                 runAndMeasurePhase(PreLinkCachesPhase, PreLinkCachesInput(listOf(compilationResult), resolvedCacheBinaries, prelinkResult))
                 // Static caches are linked into binary, so we don't need to pass them.
                 prelinkResult to ResolvedCacheBinaries(emptyList(), resolvedCacheBinaries.dynamic)
@@ -427,6 +465,7 @@ internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.compileAndLink(
             outputFiles,
             temporaryFiles,
             cacheBinaries,
+            cacheInfo,
     )
     runAndMeasurePhase(LinkerPhase, linkerPhaseInput)
     if (context.config.produce.isCache) {
@@ -437,27 +476,25 @@ internal fun <C : NativeBackendPhaseContext> PhaseEngine<C>.compileAndLink(
 internal fun PhaseEngine<NativeGenerationState>.partiallyLowerModuleWithDependencies(
         module: IrModuleFragment,
         loweringList: LoweringList,
-        performanceManager: PerformanceManager?,
 ) {
     val dependenciesToCompile = findDependenciesToCompile()
     // TODO: KonanLibraryResolver.TopologicalLibraryOrder actually returns libraries in the reverse topological order.
     // TODO: Does the order of files really matter with the new MM? (and with lazy top-levels initialization?)
     val allModulesToLower = listOf(module) + dependenciesToCompile.reversed()
 
-    runLowerings(loweringList, allModulesToLower, performanceManager)
+    runLowerings(loweringList, allModulesToLower)
 }
 
 internal fun PhaseEngine<NativeGenerationState>.partiallyLowerModuleWithDependencies(
         module: IrModuleFragment,
         lowering: ModuleLowering,
-        performanceManager: PerformanceManager?,
 ) {
     val dependenciesToCompile = findDependenciesToCompile()
     // TODO: KonanLibraryResolver.TopologicalLibraryOrder actually returns libraries in the reverse topological order.
     // TODO: Does the order of files really matter with the new MM? (and with lazy top-levels initialization?)
     val allModulesToLower = listOf(module) + dependenciesToCompile.reversed()
 
-    runModuleWisePhase(lowering, allModulesToLower, performanceManager)
+    runModuleWisePhase(lowering, allModulesToLower)
 }
 
 internal fun PhaseEngine<NativeGenerationState>.runBackendCodegen(module: IrModuleFragment, irBuiltIns: IrBuiltIns, cExportFiles: CExportFiles?) {
@@ -509,41 +546,49 @@ internal fun <Context, Output, P> PhaseEngine<Context>.runAndMeasurePhase(phase:
  */
 private fun PhaseEngine<NativeGenerationState>.runCodegen(module: IrModuleFragment, irBuiltIns: IrBuiltIns) {
     val optimize = context.shouldOptimize()
-    val enablePreCodegenInliner = context.config.preCodegenInlineThreshold != 0U && optimize
-    module.files.forEach {
-        // Have to run after link dependencies phase, because fields from dependencies can be changed during lowerings.
-        // Inline accessors only in optimized builds due to separate compilation and possibility to get broken debug information.
-        runAndMeasurePhase(PropertyAccessorInlinePhase, it, disable = !optimize)
-        runAndMeasurePhase(InlineClassPropertyAccessorsPhase, it, disable = !optimize)
-    }
-    val moduleDFG = runAndMeasurePhase(BuildDFGPhase, module, disable = !optimize)
+    // It's ok to run global optimizations on a cache as long as it doesn't have other dependencies (stdlib)
+    val runGlobalOptimizations = optimize && !context.config.cachedLibraries.hasStaticCaches
+    val enablePreCodegenInliner = context.config.preCodegenInlineThreshold != 0U && runGlobalOptimizations
+    runLowerings(
+            // Have to run after link dependencies phase, because fields from dependencies can be changed during lowerings.
+            // Inline accessors only in optimized builds due to separate compilation and possibility to get broken debug information.
+            createFilePhases(
+                    ::PropertyAccessorInlineLowering.takeIf { optimize },
+                    ::InlineClassPropertyAccessorsLowering.takeIf { optimize },
+            ),
+            module,
+    )
+    val moduleDFG = runAndMeasurePhase(BuildDFGPhase, module, disable = !runGlobalOptimizations)
     runAndMeasurePhase(RemoveRedundantCallsToStaticInitializersPhase, RedundantCallsInput(moduleDFG, module), disable = !enablePreCodegenInliner)
     runAndMeasurePhase(PreCodegenInlinerPhase, PreCodegenInlinerInput(module, moduleDFG), disable = !enablePreCodegenInliner)
-    runAndMeasurePhase(DevirtualizationAnalysisPhase, DevirtualizationAnalysisInput(module, moduleDFG), disable = !optimize)
+    runAndMeasurePhase(DevirtualizationAnalysisPhase, DevirtualizationAnalysisInput(module, moduleDFG), disable = !runGlobalOptimizations)
     // KT-72336: This is more optimal but contradicts with the pre-codegen inliner.
-    runAndMeasurePhase(RemoveRedundantCallsToStaticInitializersPhase, RedundantCallsInput(moduleDFG, module), disable = enablePreCodegenInliner || !optimize)
-    runAndMeasurePhase(DevirtualizationPhase, DevirtualizationInput(module, moduleDFG), disable = !optimize)
-    module.files.forEach {
-        runAndMeasurePhase(RedundantCoercionsCleaningPhase, it)
-        // depends on redundantCoercionsCleaningPhase
-        runAndMeasurePhase(UnboxInlinePhase, it, disable = !optimize)
-    }
+    runAndMeasurePhase(RemoveRedundantCallsToStaticInitializersPhase, RedundantCallsInput(moduleDFG, module), disable = enablePreCodegenInliner || !runGlobalOptimizations)
+    runAndMeasurePhase(DevirtualizationPhase, DevirtualizationInput(module, moduleDFG), disable = !runGlobalOptimizations)
+    runLowerings(
+            createFilePhases(
+                    ::RedundantCoercionsCleaner,
+                    ::UnboxInlineLowering.takeIf { optimize },
+            ),
+            module,
+    )
     runAndMeasurePhase(PreCodegenInlinerPhase, PreCodegenInlinerInput(module, moduleDFG), disable = !enablePreCodegenInliner)
-    val dceResult = runAndMeasurePhase(DCEPhase, DCEInput(module, moduleDFG), disable = !optimize)
-    module.files.forEach {
-        runAndMeasurePhase(CoroutinesVarSpillingPhase, it)
-    }
+    val dceResult = runAndMeasurePhase(DCEPhase, DCEInput(module, moduleDFG), disable = !runGlobalOptimizations)
+    runLowerings(
+            createFilePhases(
+                    ::CoroutinesVarSpillingLowering,
+            ),
+            module,
+    )
     runAndMeasurePhase(CreateLLVMDeclarationsPhase, module)
-    runAndMeasurePhase(GHAPhase, module, disable = !optimize)
+    runAndMeasurePhase(GHAPhase, module, disable = !runGlobalOptimizations || context.config.produce.isCache)
     runAndMeasurePhase(RTTIPhase, RTTIInput(module, dceResult))
-    val lifetimes = runAndMeasurePhase(EscapeAnalysisPhase, EscapeAnalysisInput(module, moduleDFG), disable = !optimize)
+    val lifetimes = runAndMeasurePhase(EscapeAnalysisPhase, EscapeAnalysisInput(module, moduleDFG), disable = !runGlobalOptimizations)
     runAndMeasurePhase(CodegenPhase, CodegenInput(module, irBuiltIns, lifetimes))
 }
 
 private fun PhaseEngine<NativeGenerationState>.findDependenciesToCompile(): List<IrModuleFragment> {
-    return context.config.librariesWithDependencies()
-            .mapNotNull { context.context.irModules[it.location.path] }
-            .filter { context.llvmModuleSpecification.containsModule(it) }
+    return context.context.irModules.filter { context.llvmModuleSpecification.containsModule(it) }
 }
 
 // Save all files for codegen in reverse topological order.

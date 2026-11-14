@@ -1,5 +1,6 @@
 // TARGET_BACKEND: JVM
 // WITH_STDLIB
+
 // FILE: PropertyDescriptorImpl.java
 
 import org.jetbrains.annotations.NotNull;

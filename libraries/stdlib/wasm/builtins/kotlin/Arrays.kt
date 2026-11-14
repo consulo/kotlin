@@ -47,6 +47,14 @@ public actual constructor(size: Int) {
     @Suppress("PRIMARY_CONSTRUCTOR_DELEGATION_CALL_EXPECTED")
     internal constructor(storage: WasmByteArray)
 
+    internal fun getWithoutBoundCheck(index: Int): Byte {
+        return storage.get(index)
+    }
+
+    internal fun setWithoutBoundCheck(index: Int, value: Byte) {
+        storage.set(index, value)
+    }
+
     /**
      * Returns the array element at the given [index].
      *
@@ -90,6 +98,19 @@ public actual constructor(size: Int) {
     /** Creates a specialized [ByteIterator] for iterating over the elements of the array. */
     public actual operator fun iterator(): ByteIterator =
         ByteArrayIterator(this)
+
+    companion {
+        /**
+         * Returns an array containing the specified elements.
+         *
+         * @sample samples.collections.Arrays.Constructors.byteArrayLiteralSample
+         */
+        @SinceKotlin("2.5")
+        @ExperimentalCollectionLiteralsApi
+        @Suppress("NOTHING_TO_INLINE")
+        public actual inline operator fun of(vararg elements: Byte): ByteArray =
+            elements
+    }
 }
 
 private class ByteArrayIterator constructor(val array: ByteArray) : ByteIterator() {
@@ -132,6 +153,14 @@ public actual constructor(size: Int) {
     @WasmPrimitiveConstructor
     @Suppress("PRIMARY_CONSTRUCTOR_DELEGATION_CALL_EXPECTED")
     internal constructor(storage: WasmCharArray)
+
+    internal fun getWithoutBoundCheck(index: Int): Char {
+        return storage.get(index)
+    }
+
+    internal fun setWithoutBoundCheck(index: Int, value: Char) {
+        storage.set(index, value)
+    }
 
     /**
      * Returns the array element at the given [index].
@@ -176,6 +205,19 @@ public actual constructor(size: Int) {
     /** Creates a specialized [CharIterator] for iterating over the elements of the array. */
     public actual operator fun iterator(): CharIterator =
         CharArrayIterator(this)
+
+    companion {
+        /**
+         * Returns an array containing the specified elements.
+         *
+         * @sample samples.collections.Arrays.Constructors.charArrayLiteralSample
+         */
+        @SinceKotlin("2.5")
+        @ExperimentalCollectionLiteralsApi
+        @Suppress("NOTHING_TO_INLINE")
+        public actual inline operator fun of(vararg elements: Char): CharArray =
+            elements
+    }
 }
 
 private class CharArrayIterator constructor(val array: CharArray) : CharIterator() {
@@ -218,6 +260,14 @@ public actual constructor(size: Int) {
     @WasmPrimitiveConstructor
     @Suppress("PRIMARY_CONSTRUCTOR_DELEGATION_CALL_EXPECTED")
     internal constructor(storage: WasmShortArray)
+
+    internal fun getWithoutBoundCheck(index: Int): Short {
+        return storage.get(index)
+    }
+
+    internal fun setWithoutBoundCheck(index: Int, value: Short) {
+        storage.set(index, value)
+    }
 
     /**
      * Returns the array element at the given [index].
@@ -262,6 +312,19 @@ public actual constructor(size: Int) {
     /** Creates a specialized [ShortIterator] for iterating over the elements of the array. */
     public actual operator fun iterator(): ShortIterator =
         ShortArrayIterator(this)
+
+    companion {
+        /**
+         * Returns an array containing the specified elements.
+         *
+         * @sample samples.collections.Arrays.Constructors.shortArrayLiteralSample
+         */
+        @SinceKotlin("2.5")
+        @ExperimentalCollectionLiteralsApi
+        @Suppress("NOTHING_TO_INLINE")
+        public actual inline operator fun of(vararg elements: Short): ShortArray =
+            elements
+    }
 }
 
 private class ShortArrayIterator constructor(val array: ShortArray) : ShortIterator() {
@@ -304,6 +367,14 @@ public actual constructor(size: Int) {
     @WasmPrimitiveConstructor
     @Suppress("PRIMARY_CONSTRUCTOR_DELEGATION_CALL_EXPECTED")
     internal constructor(storage: WasmIntArray)
+
+    internal fun getWithoutBoundCheck(index: Int): Int {
+        return storage.get(index)
+    }
+
+    internal fun setWithoutBoundCheck(index: Int, value: Int) {
+        storage.set(index, value)
+    }
 
     /**
      * Returns the array element at the given [index].
@@ -348,6 +419,19 @@ public actual constructor(size: Int) {
     /** Creates a specialized [IntIterator] for iterating over the elements of the array. */
     public actual operator fun iterator(): IntIterator =
         IntArrayIterator(this)
+
+    companion {
+        /**
+         * Returns an array containing the specified elements.
+         *
+         * @sample samples.collections.Arrays.Constructors.intArrayLiteralSample
+         */
+        @SinceKotlin("2.5")
+        @ExperimentalCollectionLiteralsApi
+        @Suppress("NOTHING_TO_INLINE")
+        public actual inline operator fun of(vararg elements: Int): IntArray =
+            elements
+    }
 }
 
 private class IntArrayIterator constructor(val array: IntArray) : IntIterator() {
@@ -390,6 +474,14 @@ public actual constructor(size: Int) {
     @WasmPrimitiveConstructor
     @Suppress("PRIMARY_CONSTRUCTOR_DELEGATION_CALL_EXPECTED")
     internal constructor(storage: WasmLongArray)
+
+    internal fun getWithoutBoundCheck(index: Int): Long {
+        return storage.get(index)
+    }
+
+    internal fun setWithoutBoundCheck(index: Int, value: Long) {
+        storage.set(index, value)
+    }
 
     /**
      * Returns the array element at the given [index].
@@ -434,6 +526,19 @@ public actual constructor(size: Int) {
     /** Creates a specialized [LongIterator] for iterating over the elements of the array. */
     public actual operator fun iterator(): LongIterator =
         LongArrayIterator(this)
+
+    companion {
+        /**
+         * Returns an array containing the specified elements.
+         *
+         * @sample samples.collections.Arrays.Constructors.longArrayLiteralSample
+         */
+        @SinceKotlin("2.5")
+        @ExperimentalCollectionLiteralsApi
+        @Suppress("NOTHING_TO_INLINE")
+        public actual inline operator fun of(vararg elements: Long): LongArray =
+            elements
+    }
 }
 
 private class LongArrayIterator constructor(val array: LongArray) : LongIterator() {
@@ -476,6 +581,14 @@ public actual constructor(size: Int) {
     @WasmPrimitiveConstructor
     @Suppress("PRIMARY_CONSTRUCTOR_DELEGATION_CALL_EXPECTED")
     internal constructor(storage: WasmFloatArray)
+
+    internal fun getWithoutBoundCheck(index: Int): Float {
+        return storage.get(index)
+    }
+
+    internal fun setWithoutBoundCheck(index: Int, value: Float) {
+        storage.set(index, value)
+    }
 
     /**
      * Returns the array element at the given [index].
@@ -520,6 +633,19 @@ public actual constructor(size: Int) {
     /** Creates a specialized [FloatIterator] for iterating over the elements of the array. */
     public actual operator fun iterator(): FloatIterator =
         FloatArrayIterator(this)
+
+    companion {
+        /**
+         * Returns an array containing the specified elements.
+         *
+         * @sample samples.collections.Arrays.Constructors.floatArrayLiteralSample
+         */
+        @SinceKotlin("2.5")
+        @ExperimentalCollectionLiteralsApi
+        @Suppress("NOTHING_TO_INLINE")
+        public actual inline operator fun of(vararg elements: Float): FloatArray =
+            elements
+    }
 }
 
 private class FloatArrayIterator constructor(val array: FloatArray) : FloatIterator() {
@@ -562,6 +688,14 @@ public actual constructor(size: Int) {
     @WasmPrimitiveConstructor
     @Suppress("PRIMARY_CONSTRUCTOR_DELEGATION_CALL_EXPECTED")
     internal constructor(storage: WasmDoubleArray)
+
+    internal fun getWithoutBoundCheck(index: Int): Double {
+        return storage.get(index)
+    }
+
+    internal fun setWithoutBoundCheck(index: Int, value: Double) {
+        storage.set(index, value)
+    }
 
     /**
      * Returns the array element at the given [index].
@@ -606,6 +740,19 @@ public actual constructor(size: Int) {
     /** Creates a specialized [DoubleIterator] for iterating over the elements of the array. */
     public actual operator fun iterator(): DoubleIterator =
         DoubleArrayIterator(this)
+
+    companion {
+        /**
+         * Returns an array containing the specified elements.
+         *
+         * @sample samples.collections.Arrays.Constructors.doubleArrayLiteralSample
+         */
+        @SinceKotlin("2.5")
+        @ExperimentalCollectionLiteralsApi
+        @Suppress("NOTHING_TO_INLINE")
+        public actual inline operator fun of(vararg elements: Double): DoubleArray =
+            elements
+    }
 }
 
 private class DoubleArrayIterator constructor(val array: DoubleArray) : DoubleIterator() {
@@ -648,6 +795,14 @@ public actual constructor(size: Int) {
     @WasmPrimitiveConstructor
     @Suppress("PRIMARY_CONSTRUCTOR_DELEGATION_CALL_EXPECTED")
     internal constructor(storage: WasmByteArray)
+
+    internal fun getWithoutBoundCheck(index: Int): Boolean {
+        return storage.get(index).reinterpretAsInt().reinterpretAsBoolean()
+    }
+
+    internal fun setWithoutBoundCheck(index: Int, value: Boolean) {
+        storage.set(index, value.reinterpretAsByte())
+    }
 
     /**
      * Returns the array element at the given [index].
@@ -692,6 +847,19 @@ public actual constructor(size: Int) {
     /** Creates a specialized [BooleanIterator] for iterating over the elements of the array. */
     public actual operator fun iterator(): BooleanIterator =
         BooleanArrayIterator(this)
+
+    companion {
+        /**
+         * Returns an array containing the specified elements.
+         *
+         * @sample samples.collections.Arrays.Constructors.booleanArrayLiteralSample
+         */
+        @SinceKotlin("2.5")
+        @ExperimentalCollectionLiteralsApi
+        @Suppress("NOTHING_TO_INLINE")
+        public actual inline operator fun of(vararg elements: Boolean): BooleanArray =
+            elements
+    }
 }
 
 private class BooleanArrayIterator constructor(val array: BooleanArray) : BooleanIterator() {

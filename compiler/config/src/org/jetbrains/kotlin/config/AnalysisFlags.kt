@@ -32,13 +32,13 @@ object AnalysisFlags {
     val skipPrereleaseCheck by AnalysisFlag.Delegates.Boolean
 
     @JvmStatic
-    val multiPlatformDoNotCheckActual by AnalysisFlag.Delegates.Boolean
-
-    @JvmStatic
     val skipExpectedActualDeclarationChecker by AnalysisFlag.Delegates.Boolean
 
     @JvmStatic
     val optIn by AnalysisFlag.Delegates.ListOfStrings
+
+    @JvmStatic
+    val escapingFunctionsList by AnalysisFlag.Delegates.ListOfStrings
 
     @JvmStatic
     val explicitApiVersion by AnalysisFlag.Delegates.Boolean
@@ -95,8 +95,17 @@ object AnalysisFlags {
     val lenientMode by AnalysisFlag.Delegates.Boolean
 
     val hierarchicalMultiplatformCompilation by AnalysisFlag.Delegates.Boolean(defaultValue = false)
+    val kmpJvmIncrementalCompilationEnabled by AnalysisFlag.Delegates.Boolean(defaultValue = false)
 
     val headerMode by AnalysisFlag.Delegates.Boolean
 
     val headerModeType by AnalysisFlag.Delegates.HeaderModeTypeAnyByDefault
+
+    /** In [headerMode], keep property initializers and accessor bodies. Used by KAPT. */
+    val headerModeKeepPropertyBodies by AnalysisFlag.Delegates.Boolean
+
+    val firAggressivePruning by AnalysisFlag.Delegates.Boolean
 }
+
+val LanguageVersionSettings.hmppProvidersEnabled: Boolean
+    get() = getFlag(AnalysisFlags.hierarchicalMultiplatformCompilation) || getFlag(AnalysisFlags.kmpJvmIncrementalCompilationEnabled)

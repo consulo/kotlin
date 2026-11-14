@@ -1,16 +1,17 @@
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.and
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -25,6 +26,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: and
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -33,15 +36,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -53,16 +58,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -74,23 +83,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: and
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.compareTo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -105,6 +116,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: compareTo
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -113,15 +126,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -133,16 +148,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Byte
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -154,23 +173,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: compareTo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.compareTo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -185,6 +206,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: compareTo
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -193,15 +216,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -213,16 +238,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Short
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -234,23 +263,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: compareTo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.compareTo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -265,6 +296,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: compareTo
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -273,15 +306,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -293,16 +328,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -314,23 +353,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: compareTo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.compareTo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -345,6 +386,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: compareTo
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -353,15 +396,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -373,16 +418,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Long
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -394,23 +443,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: compareTo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.compareTo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -425,6 +476,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: compareTo
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -433,15 +486,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -453,16 +508,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Float
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -474,23 +533,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: compareTo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.compareTo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -505,6 +566,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: compareTo
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -513,15 +576,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -533,16 +598,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Double
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -554,20 +623,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: compareTo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Int.dec
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -582,6 +653,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: dec
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -598,23 +671,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: dec
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.div
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -629,6 +704,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: div
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -637,15 +714,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -657,16 +736,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Byte
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -678,23 +761,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: div
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.div
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -709,6 +794,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: div
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -717,15 +804,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -737,16 +826,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Short
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -758,23 +851,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: div
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.div
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -789,6 +884,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: div
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -797,15 +894,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -817,16 +916,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -838,23 +941,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: div
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.div
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -869,6 +974,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: div
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -877,15 +984,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -897,16 +1006,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Long
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -918,23 +1031,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: div
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.div
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -949,6 +1064,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: div
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -957,15 +1074,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -977,16 +1096,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Float
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -998,23 +1121,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: div
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.div
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1029,6 +1154,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: div
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1037,15 +1164,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1057,16 +1186,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Double
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1078,23 +1211,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: div
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.equals
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1109,6 +1244,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: equals
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1117,15 +1254,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1137,16 +1276,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Any?
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1158,20 +1301,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: equals
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Int.inc
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1186,6 +1331,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: inc
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1202,23 +1349,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: inc
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.inv
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1233,6 +1382,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: inv
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1249,23 +1400,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: inv
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.minus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1280,6 +1433,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: minus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1288,15 +1443,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1308,16 +1465,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Byte
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1329,23 +1490,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: minus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.minus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1360,6 +1523,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: minus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1368,15 +1533,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1388,16 +1555,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Short
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1409,23 +1580,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: minus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.minus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1440,6 +1613,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: minus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1448,15 +1623,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1468,16 +1645,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1489,23 +1670,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: minus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.minus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1520,6 +1703,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: minus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1528,15 +1713,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1548,16 +1735,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Long
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1569,23 +1760,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: minus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.minus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1600,6 +1793,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: minus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1608,15 +1803,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1628,16 +1825,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Float
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1649,23 +1850,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: minus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.minus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1680,6 +1883,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: minus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1688,15 +1893,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1708,16 +1915,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Double
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1729,23 +1940,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: minus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.or
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1760,6 +1973,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: or
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1768,15 +1983,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1788,16 +2005,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1809,23 +2030,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: or
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.plus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1840,6 +2063,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: plus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1848,15 +2073,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1868,16 +2095,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Byte
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1889,23 +2120,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: plus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.plus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1920,6 +2153,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: plus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1928,15 +2163,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1948,16 +2185,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Short
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1969,23 +2210,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: plus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.plus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2000,6 +2243,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: plus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2008,15 +2253,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2028,16 +2275,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2049,23 +2300,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: plus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.plus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2080,6 +2333,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: plus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2088,15 +2343,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2108,16 +2365,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Long
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2129,23 +2390,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: plus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.plus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2160,6 +2423,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: plus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2168,15 +2433,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2188,16 +2455,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Float
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2209,23 +2480,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: plus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.plus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2240,6 +2513,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: plus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2248,15 +2523,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2268,16 +2545,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Double
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2289,20 +2570,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: plus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Int.rangeTo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2317,6 +2600,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rangeTo
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2325,15 +2610,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2345,16 +2632,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Byte
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2366,20 +2657,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rangeTo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Int.rangeTo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2394,6 +2687,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rangeTo
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2402,15 +2697,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2422,16 +2719,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Short
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2443,20 +2744,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rangeTo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Int.rangeTo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2471,6 +2774,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rangeTo
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2479,15 +2784,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2499,16 +2806,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2520,20 +2831,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rangeTo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Int.rangeTo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2548,6 +2861,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rangeTo
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2556,15 +2871,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2576,16 +2893,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Long
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2597,11 +2918,13 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rangeTo
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/SinceKotlin(version = "1.9")
       psi: null
@@ -2609,13 +2932,13 @@ KaNamedFunctionSymbol:
       psi: null
   ]
   callableId: kotlin/Int.rangeUntil
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2630,6 +2953,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rangeUntil
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2638,15 +2963,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2658,16 +2985,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Byte
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2679,11 +3010,13 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rangeUntil
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/SinceKotlin(version = "1.9")
       psi: null
@@ -2691,13 +3024,13 @@ KaNamedFunctionSymbol:
       psi: null
   ]
   callableId: kotlin/Int.rangeUntil
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2712,6 +3045,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rangeUntil
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2720,15 +3055,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2740,16 +3077,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Short
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2761,11 +3102,13 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rangeUntil
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/SinceKotlin(version = "1.9")
       psi: null
@@ -2773,13 +3116,13 @@ KaNamedFunctionSymbol:
       psi: null
   ]
   callableId: kotlin/Int.rangeUntil
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2794,6 +3137,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rangeUntil
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2802,15 +3147,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2822,16 +3169,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2843,11 +3194,13 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rangeUntil
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/SinceKotlin(version = "1.9")
       psi: null
@@ -2855,13 +3208,13 @@ KaNamedFunctionSymbol:
       psi: null
   ]
   callableId: kotlin/Int.rangeUntil
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2876,6 +3229,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rangeUntil
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2884,15 +3239,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2904,16 +3261,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Long
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -2925,11 +3286,13 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rangeUntil
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/SinceKotlin(version = "1.1")
       psi: null
@@ -2937,13 +3300,13 @@ KaNamedFunctionSymbol:
       psi: null
   ]
   callableId: kotlin/Int.rem
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -2958,6 +3321,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rem
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -2966,15 +3331,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -2986,16 +3353,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Byte
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3007,11 +3378,13 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rem
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/SinceKotlin(version = "1.1")
       psi: null
@@ -3019,13 +3392,13 @@ KaNamedFunctionSymbol:
       psi: null
   ]
   callableId: kotlin/Int.rem
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3040,6 +3413,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rem
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3048,15 +3423,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3068,16 +3445,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Short
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3089,11 +3470,13 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rem
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/SinceKotlin(version = "1.1")
       psi: null
@@ -3101,13 +3484,13 @@ KaNamedFunctionSymbol:
       psi: null
   ]
   callableId: kotlin/Int.rem
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3122,6 +3505,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rem
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3130,15 +3515,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3150,16 +3537,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3171,11 +3562,13 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rem
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/SinceKotlin(version = "1.1")
       psi: null
@@ -3183,13 +3576,13 @@ KaNamedFunctionSymbol:
       psi: null
   ]
   callableId: kotlin/Int.rem
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3204,6 +3597,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rem
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3212,15 +3607,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3232,16 +3629,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Long
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3253,11 +3654,13 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rem
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/SinceKotlin(version = "1.1")
       psi: null
@@ -3265,13 +3668,13 @@ KaNamedFunctionSymbol:
       psi: null
   ]
   callableId: kotlin/Int.rem
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3286,6 +3689,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rem
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3294,15 +3699,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3314,16 +3721,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Float
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3335,11 +3746,13 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rem
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/SinceKotlin(version = "1.1")
       psi: null
@@ -3347,13 +3760,13 @@ KaNamedFunctionSymbol:
       psi: null
   ]
   callableId: kotlin/Int.rem
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3368,6 +3781,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: rem
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3376,15 +3791,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3396,16 +3813,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Double
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3417,23 +3838,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: rem
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.shl
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3448,6 +3871,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: shl
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3456,15 +3881,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3476,16 +3903,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: bitCount
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3497,23 +3928,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: shl
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.shr
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3528,6 +3961,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: shr
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3536,15 +3971,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3556,16 +3993,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: bitCount
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3577,23 +4018,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: shr
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.times
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3608,6 +4051,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: times
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3616,15 +4061,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3636,16 +4083,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Byte
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3657,23 +4108,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: times
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.times
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3688,6 +4141,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: times
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3696,15 +4151,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3716,16 +4173,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Short
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3737,23 +4198,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: times
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.times
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3768,6 +4231,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: times
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3776,15 +4241,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3796,16 +4263,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3817,23 +4288,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: times
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.times
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3848,6 +4321,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: times
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3856,15 +4331,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3876,16 +4353,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Long
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3897,23 +4378,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: times
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.times
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -3928,6 +4411,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: times
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -3936,15 +4421,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -3956,16 +4443,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Float
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -3977,23 +4468,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: times
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.times
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4008,6 +4501,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: times
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4016,15 +4511,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -4036,16 +4533,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Double
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -4057,23 +4558,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: times
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.toByte
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4088,6 +4591,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: toByte
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4104,23 +4609,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: toByte
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.toChar
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4135,6 +4642,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: toChar
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4151,23 +4660,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: toChar
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.toDouble
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4182,6 +4693,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: toDouble
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4198,23 +4711,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: toDouble
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.toFloat
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4229,6 +4744,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: toFloat
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4245,23 +4762,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: toFloat
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.toInt
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4276,6 +4795,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: toInt
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4292,23 +4813,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: toInt
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.toLong
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4323,6 +4846,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: toLong
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4339,23 +4864,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: toLong
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.toShort
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4370,6 +4897,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: toShort
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4386,23 +4915,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: toShort
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.toString
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4417,6 +4948,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: toString
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4433,23 +4966,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: toString
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.unaryMinus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4464,6 +4999,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: unaryMinus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4480,23 +5017,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: unaryMinus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.unaryPlus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4511,6 +5050,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: unaryPlus
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4527,23 +5068,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: true
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: unaryPlus
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.ushr
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4558,6 +5101,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: ushr
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4566,15 +5111,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -4586,16 +5133,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: bitCount
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -4607,23 +5158,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: ushr
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/internal/IntrinsicConstEvaluation()
       psi: null
   ]
   callableId: kotlin/Int.xor
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4638,6 +5191,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: xor
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4646,15 +5201,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -4666,16 +5223,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Int
       getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -4687,20 +5248,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Int
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: xor
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Any.hashCode
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4715,6 +5278,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: hashCode
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4731,16 +5296,17 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Any
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: hashCode
   importableFqName: null
 
 KaNamedClassSymbol:
+  anchorPsi: KtObjectDeclaration
   annotations: []
   classId: kotlin/Int.Companion
   classKind: COMPANION_OBJECT
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -4749,10 +5315,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: CLASS
   modality: FINAL
   name: Companion
   origin: LIBRARY
+  psi: KtObjectDeclaration
+  realPsi: KtObjectDeclaration
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -4763,18 +5332,20 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: null
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: kotlin.Int.Companion
 
 KaConstructorSymbol:
+  anchorPsi: KtPrimaryConstructor
   annotations: []
   callableId: null
-  compilerVisibility: Private
   containingClassId: kotlin/Int
+  contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -4782,6 +5353,8 @@ KaConstructorSymbol:
   location: CLASS
   modality: FINAL
   origin: LIBRARY
+  psi: KtPrimaryConstructor
+  realPsi: KtPrimaryConstructor
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -4793,5 +5366,6 @@ KaConstructorSymbol:
   getContainingFileSymbol: null
   getContainingJvmClassName: kotlin.Int
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: kotlin.Int

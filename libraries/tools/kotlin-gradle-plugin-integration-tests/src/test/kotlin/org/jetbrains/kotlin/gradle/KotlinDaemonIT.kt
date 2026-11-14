@@ -23,6 +23,9 @@ import org.gradle.tooling.internal.consumer.ConnectorServices
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.compilerRunner.*
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.gradle.utils.normalizedAbsolutePath
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInBuildToolsApi
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import java.nio.file.Paths
@@ -32,6 +35,7 @@ import kotlin.test.assertTrue
 // todo: test daemon start (does not start every build)
 // todo: test daemon shutdown when gradle daemon dies
 @DisplayName("Kotlin daemon base behaviour")
+@MustRunOnChangesInBuildToolsApi
 class KotlinDaemonIT : KGPDaemonsBaseTest() {
 
     override val defaultBuildOptions: BuildOptions = super.defaultBuildOptions
@@ -39,10 +43,15 @@ class KotlinDaemonIT : KGPDaemonsBaseTest() {
             logLevel = LogLevel.DEBUG
         )
 
+    @TestMetadata("multiprojectWithDependency")
     @DisplayName("Kotlin daemon is reused in multiproject")
     @GradleTest
     fun testDaemonMultiproject(gradleVersion: GradleVersion) {
-        project("multiprojectWithDependency", gradleVersion) {
+        project(
+            "multiprojectWithDependency",
+            gradleVersion,
+            kotlinDaemonIdleTimeout = null,
+        ) {
             gradleProperties.append(
                 "\nkotlin.compiler.execution.strategy=daemon"
             )
@@ -73,10 +82,15 @@ class KotlinDaemonIT : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("Client file is deleted on exit")
     @GradleTest
     fun testClientFileIsDeletedOnExit(gradleVersion: GradleVersion) {
-        project("kotlinProject", gradleVersion) {
+        project(
+            "kotlinProject",
+            gradleVersion,
+            kotlinDaemonIdleTimeout = null,
+        ) {
             build("assemble") {
                 val regex = "(?m)($CREATED_CLIENT_FILE_PREFIX|$EXISTING_CLIENT_FILE_PREFIX)(.+)$".toRegex()
                 val clientFiles = regex.findAll(output).map { Paths.get(it.groupValues[2]) }.toList()
@@ -92,6 +106,7 @@ class KotlinDaemonIT : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("Gradle build classpath should not leak into Kotlin daemon")
     @GradleTest
     fun testGradleBuildClasspathShouldNotBeLeakedIntoDaemonClasspath(gradleVersion: GradleVersion) {
@@ -102,6 +117,7 @@ class KotlinDaemonIT : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("On Kotlin daemon OOM helpful message is displayed")
     @GradleTest
     @Disabled("KTI-2127 Flaky test displaySpecialMessageOnOOM")
@@ -123,14 +139,18 @@ class KotlinDaemonIT : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("jvmAndJsProject")
     @DisplayName("Kotlin daemon should be reused in mixed Kotlin JVM/JS project")
-    @JdkVersions(versions = [JavaVersion.VERSION_1_8, JavaVersion.VERSION_11])
+    @JdkVersions(versions = [JavaVersion.VERSION_17])
     @GradleWithJdkTest
     fun jsAndJvmCompatibleDaemons(gradleVersion: GradleVersion, jdk: JdkVersions.ProvidedJdk) {
         project(
             "jvmAndJsProject",
             gradleVersion,
-            buildJdk = jdk.location
+            buildJdk = jdk.location,
+            buildOptions = defaultBuildOptions
+                .suppressDeprecatedJdkWarningWithGradle814(gradleVersion, jdk)
+                .disableIsolatedProjectsBecauseOfJsAndWasmKT75899()
         ) {
             build(":jsLib:assemble")
             build("jvmLib:assemble") {
@@ -139,6 +159,7 @@ class KotlinDaemonIT : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("daemonJvmResourceLimits")
     @DisplayName("KT-56789: Kotlin daemon does not triggers OOM in Metaspace on multiple invocations")
     @JdkVersions(versions = [JavaVersion.VERSION_17])
     @GradleWithJdkTest
@@ -157,6 +178,7 @@ class KotlinDaemonIT : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/onlyJdk11Compatible")
     @DisplayName("KT-57154: Compiler should use specified toolchain regardless of Gradle Runtime JDK")
     @Disabled("KT-58894: re-enable once fixed")
     @JdkVersions(versions = [JavaVersion.VERSION_1_8, JavaVersion.VERSION_11, JavaVersion.VERSION_17])
@@ -172,9 +194,9 @@ class KotlinDaemonIT : KGPDaemonsBaseTest() {
             build("compileKotlin") {
                 val startOptions = output.findAllStringsPrefixed("starting the daemon as: ").single()
                 // ensure that new daemon was started and that specified JDK is used as runtime JDK for it
-                assert(startOptions.startsWith(jdkVersion.location.absolutePath)) {
+                assert(startOptions.startsWith(jdkVersion.location.normalizedAbsolutePath().toString())) {
                     printBuildOutput()
-                    "Kotlin daemon used non-expected JDK (expected ${jdkVersion.location.absolutePath}): $startOptions"
+                    "Kotlin daemon used non-expected JDK (expected ${jdkVersion.location.normalizedAbsolutePath().toString()}): $startOptions"
                 }
             }
         }

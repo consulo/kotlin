@@ -7,8 +7,8 @@ package org.jetbrains.kotlin.plugin.sandbox.fir.generators
 
 import org.jetbrains.kotlin.GeneratedDeclarationKey
 import org.jetbrains.kotlin.KtFakeSourceElementKind
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.expressions.FirAnnotationResolvePhase
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.buildResolvedArgumentList
@@ -38,6 +38,8 @@ import org.jetbrains.kotlin.plugin.sandbox.fir.fqn
 import org.jetbrains.kotlin.types.ConstantValueKind
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 
+data object MemberFunctionWithAnnotatedParametersGeneratorKey : GeneratedDeclarationKey()
+
 class MemberFunctionWithAnnotatedParametersGenerator(session: FirSession) : FirDeclarationGenerationExtension(session) {
     companion object {
         val FOO_NAME = Name.identifier("foo")
@@ -56,14 +58,19 @@ class MemberFunctionWithAnnotatedParametersGenerator(session: FirSession) : FirD
     override fun generateFunctions(callableId: CallableId, context: MemberGenerationContext?): List<FirNamedFunctionSymbol> {
         if (context == null) return emptyList()
         if (callableId.callableName != FOO_NAME) return emptyList()
-        val function = createMemberFunction(context.owner, Key, callableId.callableName, session.builtinTypes.unitType.coneType) {
+        val function = createMemberFunction(
+            context.owner,
+            MemberFunctionWithAnnotatedParametersGeneratorKey,
+            callableId.callableName,
+            StandardTypes.Unit,
+        ) {
             valueParameter(
                 name = Name.identifier("x"),
-                type = session.builtinTypes.intType.coneType,
+                type = StandardTypes.Int,
             )
             valueParameter(
                 name = Name.identifier("y"),
-                type = session.builtinTypes.intType.coneType,
+                type = StandardTypes.Int,
             )
             withGeneratedDefaultBody()
         }
@@ -72,7 +79,7 @@ class MemberFunctionWithAnnotatedParametersGenerator(session: FirSession) : FirD
         val constructorSymbol = annotationClass.getPrimaryConstructorSymbol(session, ScopeSession())!!
         function.valueParameters.forEachIndexed { index, parameter ->
             val annotation = buildAnnotationCall {
-                source = context.owner.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated)
+                source = context.owner.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated.Default)
                 annotationTypeRef = annotationClass.defaultType().toFirResolvedTypeRef()
                 calleeReference = buildResolvedNamedReference {
                     name = annotationClass.name
@@ -113,12 +120,6 @@ class MemberFunctionWithAnnotatedParametersGenerator(session: FirSession) : FirD
         return when {
             classSymbol in matchedClasses -> setOf(FOO_NAME)
             else -> emptySet()
-        }
-    }
-
-    object Key : GeneratedDeclarationKey() {
-        override fun toString(): String {
-            return "MemberFunctionWithAnnotatedParametersGeneratorKey"
         }
     }
 

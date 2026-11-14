@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // WITH_STDLIB
 
 @file:MustUseReturnValues
@@ -23,8 +23,7 @@ fun whileLoop() {
 
 fun inOperator(c: Char, vararg cs: Char) {
     var cur = 10
-    // TODO: annotate .contains in stdlib
-//    c in cs // unused
+    c <!RETURN_VALUE_NOT_USED!>in<!> cs // unused
     val z = c in cs // used
     do {
         cur--

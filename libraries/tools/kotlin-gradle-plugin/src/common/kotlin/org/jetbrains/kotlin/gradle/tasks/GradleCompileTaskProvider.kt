@@ -10,19 +10,18 @@ import org.gradle.api.Task
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.logging.Logger
+import org.gradle.api.logging.configuration.WarningMode
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Internal
+import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.compilerRunner.GradleCompilerRunner.Companion.normalizeForFlagFile
 import org.jetbrains.kotlin.gradle.incremental.IncrementalModuleInfoProvider
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.CompilerDiagnosticsProblemsReporter
 import org.jetbrains.kotlin.gradle.plugin.variantImplementationFactoryProvider
 import org.jetbrains.kotlin.gradle.utils.*
-import org.jetbrains.kotlin.gradle.utils.kotlinErrorsDir
-import org.jetbrains.kotlin.gradle.utils.kotlinSessionsDir
-import org.jetbrains.kotlin.gradle.utils.property
 import java.io.File
 import javax.inject.Inject
 
@@ -31,7 +30,7 @@ abstract class GradleCompileTaskProvider @Inject constructor(
     projectLayout: ProjectLayout,
     task: Task,
     project: Project,
-    incrementalModuleInfoProvider: Provider<IncrementalModuleInfoProvider>
+    incrementalModuleInfoProvider: Provider<IncrementalModuleInfoProvider>,
 ) {
 
     @get:Internal
@@ -45,7 +44,7 @@ abstract class GradleCompileTaskProvider @Inject constructor(
 
     @get:Internal
     val projectDir: Provider<File> = objectFactory
-        .property(project.rootProject.projectDir)
+        .property(project.isolated.rootProject.projectDirectory.asFile)
 
     @get:Internal
     val sessionsDir: Provider<File> = objectFactory
@@ -61,7 +60,7 @@ abstract class GradleCompileTaskProvider @Inject constructor(
 
     @get:Internal
     val rootProjectName: Provider<String> = objectFactory
-        .property(project.rootProject.name.normalizeForFlagFile())
+        .property(project.rootProjectName().normalizeForFlagFile())
 
     @get:Internal
     val buildModulesInfo: Provider<out IncrementalModuleInfoProvider> = objectFactory
@@ -70,6 +69,15 @@ abstract class GradleCompileTaskProvider @Inject constructor(
     @get:Internal
     internal val compilerDiagnosticsProblemsReporterFactory: Provider<CompilerDiagnosticsProblemsReporter.Factory> = objectFactory
         .property(project.variantImplementationFactoryProvider<CompilerDiagnosticsProblemsReporter.Factory>().get())
+
+    // Gradle 9.3+ renders Problems API entries as "Problem found:" blocks in console
+    // when --warning-mode=all is active (via ConsoleProblemEmitter). Suppress duplicate w: log in that case.
+    @get:Internal
+    internal val warningModeIsAll: Provider<Boolean> = objectFactory
+        .property(
+            project.gradle.startParameter.warningMode == WarningMode.All &&
+                    GradleVersion.current() >= GradleVersion.version("9.3")
+        )
 
     @get:Internal
     val errorsFiles: SetProperty<File> = objectFactory

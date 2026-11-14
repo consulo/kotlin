@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.backend.konan.llvm
 
 import org.jetbrains.kotlin.backend.common.serialization.mangle.SpecialDeclarationType
+import org.jetbrains.kotlin.backend.konan.NativeBackendContext
 import org.jetbrains.kotlin.backend.konan.RuntimeNames
 import org.jetbrains.kotlin.backend.konan.ir.externalSymbolOrThrow
 import org.jetbrains.kotlin.backend.konan.ir.isAbstract
@@ -15,11 +16,16 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.declarations.path
 import org.jetbrains.kotlin.ir.objcinterop.isExternalObjCClass
 import org.jetbrains.kotlin.ir.objcinterop.isKotlinObjCClass
+import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.ir.util.findAnnotation
 import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
-import org.jetbrains.kotlin.ir.util.getAnnotationStringValue
+import org.jetbrains.kotlin.ir.util.getConstArgument
+import org.jetbrains.kotlin.ir.util.primaryConstructor
+import org.jetbrains.kotlin.ir.util.parentClassOrNull
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.uniqueName
@@ -33,6 +39,7 @@ object KonanBinaryInterface {
 
     internal const val MANGLE_FUN_PREFIX = "kfun"
     internal const val MANGLE_CLASS_PREFIX = "kclass"
+    internal const val MANGLE_CLASS_BODY_PREFIX = "kclassbody"
     internal const val MANGLE_FIELD_PREFIX = "kfield"
 
     private val mangler = object : AbstractKonanIrMangler(withReturnType = true, allowOutOfScopeTypeParameters = true) {}
@@ -52,9 +59,13 @@ object KonanBinaryInterface {
 
     val IrClass.typeInfoSymbolName: String get() = typeInfoSymbolNameImpl(null)
 
+    val IrClass.classBodyTypeName: String get() = classBodyTypeNameImpl(null)
+
     fun IrFunction.privateSymbolName(containerName: String): String = funSymbolNameImpl(containerName)
 
     fun IrClass.privateTypeInfoSymbolName(containerName: String): String = typeInfoSymbolNameImpl(containerName)
+
+    fun IrClass.privateClassBodyTypeName(containerName: String): String = classBodyTypeNameImpl(containerName)
 
     fun isExported(declaration: IrDeclaration) = exportChecker.run {
         check(declaration, SpecialDeclarationType.REGULAR) || declaration.isPlatformSpecificExported()
@@ -74,7 +85,8 @@ object KonanBinaryInterface {
         }
 
         this.findManglingAnnotation()?.let {
-            val name = it.getAnnotationStringValue() ?: this.name.asString()
+            val name = it.getConstArgument<String>(it.classSymbol.owner.primaryConstructor!!.parameters.first().name.asString())
+                    ?: this.name.asString()
             return name // no wrapping currently required
         }
 
@@ -93,17 +105,22 @@ object KonanBinaryInterface {
         val fqName = fqNameForIrSerialization.toString()
         return withPrefix(MANGLE_CLASS_PREFIX, containerName?.plus(".$fqName") ?: fqName)
     }
+
+    private fun IrClass.classBodyTypeNameImpl(containerName: String?): String {
+        val fqName = fqNameForIrSerialization.toString()
+        return withPrefix(MANGLE_CLASS_BODY_PREFIX, containerName?.plus(".$fqName") ?: fqName)
+    }
 }
 
 internal val IrClass.writableTypeInfoSymbolName: String
     get() {
-        assert (this.isExported())
+        assert (this.isExported)
         return "ktypew:" + this.fqNameForIrSerialization.toString()
     }
 
 internal val IrClass.globalObjectStorageSymbolName: String
     get() {
-        assert (this.isExported())
+        assert (this.isExported)
         assert (this.kind.isSingleton)
         assert (!this.isUnit())
 
@@ -112,7 +129,7 @@ internal val IrClass.globalObjectStorageSymbolName: String
 
 internal val IrClass.threadLocalObjectStorageGetterSymbolName: String
     get() {
-        assert (this.isExported())
+        assert (this.isExported)
         assert (this.kind.isSingleton)
         assert (!this.isUnit())
 
@@ -121,7 +138,7 @@ internal val IrClass.threadLocalObjectStorageGetterSymbolName: String
 
 internal val IrClass.kotlinObjCClassInfoSymbolName: String
     get() {
-        assert (this.isExported())
+        assert (this.isExported)
         assert (this.isKotlinObjCClass())
 
         return "kobjcclassinfo:$fqNameForIrSerialization"
@@ -141,11 +158,43 @@ fun IrClass.computeTypeInfoSymbolName() = with(KonanBinaryInterface) { typeInfoS
 
 fun IrClass.computePrivateTypeInfoSymbolName(containerName: String) = with(KonanBinaryInterface) { privateTypeInfoSymbolName(containerName) }.replaceSpecialSymbols()
 
+fun IrClass.computeClassBodyTypeName() = with(KonanBinaryInterface) { classBodyTypeName }.replaceSpecialSymbols()
+
+fun IrClass.computePrivateClassBodyTypeName(containerName: String) = with(KonanBinaryInterface) { privateClassBodyTypeName(containerName) }.replaceSpecialSymbols()
+
+/**
+ * Delegates to different naming strategies depending on whether the function is exported or not.
+ *
+ * When [forImplementation] is true, returns the symbol name under which the function's own body is emitted: for overridable methods
+ * a virtual trampoline takes over the public symbol name, so the body moves aside to `<name>-impl`. Callers reach the body either
+ * through the vtable/itable (via the trampoline) or directly for super calls and devirtualized calls.
+ */
+internal fun IrSimpleFunction.computeSymbolName(
+        context: NativeBackendContext,
+        forImplementation: Boolean,
+        internalSymbolNameBuilder: () -> String? = { -> null },
+): String = with(KonanBinaryInterface) {
+    val symbolName = if (isExported(this@computeSymbolName))
+        computeSymbolName()
+    else {
+        internalSymbolNameBuilder() ?: run {
+            val containerName = parentClassOrNull?.fqNameForIrSerialization?.asString()
+                ?: this@computeSymbolName.file.path
+            computePrivateSymbolName(containerName)
+        }
+    }
+    if (forImplementation && needsVirtualTrampoline)
+        "$symbolName-impl"
+    else
+        symbolName
+}
+
 private fun String.replaceSpecialSymbols() =
         // '@' is used for symbol versioning in GCC: https://gcc.gnu.org/wiki/SymbolVersioning.
         this.replace("@", "__at__")
 
-fun IrDeclaration.isExported() = KonanBinaryInterface.isExported(this)
+val IrDeclaration.isExported: Boolean
+    get() = KonanBinaryInterface.isExported(this)
 
 internal val IrClass.typeInfoHasVtableAttached: Boolean
     get() = !this.isAbstract() && !this.isExternalObjCClass()

@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.utils.isSealed
 import org.jetbrains.kotlin.fir.diagnostics.ConeDiagnostic
+import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.scopes.FirScope
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
@@ -30,10 +31,15 @@ abstract class FirTypeResolver : FirSessionComponent {
         expandTypeAliases: Boolean = true,
     ): FirTypeResolutionResult
 
-    abstract fun resolveTypeOnDoubleColonLHS(
+    abstract fun resolveTypeOnDoubleColonLhs(
         qualifier: FirResolvedQualifier,
         configuration: TypeResolutionConfiguration,
-    ): DoubleColonLHS.Type?
+    ): CallableReferenceLhsAsType?
+
+    abstract fun resolveEqualityBoundTypeOrNull(
+        getClassLhs: FirExpression,
+        configuration: TypeResolutionConfiguration,
+    ): ConeKotlinType?
 }
 
 class TypeResolutionConfiguration private constructor(
@@ -45,14 +51,24 @@ class TypeResolutionConfiguration private constructor(
     // For `x: MySealed` and `x is MySubClass` instead of `x is MySealed.MySubClass`
     // the class symbol would point to MySealed.
     // It's guaranteed to be sealed.
-    val sealedClassForContextSensitiveResolution: FirRegularClassSymbol? = null,
+    val sealedClassForContextSensitiveResolution: FirRegularClassSymbol?,
+    val lastCompanionBlockOwner: FirClass?,
 ) {
+    @OptIn(ExperimentalVersionOverloading::class)
     constructor(
         scopes: Iterable<FirScope>,
         containingClassDeclarations: List<FirClass>,
         useSiteFile: FirFile?,
         topContainer: FirDeclaration? = null,
-    ) : this(scopes, containingClassDeclarations, useSiteFile, topContainer, sealedClassForContextSensitiveResolution = null)
+        @IntroducedAt("2.5.20") lastCompanionBlockOwner: FirClass? = null,
+    ) : this(
+        scopes,
+        containingClassDeclarations,
+        useSiteFile,
+        topContainer,
+        sealedClassForContextSensitiveResolution = null,
+        lastCompanionBlockOwner = lastCompanionBlockOwner
+    )
 
     companion object {
         fun createForContextSensitiveResolution(
@@ -66,6 +82,7 @@ class TypeResolutionConfiguration private constructor(
                 scopes = emptyList(),
                 containingClassDeclarations, useSiteFile, topContainer,
                 sealedClassForContextSensitiveResolution,
+                lastCompanionBlockOwner = null,
             )
         }
     }

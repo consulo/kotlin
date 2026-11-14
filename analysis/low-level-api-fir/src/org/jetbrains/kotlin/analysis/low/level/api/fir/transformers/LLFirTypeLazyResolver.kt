@@ -1,20 +1,28 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.transformers
 
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.LLFirResolveTarget
+import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.NonLocalAnnotationVisitor
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkAnnotationTypeIsResolved
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkReturnTypeRefIsResolved
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkTypeRefIsResolved
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
 import org.jetbrains.kotlin.fir.FirAnnotationContainer
+import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.utils.equalityBoundType
+import org.jetbrains.kotlin.fir.expressions.FirAnnotation
+import org.jetbrains.kotlin.fir.expressions.FirAnnotationCall
 import org.jetbrains.kotlin.fir.resolve.transformers.FirTypeResolveTransformer
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
+import org.jetbrains.kotlin.fir.types.FirErrorTypeRef
+import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
+import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.fir.visitors.transformSingle
 import org.jetbrains.kotlin.util.PrivateForInline
@@ -41,6 +49,8 @@ internal object LLFirTypeLazyResolver : LLFirLazyResolver(FirResolvePhase.TYPES)
                 for (bound in target.bounds) {
                     checkTypeRefIsResolved(bound, "type parameter bound", target)
                 }
+
+                checkAnnotationTypeIsResolved(target.constraintAnnotations, target)
             }
         }
     }
@@ -92,7 +102,7 @@ private class LLFirTypeTargetResolver(target: LLFirResolveTarget) : LLFirTargetR
             is FirScript,
             is FirRegularClass,
             is FirAnonymousInitializer,
-                -> rawResolve(target)
+                -> resolve(target)
 
             is FirCodeFragment -> {}
             else -> errorWithAttachment("Unknown declaration ${target::class.simpleName}") {
@@ -101,9 +111,18 @@ private class LLFirTypeTargetResolver(target: LLFirResolveTarget) : LLFirTargetR
         }
     }
 
-    private fun <T : FirElementWithResolveState> resolve(target: T, keeper: StateKeeper<T, Unit>) {
-        resolveWithKeeper(target, Unit, keeper) {
-            rawResolve(target)
+    /**
+     * Resolves the [target] under [TypeStateKeepers.ANNOTATIONS] and the optional structural [customKeeper].
+     */
+    private fun <T : FirElementWithResolveState> resolve(target: T, customKeeper: StateKeeper<T, Unit>? = null) {
+        resolveWithKeeper(target, Unit, TypeStateKeepers.ANNOTATIONS) {
+            if (customKeeper != null) {
+                resolveWithKeeper(target, Unit, customKeeper) {
+                    rawResolve(target)
+                }
+            } else {
+                rawResolve(target)
+            }
         }
     }
 
@@ -180,7 +199,7 @@ private class LLFirTypeTargetResolver(target: LLFirResolveTarget) : LLFirTargetR
 private object TypeStateKeepers {
     val FUNCTION: StateKeeper<FirFunction, Unit> = stateKeeper { builder, function, context ->
         builder.add(CALLABLE_DECLARATION, context)
-        builder.entityList(function.valueParameters, CALLABLE_DECLARATION, context)
+        builder.entityList(function.valueParameters, VALUE_PARAMETER, context)
     }
 
     val PROPERTY: StateKeeper<FirProperty, Unit> = stateKeeper { builder, property, context ->
@@ -192,5 +211,53 @@ private object TypeStateKeepers {
 
     private val CALLABLE_DECLARATION: StateKeeper<FirCallableDeclaration, Unit> = stateKeeper { builder, _, _ ->
         builder.add(FirCallableDeclaration::returnTypeRef, FirCallableDeclaration::replaceReturnTypeRef)
+    }
+
+    private val VALUE_PARAMETER: StateKeeper<FirValueParameter, Unit> = stateKeeper { builder, _, context ->
+        builder.add(CALLABLE_DECLARATION, context)
+        builder.add(FirValueParameter::equalityBoundType) { parameter, value ->
+            parameter.equalityBoundType = value
+        }
+    }
+
+    /**
+     * Guards declaration annotations of the target and its non-local parts (accessors, parameters, etc.):
+     * - annotation lists, as property annotations might be moved to the backing field and accessors
+     * - annotation calls, as the resolve phase of compiler-required annotations is updated before their type is resolved once more
+     *
+     * Type annotations are skipped as their resolution is repeatable, and they might be shared between declarations.
+     */
+    val ANNOTATIONS: StateKeeper<FirElementWithResolveState, Unit> = stateKeeper { builder, target, context ->
+        val visitor = object : NonLocalAnnotationVisitor<Unit>() {
+            override fun processAnnotation(annotation: FirAnnotation, data: Unit) {
+                if (annotation is FirAnnotationCall) {
+                    builder.entity(annotation, ANNOTATION_CALL, context)
+                }
+            }
+
+            override fun visitAnnotationContainer(annotationContainer: FirAnnotationContainer, data: Unit) {
+                builder.entity(annotationContainer, context) { _, _ ->
+                    builder.add(FirAnnotationContainer::annotations, FirAnnotationContainer::replaceAnnotations)
+                }
+
+                super.visitAnnotationContainer(annotationContainer, data)
+            }
+
+            override fun visitElement(element: FirElement, data: Unit) {
+                if (element !is FirTypeRef) {
+                    super.visitElement(element, data)
+                }
+            }
+
+            override fun visitResolvedTypeRef(resolvedTypeRef: FirResolvedTypeRef, data: Unit) {}
+            override fun visitErrorTypeRef(errorTypeRef: FirErrorTypeRef, data: Unit) {}
+        }
+
+        target.accept(visitor, Unit)
+    }
+
+    private val ANNOTATION_CALL: StateKeeper<FirAnnotationCall, Unit> = stateKeeper { builder, _, _ ->
+        builder.add(FirAnnotationCall::annotationResolvePhase, FirAnnotationCall::replaceAnnotationResolvePhase)
+        builder.add(FirAnnotationCall::annotationTypeRef, FirAnnotationCall::replaceAnnotationTypeRef)
     }
 }

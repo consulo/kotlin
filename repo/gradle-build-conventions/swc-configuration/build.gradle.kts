@@ -6,19 +6,12 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
 }
 
-repositories {
-    maven("https://redirector.kotlinlang.org/maven/kotlin-dependencies")
-    mavenCentral { setUrl("https://cache-redirector.jetbrains.com/maven-central") }
-    gradlePluginPortal()
-
-    extra["bootstrapKotlinRepo"]?.let {
-        maven(url = it)
-    }
-}
-
 kotlin {
     @OptIn(ExperimentalKotlinGradlePluginApi::class, ExperimentalBuildToolsApi::class)
-    compilerVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation
+    compilerVersion = embeddedKotlinVersion
+    @Suppress("DEPRECATION")
+    coreLibrariesVersion = embeddedKotlinVersion
+
     jvmToolchain(17)
 
     compilerOptions {
@@ -29,6 +22,19 @@ kotlin {
 
 dependencies {
     implementation(project(":utilities"))
-    compileOnly(kotlin("stdlib", embeddedKotlinVersion))
+    implementation(kotlinBuildHelpers())
     compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:${project.bootstrapKotlinVersion}")
+}
+
+listOf(
+    org.jetbrains.kotlin.gradle.plugin.PLUGIN_CLASSPATH_CONFIGURATION_NAME + "Main",
+    "compilePluginsBlocksPluginClasspathElements",
+).forEach { confName ->
+    project.configurations.named(confName) {
+        resolutionStrategy {
+            eachDependency {
+                if (this.requested.group == "org.jetbrains.kotlin") useVersion(embeddedKotlinVersion)
+            }
+        }
+    }
 }

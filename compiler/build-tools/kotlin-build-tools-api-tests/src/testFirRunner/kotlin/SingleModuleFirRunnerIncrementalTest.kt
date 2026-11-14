@@ -2,19 +2,19 @@
  * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+package org.jetbrains.kotlin.buildtools.tests.compilation
 
 import org.jetbrains.kotlin.buildtools.api.arguments.CommonCompilerArguments.Companion.LANGUAGE_VERSION
 import org.jetbrains.kotlin.buildtools.api.arguments.ExperimentalCompilerArgument
 import org.jetbrains.kotlin.buildtools.api.arguments.enums.KotlinVersion
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmSnapshotBasedIncrementalCompilationConfiguration.Companion.USE_FIR_RUNNER
 import org.jetbrains.kotlin.buildtools.tests.CompilerExecutionStrategyConfiguration
-import org.jetbrains.kotlin.buildtools.tests.compilation.BaseCompilationTest
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertCompiledSources
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertNoCompiledSources
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.DefaultStrategyAgnosticCompilationTest
 import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.assertAddedOutputs
 import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.assertRemovedOutputs
-import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.scenario
+import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.jvmScenario
 import org.jetbrains.kotlin.buildtools.tests.compilation.util.moduleWithFir
 import org.jetbrains.kotlin.test.TestMetadata
 import org.junit.jupiter.api.DisplayName
@@ -27,10 +27,10 @@ class SingleModuleFirRunnerIncrementalTest : BaseCompilationTest() {
 
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Adding and removing the class")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testScenario1(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        scenario(strategyConfig) {
-            val module1 = moduleWithFir("jvm-module-1")
+        jvmScenario(strategyConfig) {
+            val module1 = moduleWithFir("basic-multimodule-project/module-1")
 
             val randomString = UUID.randomUUID().toString()
             module1.createFile(
@@ -61,15 +61,15 @@ class SingleModuleFirRunnerIncrementalTest : BaseCompilationTest() {
 
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Throws an exception on using LV 1.9")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testScenario2(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        scenario(strategyConfig) {
+        jvmScenario(strategyConfig) {
             assertThrows<IllegalStateException>(
                 message = "Compilation does not fail on LV 1.9"
             ) {
                 // Throws on initial compilation
                 moduleWithFir(
-                    moduleName = "jvm-module-1",
+                    moduleName = "basic-multimodule-project/module-1",
                     compilationOperationConfig = {
                         it.compilerArguments[LANGUAGE_VERSION] = KotlinVersion.V1_9
                     },
@@ -81,16 +81,17 @@ class SingleModuleFirRunnerIncrementalTest : BaseCompilationTest() {
     @OptIn(ExperimentalCompilerArgument::class)
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Throws an exception on missing -Xuse-fir-ic")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testScenario3(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        scenario(strategyConfig) {
+        jvmScenario(strategyConfig) {
             assertThrows<IllegalStateException>(
                 message = "Compilation does not fail on missing -Xuse-fir-ic"
             ) {
                 // Throws on initial compilation
                 module(
-                    moduleName = "jvm-module-1",
+                    moduleName = "basic-multimodule-project/module-1",
                     icOptionsConfigAction = {
+                        @Suppress("DEPRECATION_ERROR")
                         it[USE_FIR_RUNNER] = true
                     },
                 )

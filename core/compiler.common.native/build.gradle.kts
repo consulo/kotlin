@@ -1,8 +1,8 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
-
-project.configureJvmToolchain(JdkMajorVersion.JDK_1_8)
 
 dependencies {
     implementation(project(":core:compiler.common"))

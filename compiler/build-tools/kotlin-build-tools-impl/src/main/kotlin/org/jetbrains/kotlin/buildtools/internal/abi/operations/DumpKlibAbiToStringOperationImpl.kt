@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.buildtools.api.abi.KlibTargetId
 import org.jetbrains.kotlin.buildtools.api.abi.operations.DumpKlibAbiToStringOperation
 import org.jetbrains.kotlin.buildtools.internal.BaseOptionWithDefault
 import org.jetbrains.kotlin.buildtools.internal.BuildOperationImpl
+import org.jetbrains.kotlin.buildtools.internal.ExecutionContext
 import org.jetbrains.kotlin.buildtools.internal.DeepCopyable
 import org.jetbrains.kotlin.buildtools.internal.Options
 import org.jetbrains.kotlin.buildtools.internal.UseFromImplModuleRestricted
@@ -39,11 +40,19 @@ internal class DumpKlibAbiToStringOperationImpl private constructor(
         initializeOptions(this::class, options)
     }
 
-    override fun executeImpl(projectId: ProjectId, executionPolicy: ExecutionPolicy, logger: KotlinLogger?) {
+    override val usesApplicationEnvironment: Boolean
+        get() = false
+
+    override fun executeImpl(
+        projectId: ProjectId,
+        executionPolicy: ExecutionPolicy,
+        logger: KotlinLogger?,
+        executionContext: ExecutionContext
+    ) {
         val filters = options[PATTERN_FILTERS]?.let { AbiValidationUtils.convert(it) } ?: org.jetbrains.kotlin.abi.tools.AbiFilters.EMPTY
 
         val mergedDump = abiTools.createKlibDump()
-        klibs.forEach { (target, klibDir) ->
+        klibs.forEach { [target, klibDir] ->
             val dump = abiTools.extractKlibAbi(
                 klibDir.toFile(),
                 AbiValidationUtils.convert(target),
@@ -94,10 +103,7 @@ internal class DumpKlibAbiToStringOperationImpl private constructor(
         return deepCopy()
     }
 
-    class Option<V> : BaseOptionWithDefault<V> {
-        constructor(id: String) : super(id)
-        constructor(id: String, default: V) : super(id, default = default)
-    }
+    class Option<V>(id: String, default: V) : BaseOptionWithDefault<V>(id, defaultValue = default)
 
     companion object {
         /**

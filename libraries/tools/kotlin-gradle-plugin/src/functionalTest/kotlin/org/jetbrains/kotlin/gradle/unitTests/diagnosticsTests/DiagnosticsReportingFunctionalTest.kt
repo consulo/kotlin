@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests.diagnosticsTests
 
 import org.gradle.api.InvalidUserCodeException
@@ -12,10 +10,7 @@ import org.gradle.api.Project
 import org.gradle.api.internal.project.ProjectInternal
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.*
-import org.jetbrains.kotlin.gradle.plugin.diagnostics.ToolingDiagnostic.Severity
-import org.jetbrains.kotlin.gradle.plugin.diagnostics.ToolingDiagnostic.Severity.ERROR
-import org.jetbrains.kotlin.gradle.plugin.diagnostics.ToolingDiagnostic.Severity.FATAL
-import org.jetbrains.kotlin.gradle.plugin.diagnostics.ToolingDiagnostic.Severity.WARNING
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnosticsSeverity.*
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.ToolingDiagnostic.ID
 import org.jetbrains.kotlin.gradle.plugin.extraProperties
 import org.jetbrains.kotlin.gradle.util.applyKotlinJvmPlugin
@@ -300,7 +295,7 @@ private fun Project.createExecutionPhaseDiagnosticsParameters(): UsesKotlinTooli
     }
 }
 
-private fun Project.reportTestDiagnostic(severity: Severity = WARNING) {
+private fun Project.reportTestDiagnostic(severity: KotlinToolingDiagnosticsSeverity = WARNING) {
     kotlinToolingDiagnosticsCollector.report(
         toolingDiagnosticsContext,
         ToolingDiagnostic(
@@ -312,7 +307,7 @@ private fun Project.reportTestDiagnostic(severity: Severity = WARNING) {
     )
 }
 
-private fun Project.reportOnePerProjectTestDiagnostic(severity: Severity = WARNING) {
+private fun Project.reportOnePerProjectTestDiagnostic(severity: KotlinToolingDiagnosticsSeverity = WARNING) {
     kotlinToolingDiagnosticsCollector.reportOncePerGradleProject(
         toolingDiagnosticsContext,
         ToolingDiagnostic(
@@ -324,7 +319,7 @@ private fun Project.reportOnePerProjectTestDiagnostic(severity: Severity = WARNI
     )
 }
 
-private fun Project.reportOnePerBuildTestDiagnostic(severity: Severity = WARNING) {
+private fun Project.reportOnePerBuildTestDiagnostic(severity: KotlinToolingDiagnosticsSeverity = WARNING) {
     kotlinToolingDiagnosticsCollector.reportOncePerGradleBuild(
         toolingDiagnosticsContext,
         ToolingDiagnostic(

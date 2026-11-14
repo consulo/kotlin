@@ -13,9 +13,9 @@ import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsNodeDsl
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsExec
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinWasmNode
-import org.jetbrains.kotlin.gradle.targets.js.webTargetVariant
-import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootExtension
 import org.jetbrains.kotlin.gradle.utils.withType
+import org.jetbrains.kotlin.gradle.targets.web.WebIsolatedProjectsSupport
+import org.jetbrains.kotlin.gradle.targets.web.webIsolatedProjectsSupport
 import javax.inject.Inject
 
 abstract class KotlinNodeJsIr
@@ -53,13 +53,7 @@ internal constructor(
         }
 
         if (target.wasmTargetType != KotlinWasmTargetType.WASI) {
-            test.dependsOn(
-                nodeJsRoot.npmInstallTaskProvider,
-            )
-            if (target.webTargetVariant(jsVariant = false, wasmVariant = true)) {
-                test.dependsOn((nodeJsRoot as WasmNodeJsRootExtension).toolingInstallTaskProvider)
-            }
-            test.dependsOn(nodeJsRoot.packageManagerExtension.map { it.postInstallTasks })
+            test.dependsOnNpmTooling(binary.compilation)
             test.dependsOn(binary.linkSyncTask)
         }
         test.dependsOn(binary.linkTask)
@@ -70,7 +64,7 @@ internal constructor(
             if (test.testFramework == null) {
                 test.useMocha { }
             }
-            if (test.enabled) {
+            if (test.enabled && project.webIsolatedProjectsSupport == WebIsolatedProjectsSupport.Off) {
                 nodeJsRoot.taskRequirements.addTaskRequirements(test)
             }
         } else {

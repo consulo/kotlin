@@ -14,7 +14,6 @@ import org.gradle.api.tasks.util.PatternFilterable
 import org.gradle.work.Incremental
 import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.KotlinCompilationSideEffect
 import java.io.File
 
 @InternalKotlinGradlePluginApi
@@ -45,11 +44,13 @@ abstract class K2MultiplatformStructure {
          * @see org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.separateKmpCompilation
          */
         @get:Classpath
+        @get:NormalizeLineEndings
         @get:IgnoreEmptyDirectories
         @get:Incremental
         val dependencies: FileCollection,
 
         @get:Classpath
+        @get:NormalizeLineEndings
         @get:IgnoreEmptyDirectories
         @get:Incremental
         val friends: FileCollection,

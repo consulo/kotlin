@@ -7,10 +7,9 @@ package org.jetbrains.kotlin.library.abi
 
 import com.intellij.testFramework.TestDataFile
 import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.js.test.converters.Fir2IrCliWebFacade
 import org.jetbrains.kotlin.js.test.converters.FirCliWebFacade
-import org.jetbrains.kotlin.js.test.converters.FirKlibSerializerCliWebFacade
+import org.jetbrains.kotlin.js.test.converters.FirKlibSerializerCliJsFacade
 import org.jetbrains.kotlin.js.test.converters.JsIrPreSerializationLoweringFacade
 import org.jetbrains.kotlin.library.abi.parser.KlibDumpParser
 import org.jetbrains.kotlin.platform.TargetPlatform
@@ -20,26 +19,29 @@ import org.jetbrains.kotlin.test.FirParser
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.BlackBoxCodegenSuppressor
 import org.jetbrains.kotlin.test.backend.handlers.KlibAbiDumpHandler
-import org.jetbrains.kotlin.test.backend.handlers.NoFirCompilationErrorsHandler
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
 import org.jetbrains.kotlin.test.backend.ir.IrDiagnosticsHandler
 import org.jetbrains.kotlin.test.builders.*
+import org.jetbrains.kotlin.test.configuration.commonFirHandlersForCodegenTest
+import org.jetbrains.kotlin.test.configuration.commonIrHandlersForCodegenTest
 import org.jetbrains.kotlin.test.directives.ConfigurationDirectives.WITH_STDLIB
 import org.jetbrains.kotlin.test.directives.KlibAbiDumpDirectives.DUMP_KLIB_ABI
 import org.jetbrains.kotlin.test.directives.KlibAbiDumpDirectives.KlibAbiDumpMode
-import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.LANGUAGE
 import org.jetbrains.kotlin.test.directives.configureFirParser
 import org.jetbrains.kotlin.test.frontend.fir.FirOutputArtifact
 import org.jetbrains.kotlin.test.model.*
 import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerWithTargetBackendTest
-import org.jetbrains.kotlin.test.services.LibraryProvider
+import org.jetbrains.kotlin.test.runners.UnspecifiedTargetBackend
 import org.jetbrains.kotlin.test.services.configuration.CommonEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.JsFirstStageEnvironmentConfigurator
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInJs
 import kotlin.test.assertNotNull
+import kotlin.test.fail
 
 /**
  * This test class can potentially be re-used in the future for other backends.
  */
+@OptIn(UnspecifiedTargetBackend::class)
 abstract class AbstractLibraryAbiReaderTest(
     private val targetPlatform: TargetPlatform,
     targetBackend: TargetBackend,
@@ -61,21 +63,19 @@ abstract class AbstractLibraryAbiReaderTest(
         defaultDirectives {
             +WITH_STDLIB
             DUMP_KLIB_ABI with KlibAbiDumpMode.ALL_SIGNATURE_VERSIONS
-            LANGUAGE with listOf(
-                "-${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-            )
         }
 
-        useAfterAnalysisCheckers(::BlackBoxCodegenSuppressor)
-        useAdditionalService(::LibraryProvider)
+        useFailureSuppressors(::BlackBoxCodegenSuppressor)
 
         facadeStep(frontendFacade)
         firHandlersStep {
-            useHandlers(::NoFirCompilationErrorsHandler)
+            commonFirHandlersForCodegenTest()
         }
 
         facadeStep(converter)
-        irHandlersStep()
+        irHandlersStep {
+            commonIrHandlersForCodegenTest()
+        }
 
         facadeStep(preserializerFacade)
         loweredIrHandlersStep { useHandlers(::IrDiagnosticsHandler) }
@@ -87,6 +87,7 @@ abstract class AbstractLibraryAbiReaderTest(
     }
 }
 
+@MustRunOnChangesInJs
 abstract class AbstractJsLibraryAbiReaderTest : AbstractLibraryAbiReaderTest(JsPlatforms.defaultJsPlatform, TargetBackend.JS_IR) {
     final override val frontendFacade: Constructor<FrontendFacade<FirOutputArtifact>>
         get() = ::FirCliWebFacade
@@ -98,7 +99,7 @@ abstract class AbstractJsLibraryAbiReaderTest : AbstractLibraryAbiReaderTest(JsP
         get() = ::JsIrPreSerializationLoweringFacade
 
     override val backendFacade: Constructor<BackendFacade<IrBackendInput, BinaryArtifacts.KLib>>
-        get() = ::FirKlibSerializerCliWebFacade
+        get() = ::FirKlibSerializerCliJsFacade
 
     override fun configure(builder: TestConfigurationBuilder) = with(builder) {
         useConfigurators(
@@ -108,19 +109,6 @@ abstract class AbstractJsLibraryAbiReaderTest : AbstractLibraryAbiReaderTest(JsP
         super.configure(builder)
     }
 }
-
-open class AbstractJsLibraryAbiReaderWithInlinedFunInKlibTest : AbstractJsLibraryAbiReaderTest() {
-    override fun configure(builder: TestConfigurationBuilder) = with(builder) {
-        defaultDirectives {
-            LANGUAGE with listOf(
-                "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-            )
-        }
-        super.configure(builder)
-    }
-}
-
 
 abstract class AbstractKlibDumpParserTest {
     @OptIn(ExperimentalLibraryAbiReader::class)
@@ -132,5 +120,25 @@ abstract class AbstractKlibDumpParserTest {
         val parsedDump = KlibDumpParser(rawDump).parse()
         // parse errors will throw and fail the test
         assertNotNull(parsedDump)
+
+        assertNoRecognizedDeclarationOrigins(parsedDump.topLevelDeclarations)
+    }
+
+    /**
+     * Declaration origins are not rendered into textual ABI dumps, so nothing parsed back from a dump can be
+     * recognized as synthesized, even though the KLIBs some of these dumps were made of do contain synthesized
+     * declarations — 14 of the 35 functions in the dump of `versionOverloads.kt` are overload wrappers, say.
+     *
+     * [KlibDumpParser] therefore hardcodes [AbiDeclarationOrigin.OTHER], which is why this assertion cannot
+     * currently fail. It is a forward guard: overload wrappers *are* structurally recognizable in a dump (every
+     * one of them is a shorter prefix overload with all trailing arguments defaulted), and so are `access$...`
+     * accessors by name, so should the parser ever start guessing origins, this is where it gets caught.
+     */
+    @OptIn(ExperimentalLibraryAbiReader::class)
+    private fun assertNoRecognizedDeclarationOrigins(container: AbiDeclarationContainer) {
+        for (function in container.allFunctions()) {
+            if (function.declarationOrigin != AbiDeclarationOrigin.OTHER)
+                fail("${function.qualifiedName} unexpectedly has the ${function.declarationOrigin} origin")
+        }
     }
 }

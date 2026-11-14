@@ -1,9 +1,13 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     java
     kotlin("jvm")
+    id("project-tests-convention")
+    id("test-inputs-check")
 }
 
-val antlrTool by configurations.creating
+val antlrTool = configurations.create("antlrTool")
 
 dependencies {
     antlrTool(libs.antlr)
@@ -12,16 +16,18 @@ dependencies {
     api(kotlinStdlib())
     api(project(":js:js.ast"))
     compileOnly(intellijCore())
+
+    testImplementation(kotlinTest())
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
-sourceSets {
-    "main" { projectDefault() }
-    "test" {}
-}
-
-val generateJsParser by tasks.registering(JavaExec::class) {
+val generateJsParser = tasks.register("generateJsParser", JavaExec::class) {
     val outputPackage = "org.jetbrains.kotlin.js.parser.antlr.generated"
-    val outputDir = layout.projectDirectory.dir("src/${outputPackage.replace('.', '/')}").asFile
+    val genSourceSet = layout.projectDirectory.dir("gen")
+    val outputDir = genSourceSet.dir(outputPackage.replace('.', '/'))
     val grammarDir = layout.projectDirectory.dir("src/main/antlr").asFile
 
     description = "Generates Java sources from ANTLR grammars"
@@ -30,16 +36,21 @@ val generateJsParser by tasks.registering(JavaExec::class) {
     mainClass.set("org.antlr.v4.Tool")
     classpath = antlrTool
 
+    // ANTLR 4.13 is compiled for Java 11, so the tool must run on a JDK 11+ launcher
+    // regardless of the JVM Gradle itself is running on.
+    javaLauncher.set(project.getToolchainLauncherFor(JdkMajorVersion.JDK_11_0))
+
     val grammarFiles = grammarDir
         .walkTopDown()
         .filter { file -> file.extension == "g4" }
         .map { it.name }
 
+    val outputArg = outputDir.asFile.relativeTo(grammarDir).path
     args = listOf(
         "-visitor",
         "-long-messages",
         "-package", outputPackage,
-        "-o", outputDir.absolutePath
+        "-o", outputArg
     ) + grammarFiles
     workingDir = grammarDir
 
@@ -51,14 +62,12 @@ val generateJsParser by tasks.registering(JavaExec::class) {
         .withPropertyName("antlrToolClasspath")
         .withNormalizer(ClasspathNormalizer::class)
 
-    outputs.dir(outputDir)
+    outputs.dir(genSourceSet)
         .withPropertyName("generatedParserSources")
-
-    outputs.cacheIf { true }
 
     doLast {
         // Force LF line endings for generated files on Windows, since ANTLR doesn't have a way to force LF line endings before executing
-        outputDir.walkTopDown()
+        outputDir.asFile.walkTopDown()
             .filter { it.isFile }
             .forEach { file ->
                 val content = file.readText()
@@ -66,4 +75,20 @@ val generateJsParser by tasks.registering(JavaExec::class) {
                 file.writeText(normalizedContent)
             }
     }
+}
+
+sourceSets {
+    "main" {
+        projectDefault()
+        java.srcDirs(generateJsParser)
+    }
+    "test" {
+        projectDefault()
+    }
+}
+
+registerInAggregateGenerateSources("generateJsParser")
+
+projectTests {
+    testTask()
 }

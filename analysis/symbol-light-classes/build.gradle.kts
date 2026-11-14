@@ -1,31 +1,30 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-data-manager")
     id("test-inputs-check")
 }
 
 dependencies {
     implementation(project(":compiler:psi:psi-api"))
-    implementation(project(":compiler:frontend.java"))
     implementation(project(":core:compiler.common"))
     implementation(project(":analysis:light-classes-base"))
     implementation(project(":compiler:backend.common.jvm"))
     implementation(project(":analysis:analysis-api-platform-interface"))
     implementation(project(":analysis:analysis-api"))
-    implementation(project(":analysis:analysis-internal-utils"))
     implementation(project(":analysis:decompiled:light-classes-for-decompiled"))
     implementation(intellijCore())
     implementation(kotlinxCollectionsImmutable())
+    implementation(libs.caffeine)
 
     testFixturesImplementation(project(":analysis:decompiled:light-classes-for-decompiled"))
-    testFixturesApi(project(":analysis:decompiled:decompiler-to-file-stubs"))
+    testFixturesApi(project(":analysis:decompiled:decompiler"))
     testFixturesApi(testFixtures(project(":analysis:analysis-test-framework")))
-    testFixturesApi(testFixtures(project(":analysis:decompiled:decompiler-to-file-stubs")))
-    testFixturesApi(testFixtures(project(":analysis:analysis-api-impl-base")))
     testFixturesApi(testFixtures(project(":analysis:analysis-api-fir")))
     testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
     testFixturesApi(testFixtures(project(":analysis:low-level-api-fir")))
@@ -43,9 +42,13 @@ sourceSets {
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5, defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_11_0, JdkMajorVersion.JDK_17_0)) {
-        extensions.configure<TestInputsCheckExtension> {
-            allowFlightRecorder = true
+    testTask(
+        defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_11_0, JdkMajorVersion.JDK_17_0, JdkMajorVersion.JDK_21_0)
+    ) {
+        testFederation {
+            smokeTests {
+                includeAutoSamples(percentage = 1)
+            }
         }
     }
 
@@ -57,8 +60,8 @@ projectTests {
     withTestJar()
     withMockJdkAnnotationsJar()
     withMockJdkRuntime()
-    withScriptRuntime()
     withPluginSandboxAnnotations()
+    withPluginSandboxJar()
 
     @OptIn(KotlinCompilerDistUsage::class)
     withDist()
@@ -75,4 +78,3 @@ tasks.withType<KotlinJvmCompile>().configureEach {
     )
 }
 
-testsJar()

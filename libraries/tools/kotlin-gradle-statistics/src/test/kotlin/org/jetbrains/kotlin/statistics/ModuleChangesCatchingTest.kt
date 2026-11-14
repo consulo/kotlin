@@ -7,30 +7,42 @@ package org.jetbrains.kotlin.statistics
 
 import org.jetbrains.kotlin.statistics.metrics.BooleanMetrics
 import org.jetbrains.kotlin.statistics.metrics.NumericalMetrics
+import org.jetbrains.kotlin.statistics.metrics.StringListMetrics
 import org.jetbrains.kotlin.statistics.metrics.StringMetrics
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.security.MessageDigest
-import kotlin.test.assertEquals
+import kotlin.reflect.KClass
 
 private const val SOURCE_CODE_RELATIVE_PATH =
     "libraries/tools/kotlin-gradle-statistics/src/main/kotlin/org/jetbrains/kotlin/statistics/metrics"
 private const val BOOLEAN_METRICS_RELATIVE_PATH = "$SOURCE_CODE_RELATIVE_PATH/BooleanMetrics.kt"
 private const val STRING_METRICS_RELATIVE_PATH = "$SOURCE_CODE_RELATIVE_PATH/StringMetrics.kt"
 private const val NUMERICAL_METRICS_RELATIVE_PATH = "$SOURCE_CODE_RELATIVE_PATH/NumericalMetrics.kt"
+private const val STRING_LIST_METRICS_RELATIVE_PATH = "$SOURCE_CODE_RELATIVE_PATH/StringListMetrics.kt"
 
-private val STRING_METRICS_EXPECTED_VERSION_AND_HASH = Pair(10, "e5977271b41292cf0774046f52fcc814")
-private val BOOLEAN_METRICS_EXPECTED_VERSION_AND_HASH = Pair(29, "1996c736f9263217f073e662baf41373")
-private val NUMERICAL_METRICS_EXPECTED_VERSION_AND_HASH = Pair(3, "bcc6f0dba7d9db8e58408f8c0ff57965")
+private const val GEN_CODE_RELATIVE_PATH =
+    "libraries/tools/kotlin-gradle-statistics/gen/org/jetbrains/kotlin/statistics/metrics"
+private const val LANGUAGE_FEATURE_VALUES_RELATIVE_PATH =
+    "$GEN_CODE_RELATIVE_PATH/LanguageFeatureValues.kt"
+
+private val STRING_METRICS_EXPECTED_VERSION_AND_HASH = Pair(14, "d523642ff5b372687a58741579011ab4")
+private val BOOLEAN_METRICS_EXPECTED_VERSION_AND_HASH = Pair(36, "a585ecc6ca5c7879ba6fee2e277f8026")
+private val NUMERICAL_METRICS_EXPECTED_VERSION_AND_HASH = Pair(5, "bcab47bd1f4b3e609710d10c3f3d5002")
+private val STRING_LIST_METRICS_EXPECTED_VERSION_AND_HASH =
+    Triple(9, "adab0baa4feacc12e1908ae421eceb6a", "3f176ee1cc87b3d10fa81d8477f77bae")
+
 private val SOURCE_FOLDER_EXPECTED_VERSION_AND_HASH =
     Pair(
         STRING_METRICS_EXPECTED_VERSION_AND_HASH.first +
                 BOOLEAN_METRICS_EXPECTED_VERSION_AND_HASH.first +
-                NUMERICAL_METRICS_EXPECTED_VERSION_AND_HASH.first,
-        "8b845ce616f5bdb9b885ededcdfd812d"
+                NUMERICAL_METRICS_EXPECTED_VERSION_AND_HASH.first +
+                STRING_LIST_METRICS_EXPECTED_VERSION_AND_HASH.first,
+        "dd242c93f1255a3786f6665bf1061ee2"
     )
 private const val HASH_ALG = "MD5"
 
@@ -49,8 +61,7 @@ class ModuleChangesCatchingTest {
             Pair(StringMetrics.VERSION, calculateFileChecksum(STRING_METRICS_RELATIVE_PATH))
         assertEquals(
             STRING_METRICS_EXPECTED_VERSION_AND_HASH, actualStringMetricsVersionAndHash,
-            "Hash of ${StringMetrics::class.qualifiedName} has been changed, please increase VERSION value. " +
-                    "Also you need to update hash and version in this test class."
+            errorMessage(StringMetrics::class)
         )
     }
 
@@ -63,8 +74,7 @@ class ModuleChangesCatchingTest {
             Pair(BooleanMetrics.VERSION, calculateFileChecksum(BOOLEAN_METRICS_RELATIVE_PATH))
         assertEquals(
             BOOLEAN_METRICS_EXPECTED_VERSION_AND_HASH, actualBooleanMetricsVersionAndHash,
-            "Hash of ${BooleanMetrics::class.qualifiedName} has been changed, please increase VERSION value. " +
-                    "Also you need to update hash and version in this test class."
+            errorMessage(BooleanMetrics::class)
         )
     }
 
@@ -77,10 +87,31 @@ class ModuleChangesCatchingTest {
             Pair(NumericalMetrics.VERSION, calculateFileChecksum(NUMERICAL_METRICS_RELATIVE_PATH))
         assertEquals(
             NUMERICAL_METRICS_EXPECTED_VERSION_AND_HASH, actualNumericalMetricsVersionAndHash,
-            "Hash of ${NumericalMetrics::class.qualifiedName} has been changed, please increase VERSION value. " +
-                    "Also you need to update hash and version in this test class."
+            errorMessage(NumericalMetrics::class)
         )
     }
+
+    /**
+     * Test checks for that the version of [StringListMetrics] was increased after changes in this file
+     * or in the generated `LanguageFeatureValues.kt`, which provides allowed values for one of its metrics
+     */
+    @Test
+    fun testChecksCorrectChangingStringListMetricsVersion() {
+        val actualVersionAndHash =
+            Triple(
+                StringListMetrics.VERSION,
+                calculateFileChecksum(STRING_LIST_METRICS_RELATIVE_PATH),
+                calculateFileChecksum(LANGUAGE_FEATURE_VALUES_RELATIVE_PATH),
+            )
+        assertEquals(
+            STRING_LIST_METRICS_EXPECTED_VERSION_AND_HASH, actualVersionAndHash,
+            errorMessage(StringListMetrics::class)
+        )
+    }
+
+    private fun errorMessage(clazz: KClass<*>): String =
+        "Hash of ${clazz.qualifiedName} has been changed, please increase VERSION value. " +
+                "Also you need to update hash and version in this test class."
 
     @Test
     fun testChecksTotalFilesChecksum() {
@@ -88,11 +119,12 @@ class ModuleChangesCatchingTest {
             setOf(
                 Paths.get(STRING_METRICS_RELATIVE_PATH).toAbsolutePath().toString(),
                 Paths.get(BOOLEAN_METRICS_RELATIVE_PATH).toAbsolutePath().toString(),
-                Paths.get(NUMERICAL_METRICS_RELATIVE_PATH).toAbsolutePath().toString()
+                Paths.get(NUMERICAL_METRICS_RELATIVE_PATH).toAbsolutePath().toString(),
+                Paths.get(STRING_LIST_METRICS_RELATIVE_PATH).toAbsolutePath().toString()
             )
         val actualSourceFolderVersionAndHash =
             Pair(
-                NumericalMetrics.VERSION + StringMetrics.VERSION + BooleanMetrics.VERSION,
+                NumericalMetrics.VERSION + StringMetrics.VERSION + BooleanMetrics.VERSION + StringListMetrics.VERSION,
                 calculateDirectoryCheckSum(SOURCE_CODE_RELATIVE_PATH, pathToExclude)
             )
         assertEquals(

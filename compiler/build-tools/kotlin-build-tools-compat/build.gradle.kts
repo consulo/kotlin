@@ -1,27 +1,16 @@
 plugins {
+    id("common-configuration")
     kotlin("jvm")
     id("generated-sources")
 }
 
 dependencies {
-    compileOnly(project(":compiler:build-tools:kotlin-build-tools-api"))
-    compileOnly(kotlinStdlib())
-    compileOnly(project(":compiler:cli"))
-    compileOnly(project(":compiler:cli-jvm"))
-    compileOnly(project(":compiler:cli-js"))
-    compileOnly(project(":compiler:cli-metadata"))
-    compileOnly(project(":kotlin-build-common"))
-    compileOnly(project(":daemon-common"))
-    compileOnly(project(":kotlin-daemon-client"))
-    compileOnly(project(":compiler:incremental-compilation-impl"))
-    compileOnly(project(":kotlin-compiler-runner-unshaded"))
-    compileOnly(intellijCore())
-    compileOnly(project(":kotlin-scripting-compiler"))
-    compileOnly(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
+    compileOnly("org.jetbrains.kotlin:kotlin-build-tools-api:2.5.0-Beta1") // KT-90734 [BTA] Update compat BTA API version to 2.5.0 stable
+    compileOnly(libs.kotlin.compiler.before.bta.v2)
     implementation(project(":kotlin-tooling-core")) // to reuse `KotlinToolingVersion`
 
     testCompileOnly(project(":compiler:build-tools:kotlin-build-tools-api"))
-    testImplementation(kotlinTest("junit"))
+    testImplementation(kotlinTest("junit5"))
 }
 
 publish()
@@ -38,20 +27,3 @@ kotlin {
         optIn.add("org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi")
     }
 }
-
-generatedSourcesTask(
-    taskName = "generateBtaArguments",
-    generatorProject = ":compiler:build-tools:kotlin-build-tools-options-generator",
-    generatorMainClass = "org.jetbrains.kotlin.buildtools.options.generator.MainKt",
-    argsProvider = { generationRoot ->
-        listOf(
-            generationRoot.toString(),
-            "2.2.20",
-            "impl",
-            "jvmCompilerArguments",
-            "org.jetbrains.kotlin.buildtools.internal.compat.arguments",
-            "compat",
-            version.toString()
-        )
-    }
-)

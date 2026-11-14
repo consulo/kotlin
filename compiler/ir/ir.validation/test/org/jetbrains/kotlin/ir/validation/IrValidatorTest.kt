@@ -5,39 +5,46 @@
 
 package org.jetbrains.kotlin.ir.validation
 
-import org.jetbrains.kotlin.DeprecatedForRemovalCompilerApi
 import org.jetbrains.kotlin.backend.common.ir.createExtensionReceiver
 import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.ERROR
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING
-import org.jetbrains.kotlin.cli.common.messages.MessageCollectorImpl
 import org.jetbrains.kotlin.cli.common.messages.MessageCollectorImpl.Message
+import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.IrVerificationMode
+import org.jetbrains.kotlin.config.LanguageVersion
+import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
-import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.IrStatement
-import org.jetbrains.kotlin.ir.TestIrBuiltins
-import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
+import org.jetbrains.kotlin.diagnostics.KtDiagnosticWithoutSource
+import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
+import org.jetbrains.kotlin.diagnostics.impl.DiagnosticsCollectorImpl
+import org.jetbrains.kotlin.ir.*
 import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrFileImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrModuleFragmentImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
+import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
 import org.jetbrains.kotlin.ir.expressions.IrTypeOperator
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.impl.*
 import org.jetbrains.kotlin.ir.types.IrDynamicType
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.SimpleTypeNullability
 import org.jetbrains.kotlin.ir.types.createType
 import org.jetbrains.kotlin.ir.types.impl.IrDynamicTypeImpl
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.validation.checkers.declaration.IrAnnotationUsageChecker
+import org.jetbrains.kotlin.ir.validation.checkers.expression.IrLegacyCallableReferenceChecker
 import org.jetbrains.kotlin.ir.validation.checkers.expression.IrTypeOperatorRedundancyChecker
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -51,7 +58,8 @@ import org.junit.jupiter.api.assertThrows
 
 class IrValidatorTest {
 
-    private lateinit var messageCollector: MessageCollectorImpl
+    private lateinit var diagnosticReporter: BaseDiagnosticsCollector
+    private lateinit var irDiagnosticReporter: IrDiagnosticReporter
     private lateinit var module: IrModuleFragment
     private val defaultValidationConfig = IrValidatorConfig(checkTreeConsistency = true, checkUnboundSymbols = true)
         .withAllChecks()
@@ -59,7 +67,11 @@ class IrValidatorTest {
 
     @BeforeEach
     fun setUp() {
-        messageCollector = MessageCollectorImpl()
+        diagnosticReporter = DiagnosticsCollectorImpl()
+        irDiagnosticReporter = KtDiagnosticReporterWithImplicitIrBasedContext(
+            diagnosticReporter,
+            LanguageVersionSettingsImpl(LanguageVersion.LATEST_STABLE, ApiVersion.LATEST_STABLE)
+        )
 
         val moduleDescriptor = ModuleDescriptorImpl(
             Name.special("<testModule>"),
@@ -101,6 +113,7 @@ class IrValidatorTest {
         body.statements.add(functionCall)
         function2.body = body
         val file = createIrFile()
+        file.addChild(function1)
         file.addChild(function2)
         return file
     }
@@ -111,7 +124,7 @@ class IrValidatorTest {
         maxOffset: Int = 75,
     ): IrFile {
         val fileEntry = NaiveSourceBasedFileEntryImpl(name, lineStartOffsets = intArrayOf(0, 10, 25), maxOffset = maxOffset)
-        return IrFileImpl(fileEntry, IrFileSymbolImpl(), packageFqName).also(module::addFile)
+        return IrFileImpl(fileEntry, IrFileSymbolImpl(), packageFqName, module).also(module::addFile)
     }
 
     private fun createTrueConst() = IrConstImpl.boolean(UNDEFINED_OFFSET, UNDEFINED_OFFSET, TestIrBuiltins.booleanType, true)
@@ -160,10 +173,9 @@ class IrValidatorTest {
     }
 
     private inline fun runValidationAndAssert(mode: IrVerificationMode, block: () -> Unit) {
+        block()
         if (mode == IrVerificationMode.ERROR) {
-            assertThrows<IrValidationException>(executable = block)
-        } else {
-            block()
+            assert(irDiagnosticReporter.hasErrors)
         }
     }
 
@@ -179,13 +191,21 @@ class IrValidatorTest {
                     tree,
                     TestIrBuiltins,
                     config,
-                    messageCollector,
+                    irDiagnosticReporter,
                     mode,
                     phaseName = "IrValidatorTest",
                 )
             }
         } finally {
-            assertEquals(expectedMessages, messageCollector.messages)
+            assertEquals(
+                expectedMessages,
+                diagnosticReporter.diagnostics.map {
+                    Message(
+                        it.severity.toCompilerMessageSeverity(),
+                        it.renderMessage(),
+                        (it as KtDiagnosticWithoutSource).location
+                    )
+                })
         }
     }
 
@@ -209,7 +229,7 @@ class IrValidatorTest {
                     $$"""
                     [IR VALIDATION] IrValidatorTest: Duplicate IR node: STRING_CONCATENATION type=kotlin.Any
                     STRING_CONCATENATION type=kotlin.Any
-                      inside CALL 'public final fun foo ($receiver: kotlin.String, p0: kotlin.Any): kotlin.Any declared in <no parent>' type=kotlin.Any origin=null
+                      inside CALL 'public final fun foo ($receiver: kotlin.String, p0: kotlin.Any): kotlin.Any declared in org.sample' type=kotlin.Any origin=null
                         inside BLOCK_BODY
                           inside FUN name:bar visibility:public modality:FINAL <> () returnType:kotlin.Any
                             inside FILE fqName:org.sample fileName:test.kt
@@ -243,21 +263,6 @@ class IrValidatorTest {
     }
 
     @Test
-    fun `sanity check for IrValidatorTest, whether IrVerificationException is really thrown if IrVerificationMode is ERROR`() {
-        val exception = assertThrows<AssertionError> {
-            testValidation(
-                IrVerificationMode.ERROR,
-                buildValidIrTree(),
-                emptyList(),
-            )
-        }
-        assertEquals(
-            "Expected org.jetbrains.kotlin.ir.validation.IrValidationException to be thrown, but nothing was thrown.",
-            exception.message
-        )
-    }
-
-    @Test
     fun `sanity check for IrValidatorTest, whether message is really verified, when IrValidationException is really thrown if IrVerificationMode is ERROR`() {
         val exception = assertThrows<AssertionError> {
             testValidation(
@@ -278,7 +283,7 @@ class IrValidatorTest {
             $$"""
             expected: <[error: IT'S THE INTENTIONALLY WRONG MESSAGE TO VERIFY THE ASSERTION ERROR WOULD HAPPEN]> but was: <[error: [IR VALIDATION] IrValidatorTest: Duplicate IR node: STRING_CONCATENATION type=kotlin.Any
             STRING_CONCATENATION type=kotlin.Any
-              inside CALL 'public final fun foo ($receiver: kotlin.String, p0: kotlin.Any): kotlin.Any declared in <no parent>' type=kotlin.Any origin=null
+              inside CALL 'public final fun foo ($receiver: kotlin.String, p0: kotlin.Any): kotlin.Any declared in org.sample' type=kotlin.Any origin=null
                 inside BLOCK_BODY
                   inside FUN name:bar visibility:public modality:FINAL <> () returnType:kotlin.Any
                     inside FILE fqName:org.sample fileName:test.kt]>
@@ -298,7 +303,7 @@ class IrValidatorTest {
                     $$"""
                     [IR VALIDATION] IrValidatorTest: Duplicate IR node: STRING_CONCATENATION type=kotlin.Any
                     STRING_CONCATENATION type=kotlin.Any
-                      inside CALL 'public final fun foo ($receiver: kotlin.String, p0: kotlin.Any): kotlin.Any declared in <no parent>' type=kotlin.Any origin=null
+                      inside CALL 'public final fun foo ($receiver: kotlin.String, p0: kotlin.Any): kotlin.Any declared in org.sample' type=kotlin.Any origin=null
                         inside BLOCK_BODY
                           inside FUN name:bar visibility:public modality:FINAL <> () returnType:kotlin.Any
                             inside FILE fqName:org.sample fileName:test.kt
@@ -659,6 +664,8 @@ class IrValidatorTest {
         val file = createIrFile()
         val klass = IrFactoryImpl.buildClass {
             name = Name.identifier("MyClass")
+        }.apply {
+            superTypes = listOf(TestIrBuiltins.anyType)
         }
         val publicField = IrFactoryImpl.buildField {
             name = Name.identifier("publicField")
@@ -697,7 +704,7 @@ class IrValidatorTest {
                     """
                     [IR VALIDATION] IrValidatorTest: Kotlin fields are expected to always be private
                     FIELD name:publicField type:kotlin.Any visibility:public
-                      inside CLASS CLASS name:MyClass modality:FINAL visibility:public superTypes:[]
+                      inside CLASS CLASS name:MyClass modality:FINAL visibility:public superTypes:[kotlin.Any]
                         inside FILE fqName:org.sample fileName:test.kt
                     """.trimIndent(),
                     CompilerMessageLocation.create("test.kt", 0, 0, null),
@@ -708,7 +715,7 @@ class IrValidatorTest {
                     [IR VALIDATION] IrValidatorTest: Kotlin fields are expected to always be private
                     FIELD name:lateinitField type:kotlin.Any visibility:public
                       inside PROPERTY name:lateinitProperty visibility:public modality:FINAL [lateinit,val]
-                        inside CLASS CLASS name:MyClass modality:FINAL visibility:public superTypes:[]
+                        inside CLASS CLASS name:MyClass modality:FINAL visibility:public superTypes:[kotlin.Any]
                           inside FILE fqName:org.sample fileName:test.kt
                     """.trimIndent(),
                     CompilerMessageLocation.create("test.kt", 0, 0, null),
@@ -845,6 +852,7 @@ class IrValidatorTest {
         val memberField = buildClass {
             name = Name.identifier("MyClass")
         }.let { clazz ->
+            clazz.superTypes = listOf(TestIrBuiltins.anyType)
             file.addChild(clazz)
             clazz.addField("memberField").also { it.visibility = DescriptorVisibilities.PRIVATE}
         }
@@ -907,6 +915,8 @@ class IrValidatorTest {
         val file = createIrFile()
         val klass = IrFactoryImpl.buildClass {
             name = Name.identifier("MyClass")
+        }.apply {
+            superTypes = listOf(TestIrBuiltins.anyType)
         }
         file.addChild(klass)
         val tp = klass.addTypeParameter {
@@ -948,6 +958,8 @@ class IrValidatorTest {
         val file = createIrFile()
         val outerClass = IrFactoryImpl.buildClass {
             name = Name.identifier("Outer")
+        }.apply {
+            superTypes = listOf(TestIrBuiltins.anyType)
         }
         val outerTP = outerClass.addTypeParameter {
             name = Name.identifier("T")
@@ -965,10 +977,14 @@ class IrValidatorTest {
         val innerClass = IrFactoryImpl.buildClass {
             isInner = true
             name = Name.identifier("Inner")
+        }.apply {
+            superTypes = listOf(TestIrBuiltins.anyType)
         }
         outerClass.addChild(innerClass)
         val nestedClass = IrFactoryImpl.buildClass {
             name = Name.identifier("Nested")
+        }.apply {
+            superTypes = listOf(TestIrBuiltins.anyType)
         }
         outerClass.addChild(nestedClass)
 
@@ -1009,9 +1025,9 @@ class IrValidatorTest {
                     WARNING,
                     """
                     [IR VALIDATION] IrValidatorTest: The following element references a type parameter 'TYPE_PARAMETER name:T index:0 variance: superTypes:[] reified:false' that is not available in the current scope.
-                    FUN name:nestedClassMethod visibility:public modality:FINAL <> () returnType:org.sample.Outer<T of org.sample.Outer>
-                      inside CLASS CLASS name:Nested modality:FINAL visibility:public superTypes:[]
-                        inside CLASS CLASS name:Outer modality:FINAL visibility:public superTypes:[]
+                    FUN name:nestedClassMethod visibility:public modality:FINAL <> () returnType:org.sample.Outer<T of org.sample.Outer> [companion]
+                      inside CLASS CLASS name:Nested modality:FINAL visibility:public superTypes:[kotlin.Any]
+                        inside CLASS CLASS name:Outer modality:FINAL visibility:public superTypes:[kotlin.Any]
                           inside FILE fqName:org.sample fileName:test.kt
                     """.trimIndent(),
                     CompilerMessageLocation.create("test.kt", 0, 0, null),
@@ -1021,11 +1037,11 @@ class IrValidatorTest {
                     """
                     [IR VALIDATION] IrValidatorTest: The following element references a type parameter 'TYPE_PARAMETER name:T index:0 variance: superTypes:[] reified:false' that is not available in the current scope.
                     GET_VAR '<this>: org.sample.Outer<T of org.sample.Outer> declared in org.sample.Outer' type=org.sample.Outer<T of org.sample.Outer> origin=null
-                      inside RETURN type=kotlin.Nothing from='public final fun nestedClassMethod (): org.sample.Outer<T of org.sample.Outer> declared in org.sample.Outer.Nested'
+                      inside RETURN type=kotlin.Nothing from='public final fun nestedClassMethod (): org.sample.Outer<T of org.sample.Outer> [companion] declared in org.sample.Outer.Nested'
                         inside BLOCK_BODY
-                          inside FUN name:nestedClassMethod visibility:public modality:FINAL <> () returnType:org.sample.Outer<T of org.sample.Outer>
-                            inside CLASS CLASS name:Nested modality:FINAL visibility:public superTypes:[]
-                              inside CLASS CLASS name:Outer modality:FINAL visibility:public superTypes:[]
+                          inside FUN name:nestedClassMethod visibility:public modality:FINAL <> () returnType:org.sample.Outer<T of org.sample.Outer> [companion]
+                            inside CLASS CLASS name:Nested modality:FINAL visibility:public superTypes:[kotlin.Any]
+                              inside CLASS CLASS name:Outer modality:FINAL visibility:public superTypes:[kotlin.Any]
                                 inside FILE fqName:org.sample fileName:test.kt
                     """.trimIndent(),
                     CompilerMessageLocation.create("test.kt", 2, 3, null),
@@ -1035,11 +1051,11 @@ class IrValidatorTest {
                     """
                     [IR VALIDATION] IrValidatorTest: The following expression references a value that is not available in the current scope.
                     GET_VAR '<this>: org.sample.Outer<T of org.sample.Outer> declared in org.sample.Outer' type=org.sample.Outer<T of org.sample.Outer> origin=null
-                      inside RETURN type=kotlin.Nothing from='public final fun nestedClassMethod (): org.sample.Outer<T of org.sample.Outer> declared in org.sample.Outer.Nested'
+                      inside RETURN type=kotlin.Nothing from='public final fun nestedClassMethod (): org.sample.Outer<T of org.sample.Outer> [companion] declared in org.sample.Outer.Nested'
                         inside BLOCK_BODY
-                          inside FUN name:nestedClassMethod visibility:public modality:FINAL <> () returnType:org.sample.Outer<T of org.sample.Outer>
-                            inside CLASS CLASS name:Nested modality:FINAL visibility:public superTypes:[]
-                              inside CLASS CLASS name:Outer modality:FINAL visibility:public superTypes:[]
+                          inside FUN name:nestedClassMethod visibility:public modality:FINAL <> () returnType:org.sample.Outer<T of org.sample.Outer> [companion]
+                            inside CLASS CLASS name:Nested modality:FINAL visibility:public superTypes:[kotlin.Any]
+                              inside CLASS CLASS name:Outer modality:FINAL visibility:public superTypes:[kotlin.Any]
                                 inside FILE fqName:org.sample fileName:test.kt
                     """.trimIndent(),
                     CompilerMessageLocation.create("test.kt", 2, 3, null),
@@ -1833,6 +1849,8 @@ class IrValidatorTest {
         val file = createIrFile("test.kt")
         val klass = IrFactoryImpl.buildClass {
             name = Name.identifier("MyClass")
+        }.apply {
+            superTypes = listOf(TestIrBuiltins.anyType)
         }
         val subclass = IrFactoryImpl.buildClass {
             name = Name.identifier("MySubclass")
@@ -1876,6 +1894,25 @@ class IrValidatorTest {
         }
         subclass.declarations.add(publicFunctionOverride)
 
+        val publicFunction2 = IrFactoryImpl.buildFun {
+            name = Name.identifier("baz")
+            returnType = TestIrBuiltins.unitType
+            visibility = DescriptorVisibilities.PUBLIC
+        }.apply {
+            parent = klass
+        }
+        klass.declarations.add(publicFunction2)
+
+        val publicFunctionOverrideByPrivate = IrFactoryImpl.buildFun {
+            name = Name.identifier("baz")
+            returnType = TestIrBuiltins.unitType
+            visibility = DescriptorVisibilities.PRIVATE
+        }.apply {
+            parent = subclass
+            overriddenSymbols = listOf(publicFunction2.symbol)
+        }
+        subclass.declarations.add(publicFunctionOverrideByPrivate)
+
         val privateProperty = IrFactoryImpl.buildProperty {
             name = Name.identifier("p1")
             visibility = DescriptorVisibilities.PRIVATE
@@ -1917,8 +1954,18 @@ class IrValidatorTest {
                 Message(
                     WARNING,
                     """
-                    [IR VALIDATION] IrValidatorTest: Overrides private declaration FUN name:foo visibility:private modality:FINAL <> () returnType:kotlin.Unit
-                    FUN name:foo visibility:public modality:FINAL <> () returnType:kotlin.Unit
+                    [IR VALIDATION] IrValidatorTest: Overrides private declaration FUN name:foo visibility:private modality:FINAL <> () returnType:kotlin.Unit [companion]
+                    FUN name:foo visibility:public modality:FINAL <> () returnType:kotlin.Unit [companion]
+                      inside CLASS CLASS name:MySubclass modality:FINAL visibility:public superTypes:[org.sample.MyClass]
+                        inside FILE fqName:org.sample fileName:test.kt
+                    """.trimIndent(),
+                    CompilerMessageLocation.create("test.kt", 0, 0, null),
+                ),
+                Message(
+                    WARNING,
+                    """
+                    [IR VALIDATION] IrValidatorTest: Private declaration has non-empty overriddenSymbols
+                    FUN name:baz visibility:private modality:FINAL <> () returnType:kotlin.Unit [companion]
                       inside CLASS CLASS name:MySubclass modality:FINAL visibility:public superTypes:[org.sample.MyClass]
                         inside FILE fqName:org.sample fileName:test.kt
                     """.trimIndent(),
@@ -2061,6 +2108,8 @@ class IrValidatorTest {
         val myObject = IrFactoryImpl.buildClass {
             name = Name.identifier("MyObject")
             kind = ClassKind.OBJECT
+        }.apply {
+            superTypes = listOf(TestIrBuiltins.anyType)
         }
 
         val incorrectGetObjectValue = IrGetObjectValueImpl(
@@ -2089,7 +2138,7 @@ class IrValidatorTest {
                     WARNING,
                     """
                     [IR VALIDATION] IrValidatorTest: unexpected type: expected org.sample.MyObject, got kotlin.Int
-                    GET_OBJECT 'CLASS OBJECT name:MyObject modality:FINAL visibility:public superTypes:[]' type=kotlin.Int
+                    GET_OBJECT 'CLASS OBJECT name:MyObject modality:FINAL visibility:public superTypes:[kotlin.Any]' type=kotlin.Int
                       inside BLOCK_BODY
                         inside FUN name:foo visibility:public modality:FINAL <> () returnType:kotlin.Unit
                           inside FILE fqName:org.sample fileName:test.kt
@@ -2319,6 +2368,8 @@ class IrValidatorTest {
         val myClass = IrFactoryImpl.buildClass {
             name = Name.identifier("MyClass")
             kind = ClassKind.CLASS
+        }.apply {
+            superTypes = listOf(TestIrBuiltins.anyType)
         }
         val constructor = IrFactoryImpl.buildConstructor {
             isPrimary = true
@@ -2380,6 +2431,8 @@ class IrValidatorTest {
         val myClass = IrFactoryImpl.buildClass {
             name = Name.identifier("MyClass")
             kind = ClassKind.CLASS
+        }.apply {
+            superTypes = listOf(TestIrBuiltins.anyType)
         }
         val function = IrFactoryImpl.buildFun {
             name = Name.identifier("foo")
@@ -2416,7 +2469,7 @@ class IrValidatorTest {
                     WARNING,
                     """
                     [IR VALIDATION] IrValidatorTest: unexpected type: expected kotlin.Unit, got kotlin.Int
-                    INSTANCE_INITIALIZER_CALL classDescriptor='CLASS CLASS name:MyClass modality:FINAL visibility:public superTypes:[]' type=kotlin.Int
+                    INSTANCE_INITIALIZER_CALL classDescriptor='CLASS CLASS name:MyClass modality:FINAL visibility:public superTypes:[kotlin.Any]' type=kotlin.Int
                       inside BLOCK_BODY
                         inside FUN name:foo visibility:public modality:FINAL <> () returnType:kotlin.Unit
                           inside FILE fqName:org.sample fileName:test.kt
@@ -2535,8 +2588,10 @@ class IrValidatorTest {
         val file = createIrFile("test.kt")
         val klass = IrFactoryImpl.buildClass {
             name = Name.identifier("MyClass")
+        }.apply {
+            superTypes = listOf(TestIrBuiltins.anyType)
+            createThisReceiverParameter()
         }
-        klass.createThisReceiverParameter()
         file.addChild(klass)
         val ctorWithDispatchParameter = klass.addConstructor()
         ctorWithDispatchParameter.addValueParameter {
@@ -2561,7 +2616,7 @@ class IrValidatorTest {
                     """
                     [IR VALIDATION] IrValidatorTest: Constructors of non-inner classes can't have dispatch receiver parameters
                     CONSTRUCTOR visibility:public <> (<this>:org.sample.MyClass) returnType:org.sample.MyClass
-                      inside CLASS CLASS name:MyClass modality:FINAL visibility:public superTypes:[]
+                      inside CLASS CLASS name:MyClass modality:FINAL visibility:public superTypes:[kotlin.Any]
                         inside FILE fqName:org.sample fileName:test.kt
                     """.trimIndent(),
                     CompilerMessageLocation.create("test.kt", 0, 0, null),
@@ -2571,7 +2626,7 @@ class IrValidatorTest {
                     """
                     [IR VALIDATION] IrValidatorTest: Constructors can't have extension receiver parameters
                     CONSTRUCTOR visibility:public <> (<this>:org.sample.MyClass) returnType:org.sample.MyClass
-                      inside CLASS CLASS name:MyClass modality:FINAL visibility:public superTypes:[]
+                      inside CLASS CLASS name:MyClass modality:FINAL visibility:public superTypes:[kotlin.Any]
                         inside FILE fqName:org.sample fileName:test.kt
                     """.trimIndent(),
                     CompilerMessageLocation.create("test.kt", 0, 0, null),
@@ -3251,6 +3306,229 @@ class IrValidatorTest {
                     CompilerMessageLocation.create(null, 0, 0, null),
                 ),
             ),
+        )
+    }
+
+    @Test
+    fun `class without superTypes`() {
+        val file = createIrFile("test.kt")
+
+        val klass = IrFactoryImpl.buildClass {
+            name = Name.identifier("MyClass")
+        }
+
+        file.addChild(klass)
+        testValidation(
+            IrVerificationMode.WARNING,
+            file,
+            listOf(
+                Message(
+                    WARNING,
+                    """
+                    [IR VALIDATION] IrValidatorTest: IrClass must have at least one supertype
+                    CLASS CLASS name:MyClass modality:FINAL visibility:public superTypes:[]
+                      inside FILE fqName:org.sample fileName:test.kt
+                    """.trimIndent(),
+                    CompilerMessageLocation.create("test.kt", 0, 0, null),
+                )
+            ),
+        )
+    }
+
+    @Test
+    fun `legacy callable reference nodes are reported`() {
+        val file = createIrFile()
+        val function = IrFactoryImpl.buildFun {
+            name = Name.identifier("foo")
+            returnType = TestIrBuiltins.unitType
+        }
+        val property = IrFactoryImpl.buildProperty {
+            name = Name.identifier("p")
+        }
+
+        val legacyFunctionReference = IrFunctionReferenceImpl(
+            UNDEFINED_OFFSET, UNDEFINED_OFFSET, TestIrBuiltins.anyType, function.symbol,
+            typeArgumentsCount = 0,
+        )
+        val legacyPropertyReference = IrPropertyReferenceImplWithShape(
+            startOffset = UNDEFINED_OFFSET,
+            endOffset = UNDEFINED_OFFSET,
+            type = TestIrBuiltins.anyType,
+            symbol = property.symbol,
+            hasDispatchReceiver = false,
+            hasExtensionReceiver = false,
+            typeArgumentsCount = 0,
+            field = null,
+            getter = null,
+            setter = null,
+        )
+        val delegate = IrVariableImpl(
+            UNDEFINED_OFFSET, UNDEFINED_OFFSET, IrDeclarationOrigin.DEFINED, IrVariableSymbolImpl(),
+            Name.identifier($$"d$delegate"), TestIrBuiltins.anyType, isVar = false, isConst = false, isLateinit = false,
+        ).apply { parent = function }
+        val localDelegatedPropertyGetter = IrFactoryImpl.buildFun {
+            name = Name.special("<get-d>")
+            returnType = TestIrBuiltins.anyType
+        }.apply { parent = function }
+        val localDelegatedProperty = IrFactoryImpl.createLocalDelegatedProperty(
+            UNDEFINED_OFFSET, UNDEFINED_OFFSET, IrDeclarationOrigin.DEFINED, Name.identifier("d"),
+            IrLocalDelegatedPropertySymbolImpl(), TestIrBuiltins.anyType, isVar = false,
+        ).apply {
+            parent = function
+            this.delegate = delegate
+            getter = localDelegatedPropertyGetter
+        }
+        val legacyLocalDelegatedPropertyReference = IrLocalDelegatedPropertyReferenceImpl(
+            UNDEFINED_OFFSET, UNDEFINED_OFFSET, TestIrBuiltins.anyType, localDelegatedProperty.symbol,
+            delegate = delegate.symbol, getter = localDelegatedPropertyGetter.symbol, setter = null,
+        )
+
+        val body = IrFactoryImpl.createBlockBody(UNDEFINED_OFFSET, UNDEFINED_OFFSET)
+        body.statements.add(localDelegatedProperty)
+        body.statements.add(legacyFunctionReference)
+        body.statements.add(legacyPropertyReference)
+        body.statements.add(legacyLocalDelegatedPropertyReference)
+        function.body = body
+        file.addChild(function)
+        file.addChild(property)
+
+        testValidation(
+            IrVerificationMode.ERROR,
+            file,
+            listOf(
+                Message(
+                    ERROR,
+                    """
+                    [IR VALIDATION] IrValidatorTest: Legacy callable reference node 'IrFunctionReference' cannot be used on the first stage of KLIB-based compilation. Generate 'IrRichFunctionReference' instead. To temporarily suppress this check, pass '-Xdisable-ir-checkers=IrLegacyCallableReferenceChecker'.
+                    FUNCTION_REFERENCE 'public final fun foo (): kotlin.Unit declared in org.sample' type=kotlin.Any origin=null reflectionTarget=<same>
+                      inside BLOCK_BODY
+                        inside FUN name:foo visibility:public modality:FINAL <> () returnType:kotlin.Unit
+                          inside FILE fqName:org.sample fileName:test.kt
+                    """.trimIndent(),
+                    CompilerMessageLocation.create("test.kt", 0, 0, null),
+                ),
+                Message(
+                    ERROR,
+                    """
+                    [IR VALIDATION] IrValidatorTest: Legacy callable reference node 'IrPropertyReference' cannot be used on the first stage of KLIB-based compilation. Generate 'IrRichPropertyReference' instead. To temporarily suppress this check, pass '-Xdisable-ir-checkers=IrLegacyCallableReferenceChecker'.
+                    PROPERTY_REFERENCE 'public final p [val] declared in org.sample' field=null getter=null setter=null type=kotlin.Any origin=null
+                      inside BLOCK_BODY
+                        inside FUN name:foo visibility:public modality:FINAL <> () returnType:kotlin.Unit
+                          inside FILE fqName:org.sample fileName:test.kt
+                    """.trimIndent(),
+                    CompilerMessageLocation.create("test.kt", 0, 0, null),
+                ),
+                Message(
+                    ERROR,
+                    $$"""
+                    [IR VALIDATION] IrValidatorTest: Legacy callable reference node 'IrLocalDelegatedPropertyReference' cannot be used on the first stage of KLIB-based compilation. Generate 'IrRichPropertyReference' instead. To temporarily suppress this check, pass '-Xdisable-ir-checkers=IrLegacyCallableReferenceChecker'.
+                    LOCAL_DELEGATED_PROPERTY_REFERENCE 'val d: kotlin.Any by (...)' delegate='val d$delegate: kotlin.Any [val] declared in org.sample.foo' getter='public final fun <get-d> (): kotlin.Any declared in org.sample.foo' setter=null type=kotlin.Any origin=null
+                      inside BLOCK_BODY
+                        inside FUN name:foo visibility:public modality:FINAL <> () returnType:kotlin.Unit
+                          inside FILE fqName:org.sample fileName:test.kt
+                    """.trimIndent(),
+                    CompilerMessageLocation.create("test.kt", 0, 0, null),
+                ),
+            ),
+            config = IrValidatorConfig().withCheckers(IrLegacyCallableReferenceChecker),
+        )
+    }
+
+    private fun IrFile.addClass(name: String, kind: ClassKind = ClassKind.ANNOTATION_CLASS): IrClass {
+        val klass = IrFactoryImpl.buildClass {
+            this.name = Name.identifier(name)
+            this.kind = kind
+        }.apply {
+            createThisReceiverParameter()
+        }
+        addChild(klass)
+        return klass
+    }
+
+    private fun IrClass.addPrimaryConstructor(vararg parameterTypes: IrType): IrConstructor = addConstructor {
+        isPrimary = true
+    }.apply {
+        parameterTypes.forEachIndexed { index, type -> addValueParameter("p$index", type) }
+    }
+
+    private fun IrConstructor.annotationCall(vararg arguments: IrExpression?): IrAnnotation =
+        IrAnnotationImpl(
+            startOffset = UNDEFINED_OFFSET,
+            endOffset = UNDEFINED_OFFSET,
+            type = constructedClass.defaultType,
+            symbol = symbol,
+            typeArgumentsCount = 0,
+            constructorTypeArgumentsCount = 0,
+        ).apply { arguments.forEachIndexed { index, argument -> this.arguments[index] = argument } }
+
+    private fun IrConstructor.plainConstructorCall(): IrConstructorCall =
+        IrConstructorCallImpl(
+            startOffset = UNDEFINED_OFFSET,
+            endOffset = UNDEFINED_OFFSET,
+            type = constructedClass.defaultType,
+            symbol = symbol,
+            typeArgumentsCount = 0,
+            constructorTypeArgumentsCount = 0,
+        )
+
+    private fun buildFunctionAnnotatedWith(file: IrFile, annotation: IrAnnotation): IrSimpleFunction {
+        val function = IrFactoryImpl.buildFun {
+            name = Name.identifier("foo")
+            returnType = TestIrBuiltins.unitType
+        }
+        function.annotations = listOf(annotation)
+        file.addChild(function)
+        return function
+    }
+
+    private fun annotationUsageCheckerMessage(annotation: String, declaration: String, constructorCall: String) = Message(
+        ERROR,
+        """
+        [IR VALIDATION] IrValidatorTest: Annotation must be represented by IrAnnotation, not by a plain IrConstructorCall: $constructorCall
+        $annotation
+          inside $declaration
+            inside FILE fqName:org.sample fileName:test.kt
+        """.trimIndent(),
+        CompilerMessageLocation.create("test.kt", 0, 0, null),
+    )
+
+    @Test
+    fun `nested annotations represented by IrAnnotation are not reported`() {
+        val file = createIrFile()
+        val innerConstructor = file.addClass("Inner").addPrimaryConstructor()
+        val innerType = innerConstructor.constructedClass.defaultType
+        val outerConstructor = file.addClass("Outer").addPrimaryConstructor(innerType, TestIrBuiltins.anyType).apply {
+            parameters[0].defaultValue = IrFactoryImpl.createExpressionBody(UNDEFINED_OFFSET, UNDEFINED_OFFSET, innerConstructor.annotationCall())
+        }
+        val vararg = IrVarargImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, TestIrBuiltins.anyType, innerType, listOf(innerConstructor.annotationCall()))
+        buildFunctionAnnotatedWith(file, outerConstructor.annotationCall(innerConstructor.annotationCall(), vararg))
+        testValidation(
+            IrVerificationMode.WARNING,
+            file,
+            emptyList(),
+            config = IrValidatorConfig().withCheckers(IrAnnotationUsageChecker),
+        )
+    }
+
+    @Test
+    fun `nested annotations represented by plain IrConstructorCall are reported`() {
+        val file = createIrFile()
+        val innerConstructor = file.addClass("Inner").addPrimaryConstructor()
+        val innerType = innerConstructor.constructedClass.defaultType
+        val outerConstructor = file.addClass("Outer").addPrimaryConstructor(innerType, TestIrBuiltins.anyType)
+        val vararg = IrVarargImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, TestIrBuiltins.anyType, innerType, listOf(innerConstructor.plainConstructorCall()))
+        buildFunctionAnnotatedWith(file, outerConstructor.annotationCall(innerConstructor.plainConstructorCall(), vararg))
+        val annotation = "CONSTRUCTOR_CALL 'public constructor <init> (p0: org.sample.Inner, p1: kotlin.Any) [primary] declared in org.sample.Outer' type=org.sample.Outer origin=null"
+        val declaration = "FUN name:foo visibility:public modality:FINAL <> () returnType:kotlin.Unit"
+        val constructorCall = "CONSTRUCTOR_CALL 'public constructor <init> () [primary] declared in org.sample.Inner' type=org.sample.Inner origin=null"
+        testValidation(
+            IrVerificationMode.ERROR,
+            file,
+            listOf(
+                annotationUsageCheckerMessage(annotation, declaration, constructorCall),
+                annotationUsageCheckerMessage(annotation, declaration, constructorCall),
+            ),
+            config = IrValidatorConfig().withCheckers(IrAnnotationUsageChecker),
         )
     }
 }

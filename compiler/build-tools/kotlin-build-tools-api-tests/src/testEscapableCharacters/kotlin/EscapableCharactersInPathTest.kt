@@ -9,17 +9,17 @@ import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertCompil
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.expectFailWithError
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.DefaultStrategyAgnosticCompilationTest
 import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.assertAddedOutputs
-import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.scenario
+import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.jvmScenario
 import org.jetbrains.kotlin.test.TestMetadata
 import org.junit.jupiter.api.DisplayName
 
 class EscapableCharactersInPathTest : BaseCompilationTest() {
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Classpath contains whitespaces or other escapable characters")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testInClasspath(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        scenario(strategyConfig) {
-            val module1 = module("jvm-module-1")
+        jvmScenario(strategyConfig) {
+            val module1 = module("basic-multimodule-project/module-1")
 
             module1.createPredefinedFile("secret.kt", "new-file")
 
@@ -34,7 +34,7 @@ class EscapableCharactersInPathTest : BaseCompilationTest() {
     @DisplayName("Sources path contains whitespaces or other escapable characters")
     @TestMetadata("jvm module with \$trange c#aracters")
     fun testInModulePath(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        scenario(strategyConfig) {
+        jvmScenario(strategyConfig) {
             val module1 = module("jvm module with \$trange c#aracters")
 
             module1.replaceFileWithVersion("a.kt", "change-return-type")

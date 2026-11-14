@@ -1,5 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +EnumEntries -PrioritizedEnumEntries
+// RUN_PIPELINE_TILL: CODEGEN
+// LANGUAGE: -PrioritizedEnumEntries
 // WITH_STDLIB
 // FIR_DUMP
 

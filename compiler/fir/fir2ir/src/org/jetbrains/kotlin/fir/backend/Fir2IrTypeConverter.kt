@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.fir.expressions.unexpandedConeClassLikeType
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnresolvedError
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.toSymbol
+import org.jetbrains.kotlin.fir.resolve.typeParameterSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassifierSymbol
 import org.jetbrains.kotlin.fir.types.*
@@ -41,6 +42,7 @@ class Fir2IrTypeConverter(
         mapOf(
             StandardClassIds.Nothing to builtins.nothingClass,
             StandardClassIds.Any to builtins.anyClass,
+            StandardClassIds.NonError to builtins.anyClass,
             StandardClassIds.Unit to builtins.unitClass,
             StandardClassIds.Boolean to builtins.booleanClass,
             StandardClassIds.CharSequence to builtins.charSequenceClass,
@@ -64,6 +66,7 @@ class Fir2IrTypeConverter(
             StandardClassIds.Boolean to builtins.booleanType,
             StandardClassIds.String to builtins.stringType,
             StandardClassIds.Any to builtins.anyType,
+            StandardClassIds.NonError to builtins.anyType,
             StandardClassIds.Long to builtins.longType,
             StandardClassIds.Int to builtins.intType,
             StandardClassIds.Short to builtins.shortType,
@@ -250,6 +253,7 @@ class Fir2IrTypeConverter(
                 val approximated = type.approximateForIrOrNull()!!
                 approximated.toIrType(typeOrigin)
             }
+            is ConeUnionType -> if (canBeNull(session)) builtins.anyNType else builtins.anyType
             is ConeStubType, is ConeIntegerLiteralType, is ConeTypeVariableType -> createErrorType()
         }
     }

@@ -11,10 +11,10 @@ R|/consume|(Int(1))
 FIR FILE:
 FILE: [ResolvedTo(IMPORTS)] function.kts
     SCRIPT: [ResolvedTo(TYPES)] <script-function.kts>
-        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(TYPES)] lval args: R|kotlin/Array<kotlin/String>|
 
-        public final [ResolvedTo(CONTRACTS)] [ScriptTopLevelDeclaration=true] fun consume([ResolvedTo(CONTRACTS)] a: R|kotlin/Any|): R|kotlin/Any| { LAZY_BLOCK }
+        public final [ResolvedTo(STATUS)] [ScriptTopLevelDeclaration=true] fun consume([ResolvedTo(STATUS)] a: R|kotlin/Any|): R|kotlin/Any| { LAZY_BLOCK }
 
         public final [ResolvedTo(ANNOTATION_ARGUMENTS)] [PartialBodyAnalysisStateKey=1(1/4) #1, ScriptTopLevelDeclaration=true] fun test([ResolvedTo(ANNOTATION_ARGUMENTS)] foo: R|broken/lib/Foo|): R|kotlin/Unit| {
             R|/consume|(Int(1))
@@ -57,10 +57,10 @@ null
 FIR FILE:
 FILE: [ResolvedTo(IMPORTS)] function.kts
     SCRIPT: [ResolvedTo(TYPES)] <script-function.kts>
-        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(TYPES)] lval args: R|kotlin/Array<kotlin/String>|
 
-        public final [ResolvedTo(CONTRACTS)] [ScriptTopLevelDeclaration=true] fun consume([ResolvedTo(CONTRACTS)] a: R|kotlin/Any|): R|kotlin/Any| { LAZY_BLOCK }
+        public final [ResolvedTo(STATUS)] [ScriptTopLevelDeclaration=true] fun consume([ResolvedTo(STATUS)] a: R|kotlin/Any|): R|kotlin/Any| { LAZY_BLOCK }
 
         public final [ResolvedTo(ANNOTATION_ARGUMENTS)] [PartialBodyAnalysisStateKey=1(1/4) #1, ScriptTopLevelDeclaration=true] fun test([ResolvedTo(ANNOTATION_ARGUMENTS)] foo: R|broken/lib/Foo|): R|kotlin/Unit| {
             R|/consume|(Int(1))
@@ -107,10 +107,10 @@ when () {
 FIR FILE:
 FILE: [ResolvedTo(IMPORTS)] function.kts
     SCRIPT: [ResolvedTo(TYPES)] <script-function.kts>
-        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(TYPES)] lval args: R|kotlin/Array<kotlin/String>|
 
-        public final [ResolvedTo(CONTRACTS)] [ScriptTopLevelDeclaration=true] fun consume([ResolvedTo(CONTRACTS)] a: R|kotlin/Any|): R|kotlin/Any| { LAZY_BLOCK }
+        public final [ResolvedTo(STATUS)] [ScriptTopLevelDeclaration=true] fun consume([ResolvedTo(STATUS)] a: R|kotlin/Any|): R|kotlin/Any| { LAZY_BLOCK }
 
         public final [ResolvedTo(ANNOTATION_ARGUMENTS)] [PartialBodyAnalysisStateKey=3(3/4) #2, ScriptTopLevelDeclaration=true] fun test([ResolvedTo(ANNOTATION_ARGUMENTS)] foo: R|broken/lib/Foo|): R|kotlin/Unit| {
             R|/consume|(Int(1))

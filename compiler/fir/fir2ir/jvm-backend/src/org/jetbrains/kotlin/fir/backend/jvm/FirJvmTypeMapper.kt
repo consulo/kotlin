@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.builtins.functions.BuiltInFunctionArity
 import org.jetbrains.kotlin.builtins.functions.FunctionTypeKind
 import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
 import org.jetbrains.kotlin.codegen.signature.JvmSignatureWriter
-import org.jetbrains.kotlin.codegen.state.KotlinTypeMapper
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.FirSessionComponent
@@ -21,21 +20,18 @@ import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnresolvedSymbolError
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnresolvedTypeQualifierError
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
-import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
-import org.jetbrains.kotlin.fir.resolve.toSymbol
-import org.jetbrains.kotlin.fir.types.ConeClassifierLookupTag
-import org.jetbrains.kotlin.fir.symbols.ConeTypeParameterLookupTag
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirTypeAliasSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirTypeParameterSymbol
 import org.jetbrains.kotlin.fir.types.*
-import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
 import org.jetbrains.kotlin.load.kotlin.TypeMappingMode
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.ClassIdBasedLocality
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.types.AbstractTypeMapper
+import org.jetbrains.kotlin.types.AbstractTypeMapper.hasNothingInNonContravariantPosition
+import org.jetbrains.kotlin.types.AbstractTypeMapper.writeGenericArguments
 import org.jetbrains.kotlin.types.TypeMappingContext
 import org.jetbrains.kotlin.types.TypeSystemCommonBackendContext
 import org.jetbrains.kotlin.types.TypeSystemCommonBackendContextForTypeMapping
@@ -69,7 +65,14 @@ class FirJvmTypeMapper(override val session: FirSession) : FirSessionComponent, 
     fun isPrimitiveBacked(type: ConeKotlinType): Boolean =
         AbstractTypeMapper.isPrimitiveBacked(defaultContext, type)
 
-    private val defaultContext = Context { null }
+    /**
+     * [FirJvmTypeMapper] is registered as a [FirSessionComponent], but [Context] depends on other session components, like the
+     * [typeContext] and symbol provider. To avoid ordering issues during session component registration, [defaultContext] is lazy.
+     */
+    private val defaultContext by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        Context { null }
+    }
+
     val typeContext: TypeSystemCommonBackendContext
         get() = defaultContext.typeContext
 
@@ -94,7 +97,7 @@ class FirJvmTypeMapper(override val session: FirSession) : FirSessionComponent, 
 
         override fun JvmSignatureWriter.writeGenericType(type: KotlinTypeMarker, asmType: Type, mode: TypeMappingMode) {
             if (type !is ConeKotlinType) return
-            if (skipGenericSignature() || hasNothingInNonContravariantPosition(type) || type.typeArguments.isEmpty()) {
+            if (skipGenericSignature() || typeContext.hasNothingInNonContravariantPosition(type) || type.typeArguments.isEmpty()) {
                 writeAsmType(asmType)
                 return
             }
@@ -122,10 +125,6 @@ class FirJvmTypeMapper(override val session: FirSession) : FirSessionComponent, 
             }
 
             writeClassEnd()
-        }
-
-        private fun hasNothingInNonContravariantPosition(type: ConeKotlinType): Boolean = with(KotlinTypeMapper) {
-            typeContext.hasNothingInNonContravariantPosition(type)
         }
 
         private fun ConeKotlinType.buildPossiblyInnerType(): PossiblyInnerConeType {
@@ -197,11 +196,9 @@ class FirJvmTypeMapper(override val session: FirSession) : FirSessionComponent, 
             parameterSymbols: List<FirTypeParameterSymbol>,
             mode: TypeMappingMode
         ) {
-            with(KotlinTypeMapper) {
-                val parameters = parameterSymbols.map { ConeTypeParameterLookupTag(it) }
-                typeContext.writeGenericArguments(sw, arguments, parameters, mode) { type, sw, mode ->
-                    mapType(type.asCone(), mode, sw)
-                }
+            val parameters = parameterSymbols.map { ConeTypeParameterLookupTag(it) }
+            typeContext.writeGenericArguments(sw, arguments, parameters, mode) { type, sw, mode ->
+                mapType(type.asCone(), mode, sw)
             }
         }
 
@@ -260,7 +257,7 @@ class ConeTypeSystemCommonBackendContextForTypeMapping(
     override fun TypeConstructorMarker.defaultType(): ConeSimpleKotlinType {
         require(this is ConeClassifierLookupTag)
         return when (this) {
-            is ConeTypeParameterLookupTag -> ConeTypeParameterTypeImpl(this, isMarkedNullable = false)
+            is ConeTypeParameterLookupTag -> ConeTypeParameterType(this, isMarkedNullable = false)
             is ConeClassLikeLookupTag -> {
                 val symbol = toClassSymbol(session)
                     ?: return ConeErrorType(ConeUnresolvedSymbolError(classId))

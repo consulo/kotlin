@@ -5,10 +5,7 @@
 
 package kotlin.reflect.jvm.internal
 
-import java.lang.reflect.GenericDeclaration
-import java.lang.reflect.ParameterizedType
-import java.lang.reflect.Type
-import java.lang.reflect.WildcardType
+import java.lang.reflect.*
 import kotlin.coroutines.Continuation
 import kotlin.jvm.internal.KotlinGenericDeclaration
 import kotlin.jvm.internal.findMethodBySignature
@@ -23,7 +20,7 @@ internal interface ReflectKFunction : ReflectKCallable<Any?>, KFunction<Any?>, K
 
     val isPrimaryConstructor: Boolean
 
-    override fun findJavaDeclaration(): GenericDeclaration? = container.findMethodBySignature(signature)
+    override fun findJavaDeclaration(): GenericDeclaration? = originalContainer.findMethodBySignature(signature)
 }
 
 internal fun ReflectKFunction.extractContinuationArgument(): Type? {
@@ -75,4 +72,18 @@ internal fun patchJvmDescriptorByExtraBoxing(function: ReflectKFunction, jvmDesc
     if (boxedIndices.isEmpty()) return DescriptorPatchingResult(jvmDescriptor, emptySet())
     val patchedDescriptor = newParameters.joinToString("", "(", ")") + parsedDescriptor.returnType
     return DescriptorPatchingResult(patchedDescriptor, boxedIndices)
+}
+
+internal fun ReflectKFunction.getFunctionWithDefaultParametersForValueClassOverride(): ReflectKFunction? {
+    if (
+        valueParameters.none { (it as? ReflectKParameter)?.declaresDefaultValue == true } &&
+        (container as? KClassImpl<*>)?.isJvmInlineValue == true &&
+        Modifier.isStatic(caller.member!!.modifiers)
+    ) {
+        // firstOrNull is used to mimic the wrong behavior of regular class reflection as KT-40327 is not fixed.
+        // Equality of behaviors is currently backed by codegen/boxJvm/reflection/callBy/brokenDefaultParametersFromDifferentFunctions.kt.
+        return overridden
+            .firstOrNull { function -> function.valueParameters.any { (it as? ReflectKParameter)?.declaresDefaultValue == true } }
+    }
+    return null
 }

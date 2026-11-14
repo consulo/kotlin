@@ -1,0 +1,52 @@
+/*
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
+ */
+
+package org.jetbrains.kotlin.gradle.targets.js.internal
+
+import org.gradle.api.Project
+import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
+import org.jetbrains.kotlin.gradle.targets.web.WebIsolatedProjectsSupport
+import org.jetbrains.kotlin.gradle.targets.web.webIsolatedProjectsSupport
+import org.jetbrains.kotlin.gradle.utils.isProjectIsolationEnabled
+import org.jetbrains.kotlin.gradle.utils.isRootProject
+
+/**
+ * Returns the project to use for JS and WasmJS tooling plugins.
+ *
+ * Temp workaround for supporting Isolated Projects.
+ * It will definitely break things!
+ * Only intended for internal use, to prototype Isolated Projects support.
+ */
+@ObsoleteNpmDependencyModel
+internal fun Project.jsToolingProject(): Project {
+    return when {
+        // The root project's tooling project is always itself, so skip reading its properties.
+        // subprojects call this on the root project, and that read would violate Isolated Projects (KT-89532).
+        project.isRootProject() -> this
+        // Preview Isolated Projects support does not use the root project.
+        webIsolatedProjectsSupport == WebIsolatedProjectsSupport.Preview -> this
+        npmSharedProjectsPerProject && isProjectIsolationEnabled -> this
+        else -> rootProject
+    }
+}
+
+private val Project.npmSharedProjectsPerProject: Boolean
+    get() = PropertiesProvider(project).npmSharedDependenciesProjectMode.orNull == "PER-PROJECT"
+
+/**
+ * Check if [project] is the project to use for JS and WasmJS tooling plugins.
+ *
+ * Incompatible with Isolated Projects.
+ *
+ * Does nothing if [Project.npmSharedProjectsPerProject] is enabled.
+ */
+@ObsoleteNpmDependencyModel
+internal fun checkIsJsToolingProject(
+    project: Project,
+    message: () -> String,
+) {
+    check(project == project.jsToolingProject(), message)
+}

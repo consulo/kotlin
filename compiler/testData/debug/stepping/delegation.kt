@@ -18,7 +18,7 @@ fun box() {
     c.f()
 }
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:17 box
 // test.kt:14 <init>
 // test.kt:17 box
@@ -48,9 +48,7 @@ fun box() {
 // test.kt:8 <init>
 // test.kt:14 <init>
 // test.kt:18 box
-// test.kt:1 f
 // test.kt:11 f
-// test.kt:1 f
 // test.kt:19 box
 
 // EXPECTATIONS WASM

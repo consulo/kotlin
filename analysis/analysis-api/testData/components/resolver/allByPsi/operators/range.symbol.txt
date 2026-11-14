@@ -14,16 +14,31 @@ KtSuperTypeList(10,23): 'Comparable<A>'
   null
 
 KtSuperTypeEntry(10,23): 'Comparable<A>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Comparable
+    ]
 
 KtTypeReference(10,23): 'Comparable<A>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Comparable
+    ]
 
 KtUserType(10,23): 'Comparable<A>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Comparable
+    ]
 
 KtNameReferenceExpression(10,20): 'Comparable'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Comparable
+    ]
 
 KtTypeArgumentList(20,23): '<A>'
   null
@@ -32,13 +47,25 @@ KtTypeProjection(21,22): 'A'
   null
 
 KtTypeReference(21,22): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(21,22): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(21,22): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtClassBody(24,197): '{'
   null
@@ -56,22 +83,46 @@ KtParameter(53,61): 'other: A'
   null
 
 KtTypeReference(60,61): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(60,61): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(60,61): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtTypeReference(64,67): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(64,67): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(64,67): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtConstantExpression(70,71): '0'
   null
@@ -89,22 +140,46 @@ KtParameter(97,105): 'other: A'
   null
 
 KtTypeReference(104,105): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(104,105): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(104,105): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtTypeReference(108,122): 'ClosedRange<A>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/ranges/ClosedRange
+    ]
 
 KtUserType(108,122): 'ClosedRange<A>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/ranges/ClosedRange
+    ]
 
 KtNameReferenceExpression(108,119): 'ClosedRange'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/ranges/ClosedRange
+    ]
 
 KtTypeArgumentList(119,122): '<A>'
   null
@@ -113,22 +188,37 @@ KtTypeProjection(120,121): 'A'
   null
 
 KtTypeReference(120,121): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(120,121): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(120,121): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtCallExpression(125,131): 'TODO()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/TODO(): kotlin.Nothing
     ]
 
 KtNameReferenceExpression(125,129): 'TODO'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/TODO(): kotlin.Nothing
     ]
@@ -149,22 +239,46 @@ KtParameter(160,168): 'other: A'
   null
 
 KtTypeReference(167,168): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(167,168): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(167,168): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtTypeReference(171,186): 'OpenEndRange<A>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/ranges/OpenEndRange
+    ]
 
 KtUserType(171,186): 'OpenEndRange<A>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/ranges/OpenEndRange
+    ]
 
 KtNameReferenceExpression(171,183): 'OpenEndRange'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/ranges/OpenEndRange
+    ]
 
 KtTypeArgumentList(183,186): '<A>'
   null
@@ -173,22 +287,37 @@ KtTypeProjection(184,185): 'A'
   null
 
 KtTypeReference(184,185): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(184,185): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(184,185): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtCallExpression(189,195): 'TODO()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/TODO(): kotlin.Nothing
     ]
 
 KtNameReferenceExpression(189,193): 'TODO'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/TODO(): kotlin.Nothing
     ]
@@ -209,15 +338,18 @@ KtProperty(216,227): 'val a = A()'
   null
 
 KtCallExpression(224,227): 'A()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): A
     ]
 
 KtNameReferenceExpression(224,225): 'A'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(): A
+      /A
     ]
 
 KtValueArgumentList(225,227): '()'
@@ -227,64 +359,85 @@ KtProperty(232,243): 'val b = A()'
   null
 
 KtCallExpression(240,243): 'A()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): A
     ]
 
 KtNameReferenceExpression(240,241): 'A'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(): A
+      /A
     ]
 
 KtValueArgumentList(241,243): '()'
   null
 
 KtBinaryExpression(248,252): 'a..b'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.rangeTo(<dispatch receiver>: A, other: A): kotlin.ranges.ClosedRange<A>
     ]
 
 KtNameReferenceExpression(248,249): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val a: A
     ]
 
 KtOperationReferenceExpression(249,251): '..'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.rangeTo(<dispatch receiver>: A, other: A): kotlin.ranges.ClosedRange<A>
     ]
 
 KtNameReferenceExpression(251,252): 'b'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val b: A
     ]
 
 KtBinaryExpression(257,262): 'a..<b'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.rangeUntil(<dispatch receiver>: A, other: A): kotlin.ranges.OpenEndRange<A>
     ]
 
 KtNameReferenceExpression(257,258): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val a: A
     ]
 
 KtOperationReferenceExpression(258,261): '..<'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.rangeUntil(<dispatch receiver>: A, other: A): kotlin.ranges.OpenEndRange<A>
     ]
 
 KtNameReferenceExpression(261,262): 'b'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val b: A
     ]

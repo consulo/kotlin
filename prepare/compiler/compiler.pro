@@ -35,6 +35,10 @@
 -dontwarn com.sun.jna.WString
 -dontwarn dk.brics.automaton.*
 -dontwarn java.lang.invoke.MethodHandle
+# VarHandleWrapperImpl is a multi-release (JDK 9+) class that uses java.lang.invoke.VarHandle
+# and MethodHandles.privateLookupIn, which are absent from the JDK 8 library jars ProGuard
+# runs against, so suppress its unresolved-reference warnings.
+-dontwarn com.intellij.concurrency.VarHandleWrapperImpl
 -dontwarn io.vavr.*
 -dontwarn javax.crypto.**
 -dontwarn kotlinx.collections.immutable.*
@@ -43,6 +47,7 @@
 -dontwarn kotlinx.coroutines.future.FutureKt
 -dontwarn kotlinx.serialization.**
 -dontwarn net.sf.cglib.**
+-dontwarn io.opentelemetry.common.**
 -dontwarn io.opentelemetry.context.**
 -dontwarn org.apache.hadoop.io.compress.*
 -dontwarn org.apache.xerces.dom.**
@@ -51,11 +56,30 @@
 -dontwarn org.imgscalr.Scalr**
 -dontwarn org.iq80.snappy.HadoopSnappyCodec$SnappyCompressionInputStream
 -dontwarn org.iq80.snappy.HadoopSnappyCodec$SnappyCompressionOutputStream
--dontwarn org.jline.builtins.Nano$Buffer
 -dontwarn org.objectweb.asm.** # this is ASM3, the old version that we do not use
 -dontwarn org.w3c.dom.ElementTraversal
 -dontwarn org.xerial.snappy.SnappyBundleActivator
 -dontwarn gnu.trove.TObjectHashingStrategy
+
+# Section after upgrade to SDK 261
+# com.intellij.platform.eel.EelLowLevelObjectsPool uses java.nio.ByteBuffer.clear which cannot be found
+# com.intellij.platform.eel.EelProxyImplKt uses the same clear method and also java.nio.ByteBuffer.flip, also cannot be found
+-dontwarn java.nio.ByteBuffer
+# com.intellij.util.text.JvmKt uses java.nio.CharBuffer.position which cannot be found
+-dontwarn java.nio.CharBuffer
+# The following classes are using CoroutineDispatcher returning method limitedParallelism which cannot be found:
+# com.intellij.openapi.diagnostic.AsyncLog, com.intellij.openapi.progress.ContextKt,
+# com.intellij.platform.eel.RealEelProxy, com.intellij.platform.util.coroutines.DispatchersKt,
+# com.intellij.platform.util.coroutines.NamedDispatcher, com.intellij.util.io.BlockingKt
+-dontwarn kotlinx.coroutines.CoroutineDispatcher
+# some JDK 1.8 intellij modules illegally use List.removeLast()
+# com.intellij.java.syntax.parser.JavaDocParser was hijacked to fix exceptions in some CliTestGenerated
+# for the remaining two is not known, if the usages are dangerous
+# com.intellij.ide.plugins.PluginDescriptorLoader, com.intellij.platform.eel.path.ArrayListEelAbsolutePath
+-dontwarn java.util.List
+# Used by some intellij classes, e.g. by com.intellij.platform.syntax.extensions.impl.ExtensionRegistryHolderJvmKt
+# In fact we don't need this one in runtime
+-dontwarn fleet.util.multiplatform.Actual
 
 # Some annotations from intellijCore/annotations.jar are not presented in org.jetbrains.annotations
 -dontwarn org.jetbrains.annotations.*
@@ -71,9 +95,6 @@
 -dontwarn com.intellij.util.SVGLoader*
 -dontwarn org.apache.batik.script.rhino.RhinoInterpreter
 -dontwarn org.apache.batik.script.rhino.RhinoInterpreterFactory
-
-# The appropriate jar is either loaded separately or added explicitly to the classpath then needed
--dontwarn org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingCompilerConfigurationComponentRegistrar
 
 # Ignore generated Gradle DSL types
 # They will be added separately on generating Gradle DSL for compiler options
@@ -178,6 +199,9 @@
 # for j2k
 -keep class com.intellij.codeInsight.NullableNotNullManager { public protected *; }
 
+# for Swift Export
+-keep class com.intellij.lang.LanguageExtensionPoint { *; }
+
 # for gradle (see KT-12549)
 -keep class com.intellij.lang.properties.charset.Native2AsciiCharsetProvider { *; }
 
@@ -200,6 +224,9 @@
 -keep class gnu.trove.TIntHashSet { *; }
 -keep class gnu.trove.TIntIterator { *; }
 -keep class org.iq80.snappy.SlowMemory { *; }
+
+# this class is not used by kotlin-compiler.jar itself, but by swift-export-embeddable, which depends on kotlin-compiler-embeddable
+-keep class com.intellij.util.io.URLUtil { public protected *; }
 
 -keepclassmembers enum * {
     public static **[] values();
@@ -304,17 +331,6 @@
     public void registerExtensionPoint(java.lang.String, java.lang.String, com.intellij.openapi.extensions.ExtensionPoint$Kind);
 }
 
-# used in REPL
-# TODO: pack jline directly to scripting-compiler jars instead
--keep class org.jline.reader.LineReaderBuilder { *; }
--keep class org.jline.reader.LineReader { *; }
--keep class org.jline.reader.History { *; }
--keep class org.jline.reader.EndOfFileException { *; }
--keep class org.jline.reader.UserInterruptException { *; }
--keep class org.jline.terminal.TerminalBuilder { *; }
--keep class org.jline.terminal.impl.jna.JnaSupportImpl  { *; }
--keep class org.jline.terminal.impl.jansi.JansiSupportImpl  { *; }
-
 # Keep rules for serializable classes (see https://www.guardsquare.com/manual/configuration/examples#serializable)
 -keepclassmembers class * implements java.io.Serializable {
         static final long serialVersionUID;
@@ -341,6 +357,10 @@
     public static void deleteRecursively(java.nio.file.Path);
 }
 
+# Used indirectly e.g. from LanguageLevel.<clinit>
+-keepclassmembers class com.intellij.AbstractBundle {
+    java.util.function.Supplier getLazyMessage(java.lang.String,java.lang.Object[]);
+}
 
 # This is used from standalone analysis API, which is NOT a part of the compiler but is bundled into kotlin-annotation-processing.
 -keepclassmembers class com.intellij.openapi.vfs.VirtualFileManager {
@@ -348,6 +368,9 @@
 }
 -keepclassmembers class com.intellij.openapi.application.Application {
     void addApplicationListener(com.intellij.openapi.application.ApplicationListener, com.intellij.openapi.Disposable);
+}
+-keepclassmembers class com.intellij.util.messages.impl.PluginListenerDescriptor {
+    public *;
 }
 -keep class com.intellij.openapi.extensions.ExtensionPointName {
     java.util.List getExtensionList(com.intellij.openapi.extensions.AreaInstance);
@@ -364,12 +387,16 @@
 -keepclassmembers class kotlinx.collections.immutable.PersistentSet {
     public *;
 }
+-keepclassmembers class kotlinx.collections.immutable.PersistentList {
+    public *;
+}
 -keepclassmembers class com.intellij.lang.jvm.JvmParameter {
     com.intellij.lang.jvm.types.JvmType getType();
 }
 -keepclassmembers class com.intellij.util.containers.ContainerUtil {
     public static java.util.concurrent.ConcurrentMap createConcurrentSoftMap();
     public static java.util.concurrent.ConcurrentMap createConcurrentWeakMap();
+    public static java.util.concurrent.ConcurrentMap createConcurrentWeakKeySoftValueMap();
     public static java.util.Map createSoftValueMap();
 }
 -keep class com.intellij.codeInsight.PsiEquivalenceUtil {
@@ -401,6 +428,23 @@
     public java.lang.Object computeIfAbsent(java.lang.Object, it.unimi.dsi.fastutil.objects.Object2ObjectFunction);
 }
 
+# IntArraySet(int) is called from K/N backend (CustomBitSet), which is not part of the ProGuard
+# input, so ProGuard cannot see the call and would otherwise strip this constructor.
+-keep class it.unimi.dsi.fastutil.ints.IntArraySet {
+    public <init>(int);
+}
+
 -dontwarn kotlinx.coroutines.internal.intellij.IntellijCoroutines
 
 -dontwarn org.jetbrains.kotlin.buildtools.internal.cri.**
+
+# Multiplatform parsing section
+# It seems that proguard cannot work with MPP libs properly
+# Currently mentioned classes are effectively unused,
+# as we need only multiplatform-parsing:jvmMain and not :common
+# TODO: recheck that everything works properly after KT-86282 done
+-dontwarn fleet.com.intellij.multiplatform.util.fastutil.ints.**
+-dontwarn org.jetbrains.kotlin.kmp.parser.utils.**
+-keep class com.intellij.platform.syntax.parser.SyntaxTreeBuilder {
+    public *;
+}

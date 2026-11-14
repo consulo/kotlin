@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
-import org.jetbrains.kotlin.light.classes.symbol.*
+import org.jetbrains.kotlin.light.classes.symbol.utils.*
 import org.jetbrains.kotlin.utils.keysToMap
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 
@@ -34,7 +34,7 @@ internal class GranularModifiersBox(
             val currentMap = modifiersMapReference
             currentMap[modifier]?.let { return it }
 
-            val newMap = currentMap.putAll(newValues)
+            val newMap = currentMap.puttingAll(newValues)
         } while (fieldUpdater.weakCompareAndSet(/* obj = */ this, /* expect = */ currentMap, /* update = */ newMap))
 
         return newValues[modifier] ?: error("Inconsistent state: $modifier")
@@ -60,10 +60,10 @@ internal class GranularModifiersBox(
             }.toPersistentHashMap()
 
         internal fun computeVisibilityForMember(
-            ktModule: KaModule,
+            useSiteModule: KaModule,
             declarationPointer: KaSymbolPointer<KaDeclarationSymbol>,
         ): PersistentMap<String, Boolean> {
-            val visibility = declarationPointer.withSymbol(ktModule) {
+            val visibility = declarationPointer.withSymbol(useSiteModule) {
                 it.toPsiVisibilityForMember()
             }
 
@@ -71,11 +71,11 @@ internal class GranularModifiersBox(
         }
 
         internal fun computeVisibilityForClass(
-            ktModule: KaModule,
+            useSiteModule: KaModule,
             declarationPointer: KaSymbolPointer<KaDeclarationSymbol>,
             isTopLevel: Boolean,
         ): PersistentMap<String, Boolean> {
-            val visibility = declarationPointer.withSymbol(ktModule) {
+            val visibility = declarationPointer.withSymbol(useSiteModule) {
                 it.toPsiVisibilityForClass(!isTopLevel)
             }
 
@@ -83,10 +83,10 @@ internal class GranularModifiersBox(
         }
 
         internal fun computeSimpleModality(
-            ktModule: KaModule,
+            useSiteModule: KaModule,
             declarationPointer: KaSymbolPointer<KaDeclarationSymbol>,
         ): PersistentMap<String, Boolean> {
-            val modality = declarationPointer.withSymbol(ktModule) {
+            val modality = declarationPointer.withSymbol(useSiteModule) {
                 if ((it as? KaClassSymbol)?.classKind == KaClassKind.ENUM_CLASS) {
                     enumClassModality(it)
                 } else {
@@ -102,5 +102,5 @@ internal class GranularModifiersBox(
 
 @Suppress("NOTHING_TO_INLINE")
 internal inline fun PersistentMap<String, Boolean>.with(modifier: String?): PersistentMap<String, Boolean> {
-    return modifier?.let { put(modifier, true) } ?: this
+    return modifier?.let { putting(modifier, true) } ?: this
 }

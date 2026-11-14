@@ -7,9 +7,9 @@ package org.jetbrains.kotlin.analysis.test.framework.services
 
 import com.intellij.mock.MockApplication
 import com.intellij.mock.MockProject
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.registerApplicationServices
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.registerProjectExtensionPoints
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.registerProjectServices
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.registerApplicationServices
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.registerProjectExtensionPoints
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.registerProjectServices
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.ktTestModuleStructureProvider
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.registerProjectModelServices
@@ -26,16 +26,18 @@ class ProjectStructureInitialisationPreAnalysisHandler(
     override fun preprocessModuleStructure(moduleStructure: TestModuleStructure) {
         checkAllModulesHaveTheSameProject(moduleStructure)
 
-        testServices.environmentManager.initializeEnvironment()
+        val environmentManager = testServices.environmentManager
+        environmentManager.initializeEnvironment()
 
-        val project = testServices.environmentManager.getProject() as MockProject
-        val application = testServices.environmentManager.getApplication() as MockApplication
+        val project = environmentManager.getProject() as MockProject
+        val application = environmentManager.getApplication() as MockApplication
+        val applicationParentDisposable = environmentManager.getApplicationEnvironment().parentDisposable
 
-        configurator.serviceRegistrars.registerApplicationServices(application, testServices)
+        configurator.serviceRegistrars.registerApplicationServices(application, applicationParentDisposable, testServices)
         createAndRegisterKtModules(moduleStructure, project)
         configurator.serviceRegistrars.registerProjectExtensionPoints(project, testServices)
         configurator.serviceRegistrars.registerProjectServices(project, testServices)
-        testServices.environmentManager.initializeProjectStructure()
+        environmentManager.initializeProjectStructure()
         configurator.serviceRegistrars.registerProjectModelServices(project, testServices)
     }
 

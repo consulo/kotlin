@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.gradle.targets.wasm.yarn
 
 import org.gradle.api.Project
+import org.jetbrains.kotlin.gradle.targets.js.internal.jsToolingProject
 import org.jetbrains.kotlin.gradle.targets.js.npm.LockCopyTask
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPluginApplier
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsPlugin.Companion.kotlinNodeJsEnvSpec
@@ -13,6 +14,7 @@ import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootPlugin
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootPlugin.Companion.kotlinNodeJsRootExtension
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmPlatformDisambiguator
 import org.jetbrains.kotlin.gradle.targets.web.HasPlatformDisambiguator
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 import org.jetbrains.kotlin.gradle.targets.web.yarn.CommonYarnPlugin
 
 /**
@@ -20,6 +22,7 @@ import org.jetbrains.kotlin.gradle.targets.web.yarn.CommonYarnPlugin
  * The `WasmYarnPlugin` applies configurations, tasks, and extensions necessary for managing
  * Yarn as a package manager within Wasm-targeted projects using Gradle.
  */
+@ObsoleteNpmDependencyModel
 abstract class WasmYarnPlugin internal constructor() : CommonYarnPlugin {
     override fun apply(target: Project) {
 
@@ -42,9 +45,10 @@ abstract class WasmYarnPlugin internal constructor() : CommonYarnPlugin {
         }
     }
 
+    @ObsoleteNpmDependencyModel
     companion object : HasPlatformDisambiguator by WasmPlatformDisambiguator {
         fun apply(project: Project): WasmYarnRootExtension {
-            val rootProject = project.rootProject
+            val rootProject = project.jsToolingProject()
             rootProject.plugins.apply(WasmYarnPlugin::class.java)
             return rootProject.extensions.getByName(WasmYarnRootExtension.YARN) as WasmYarnRootExtension
         }

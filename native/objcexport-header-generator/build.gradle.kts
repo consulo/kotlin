@@ -1,13 +1,20 @@
 @file:Suppress("HasPlatformType")
 
+import org.jetbrains.kotlin.testFederation.testFederation
+
+
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
+    id("java-test-fixtures")
+    id("test-inputs-check")
 }
 
 sourceSets {
     "main" { projectDefault() }
     "test" { projectDefault() }
+    "testFixtures" { projectDefault() }
 }
 
 dependencies {
@@ -24,9 +31,9 @@ dependencies {
         testImplementation(testFixtures(project(":native:native.tests")))
     }
 
-    testApi(project(":native:external-projects-test-utils"))
+    testFixturesApi(project(":native:external-projects-test-utils"))
     testRuntimeOnly(project(":native:analysis-api-based-test-utils"))
-    testImplementation(libs.junit.jupiter.api)
+    testFixturesImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(testFixtures(project(":compiler:tests-common")))
@@ -44,17 +51,15 @@ kotlin {
 
 /* Configure tests */
 
-testsJar()
-
-val k1TestRuntimeClasspath by configurations.creating
-val analysisApiRuntimeClasspath by configurations.creating
+val k1TestRuntimeClasspath = configurations.create("k1TestRuntimeClasspath")
+val analysisApiRuntimeClasspath = configurations.create("analysisApiRuntimeClasspath")
 
 dependencies {
     k1TestRuntimeClasspath(project(":native:objcexport-header-generator-k1"))
-    k1TestRuntimeClasspath(projectTests(":native:objcexport-header-generator-k1"))
+    k1TestRuntimeClasspath(testFixtures(project(":native:objcexport-header-generator-k1")))
 
     analysisApiRuntimeClasspath(project(":native:objcexport-header-generator-analysis-api"))
-    analysisApiRuntimeClasspath(projectTests(":native:objcexport-header-generator-analysis-api"))
+    analysisApiRuntimeClasspath(testFixtures(project(":native:objcexport-header-generator-analysis-api")))
 }
 
 tasks.test.configure {
@@ -62,6 +67,8 @@ tasks.test.configure {
 }
 
 projectTests {
+    testData(isolated, "testData")
+
     objCExportHeaderGeneratorTestTask("testK1", testDisplayNameTag = "K1") {
         classpath += k1TestRuntimeClasspath
         exclude("**/ObjCExportIntegrationTest.class")
@@ -74,6 +81,12 @@ projectTests {
     ) {
         classpath += analysisApiRuntimeClasspath
         exclude("**/ObjCExportIntegrationTest.class")
+
+        // Ideally, it should be marked as affected by AnalysisApi instead.
+        // But this would be cumbersome and the tests are very fast, so let's keep things simple:
+        testFederation {
+            smokeTests { includeAll() }
+        }
     }
 }
 

@@ -6,8 +6,10 @@
 package org.jetbrains.kotlin.incremental.classpathDiff.impl
 
 import org.jetbrains.kotlin.buildtools.api.jvm.ClassSnapshotGranularity
+import org.jetbrains.kotlin.buildtools.api.jvm.ClassSnapshotGranularity.CLASS_LEVEL
 import org.jetbrains.kotlin.buildtools.api.jvm.ClassSnapshotGranularity.CLASS_MEMBER_LEVEL
 import org.jetbrains.kotlin.incremental.DifferenceCalculatorForPackageFacade.Companion.getNonPrivateMembers
+import org.jetbrains.kotlin.incremental.DifferenceCalculatorForPackageFacade.Companion.getVisibleTypeAliasExpansions
 import org.jetbrains.kotlin.incremental.KotlinClassInfo
 import org.jetbrains.kotlin.incremental.PackagePartProtoData
 import org.jetbrains.kotlin.incremental.classpathDiff.*
@@ -20,10 +22,13 @@ import org.jetbrains.kotlin.incremental.impl.ClassNodeSnapshotter.snapshotMethod
 import org.jetbrains.kotlin.incremental.impl.ClassNodeSnapshotter.sortClassMembers
 import org.jetbrains.kotlin.incremental.impl.SelectiveClassVisitor
 import org.jetbrains.kotlin.incremental.impl.hashToLong
+import org.jetbrains.kotlin.incremental.storage.ListExternalizer
 import org.jetbrains.kotlin.incremental.storage.toByteArray
 import org.jetbrains.kotlin.load.kotlin.header.KotlinClassHeader.Kind.*
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmMemberSignature
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.org.objectweb.asm.ClassReader
+import org.jetbrains.org.objectweb.asm.Opcodes
 import org.jetbrains.org.objectweb.asm.tree.ClassNode
 
 
@@ -38,12 +43,13 @@ internal object SingleClassSnapshotter {
     /** Computes a [KotlinClassSnapshot] of the given Kotlin class. */
     fun snapshotKotlinClass(
         classFile: ClassFileWithContents,
-        granularity: ClassSnapshotGranularity,
+        settings: ClasspathEntrySnapshotter.Settings,
         kotlinClassInfo: KotlinClassInfo,
     ): KotlinClassSnapshot {
         val classId = kotlinClassInfo.classId
-        val classAbiHash = KotlinClassInfoExternalizer.toByteArray(kotlinClassInfo).hashToLong()
-        val classMemberLevelSnapshot = kotlinClassInfo.takeIf { granularity == CLASS_MEMBER_LEVEL }
+        val classInfoBytes = KotlinClassInfoExternalizer.toByteArray(kotlinClassInfo)
+        val classAbiHash = classInfoBytes.hashToLong()
+        val classMemberLevelSnapshot = kotlinClassInfo.takeIf { settings.granularity == CLASS_MEMBER_LEVEL }
 
         return when (kotlinClassInfo.classKind) {
             CLASS -> RegularKotlinClassSnapshot(
@@ -52,10 +58,23 @@ internal object SingleClassSnapshotter {
                 companionObjectName = kotlinClassInfo.companionObject?.shortClassName?.identifier,
                 constantsInCompanionObject = kotlinClassInfo.constantsInCompanionObject
             )
-            FILE_FACADE, MULTIFILE_CLASS_PART -> PackageFacadeKotlinClassSnapshot(
-                classId, classAbiHash, classMemberLevelSnapshot,
-                packageMemberNames = (kotlinClassInfo.protoData as PackagePartProtoData).getNonPrivateMembers().toSet()
-            )
+            FILE_FACADE, MULTIFILE_CLASS_PART -> {
+                val packagePartProtoData = kotlinClassInfo.protoData as PackagePartProtoData
+                val typeAliases = packagePartProtoData.getTypeAliasSnapshotsOrNull(settings.expandTypeAliases)
+                PackageFacadeKotlinClassSnapshot(
+                    classId,
+                    // Impact computation sees the current type aliases of a facade only if its hash changed, so newly collected aliases
+                    // (e.g., after enabling `expandTypeAliases`) must change the hash too (KT-90252). Facades without aliases keep it.
+                    classAbiHash = if (typeAliases.isNullOrEmpty()) {
+                        classAbiHash
+                    } else {
+                        (classInfoBytes + ListExternalizer(TypeAliasSnapshotExternalizer).toByteArray(typeAliases)).hashToLong()
+                    },
+                    classMemberLevelSnapshot,
+                    packageMemberNames = packagePartProtoData.getNonPrivateMembers().toSet(),
+                    typeAliases = typeAliases
+                )
+            }
             MULTIFILE_CLASS -> MultifileClassKotlinClassSnapshot(
                 classId, classAbiHash, classMemberLevelSnapshot,
                 constantNames = kotlinClassInfo.extraInfo.constantSnapshots.keys
@@ -84,7 +103,7 @@ internal object SingleClassSnapshotter {
         // Note the `parsingOptions` passed to `classReader`:
         //     - Pass SKIP_CODE as we want to remove method bodies
         //     - Do not pass SKIP_DEBUG as debug info (e.g., method parameter names) may be important
-        val classReader = ClassReader(classFile.contents)
+        val classReader = classFile.classReader
         val selectiveClassVisitor = SelectiveClassVisitor(
             classNode,
             shouldVisitField = { _: JvmMemberSignature.Field, isPrivate: Boolean, _: Boolean -> !isPrivate },
@@ -118,5 +137,56 @@ internal object SingleClassSnapshotter {
             classMemberLevelSnapshot = classMemberLevelSnapshot,
             supertypes = classFile.classInfo.supertypes
         )
+    }
+
+    /**
+     * Computes a [PackageInfoClassSnapshot] of the given `package-info.class`. Granularity is forced to [CLASS_LEVEL]: the class has no
+     * members, its ABI is the package-level annotations only.
+     */
+    fun snapshotPackageInfoClass(classFile: ClassFileWithContents): PackageInfoClassSnapshot {
+        return PackageInfoClassSnapshot(
+            classId = classFile.classInfo.classId,
+            classAbiHash = snapshotJavaClass(classFile, CLASS_LEVEL).classAbiHash,
+        )
+    }
+
+    /**
+     * Computes a [ModuleInfoClassSnapshot] of the given `module-info.class`, or returns `null` if the class is not a module descriptor.
+     */
+    fun snapshotModuleInfoClass(classContents: ByteArray, packages: Set<FqName>): ModuleInfoClassSnapshot? {
+        val classNode = ClassNode()
+        ClassReader(classContents).accept(classNode, ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES)
+        val module = classNode.module ?: return null
+
+        // Drop irrelevant fop compilation parts of the module descriptor
+        module.version = null
+        module.mainClass = null
+        module.packages = null
+        module.uses = null
+        module.provides = null
+        module.requires?.forEach { it.version = null }
+        // Normalize the order of the directives
+        module.requires?.sortBy { it.module }
+        module.exports?.forEach { it.modules?.sort() }
+        module.exports?.sortBy { it.packaze }
+        module.opens?.forEach { it.modules?.sort() }
+        module.opens?.sortBy { it.packaze }
+
+        return ModuleInfoClassSnapshot(
+            classId = ModuleInfoClassSnapshot.moduleInfoClassId(module.name),
+            classAbiHash = snapshotClass(classNode),
+            packages = packages,
+            transitiveRequires = module.requires.orEmpty()
+                .filter { it.access and Opcodes.ACC_TRANSITIVE != 0 }
+                .map { it.module },
+        )
+    }
+
+    private fun PackagePartProtoData.getTypeAliasSnapshotsOrNull(expandTypeAliases: Boolean): List<TypeAliasSnapshot>? {
+        if (!expandTypeAliases) {
+            return null
+        }
+
+        return getVisibleTypeAliasExpansions().map { TypeAliasSnapshot(it.first, it.second) }
     }
 }

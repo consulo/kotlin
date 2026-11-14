@@ -5,27 +5,29 @@
 
 package org.jetbrains.kotlin.buildtools.tests.compilation.model
 
+import org.jetbrains.kotlin.buildtools.api.BaseCompilationOperation
+import org.jetbrains.kotlin.buildtools.api.BaseIncrementalCompilationConfiguration
 import org.jetbrains.kotlin.buildtools.api.CompilationResult
 import org.jetbrains.kotlin.buildtools.api.ExecutionPolicy
-import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmCompilationOperation
 import org.junit.jupiter.api.Assertions.assertEquals
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import kotlin.reflect.KClass
 
 private class CompilationOutcomeImpl(
     rawLogLines: Map<LogLevel, Collection<String>>,
     override val actualResult: CompilationResult?,
 ) : CompilationOutcome {
     private val _logLines by lazy {
-        rawLogLines.mapValues { (_, lines) -> lines.toList() }
+        rawLogLines.mapValues { [_, lines] -> lines.toList() }
     }
 
     override val logLines: Map<LogLevel, List<String>>
         get() = _logLines
 
     private val _uniqueLogLines by lazy {
-        rawLogLines.mapValues { (_, lines) -> lines.toSet() }
+        rawLogLines.mapValues { [_, lines] -> lines.toSet() }
     }
 
     override val uniqueLogLines: Map<LogLevel, Set<String>>
@@ -49,22 +51,23 @@ private class CompilationOutcomeImpl(
     }
 }
 
-data class AbstractModuleCacheKey(
+data class AbstractModuleCacheKey<T>(
+    val moduleClass: KClass<*>,
     val moduleName: String,
     val dependencies: List<DependencyScenarioDslCacheKey>,
-    val compilationArguments: (JvmCompilationOperation.Builder) -> Unit,
+    val compilationArguments: (T) -> Unit,
 ) : DependencyScenarioDslCacheKey
 
 val EXPLICIT_NULL_MODULE_NAME_MARKER = "###null_module_name###"
 
-abstract class AbstractModule(
+abstract class AbstractModule<O : BaseCompilationOperation, B : BaseCompilationOperation.Builder, IC : BaseIncrementalCompilationConfiguration.Builder>(
     override val project: Project,
     final override val moduleName: String,
     val moduleDirectory: Path,
     val dependencies: List<Dependency>,
     override val defaultStrategyConfig: ExecutionPolicy,
-    final override val moduleCompilationConfigAction: (JvmCompilationOperation.Builder) -> Unit,
-) : Module {
+    final override val moduleCompilationConfigAction: (B) -> Unit,
+) : Module<O, B, IC> {
     override val sourcesDirectory: Path
         get() = moduleDirectory.resolve("src")
 
@@ -83,15 +86,20 @@ abstract class AbstractModule(
     override val icCachesDir: Path
         get() = icWorkingDir.resolve("caches")
 
-    override val scenarioDslCacheKey =
-        AbstractModuleCacheKey(moduleName, dependencies.map { it.scenarioDslCacheKey }, moduleCompilationConfigAction)
+    override val scenarioDslCacheKey: DependencyScenarioDslCacheKey =
+        AbstractModuleCacheKey(
+            this::class,
+            moduleName,
+            dependencies.map { it.scenarioDslCacheKey },
+            moduleCompilationConfigAction
+        )
 
     override fun compileAndThrow(
         strategyConfig: ExecutionPolicy,
         forceOutput: LogLevel?,
-        compilationConfigAction: (JvmCompilationOperation.Builder) -> Unit,
-        compilationAction: (JvmCompilationOperation) -> Unit,
-        assertions: context(Module) CompilationOutcome.(Throwable) -> Unit,
+        compilationConfigAction: (B) -> Unit,
+        compilationAction: (O) -> Unit,
+        assertions: context(ModuleContext) CompilationOutcome.(Throwable) -> Unit,
     ): Throwable {
         val kotlinLogger = TestKotlinLogger()
         try {
@@ -109,9 +117,9 @@ abstract class AbstractModule(
     override fun compile(
         strategyConfig: ExecutionPolicy,
         forceOutput: LogLevel?,
-        compilationConfigAction: (JvmCompilationOperation.Builder) -> Unit,
-        compilationAction: (JvmCompilationOperation) -> Unit,
-        assertions: context(Module) CompilationOutcome.() -> Unit
+        compilationConfigAction: (B) -> Unit,
+        compilationAction: (O) -> Unit,
+        assertions: context(ModuleContext) CompilationOutcome.() -> Unit,
     ): CompilationResult {
         val kotlinLogger = TestKotlinLogger()
         val result = compileImpl(
@@ -124,15 +132,16 @@ abstract class AbstractModule(
         return result
     }
 
-    private fun processOutcome(
+    protected fun processOutcome(
         kotlinLogger: TestKotlinLogger,
         result: CompilationResult?,
-        assertions: context(Module) CompilationOutcome.() -> Unit,
+        assertions: context(ModuleContext) CompilationOutcome.() -> Unit,
         forceOutput: LogLevel?,
+        assertionsContext: ModuleContext = this,
     ) {
         val outcome = CompilationOutcomeImpl(kotlinLogger.logMessagesByLevel, result)
         try {
-            assertions(outcome)
+            applyAssertions(assertionsContext, outcome, assertions)
             assertEquals(outcome.expectedResult, result) {
                 "Compilation result is unexpected"
             }
@@ -150,10 +159,23 @@ abstract class AbstractModule(
         }
     }
 
+    /**
+     * Runs the [assertions] block with [moduleContext] supplied as its [ModuleContext] context parameter.
+     *
+     * This allows an operation to point the assertions (which resolve files against `module.outputDirectory`) at a
+     * directory other than the module's own output directory - for example the JS linking operation writes its `.js`
+     * into a dedicated directory, mirroring the KGP, so that the input klib is not deleted.
+     */
+    private fun applyAssertions(
+        moduleContext: ModuleContext,
+        outcome: CompilationOutcome,
+        assertions: context(ModuleContext) CompilationOutcome.() -> Unit,
+    ) = with(moduleContext) { assertions(outcome) }
+
     protected abstract fun compileImpl(
         strategyConfig: ExecutionPolicy,
-        compilationConfigAction: (JvmCompilationOperation.Builder) -> Unit,
-        compilationAction: (JvmCompilationOperation) -> Unit,
+        compilationConfigAction: (B) -> Unit,
+        compilationAction: (O) -> Unit,
         kotlinLogger: TestKotlinLogger,
     ): CompilationResult
 
@@ -192,7 +214,7 @@ abstract class AbstractModule(
     }
 
     protected abstract fun prepareExecutionProcessBuilder(
-        mainClassFqn: String
+        mainClassFqn: String,
     ): ProcessBuilder
 
     override fun toString() = moduleName

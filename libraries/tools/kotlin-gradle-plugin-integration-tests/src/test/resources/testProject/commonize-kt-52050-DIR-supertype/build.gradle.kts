@@ -8,15 +8,15 @@ repositories {
 }
 
 kotlin {
-    macosX64("macos")
+    macosArm64("macos")
     linuxX64("linux")
     mingwX64("windows")
 
-    val commonMain by sourceSets.getting
-    val macosMain by sourceSets.getting
-    val linuxMain by sourceSets.getting
+    val commonMain = sourceSets.getByName("commonMain")
+    val macosMain = sourceSets.getByName("macosMain")
+    val linuxMain = sourceSets.getByName("linuxMain")
 
-    val unixMain by sourceSets.creating
+    val unixMain = sourceSets.create("unixMain")
 
     unixMain.dependsOn(commonMain)
     linuxMain.dependsOn(unixMain)

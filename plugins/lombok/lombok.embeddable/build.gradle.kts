@@ -1,4 +1,6 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("org.jetbrains.kotlin.jvm")
 }
 
@@ -9,10 +11,12 @@ dependencies {
 publish {
     artifactId = artifactId.replace(".", "-")
 }
-runtimeJar(rewriteDefaultJarDepsToShadedCompiler())
-sourcesJarWithSourcesFromEmbedded(
-    project(":kotlin-lombok-compiler-plugin").tasks.named<Jar>("sourcesJar")
+runtimeJar(
+    rewriteDefaultJarDepsToShadedCompiler(
+        /* Referencing classifiers by FQN which shall not be relocated (KT-88353) */
+        skipRelocatingStringConstants = true
+    )
 )
-javadocJarWithJavadocFromEmbedded(
-    project(":kotlin-lombok-compiler-plugin").tasks.named<Jar>("javadocJar")
-)
+
+sourcesJarWithSourcesFromEmbedded()
+javadocJarWithJavadocFromEmbedded()

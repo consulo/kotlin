@@ -16,7 +16,15 @@ import java.nio.file.Paths
 import java.nio.file.StandardOpenOption
 import java.util.*
 
-class MetricsContainer(private val forceValuesValidation: Boolean = false) : StatisticsValuesConsumer {
+/**
+ * A container class for managing and storing metrics of various types (numerical, boolean, and string)
+ * in a structured way. This class facilitates the collection, aggregation, and processing of
+ * metric data, supporting operations like reporting and reading metrics from files.
+ */
+class MetricsContainer(
+    private val forceValuesValidation: Boolean = false,
+    private val metricConcatContainerValuesSeparator: String = FUS_METRIC_SEPARATOR_FOR_BACKWARD_COMPATIBILITY_PROFILE_FILE,
+) : StatisticsValuesConsumer {
     data class MetricDescriptor(val name: String, val projectHash: String?) : Comparable<MetricDescriptor> {
         override fun compareTo(other: MetricDescriptor): Int {
             val compareNames = name.compareTo(other.name)
@@ -28,7 +36,7 @@ class MetricsContainer(private val forceValuesValidation: Boolean = false) : Sta
         }
     }
 
-    private val metricsLock = Object()
+    private val metricsLock = Any()
 
     private val numericalMetrics = TreeMap<MetricDescriptor, IMetricContainer<Long>>()
 
@@ -36,67 +44,182 @@ class MetricsContainer(private val forceValuesValidation: Boolean = false) : Sta
 
     private val stringMetrics = TreeMap<MetricDescriptor, IMetricContainer<String>>()
 
+    private val stringListMetrics = TreeMap<MetricDescriptor, IMetricContainer<List<String>>>()
+
     companion object {
         private const val BUILD_SESSION_SEPARATOR = "BUILD FINISHED"
+        private const val METRIC_SEPARATOR = '='
+        private const val PROJECT_METRIC_NAME_SEPARATOR = '.'
+        private const val FUS_METRIC_SEPARATOR_FOR_KOTLIN_PROFILE_FILE = ","
+        private const val FUS_METRIC_SEPARATOR_FOR_BACKWARD_COMPATIBILITY_PROFILE_FILE = ";"
 
         val ENCODING = Charsets.UTF_8
 
         private val stringMetricsMap = StringMetrics.values().associateBy(StringMetrics::name)
 
+        private val stringListMetricsMap = StringListMetrics.values().associateBy(StringListMetrics::name)
+
         private val booleanMetricsMap = BooleanMetrics.values().associateBy(BooleanMetrics::name)
 
         private val numericalMetricsMap = NumericalMetrics.values().associateBy(NumericalMetrics::name)
 
-        fun readFromFile(file: File, consumer: (MetricsContainer) -> Unit): Boolean {
-            val channel = FileChannel.open(Paths.get(file.toURI()), StandardOpenOption.WRITE, StandardOpenOption.READ)
-            channel.tryLock() ?: return false
+        fun createMetricsContainerForV1ProfileFile(forceValuesValidation: Boolean = false) =
+            MetricsContainer(
+                forceValuesValidation = forceValuesValidation,
+                metricConcatContainerValuesSeparator = FUS_METRIC_SEPARATOR_FOR_BACKWARD_COMPATIBILITY_PROFILE_FILE
+            )
 
-            val inputStream = Channels.newInputStream(channel)
-            try {
-                var container = MetricsContainer()
-                // Note: close is called at forEachLine
-                BufferedReader(InputStreamReader(inputStream, ENCODING)).forEachLine { line ->
-                    if (BUILD_SESSION_SEPARATOR == line) {
-                        consumer.invoke(container)
-                        container = MetricsContainer()
-                    } else if (line.contains('=')) {
-                        // format: metricName.hash=string representation
-                        val lineParts = line.split('=')
-                        if (lineParts.size == 2) {
-                            val name = lineParts[0].split('.')[0]
-                            val subProjectHash = lineParts[0].split('.').getOrNull(1)
-                            val representation = lineParts[1]
+        fun createMetricsContainerForV2KotlinProfileFile(forceValuesValidation: Boolean = false) =
+            MetricsContainer(
+                forceValuesValidation = forceValuesValidation,
+                metricConcatContainerValuesSeparator = FUS_METRIC_SEPARATOR_FOR_KOTLIN_PROFILE_FILE
+            )
 
-                            stringMetricsMap[name]?.also { metricType ->
-                                metricType.type.fromStringRepresentation(representation)?.also {
-                                    synchronized(container.metricsLock) {
-                                        container.stringMetrics[MetricDescriptor(name, subProjectHash)] = it
-                                    }
-                                }
-                            }
+        private fun MetricsContainer.addMetricToContainer(
+            metricDescriptor: MetricDescriptor,
+            representation: String,
+        ) {
+            fun <MetricType, MetricContainer: IMetricContainer<*>> addValueFromStringPresentation(
+                metricTypeByMetricDescriptorName: Map<String, MetricType>,
+                metricContainerByMetricDescriptor: MutableMap<MetricDescriptor, MetricContainer>,
+                metricDescriptor: MetricDescriptor,
+                metricContainerFactory: MetricType.() -> MetricContainer,
+            ) {
+                val metricType = metricTypeByMetricDescriptorName[metricDescriptor.name] ?: return
+                synchronized(metricsLock) {
+                    metricContainerByMetricDescriptor.getOrPut(metricDescriptor) {
+                        metricContainerFactory(metricType)
+                    }.addValueFromStringPresentation(representation)
+                }
+            }
 
-                            booleanMetricsMap[name]?.also { metricType ->
-                                metricType.type.fromStringRepresentation(representation)?.also {
-                                    synchronized(container.metricsLock) {
-                                        container.booleanMetrics[MetricDescriptor(name, subProjectHash)] = it
-                                    }
-                                }
-                            }
+            addValueFromStringPresentation(stringMetricsMap, stringMetrics, metricDescriptor) { type.newMetricContainer() }
+            addValueFromStringPresentation(stringListMetricsMap, stringListMetrics, metricDescriptor) { type.newMetricContainer() }
+            addValueFromStringPresentation(numericalMetricsMap, numericalMetrics, metricDescriptor) { type.newMetricContainer() }
+            addValueFromStringPresentation(booleanMetricsMap, booleanMetrics, metricDescriptor) { type.newMetricContainer() }
+        }
 
-                            numericalMetricsMap[name]?.also { metricType ->
-                                metricType.type.fromStringRepresentation(representation)?.also {
-                                    synchronized(container.metricsLock) {
-                                        container.numericalMetrics[MetricDescriptor(name, subProjectHash)] = it
-                                    }
-                                }
+        // for new Fus files a comma (,) separator is used, but for old FUS files a semicolon (;) is used
+        fun MetricsContainer.addMetricFromFusV2KotlinProfileFile(file: File) {
+            copy(fromContainer = deserializeV2KotlinProfileMetricsContainer(file))
+        }
+
+        fun deserializeV2KotlinProfileMetricsContainer(file: File): MetricsContainer {
+            val container = MetricsContainer(metricConcatContainerValuesSeparator = FUS_METRIC_SEPARATOR_FOR_KOTLIN_PROFILE_FILE)
+            FileChannel.open(Paths.get(file.toURI()), StandardOpenOption.WRITE, StandardOpenOption.READ).use { channel ->
+                BufferedReader(InputStreamReader(Channels.newInputStream(channel), ENCODING)).use {
+                    it.forEachLine { line ->
+                        if (line.contains(METRIC_SEPARATOR)) {
+                            // format: metricName.hash=string representation
+                            parseLine(line)?.also { (metricDescriptor, representation) ->
+                                container.addMetricToContainer(metricDescriptor, representation)
                             }
                         }
                     }
+                }
+            }
+            return container
+        }
+
+        fun deserializeV1ProfileFileContainersStream(channel: FileChannel): Sequence<MetricsContainer> {
+            return sequence {
+                var container =
+                    MetricsContainer(metricConcatContainerValuesSeparator = FUS_METRIC_SEPARATOR_FOR_BACKWARD_COMPATIBILITY_PROFILE_FILE)
+                BufferedReader(InputStreamReader(Channels.newInputStream(channel), ENCODING)).use {
+                    it.lineSequence().forEach { line ->
+                        if (BUILD_SESSION_SEPARATOR == line) {
+                            yield(container)
+                            container =
+                                MetricsContainer(metricConcatContainerValuesSeparator = FUS_METRIC_SEPARATOR_FOR_BACKWARD_COMPATIBILITY_PROFILE_FILE)
+                        } else if (line.contains(METRIC_SEPARATOR)) {
+                            // format: metricName.hash=string representation
+                            parseLine(line)?.also { (metricDescriptor, representation) ->
+                                container.addMetricToContainer(
+                                    metricDescriptor,
+                                    representation,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        fun MetricsContainer.copy(fromContainer: MetricsContainer) {
+            val toContainer = this
+
+            fun <MetricValue> copy(
+                fromContainerMetrics: Map<MetricDescriptor, IMetricContainer<MetricValue>>,
+                toContainerMetrics: MutableMap<MetricDescriptor, IMetricContainer<MetricValue>>,
+                toContainerMetricContainerFactory: (MetricDescriptor) -> IMetricContainer<MetricValue>,
+            ) {
+                fromContainerMetrics.forEach { (metricDescriptor, metricContainer) ->
+                    val value = metricContainer.getValue() ?: return@forEach
+                    toContainerMetrics.getOrPut(metricDescriptor) {
+                        toContainerMetricContainerFactory(metricDescriptor)
+                    }.addValue(value, null)
+                }
+            }
+
+            copy(fromContainer.stringMetrics, toContainer.stringMetrics) { stringMetricsMap[it.name]?.type!!.newMetricContainer() }
+            copy(fromContainer.stringListMetrics,toContainer.stringListMetrics) { stringListMetricsMap[it.name]?.type!!.newMetricContainer() }
+            copy(fromContainer.numericalMetrics, toContainer.numericalMetrics) { numericalMetricsMap[it.name]?.type!!.newMetricContainer() }
+            copy(fromContainer.booleanMetrics, toContainer.booleanMetrics) { booleanMetricsMap[it.name]?.type!!.newMetricContainer() }
+        }
+
+        // This method also used IntelliJ project in KotlinGradleFUSLoggerProcessor#process.
+        // It expects to read a fus file with a semicolon (;) separator for metric values.
+        fun readFromFile(file: File, consumer: (MetricsContainer) -> Unit): Boolean {
+            val channel = FileChannel.open(Paths.get(file.toURI()), StandardOpenOption.WRITE, StandardOpenOption.READ)
+            channel.tryLock() ?: return false
+            try {
+                deserializeV1ProfileFileContainersStream(channel).forEach {
+                    consumer(it)
                 }
             } finally {
                 channel.close()
             }
             return true
+        }
+
+        private fun parseLine(line: String): Pair<MetricDescriptor, String>? {
+            val lineParts = line.split(METRIC_SEPARATOR)
+            if (lineParts.size == 2) {
+                val name = lineParts[0].split(PROJECT_METRIC_NAME_SEPARATOR)[0]
+                val subProjectHash = lineParts[0].split(PROJECT_METRIC_NAME_SEPARATOR).getOrNull(1)
+                val representation = lineParts[1]
+                return MetricDescriptor(name, subProjectHash) to representation
+            }
+            return null
+        }
+
+        fun MetricsContainer.createValidateAndAnonymizeCopy(): MetricsContainer {
+            fun <MetricType, MetricValue> reportMetrics(
+                metrics: Map<MetricDescriptor, IMetricContainer<MetricValue>>,
+                metricTypeByMetricDescriptorName: Map<String, MetricType>,
+                report: (metric: MetricType, value: MetricValue, projectHash: String?) -> (Unit),
+            ) {
+                metrics.forEach { (metricDescriptor, container) ->
+                    val value = container.getValue() ?: return@forEach
+                    val metricType = metricTypeByMetricDescriptorName[metricDescriptor.name] ?: return@forEach
+                    report(metricType, value, metricDescriptor.projectHash)
+                }
+            }
+
+            val metricsContainer = MetricsContainer(forceValuesValidation, metricConcatContainerValuesSeparator)
+            reportMetrics(numericalMetrics, numericalMetricsMap) { metric, value, projectHash ->
+                metricsContainer.report(metric, value, projectHash, null)
+            }
+            reportMetrics(booleanMetrics, booleanMetricsMap) { metric, value, projectHash ->
+                metricsContainer.report(metric, value, projectHash, null)
+            }
+            reportMetrics(stringMetrics, stringMetricsMap) { metric, value, projectHash ->
+                metricsContainer.report(metric, value, projectHash, null)
+            }
+            reportMetrics(stringListMetrics, stringListMetricsMap) { metric, value, projectHash ->
+                metricsContainer.report(metric, value, projectHash, null)
+            }
+            return metricsContainer
         }
     }
 
@@ -109,9 +232,8 @@ class MetricsContainer(private val forceValuesValidation: Boolean = false) : Sta
     override fun report(metric: BooleanMetrics, value: Boolean, subprojectName: String?, weight: Long?): Boolean {
         val projectHash = getProjectHash(metric.perProject, subprojectName)
         synchronized(metricsLock) {
-            val metricContainer = booleanMetrics[MetricDescriptor(metric.name, projectHash)] ?: metric.type.newMetricContainer()
-                .also { booleanMetrics[MetricDescriptor(metric.name, projectHash)] = it }
-            metricContainer.addValue(metric.anonymization.anonymize(value), weight)
+            val metricContainer = booleanMetrics.getOrPut(MetricDescriptor(metric.name, projectHash)) { metric.type.newMetricContainer() }
+            metricContainer.addValue(metric.anonymization.anonymize(value, metricConcatContainerValuesSeparator), weight)
         }
         return true
     }
@@ -119,9 +241,8 @@ class MetricsContainer(private val forceValuesValidation: Boolean = false) : Sta
     override fun report(metric: NumericalMetrics, value: Long, subprojectName: String?, weight: Long?): Boolean {
         val projectHash = getProjectHash(metric.perProject, subprojectName)
         synchronized(metricsLock) {
-            val metricContainer = numericalMetrics[MetricDescriptor(metric.name, projectHash)] ?: metric.type.newMetricContainer()
-                .also { numericalMetrics[MetricDescriptor(metric.name, projectHash)] = it }
-            metricContainer.addValue(metric.anonymization.anonymize(value), weight)
+            val metricContainer = numericalMetrics.getOrPut(MetricDescriptor(metric.name, projectHash)) { metric.type.newMetricContainer() }
+            metricContainer.addValue(metric.anonymization.anonymize(value, metricConcatContainerValuesSeparator), weight)
         }
         return true
     }
@@ -129,30 +250,71 @@ class MetricsContainer(private val forceValuesValidation: Boolean = false) : Sta
     override fun report(metric: StringMetrics, value: String, subprojectName: String?, weight: Long?): Boolean {
         val projectHash = getProjectHash(metric.perProject, subprojectName)
         synchronized(metricsLock) {
-            val metricContainer = stringMetrics[MetricDescriptor(metric.name, projectHash)] ?: metric.type.newMetricContainer()
-                .also { stringMetrics[MetricDescriptor(metric.name, projectHash)] = it }
+            val metricContainer = stringMetrics.getOrPut(MetricDescriptor(metric.name, projectHash)) { metric.type.newMetricContainer() }
 
-            val anonymizedValue = metric.anonymization.anonymize(value)
+            val anonymizedValue = anonymizeMetric(metric.anonymization, value)
             if (forceValuesValidation && !metric.anonymization.anonymizeOnIdeSize()) {
-                if (anonymizedValue.contains(UNEXPECTED_VALUE) || !anonymizedValue.matches(Regex(metric.anonymization.validationRegexp()))) {
-                    throw MetricValueValidationFailed("Metric ${metric.name} has value [${value}], after anonymization [${anonymizedValue}]. Validation regex: ${metric.anonymization.validationRegexp()}.")
-                }
+                validateMetric(metric.name, metric.anonymization, anonymizedValue)
             }
             metricContainer.addValue(anonymizedValue, weight)
         }
         return true
     }
 
-    fun populateFromMetricsContainer(metrics: MetricsContainer) = synchronized(metricsLock) {
-        metrics.booleanMetrics.forEach { (descriptor, metric) ->
-            report(BooleanMetrics.valueOf(descriptor.name), metric.getValue() ?: return@forEach, descriptor.projectHash, null)
+    override fun report(metric: StringListMetrics, value: List<String>, subprojectName: String?, weight: Long?): Boolean {
+        val projectHash = getProjectHash(metric.perProject, subprojectName)
+        synchronized(metricsLock) {
+
+            val metricContainer =
+                stringListMetrics.getOrPut(MetricDescriptor(metric.name, projectHash)) { metric.type.newMetricContainer() }
+
+            val anonymizedValues = value.map {
+                val anonymizedValue = anonymizeMetric(metric.anonymization, it)
+                if (forceValuesValidation && !metric.anonymization.anonymizeOnIdeSize()) {
+                    validateMetric(metric.name, metric.anonymization, anonymizedValue)
+                }
+                anonymizedValue
+            }
+
+            metricContainer.addValue(anonymizedValues, weight)
         }
-        metrics.stringMetrics.forEach { (descriptor, metric) ->
-            report(StringMetrics.valueOf(descriptor.name), metric.getValue() ?: return@forEach, descriptor.projectHash, null)
+        return true
+    }
+
+    internal fun validateMetric(metricName: String, anonymization: StringAnonymizationPolicy, value: String) {
+        if (value.contains(UNEXPECTED_VALUE) || !value.matches(
+                Regex(
+                    anonymization.validationRegexp(
+                        metricConcatContainerValuesSeparator
+                    )
+                )
+            )
+        ) {
+            throw MetricValueValidationFailed("Metric $metricName has value [${value}]. Validation regex: ${anonymization.validationRegexp()}.")
         }
-        metrics.numericalMetrics.forEach { (descriptor, metric) ->
-            report(NumericalMetrics.valueOf(descriptor.name), metric.getValue() ?: return@forEach, descriptor.projectHash, null)
-        }
+    }
+
+    internal fun anonymizeMetric(anonymization: StringAnonymizationPolicy, value: String) =
+        anonymization.anonymize(value, metricConcatContainerValuesSeparator)
+
+    fun StringListOverridePolicy.newMetricContainer(): IMetricContainer<List<String>> = when (this) {
+        StringListOverridePolicy.CONCAT -> ConcatMetricContainer(metricConcatContainerValuesSeparator)
+    }
+
+    fun StringOverridePolicy.newMetricContainer() = when (this) {
+        StringOverridePolicy.OVERRIDE -> OverrideStringMetricContainer()
+        StringOverridePolicy.OVERRIDE_VERSION_IF_NOT_SET -> OverrideVersionMetricContainer()
+    }
+
+    fun BooleanOverridePolicy.newMetricContainer() = when (this) {
+        BooleanOverridePolicy.OVERRIDE -> OverrideBooleanMetricContainer()
+        BooleanOverridePolicy.OR -> OrMetricContainer()
+    }
+
+    fun NumberOverridePolicy.newMetricContainer() = when (this) {
+        NumberOverridePolicy.OVERRIDE -> OverrideLongMetricContainer()
+        NumberOverridePolicy.SUM -> SumMetricContainer()
+        NumberOverridePolicy.AVERAGE -> AverageMetricContainer()
     }
 
     fun flush(writer: BufferedWriter) {
@@ -161,11 +323,12 @@ class MetricsContainer(private val forceValuesValidation: Boolean = false) : Sta
             allMetrics.putAll(numericalMetrics)
             allMetrics.putAll(booleanMetrics)
             allMetrics.putAll(stringMetrics)
+            allMetrics.putAll(stringListMetrics)
         }
         writer.appendLine()
         for (entry in allMetrics.entries) {
             val suffix = if (entry.key.projectHash == null) "" else ".${entry.key.projectHash}"
-            writer.appendLine("${entry.key.name}$suffix=${entry.value.toStringRepresentation()}")
+            writer.appendLine("${entry.key.name}$suffix$METRIC_SEPARATOR${entry.value.toStringRepresentation()}")
         }
 
         writer.appendLine(BUILD_SESSION_SEPARATOR)
@@ -174,6 +337,7 @@ class MetricsContainer(private val forceValuesValidation: Boolean = false) : Sta
             stringMetrics.clear()
             booleanMetrics.clear()
             numericalMetrics.clear()
+            stringListMetrics.clear()
         }
     }
 
@@ -185,11 +349,17 @@ class MetricsContainer(private val forceValuesValidation: Boolean = false) : Sta
         stringMetrics[MetricDescriptor(metric.name, null)]
     }
 
+    fun getStringMetricPresentation(metric: StringMetrics): String? = getMetric(metric)?.toStringRepresentation()
+
     fun getMetric(metric: BooleanMetrics): IMetricContainer<Boolean>? = synchronized(metricsLock) {
         booleanMetrics[MetricDescriptor(metric.name, null)]
     }
 
+    fun getMetric(metric: StringListMetrics): IMetricContainer<List<String>>? = synchronized(metricsLock) {
+        stringListMetrics[MetricDescriptor(metric.name, null)]
+    }
+
     fun isEmpty(): Boolean = synchronized(metricsLock) {
-        numericalMetrics.isEmpty() && booleanMetrics.isEmpty() && stringMetrics.isEmpty()
+        numericalMetrics.isEmpty() && booleanMetrics.isEmpty() && stringMetrics.isEmpty() && stringListMetrics.isEmpty()
     }
 }

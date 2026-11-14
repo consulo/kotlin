@@ -3,7 +3,7 @@
     PACKAGE_DIRECTIVE
       REFERENCE_EXPRESSION[referencedName=test]
     IMPORT_LIST
-    CLASS[classId=test/E, fqName=test.E, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=E, superNames=[Enum]]
+    CLASS[classId=test/E, fqName=test.E, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=E, superNames=[Enum]]
       MODIFIER_LIST[public final enum]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=E]
         MODIFIER_LIST[private]
@@ -15,6 +15,7 @@
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Enum]
+                isClassRef: true
               TYPE_ARGUMENT_LIST
                 TYPE_PROJECTION[projectionKind=NONE]
                   TYPE_REFERENCE
@@ -22,9 +23,10 @@
                       USER_TYPE
                         REFERENCE_EXPRESSION[referencedName=test]
                       REFERENCE_EXPRESSION[referencedName=E]
+                        isClassRef: true
       CLASS_BODY
-        ENUM_ENTRY[classId=null, fqName=test.E.E1, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=false, name=E1, superNames=[]]
-        ENUM_ENTRY[classId=null, fqName=test.E.E2, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=false, name=E2, superNames=[]]
+        ENUM_ENTRY[classId=null, fqName=test.E.E1, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=false, name=E1, superNames=[]]
+        ENUM_ENTRY[classId=null, fqName=test.E.E2, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=false, name=E2, superNames=[]]
 
 
 1_test.knm:
@@ -32,29 +34,35 @@
     PACKAGE_DIRECTIVE
       REFERENCE_EXPRESSION[referencedName=test]
     IMPORT_LIST
-    CLASS[classId=test/EnumLiteral, fqName=test.EnumLiteral, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=EnumLiteral, superNames=[Annotation]]
+    CLASS[classId=test/EnumLiteral, fqName=test.EnumLiteral, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=EnumLiteral, superNames=[Annotation]]
       MODIFIER_LIST[public final annotation]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=EnumLiteral]
         MODIFIER_LIST[public]
         VALUE_PARAMETER_LIST
-          VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=e1]
+          VALUE_PARAMETER[fqName=test.EnumLiteral.e1, hasDefaultValue=false, hasValOrVar=true, isMutable=false, name=e1]
+            MODIFIER_LIST[public final]
             TYPE_REFERENCE
               USER_TYPE
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=test]
                 REFERENCE_EXPRESSION[referencedName=E]
-          VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=e2]
+                  isClassRef: true
+          VALUE_PARAMETER[fqName=test.EnumLiteral.e2, hasDefaultValue=false, hasValOrVar=true, isMutable=false, name=e2]
+            MODIFIER_LIST[public final]
             TYPE_REFERENCE
               USER_TYPE
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=test]
                 REFERENCE_EXPRESSION[referencedName=E]
-          VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=e3]
+                  isClassRef: true
+          VALUE_PARAMETER[fqName=test.EnumLiteral.e3, hasDefaultValue=false, hasValOrVar=true, isMutable=false, name=e3]
+            MODIFIER_LIST[public final]
             TYPE_REFERENCE
               USER_TYPE
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=test]
                 REFERENCE_EXPRESSION[referencedName=E]
+                  isClassRef: true
       SUPER_TYPE_LIST
         SUPER_TYPE_ENTRY
           TYPE_REFERENCE
@@ -62,28 +70,8 @@
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Annotation]
+                isClassRef: true
       CLASS_BODY
-        PROPERTY[fqName=test.EnumLiteral.e1, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=e1]
-          MODIFIER_LIST[public final]
-          TYPE_REFERENCE
-            USER_TYPE
-              USER_TYPE
-                REFERENCE_EXPRESSION[referencedName=test]
-              REFERENCE_EXPRESSION[referencedName=E]
-        PROPERTY[fqName=test.EnumLiteral.e2, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=e2]
-          MODIFIER_LIST[public final]
-          TYPE_REFERENCE
-            USER_TYPE
-              USER_TYPE
-                REFERENCE_EXPRESSION[referencedName=test]
-              REFERENCE_EXPRESSION[referencedName=E]
-        PROPERTY[fqName=test.EnumLiteral.e3, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=e3]
-          MODIFIER_LIST[public final]
-          TYPE_REFERENCE
-            USER_TYPE
-              USER_TYPE
-                REFERENCE_EXPRESSION[referencedName=test]
-              REFERENCE_EXPRESSION[referencedName=E]
 
 
 2_test.knm:
@@ -91,9 +79,9 @@
     PACKAGE_DIRECTIVE
       REFERENCE_EXPRESSION[referencedName=test]
     IMPORT_LIST
-    CLASS[classId=test/WithEnumLiteral, fqName=test.WithEnumLiteral, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=WithEnumLiteral, superNames=[]]
+    CLASS[classId=test/WithEnumLiteral, fqName=test.WithEnumLiteral, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=WithEnumLiteral, superNames=[]]
       MODIFIER_LIST[public final]
-        ANNOTATION_ENTRY[hasValueArguments=false, shortName=EnumLiteral]
+        ANNOTATION_ENTRY[hasValueArguments=true, shortName=EnumLiteral]
           valueArguments: [
             e1 -> E.E1
             e2 -> E.E2
@@ -105,6 +93,32 @@
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=test]
                 REFERENCE_EXPRESSION[referencedName=EnumLiteral]
+                  isClassRef: true
+          VALUE_ARGUMENT_LIST
+            VALUE_ARGUMENT[isSpread=false]
+              VALUE_ARGUMENT_NAME
+                REFERENCE_EXPRESSION[referencedName=e1]
+              DOT_QUALIFIED_EXPRESSION
+                DOT_QUALIFIED_EXPRESSION
+                  REFERENCE_EXPRESSION[referencedName=test]
+                  REFERENCE_EXPRESSION[referencedName=E]
+                REFERENCE_EXPRESSION[referencedName=E1]
+            VALUE_ARGUMENT[isSpread=false]
+              VALUE_ARGUMENT_NAME
+                REFERENCE_EXPRESSION[referencedName=e2]
+              DOT_QUALIFIED_EXPRESSION
+                DOT_QUALIFIED_EXPRESSION
+                  REFERENCE_EXPRESSION[referencedName=test]
+                  REFERENCE_EXPRESSION[referencedName=E]
+                REFERENCE_EXPRESSION[referencedName=E2]
+            VALUE_ARGUMENT[isSpread=false]
+              VALUE_ARGUMENT_NAME
+                REFERENCE_EXPRESSION[referencedName=e3]
+              DOT_QUALIFIED_EXPRESSION
+                DOT_QUALIFIED_EXPRESSION
+                  REFERENCE_EXPRESSION[referencedName=test]
+                  REFERENCE_EXPRESSION[referencedName=E]
+                REFERENCE_EXPRESSION[referencedName=E2]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=WithEnumLiteral]
         MODIFIER_LIST[public]
         VALUE_PARAMETER_LIST

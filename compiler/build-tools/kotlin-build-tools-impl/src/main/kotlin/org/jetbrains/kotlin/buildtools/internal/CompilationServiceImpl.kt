@@ -9,15 +9,16 @@ package org.jetbrains.kotlin.buildtools.internal
 
 import com.intellij.openapi.vfs.impl.ZipHandler
 import com.intellij.openapi.vfs.impl.jar.CoreJarFileSystem
-import org.jetbrains.kotlin.K1Deprecation
+import org.jetbrains.kotlin.CoreEnvironmentDeprecation
 import org.jetbrains.kotlin.build.DEFAULT_KOTLIN_SOURCE_FILES_EXTENSIONS
 import org.jetbrains.kotlin.build.report.BuildReporter
 import org.jetbrains.kotlin.build.report.metrics.DoNothingBuildMetricsReporter
 import org.jetbrains.kotlin.buildtools.api.*
 import org.jetbrains.kotlin.buildtools.api.jvm.*
 import org.jetbrains.kotlin.cli.common.ExitCode
+import org.jetbrains.kotlin.cli.common.arguments.getFatalDiagnosticsMessage
+import org.jetbrains.kotlin.cli.common.arguments.hasFatalError
 import org.jetbrains.kotlin.cli.common.arguments.parseCommandLineArguments
-import org.jetbrains.kotlin.cli.common.arguments.validateArguments
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
 import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
@@ -72,7 +73,7 @@ internal object CompilationServiceImpl : CompilationService {
         return ClasspathEntrySnapshotImpl(
             ClasspathEntrySnapshotter.snapshot(
                 classpathEntry,
-                ClasspathEntrySnapshotter.Settings(granularity, parseInlinedLocalClasses),
+                ClasspathEntrySnapshotter.Settings(granularity, parseInlinedLocalClasses, expandTypeAliases = false),
                 DoNothingBuildMetricsReporter
             )
         )
@@ -105,7 +106,7 @@ internal object CompilationServiceImpl : CompilationService {
         val loggerAdapter = KotlinLoggerMessageCollectorAdapter(compilationConfig.logger, DefaultCompilerMessageRenderer, warningsAsErrors = false)
         val kotlinFilenameExtensions =
             (DEFAULT_KOTLIN_SOURCE_FILES_EXTENSIONS + compilationConfig.kotlinScriptFilenameExtensions)
-        val (filteredSources, unknownSources) = sources.partition { it.isJavaFile() || it.isKotlinFile(kotlinFilenameExtensions) }
+        val [filteredSources, unknownSources] = sources.partition { it.isJavaFile() || it.isKotlinFile(kotlinFilenameExtensions) }
         if (unknownSources.isNotEmpty()) {
             compilationConfig.logger.warn("Sources with unknown extensions were passed, they will be skipped: ${unknownSources.joinToString()}")
         }
@@ -136,7 +137,7 @@ internal object CompilationServiceImpl : CompilationService {
 
     private fun clearJarCaches() {
         ZipHandler.clearFileAccessorCache()
-        @OptIn(K1Deprecation::class)
+        @OptIn(CoreEnvironmentDeprecation::class)
         KotlinCoreEnvironment.applicationEnvironment?.apply {
             (jarFileSystem as? CoreJarFileSystem)?.clearHandlersCache()
             (jrtFileSystem as? CoreJrtFileSystem)?.clearRoots()
@@ -166,8 +167,8 @@ internal object CompilationServiceImpl : CompilationService {
         val compiler = K2JVMCompiler()
         val parsedArguments = compiler.createArguments()
         parseCommandLineArguments(arguments, parsedArguments)
-        validateArguments(parsedArguments.errors)?.let {
-            throw CompilerArgumentsParseException(it)
+        if (parsedArguments.diagnostics.hasFatalError) {
+            throw CompilerArgumentsParseException(parsedArguments.getFatalDiagnosticsMessage())
         }
         val aggregatedIcConfiguration = compilationConfiguration.aggregatedIcConfiguration
         return when (val options = aggregatedIcConfiguration?.options) {
@@ -207,7 +208,7 @@ internal object CompilationServiceImpl : CompilationService {
                         outputDirs = options.outputDirs,
                         classpathChanges = classpathChanges,
                         kotlinSourceFilesExtensions = kotlinFilenameExtensions,
-                        icFeatures = icFeatures
+                        icFeatures = icFeatures,
                     )
                 }
 
@@ -287,15 +288,18 @@ internal object CompilationServiceImpl : CompilationService {
             }
         )
 
-        val (daemon, sessionId) = KotlinCompilerRunnerUtils.newDaemonConnection(
-            compilerId,
-            clientIsAliveFile,
-            sessionIsAliveFlagFile,
-            loggerAdapter,
-            isDebugEnabled = true, // actually, prints daemon messages even unrelated to debug logs
-            daemonJVMOptions = jvmOptions,
-            daemonOptions = daemonOptions,
-        ) ?: return ExitCode.INTERNAL_ERROR.asCompilationResult
+        (
+            val daemon = compileService, val sessionId
+        ) =
+            KotlinCompilerRunnerUtils.newDaemonConnection(
+                compilerId,
+                clientIsAliveFile,
+                sessionIsAliveFlagFile,
+                loggerAdapter,
+                isDebugEnabled = true, // actually, prints daemon messages even unrelated to debug logs
+                daemonJVMOptions = jvmOptions,
+                daemonOptions = daemonOptions,
+            ) ?: return ExitCode.INTERNAL_ERROR.asCompilationResult
         val daemonCompileOptions = compilationConfiguration.asDaemonCompilationOptions
         val isIncrementalCompilation = daemonCompileOptions is IncrementalCompilationOptions
 
@@ -312,6 +316,7 @@ internal object CompilationServiceImpl : CompilationService {
                 loggerAdapter.kotlinLogger,
                 compilationConfiguration.aggregatedIcConfiguration?.options?.rootProjectDir,
                 DoNothingBuildMetricsReporter,
+                null,
             )
         ).get()
 

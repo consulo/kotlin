@@ -6,16 +6,24 @@
 package org.jetbrains.kotlin.backend.wasm.dce
 
 import org.jetbrains.kotlin.backend.wasm.WasmBackendContext
-import org.jetbrains.kotlin.backend.wasm.ir2wasm.*
-import org.jetbrains.kotlin.backend.wasm.utils.*
+import org.jetbrains.kotlin.backend.wasm.ir2wasm.forEachEffectiveValueParameters
+import org.jetbrains.kotlin.backend.wasm.ir2wasm.getRuntimeClass
+import org.jetbrains.kotlin.backend.wasm.ir2wasm.isBuiltInWasmRefType
+import org.jetbrains.kotlin.backend.wasm.ir2wasm.isExported
+import org.jetbrains.kotlin.backend.wasm.lower.WasmCallableReferenceLowering.Companion.STATIC_FUNCTION_REFERENCE
+import org.jetbrains.kotlin.backend.wasm.utils.getWasmArrayAnnotation
+import org.jetbrains.kotlin.backend.wasm.utils.getWasmOpAnnotation
+import org.jetbrains.kotlin.backend.wasm.utils.hasWasmNoOpCastAnnotation
+import org.jetbrains.kotlin.backend.wasm.utils.hasWasmPrimitiveConstructorAnnotation
 import org.jetbrains.kotlin.ir.backend.js.dce.UsefulDeclarationProcessor
 import org.jetbrains.kotlin.ir.backend.js.objectGetInstanceFunction
-import org.jetbrains.kotlin.ir.backend.js.utils.*
+import org.jetbrains.kotlin.ir.backend.js.utils.associatedObject
+import org.jetbrains.kotlin.ir.backend.js.utils.isObjectInstanceField
+import org.jetbrains.kotlin.ir.backend.js.utils.realOverrideTarget
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 
 internal class WasmUsefulDeclarationProcessor(
@@ -23,11 +31,6 @@ internal class WasmUsefulDeclarationProcessor(
     printReachabilityInfo: Boolean,
     dumpReachabilityInfoToFile: String?,
 ) : UsefulDeclarationProcessor(printReachabilityInfo, removeUnusedAssociatedObjects = false, dumpReachabilityInfoToFile) {
-
-    // The mapping from function for wrapping a kotlin closure/lambda with JS closure to function used to call a kotlin closure from JS side.
-    private val kotlinClosureToJsClosureConvertFunToKotlinClosureCallFun = context.fileContexts.mapValues { (_, fileContext) ->
-        fileContext.kotlinClosureToJsConverters.entries.associate { (k, v) -> v to fileContext.closureCallExports[k] }
-    }
 
     override val bodyVisitor: BodyVisitorBase = object : BodyVisitorBase() {
         override fun visitConst(expression: IrConst, data: IrDeclaration) = when (expression.kind) {
@@ -53,17 +56,16 @@ internal class WasmUsefulDeclarationProcessor(
             super.visitVararg(expression, data)
         }
 
-        override fun visitSetField(expression: IrSetField, data: IrDeclaration) {
-            if (!expression.symbol.owner.isObjectInstanceField()) {
-                super.visitSetField(expression, data)
-            }
-        }
-
         override fun visitGetField(expression: IrGetField, data: IrDeclaration) {
             val field = expression.symbol.owner
 
             if (field.isObjectInstanceField()) {
                 field.type.classOrFail.owner.primaryConstructor?.enqueue(field, "object lazy initialization")
+            }
+
+            if (field.origin == STATIC_FUNCTION_REFERENCE) {
+                val initializer = context.fileContexts.getValue(field.file).staticFunctionReferenceInitializers[field]
+                initializer?.accept(this, data)
             }
 
             super.visitGetField(expression, data)
@@ -89,20 +91,39 @@ internal class WasmUsefulDeclarationProcessor(
                 call.typeArguments[0]?.enqueueRuntimeClassOrAny(from, "intrinsic ${call.symbol.owner.name}")
                 true
             }
-            context.wasmSymbols.boxIntrinsic -> {
-                val type = call.typeArguments[0]!!
-                if (type == context.irBuiltIns.booleanType) {
-                    context.wasmSymbols.getBoxedBoolean.owner.enqueue(from, "intrinsic boxIntrinsic")
-                } else {
-                    type.enqueueRuntimeClassOrAny(from, "intrinsic boxIntrinsic")
-                }
+            context.wasmSymbols.coroutinesStackSwitchingIntrinsics?.suspendFunction0ToContref,
+            context.wasmSymbols.coroutinesStackSwitchingIntrinsics?.suspendFunction1ToContref,
+            context.wasmSymbols.coroutinesStackSwitchingIntrinsics?.suspendFunction2ToContref -> {
+                val arity = call.arguments.size - 2
+                context.irBuiltIns.suspendFunctionN(arity)
+                    .getSimpleFunction("invoke")!!
+                    .owner.enqueue(from, "suspend invoke")
                 true
             }
-            context.wasmSymbols.boxBoolean -> {
-                context.irBuiltIns.booleanType.enqueueRuntimeClassOrAny(from, "intrinsic boxBoolean")
+            context.wasmSymbols.boxIntrinsic -> {
+                val type = call.typeArguments[0]!!
+                val getOrBox = context.wasmSymbols.getOrBoxForPrimitives[type]
+                getOrBox?.owner?.let { it.enqueue(from, "intrinsic ${it.name}") }
+                type.enqueueRuntimeClassOrAny(from, "intrinsic boxIntrinsic")
+                true
+            }
+            context.wasmSymbols.createBoxIntrinsic -> {
+                context.irBuiltIns.booleanType.enqueueRuntimeClassOrAny(from, "intrinsic boxPrimitive")
                 true
             }
             else -> false
+        }
+
+        override fun visitRawFunctionReference(expression: IrRawFunctionReference, data: IrDeclaration) {
+            super.visitRawFunctionReference(expression, data)
+            val function: IrFunction = expression.symbol.owner.realOverrideTarget
+            function.enqueue(data, "method functional reference")
+            if (function is IrSimpleFunction && function.isOverridable) {
+                val klass = function.parentAsClass
+                if (klass.isInterface) {
+                    klass.enqueue(data, "receiver class")
+                }
+            }
         }
 
         override fun visitCall(expression: IrCall, data: IrDeclaration) {
@@ -135,7 +156,7 @@ internal class WasmUsefulDeclarationProcessor(
             if (removeUnusedAssociatedObjects && !klass.isReachable()) continue
 
             for (annotation in klass.annotations) {
-                val annotationClass = annotation.symbol.owner.constructedClass
+                val annotationClass = annotation.classSymbol.owner
                 if (removeUnusedAssociatedObjects && !annotationClass.isReachable()) continue
 
                 annotation.associatedObject()?.objectGetInstanceFunction?.enqueue(klass, "associated object factory")
@@ -213,12 +234,6 @@ internal class WasmUsefulDeclarationProcessor(
 
         irFunction.forEachEffectiveValueParameters { it.enqueueValueParameterType(irFunction) }
         irFunction.returnType.enqueueType(irFunction, "function return type")
-
-        kotlinClosureToJsClosureConvertFunToKotlinClosureCallFun[irFunction.fileOrNull]?.get(irFunction)?.enqueue(
-            irFunction,
-            "kotlin closure to JS closure conversion",
-            false
-        )
     }
 
     override fun processSimpleFunction(irFunction: IrSimpleFunction) {

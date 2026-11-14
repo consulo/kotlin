@@ -6,8 +6,9 @@
 package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
-import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.NativeLoweringContext
 import org.jetbrains.kotlin.backend.konan.ir.superClasses
+import org.jetbrains.kotlin.backend.konan.sourcesModules
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -17,15 +18,21 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.constructedClass
 import org.jetbrains.kotlin.ir.util.render
+import kotlin.io.path.appendLines
+import kotlin.io.path.createFile
+import kotlin.io.path.exists
 
-internal class TestsDumper(private val context: Context) : FileLoweringPass {
+internal class TestsDumper(private val context: NativeLoweringContext) : FileLoweringPass {
     private val symbols = context.symbols
 
     private val baseClassSuite = symbols.baseClassSuite
     private val topLevelSuite = symbols.topLevelSuite
 
+    private val sourcesModules = context.configuration.sourcesModules
+            ?: error("sourcesModules must have been set in the configuration by the frontend phase")
+
     private fun shouldProcessFile(irFile: IrFile): Boolean =
-            irFile.moduleDescriptor in context.sourcesModules // Process test annotations in source libraries too.
+            irFile.moduleDescriptor in sourcesModules // Process test annotations in source libraries too.
 
     override fun lower(irFile: IrFile) {
         val testDumpFile = context.config.testDumpFile ?: return
@@ -84,10 +91,10 @@ internal class TestsDumper(private val context: Context) : FileLoweringPass {
         if (testCasesToDump.isEmpty())
             return
 
-        if (!testDumpFile.exists)
-            testDumpFile.createNew()
+        if (!testDumpFile.exists())
+            testDumpFile.createFile()
         testDumpFile.appendLines(
-                testCasesToDump.flatMap { (suiteName, functionNames) -> functionNames.asSequence().map { "$suiteName:$it" } }
+                testCasesToDump.flatMap { [suiteName, functionNames] -> functionNames.asSequence().map { "$suiteName:$it" } }
         )
     }
 }

@@ -9,9 +9,14 @@ import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.backend.common.BackendDiagnosticRenderers.EVALUATION_ERROR_EXPLANATION
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactoryToRendererMap
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticsContainer
+import org.jetbrains.kotlin.diagnostics.SourceElementPositioningStrategies.REFERENCED_NAME_BY_QUALIFIED
+import org.jetbrains.kotlin.diagnostics.SourceElementPositioningStrategies.TAILREC_MODIFIER
+import org.jetbrains.kotlin.diagnostics.error0
 import org.jetbrains.kotlin.diagnostics.error1
 import org.jetbrains.kotlin.diagnostics.rendering.BaseDiagnosticRendererFactory
 import org.jetbrains.kotlin.diagnostics.rendering.Renderer
+import org.jetbrains.kotlin.diagnostics.warning0
+import org.jetbrains.kotlin.diagnostics.warningWithoutSource
 import org.jetbrains.kotlin.ir.IrDiagnosticRenderers
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 
@@ -19,6 +24,16 @@ object CommonBackendErrors : KtDiagnosticsContainer() {
     val EVALUATION_ERROR by error1<PsiElement, String>()
 
     val INLINE_CALL_CYCLE by error1<PsiElement, IrFunction>()
+
+    val IR_DUMP_WARNING by warningWithoutSource()
+
+    val NON_TAIL_RECURSIVE_CALL by warning0<PsiElement>(REFERENCED_NAME_BY_QUALIFIED)
+
+    val NO_TAIL_CALLS_FOUND by warning0<PsiElement>(TAILREC_MODIFIER)
+
+    val TAIL_RECURSION_IN_TRY_IS_NOT_SUPPORTED by warning0<PsiElement>(REFERENCED_NAME_BY_QUALIFIED)
+
+    val TAILREC_ON_VIRTUAL_MEMBER_ERROR by error0<PsiElement>(TAILREC_MODIFIER)
 
     override fun getRendererFactory(): BaseDiagnosticRendererFactory {
         return KtDefaultCommonBackendErrorMessages
@@ -34,8 +49,28 @@ object KtDefaultCommonBackendErrorMessages : BaseDiagnosticRendererFactory() {
         )
         map.put(
             CommonBackendErrors.INLINE_CALL_CYCLE,
-            "The ''{0}'' invocation is a part of inline cycle",
+            "The ''{0}'' invocation is part of an inline cycle.",
             IrDiagnosticRenderers.DECLARATION_NAME,
+        )
+        map.put(
+            CommonBackendErrors.IR_DUMP_WARNING,
+            "{0}"
+        )
+        map.put(
+            CommonBackendErrors.NON_TAIL_RECURSIVE_CALL,
+            "Recursive call is not a tail call.",
+        )
+        map.put(
+            CommonBackendErrors.NO_TAIL_CALLS_FOUND,
+            "A function is marked as tail-recursive but no tail calls are found.",
+        )
+        map.put(
+            CommonBackendErrors.TAIL_RECURSION_IN_TRY_IS_NOT_SUPPORTED,
+            "Tail recursion optimization inside try/catch/finally is not supported.",
+        )
+        map.put(
+            CommonBackendErrors.TAILREC_ON_VIRTUAL_MEMBER_ERROR,
+            "Tailrec is prohibited on open and abstract members.",
         )
     }
 }

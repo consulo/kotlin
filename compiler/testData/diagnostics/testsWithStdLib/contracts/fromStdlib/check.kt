@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +ReadDeserializedContracts +UseReturnsEffect
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 
 fun testCheckSmartcast(x: Any?) {

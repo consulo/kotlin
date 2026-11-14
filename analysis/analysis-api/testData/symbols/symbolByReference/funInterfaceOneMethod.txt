@@ -1,9 +1,9 @@
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: MyInterface
   classKind: INTERFACE
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -12,10 +12,13 @@ KaNamedClassSymbol:
   isFun: true
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: ABSTRACT
   name: MyInterface
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -26,6 +29,6 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(funInterfaceOneMethod.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: MyInterface

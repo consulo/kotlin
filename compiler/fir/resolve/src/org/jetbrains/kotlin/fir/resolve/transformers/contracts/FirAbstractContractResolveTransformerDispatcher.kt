@@ -1,13 +1,13 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.fir.resolve.transformers.contracts
 
 import org.jetbrains.kotlin.KtFakeSourceElementKind
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.contracts.FirLegacyRawContractDescription
 import org.jetbrains.kotlin.fir.contracts.FirRawContractDescription
 import org.jetbrains.kotlin.fir.contracts.builder.buildErrorContractDescription
@@ -65,7 +65,8 @@ abstract class FirAbstractContractResolveTransformerDispatcher(
     private val regularDeclarationsTransformer = FirDeclarationsResolveTransformer(this)
 
     private var contractMode = true
-    private var insideContractDescription = false
+    var insideContractDescription: Boolean = false
+        private set
 
     override fun transformAnnotation(annotation: FirAnnotation, data: ResolutionMode): FirStatement {
         // Annotations within contracts will be resolved explicitly during BODY_RESOLVE.
@@ -86,7 +87,7 @@ abstract class FirAbstractContractResolveTransformerDispatcher(
             if (!namedFunction.hasContractToResolve) return namedFunction
 
             return context.withNamedFunction(namedFunction, session) {
-                context.forFunctionBody(namedFunction, components) {
+                context.forFunctionBody(namedFunction) {
                     transformContractDescriptionOwner(namedFunction)
                 }
             }
@@ -95,7 +96,7 @@ abstract class FirAbstractContractResolveTransformerDispatcher(
         override fun transformAnonymousFunction(anonymousFunction: FirAnonymousFunction, data: ResolutionMode): FirAnonymousFunction {
             if (!anonymousFunction.hasContractToResolve) return anonymousFunction
 
-            return context.forFunctionBody(anonymousFunction, components) {
+            return context.forFunctionBody(anonymousFunction) {
                 transformContractDescriptionOwner(anonymousFunction)
             }
         }
@@ -134,7 +135,7 @@ abstract class FirAbstractContractResolveTransformerDispatcher(
             if (!propertyAccessor.hasContractToResolve) {
                 return propertyAccessor
             }
-            return context.withPropertyAccessor(owner, propertyAccessor, components, forContracts = true) {
+            return context.withPropertyAccessor(owner, propertyAccessor, forContracts = true) {
                 transformContractDescriptionOwner(propertyAccessor)
             }
         }
@@ -171,7 +172,7 @@ abstract class FirAbstractContractResolveTransformerDispatcher(
             val resolvedContractCall = withContractModeDisabled {
                 contractDescription.contractCall
                     .transformSingle(transformer, ResolutionMode.ContextIndependent)
-                    .apply { replaceConeTypeOrNull(session.builtinTypes.unitType.coneType) }
+                    .apply { replaceConeTypeOrNull(StandardTypes.Unit) }
             }
 
             // We generate a FirContractCallBlock according to a heuristic, which can have false positives,
@@ -292,26 +293,28 @@ abstract class FirAbstractContractResolveTransformerDispatcher(
         }
 
         override fun withFile(file: FirFile, action: () -> FirFile): FirFile {
-            return context.withFile(file, components) {
+            return context.withFile(file) {
                 action()
             }
         }
 
         override fun transformRegularClass(regularClass: FirRegularClass, data: ResolutionMode): FirRegularClass {
-            return forRegularClassBody(regularClass) {
-                transformDeclarationContent(regularClass, data)
-                regularClass
+            return context.withContainingClass(regularClass) {
+                forRegularClassBody(regularClass) {
+                    transformDeclarationContent(regularClass, data)
+                    regularClass
+                }
             }
         }
 
         override fun forRegularClassBody(regularClass: FirRegularClass, action: () -> FirRegularClass): FirRegularClass {
-            return context.forRegularClassBody(regularClass, components) {
+            return context.forRegularClassBody(regularClass) {
                 action()
             }
         }
 
         override fun withScript(script: FirScript, action: () -> FirScript): FirScript {
-            return context.withScript(script, components) {
+            return context.withScript(script) {
                 action()
             }
         }
@@ -323,15 +326,19 @@ abstract class FirAbstractContractResolveTransformerDispatcher(
         }
 
         override fun transformReplSnippet(replSnippet: FirReplSnippet, data: ResolutionMode): FirReplSnippet {
-            return replSnippet
+            return context.withReplSnippet(replSnippet) {
+                replSnippet.transformSnippetClass(this, data)
+            }
         }
 
         override fun transformAnonymousObject(
             anonymousObject: FirAnonymousObject,
             data: ResolutionMode
         ): FirAnonymousObject {
-            context.withAnonymousObject(anonymousObject, components) {
-                transformDeclarationContent(anonymousObject, data)
+            context.withContainingClass(anonymousObject) {
+                context.withAnonymousObject(anonymousObject) {
+                    transformDeclarationContent(anonymousObject, data)
+                }
             }
             return anonymousObject
         }

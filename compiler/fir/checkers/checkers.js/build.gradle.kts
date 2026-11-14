@@ -1,26 +1,20 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("generated-sources")
+    id("require-explicit-types")
 }
 
 dependencies {
     api(project(":core:compiler.common.js"))
     api(project(":js:js.ast"))
-    api(project(":compiler:fir:checkers"))
     api(project(":compiler:fir:checkers:checkers.web.common"))
 
-    implementation(project(":compiler:fir:diagnostic-renderers"))
-
-    // FE checks for modules use ModuleKind
-    // This dependency can be removed when we stop supporting PLAIN and UMD module systems
-    implementation(project(":js:js.serializer"))
-
-    /*
-     * We can't remove this dependency until we use
-     *   diagnostics framework from FE 1.0
-     */
-    implementation(project(":compiler:frontend"))
+    implementation(project(":js:js.config"))
+    implementation(project(":compiler:frontend.common-psi"))
     implementation(project(":compiler:psi:psi-api"))
+    implementation(project(":core:error.handling"))
 
     compileOnly(intellijCore())
 }

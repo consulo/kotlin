@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.serialization.deserialization.descriptors
 
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.AbstractClassDescriptor
@@ -16,12 +17,14 @@ import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.incremental.record
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.*
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.CliSealedClassInheritorsProvider
 import org.jetbrains.kotlin.resolve.DescriptorFactory
 import org.jetbrains.kotlin.resolve.NonReportingOverrideStrategy
 import org.jetbrains.kotlin.resolve.OverridingUtil
 import org.jetbrains.kotlin.resolve.descriptorUtil.classId
+import org.jetbrains.kotlin.resolve.scopes.ChainedMemberScope
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.resolve.scopes.StaticScopeForKotlinEnum
@@ -29,8 +32,11 @@ import org.jetbrains.kotlin.resolve.scopes.receivers.ContextClassReceiver
 import org.jetbrains.kotlin.serialization.deserialization.*
 import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.types.checker.KotlinTypeRefiner
+import org.jetbrains.kotlin.types.model.RigidTypeMarker
 import org.jetbrains.kotlin.utils.addToStdlib.flatMapToNullable
+import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 
+@K1Deprecation
 class DeserializedClassDescriptor(
     outerContext: DeserializationContext,
     val classProto: ProtoBuf.Class,
@@ -54,13 +60,17 @@ class DeserializedClassDescriptor(
 
     val hasEnumEntriesMetadataFlag: Boolean = Flags.HAS_ENUM_ENTRIES.get(classProto.flags)
 
-    private val staticScope =
-        if (kind == ClassKind.ENUM_CLASS) {
-            val enumEntriesCanBeUsed = hasEnumEntriesMetadataFlag ||
-                    c.components.enumEntriesDeserializationSupport.canSynthesizeEnumEntries() == true
-            StaticScopeForKotlinEnum(c.storageManager, this, enumEntriesCanBeUsed)
-        } else {
-            MemberScope.Empty
+    private val staticScope: MemberScope =
+        DeserializedClassStaticScope().let { staticScope ->
+            if (kind == ClassKind.ENUM_CLASS) {
+                val enumEntriesCanBeUsed = hasEnumEntriesMetadataFlag ||
+                        c.components.enumEntriesDeserializationSupport.canSynthesizeEnumEntries() == true
+                ChainedMemberScope.create(
+                    name.asString(), staticScope, StaticScopeForKotlinEnum(c.storageManager, this, enumEntriesCanBeUsed),
+                )
+            } else {
+                staticScope
+            }
         }
 
     private val typeConstructor = DeserializedClassTypeConstructor()
@@ -204,7 +214,8 @@ class DeserializedClassDescriptor(
         if (!isInline && !isValue) return null
         val hasInlineClassRepresentationInMetadata = metadataVersion.isAtLeast(1, 5, 1)
         classProto.loadValueClassRepresentation(
-            tryLoadMultiFieldValueClass = hasInlineClassRepresentationInMetadata,
+            // Before 2.4.0, the metadata of a JVM class file doesn't say whether it is annotated with `@JvmInline`.
+            tryLoadFullValueClass = metadataVersion.isAtLeast(2, 4, 0),
             c.nameResolver, c.typeTable, c.typeDeserializer::simpleType, ::getValueClassPropertyType,
         )?.let { return it }
         if (!hasInlineClassRepresentationInMetadata) {
@@ -218,9 +229,48 @@ class DeserializedClassDescriptor(
         return null
     }
 
+    private fun <T : RigidTypeMarker> ProtoBuf.Class.loadValueClassRepresentation(
+        tryLoadFullValueClass: Boolean,
+        nameResolver: NameResolver,
+        typeTable: TypeTable,
+        typeDeserializer: (ProtoBuf.Type) -> T,
+        typeOfPublicProperty: (Name) -> T?,
+    ): ValueClassRepresentation<T>? {
+        val hasJvmInline = annotationList.any {
+            val annotationId = nameResolver.getClassId(it.id)
+            annotationId.relativeClassName.asString() == "JvmInline" && annotationId.packageFqName.asString() == "kotlin.jvm"
+        }
+        if (!hasJvmInline && tryLoadFullValueClass && Flags.IS_VALUE_CLASS.get(flags) && !hasInlineClassUnderlyingPropertyName()) {
+            val modality = Flags.MODALITY.get(flags)
+            val isAbstractOrSealed = modality == ProtoBuf.Modality.ABSTRACT || modality == ProtoBuf.Modality.SEALED
+            val fields = if (isAbstractOrSealed) {
+                null
+            } else {
+                // jvm-abi-gen strips a private primary constructor, and its parameters aren't needed outside the class anyway.
+                val primaryConstructor = constructorList.singleOrNull { !Flags.IS_SECONDARY.get(it.flags) }
+                    ?: return FullValueClassRepresentation(emptyList())
+                primaryConstructor.valueParameterList.map {
+                    nameResolver.getName(it.name) to typeDeserializer(it.type(typeTable))
+                }
+            }
+            return FullValueClassRepresentation(fields)
+        }
+
+        if (hasInlineClassUnderlyingPropertyName()) {
+            val propertyName = nameResolver.getName(inlineClassUnderlyingPropertyName)
+            val propertyType = inlineClassUnderlyingType(typeTable)?.let(typeDeserializer)
+                ?: typeOfPublicProperty(propertyName)
+                ?: error("cannot determine underlying type for value class ${nameResolver.getName(fqName)} with property $propertyName")
+            return InlineClassRepresentation(propertyName, propertyType)
+        }
+
+        return null
+    }
+
+
     private fun getValueClassPropertyType(propertyName: Name): SimpleType? =
         memberScope.getContributedVariables(propertyName, NoLookupLocation.FROM_DESERIALIZATION)
-            .singleOrNull { it.extensionReceiverParameter == null && it.contextReceiverParameters.isEmpty() }?.type as SimpleType?
+            .singleOrNull { it.extensionReceiverParameter == null && it.contextReceiverParameters.isEmpty() && it.dispatchReceiverParameter != null }?.type as SimpleType?
 
     override fun toString() =
         "deserialized ${if (isExpect) "expect " else ""}class $name" // not using descriptor renderer to preserve laziness
@@ -272,8 +322,33 @@ class DeserializedClassDescriptor(
             get() = SupertypeLoopChecker.EMPTY
     }
 
+    private inner class DeserializedClassStaticScope : DeserializedMemberScope(
+        c,
+        classProto.functionList.filter { Flags.IS_STATIC_FUNCTION.get(it.flags) },
+        classProto.propertyList.filter { Flags.IS_STATIC_PROPERTY.get(it.flags) },
+        emptyList(),
+        { emptyList() },
+    ) {
+        private val allDescriptors = c.storageManager.createLazyValue {
+            computeDescriptors(DescriptorKindFilter.ALL, MemberScope.ALL_NAME_FILTER, NoLookupLocation.WHEN_GET_ALL_DESCRIPTORS)
+        }
+
+        override fun getContributedDescriptors(
+            kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean
+        ): Collection<DeclarationDescriptor> = allDescriptors()
+
+        override fun createClassId(name: Name): ClassId = shouldNotBeCalled()
+        override fun getNonDeclaredFunctionNames(): Set<Name> = emptySet()
+        override fun getNonDeclaredVariableNames(): Set<Name> = emptySet()
+        override fun getNonDeclaredClassifierNames(): Set<Name> = emptySet()
+        override fun addEnumEntryDescriptors(result: MutableCollection<DeclarationDescriptor>, nameFilter: (Name) -> Boolean) {}
+    }
+
     private inner class DeserializedClassMemberScope(private val kotlinTypeRefiner: KotlinTypeRefiner) : DeserializedMemberScope(
-        c, classProto.functionList, classProto.propertyList, classProto.typeAliasList,
+        c,
+        classProto.functionList.filterNot { Flags.IS_STATIC_FUNCTION.get(it.flags) },
+        classProto.propertyList.filterNot { Flags.IS_STATIC_PROPERTY.get(it.flags) },
+        classProto.typeAliasList,
         classProto.nestedClassNameList.map(c.nameResolver::getName).let { { it } } // workaround KT-13454
     ) {
         private val classDescriptor: DeserializedClassDescriptor get() = this@DeserializedClassDescriptor
@@ -388,8 +463,10 @@ class DeserializedClassDescriptor(
         }
     }
 
+    fun findEnumEntryProto(name: Name): ProtoBuf.EnumEntry? = enumEntries?.enumEntryProtos?.get(name)
+
     private inner class EnumEntryClassDescriptors {
-        private val enumEntryProtos = classProto.enumEntryList.associateBy { c.nameResolver.getName(it.name) }
+        val enumEntryProtos = classProto.enumEntryList.associateBy { c.nameResolver.getName(it.name) }
 
         private val enumEntryByName = c.storageManager.createMemoizedFunctionWithNullableValues<Name, ClassDescriptor> { name ->
 

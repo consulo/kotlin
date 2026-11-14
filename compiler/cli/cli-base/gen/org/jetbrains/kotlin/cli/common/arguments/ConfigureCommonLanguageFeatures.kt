@@ -7,10 +7,6 @@ package org.jetbrains.kotlin.cli.common.arguments
 import org.jetbrains.kotlin.config.LanguageFeature
 
 internal fun MutableMap<LanguageFeature, LanguageFeature.State>.configureCommonLanguageFeatures(arguments: CommonCompilerArguments) {
-    if (arguments.allowAnyScriptsInSourceRoots) {
-        put(LanguageFeature.SkipStandaloneScriptsInSourceRoots, LanguageFeature.State.DISABLED)
-    }
-
     if (arguments.allowConditionImpliesReturnsContracts) {
         put(LanguageFeature.ConditionImpliesReturnsContracts, LanguageFeature.State.ENABLED)
     }
@@ -29,6 +25,10 @@ internal fun MutableMap<LanguageFeature, LanguageFeature.State>.configureCommonL
         put(LanguageFeature.AllowReifiedTypeInCatchClause, LanguageFeature.State.ENABLED)
     }
 
+    if (arguments.allowReturnsResultOf) {
+        put(LanguageFeature.AllowReturnsResultOfContract, LanguageFeature.State.ENABLED)
+    }
+
     if (arguments.annotationDefaultTarget == "first-only-warn") {
         put(LanguageFeature.AnnotationDefaultTargetMigrationWarning, LanguageFeature.State.ENABLED)
         put(LanguageFeature.PropertyParamAnnotationDefaultTargetMode, LanguageFeature.State.DISABLED)
@@ -45,8 +45,21 @@ internal fun MutableMap<LanguageFeature, LanguageFeature.State>.configureCommonL
         put(LanguageFeature.AnnotationAllUseSiteTarget, LanguageFeature.State.ENABLED)
     }
 
+    if (arguments.callableReferencesToContextual) {
+        put(LanguageFeature.CallableReferencesToContextual, LanguageFeature.State.ENABLED)
+    }
+
     if (arguments.collectionLiterals) {
         put(LanguageFeature.CollectionLiterals, LanguageFeature.State.ENABLED)
+    }
+
+    if (arguments.companionBlocks) {
+        put(LanguageFeature.CompanionBlocks, LanguageFeature.State.ENABLED)
+    }
+
+    if (arguments.companionBlocksAndExtensions) {
+        put(LanguageFeature.CompanionBlocks, LanguageFeature.State.ENABLED)
+        put(LanguageFeature.CompanionExtensions, LanguageFeature.State.ENABLED)
     }
 
     if (arguments.consistentDataClassCopyVisibility) {
@@ -57,10 +70,6 @@ internal fun MutableMap<LanguageFeature, LanguageFeature.State>.configureCommonL
         put(LanguageFeature.ContextParameters, LanguageFeature.State.ENABLED)
     }
 
-    if (arguments.contextReceivers) {
-        put(LanguageFeature.ContextReceivers, LanguageFeature.State.ENABLED)
-    }
-
     if (arguments.contextSensitiveResolution) {
         put(LanguageFeature.ContextSensitiveResolutionUsingExpectedType, LanguageFeature.State.ENABLED)
     }
@@ -69,8 +78,14 @@ internal fun MutableMap<LanguageFeature, LanguageFeature.State>.configureCommonL
         put(LanguageFeature.DataFlowBasedExhaustiveness, LanguageFeature.State.ENABLED)
     }
 
-    if (arguments.directJavaActualization) {
-        put(LanguageFeature.DirectJavaActualization, LanguageFeature.State.ENABLED)
+    if (arguments.doNotNormalizeNanValuesInConstContext) {
+        put(LanguageFeature.NormalizeNaNValuesInConstContext, LanguageFeature.State.DISABLED)
+    }
+
+    if (arguments.eagerLambdaAnalysis) {
+        put(LanguageFeature.EagerLambdaAnalysis, LanguageFeature.State.ENABLED)
+        put(LanguageFeature.InferThrowableTypeParameterToUpperBound, LanguageFeature.State.ENABLED)
+        put(LanguageFeature.CallCompletionRefinementsFor25, LanguageFeature.State.ENABLED)
     }
 
     if (arguments.explicitBackingFields) {
@@ -81,14 +96,19 @@ internal fun MutableMap<LanguageFeature, LanguageFeature.State>.configureCommonL
         put(LanguageFeature.ExplicitContextArguments, LanguageFeature.State.ENABLED)
     }
 
-    if (arguments.inlineClasses) {
-        put(LanguageFeature.InlineClasses, LanguageFeature.State.ENABLED)
+    if (arguments.fullValueClasses) {
+        put(LanguageFeature.FullValueClasses, LanguageFeature.State.ENABLED)
+    }
+
+    if (arguments.intrinsicConstEvaluation) {
+        put(LanguageFeature.IntrinsicConstEvaluation, LanguageFeature.State.ENABLED)
     }
 
     if (arguments.localTypeAliases) {
         put(LanguageFeature.LocalTypeAliases, LanguageFeature.State.ENABLED)
     }
 
+    @Suppress("DEPRECATION")
     if (arguments.multiDollarInterpolation) {
         put(LanguageFeature.MultiDollarInterpolation, LanguageFeature.State.ENABLED)
     }
@@ -99,10 +119,13 @@ internal fun MutableMap<LanguageFeature, LanguageFeature.State>.configureCommonL
 
     if (arguments.nameBasedDestructuring == "only-syntax") {
         put(LanguageFeature.NameBasedDestructuring, LanguageFeature.State.ENABLED)
+        put(LanguageFeature.DeprecateNameMismatchInShortDestructuringWithParentheses, LanguageFeature.State.DISABLED)
+        put(LanguageFeature.EnableNameBasedDestructuringShortForm, LanguageFeature.State.DISABLED)
     }
     if (arguments.nameBasedDestructuring == "name-mismatch") {
         put(LanguageFeature.NameBasedDestructuring, LanguageFeature.State.ENABLED)
         put(LanguageFeature.DeprecateNameMismatchInShortDestructuringWithParentheses, LanguageFeature.State.ENABLED)
+        put(LanguageFeature.EnableNameBasedDestructuringShortForm, LanguageFeature.State.DISABLED)
     }
     if (arguments.nameBasedDestructuring == "complete") {
         put(LanguageFeature.NameBasedDestructuring, LanguageFeature.State.ENABLED)
@@ -114,21 +137,20 @@ internal fun MutableMap<LanguageFeature, LanguageFeature.State>.configureCommonL
         put(LanguageFeature.NestedTypeAliases, LanguageFeature.State.ENABLED)
     }
 
-    if (arguments.newInference) {
-        put(LanguageFeature.NewInference, LanguageFeature.State.ENABLED)
-        put(LanguageFeature.SamConversionPerArgument, LanguageFeature.State.ENABLED)
-        put(LanguageFeature.FunctionReferenceWithDefaultValueAsOtherType, LanguageFeature.State.ENABLED)
-        put(LanguageFeature.DisableCompatibilityModeForNewInference, LanguageFeature.State.ENABLED)
-    }
-
+    @Suppress("DEPRECATION")
     if (arguments.nonLocalBreakContinue) {
         put(LanguageFeature.BreakContinueInInlineLambdas, LanguageFeature.State.ENABLED)
     }
 
-    if (arguments.unrestrictedBuilderInference) {
-        put(LanguageFeature.UnrestrictedBuilderInference, LanguageFeature.State.ENABLED)
+    if (arguments.richErrors) {
+        put(LanguageFeature.RichErrors, LanguageFeature.State.ENABLED)
     }
 
+    if (arguments.strictEqualityForStructuralClasses) {
+        put(LanguageFeature.StrictEqualsForStructuralClasses, LanguageFeature.State.ENABLED)
+    }
+
+    @Suppress("DEPRECATION")
     if (arguments.whenGuards) {
         put(LanguageFeature.WhenGuards, LanguageFeature.State.ENABLED)
     }

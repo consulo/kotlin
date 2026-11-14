@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.konan.test.blackbox
 
 import com.intellij.testFramework.TestDataFile
 import org.jetbrains.kotlin.cli.common.arguments.allowTestsOnlyLanguageFeatures
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.konan.test.blackbox.support.NativeBlackBoxTestSupport
 import org.jetbrains.kotlin.konan.test.blackbox.support.PackageName
 import org.jetbrains.kotlin.konan.test.blackbox.support.TestCaseId
@@ -19,16 +20,17 @@ import org.jetbrains.kotlin.konan.test.blackbox.support.settings.ExternalSourceT
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.TestRunSettings
 import org.jetbrains.kotlin.konan.test.blackbox.support.util.ExternalSourceTransformers
 import org.jetbrains.kotlin.konan.test.blackbox.support.util.TreeNode
-import org.jetbrains.kotlin.konan.test.blackbox.support.util.getAbsoluteFile
 import org.jetbrains.kotlin.konan.test.blackbox.support.util.joinPackageNames
 import org.jetbrains.kotlin.konan.test.blackbox.support.util.prependPackageName
 import org.jetbrains.kotlin.test.services.JUnit5Assertions.fail
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInNative
 import org.junit.jupiter.api.DynamicNode
 import org.junit.jupiter.api.DynamicTest.dynamicTest
 import org.junit.jupiter.api.extension.ExtendWith
 import java.io.File
 
 @ExtendWith(NativeBlackBoxTestSupport::class)
+@MustRunOnChangesInNative
 abstract class AbstractNativeBlackBoxTest : ExternalSourceTransformersProvider {
     lateinit var testRunSettings: TestRunSettings
     lateinit var testRunProvider: TestRunProvider
@@ -40,7 +42,7 @@ abstract class AbstractNativeBlackBoxTest : ExternalSourceTransformersProvider {
      */
     open fun runTest(@TestDataFile testDataFilePath: String) {
         allowTestsOnlyLanguageFeatures()
-        val absoluteTestFile = getAbsoluteFile(testDataFilePath)
+        val absoluteTestFile = ForTestCompileRuntime.transformTestDataPath(testDataFilePath)
         val testCaseId = TestCaseId.TestDataFile(absoluteTestFile)
         try {
             runTestCase(testCaseId)
@@ -69,7 +71,7 @@ abstract class AbstractNativeBlackBoxTest : ExternalSourceTransformersProvider {
      * This function should be called from a method annotated with [org.junit.jupiter.api.TestFactory].
      */
     fun dynamicTest(@TestDataFile testDataFilePath: String): Collection<DynamicNode> {
-        val testCaseId = TestCaseId.TestDataFile(getAbsoluteFile(testDataFilePath))
+        val testCaseId = TestCaseId.TestDataFile(ForTestCompileRuntime.transformTestDataPath(testDataFilePath))
         return dynamicTestCase(testCaseId)
     }
 

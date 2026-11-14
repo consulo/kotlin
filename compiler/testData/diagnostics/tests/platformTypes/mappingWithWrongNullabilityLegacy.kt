@@ -1,6 +1,6 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // ISSUE: KT-78783
-// LANGUAGE: -DontMakeExplicitNullableJavaTypeArgumentsFlexible -PreciseSimplificationToFlexibleLowerConstraint
+// LANGUAGE: -DontMakeExplicitNullableJavaTypeArgumentsFlexible
 // JVM_TARGET: 1.8
 // FULL_JDK
 // FIR_DUMP
@@ -33,7 +33,7 @@ class Handler<H>(val reader: (s: InputStream) -> H) {
         }
 
         return Subscribers.mapping(subscriber) {
-            reader(<!NULLABILITY_MISMATCH_BASED_ON_EXPLICIT_TYPE_ARGUMENTS_FOR_JAVA("InputStream?; InputStream;  This will become an error in language version 2.4. See https://youtrack.jetbrains.com/issue/KTLC-284.")!>it<!>)
+            reader(<!NULLABILITY_MISMATCH_BASED_ON_EXPLICIT_TYPE_ARGUMENTS_FOR_JAVA("InputStream?; InputStream;  This will become an error in language version 2.4. See: https://youtrack.jetbrains.com/issue/KTLC-284.")!>it<!>)
         }
     }
 }

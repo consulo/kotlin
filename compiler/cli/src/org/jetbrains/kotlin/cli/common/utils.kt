@@ -18,30 +18,27 @@ package org.jetbrains.kotlin.cli.common
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.util.Disposer
-import org.jetbrains.kotlin.KtSourceElement
-import org.jetbrains.kotlin.KtSourceFileLinesMapping
+import org.jetbrains.kotlin.backend.common.CompilationException
+import org.jetbrains.kotlin.cli.CliDiagnostics
 import org.jetbrains.kotlin.cli.CliDiagnostics.KOTLIN_PACKAGE_USAGE
 import org.jetbrains.kotlin.cli.CliDiagnostics.ROOTS_RESOLUTION_WARNING
+import org.jetbrains.kotlin.cli.common.arguments.ArgumentField
+import org.jetbrains.kotlin.cli.common.arguments.ArgumentLifecycleStatus
 import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
-import org.jetbrains.kotlin.cli.common.fir.FirDiagnosticsCompilerResultsReporter
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocationWithRange
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSourceLocation
 import org.jetbrains.kotlin.cli.common.messages.MessageUtil
 import org.jetbrains.kotlin.cli.report
-import org.jetbrains.kotlin.config.*
-import org.jetbrains.kotlin.diagnostics.DiagnosticBaseContext
-import org.jetbrains.kotlin.diagnostics.KtSourcelessDiagnosticFactory
-import org.jetbrains.kotlin.fir.declarations.FirFile
-import org.jetbrains.kotlin.fir.packageFqName
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.IncrementalCompilation
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.isSubpackageOf
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.platform.isCommon
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.text
 import org.jetbrains.kotlin.util.PerformanceManagerImpl
+import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 import java.io.File
 
 fun incrementalCompilationIsEnabled(arguments: CommonCompilerArguments): Boolean {
@@ -86,33 +83,6 @@ fun checkKotlinPackageUsageForPsi(
     )
 }
 
-fun checkKotlinPackageUsageForLightTree(
-    configuration: CompilerConfiguration,
-    files: Collection<FirFile>,
-): Boolean {
-    return checkKotlinPackageUsage(
-        configuration, files,
-        getPackage = { it.packageFqName },
-        getMessageLocation = { it.packageDirective.source?.getLocationWithin(it) },
-    )
-}
-
-private fun KtSourceElement.getLocationWithin(file: FirFile): CompilerMessageLocationWithRange? {
-    val sourceFile = file.sourceFile ?: return null
-    val (startLine, startColumn) = file.getLineAndColumnStartingWithOnesAt(startOffset) ?: return null
-    val (endLine, endColumn) = file.getLineAndColumnStartingWithOnesAt(endOffset) ?: return null
-    return CompilerMessageLocationWithRange.create(sourceFile.path, startLine, startColumn, endLine, endColumn, text?.toString())
-}
-
-private fun FirFile.getLineAndColumnStartingWithOnesAt(offset: Int?): Pair<Int, Int>? {
-    return offset?.let { sourceFileLinesMapping?.getLineAndColumnByOffsetStartingWithOnes(it) }
-}
-
-private fun KtSourceFileLinesMapping.getLineAndColumnByOffsetStartingWithOnes(startOffset: Int): Pair<Int, Int> {
-    val (line, column) = getLineAndColumnByOffset(startOffset)
-    return line + 1 to column + 1
-}
-
 fun <PathProvider : Any> getLibraryFromHome(
     paths: PathProvider?,
     getLibrary: (PathProvider) -> File,
@@ -140,11 +110,99 @@ fun createPerformanceManagerFor(platform: TargetPlatform) =
     PerformanceManagerImpl(platform, "Kotlin to ${if (platform.isCommon()) "Metadata" else platform.first().platformName} compiler")
 
 fun disposeRootInWriteAction(disposable: Disposable) {
-    if (ApplicationManager.getApplication() != null) {
-        runWriteAction {
+    // Capture the application once: another thread may dispose the shared application environment between the check and
+    // the call, which resets `ApplicationManager.getApplication()` to null,
+    // see `KotlinCoreEnvironment.disposeApplicationEnvironment` and `KotlinCoreEnvironment.resetApplicationManager`.
+    val application = ApplicationManager.getApplication()
+    if (application != null) {
+        application.runWriteAction {
             Disposer.dispose(disposable)
         }
     } else {
         Disposer.dispose(disposable)
     }
+}
+
+fun CompilerConfiguration.reportCompilationException(e: CompilationException) {
+    report(
+        CliDiagnostics.COMPILER_EXCEPTION,
+        e.stackTraceToString(),
+        CompilerMessageLocation.create(
+            path = e.path,
+            line = e.line,
+            column = e.column,
+            lineContent = e.content
+        )
+    )
+}
+
+private const val deprecatedCliArgThatEnablesLanguageFeaturesMessage =
+    " It enables the features that are already on by default in every supported language version."
+
+/**
+ * Returns a warning message and status if the argument is deprecated or removed, null otherwise.
+ */
+fun ArgumentField.generateLifecycleWarning(forExtraHelp: Boolean): Pair<String, ArgumentLifecycleStatus>? {
+    val status = status
+    if (status == ArgumentLifecycleStatus.REGULAR ||
+        // Don't report a diagnostic about future deprecation/removing
+        !forExtraHelp && (status == ArgumentLifecycleStatus.WILL_BE_DEPRECATED || status == ArgumentLifecycleStatus.WILL_BE_REMOVED) ||
+        // It doesn't make sense to show a warning for removed arguments in extra help
+        forExtraHelp && status >= ArgumentLifecycleStatus.REMOVED
+    ) {
+        return null
+    }
+
+    val argument = argument
+    val message = buildString {
+        if (forExtraHelp) {
+            append("The option ")
+        } else {
+            append("The argument '")
+            append(argument.value)
+            append("' ")
+        }
+
+        when (status) {
+            ArgumentLifecycleStatus.REGULAR -> shouldNotBeCalled()
+            ArgumentLifecycleStatus.WILL_BE_DEPRECATED,
+            ArgumentLifecycleStatus.WILL_BE_REMOVED -> {
+                append("will be ")
+                append(if (status == ArgumentLifecycleStatus.WILL_BE_DEPRECATED) "deprecated" else "removed")
+                append(" in ")
+                append(if (status == ArgumentLifecycleStatus.WILL_BE_DEPRECATED) argument.deprecatedVersion else argument.removedVersion)
+                append('.')
+            }
+            ArgumentLifecycleStatus.DEPRECATED,
+            ArgumentLifecycleStatus.DEPRECATED_AND_WILL_BE_REMOVED,
+                -> {
+                append("is deprecated since Kotlin ")
+                append(argument.deprecatedVersion)
+                append(". It will be removed in ")
+                if (status == ArgumentLifecycleStatus.DEPRECATED) {
+                    append("one of the future releases")
+                } else {
+                    append(argument.removedVersion)
+                }
+                append('.')
+                val deprecatedMessage = deprecatedAnnotation?.message
+                if (deprecatedMessage?.isNotEmpty() == true) {
+                    append(' ')
+                    append(deprecatedMessage)
+                } else if (changesLanguageFeatures) {
+                    append(deprecatedCliArgThatEnablesLanguageFeaturesMessage)
+                }
+            }
+            ArgumentLifecycleStatus.REMOVED -> {
+                append("was removed in Kotlin ")
+                append(argument.removedVersion)
+                append(". It has no effect.")
+                if (changesLanguageFeatures) {
+                    append(deprecatedCliArgThatEnablesLanguageFeaturesMessage)
+                }
+            }
+        }
+    }
+
+    return message to status
 }

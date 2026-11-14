@@ -1,15 +1,18 @@
 /*
- * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.backend.js
 
 import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.CompilerConfigurationKey
 import org.jetbrains.kotlin.config.phaser.PhaserState
 import org.jetbrains.kotlin.ir.IrBuiltIns
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
-import org.jetbrains.kotlin.ir.backend.js.ic.*
+import org.jetbrains.kotlin.ir.backend.js.ic.IrCompilerICInterface
+import org.jetbrains.kotlin.ir.backend.js.ic.JsModuleArtifact
+import org.jetbrains.kotlin.ir.backend.js.ic.JsSrcFileArtifact
+import org.jetbrains.kotlin.ir.backend.js.ic.PlatformDependentICContext
 import org.jetbrains.kotlin.ir.backend.js.lower.collectNativeImplementations
 import org.jetbrains.kotlin.ir.backend.js.lower.generateJsTests
 import org.jetbrains.kotlin.ir.backend.js.lower.moveBodilessDeclarationsToSeparatePlace
@@ -19,39 +22,35 @@ import org.jetbrains.kotlin.ir.declarations.IrFactory
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImplForJsIC
+import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.js.config.JSConfigurationKeys
 import org.jetbrains.kotlin.js.config.JsGenerationGranularity
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.psi2ir.descriptors.IrBuiltInsOverDescriptors
 import java.io.File
 
-class JsICContext(
-    private val mainArguments: List<String>?,
-    private val granularity: JsGenerationGranularity,
-    private val exportedDeclarations: Set<FqName> = emptySet(),
-) : PlatformDependentICContext {
+class JsICContext(private val granularity: JsGenerationGranularity) :
+    PlatformDependentICContext<JsModuleArtifact, JsSrcFileArtifact, JsIrProgramFragments, JsIrBackendContext> {
+    override fun getICCacheStableKeys(): Set<CompilerConfigurationKey<*>> =
+        setOf(
+            JSConfigurationKeys.LIBRARIES,
+            JSConfigurationKeys.FRIEND_LIBRARIES,
+            JSConfigurationKeys.INCLUDES
+        )
 
     override fun createIrFactory(): IrFactory =
         IrFactoryImplForJsIC(WholeWorldStageController())
 
-    @OptIn(ObsoleteDescriptorBasedAPI::class)
     override fun createBackendContext(
         mainModule: IrModuleFragment,
         irBuiltIns: IrBuiltIns,
+        symbolTable: SymbolTable,
         configuration: CompilerConfiguration,
-    ): JsCommonBackendContext {
-        val symbolTable = (irBuiltIns as IrBuiltInsOverDescriptors).symbolTable
-
+    ): JsIrBackendContext {
         return JsIrBackendContext(
-            mainModule.descriptor,
+            mainModule,
             irBuiltIns,
             symbolTable,
-            exportedDeclarations,
-            keep = emptySet(),
             configuration = configuration,
-            granularity = granularity,
             incrementalCacheEnabled = true,
-            mainCallArguments = mainArguments
         )
     }
 
@@ -59,31 +58,30 @@ class JsICContext(
         mainModule: IrModuleFragment,
         irBuiltIns: IrBuiltIns,
         configuration: CompilerConfiguration,
-        context: JsCommonBackendContext,
-    ): IrCompilerICInterface =
-        JsIrCompilerWithIC(mainModule, mainArguments, context as JsIrBackendContext)
+        context: JsIrBackendContext,
+    ): IrCompilerICInterface<JsIrProgramFragments> =
+        JsIrCompilerWithIC(mainModule, context, granularity)
 
-    override fun createSrcFileArtifact(srcFilePath: String, fragments: IrICProgramFragments?, astArtifact: File?): SrcFileArtifact =
-        JsSrcFileArtifact(srcFilePath, fragments as? JsIrProgramFragments, astArtifact)
+    override fun createSrcFileArtifact(srcFilePath: String, fragments: JsIrProgramFragments?, astArtifact: File?): JsSrcFileArtifact =
+        JsSrcFileArtifact(srcFilePath, fragments, astArtifact)
 
     override fun createModuleArtifact(
         moduleName: String,
-        fileArtifacts: List<SrcFileArtifact>,
+        fileArtifacts: List<JsSrcFileArtifact>,
         artifactsDir: File?,
-        forceRebuildJs: Boolean,
+        forceRebuild: Boolean,
         externalModuleName: String?,
-    ): ModuleArtifact =
-        JsModuleArtifact(moduleName, fileArtifacts.map { it as JsSrcFileArtifact }, artifactsDir, forceRebuildJs, externalModuleName)
+    ): JsModuleArtifact =
+        JsModuleArtifact(moduleName, fileArtifacts, artifactsDir, forceRebuild, externalModuleName)
 }
 
-@OptIn(ObsoleteDescriptorBasedAPI::class)
 class JsIrCompilerWithIC(
     private val mainModule: IrModuleFragment,
-    private val mainArguments: List<String>?,
     private val context: JsIrBackendContext,
-) : IrCompilerICInterface {
+    private val granularity: JsGenerationGranularity,
+) : IrCompilerICInterface<JsIrProgramFragments> {
 
-    override fun compile(allModules: Collection<IrModuleFragment>, dirtyFiles: Collection<IrFile>): List<() -> IrICProgramFragments> {
+    override fun compile(allModules: Collection<IrModuleFragment>, dirtyFiles: Collection<IrFile>): List<() -> JsIrProgramFragments> {
         val shouldGeneratePolyfills = context.configuration.getBoolean(JSConfigurationKeys.GENERATE_POLYFILLS)
 
         allModules.forEach {
@@ -97,8 +95,8 @@ class JsIrCompilerWithIC(
 
         lowerPreservingTags(allModules, context, context.irFactory.stageController as WholeWorldStageController)
 
-        val transformer = IrModuleToJsTransformer(context, shouldReferMainFunction = mainArguments != null)
-        return transformer.makeIrFragmentsGenerators(dirtyFiles, allModules)
+        val transformer = IrModuleToJsTransformer(context)
+        return transformer.makeIrFragmentsGenerators(dirtyFiles, allModules, granularity)
     }
 }
 

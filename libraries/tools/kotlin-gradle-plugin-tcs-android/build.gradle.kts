@@ -1,20 +1,30 @@
+import gradle.addKgpGradleApiDependency
+
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     `maven-publish`
 }
 
 dependencies {
-    compileOnly(gradleKotlinDsl())
     compileOnly(libs.android.gradle.plugin.gradle)
     compileOnly(project(":kotlin-gradle-plugin"))
     compileOnly(project(":kotlin-gradle-plugin-api"))
     compileOnly(project(":kotlin-gradle-plugin-idea"))
+    addKgpGradleApiDependency("compileOnly")
+    compileOnly(kotlin("stdlib"))
 }
 
 configureKotlinCompileTasksGradleCompatibility()
-configureJvmToolchain(JdkMajorVersion.JDK_11_0)
+jvmToolchains {
+    jdkVersion = JdkMajorVersion.JDK_11_0
+    targetBytecodeVersion = JdkMajorVersion.JDK_11_0
+}
 
 kotlin {
+    @Suppress("DEPRECATION")
+    coreLibrariesVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation.get()
     compilerOptions {
         optIn.add("org.jetbrains.kotlin.gradle.ExternalKotlinTargetApi")
         /* Workaround for KT-54823 */

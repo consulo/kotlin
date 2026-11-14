@@ -5,10 +5,11 @@
 
 package org.jetbrains.kotlin.analysis.api.symbols.pointers
 
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
-import org.jetbrains.kotlin.analysis.utils.reflection.renderAsDataClassToString
+import org.jetbrains.kotlin.analysis.api.utils.renderAsDataClassToString
 
 /**
  * [KaSymbolPointer] allows to point to a [KaSymbol] and later retrieve it in another [KaSession]. A pointer is necessary because
@@ -32,32 +33,8 @@ public abstract class KaSymbolPointer<out S : KaSymbol> {
      */
     public open fun pointsToTheSameSymbolAs(other: KaSymbolPointer<KaSymbol>): Boolean = this === other
 
-    override fun toString(): String = renderAsDataClassToString()
-}
-
-@Deprecated(
-    "Symbol pointers are supposed to be created only by the Analysis API via `KaSymbol#createPointer()` API",
-    level = DeprecationLevel.ERROR,
-)
-@OptIn(KaImplementationDetail::class)
-public inline fun <S : KaSymbol> symbolPointer(crossinline getSymbol: (KaSession) -> S?): KaSymbolPointer<S> =
-    object : KaSymbolPointer<S>() {
-        @KaImplementationDetail
-        override fun restoreSymbol(analysisSession: KaSession): S? = getSymbol(analysisSession)
-    }
-
-@Deprecated(
-    "Symbol pointers are supposed to be created only by the Analysis API via `KaSymbol#createPointer()` API",
-    level = DeprecationLevel.ERROR,
-)
-@OptIn(KaImplementationDetail::class)
-public inline fun <T : KaSymbol, R : KaSymbol> symbolPointerDelegator(
-    pointer: KaSymbolPointer<T>,
-    crossinline transformer: KaSession.(T) -> R?,
-): KaSymbolPointer<R> = object : KaSymbolPointer<R>() {
-    @KaImplementationDetail
-    override fun restoreSymbol(analysisSession: KaSession): R? = with(analysisSession) {
-        val symbol = pointer.restoreSymbol() ?: return null
-        transformer(this, symbol)
+    override fun toString(): String {
+        @OptIn(KaExperimentalApi::class)
+        return renderAsDataClassToString()
     }
 }

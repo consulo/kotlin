@@ -5,6 +5,8 @@
 
 package org.jetbrains.kotlin.konan.test.klib
 
+import org.jetbrains.kotlin.backend.common.KlibSignatureIndexComponentWriterImpl
+import org.jetbrains.kotlin.backend.common.includeSignatureIndex
 import org.jetbrains.kotlin.konan.library.AbstractNativeKlibWriterTest
 import org.jetbrains.kotlin.konan.library.writer.includeBitcode
 import org.jetbrains.kotlin.konan.library.writer.includeNativeIncludedBinaries
@@ -14,22 +16,28 @@ import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.test.klib.NativeKlibWriterTest.NewNativeKlibWriterParameters
 import org.jetbrains.kotlin.library.KLIB_PROPERTY_NATIVE_TARGETS
 import org.jetbrains.kotlin.library.KlibFormat
+import org.jetbrains.kotlin.library.KlibMockDSL
 import org.jetbrains.kotlin.library.KotlinLibraryVersioning
+import org.jetbrains.kotlin.library.SerializedSignatureIndex
 import org.jetbrains.kotlin.library.impl.BuiltInsPlatform
 import org.jetbrains.kotlin.library.writer.KlibWriter
 import org.jetbrains.kotlin.library.writer.includeIr
 import org.jetbrains.kotlin.library.writer.includeMetadata
+import org.jetbrains.kotlin.testFederation.HostDependent
 import org.junit.jupiter.api.Test
-import java.io.File
+import java.nio.file.Path
 import java.util.Properties
+import kotlin.io.path.nameWithoutExtension
 
+@HostDependent
 class NativeKlibWriterTest : AbstractNativeKlibWriterTest<NewNativeKlibWriterParameters>(::NewNativeKlibWriterParameters) {
     class NewNativeKlibWriterParameters : NativeParameters() {
         var targetsForManifest: List<KonanTarget>? = null
+        var signatureIndex: SerializedSignatureIndex? = null
     }
 
     @Test
-    fun `Writing a klib with different 'targets for manifest'`() {
+    fun `Writing a klib with different targetsForManifest`() {
         listOf(
             listOf(KonanTarget.IOS_ARM64, KonanTarget.MACOS_ARM64, KonanTarget.WATCHOS_ARM64),
             listOf(KonanTarget.LINUX_ARM64, KonanTarget.MACOS_X64),
@@ -41,6 +49,23 @@ class NativeKlibWriterTest : AbstractNativeKlibWriterTest<NewNativeKlibWriterPar
         }
     }
 
+    @Test
+    fun `Writing a klib with and without signature index`() {
+        listOf(true, false).forEach { useSignatureIndex ->
+            runTestWithParameters {
+                signatureIndex = if (useSignatureIndex) KlibMockDSL.generateRandomSignatureIndex() else null
+            }
+        }
+    }
+
+    context(dsl: KlibMockDSL)
+    override fun customizeMockKlib(parameters: NewNativeKlibWriterParameters) {
+        super.customizeMockKlib(parameters)
+        parameters.signatureIndex?.let {
+            KlibSignatureIndexComponentWriterImpl(it).writeTo(dsl.rootDir)
+        }
+    }
+
     context(properties: Properties)
     override fun customizeManifestForMockKlib(parameters: NewNativeKlibWriterParameters) {
         super.customizeManifestForMockKlib(parameters)
@@ -48,7 +73,7 @@ class NativeKlibWriterTest : AbstractNativeKlibWriterTest<NewNativeKlibWriterPar
             ?: parameters.target.visibleName
     }
 
-    override fun writeKlib(parameters: NewNativeKlibWriterParameters): File {
+    override fun writeKlib(parameters: NewNativeKlibWriterParameters): Path {
         val klibDir = createNewKlibDir()
         val klibLocation = if (parameters.nopack) klibDir else klibDir.resolveSibling(klibDir.nameWithoutExtension + ".klib")
 
@@ -70,14 +95,15 @@ class NativeKlibWriterTest : AbstractNativeKlibWriterTest<NewNativeKlibWriterPar
                 legacyNativeDependenciesInManifest(parameters.dependencies.map { it.uniqueName })
                 legacyNativeShortNameInManifest(parameters.shortName)
                 customProperties {
-                    parameters.customManifestProperties.forEach { (key, value) -> setProperty(key, value) }
+                    parameters.customManifestProperties.forEach { [key, value] -> setProperty(key, value) }
                 }
             }
             includeMetadata(parameters.metadata)
             includeIr(parameters.ir)
-            includeBitcode(parameters.target, parameters.bitcodeFiles.map { it.file.path })
-            includeNativeIncludedBinaries(parameters.target, parameters.nativeIncludedBinaryFiles.map { it.file.path })
-        }.writeTo(klibLocation.path)
+            includeSignatureIndex(parameters.signatureIndex)
+            includeBitcode(parameters.target, parameters.bitcodeFiles.map { it.file })
+            includeNativeIncludedBinaries(parameters.target, parameters.nativeIncludedBinaryFiles.map { it.file })
+        }.writeTo(klibLocation)
 
         return klibLocation
     }

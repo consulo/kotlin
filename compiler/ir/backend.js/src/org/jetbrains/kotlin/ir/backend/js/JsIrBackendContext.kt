@@ -1,84 +1,61 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.backend.js
 
-import org.jetbrains.kotlin.backend.common.compilationException
 import org.jetbrains.kotlin.backend.common.ir.KlibSharedVariablesManager
 import org.jetbrains.kotlin.backend.common.linkage.partial.createPartialLinkageSupportForLowerings
-import org.jetbrains.kotlin.backend.common.linkage.partial.partialLinkageConfig
 import org.jetbrains.kotlin.backend.common.lower.InnerClassesSupport
-import org.jetbrains.kotlin.backend.common.reportWarning
 import org.jetbrains.kotlin.backend.common.serialization.IrInterningService
 import org.jetbrains.kotlin.cli.common.diagnosticsCollector
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.config.phaseConfig
 import org.jetbrains.kotlin.config.phaser.PhaseConfig
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.KtDiagnosticReporterWithImplicitIrBasedContext
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.backend.js.lower.JsInnerClassesSupport
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.JsPolyfills
-import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.translateJsCodeIntoStatementList
-import org.jetbrains.kotlin.ir.backend.js.utils.JsInlineClassesUtils
-import org.jetbrains.kotlin.ir.backend.js.utils.JsSignaturesPool
-import org.jetbrains.kotlin.ir.backend.js.utils.Keeper
-import org.jetbrains.kotlin.ir.backend.js.utils.MinimizedNameGenerator
-import org.jetbrains.kotlin.ir.backend.js.utils.OperatorNames
+import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrExternalPackageFragmentImpl
-import org.jetbrains.kotlin.ir.expressions.IrConst
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
-import org.jetbrains.kotlin.ir.irAttribute
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrFileSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.DescriptorlessExternalPackageFragmentSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.IrDynamicTypeImpl
-import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.js.backend.ast.JsExpressionStatement
-import org.jetbrains.kotlin.js.backend.ast.JsFunction
-import org.jetbrains.kotlin.js.config.JSConfigurationKeys
-import org.jetbrains.kotlin.js.config.JsGenerationGranularity
-import org.jetbrains.kotlin.js.config.RuntimeDiagnostic
-import org.jetbrains.kotlin.js.config.compileLongAsBigint
-import org.jetbrains.kotlin.js.parser.sourcemaps.*
-import org.jetbrains.kotlin.name.*
+import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.js.config.*
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.JsStandardClassIds
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.Variance
-import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 import org.jetbrains.kotlin.utils.filterIsInstanceMapNotNull
 import java.util.*
 
-@OptIn(ObsoleteDescriptorBasedAPI::class)
 class JsIrBackendContext(
-    val module: ModuleDescriptor,
+    val irModule: IrModuleFragment,
     override val irBuiltIns: IrBuiltIns,
     override val symbolTable: SymbolTable,
-    val additionalExportedDeclarationNames: Set<FqName>,
-    keep: Set<String>,
-    override val configuration: CompilerConfiguration, // TODO: remove configuration from backend context
-    val mainCallArguments: List<String>?,
+    override val configuration: CompilerConfiguration,
     val dceRuntimeDiagnostic: RuntimeDiagnostic? = null,
     val safeExternalBoolean: Boolean = false,
     val safeExternalBooleanDiagnostic: RuntimeDiagnostic? = null,
-    val granularity: JsGenerationGranularity = JsGenerationGranularity.WHOLE_PROGRAM,
     val incrementalCacheEnabled: Boolean = false,
 ) : JsCommonBackendContext {
     val phaseConfig = configuration.phaseConfig ?: PhaseConfig()
 
-    val polyfills = JsPolyfills()
+    val polyfills = JsPolyfills(configuration)
     val globalIrInterner = IrInterningService()
 
     val minimizedNameGenerator: MinimizedNameGenerator =
         MinimizedNameGenerator()
 
-    val keeper: Keeper =
-        Keeper(keep)
+    val additionalExportedDeclarationNames: Set<FqName> = configuration.additionalExportedDeclarationNames
+    val keeper: Keeper = Keeper(configuration.keep.toSet())
 
     val fieldDataCache = WeakHashMap<IrClass, Map<IrField, String>>()
 
@@ -88,18 +65,22 @@ class JsIrBackendContext(
 
     override var inVerbosePhase: Boolean = false
 
-    val devMode = configuration[JSConfigurationKeys.DEVELOPER_MODE] ?: false
     override val es6mode = configuration[JSConfigurationKeys.USE_ES6_CLASSES] ?: false
-    val platformArgumentsProviderJsExpression = configuration[JSConfigurationKeys.DEFINE_PLATFORM_MAIN_FUNCTION_ARGUMENTS]
+
+    val callMain = configuration.callMain
+    val platformArgumentsProviderJsExpression = configuration.definePlatformMainFunctionArguments
 
     override val externalPackageFragment = mutableMapOf<IrFileSymbol, IrFile>()
 
     override val additionalExportedDeclarations = hashSetOf<IrDeclaration>()
 
-    override val bodilessBuiltInsPackageFragment: IrPackageFragment = IrExternalPackageFragmentImpl(
-        DescriptorlessExternalPackageFragmentSymbol(),
-        FqName("kotlin")
-    )
+    override val bodilessBuiltInsPackageFragment: IrPackageFragment by lazy {
+        IrExternalPackageFragmentImpl(
+            DescriptorlessExternalPackageFragmentSymbol(),
+            FqName("kotlin"),
+            module = irBuiltIns.moduleFragment,
+        )
+    }
 
     val packageLevelJsModules = hashSetOf<IrFile>()
 
@@ -172,14 +153,14 @@ class JsIrBackendContext(
         }
     }
 
-    override val partialLinkageSupport = createPartialLinkageSupportForLowerings(
-        configuration.partialLinkageConfig,
-        irBuiltIns,
-        KtDiagnosticReporterWithImplicitIrBasedContext(
-            configuration.diagnosticsCollector,
-            configuration.languageVersionSettings
-        )
+    override val diagnosticReporter = KtDiagnosticReporterWithImplicitIrBasedContext(
+        configuration.diagnosticsCollector,
+        configuration.languageVersionSettings
     )
 
+    override val partialLinkageSupport = createPartialLinkageSupportForLowerings(diagnosticReporter)
+
     internal var nextAssociatedObjectKey = 0
+
+    override var effectAnalysisFinished = false
 }

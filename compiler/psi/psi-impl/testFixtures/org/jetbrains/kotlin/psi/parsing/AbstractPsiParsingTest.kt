@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.test.directives.model.SimpleDirectivesContainer
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.assertions
 import org.jetbrains.kotlin.test.services.moduleStructure
+import org.jetbrains.kotlin.testFederation.MustRunAlways
 import java.lang.reflect.Modifier
 
 /**
@@ -40,6 +41,11 @@ abstract class AbstractPsiParsingTestBase : AbstractPsiBasedTest() {
                 override fun visitKtElement(element: KtElement) {
                     checkPsiGetters(testServices, element)
                     super.visitKtElement(element)
+                }
+
+                override fun visitDestructuringDeclarationEntry(multiDeclarationEntry: KtDestructuringDeclarationEntry) {
+                    checkDestructuringDeclarationEntry(testServices, multiDeclarationEntry)
+                    super.visitDestructuringDeclarationEntry(multiDeclarationEntry)
                 }
             })
         }
@@ -68,8 +74,18 @@ abstract class AbstractPsiParsingTestBase : AbstractPsiBasedTest() {
             }
         }
     }
+
+    private fun checkDestructuringDeclarationEntry(testServices: TestServices, entry: KtDestructuringDeclarationEntry) {
+        val parent = PsiTreeUtil.getParentOfType(entry, KtDestructuringDeclaration::class.java)
+        if (parent != null) {
+            testServices.assertions.assertTrue(entry in parent.entries) {
+                "KtDestructuringDeclarationEntry '${entry.name}' is not found in parent's getEntries()"
+            }
+        }
+    }
 }
 
+@MustRunAlways
 abstract class AbstractPsiParsingTest : AbstractPsiParsingTestBase()
 
 abstract class AbstractExpressionCodeFragmentParsingTest : AbstractPsiParsingTestBase() {

@@ -1,5 +1,7 @@
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
 }
@@ -15,4 +17,3 @@ sourceSets {
     "testFixtures" { projectDefault() }
 }
 
-testsJar()

@@ -2,6 +2,14 @@ declare namespace JS_TESTS {
     type Nullable<T> = T | null | undefined
     function KtSingleton<T>(): T & (abstract new() => any);
     namespace foo {
+        interface IntermediateImplicitExportInterface {
+            withDefaultImpl(): Promise<string>;
+            readonly __doNotUseOrImplementIt: {
+                readonly "foo.IntermediateImplicitExportInterface": unique symbol;
+            };
+        }
+    }
+    namespace foo {
         interface SomeExternalInterface {
         }
     }
@@ -101,17 +109,18 @@ declare namespace JS_TESTS {
         }
         function generateOneMoreChildOfTest(): foo.Test;
         function acceptTest(test: foo.Test): Promise<void>;
-        interface HolderOfParentSuspendFun1<T> {
+        interface HolderOfParentSuspendFun1<T> extends foo.IntermediateImplicitExportInterface {
             parentSuspendFun1(someValue?: string): Promise<T>;
             readonly __doNotUseOrImplementIt: {
                 readonly "foo.HolderOfParentSuspendFun1": unique symbol;
-            };
+            } & foo.IntermediateImplicitExportInterface["__doNotUseOrImplementIt"];
         }
         function getHolderOfParentSuspendFun1(): foo.HolderOfParentSuspendFun1<string>;
         class ExportedChild /* extends foo.NotExportedParent */ implements foo.HolderOfParentSuspendFun1<string> {
             constructor();
             childSuspendFun(): Promise<string>;
             parentSuspendFun1(someValue?: string): Promise<string>;
+            withDefaultImpl(): Promise<string>;
             readonly __doNotUseOrImplementIt: foo.HolderOfParentSuspendFun1<any>["__doNotUseOrImplementIt"];
         }
         namespace ExportedChild {
@@ -122,5 +131,49 @@ declare namespace JS_TESTS {
         }
         function acceptExportedChild(child: foo.ExportedChild): Promise<void>;
         function acceptHolderOfParentSuspendFun1(holder: foo.HolderOfParentSuspendFun1<string>): Promise<void>;
+        abstract class AbstractWithSuspend {
+            constructor();
+            abstract value(): Promise<string>;
+        }
+        namespace AbstractWithSuspend {
+            /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
+            namespace $metadata$ {
+                const constructor: abstract new () => AbstractWithSuspend;
+            }
+        }
+        class KotlinImplWithSuspend extends foo.AbstractWithSuspend.$metadata$.constructor {
+            constructor();
+            value(): Promise<string>;
+        }
+        namespace KotlinImplWithSuspend {
+            /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
+            namespace $metadata$ {
+                const constructor: abstract new () => KotlinImplWithSuspend;
+            }
+        }
+        abstract class AbstractWithSuspendAndDefaultArgument {
+            constructor();
+            abstract value(suffix?: string): Promise<string>;
+        }
+        namespace AbstractWithSuspendAndDefaultArgument {
+            /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
+            namespace $metadata$ {
+                const constructor: abstract new () => AbstractWithSuspendAndDefaultArgument;
+            }
+        }
+        class KotlinImplWithSuspendAndDefaultArg extends foo.AbstractWithSuspendAndDefaultArgument.$metadata$.constructor {
+            constructor();
+            value(suffix?: string): Promise<string>;
+        }
+        namespace KotlinImplWithSuspendAndDefaultArg {
+            /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
+            namespace $metadata$ {
+                const constructor: abstract new () => KotlinImplWithSuspendAndDefaultArg;
+            }
+        }
+        function acceptAbstractWithSuspend(x: foo.AbstractWithSuspend): Promise<string>;
+        function acceptAbstractWithSuspendAndDefaultArgument(x: foo.AbstractWithSuspendAndDefaultArgument, suffix: Nullable<string>): Promise<string>;
     }
 }
+
+

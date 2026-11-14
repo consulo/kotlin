@@ -8,9 +8,6 @@ package org.jetbrains.kotlin.gradle.plugin.mpp
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.artifacts.component.ComponentIdentifier
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier
-import org.gradle.api.artifacts.component.ProjectComponentIdentifier
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.file.RegularFile
 import org.gradle.api.file.RegularFileProperty
@@ -19,12 +16,10 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
 import org.gradle.work.DisableCachingByDefault
+import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.UsesKotlinToolingDiagnostics
-import org.jetbrains.kotlin.gradle.plugin.internal.BuildIdentifierAccessor
-import org.jetbrains.kotlin.gradle.plugin.internal.compatAccessor
 import org.jetbrains.kotlin.gradle.plugin.mpp.uklibs.consumption.KmpResolutionStrategy
-import org.jetbrains.kotlin.gradle.plugin.variantImplementationFactoryProvider
 import org.jetbrains.kotlin.gradle.plugin.sources.internal
 import org.jetbrains.kotlin.gradle.tasks.dependsOn
 import org.jetbrains.kotlin.gradle.tasks.locateOrRegisterTask
@@ -75,9 +70,6 @@ abstract class MetadataDependencyTransformationTask
     @get:Nested
     internal val transformationParameters = GranularMetadataTransformation.Params(project, kotlinSourceSet)
 
-    @get:Internal
-    internal val buildIdentifierCompatAccessor: Provider<BuildIdentifierAccessor.Factory> = project.variantImplementationFactoryProvider()
-
     @Suppress("unused") // task inputs for up-to-date checks
     @get:Nested
     internal val taskInputs = MetadataDependencyTransformationTaskInputs(project, kotlinSourceSet)
@@ -108,6 +100,7 @@ abstract class MetadataDependencyTransformationTask
 
     @get:PathSensitive(PathSensitivity.RELATIVE)
     @get:InputFiles
+    @get:NormalizeLineEndings
     protected val parentLibrariesIndexFiles: SetProperty<RegularFile> = objectFactory.setProperty<RegularFile>().apply {
         parentTransformationTasks.forEach { taskProvider ->
             add(taskProvider.flatMap { it.transformedLibrariesIndexFile })
@@ -141,7 +134,7 @@ abstract class MetadataDependencyTransformationTask
     private fun MetadataDependencyResolution.KeepOriginalDependency.toTransformedLibrariesRecords(): List<TransformedMetadataLibraryRecord> {
         return transformationParameters.resolvedMetadataConfiguration.getArtifacts(dependency).map {
             TransformedMetadataLibraryRecord(
-                moduleId = dependency.id.serializableUniqueKey(buildIdentifierCompatAccessor),
+                moduleId = KmpModuleIdentifier.from(dependency),
                 file = it.file.absolutePath,
                 sourceSetName = null
             )
@@ -149,7 +142,7 @@ abstract class MetadataDependencyTransformationTask
     }
 
     private fun MetadataDependencyResolution.ChooseVisibleSourceSets.toTransformedLibrariesRecords(): List<TransformedMetadataLibraryRecord> {
-        val moduleId = dependency.id.serializableUniqueKey(buildIdentifierCompatAccessor)
+        val moduleId = KmpModuleIdentifier.from(dependency)
         val transformedLibraries = transformMetadataLibrariesForBuild(this, outputsDir, true)
         return transformedLibraries.flatMap { (sourceSetName, libraryFiles) ->
             libraryFiles.map { file ->
@@ -174,9 +167,8 @@ abstract class MetadataDependencyTransformationTask
 
         val transformation = GranularMetadataTransformation(
             params = transformationParameters,
-            parentSourceSetVisibilityProvider = { identifier: ComponentIdentifier ->
-                val serializableKey = identifier.serializableUniqueKey(buildIdentifierCompatAccessor)
-                visibleParentSourceSetsByModuleId[serializableKey].orEmpty().filterNotNull().toSet()
+            parentSourceSetVisibilityProvider = { identifier: KmpModuleIdentifier ->
+                visibleParentSourceSetsByModuleId[identifier].orEmpty().filterNotNull().toSet()
             },
         )
 
@@ -209,20 +201,4 @@ abstract class MetadataDependencyTransformationTask
             return records.distinctBy { it.moduleId to it.sourceSetName }.map { File(it.file) }
         }
     }
-}
-
-
-private typealias SerializableComponentIdentifierKey = String
-
-
-/**
- * This unique key can be used to lookup various info for related Resolved Dependency
- * that gets serialized
- */
-private fun ComponentIdentifier.serializableUniqueKey(
-    buildIdentifierAccessor: Provider<BuildIdentifierAccessor.Factory>,
-): SerializableComponentIdentifierKey = when (this) {
-    is ProjectComponentIdentifier -> "project ${build.compatAccessor(buildIdentifierAccessor).buildPath}$projectPath"
-    is ModuleComponentIdentifier -> "module $group:$module:$version"
-    else -> error("Unexpected Component Identifier: '$this' of type ${this.javaClass}")
 }

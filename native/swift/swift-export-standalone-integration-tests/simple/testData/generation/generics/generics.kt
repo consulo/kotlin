@@ -58,8 +58,14 @@ interface A <T> {
     val foo: T
 }
 
+fun <T> A(): A<T> = TODO()
+
 interface B <T> {
     val foo: T
+}
+
+interface AFactory<T : A<Unit>> {
+    fun create(): T
 }
 
 class Demo: A<Int>, B<Int?> {
@@ -82,6 +88,16 @@ class ArrayBox() {
 class Holder<T>(val xs: Array<T>) {
     fun headOrNull(): T? = if (xs.isNotEmpty()) xs[0] else null
 }
+
+class HolderConstrained<T: Any>(val xs: Array<T>)
+
+val Holder<String>.extProp: Int get() = TODO()
+
+val bar: Holder<String> get() = TODO()
+
+var baz: Holder<String>
+    get() = TODO()
+    set(value) = TODO()
 
 // Make sure arrays appear in both public signatures and bodies.
 fun takeAndReturn(a: Array<String>): Array<String> = a
@@ -106,7 +122,27 @@ fun takeBoxUpperBoundClosure(box: () -> Box<Any?>): Unit = TODO()
 
 fun produceBox(box: (Box<String>) -> Unit): Unit = TODO() // unsupported input generic
 
+fun produceExtBox(box: Box<String>.() -> Unit): Unit = TODO() // unsupported input generic
+
+fun produceCtxBox(box: context(Box<String>) () -> Unit): Unit = TODO() // unsupported input generic
+
 fun produceBoxUpperBound(box: (Box<Any?>) -> Unit): Unit = TODO()
+
+fun produceBoxStar(box: (Box<*>) -> Unit): Unit = TODO()
+
+typealias BFun = (B<*>) -> Unit
+
+fun returnBFun(): BFun = TODO()
+
+class MultipleUpperBounds<T> where T : Producer<String>, T : Consumer<String>
+
+fun <A, B: A> returnGenericConstraintToGeneric(arg1: A, arg2: B): A = TODO()
+
+fun <A, B : Box<A>> returnSomeBoxForArg(arg: A): B = TODO()
+
+interface Foo
+
+abstract class Bar<A : Foo, B : A>
 
 // MODULE: f_bounded_type
 // EXPORT_TO_SWIFT
@@ -121,3 +157,7 @@ open class SelfReferencing<T : SelfReferencing<T>>: MyComparable<T> {
 }
 
 class ConcreteSelfReferencing() : SelfReferencing<ConcreteSelfReferencing>()
+
+fun <T : MyComparable<T>> testFun(a: T): T = a
+
+class BaseClass<T : MyComparable<T>>(var v: T)

@@ -18,7 +18,8 @@ import org.jetbrains.kotlin.generators.util.printBlock
 import org.jetbrains.kotlin.utils.withIndent
 
 private class ImplementationFieldPrinter(printer: ImportCollectingPrinter) : AbstractFieldPrinter<Field>(printer) {
-    override fun forceMutable(field: Field): Boolean = field.isMutable && (field !is ListField || field.isMutableOrEmptyList)
+    override fun forceMutable(field: Field): Boolean =
+        field.isMutable && (field !is ListField || field.isMutableOrEmptyList || field.isAssignableList)
 
     override fun actualTypeOfField(field: Field) = field.getMutableType()
 
@@ -30,7 +31,7 @@ internal class ImplementationPrinter(
     printer: ImportCollectingPrinter
 ) : AbstractImplementationPrinter<Implementation, Element, Field>(printer) {
 
-    override val implementationOptInAnnotation: ClassRef<*>
+    override val implementationOptInAnnotation: PrintableAnnotation
         get() = firImplementationDetailType
 
 
@@ -62,7 +63,10 @@ internal class ImplementationPrinter(
                 is SimpleField ->
                     println("$name = ${name}${call()}transform(transformer, data)")
 
-                is ListField -> {
+                is ListField -> if (isAssignableList) {
+                    addImport(transformSingleImport)
+                    println("$name = ${name}.map { it.transformSingle(transformer, data) }")
+                } else {
                     addImport(transformInPlaceImport)
                     println("${name}.transformInplace(transformer, data)")
                 }
@@ -283,7 +287,7 @@ internal class ImplementationPrinter(
             ) {
                 println()
                 if (field.name == "source") {
-                    println("@${firImplementationDetailType.render()}")
+                    println(firImplementationDetailType.render())
                 }
                 replaceFunctionDeclaration(field, override = true, kind!!, overridenType, forceNullable)
                 if (isInterface || isAbstract) {
@@ -315,7 +319,7 @@ internal class ImplementationPrinter(
                     when {
                         field.implementationDefaultStrategy!!.withGetter -> {}
 
-                        field is ListField && !field.isMutableOrEmptyList -> {
+                        field is ListField && !field.isMutableOrEmptyList && !field.isAssignableList -> {
                             println("if (${field.name} === $newValue) return")
                             println("${field.name}.clear()")
                             println("${field.name}.addAll($newValue)")
@@ -326,7 +330,7 @@ internal class ImplementationPrinter(
                                 println("require($newValue != null)")
                             }
                             print("${field.name} = $newValue")
-                            if (field is ListField && field.isMutableOrEmptyList) {
+                            if (field is ListField && field.isMutableOrEmptyList && !field.isAssignableList) {
                                 addImport(toMutableOrEmptyImport)
                                 print(".toMutableOrEmpty()")
                             }

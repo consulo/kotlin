@@ -50,8 +50,13 @@ interface ExpectActualMatchingContext<T : DeclarationSymbolMarker> : TypeSystemC
 
     val RegularClassSymbolMarker.isCompanion: Boolean
     val RegularClassSymbolMarker.isInner: Boolean
-    val RegularClassSymbolMarker.isInlineOrValue: Boolean
+    val RegularClassSymbolMarker.isValue: Boolean
+    val RegularClassSymbolMarker.isInline: Boolean
     val RegularClassSymbolMarker.isFun: Boolean
+    val RegularClassSymbolMarker.isRichError: Boolean
+
+    val RegularClassSymbolMarker.containingClass: ClassLikeSymbolMarker?
+
     val ClassLikeSymbolMarker.typeParameters: List<TypeParameterSymbolMarker>
 
     val ClassLikeSymbolMarker.modality: Modality?
@@ -68,6 +73,17 @@ interface ExpectActualMatchingContext<T : DeclarationSymbolMarker> : TypeSystemC
             expectCallable: CallableSymbolMarker,
             actualCallable: CallableSymbolMarker,
             containingExpectClass: RegularClassSymbolMarker?,
+        ): Boolean
+    }
+
+    val equalityBoundMatcher: EqualityBoundMatcher?
+        get() = null
+
+    interface EqualityBoundMatcher {
+        fun matches(
+            expectSimpleFunction: CallableSymbolMarker,
+            actualSimpleFunction: CallableSymbolMarker,
+            substitutorMarker: TypeSubstitutorMarker,
         ): Boolean
     }
 

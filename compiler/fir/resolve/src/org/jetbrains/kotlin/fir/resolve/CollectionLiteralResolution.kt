@@ -6,43 +6,49 @@
 package org.jetbrains.kotlin.fir.resolve
 
 import org.jetbrains.kotlin.KtFakeSourceElementKind
-import org.jetbrains.kotlin.builtins.StandardNames
-import org.jetbrains.kotlin.fakeElement
+import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.fir.StandardTypes
+import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.isDeprecationLevelHidden
-import org.jetbrains.kotlin.fir.declarations.processAllDeclaredCallables
+import org.jetbrains.kotlin.fir.declarations.staticScope
 import org.jetbrains.kotlin.fir.declarations.utils.isOperator
+import org.jetbrains.kotlin.fir.declarations.utils.isStatic
 import org.jetbrains.kotlin.fir.diagnostics.ConeDiagnostic
-import org.jetbrains.kotlin.fir.expressions.*
+import org.jetbrains.kotlin.fir.expressions.FirCollectionLiteral
+import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
+import org.jetbrains.kotlin.fir.expressions.FirFunctionCallOrigin
+import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.expressions.builder.buildFunctionCall
+import org.jetbrains.kotlin.fir.isEnabled
+import org.jetbrains.kotlin.fir.languageVersionSettings
 import org.jetbrains.kotlin.fir.references.builder.buildSimpleNamedReference
-import org.jetbrains.kotlin.fir.resolve.calls.ConeAtomWithCandidate
-import org.jetbrains.kotlin.fir.resolve.calls.ConeCollectionLiteralAtom
-import org.jetbrains.kotlin.fir.resolve.calls.ResolutionContext
-import org.jetbrains.kotlin.fir.resolve.calls.candidate.CallInfo
-import org.jetbrains.kotlin.fir.resolve.calls.candidate.CallKind
-import org.jetbrains.kotlin.fir.resolve.calls.candidate.CheckerSinkImpl
-import org.jetbrains.kotlin.fir.resolve.calls.candidate.FirNamedReferenceWithCandidate
-import org.jetbrains.kotlin.fir.resolve.calls.candidate.ImplicitInvokeMode
-import org.jetbrains.kotlin.fir.resolve.calls.candidate.createErrorReferenceWithErrorCandidate
+import org.jetbrains.kotlin.fir.resolve.calls.*
+import org.jetbrains.kotlin.fir.resolve.calls.candidate.*
 import org.jetbrains.kotlin.fir.resolve.calls.stages.ArgumentCheckingProcessor
-import org.jetbrains.kotlin.fir.resolve.inference.CollectionLiteralBounds
-import org.jetbrains.kotlin.fir.symbols.impl.*
+import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeFallbackIsImpossible
+import org.jetbrains.kotlin.fir.resolve.inference.StateForAtomWithExpectedTypeAsStaticReceiver
+import org.jetbrains.kotlin.fir.resolve.inference.csBuilder
+import org.jetbrains.kotlin.fir.scopes.FirScope
+import org.jetbrains.kotlin.fir.scopes.impl.declaredMemberScope
+import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
+import org.jetbrains.kotlin.fir.types.asCone
+import org.jetbrains.kotlin.fir.types.constructClassLikeType
 import org.jetbrains.kotlin.fir.visibilityChecker
-import org.jetbrains.kotlin.resolve.CollectionNames
+import org.jetbrains.kotlin.name.StandardClassIds
+import org.jetbrains.kotlin.resolve.calls.inference.isSubtypeConstraintCompatible
+import org.jetbrains.kotlin.resolve.calls.tower.CandidateApplicability
 import org.jetbrains.kotlin.util.OperatorNameConventions
+import org.jetbrains.kotlin.utils.addToStdlib.runIf
 
-context(context: ResolutionContext, outerCandidateContext: CollectionLiteralOuterCandidateContext)
-fun runCollectionLiteralResolution(
-    atom: ConeCollectionLiteralAtom,
-    precalculatedBounds: CollectionLiteralBounds?,
-) {
+context(context: ResolutionContext, outerCandidateContext: OuterCandidateContextForAtomWithExpectedTypeAsStaticReceiver)
+fun runCollectionLiteralResolution(state: StateForAtomWithExpectedTypeAsStaticReceiver<ConeCollectionLiteralAtom>) {
+    val atom = state.atom
     val originalExpression = atom.expression
-    val classForResolution = when (precalculatedBounds) {
-        is CollectionLiteralBounds.SingleBound -> precalculatedBounds.bound
-        is CollectionLiteralBounds.NonTvExpected -> precalculatedBounds.bound
-        // it means CL is here through regular resolve of postponed atoms with all input types known
-        null -> atom.expectedType?.getClassRepresentativeForCollectionLiteralResolution()
-        else -> null
+    val classForResolution = when (state) {
+        is StateForAtomWithExpectedTypeAsStaticReceiver.SingleBound -> state.bound
+        is StateForAtomWithExpectedTypeAsStaticReceiver.NonTvExpected -> state.bound
+        is StateForAtomWithExpectedTypeAsStaticReceiver.MultipleBounds, is StateForAtomWithExpectedTypeAsStaticReceiver.FallbackOnly -> null
     }
 
     val resolvedThroughRegularStrategies = tryAllCLResolutionStrategies {
@@ -52,22 +58,42 @@ fun runCollectionLiteralResolution(
 
     val resolvedCall = when {
         resolvedThroughRegularStrategies != null -> resolvedThroughRegularStrategies
-        precalculatedBounds is CollectionLiteralBounds.Ambiguity -> {
+        state is StateForAtomWithExpectedTypeAsStaticReceiver.MultipleBounds -> {
             resolveCollectionLiteralToErrorCall(
-                precalculatedBounds.toConeDiagnostic(),
+                state.toConeDiagnostic(),
                 atom,
             )
         }
-        else -> {
-            val preparedCall = prepareFunctionCallForFallback(originalExpression)
-            resolveCollectionLiteralToPreparedCall(preparedCall)
+        else -> with(outerCandidateContext.containingCandidate.csBuilder) {
+            val listOfNothingType = StandardClassIds.List.constructClassLikeType(arrayOf(StandardTypes.Nothing))
+            val substitutedType = atom.expectedType?.let {
+                buildCurrentSubstitutor().safeSubstitute(it).asCone()
+            }
+
+            if (substitutedType == null || isSubtypeConstraintCompatible(listOfNothingType, substitutedType)) {
+                val preparedCall = buildCollectionLiteralCallForFallback(originalExpression)
+                resolveCollectionLiteralToPreparedCall(preparedCall)
+            } else {
+                outerCandidateContext.checkerSink?.reportDiagnostic(
+                    UnsuccessfulCollectionLiteralArgument(CandidateApplicability.INAPPLICABLE)
+                )
+                val preparedExpectedType = prepareTypeForArgumentTypeMismatch(substitutedType)
+                resolveCollectionLiteralToErrorCall(
+                    ConeFallbackIsImpossible(preparedExpectedType, outerCandidateContext.containingCandidate),
+                    atom,
+                )
+            }
         }
+    }
+
+    if (!outerCandidateContext.isDuringOverloadResolution) {
+        context.bodyResolveComponents.callCompleter.replaceLambdaArgumentEffects(resolvedCall)
     }
 
     postprocessCollectionLiteralCall(resolvedCall, atom)
 }
 
-context(context: ResolutionContext, outerCandidateContext: CollectionLiteralOuterCandidateContext)
+context(context: ResolutionContext, outerCandidateContext: OuterCandidateContextForAtomWithExpectedTypeAsStaticReceiver)
 private fun resolveCollectionLiteralToPreparedCall(
     preparedCall: FirFunctionCall,
 ): FirFunctionCall {
@@ -75,18 +101,19 @@ private fun resolveCollectionLiteralToPreparedCall(
     call = context.bodyResolveComponents.callResolver.resolveCallAndSelectCandidate(
         call,
         ResolutionMode.ContextDependent,
-        outerCandidateContext,
+        outerCandidateContext.containingCandidate,
     )
     call = context.bodyResolveComponents.callCompleter.completeCall(
         call,
         ResolutionMode.ContextDependent,
+        // we need to prevent lambda analysis during overload resolution of outer call
         skipEvenPartialCompletion = true,
     )
 
     return call
 }
 
-context(context: ResolutionContext, outerCandidateContext: CollectionLiteralOuterCandidateContext)
+context(context: ResolutionContext, outerCandidateContext: OuterCandidateContextForAtomWithExpectedTypeAsStaticReceiver)
 private fun resolveCollectionLiteralToErrorCall(
     diagnostic: ConeDiagnostic,
     collectionLiteralAtom: ConeCollectionLiteralAtom,
@@ -135,7 +162,7 @@ private fun resolveCollectionLiteralToErrorCall(
     return call
 }
 
-context(context: ResolutionContext, outerCandidateContext: CollectionLiteralOuterCandidateContext)
+context(context: ResolutionContext, outerCandidateContext: OuterCandidateContextForAtomWithExpectedTypeAsStaticReceiver)
 private fun postprocessCollectionLiteralCall(
     replacementForCL: FirFunctionCall,
     collectionLiteralAtom: ConeCollectionLiteralAtom,
@@ -157,8 +184,9 @@ private fun postprocessCollectionLiteralCall(
     // 3. Add constraints from expected type.
     // NB: note the candidate whose system we expand. It needs to be CL since its system is more precise at that point.
     ArgumentCheckingProcessor.resolveArgumentExpression(
-        candidateForCL,
+        candidateForCL.csBuilder,
         collectionLiteralAtom.subAtom!!,
+        collectionLiteralAtom.containingCallCandidate,
         collectionLiteralAtom.expectedType,
         outerCandidateContext.checkerSink ?: CheckerSinkImpl(containingCandidate),
         context = context,
@@ -190,14 +218,6 @@ private fun postprocessCollectionLiteralCall(
     containingCandidate.system.replaceContentWith(candidateForCL.system.currentStorage())
 }
 
-context(context: ResolutionContext)
-private fun prepareFunctionCallForFallback(collectionLiteral: FirCollectionLiteral): FirFunctionCall {
-    val packageName = StandardNames.COLLECTIONS_PACKAGE_FQ_NAME
-    val functionName = CollectionNames.Factories.LIST_OF
-
-    return context.bodyResolveComponents.buildCollectionLiteralCallForStdlibType(packageName, functionName, collectionLiteral)
-}
-
 abstract class CollectionLiteralResolutionStrategy(protected val context: ResolutionContext) {
     protected val components: BodyResolveComponents get() = context.bodyResolveComponents
 
@@ -212,25 +232,23 @@ abstract class CollectionLiteralResolutionStrategy(protected val context: Resolu
 private class CollectionLiteralResolutionStrategyThroughCompanion(context: ResolutionContext) :
     CollectionLiteralResolutionStrategy(context) {
 
-    private fun FirCallableSymbol<*>.isOperatorOf(): Boolean {
-        return this is FirNamedFunctionSymbol && this.isOperator && name == OperatorNameConventions.OF
-    }
-
     private fun FirCallableSymbol<*>.isVisible(receiver: FirResolvedQualifier): Boolean {
+        val staticQualifierClassForCallable = runIf(isStatic) { (receiver.qualifierSymbol as? FirRegularClassSymbol)?.fir }
         return context.session.visibilityChecker.isVisible(
             fir,
             context.session,
             context.bodyResolveComponents.file,
             context.bodyResolveComponents.containingDeclarations,
             dispatchReceiver = receiver,
+            staticQualifierClassForCallable = staticQualifierClassForCallable,
         )
     }
 
-    private fun FirRegularClassSymbol.declaresVisibleOf(receiver: FirResolvedQualifier): Boolean {
+    private fun FirScope.declaresVisibleOf(receiver: FirResolvedQualifier): Boolean {
         var result: Boolean? = null
-        processAllDeclaredCallables(context.session) { declaration ->
-            if (result != null) return@processAllDeclaredCallables
-            if (declaration.isOperatorOf() && !declaration.isDeprecationLevelHidden(context.session)) {
+        processFunctionsByName(OperatorNameConventions.OF) { declaration ->
+            if (result != null) return@processFunctionsByName
+            if (declaration.isOperator && !declaration.isDeprecationLevelHidden(context.session)) {
                 result = declaration.isVisible(receiver)
             }
         }
@@ -241,13 +259,26 @@ private class CollectionLiteralResolutionStrategyThroughCompanion(context: Resol
         expectedClass: FirRegularClassSymbol?,
         collectionLiteral: FirCollectionLiteral?,
     ): FirResolvedQualifier? {
-        val companionObjectSymbol = expectedClass?.resolvedCompanionObjectSymbol ?: return null
-        val companionAsImplicitReceiver = companionObjectSymbol.toImplicitResolvedQualifierReceiver(
-            components,
-            collectionLiteral?.source?.fakeElement(KtFakeSourceElementKind.DesugaredReceiverForOperatorOfCall),
-        )
+        if (expectedClass == null) return null
+        val companionObjectSymbol = expectedClass.resolvedCompanionObjectSymbol
 
-        return companionAsImplicitReceiver.takeIf { companionObjectSymbol.declaresVisibleOf(it) }
+        val implicitReceiverSource = collectionLiteral?.source?.fakeElement(KtFakeSourceElementKind.DesugaredReceiverForOperatorOfCall)
+
+        companionObjectSymbol?.toImplicitResolvedQualifierReceiver(components, implicitReceiverSource)?.let {
+            if (companionObjectSymbol.declaredMemberScope(context.session, FirResolvePhase.STATUS).declaresVisibleOf(it)) {
+                return it
+            }
+        }
+
+        if (context.session.languageVersionSettings.supportsFeature(LanguageFeature.CompanionBlocks)) {
+            expectedClass.toImplicitResolvedQualifierReceiver(components, implicitReceiverSource).let {
+                if (expectedClass.staticScope(context.bodyResolveComponents)?.declaresVisibleOf(it) == true) {
+                    return it
+                }
+            }
+        }
+
+        return null
     }
 
     override fun declaresOperatorOf(expectedType: FirRegularClassSymbol): Boolean {
@@ -286,7 +317,7 @@ private class CollectionLiteralResolutionStrategyForStdlibType(context: Resoluti
         expectedClass: FirRegularClassSymbol?,
     ): FirFunctionCall? {
         if (expectedClass == null) return null
-        val (packageName, functionName) = toCollectionOfFactoryPackageAndName(expectedClass, context.session) ?: return null
+        val [packageName, functionName] = toCollectionOfFactoryPackageAndName(expectedClass, context.session) ?: return null
 
         return components.buildCollectionLiteralCallForStdlibType(packageName, functionName, collectionLiteral)
     }
@@ -294,6 +325,16 @@ private class CollectionLiteralResolutionStrategyForStdlibType(context: Resoluti
 
 context(context: ResolutionContext)
 fun <T : Any> tryAllCLResolutionStrategies(attempt: CollectionLiteralResolutionStrategy.() -> T?): T? {
-    CollectionLiteralResolutionStrategyThroughCompanion(context).attempt()?.let { return it }
-    return CollectionLiteralResolutionStrategyForStdlibType(context).attempt()
+    return if (LanguageFeature.CollectionLiterals.isEnabled()) {
+        CollectionLiteralResolutionStrategyThroughCompanion(context).attempt()
+            ?: CollectionLiteralResolutionStrategyForStdlibType(context).attempt()
+    } else {
+        // In the case of `+CollectionLiteralsBasedAnnotationResolution -CollectionLiterals`, let's prefer factory functions
+        // rather than proper `of` operators. This is mostly done to make collection literals in annotations work:
+        // otherwise, they'd resolve to `*Array.of` operators, and we'd report opt-in errors for them.
+        assert(LanguageFeature.CollectionLiteralsBasedAnnotationResolution.isEnabled())
+
+        CollectionLiteralResolutionStrategyForStdlibType(context).attempt()
+            ?: CollectionLiteralResolutionStrategyThroughCompanion(context).attempt()
+    }
 }

@@ -9,7 +9,9 @@ import org.jetbrains.kotlin.backend.common.BodyLoweringPass
 import org.jetbrains.kotlin.backend.common.LoweringContext
 import org.jetbrains.kotlin.backend.common.lower.LocalDeclarationPopupLowering
 import org.jetbrains.kotlin.backend.common.lower.LocalDeclarationsLowering
+import org.jetbrains.kotlin.backend.common.lower.SharedVariablesLowering
 import org.jetbrains.kotlin.backend.common.lower.VisibilityPolicy
+import org.jetbrains.kotlin.backend.common.phaser.PhasePrerequisites
 import org.jetbrains.kotlin.backend.common.runOnFilePostfix
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -38,6 +40,7 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
  *    are copied. But the compiler could optimize the usage of some local classes and not copy them.
  *    So in this case all local classes MIGHT BE COPIED.
  */
+@PhasePrerequisites(SharedVariablesLowering::class)
 class LocalClassesInInlineLambdasLowering(val context: LoweringContext) : BodyLoweringPass {
     override fun lower(irFile: IrFile) {
         runOnFilePostfix(irFile)
@@ -82,7 +85,7 @@ class LocalClassesInInlineLambdasLowering(val context: LoweringContext) : BodyLo
                          * stage, and only then will they be lifted to the nearest declaration container by [LocalDeclarationPopupLowering],
                          * so that's when we will change their visibility to private.
                          */
-                        override fun forClass(declaration: IrClass, inInlineFunctionScope: Boolean) = declaration.visibility
+                        override fun forClass(declaration: IrClass, inPublicInlineScope: Boolean) = declaration.visibility
                         override fun forSimpleFunction(declaration: IrSimpleFunction) = declaration.visibility
                     },
                     // Lambdas cannot introduce new type parameters to the scope, which means that all the captured type parameters
@@ -146,12 +149,11 @@ class LocalClassesInInlineLambdasLowering(val context: LoweringContext) : BodyLo
                              * }
                              */
                             val delegate = declaration.delegate
-                                ?: error("Local delegated property ${declaration.render()} has not delegate")
 
                             declaration.delegate = null
                             localDeclarationsToPopUp += declaration
 
-                            return delegate
+                            return delegate ?: IrCompositeImpl(declaration.startOffset, declaration.endOffset, context.irBuiltIns.unitType)
                         }
 
                         override fun visitRichFunctionReference(expression: IrRichFunctionReference): IrExpression {

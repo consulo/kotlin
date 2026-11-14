@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.idea.KotlinLanguage;
 import org.jetbrains.kotlin.psi.KtFile;
 import org.jetbrains.kotlin.test.KtAssert;
 import org.jetbrains.kotlin.test.TargetBackend;
+import org.jetbrains.kotlin.test.TestInfrastructureException;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.jetbrains.kotlin.utils.ExceptionUtilsKt;
 
@@ -83,16 +84,8 @@ public class KtTestUtil {
         //noinspection ConstantConditions
         KtFile file = (KtFile) factory.trySetupPsiForFile(virtualFile, KotlinLanguage.INSTANCE, true, false);
         Objects.requireNonNull(file, "PsiFileFactory.trySetupPsiForFile returned null");
-        if (name.endsWith(".repl.kts")) {
-            Objects.requireNonNull(file.getScript()).markAsReplSnippet();
-        }
 
         return file;
-    }
-
-    public static String doLoadFile(String myFullDataPath, String name) throws IOException {
-        String fullName = myFullDataPath + File.separatorChar + name;
-        return doLoadFile(new File(fullName));
     }
 
     public static String doLoadFile(@NotNull File file) {
@@ -146,7 +139,7 @@ public class KtTestUtil {
             jdkPath = getStringProperty(propertyVariant2);
         }
         if (jdkPath == null) {
-            throw new AssertionError("Environment variable " + mainProperty + " is not set!");
+            throw new TestInfrastructureException("Environment variable " + mainProperty + " is not set!", null);
         }
 
         return new File(jdkPath);
@@ -178,6 +171,20 @@ public class KtTestUtil {
     @NotNull
     public static File getJdk21Home() {
         return getJdkHome("JDK_21_0", "JDK_21");
+    }
+
+    @NotNull
+    public static File getJdk25Home() {
+        return getJdkHome("JDK_25_0", "JDK_25");
+    }
+
+    @NotNull
+    public static File getJdkValhallaHome() {
+        return getJdkHome("JDK_VALHALLA");
+    }
+
+    public static boolean isJdkValhallaAvailable() {
+        return getStringProperty("JDK_VALHALLA") != null;
     }
 
     @NotNull

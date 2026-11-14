@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.serialization.deserialization
 
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.FieldDescriptorImpl
@@ -19,6 +20,7 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.*
 import org.jetbrains.kotlin.types.KotlinType
 
+@K1Deprecation
 class MemberDeserializer(private val c: DeserializationContext) {
     private val annotationDeserializer = AnnotationDeserializer(c.components.moduleDescriptor, c.components.notFoundClasses)
 
@@ -60,14 +62,20 @@ class MemberDeserializer(private val c: DeserializationContext) {
         property.setType(
             local.typeDeserializer.type(proto.returnType(c.typeTable)),
             local.typeDeserializer.ownTypeParameters,
-            getDispatchReceiverParameter(),
-            proto.receiverType(c.typeTable)?.let(local.typeDeserializer::type)?.let { receiverType ->
-                DescriptorFactory.createExtensionReceiverParameterForCallable(property, receiverType, receiverAnnotations)
-            },
+            getDispatchReceiverParameter()?.takeUnless { Flags.IS_STATIC_PROPERTY.get(flags) },
+            proto.receiverType(c.typeTable)?.takeUnless { Flags.IS_STATIC_PROPERTY.get(flags) }?.let(local.typeDeserializer::type)
+                ?.let { receiverType ->
+                    DescriptorFactory.createExtensionReceiverParameterForCallable(property, receiverType, receiverAnnotations)
+                },
             local.memberDeserializer.contextReceivers(
                 proto.contextReceiverTypes(c.typeTable), proto.contextParameterList, proto, AnnotatedCallableKind.PROPERTY_GETTER,
             ),
         )
+
+        property.companionExtensionClass = proto.companionExtensionReceiverType(c.typeTable)
+            ?.let(local.typeDeserializer::type)
+            ?.constructor
+            ?.declarationDescriptor as? ClassDescriptor
 
         // Per documentation on Property.getter_flags in metadata.proto, if an accessor flags field is absent, its value should be computed
         // by taking hasAnnotations/visibility/modality from property flags, and using false for the rest
@@ -214,10 +222,11 @@ class MemberDeserializer(private val c: DeserializationContext) {
         val local = c.childContext(function, proto.typeParameterList)
 
         function.initializeWithCoroutinesExperimentalityStatus(
-            proto.receiverType(c.typeTable)?.let(local.typeDeserializer::type)?.let { receiverType ->
-                DescriptorFactory.createExtensionReceiverParameterForCallable(function, receiverType, receiverAnnotations)
-            },
-            getDispatchReceiverParameter(),
+            proto.receiverType(c.typeTable)?.takeUnless { Flags.IS_STATIC_FUNCTION.get(flags) }?.let(local.typeDeserializer::type)
+                ?.let { receiverType ->
+                    DescriptorFactory.createExtensionReceiverParameterForCallable(function, receiverType, receiverAnnotations)
+                },
+            getDispatchReceiverParameter()?.takeUnless { Flags.IS_STATIC_FUNCTION.get(flags) },
             local.memberDeserializer.contextReceivers(
                 proto.contextReceiverTypes(c.typeTable), proto.contextParameterList, proto, AnnotatedCallableKind.FUNCTION,
             ),
@@ -236,6 +245,11 @@ class MemberDeserializer(private val c: DeserializationContext) {
         function.isSuspend = Flags.IS_SUSPEND.get(flags)
         function.isExpect = Flags.IS_EXPECT_FUNCTION.get(flags)
         function.setHasStableParameterNames(!Flags.IS_FUNCTION_WITH_NON_STABLE_PARAMETER_NAMES.get(flags))
+
+        function.companionExtensionClass = proto.companionExtensionReceiverType(c.typeTable)
+            ?.let(local.typeDeserializer::type)
+            ?.constructor
+            ?.declarationDescriptor as? ClassDescriptor
 
         val mapValueForContract =
             c.components.contractDeserializer.deserializeContractFromFunction(proto, function, c.typeTable, local.typeDeserializer)

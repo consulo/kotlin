@@ -27,6 +27,7 @@
 # runtime classpath expected by the compiler to ProGuard is also challenging, as well as redundant, in that we need only a small portion
 # of its functionality and everything else would be stripped anyway. Hence, here we suppress warnings coming from such code in hope it
 # is not actually needed at runtime.
+-dontwarn org.jetbrains.kotlin.analysis.decompiler.**
 -dontwarn org.jetbrains.kotlin.psi.**
 -dontwarn org.jetbrains.kotlin.kdoc.psi.**
 -dontwarn org.jetbrains.kotlin.type.MapPsiToAsmDesc
@@ -39,3 +40,4 @@
 -dontwarn org.jetbrains.kotlin.com.google.common.hash.**
 -dontwarn org.jetbrains.kotlin.org.apache.log4j.**
 -dontwarn org.jetbrains.kotlin.cli.**
+-dontwarn org.jetbrains.kotlin.serialization.**

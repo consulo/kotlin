@@ -1,6 +1,5 @@
 // DISABLE_JAVA_FACADE
-// RUN_PIPELINE_TILL: BACKEND
-// JAVAC_EXPECTED_FILE
+// RUN_PIPELINE_TILL: CODEGEN
 
 // FILE: KotlinFile.kt
 fun foo(javaClass: JavaClass<Int>) {

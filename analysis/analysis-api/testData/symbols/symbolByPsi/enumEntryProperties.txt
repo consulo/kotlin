@@ -1,11 +1,15 @@
 KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
   annotations: []
   backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Private
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -16,11 +20,14 @@ KaKotlinPropertySymbol:
     name: field
     origin: PROPERTY_BACKING_FIELD
     owningProperty: KaKotlinPropertySymbol(<local>/a)
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     visibility: PRIVATE
     getDispatchReceiver(): KaUsualClassType:
       annotations: []
@@ -29,19 +36,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -51,11 +59,14 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: FINAL
     origin: SOURCE
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getDispatchReceiver(): KaUsualClassType:
@@ -65,19 +76,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: getA
     importableFqName: null
   hasBackingField: true
   hasGetter: true
   hasSetter: false
   initializer: KaConstantInitializerValue(1)
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: false
   isStatic: false
@@ -86,6 +98,9 @@ KaKotlinPropertySymbol:
   modality: FINAL
   name: a
   origin: SOURCE
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -101,19 +116,20 @@ KaKotlinPropertySymbol:
   getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
-  javaGetterName: getA
-  javaSetterName: null
+  deprecation: null
   isInline: false
   importableFqName: null
 
 KaEnumEntrySymbol:
+  anchorPsi: KtEnumEntry
   annotations: []
   callableId: /MyEnumClass.FirstEntry
-  compilerVisibility: Public
+  contextParameters: []
   contextReceivers: []
-  enumEntryInitializer: KaAnonymousObjectSymbol(<local>/<no name provided>)
+  initializer: KaAnonymousObjectSymbol(<local>/<no name provided>)
   isActual: false
+  isCompanion: true
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -122,25 +138,31 @@ KaEnumEntrySymbol:
   modality: FINAL
   name: FirstEntry
   origin: SOURCE
+  psi: KtEnumEntry
+  realPsi: KtEnumEntry
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: MyEnumClass
+  typeParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
   getContainingJvmClassName: MyEnumClass
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: MyEnumClass.FirstEntry
 
 KaEnumEntrySymbol:
+  anchorPsi: KtEnumEntry
   annotations: []
   callableId: /MyEnumClass.SecondEntry
-  compilerVisibility: Public
+  contextParameters: []
   contextReceivers: []
-  enumEntryInitializer: null
+  initializer: null
   isActual: false
+  isCompanion: true
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -149,26 +171,33 @@ KaEnumEntrySymbol:
   modality: FINAL
   name: SecondEntry
   origin: SOURCE
+  psi: KtEnumEntry
+  realPsi: KtEnumEntry
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: MyEnumClass
+  typeParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
   getContainingJvmClassName: MyEnumClass
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: MyEnumClass.SecondEntry
 
 KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
   annotations: []
   backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Private
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -179,11 +208,14 @@ KaKotlinPropertySymbol:
     name: field
     origin: PROPERTY_BACKING_FIELD
     owningProperty: KaKotlinPropertySymbol(<local>/b)
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     visibility: PRIVATE
     getDispatchReceiver(): KaUsualClassType:
       annotations: []
@@ -192,19 +224,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -214,11 +247,14 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: FINAL
     origin: SOURCE
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getDispatchReceiver(): KaUsualClassType:
@@ -228,19 +264,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: getB
     importableFqName: null
   hasBackingField: true
   hasGetter: true
   hasSetter: false
   initializer: KaConstantInitializerValue(2)
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: false
   isStatic: false
@@ -249,6 +286,9 @@ KaKotlinPropertySymbol:
   modality: FINAL
   name: b
   origin: SOURCE
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -264,20 +304,22 @@ KaKotlinPropertySymbol:
   getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
-  javaGetterName: getB
-  javaSetterName: null
+  deprecation: null
   isInline: false
   importableFqName: null
 
 KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
   annotations: []
   backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Private
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -288,11 +330,14 @@ KaKotlinPropertySymbol:
     name: field
     origin: PROPERTY_BACKING_FIELD
     owningProperty: KaKotlinPropertySymbol(<local>/d)
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     visibility: PRIVATE
     getDispatchReceiver(): KaUsualClassType:
       annotations: []
@@ -301,19 +346,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtPropertyAccessor
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -323,12 +369,17 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: FINAL
     origin: SOURCE
+    psi: KtPropertyAccessor
+    realPsi: KtPropertyAccessor
     receiverParameter: KaReceiverParameterSymbol:
+      anchorPsi: KtTypeReference
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
       isActual: false
+      isCompanion: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -338,39 +389,44 @@ KaKotlinPropertySymbol:
       name: <receiver>
       origin: SOURCE
       owningCallableSymbol: KaKotlinPropertySymbol(<local>/d)
+      psi: KtTypeReference
+      realPsi: KtTypeReference
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
       getContainingJvmClassName: null
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: getD
     importableFqName: null
   hasBackingField: false
   hasGetter: true
   hasSetter: false
   initializer: null
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: true
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: false
   isStatic: false
@@ -379,12 +435,18 @@ KaKotlinPropertySymbol:
   modality: FINAL
   name: d
   origin: SOURCE
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: KaReceiverParameterSymbol:
+    anchorPsi: KtTypeReference
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -394,16 +456,19 @@ KaKotlinPropertySymbol:
     name: <receiver>
     origin: SOURCE
     owningCallableSymbol: KaKotlinPropertySymbol(<local>/d)
+    psi: KtTypeReference
+    realPsi: KtTypeReference
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     visibility: PUBLIC
     getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
     getContainingJvmClassName: null
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   returnType: KaUsualClassType:
     annotations: []
@@ -419,19 +484,20 @@ KaKotlinPropertySymbol:
   getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
-  javaGetterName: getD
-  javaSetterName: null
+  deprecation: null
   isInline: false
   importableFqName: null
 
 KaEnumEntrySymbol:
+  anchorPsi: KtEnumEntry
   annotations: []
   callableId: /MyEnumClass.ThirdEntry
-  compilerVisibility: Public
+  contextParameters: []
   contextReceivers: []
-  enumEntryInitializer: KaAnonymousObjectSymbol(<local>/<no name provided>)
+  initializer: KaAnonymousObjectSymbol(<local>/<no name provided>)
   isActual: false
+  isCompanion: true
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -440,24 +506,27 @@ KaEnumEntrySymbol:
   modality: FINAL
   name: ThirdEntry
   origin: SOURCE
+  psi: KtEnumEntry
+  realPsi: KtEnumEntry
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: MyEnumClass
+  typeParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
   getContainingJvmClassName: MyEnumClass
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: MyEnumClass.ThirdEntry
 
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: MyEnumClass
   classKind: ENUM_CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -466,10 +535,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: FINAL
   name: MyEnumClass
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -485,6 +557,6 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(enumEntryProperties.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: MyEnumClass

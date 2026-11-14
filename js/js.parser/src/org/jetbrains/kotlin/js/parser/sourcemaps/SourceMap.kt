@@ -25,7 +25,7 @@ class SourceMap(val sourceContentResolver: (String) -> Reader?) {
     fun debugToString() = ByteArrayOutputStream().also { debug(PrintStream(it)) }.toString()
 
     fun debug(writer: PrintStream = System.out) {
-        for ((index, group) in groups.withIndex()) {
+        for ([index, group] in groups.withIndex()) {
             writer.print("${index + 1}:")
             for (segment in group.segments) {
                 val nameIfPresent = if (segment.name != null) "(${segment.name})" else ""
@@ -38,12 +38,12 @@ class SourceMap(val sourceContentResolver: (String) -> Reader?) {
     fun debugVerbose(writer: PrintStream, generatedJsFile: File) {
         assert(generatedJsFile.exists()) { "$generatedJsFile does not exist!" }
         val generatedLines = generatedJsFile.readLines().toTypedArray()
-        for ((index, group) in groups.withIndex()) {
+        for ([index, group] in groups.withIndex()) {
             writer.print("${index + 1}:")
             val generatedLine = generatedLines[index]
             val segmentsByColumn = group.segments.map { it.generatedColumnNumber to it }.toMap()
             for (i in generatedLine.indices) {
-                segmentsByColumn[i]?.let { (_, sourceFile, sourceLine, sourceColumn, name) ->
+                segmentsByColumn[i]?.let { (val _ = generatedColumnNumber, val sourceFile = sourceFileName, val sourceLine = sourceLineNumber, val sourceColumn = sourceColumnNumber, val name) ->
                     val nameIfPresent = if (name != null) "($name)" else ""
                     writer.print("<$sourceFile:${sourceLine + 1}:${sourceColumn + 1}$nameIfPresent>")
                 }
@@ -74,9 +74,12 @@ class SourceMap(val sourceContentResolver: (String) -> Reader?) {
         @Throws(IOException::class, SourceMapSourceReplacementException::class)
         fun replaceSources(sourceMapFile: File, mapping: (String) -> String): Boolean {
             val content = sourceMapFile.readText()
-            return sourceMapFile.writer().buffered().use {
-                mapSources(content, it, mapping)
-            }
+            // The result is built in memory first: opening the file for writing truncates it, so writing it directly
+            // would leave an empty file behind whenever there is nothing to replace or the content is malformed.
+            val replacedContent = StringWriter()
+            if (!mapSources(content, replacedContent, mapping)) return false
+            sourceMapFile.writeText(replacedContent.toString())
+            return true
         }
 
         @Throws(IOException::class, SourceMapSourceReplacementException::class)

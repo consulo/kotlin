@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.ir.backend.js.lower.calls
 
 import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
 import org.jetbrains.kotlin.ir.backend.js.ir.JsIrBuilder
-import org.jetbrains.kotlin.ir.backend.js.utils.isEqualsInheritedFromAny
+import org.jetbrains.kotlin.ir.backend.js.utils.inlineClassRepresentation
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -172,7 +172,7 @@ class EqualityAndComparisonCallsTransformer(context: JsIrBackendContext) : Calls
         val function = call.symbol.owner
         return when {
             // Nothing special
-            !function.isEqualsInheritedFromAny() -> call
+            !function.isEquals() -> call
 
             // `Any.equals` works as identity operator
             call.isSuperToAny() ->
@@ -193,7 +193,7 @@ class EqualityAndComparisonCallsTransformer(context: JsIrBackendContext) : Calls
         if (klass.isEnumClass && klass.isExternal) return null
         return klass.declarations.asSequence()
             .filterIsInstance<IrSimpleFunction>()
-            .filter { it.isEqualsInheritedFromAny() && !it.isFakeOverriddenFromAny() }
+            .filter { it.isEquals() && !it.isFakeOverriddenFromAny() }
             .atMostOne()
     }
 
@@ -233,7 +233,9 @@ class EqualityAndComparisonCallsTransformer(context: JsIrBackendContext) : Calls
         isBuiltin() && this != PrimitiveType.FLOATING_POINT_NUMBER
 
     private fun IrType.isDefaultEqualsMethod() =
-        isChar() || findEqualsMethod()?.origin === IrDeclarationOrigin.GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER
+        isChar() || findEqualsMethod()?.origin.let {
+            it === IrDeclarationOrigin.GENERATED_INLINE_CLASS_MEMBER || it === IrDeclarationOrigin.GENERATED_FULL_VALUE_CLASS_MEMBER
+        }
 
     private fun IrExpression.isBoxIntrinsic() =
         this is IrCall && symbol == icUtils.boxIntrinsic
@@ -247,9 +249,9 @@ class EqualityAndComparisonCallsTransformer(context: JsIrBackendContext) : Calls
     }
 
     private fun optimizeInlineClassEquality(call: IrFunctionAccessExpression, lhs: IrExpression, rhs: IrExpression): IrExpression {
-        val (lhsUnboxed, lhsClassType) = lhs.unboxParamWithInlinedClass()
-        val (rhsUnboxed, rhsClassType) = rhs.unboxParamWithInlinedClass()
-        if (lhsClassType !== null && lhsClassType === rhsClassType && lhsUnboxed.type.isDefaultEqualsMethod()) {
+        val [lhsUnboxed, lhsClassType] = lhs.unboxParamWithInlinedClass()
+        val [rhsUnboxed, rhsClassType] = rhs.unboxParamWithInlinedClass()
+        if (lhsClassType !== null && lhsClassType === rhsClassType && lhsUnboxed.type.hasDefaultEqualsDownToRepresentation()) {
             call.arguments[0] = lhsUnboxed
             call.arguments[1] = rhsUnboxed
 
@@ -260,6 +262,10 @@ class EqualityAndComparisonCallsTransformer(context: JsIrBackendContext) : Calls
 
         return irCall(call, symbols.jsEquals)
     }
+
+    // The unwrapping stops at the first class with a custom 'equals' or without an underlying type, like 'Char', which has the default one.
+    private fun IrType.hasDefaultEqualsDownToRepresentation(): Boolean =
+        getLowestUnderlyingType().let { it.isDefaultEqualsMethod() || icUtils.getInlinedClass(it) == null }
 
     private fun IrType.getLowestUnderlyingType(): IrType {
         if (isDefaultEqualsMethod()) {

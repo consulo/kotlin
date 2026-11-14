@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.parcelize
 
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
 import org.jetbrains.kotlin.backend.jvm.ir.representativeUpperBound
+import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrBuiltIns
@@ -15,6 +16,7 @@ import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
+import org.jetbrains.kotlin.ir.irAttribute
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
@@ -28,17 +30,30 @@ import org.jetbrains.kotlin.parcelize.ParcelizeNames.NEW_ARRAY_NAME
 import org.jetbrains.kotlin.parcelize.ParcelizeNames.PARCELABLE_FQN
 import org.jetbrains.kotlin.parcelize.ParcelizeNames.PARCELER_FQN
 import org.jetbrains.kotlin.parcelize.ParcelizeNames.WRITE_TO_PARCEL_NAME
-import org.jetbrains.kotlin.parcelize.serializers.ParcelizeExtensionBase
 import org.jetbrains.kotlin.types.Variance
+import org.jetbrains.kotlin.utils.addToStdlib.forEachZipped
+
+private val PARCELIZE_ALLOWED_CLASS_KINDS = listOf(ClassKind.CLASS, ClassKind.OBJECT, ClassKind.ENUM_CLASS)
 
 // true if the class should be processed by the parcelize plugin
-fun IrClass.isParcelize(parcelizeAnnotations: List<FqName>): Boolean =
-    kind in ParcelizeExtensionBase.ALLOWED_CLASS_KINDS &&
-            (hasAnyAnnotation(parcelizeAnnotations) || superTypes.any { superType ->
-                superType.classOrNull?.owner?.let {
-                    it.modality == Modality.SEALED && it.hasAnyAnnotation(parcelizeAnnotations)
-                } == true
-            })
+fun IrClass.isParcelize(parcelizeAnnotations: List<FqName>): Boolean {
+    if (kind == ClassKind.INTERFACE) {
+        return isPolymorphicSealed()
+    }
+
+    if (kind !in PARCELIZE_ALLOWED_CLASS_KINDS) {
+        return false
+    }
+
+    if (hasAnyAnnotation(parcelizeAnnotations)) {
+        return true
+    }
+
+    return superTypes.any { superType ->
+        val superClass = superType.classOrNull?.owner ?: return@any false
+        superClass.modality == Modality.SEALED && superClass.hasAnyAnnotation(parcelizeAnnotations)
+    }
+}
 
 // Finds the getter for a pre-existing CREATOR field on the class companion, which is used for manual Parcelable implementations in Kotlin.
 val IrClass.creatorGetter: IrSimpleFunctionSymbol?
@@ -107,7 +122,13 @@ fun IrBuilderWithScope.parcelableCreatorCreateFromParcel(creator: IrExpression, 
         function.name == CREATE_FROM_PARCEL_NAME && function.overridesFunctionIn(CREATOR_FQN)
     }
 
-    return irCall(createFromParcel).apply {
+    val creatorSupertype = buildList {
+        add(creator.type)
+        addAll(creator.type.superTypes())
+    }.first { it.classFqName == CREATOR_FQN } as? IrSimpleType
+    val createdType = creatorSupertype?.arguments?.singleOrNull()?.typeOrNull ?: context.irBuiltIns.anyNType
+
+    return irCall(createFromParcel.symbol, createdType).apply {
         arguments[0] = creator
         arguments[1] = parcel
     }
@@ -180,7 +201,8 @@ private fun AndroidIrBuilder.kClassToJavaClass(kClassReference: IrExpression): I
     }
 
 // Produce a static reference to the java class of the given type.
-fun AndroidIrBuilder.javaClassReference(classType: IrType): IrCall = kClassToJavaClass(kClassReference(classType))
+fun AndroidIrBuilder.javaClassReference(classType: IrType): IrCall =
+    kClassToJavaClass(kClassReference(classType.erasedUpperBound.symbol.starProjectedType))
 
 fun IrClass.isSubclassOfFqName(fqName: String): Boolean =
     fqNameWhenAvailable?.asString() == fqName || superTypes.any { it.erasedUpperBound.isSubclassOfFqName(fqName) }
@@ -209,13 +231,10 @@ fun IrTypeArgument.upperBound(builtIns: IrBuiltIns): IrType =
     upperBoundOrNull() ?: builtIns.anyNType
 
 fun IrClass.typeParameterMapping(instantiation: IrType): Map<IrTypeParameterSymbol, IrType> = buildMap {
-    (instantiation as? IrSimpleType)?.arguments?.zip(typeParameters) { arg, parameter ->
+    (instantiation as? IrSimpleType)?.arguments?.forEachZipped(typeParameters) { arg, parameter ->
         put(parameter.symbol, arg.upperBoundOrNull() ?: parameter.representativeUpperBound)
     }
 }
-
-val IrField.isFromPrimaryConstructor: Boolean
-    get() = (initializer?.expression as? IrGetValue)?.origin == IrStatementOrigin.INITIALIZE_PROPERTY_FROM_PARAMETER
 
 private fun IrClass.getSimpleFunction(name: String): IrSimpleFunctionSymbol? =
     findDeclaration<IrSimpleFunction> { it.name.asString() == name }?.symbol
@@ -241,7 +260,7 @@ internal fun IrAnnotationContainer.hasAnyAnnotation(fqNames: List<FqName>): Bool
     return false
 }
 
-internal fun IrAnnotationContainer.getAnyAnnotation(fqNames: List<FqName>): IrConstructorCall? {
+internal fun IrAnnotationContainer.getAnyAnnotation(fqNames: List<FqName>): IrAnnotation? {
     for (fqName in fqNames) {
         val annotation = getAnnotation(fqName)
         if (annotation != null) {
@@ -250,4 +269,35 @@ internal fun IrAnnotationContainer.getAnyAnnotation(fqNames: List<FqName>): IrCo
     }
 
     return null
+}
+
+internal fun IrClass.isPolymorphicSealed(): Boolean =
+    modality == Modality.SEALED && hasAnyAnnotation(ParcelizeNames.POLYMORPHIC_SEALED_CLASS_FQ_NAMES)
+
+internal fun IrClass.getPolymorphicSealedSubclasses(): List<IrClass> =
+    declarations.filterIsInstance<IrClass>().filter {
+        it.superTypes.any { superType -> superType.classifierOrNull == this.symbol }
+    }
+
+internal fun IrClass.findPolymorphicSealedRoot(): IrClass? = (parent as? IrClass)?.takeIf { enclosingClass ->
+    enclosingClass.isPolymorphicSealed() && superTypes.any { it.classifierOrNull == enclosingClass.symbol }
+}
+
+private var IrClass.defaultPolymorphicSealedTag: Int? by irAttribute(copyByDefault = true)
+
+internal fun IrClass.getPolymorphicSealedTag(sealedRoot: IrClass): Int {
+    val tagAnnotation = getAnyAnnotation(ParcelizeNames.PARCEL_TAG_CLASS_FQ_NAMES)
+    if (tagAnnotation != null) {
+        val tagConst = tagAnnotation.arguments.singleOrNull() as? IrConst
+        return (tagConst?.value as? Number)?.toInt()
+            ?: error("Expected integer constant for @ParcelTag on ${this.name.asString()}")
+    } else {
+        defaultPolymorphicSealedTag?.let { return it }
+
+        sealedRoot.getPolymorphicSealedSubclasses().forEachIndexed { index, irClass ->
+            irClass.defaultPolymorphicSealedTag = index
+        }
+        return defaultPolymorphicSealedTag
+            ?: error("Subclass ${this.name.asString()} not found among direct subclasses of ${sealedRoot.name.asString()}")
+    }
 }

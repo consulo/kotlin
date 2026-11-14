@@ -6,15 +6,17 @@ scopes:
     classifiers: 0
     callables: 1
       KaValueParameterSymbol:
+        anchorPsi: KtParameter
         annotations: []
         callableId: null
-        compilerVisibility: Public
+        contextParameters: []
         contextReceivers: []
-        generatedPrimaryConstructorProperty: null
         hasDeclaredDefaultValue: false
         hasDefaultValue: false
         isActual: false
+        isCompanion: false
         isCrossinline: false
+        isDelegated: false
         isExpect: false
         isExtension: false
         isExternal: false
@@ -26,11 +28,15 @@ scopes:
         modality: FINAL
         name: base
         origin: SOURCE
+        primaryConstructorProperty: null
+        psi: KtParameter
+        realPsi: KtParameter
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
           typeArguments: []
           type: test/Base
+        typeParameters: []
         visibility: PUBLIC
     constructors: 0
 
@@ -44,11 +50,11 @@ scopes:
     packages: 0
     classifiers: 2
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: []
         classId: test/Base
         classKind: INTERFACE
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -57,10 +63,13 @@ scopes:
         isFun: false
         isInline: false
         isInner: false
+        isValue: false
         location: TOP_LEVEL
         modality: ABSTRACT
         name: Base
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []
@@ -70,11 +79,11 @@ scopes:
         typeParameters: []
         visibility: PUBLIC
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: []
         classId: test/Child
         classKind: CLASS
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -83,10 +92,13 @@ scopes:
         isFun: false
         isInline: false
         isInner: false
+        isValue: false
         location: TOP_LEVEL
         modality: FINAL
         name: Child
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []

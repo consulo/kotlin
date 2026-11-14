@@ -1,12 +1,12 @@
 KaNamedClassSymbol:
+  anchorPsi: PsiClassImpl
   annotations: [
-    <error>()
+    null()
       psi: null
   ]
   classId: JavaClass
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -15,10 +15,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: OPEN
   name: JavaClass
   origin: JAVA_SOURCE
+  psi: PsiClassImpl
+  realPsi: PsiClassImpl
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -29,6 +32,6 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: null
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: JavaClass

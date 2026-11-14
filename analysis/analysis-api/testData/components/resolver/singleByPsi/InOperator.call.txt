@@ -1,5 +1,5 @@
 KtOperationReferenceExpression(69,71): 'in'
-  KaSuccessCallInfo:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []

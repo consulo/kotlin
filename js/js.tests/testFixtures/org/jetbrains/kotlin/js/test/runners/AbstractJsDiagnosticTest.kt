@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.js.test.runners
 
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.test.FirParser
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.BlackBoxCodegenSuppressor
@@ -17,16 +16,17 @@ import org.jetbrains.kotlin.test.configuration.DEFAULT_UNUSED_DIAGNOSTICS
 import org.jetbrains.kotlin.test.configuration.setupHandlersForDiagnosticTest
 import org.jetbrains.kotlin.test.directives.ConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives.DIAGNOSTICS
-import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
-import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.LANGUAGE
 import org.jetbrains.kotlin.test.directives.TestPhaseDirectives
 import org.jetbrains.kotlin.test.directives.configureFirParser
 import org.jetbrains.kotlin.test.frontend.fir.FirFailingTestSuppressor
 import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerTest
-import org.jetbrains.kotlin.test.services.LibraryProvider
 import org.jetbrains.kotlin.test.services.PhasedPipelineChecker
 import org.jetbrains.kotlin.test.services.TestPhase
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCommonBackend
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInFrontend
 
+@MustRunOnChangesInFrontend
+@MustRunOnChangesInCommonBackend
 abstract class AbstractJsDiagnosticTestBase(val parser: FirParser) : AbstractKotlinCompilerTest() {
     override fun configure(builder: TestConfigurationBuilder) = with(builder) {
         globalDefaults {
@@ -34,7 +34,6 @@ abstract class AbstractJsDiagnosticTestBase(val parser: FirParser) : AbstractKot
         }
         defaultDirectives {
             +ConfigurationDirectives.WITH_STDLIB
-            +FirDiagnosticsDirectives.FIR_IDENTICAL
             DIAGNOSTICS with DEFAULT_UNUSED_DIAGNOSTICS.map { "-$it" }
         }
 
@@ -52,13 +51,12 @@ abstract class AbstractJsDiagnosticTestBase(val parser: FirParser) : AbstractKot
             useHandlers(::IrDiagnosticsHandler)
         }
 
-        useAfterAnalysisCheckers(
+        useFailureSuppressors(
             ::PhasedPipelineChecker,
             ::BlackBoxCodegenSuppressor,
             ::FirFailingTestSuppressor,
         )
         enableMetaInfoHandler()
-        useAdditionalService(::LibraryProvider)
     }
 }
 
@@ -69,19 +67,7 @@ abstract class AbstractJsDiagnosticWithBackendTestBase(parser: FirParser) : Abst
             useHandlers(::KlibBackendDiagnosticsHandler)
         }
         defaultDirectives {
-            TestPhaseDirectives.LATEST_PHASE_IN_PIPELINE with TestPhase.BACKEND
-        }
-    }
-}
-
-abstract class AbstractJsDiagnosticWithIrInlinerTestBase : AbstractJsDiagnosticWithBackendTestBase(FirParser.LightTree) {
-    override fun configure(builder: TestConfigurationBuilder) = with(builder) {
-        super.configure(builder)
-        defaultDirectives {
-            LANGUAGE with listOf(
-                "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-            )
+            TestPhaseDirectives.LATEST_PHASE_IN_PIPELINE with TestPhase.CODEGEN
         }
     }
 }

@@ -8,15 +8,17 @@ package org.jetbrains.kotlin.gradle.targets.js.testing
 import org.gradle.api.Action
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.internal.tasks.testing.TestExecuter
+import org.gradle.api.internal.tasks.testing.TestExecutionSpec
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.*
 import org.gradle.process.ExecOperations
 import org.gradle.work.DisableCachingByDefault
 import org.gradle.work.NormalizeLineEndings
-import org.jetbrains.kotlin.gradle.internal.testing.TCServiceMessagesTestExecutionSpec
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.UsesKotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.targets.js.RequiredKotlinJsDependency
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrCompilation
-import org.jetbrains.kotlin.gradle.targets.js.npm.RequiresNpmDependencies
+import org.jetbrains.kotlin.gradle.targets.js.npm.RequiresNpmDependenciesTask
 import org.jetbrains.kotlin.gradle.targets.js.testing.karma.KotlinKarma
 import org.jetbrains.kotlin.gradle.targets.js.testing.mocha.KotlinMocha
 import org.jetbrains.kotlin.gradle.tasks.KotlinTest
@@ -35,7 +37,7 @@ internal constructor(
     private val objects: ObjectFactory,
     execOps: ExecOperations,
 ) : KotlinTest(execOps),
-    RequiresNpmDependencies {
+    RequiresNpmDependenciesTask, UsesKotlinToolingDiagnostics {
 
     @Input
     var environment = mutableMapOf<String, String>()
@@ -58,6 +60,12 @@ internal constructor(
     @Suppress("unused")
     val testFrameworkSettings: String
         @Input get() = testFramework!!.settingsState
+
+    @get:Nested
+    @get:Optional
+    @Suppress("unused")
+    internal val testFrameworkInputs: Any?
+        get() = testFramework?.frameworkTaskInputs
 
     @PathSensitive(PathSensitivity.ABSOLUTE)
     @InputFile
@@ -101,20 +109,6 @@ internal constructor(
     override val requiredNpmDependencies: Set<RequiredKotlinJsDependency>
         @Internal get() = testFramework!!.requiredNpmDependencies
 
-
-    @Deprecated("Use useMocha instead. Scheduled for removal in Kotlin 2.3.", ReplaceWith("useMocha()"), level = DeprecationLevel.ERROR)
-    fun useNodeJs() = useMocha()
-
-    @Deprecated("Use useMocha instead. Scheduled for removal in Kotlin 2.3.", ReplaceWith("useMocha(body)"), level = DeprecationLevel.ERROR)
-    fun useNodeJs(body: KotlinMocha.() -> Unit) = useMocha(body)
-
-    @Deprecated("Use useMocha instead. Scheduled for removal in Kotlin 2.3.", ReplaceWith("useMocha(fn)"), level = DeprecationLevel.ERROR)
-    fun useNodeJs(fn: Action<KotlinMocha>) {
-        useMocha {
-            fn.execute(this)
-        }
-    }
-
     fun useMocha() = useMocha {}
     fun useMocha(body: KotlinMocha.() -> Unit) =
         if (compilation.wasmTarget == null) {
@@ -154,7 +148,7 @@ internal constructor(
         return testFramework
     }
 
-    override fun createTestExecutionSpec(): TCServiceMessagesTestExecutionSpec {
+    override fun createTestExecutionSpec(): TestExecutionSpec {
         val launchOpts = objects.processLaunchOptions {
             workingDir.set(this@KotlinJsTest.testFramework!!.workingDir)
             executable.set(this@KotlinJsTest.testFramework!!.executable)
@@ -167,5 +161,10 @@ internal constructor(
             nodeJsArgs = nodeJsArgs,
             debug = debug
         )
+    }
+
+    override fun createTestExecuter(): TestExecuter<*> {
+        val testExecuter = testFramework!!.createTestExecuter() ?: super.createTestExecuter()
+        return testExecuter
     }
 }

@@ -6,8 +6,10 @@
 package org.jetbrains.kotlin.library.metadata
 
 import org.jetbrains.kotlin.descriptors.SourceFile
-import org.jetbrains.kotlin.konan.properties.propertyList
+import org.jetbrains.kotlin.io.propertyList
+import org.jetbrains.kotlin.library.KLIB_PROPERTY_METADATA_FLAGS
 import org.jetbrains.kotlin.library.KLIB_PROPERTY_MANUALLY_ENABLED_POISONING_LANGUAGE_FEATURES
+import org.jetbrains.kotlin.library.KlibComponentsContainer
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.metadata.KlibMetadataProtoBuf.Header
 import org.jetbrains.kotlin.name.FqName
@@ -22,16 +24,18 @@ class KlibDeserializedContainerSource(
     override val presentableString: String,
     val klib: KotlinLibrary,
     override val incompatibility: IncompatibleVersionErrorData<*>?,
-) : DeserializedContainerSource {
+) : DeserializedContainerSource, KlibContainerSourceComponentsProvider {
+    override val klibComponentsContainer: KlibComponentsContainer = klib
+
     constructor(
         klib: KotlinLibrary,
-        header: Header,
+        header: Header?,
         configuration: DeserializationConfiguration,
         packageFqName: FqName,
         incompatibility: IncompatibleVersionErrorData<*>?,
     ) : this(
         preReleaseInfo = PreReleaseInfo(
-            isInvisible = configuration.reportErrorsOnPreReleaseDependencies && (header.flags and KlibMetadataHeaderFlags.PRE_RELEASE) != 0,
+            isInvisible = configuration.reportErrorsOnPreReleaseDependencies && isPreReleaseKlib(klib, header),
             poisoningFeatures = klib.manifestProperties.propertyList(KLIB_PROPERTY_MANUALLY_ENABLED_POISONING_LANGUAGE_FEATURES).map { it.trimStart('+') }
         ),
         presentableString = "Package '$packageFqName'",
@@ -44,4 +48,9 @@ class KlibDeserializedContainerSource(
 
     // TODO: move [CallableMemberDescriptor.findSourceFile] here.
     override fun getContainingFile(): SourceFile = SourceFile.NO_SOURCE_FILE
+}
+
+private fun isPreReleaseKlib(klib: KotlinLibrary, header: Header?): Boolean {
+    val flags = klib.manifestProperties.getProperty(KLIB_PROPERTY_METADATA_FLAGS)?.toIntOrNull() ?: header?.flags ?: return false
+    return (flags and KlibMetadataHeaderFlags.PRE_RELEASE) != 0
 }

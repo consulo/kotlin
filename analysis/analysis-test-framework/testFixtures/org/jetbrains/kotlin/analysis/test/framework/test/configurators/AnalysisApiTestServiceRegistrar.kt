@@ -8,17 +8,18 @@ package org.jetbrains.kotlin.analysis.test.framework.test.configurators
 import com.intellij.mock.MockApplication
 import com.intellij.mock.MockProject
 import com.intellij.openapi.Disposable
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.AnalysisApiServiceRegistrar
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.registerApplicationServices
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.registerProjectExtensionPoints
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.registerProjectServices
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.AnalysisApiServiceRegistrar
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.registerApplicationServices
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.registerProjectExtensionPoints
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.registerProjectServices
 import org.jetbrains.kotlin.test.TestInfrastructureInternals
 import org.jetbrains.kotlin.test.impl.testConfiguration
 import org.jetbrains.kotlin.test.services.TestServices
+import org.jetbrains.kotlin.test.services.applicationDisposableProvider
 
 @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE") // Use `testServices` name instead of `data`
 abstract class AnalysisApiTestServiceRegistrar : AnalysisApiServiceRegistrar<TestServices> {
-    override fun registerApplicationServices(application: MockApplication, testServices: TestServices) {}
+    override fun registerApplicationServices(application: MockApplication, disposable: Disposable, testServices: TestServices) {}
 
     override fun registerProjectExtensionPoints(project: MockProject, testServices: TestServices) {}
 
@@ -37,7 +38,9 @@ fun List<AnalysisApiServiceRegistrar<TestServices>>.registerAllServices(
     project: MockProject,
     testServices: TestServices,
 ) {
-    registerApplicationServices(application, testServices)
+    val applicationRootDisposable = testServices.applicationDisposableProvider.getApplicationRootDisposable()
+
+    registerApplicationServices(application, applicationRootDisposable, testServices)
     registerProjectExtensionPoints(project, testServices)
     registerProjectServices(project, testServices)
     registerProjectModelServices(project, testServices)

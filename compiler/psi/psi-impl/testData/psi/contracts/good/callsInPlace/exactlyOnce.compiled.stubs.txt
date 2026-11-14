@@ -3,9 +3,9 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=ExactlyOnceKt]]
   partSimpleName: "ExactlyOnceKt"
   PACKAGE_DIRECTIVE
   IMPORT_LIST
-  FUN[fqName=inlineRun, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=inlineRun]
+  FUNCTION[fqName=inlineRun, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=inlineRun]
     contract: [ effect:CallsInPlace(param(0), EXACTLY_ONCE) ]
-    origin: Facade(className=ExactlyOnceKt, jvmClassName=null)
+    origin: Facade(className=ExactlyOnceKt, jvmClassName=null, classFileMajorVersion=<current_major_version>)
     MODIFIER_LIST[public inline]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=block]
@@ -17,14 +17,16 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=ExactlyOnceKt]]
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=Unit]
+                  isClassRef: true
     TYPE_REFERENCE
       USER_TYPE
         USER_TYPE
           REFERENCE_EXPRESSION[referencedName=kotlin]
         REFERENCE_EXPRESSION[referencedName=Unit]
-  FUN[fqName=myRun, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=myRun]
+          isClassRef: true
+  FUNCTION[fqName=myRun, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=myRun]
     contract: [ effect:CallsInPlace(param(0), EXACTLY_ONCE) ]
-    origin: Facade(className=ExactlyOnceKt, jvmClassName=null)
+    origin: Facade(className=ExactlyOnceKt, jvmClassName=null, classFileMajorVersion=<current_major_version>)
     MODIFIER_LIST[public]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=block]
@@ -36,8 +38,10 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=ExactlyOnceKt]]
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=Unit]
+                  isClassRef: true
     TYPE_REFERENCE
       USER_TYPE
         USER_TYPE
           REFERENCE_EXPRESSION[referencedName=kotlin]
         REFERENCE_EXPRESSION[referencedName=Unit]
+          isClassRef: true

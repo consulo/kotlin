@@ -5,6 +5,9 @@ import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.testbase.firstSupported
+import org.jetbrains.kotlin.gradle.utils.normalizedAbsolutePath
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.DisabledOnOs
 import org.junit.jupiter.api.condition.OS
@@ -17,8 +20,10 @@ import kotlin.test.assertTrue
 
 @DisplayName("Kotlin options change")
 @JvmGradlePluginTests
+@MustRunOnChangesInGradle
 class UpToDateIT : KGPBaseTest() {
 
+    @TestMetadata("kotlinProject")
     @DisplayName("Language version change")
     @GradleTest
     fun testLanguageVersionChange(gradleVersion: GradleVersion) {
@@ -35,6 +40,7 @@ class UpToDateIT : KGPBaseTest() {
         )
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("Api version change")
     @GradleTest
     fun testApiVersionChange(gradleVersion: GradleVersion) {
@@ -51,6 +57,7 @@ class UpToDateIT : KGPBaseTest() {
         )
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("Misc changes")
     @DisabledOnOs(OS.WINDOWS, disabledReason = "Failed to delete project directory")
     @GradleTest
@@ -145,7 +152,7 @@ class UpToDateIT : KGPBaseTest() {
                     val file = File(it)
                     val newFile = projectPath.resolve(file.nameWithoutExtension + "-1.jar").toFile()
                     file.copyTo(newFile)
-                    newFile.absolutePath
+                    newFile.normalizedAbsolutePath().toString()
                 }.reversed()
 
                 it.replace(
@@ -243,11 +250,7 @@ class UpToDateIT : KGPBaseTest() {
 
         override fun mutateProject(project: TestProject) {
             project.buildGradle.modify {
-                if (project.gradleVersion < GradleVersion.version(TestVersions.Gradle.G_8_5)) {
-                    it.replace("archivesBaseName = '$oldName'", "archivesBaseName = '$newName'")
-                } else {
-                    it.replace("archivesName = '$oldName'", "archivesName = '$newName'")
-                }
+                it.replace("archivesName = '$oldName'", "archivesName = '$newName'")
             }
         }
 
@@ -281,7 +284,7 @@ class UpToDateIT : KGPBaseTest() {
         }
         .toSet()
 
-    private inner class OptionMutation(
+    private class OptionMutation(
         private val path: String,
         private val oldValue: String,
         private val newValue: String,

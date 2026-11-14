@@ -3,12 +3,9 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.gradle.api.InvalidUserCodeException
-import org.gradle.kotlin.dsl.provideDelegate
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.internal.dsl.KotlinMultiplatformSourceSetConventionsImpl.jvmMain
@@ -133,15 +130,12 @@ class KotlinMultiplatformSourceSetConventionsTest {
                 js("nodeJs") {
                     nodejs()
                 }
-                @OptIn(ExperimentalWasmDsl::class)
                 wasmJs {
                     nodejs()
                 }
 
                 linuxX64("linux64")
                 mingwX64("mingw64")
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                macosX64("macos64")
                 macosArm64("macosArm64")
 
                 applyDefaultHierarchyTemplate()
@@ -180,7 +174,7 @@ class KotlinMultiplatformSourceSetConventionsTest {
             mutableListOf<SourceSetDetails>().apply {
                 add(SourceSetDetails("metadata", "main", "commonMain"))
                 listOf(
-                    "jvm6", "nodeJs", "mingw64", "linux64", "macos64", "macosArm64", "wasmJs"
+                    "jvm6", "nodeJs", "mingw64", "linux64", "macosArm64", "wasmJs"
                 ).forEach { target ->
                     add(SourceSetDetails(target, "main", "${target}Main"))
                     add(SourceSetDetails(target, "test", "${target}Test"))
@@ -199,7 +193,7 @@ class KotlinMultiplatformSourceSetConventionsTest {
             mutableListOf<SourceSetDetails>().apply {
                 addAll(expectedDetailsBeforeEvaluate)
                 listOf(
-                    "commonMain", "appleMain", "macosMain", "nativeMain", "webMain",
+                    "commonMain", "nativeMain", "webMain",
                 ).forEach { target ->
                     add(SourceSetDetails("metadata", target, target))
                 }
@@ -356,7 +350,7 @@ class KotlinMultiplatformSourceSetConventionsTest {
                 nodejs()
             }
             wasmWasi {
-                nodejs()
+                wasmtime()
             }
         }
 

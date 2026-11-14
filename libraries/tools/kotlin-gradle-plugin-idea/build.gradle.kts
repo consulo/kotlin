@@ -1,42 +1,56 @@
-import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+import gradle.addKgpGradleApiDependency
 import plugins.KotlinBuildPublishingPlugin.Companion.ADHOC_COMPONENT_NAME
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     `java-test-fixtures`
     `maven-publish`
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
+    id("test-inputs-check")
 }
 
 configureKotlinCompileTasksGradleCompatibility()
 
-kotlin.sourceSets.configureEach {
-    languageSettings.optIn("org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi")
+kotlin {
+    @Suppress("DEPRECATION")
+    coreLibrariesVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation.get()
+    compilerOptions {
+        optIn.add("org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi")
+    }
 }
 
 dependencies {
-    val coreDepsVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation.get()
-    compileOnly(kotlin("stdlib", coreDepsVersion))
+    // 'kotlin.coreLibrariesVersion' usage caused by KT-71443
+    @Suppress("DEPRECATION")
+    compileOnly(kotlin("stdlib", kotlin.coreLibrariesVersion))
     api(project(":kotlin-tooling-core"))
     api(project(":kotlin-gradle-plugin-annotations"))
-    testImplementation(gradleApi())
-    testImplementation(gradleKotlinDsl())
+
+    addKgpGradleApiDependency("testCompileOnly")
+
     testImplementation(project(":kotlin-gradle-plugin"))
     testImplementation(project(":kotlin-gradle-plugin-idea-proto"))
-    testImplementation(kotlin("stdlib", coreDepsVersion))
-    testImplementation(kotlin("test-junit", coreDepsVersion))
-
+    testImplementation(kotlin("stdlib"))
+    testImplementation(kotlin("reflect"))
+    testImplementation(kotlin("test-junit5"))
+    testImplementation(libs.junit.jupiter.params)
     testImplementation("org.reflections:reflections:0.10.2") {
         because("Tests on the object graph are performed. This library will find implementations of interfaces at runtime")
     }
+    testRuntimeOnly(gradleApi())
 
-    testFixturesImplementation(gradleApi())
-    testFixturesImplementation(gradleKotlinDsl())
+    addKgpGradleApiDependency("testFixturesCompileOnly")
     testFixturesImplementation(project(":kotlin-tooling-core"))
     testFixturesImplementation(project(":kotlin-gradle-plugin-idea-proto"))
-    testFixturesImplementation(kotlin("stdlib", coreDepsVersion))
-    testFixturesImplementation(kotlin("test", coreDepsVersion)) // no test annotations, only assertions are needed
+    // 'kotlin.coreLibrariesVersion' usage caused by KT-71443
+    @Suppress("DEPRECATION")
+    testFixturesImplementation(kotlin("stdlib", kotlin.coreLibrariesVersion))
+    @Suppress("DEPRECATION")
+    testFixturesImplementation(kotlin("reflect", kotlin.coreLibrariesVersion))
+    @Suppress("DEPRECATION")
+    testFixturesImplementation(kotlin("test", kotlin.coreLibrariesVersion)) // no test annotations, only assertions are needed
 }
 
 
@@ -77,27 +91,6 @@ tasks {
     }
 }
 
-//region Setup: Backwards compatibility tests
-
-run {
-    val compatibilityTestClasspath by configurations.creating {
-        isCanBeResolved = true
-        isCanBeConsumed = false
-        attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
-        attributes.attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
-    }
-
-    dependencies {
-        compatibilityTestClasspath(project(":kotlin-gradle-plugin-idea-for-compatibility-tests"))
-    }
-
-    tasks.test {
-        dependsOnKotlinGradlePluginInstall()
-        dependsOn(compatibilityTestClasspath)
-        val conf: FileCollection = compatibilityTestClasspath
-        inputs.files(conf)
-        doFirst { systemProperty("compatibilityTestClasspath", conf.files.joinToString(";") { it.absolutePath }) }
-    }
+projectTests {
+    testTask()
 }
-
-//endregion

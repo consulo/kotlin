@@ -1,20 +1,23 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
 publish()
 
 dependencies {
-    api(project(":kotlin-script-runtime"))
     api(kotlinStdlib())
     api(project(":kotlin-scripting-common"))
     api(project(":kotlin-scripting-jvm"))
+    compileOnly(project(":core:descriptors"))
     compileOnly(project(":kotlin-scripting-compiler"))
     compileOnly(project(":compiler:cli"))
     compileOnly(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
     compileOnly(intellijCore())
+    compileOnly(libs.guava)
     publishedRuntime(project(":kotlin-compiler"))
     publishedRuntime(project(":kotlin-scripting-compiler"))
     publishedRuntime(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
@@ -30,4 +33,3 @@ tasks.withType<KotlinJvmCompile>().configureEach {
 }
 
 standardPublicJars()
-

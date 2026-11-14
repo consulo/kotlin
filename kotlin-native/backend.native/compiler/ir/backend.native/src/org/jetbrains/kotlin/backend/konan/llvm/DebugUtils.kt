@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2022 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -22,7 +22,9 @@ import org.jetbrains.kotlin.ir.util.isUnsigned
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.konan.config.NativeConfigurationKeys
 import org.jetbrains.kotlin.konan.config.debugInfoVersion
-import org.jetbrains.kotlin.konan.file.File
+import kotlin.io.path.Path
+import kotlin.io.path.name
+import kotlin.io.path.pathString
 
 internal object DWARF {
     val producer = "kotlin-compiler: ${KotlinVersion.CURRENT}"
@@ -171,7 +173,7 @@ internal class DebugInfo(override val generationState: NativeGenerationState) : 
             subroutineType(llvmTargetData, this@subroutineType.types)
 
     fun subroutineType(llvmTargetData: LLVMTargetDataRef, types: List<IrType>): DISubroutineTypeRef = memScoped {
-        val diTypes = types.withIndex().map { (idx, type) ->
+        val diTypes = types.withIndex().map { [idx, type] ->
             if (idx == 0 && type.isVoidAsReturnType()) null
             else type.diType(llvmTargetData)
         }
@@ -302,12 +304,12 @@ internal data class FileAndFolder(val file: String, val folder: String) {
 
 internal fun String?.toFileAndFolder(config: NativeSecondStageCompilationConfig): FileAndFolder {
     this ?: return FileAndFolder.NOFILE
-    val file = File(this)
+    val file = Path(this)
     // Note: `parentOrNull` is `null` when the path consists of a single segment, e.g. `foo.kt` and not `bar/foo.kt`.
     // `.` is a valid DWARF relative path to parent for this case, while an empty string is not.
-    var parent = file.parentOrNull ?: "."
+    var parent = file.parent?.pathString ?: "."
     config.configuration[NativeConfigurationKeys.DEBUG_PREFIX_MAP]?.let { debugPrefixMap ->
-        for ((key, value) in debugPrefixMap) {
+        for ([key, value] in debugPrefixMap) {
             if (parent.startsWith(key)) {
                 parent = value + parent.removePrefix(key)
             }
@@ -318,7 +320,7 @@ internal fun String?.toFileAndFolder(config: NativeSecondStageCompilationConfig)
 
 internal fun alignTo(value: Long, align: Long): Long = (value + align - 1) / align * align
 
-internal fun setupBridgeDebugInfo(generationState: NativeGenerationState, function: LlvmCallable): LocationInfo? {
+internal fun setupBridgeDebugInfo(generationState: NativeGenerationState, function: LlvmFunction.Definition): LocationInfo? {
     if (!generationState.shouldContainLocationDebugInfo()) {
         return null
     }
@@ -331,12 +333,17 @@ internal fun setupBridgeDebugInfo(generationState: NativeGenerationState, functi
             builder = debugInfo.builder,
             scope = file.reinterpret(),
             file = file,
-            lineNo = 0,
+            lineNo = 1,
             type = debugInfo.subroutineType(generationState.runtime.targetData, emptyList()), // TODO: use proper type.
             isLocal = 0,
             isDefinition = 1,
-            scopeLine = 0,
-            isTransparentStepping = generationState.config.enableDebugTransparentStepping,
+            scopeLine = 1,
+            // KT-87872: since Xcode 27, lldb skips the whole call instead of stepping through
+            // the bridge when the ObjC caller dispatches through an `_objc_msgSend$<selector>` stub.
+            // The stop hook in konan_lldb.py steps through these bridges instead.
+            // Note: other trampolines (virtual calls, `@TransparentForDebugger`) are not reached
+            // through such a stub, so they keep using transparent stepping.
+            isTransparentStepping = false,
     ).reinterpret()
 
     return LocationInfo(scope, 1, 0)

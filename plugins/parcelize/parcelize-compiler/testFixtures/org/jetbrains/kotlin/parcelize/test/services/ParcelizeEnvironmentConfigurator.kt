@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.parcelize.test.services
 
 import org.jetbrains.kotlin.cli.jvm.config.addJvmClasspathRoots
+import org.jetbrains.kotlin.codegen.forTestCompile.TestCompilePaths.PARCELIZE_COMPILER_PLUGIN_CLASSPATH
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.parcelize.ParcelizeComponentRegistrar
@@ -13,11 +14,9 @@ import org.jetbrains.kotlin.parcelize.ParcelizeConfigurationKeys
 import org.jetbrains.kotlin.parcelize.kotlinxImmutable
 import org.jetbrains.kotlin.parcelize.test.services.ParcelizeDirectives.ENABLE_PARCELIZE
 import org.jetbrains.kotlin.test.directives.model.SimpleDirectivesContainer
-import org.jetbrains.kotlin.test.model.FrontendKinds
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.EnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.TestServices
-import org.jetbrains.kotlin.test.services.defaultsProvider
 import org.jetbrains.kotlin.test.util.KtTestUtil
 import org.jetbrains.kotlin.utils.PathUtil
 import java.io.File
@@ -31,7 +30,7 @@ private fun getLibraryJar(classToDetect: String): File? = try {
 class ParcelizeEnvironmentConfigurator(testServices: TestServices) : EnvironmentConfigurator(testServices) {
     override fun configureCompilerConfiguration(configuration: CompilerConfiguration, module: TestModule) {
         if (ENABLE_PARCELIZE !in module.directives) return
-        val runtimeLibraries = System.getProperty("parcelizeRuntime.classpath")
+        val runtimeLibraries = System.getProperty(PARCELIZE_COMPILER_PLUGIN_CLASSPATH)
             .split(File.pathSeparator)
             .map { File(it) }
         val androidApiJar = KtTestUtil.findAndroidApiJar()
@@ -58,7 +57,6 @@ class ParcelizeEnvironmentConfigurator(testServices: TestServices) : Environment
             this,
             additionalAnnotation,
             experimentalCodeGeneration,
-            useFir = testServices.defaultsProvider.frontendKind == FrontendKinds.FIR
         )
     }
 }

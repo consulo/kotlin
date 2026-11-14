@@ -5,18 +5,28 @@
 
 package org.jetbrains.kotlin.gradle.unitTests
 
+import org.gradle.api.Project
 import org.gradle.api.internal.project.ProjectInternal
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KaptStubGenerationScheme
 import org.jetbrains.kotlin.gradle.internal.Kapt3GradleSubplugin
+import org.jetbrains.kotlin.gradle.internal.KaptDetectMemoryLeaksMode
+import org.jetbrains.kotlin.gradle.internal.KaptGenerateStubsTask
 import org.jetbrains.kotlin.gradle.internal.KaptWithoutKotlincTask
+import org.jetbrains.kotlin.gradle.plugin.KaptExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinApiPlugin
 import org.jetbrains.kotlin.gradle.plugin.KotlinJvmFactory
 import org.jetbrains.kotlin.gradle.tasks.Kapt
+import org.jetbrains.kotlin.gradle.tasks.KaptGenerateStubs
 import org.jetbrains.kotlin.gradle.util.buildProject
+import org.jetbrains.kotlin.gradle.util.buildProjectWithJvm
+import org.jetbrains.kotlin.gradle.util.propertiesExtension
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import java.io.File
 
 class KaptApiTest {
@@ -133,11 +143,31 @@ class KaptApiTest {
     @Test
     fun testKaptExtension() {
         plugin.kaptExtension.useBuildCache = false
-        plugin.kaptExtension.includeCompileClasspath = true
+        plugin.kaptExtension.includeCompileClasspath = false
+        plugin.kaptExtension.stubGenerationScheme.set(KaptStubGenerationScheme.DIRECT)
+        plugin.kaptExtension.detectMemoryLeaks = "paranoid"
 
         val task = configureKapt {}
         assertEquals(false, task.useBuildCache)
+        assertEquals(false, task.includeCompileClasspath.get())
+        assertEquals(KaptStubGenerationScheme.DIRECT, task.stubGenerationScheme.get())
+        assertEquals(KaptDetectMemoryLeaksMode.PARANOID, task.detectMemoryLeaks.get())
+    }
+
+    @Test
+    fun testKaptExtensionDefaults() {
+        val task = configureKapt {}
+        assertEquals(true, task.useBuildCache)
         assertEquals(true, task.includeCompileClasspath.get())
+        assertEquals(KaptStubGenerationScheme.JTREE, task.stubGenerationScheme.get())
+        assertEquals(KaptDetectMemoryLeaksMode.STANDARD, task.detectMemoryLeaks.get())
+    }
+
+    @Test
+    fun testToolingDiagnosticsWithoutKotlinPlugin() {
+        val task = configureKapt {}
+        assertTrue(task.toolingDiagnosticsCollector.isPresent)
+        assertTrue(task.toolingDiagnosticsContext.isPresent)
     }
 
     @Test
@@ -154,6 +184,8 @@ class KaptApiTest {
     fun testGenerateStubsOptions() {
         val stubsDir = tmpDir.resolve("stubsDir").also { it.mkdirs() }
         val kaptClasspath = setOf(tmpDir.resolve("kaptClasspath2").also { it.mkdirs() })
+        plugin.kaptExtension.stubGenerationScheme.set(KaptStubGenerationScheme.DIRECT)
+
         val task = plugin.registerKaptGenerateStubsTask(
             GENERATE_STUBS,
             plugin.registerKotlinJvmCompileTask("customCompileKotlin", plugin.createCompilerJvmOptions()),
@@ -167,8 +199,81 @@ class KaptApiTest {
         }
         assertEquals(stubsDir, task.stubsDir.get().asFile)
         assertEquals(kaptClasspath, task.kaptClasspath.files)
+        assertEquals(
+            "direct",
+            task.pluginOptions.get()
+                .flatMap { it.allOptions()[Kapt3GradleSubplugin.KAPT_SUBPLUGIN_ID].orEmpty() }
+                .single { it.key == "stubGenerationScheme" }
+                .value
+        )
     }
 
+    @Test
+    fun testGenerateStubsHeaderModeIsOffByDefault() {
+        assertNull(generateStubsKaptOption("headerMode"))
+    }
+
+    @Test
+    fun testGenerateStubsHeaderMode() {
+        plugin.kaptExtension.headerMode.set(true)
+        assertEquals("true", generateStubsKaptOption("headerMode"))
+    }
+
+    @Test
+    fun testGenerateStubsHeaderModeFromGradleProperty() {
+        project.propertiesExtension.set("kapt.header.mode", "true")
+        assertEquals("true", generateStubsKaptOption("headerMode"))
+    }
+
+    @Test
+    fun testGenerateStubsHeaderModeDslOverridesGradleProperty() {
+        project.propertiesExtension.set("kapt.header.mode", "true")
+        plugin.kaptExtension.headerMode.set(false)
+        assertNull(generateStubsKaptOption("headerMode"))
+    }
+
+    @Test
+    fun testKaptPluginHeaderModeIsOffByDefault() {
+        assertNull(kaptPluginGenerateStubsOption("headerMode"))
+    }
+
+    @Test
+    fun testKaptPluginHeaderModeFromGradleProperty() {
+        val option = kaptPluginGenerateStubsOption("headerMode") {
+            propertiesExtension.set("kapt.header.mode", "true")
+        }
+        assertEquals("true", option)
+    }
+
+    @Test
+    fun testKaptPluginHeaderModeDslOverridesGradleProperty() {
+        val option = kaptPluginGenerateStubsOption("headerMode") {
+            propertiesExtension.set("kapt.header.mode", "true")
+            extensions.getByType(KaptExtension::class.java).headerMode.set(false)
+        }
+        assertNull(option)
+    }
+
+    private fun generateStubsKaptOption(key: String): String? = plugin.registerKaptGenerateStubsTask(
+        GENERATE_STUBS,
+        plugin.registerKotlinJvmCompileTask("customCompileKotlin", plugin.createCompilerJvmOptions()),
+        plugin.kaptExtension,
+    ).get().kaptOption(key)
+
+    /** The same option on the stubs task of a project that applies the 'kotlin-kapt' plugin instead of the API. */
+    private fun kaptPluginGenerateStubsOption(key: String, configure: Project.() -> Unit = {}): String? {
+        val project = buildProjectWithJvm {
+            plugins.apply(Kapt3GradleSubplugin::class.java)
+            configure()
+        }
+        project.evaluate()
+        return project.tasks.named("kaptGenerateStubsKotlin", KaptGenerateStubsTask::class.java).get().kaptOption(key)
+    }
+
+    private fun KaptGenerateStubs.kaptOption(key: String): String? = pluginOptions.get()
+        .flatMap { it.allOptions()[Kapt3GradleSubplugin.KAPT_SUBPLUGIN_ID].orEmpty() }
+        .singleOrNull { it.key == key }
+        ?.value
 
     @Test
     fun testGenerateStubsTaskHasCompilerOptionsFromCompileTask() {
@@ -193,6 +298,33 @@ class KaptApiTest {
         assertEquals(JvmTarget.JVM_21, kaptGenerateStubsTask.get().compilerOptions.jvmTarget.get())
         assertEquals(listOf("-Xdump-declarations-to=foo"), kaptGenerateStubsTask.get().compilerOptions.freeCompilerArgs.get())
         assertEquals("foo", kaptGenerateStubsTask.get().compilerOptions.moduleName.get())
+    }
+
+    @Test
+    fun testGenerateStubsCompilerArgsNotDuplicated() {
+        // KT-55452: freeCompilerArgs set on KaptGenerateStubs (e.g. via tasks.withType(KotlinCompile))
+        // must not be duplicated through the compile-task → stubs-task compilerOptions wiring.
+        val customCompileTask = plugin.registerKotlinJvmCompileTask(
+            "customCompileKotlin",
+            plugin.createCompilerJvmOptions(),
+        )
+        customCompileTask.configure {
+            it.compilerOptions.freeCompilerArgs.addAll(
+                "-P", "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=/tmp/compose_reports",
+                "-P", "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=/tmp/compose_metrics",
+            )
+        }
+
+        val kaptGenerateStubsTask = plugin.registerKaptGenerateStubsTask(
+            GENERATE_STUBS,
+            customCompileTask,
+            plugin.kaptExtension,
+        ).get()
+
+        val freeArgs = kaptGenerateStubsTask.compilerOptions.freeCompilerArgs.get()
+        assertEquals(2, freeArgs.count { it == "-P" })
+        assertEquals(1, freeArgs.count { it == "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=/tmp/compose_reports" })
+        assertEquals(1, freeArgs.count { it == "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=/tmp/compose_metrics" })
     }
 
     private fun configureKapt(configAction: Kapt.() -> Unit): KaptWithoutKotlincTask {

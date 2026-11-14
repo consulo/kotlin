@@ -1,24 +1,33 @@
 /*
- * Copyright 2010-2022 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.backend.konan.llvm
 
 
-import kotlinx.cinterop.*
+import kotlinx.cinterop.cValuesOf
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.toCValues
 import llvm.*
+import org.jetbrains.kotlin.backend.common.lower.enumEntriesMap
 import org.jetbrains.kotlin.backend.konan.NativeGenerationState
+import org.jetbrains.kotlin.backend.konan.NativeSecondStageCompilationConfig
 import org.jetbrains.kotlin.backend.konan.RuntimeNames
 import org.jetbrains.kotlin.backend.konan.binaryTypeIsReference
 import org.jetbrains.kotlin.backend.konan.cgen.CBridgeOrigin
 import org.jetbrains.kotlin.backend.konan.ir.ClassGlobalHierarchyInfo
+import org.jetbrains.kotlin.backend.konan.ir.OverriddenFunctionInfo
 import org.jetbrains.kotlin.backend.konan.ir.isAbstract
+import org.jetbrains.kotlin.backend.konan.isCache
 import org.jetbrains.kotlin.backend.konan.llvm.ThreadState.Native
 import org.jetbrains.kotlin.backend.konan.llvm.ThreadState.Runnable
 import org.jetbrains.kotlin.backend.konan.llvm.objc.ObjCDataGenerator
+import org.jetbrains.kotlin.backend.konan.lower.bridgeTarget
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
-import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
+import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.objcinterop.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.konan.ForeignExceptionMode
@@ -27,18 +36,22 @@ import org.jetbrains.kotlin.utils.addToStdlib.runIf
 
 
 internal class CodeGenerator(override val generationState: NativeGenerationState) : ContextUtils {
-    fun addFunction(proto: LlvmFunctionProto): LlvmCallable =
+
+    /**
+     * Creates an LLVM function declaration within the current context and the associated LLVM module.
+     */
+    fun addFunctionDefinition(proto: LlvmFunctionProto): LlvmFunction.Definition =
             proto.createLlvmFunction(context, llvm.module)
 
-    fun llvmFunction(function: IrSimpleFunction): LlvmCallable =
-            llvmFunctionOrNull(function)
-                    ?: error("no function ${function.name} in ${function.file.packageFqName}")
+    fun getLlvmFunctionFrom(function: IrSimpleFunction): LlvmFunction =
+            getLlvmFunctionOrNullFrom(function) ?: error("No function ${function.name} in ${function.file.packageFqName}")
 
-    fun llvmFunctionOrNull(function: IrSimpleFunction): LlvmCallable? =
+    fun getLlvmFunctionOrNullFrom(function: IrSimpleFunction): LlvmFunction? =
             function.llvmFunctionOrNull
 
     val llvmDeclarations = generationState.llvmDeclarations
     val intPtrType = LLVMIntPtrTypeInContext(llvm.llvmContext, llvmTargetData)!!
+
     internal val immOneIntPtrType = LLVMConstInt(intPtrType, 1, 1)!!
     internal val immThreeIntPtrType = LLVMConstInt(intPtrType, 3, 1)!!
     // Keep in sync with OBJECT_TAG_MASK in C++.
@@ -96,13 +109,6 @@ internal enum class ThreadState {
     Native, Runnable
 }
 
-val LLVMValueRef.name:String?
-    get() = LLVMGetValueName(this)?.toKString()
-
-val LLVMValueRef.isConst:Boolean
-    get() = (LLVMIsConstant(this) == 1)
-
-
 internal inline fun generateFunction(
         codegen: CodeGenerator,
         function: IrSimpleFunction,
@@ -110,7 +116,7 @@ internal inline fun generateFunction(
         endLocation: LocationInfo?,
         code: FunctionGenerationContext.() -> Unit
 ) {
-    val llvmFunction = codegen.llvmFunction(function)
+    val llvmFunction = codegen.getLlvmFunctionFrom(function) as LlvmFunction.Definition
 
     val isCToKotlinBridge = function.origin == CBridgeOrigin.C_TO_KOTLIN_BRIDGE
             // TODO: Alternative approach: lowering that changes origin of such functions to C_TO_KOTLIN_BRIDGE?
@@ -151,8 +157,8 @@ internal inline fun generateFunction(
         switchToRunnable: Boolean = false,
         needSafePoint: Boolean = true,
         code: FunctionGenerationContext.() -> Unit
-) : LlvmCallable {
-    val function = codegen.addFunction(functionProto)
+): LlvmFunction.Definition {
+    val function = codegen.addFunctionDefinition(functionProto)
     val functionGenerationContext = DefaultFunctionGenerationContext(
             function,
             codegen,
@@ -174,8 +180,8 @@ internal inline fun generateFunctionNoRuntime(
         codegen: CodeGenerator,
         functionProto: LlvmFunctionProto,
         code: FunctionGenerationContext.() -> Unit,
-) : LlvmCallable {
-    val function = codegen.addFunction(functionProto)
+): LlvmCallable {
+    val function = codegen.addFunctionDefinition(functionProto)
     val functionGenerationContext = DefaultFunctionGenerationContext(function, codegen, null, null,
             switchToRunnable = false, needSafePoint = true)
     try {
@@ -267,7 +273,7 @@ internal object VirtualTablesLookup {
         else
             loadTypeInfo(receiver)
 
-        assert(typeInfoPtr.type == llvm.pointerType) { llvmtype2string(typeInfoPtr.type) }
+        assert(typeInfoPtr.type == llvm.pointerType) { typeInfoPtr.type.toTypeString() }
 
         val owner = irFunction.parentAsClass
         val canCallViaVtable = !owner.isInterface
@@ -291,16 +297,43 @@ internal object VirtualTablesLookup {
                 load(llvm.pointerType, slot)
             }
         }
-        return LlvmCallable(llvmMethod, llvmFunctionSignature)
+
+        return LlvmFunctionPointer(llvmMethod, llvmFunctionSignature)
     }
 }
 
-/*
- * Special trampoline function to call actual virtual implementation. This helps with reducing
- * dependence between klibs/files (if vtable/itable of some class has changed, the call sites
- * would be the same and wouldn't need recompiling).
+/**
+ * True iff a virtual trampoline takes over this function's public symbol name (so its body is emitted at `<name>-impl`).
+ * Overridable methods are dispatched through such a trampoline; bridges are excluded because they are reached only as
+ * vtable/itable entries, and never by their own public symbol (unless the devirtualization took place, and in that case
+ * it's called directly, not virtually), so they keep their plain name and need no trampoline.
  */
-internal fun CodeGenerator.getVirtualFunctionTrampoline(irFunction: IrSimpleFunction): LlvmCallable {
+internal val IrSimpleFunction.needsVirtualTrampoline: Boolean
+    get() = isOverridable && bridgeTarget == null
+
+context(config: NativeSecondStageCompilationConfig)
+internal val IrSimpleFunction.needsCacheEntryPointForFinalFakeOverride: Boolean
+    get() = config.produce.isCache && isFakeOverride && !isOverridable && isExported
+            /*
+            On the one hand, a cache entry point for a fake override of an Objective-C method is not needed:
+            Kotlin subclasses of Objective-C classes must be final (KT-23529); so, this method couldn't have been
+            overridable in the previous version, and the caller couldn't have been used a virtual trampoline.
+
+            On the other hand, generation of such a cache entry point is tricky as it needs to call an Objective-C method
+            but the generation bypasses the interop lowering that normally handles such calls: it happens much later
+            and in LLVM IR instead of Kotlin IR. Wrong generation of them caused KT-90589.
+
+            So here we mark such methods as not needing a cache entry point:
+            */
+            && !target.isExternalObjCClassMethod()
+
+/*
+ * Special trampoline function that performs the vtable/itable lookup and dispatches to the actual virtual
+ * implementation (which lives at `<name>-impl`). The trampoline occupies the public symbol name,
+ * so virtual call sites emit a plain `call @<name>` and stay decoupled from concrete vtable layouts:
+ * a change to a class's vtable/itable does not invalidate cached callers in other files.
+ */
+internal fun CodeGenerator.getVirtualFunctionTrampoline(irFunction: IrSimpleFunction): LlvmFunction {
     /*
      * Resolve owner of the call with special handling of Any methods:
      * if toString/eq/hc is invoked on an interface instance, we resolve
@@ -314,12 +347,10 @@ internal fun CodeGenerator.getVirtualFunctionTrampoline(irFunction: IrSimpleFunc
 
 private fun CodeGenerator.getVirtualFunctionTrampolineImpl(irFunction: IrSimpleFunction) =
         generationState.virtualFunctionTrampolines.getOrPut(irFunction) {
-            val targetName = if (irFunction.isExported())
-                irFunction.computeSymbolName()
-            else
-                irFunction.computePrivateSymbolName(irFunction.parentAsClass.fqNameForIrSerialization.asString())
+            // Get the public name for callees, not the actual implementation (which has -impl suffix).
+            val targetName = irFunction.computeSymbolName(this.context, forImplementation = false)
             val proto = LlvmFunctionProto(
-                    name = "$targetName-trampoline",
+                    name = targetName,
                     signature = LlvmFunctionSignature(irFunction, this),
                     // A link-time dependency only: recompilation is not needed if only the trampoline's impl has changed.
                     origin = FunctionOrigin.OwnedBy(irFunction.parentAsClass, weak = true),
@@ -345,13 +376,21 @@ private fun CodeGenerator.getVirtualFunctionTrampolineImpl(irFunction: IrSimpleF
                     }
                 }
                 @Suppress("UNCHECKED_CAST") val location = diFunctionScope?.let {
-                    val (line, column) = fileEntry.lineAndColumn(offset!!)
+                    val [line, column] = fileEntry.lineAndColumn(offset!!)
                     LocationInfo(it as DIScopeOpaqueRef, line, column)
                 }
                 generateFunction(this, proto, needSafePoint = false, startLocation = location, endLocation = location) {
                     val args = proto.signature.parameterTypes.indices.map { param(it) }
-                    val receiver = param(0)
-                    val callee = with(VirtualTablesLookup) { getVirtualImpl(receiver, irFunction) }
+                    val callee = if (irFunction.isOverridable) {
+                        val receiver = param(0)
+                        with(VirtualTablesLookup) { getVirtualImpl(receiver, irFunction) }
+                    } else {
+                        // KT-87777: reference the inherited implementation directly, without relying on virtual lookups.
+                        val implementation = OverriddenFunctionInfo(irFunction, irFunction, context.config.bridgesPolicy)
+                                .getImplementation(context)
+                                ?: error("No implementation for the final fake override ${irFunction.render()}")
+                        codegen.getLlvmFunctionFrom(implementation)
+                    }
                     val result = call(callee, args, exceptionHandler = ExceptionHandler.Caller, verbatim = true)
                     ret(result)
                 }.also { llvmFunction ->
@@ -404,11 +443,11 @@ internal class StackLocalsManagerImpl(
             alloca(llvm.pointerType, true)
 
     override fun alloc(irClass: IrClass): LLVMValueRef = with(functionGenerationContext) {
-        val classInfo = llvmDeclarations.forClass(irClass)
-        val type = classInfo.bodyType.llvmBodyType
+        val bodyType = irClass.objectBodyType
+        val type = bodyType.llvmBodyType
         val stackLocal = appendingTo(bbInitStackLocals) {
             val stackSlot = LLVMBuildAlloca(builder, type, "")!!
-            LLVMSetAlignment(stackSlot, classInfo.alignment)
+            LLVMSetAlignment(stackSlot, bodyType.alignment)
 
             memset(stackSlot, 0, LLVMSizeOfTypeInBits(codegen.llvmTargetData, type).toInt() / 8)
 
@@ -505,17 +544,14 @@ internal class StackLocalsManagerImpl(
                 )
             }
         } else {
-            val info = llvmDeclarations.forClass(stackLocal.irClass)
-            val type = info.bodyType.llvmBodyType
-            for ((fieldSymbol, fieldIndex) in info.fieldIndices.entries.sortedBy{ e -> e.value }) {
-
-                if (fieldSymbol.owner.type.binaryTypeIsReference()) {
-                    val fieldPtr = structGep(type, stackLocal.stackAllocationPtr, fieldIndex, "")
-                    if (refsOnly)
-                        storeHeapRef(llvm.kNull, fieldPtr)
-                    else
-                        call(llvm.zeroHeapRefFunction, listOf(fieldPtr))
-                }
+            val bodyType = stackLocal.irClass.objectBodyType
+            val type = bodyType.llvmBodyType
+            for (fieldIndex in bodyType.sortedIndicesOfObjectFields) {
+                val fieldPtr = structGep(type, stackLocal.stackAllocationPtr, fieldIndex, "")
+                if (refsOnly)
+                    storeHeapRef(llvm.kNull, fieldPtr)
+                else
+                    call(llvm.zeroHeapRefFunction, listOf(fieldPtr))
             }
 
             if (!refsOnly) {
@@ -542,12 +578,12 @@ internal class StackLocalsManagerImpl(
 }
 
 internal abstract class FunctionGenerationContextBuilder<T : FunctionGenerationContext>(
-        val function: LlvmCallable,
+        val function: LlvmFunction.Definition,
         val codegen: CodeGenerator
 ) {
     constructor(functionProto: LlvmFunctionProto, codegen: CodeGenerator) :
             this(
-                    codegen.addFunction(functionProto),
+                    codegen.addFunctionDefinition(functionProto),
                     codegen
             )
 
@@ -562,7 +598,7 @@ internal abstract class FunctionGenerationContextBuilder<T : FunctionGenerationC
 }
 
 internal abstract class FunctionGenerationContext(
-        val function: LlvmCallable,
+        val function: LlvmFunction.Definition,
         val codegen: CodeGenerator,
         private val startLocation: LocationInfo?,
         protected val endLocation: LocationInfo?,
@@ -783,11 +819,13 @@ internal abstract class FunctionGenerationContext(
                             llvm.int32(size),
                             llvm.int1(isVolatile)))
 
-    fun call(llvmCallable: LlvmCallable, args: List<LLVMValueRef>,
-             resultLifetime: Lifetime = Lifetime.IRRELEVANT,
-             exceptionHandler: ExceptionHandler = ExceptionHandler.None,
-             verbatim: Boolean = false,
-             resultSlot: LLVMValueRef? = null,
+    fun call(
+            llvmCallable: LlvmCallable,
+            args: List<LLVMValueRef>,
+            resultLifetime: Lifetime = Lifetime.IRRELEVANT,
+            exceptionHandler: ExceptionHandler = ExceptionHandler.None,
+            verbatim: Boolean = false,
+            resultSlot: LLVMValueRef? = null,
     ): LLVMValueRef {
         val callArgs = if (verbatim || !llvmCallable.returnsObjectType) {
             args
@@ -818,41 +856,42 @@ internal abstract class FunctionGenerationContext(
         return callRaw(llvmCallable, callArgs, exceptionHandler)
     }
 
-    private fun callRaw(llvmCallable: LlvmCallable, args: List<LLVMValueRef>,
-                        exceptionHandler: ExceptionHandler): LLVMValueRef {
-        if (llvmCallable.isNoUnwind) {
+    private fun callRaw(
+            llvmCallable: LlvmCallable,
+            args: List<LLVMValueRef>,
+            exceptionHandler: ExceptionHandler
+    ): LLVMValueRef {
+        if (llvmCallable is LlvmFunction && llvmCallable.isNoUnwind) {
             return llvmCallable.buildCall(builder, args)
-        } else {
-            val unwind = when (exceptionHandler) {
-                ExceptionHandler.Caller -> {
-                    if (cleanupLandingpad == null) {
-                        return llvmCallable.buildCall(builder, args)
-                    } else {
-                        cleanupLangdingpadIsUsed = true
-                        cleanupLandingpad
-                    }
-                }
-                is ExceptionHandler.Local -> exceptionHandler.unwind
+        }
 
-                ExceptionHandler.None -> {
-                    // When calling a function that is not marked as nounwind (can throw an exception),
-                    // it is required to specify an unwind label to handle exceptions properly.
-                    // Runtime C++ function can be marked as non-throwing using `RUNTIME_NOTHROW`.
-                    val functionName = llvmCallable.name
-                    val message =
-                            "no exception handler specified when calling function $functionName without nounwind attr"
-                    throw IllegalArgumentException(message)
+        val unwind = when (exceptionHandler) {
+            ExceptionHandler.Caller -> {
+                if (cleanupLandingpad == null) {
+                    return llvmCallable.buildCall(builder, args)
+                } else {
+                    cleanupLangdingpadIsUsed = true
+                    cleanupLandingpad
                 }
             }
+            is ExceptionHandler.Local -> exceptionHandler.unwind
 
-            val position = position()
-            val endLocation = position?.end
-            val success = basicBlock("call_success", endLocation)
-            val result = llvmCallable.buildInvoke(builder, args, success, unwind)
-            positionAtEnd(success)
-
-            return result
+            ExceptionHandler.None -> {
+                // When calling a function that is not marked as nounwind (can throw an exception),
+                // it is required to specify an unwind label to handle exceptions properly.
+                // Runtime C++ function can be marked as non-throwing using `RUNTIME_NOTHROW`.
+                val functionName = llvmCallable.name
+                throw IllegalArgumentException("No exception handler specified when calling function $functionName without nounwind attr")
+            }
         }
+
+        val position = position()
+        val endLocation = position?.end
+        val success = basicBlock("call_success", endLocation)
+        val result = llvmCallable.buildInvoke(builder, args, success, unwind)
+        positionAtEnd(success)
+
+        return result
     }
 
     //-------------------------------------------------------------------------//
@@ -1252,7 +1291,7 @@ internal abstract class FunctionGenerationContext(
      */
     fun getEnumEntry(enumEntry: IrEnumEntry, exceptionHandler: ExceptionHandler): LLVMValueRef {
         val enumClass = enumEntry.parentAsClass
-        val getterId = context.enumsSupport.enumEntriesMap(enumClass)[enumEntry.name]!!.getterId
+        val getterId = enumEntriesMap(enumClass)[enumEntry.name]!!.getterId
         return call(
                 context.enumsSupport.getValueGetter(enumClass).llvmFunction,
                 listOf(llvm.int32(getterId)),
@@ -1324,7 +1363,7 @@ internal abstract class FunctionGenerationContext(
 
     internal fun prologue() {
         if (function.returnsObjectType) {
-            returnSlot = function.param( function.numParams - 1)
+            returnSlot = function.param(function.numParams - 1)
         }
 
         positionAtEnd(localsInitBb)
@@ -1350,7 +1389,7 @@ internal abstract class FunctionGenerationContext(
             }
             addPhiIncoming(slotsPhi!!, prologueBb to slots)
             memScoped {
-                slotToVariableLocation.forEach { (slot, variable) ->
+                slotToVariableLocation.forEach { [slot, variable] ->
                     val expr = longArrayOf(DwarfOp.DW_OP_plus_uconst.value,
                             runtime.pointerSize * slot.toLong()).toCValues()
                     DIInsertDeclaration(
@@ -1551,7 +1590,7 @@ internal abstract class FunctionGenerationContext(
 
     fun positionBefore(instruction: LLVMValueRef) = currentPositionHolder.positionBefore(instruction)
 
-    inline private fun <R> preservingPosition(code: () -> R): R {
+    private inline fun <R> preservingPosition(code: () -> R): R {
         val oldPositionHolder = currentPositionHolder
         val newPositionHolder = PositionHolder()
         currentPositionHolder = newPositionHolder
@@ -1588,7 +1627,7 @@ internal abstract class FunctionGenerationContext(
 }
 
 internal class DefaultFunctionGenerationContext(
-        function: LlvmCallable,
+        function: LlvmFunction.Definition,
         codegen: CodeGenerator,
         startLocation: LocationInfo?,
         endLocation: LocationInfo?,

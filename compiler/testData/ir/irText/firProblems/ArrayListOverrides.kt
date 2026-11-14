@@ -1,5 +1,5 @@
 // FULL_JDK
-// TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: JVM
 
 class A1 : java.util.ArrayList<String>()
 

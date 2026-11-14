@@ -7,15 +7,13 @@ package org.jetbrains.kotlin.backend.jvm.intrinsics
 
 import com.intellij.psi.tree.IElementType
 import org.jetbrains.kotlin.backend.jvm.codegen.*
-import org.jetbrains.kotlin.backend.jvm.ir.isSmartcastFromHigherThanNullable
+import org.jetbrains.kotlin.backend.jvm.ir.isInlineClass
 import org.jetbrains.kotlin.backend.jvm.mapping.mapTypeAsDeclaration
 import org.jetbrains.kotlin.builtins.PrimitiveType
 import org.jetbrains.kotlin.codegen.AsmUtil
 import org.jetbrains.kotlin.codegen.AsmUtil.isPrimitive
 import org.jetbrains.kotlin.codegen.NumberComparisonUtils
 import org.jetbrains.kotlin.codegen.intrinsics.IntrinsicMethods
-import org.jetbrains.kotlin.config.LanguageFeature
-import org.jetbrains.kotlin.ir.declarations.isSingleFieldValueClass
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
@@ -33,7 +31,7 @@ import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter
 
 class ExplicitEquals : IntrinsicMethod() {
     override fun invoke(expression: IrFunctionAccessExpression, codegen: ExpressionCodegen, data: BlockInfo): PromisedValue {
-        val (a, b) = expression.receiverAndArgs()
+        val [a, b] = expression.receiverAndArgs()
 
         // TODO use specialized boxed type - this might require types like 'java.lang.Integer' in IR
         a.accept(codegen, data).materializeAt(AsmTypes.OBJECT_TYPE, codegen.context.irBuiltIns.anyNType)
@@ -72,11 +70,11 @@ class Equals(val operator: IElementType) : IntrinsicMethod() {
     }
 
     override fun invoke(expression: IrFunctionAccessExpression, codegen: ExpressionCodegen, data: BlockInfo): PromisedValue {
-        val (a, b) = expression.receiverAndArgs()
+        val [a, b] = expression.receiverAndArgs()
         if (a.isNullConst() || b.isNullConst()) {
             val irValue = if (a.isNullConst()) b else a
             val value = irValue.accept(codegen, data)
-            return if (!isPrimitive(value.type) && (irValue.type.classOrNull?.owner?.isSingleFieldValueClass != true || irValue.type.isNullable()))
+            return if (!isPrimitive(value.type) && (irValue.type.classOrNull?.owner?.isInlineClass != true || irValue.type.isNullable()))
                 BooleanNullCheck(expression, value)
             else {
                 value.discard()
@@ -213,14 +211,7 @@ class Ieee754Equals(val operandType: Type) : CallBasedIntrinsicMethod() {
         val arg0isNullable = arg0.type.isNullable()
         val arg1isNullable = arg1.type.isNullable()
 
-        val useNonIEEE754Comparison =
-            !classCodegen.context.config.languageVersionSettings.supportsFeature(LanguageFeature.ProperIeee754Comparisons)
-                    && (arg0.isSmartcastFromHigherThanNullable(classCodegen.context) || arg1.isSmartcastFromHigherThanNullable(classCodegen.context))
-
         return when {
-            useNonIEEE754Comparison ->
-                Ieee754AreEqual(AsmTypes.OBJECT_TYPE, AsmTypes.OBJECT_TYPE)
-
             !arg0isNullable && !arg1isNullable ->
                 Ieee754Primitives()
 

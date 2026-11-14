@@ -7,18 +7,24 @@ package org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.tasks
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.FileCollection
+import org.gradle.api.file.FileTree
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
-import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.*
 import org.gradle.work.DisableCachingByDefault
+import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.*
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.FetchSyntheticImportProjectPackages
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.SwiftImportFingerprintedCoordinationService
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.sharedCheckoutFor
 import org.jetbrains.kotlin.gradle.utils.getFile
 import org.jetbrains.kotlin.gradle.utils.property
 import org.jetbrains.kotlin.gradle.utils.relativeOrAbsolute
 import org.jetbrains.kotlin.gradle.utils.runCommand
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.SwiftExportConstants
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import javax.inject.Inject
@@ -26,10 +32,10 @@ import javax.inject.Inject
 @DisableCachingByDefault(because = "Swift Export is experimental, so no caching for now")
 internal abstract class BuildSPMSwiftExportPackage @Inject constructor(
     providerFactory: ProviderFactory,
-    objectFactory: ObjectFactory,
+    private val objectFactory: ObjectFactory,
 ) : DefaultTask() {
     init {
-        onlyIf { HostManager.hostIsMac }
+        onlyIf(SwiftExportConstants.MACOS_HOST_REQUIRED) { HostManager.hostIsMac }
     }
 
     @get:Input
@@ -49,10 +55,11 @@ internal abstract class BuildSPMSwiftExportPackage @Inject constructor(
         providerFactory.environmentVariable("DEPLOYMENT_TARGET_SETTING_NAME")
     )
 
-    @get:Internal
-    val deploymentTarget: Provider<String> = deploymentTargetSettingName.flatMap {
-        providerFactory.environmentVariable(it)
-    }
+    // An input of its own: the objects xcodebuild produces depend on the value, not only on the setting name
+    @get:Input
+    val deploymentTarget: Property<String> = objectFactory.property<String>().convention(
+        deploymentTargetSettingName.flatMap { providerFactory.environmentVariable(it) }
+    )
 
     @get:Optional
     @get:Input
@@ -60,11 +67,52 @@ internal abstract class BuildSPMSwiftExportPackage @Inject constructor(
         providerFactory.environmentVariable("TARGET_DEVICE_IDENTIFIER")
     )
 
-    @get:InputDirectory
-    @get:PathSensitive(PathSensitivity.RELATIVE)
+    @get:Internal
     abstract val packageRoot: DirectoryProperty
 
-    @get:OutputDirectory
+    @get:InputFiles
+    @get:NormalizeLineEndings
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    protected val packageRootTrackedFiles: FileTree
+        get() = packageRoot.packageFilesWithoutSwiftPMState()
+
+    @get:Internal
+    abstract val swiftPMImportPackageRoot: DirectoryProperty
+
+    @get:Input
+    val swiftPMImportHasDependencies: Property<Boolean> = objectFactory.property<Boolean>().convention(false)
+
+    @get:InputFile
+    @get:NormalizeLineEndings
+    @get:Optional
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val swiftPMImportFingerprint: RegularFileProperty
+
+    @get:Internal
+    abstract val swiftPMImportCoordinationService: Property<SwiftImportFingerprintedCoordinationService>
+
+    @get:InputFiles
+    @get:NormalizeLineEndings
+    @get:Optional
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    protected val swiftPMImportPackageTrackedFiles: FileCollection
+        get() = if (swiftPMImportPackageRoot.isPresent) {
+            swiftPMImportPackageRoot.packageFilesWithoutSwiftPMState()
+        } else {
+            objectFactory.fileCollection()
+        }
+
+    private fun DirectoryProperty.packageFilesWithoutSwiftPMState(): FileTree = asFileTree.matching {
+        it.exclude("Package.resolved")
+        it.exclude(".swiftpm")
+        it.exclude(".build")
+    }
+
+    @get:Internal
+    abstract val swiftPMImportCheckout: DirectoryProperty
+
+    // xcodebuild scratch space: consumers only read packageBuildDir, so Gradle shouldn't snapshot it.
+    @get:LocalState
     abstract val packageDerivedData: DirectoryProperty
 
     @get:OutputDirectory
@@ -128,12 +176,21 @@ internal abstract class BuildSPMSwiftExportPackage @Inject constructor(
 
         val derivedData = packageDerivedData.getFile()
 
+        val effectiveCheckout = if (!swiftPMImportHasDependencies.get()) null else {
+            swiftPMImportFingerprint.orNull?.asFile
+                ?.let { swiftPMImportCoordinationService.get().sharedCheckoutFor(it) }
+                ?: swiftPMImportCheckout.orNull?.asFile
+        }
+        val checkoutArguments = effectiveCheckout?.let {
+            listOf(FetchSyntheticImportProjectPackages.XCODEBUILD_SWIFTPM_CHECKOUT_PATH_PARAMETER, it.absolutePath)
+        } ?: emptyList()
+
         val command = listOf(
             "xcodebuild",
             "-derivedDataPath", derivedData.relativeOrAbsolute(packageRootPath),
             "-scheme", swiftModuleName,
             "-destination", destination(),
-        ) + (intermediatesDestination + buildArguments).map { (k, v) -> "$k=$v" }
+        ) + checkoutArguments + (intermediatesDestination + buildArguments).map { (k, v) -> "$k=$v" }
 
         // FIXME: This will not work with dynamic libraries
         runCommand(
@@ -141,8 +198,9 @@ internal abstract class BuildSPMSwiftExportPackage @Inject constructor(
             logger = logger,
             processConfiguration = {
                 environment().apply {
-                    keys.filter {
-                        AppleSdk.xcodeEnvironmentDebugDylibVars.contains(it)
+                    val exactRemovals = AppleSdk.xcodeEnvironmentDebugDylibVars + "EMBED_PACKAGE_RESOURCE_BUNDLE_NAMES"
+                    keys.filter { key ->
+                        key in exactRemovals || key.startsWith("OTHER_") || key.startsWith("ASSETCATALOG_")
                     }.forEach {
                         remove(it)
                     }
@@ -154,15 +212,39 @@ internal abstract class BuildSPMSwiftExportPackage @Inject constructor(
     }
 
     private fun packObjectFilesIntoLibrary() {
-        val objectFilePaths = objectFilesPath.asFileTree.filter {
+        val objectFiles = objectFilesPath.asFileTree.filter {
             it.extension == "o"
         }.files.toList()
 
-        if (objectFilePaths.isEmpty()) {
+        if (objectFiles.isEmpty()) {
             error("Synthetic package build didn't produce any object files")
         }
 
+        // When the package depends on the SwiftPM-import synthetic package, xcodebuild also drops the imported
+        // packages' object files into the redirected TARGET_BUILD_DIR. Those must not be packed: the consuming app
+        // links the imported packages itself (via the integrated linkage package), so packing them here would
+        // duplicate their symbols in the final binary.
+        val ownTargetNames = ownTargetNames()
+        val objectFilePaths = if (ownTargetNames == null) objectFiles else {
+            objectFiles.filter { it.nameWithoutExtension in ownTargetNames }
+        }
+
+        if (objectFilePaths.isEmpty()) {
+            error(
+                "None of the produced object files matched the generated package's targets $ownTargetNames. " +
+                        "Produced object files: ${objectFiles.map { it.name }}"
+            )
+        }
+
         libraryTools.mergeLibraries(objectFilePaths, packageLibrary.getFile())
+    }
+
+    private fun ownTargetNames(): Set<String>? {
+        if (!swiftPMImportHasDependencies.get() || !swiftPMImportPackageRoot.isPresent) return null
+        val sources = packageRootPath.resolve(GenerateSPMPackageFromSwiftExport.SOURCES_DIRECTORY)
+        val targetDirectories = sources.listFiles { file -> file.isDirectory }
+            ?: error("Expected the generated package's target sources at $sources")
+        return targetDirectories.map { it.name }.toSet()
     }
 
     private fun destination(): String {

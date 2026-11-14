@@ -5,10 +5,12 @@
 
 package org.jetbrains.kotlin.backend.konan
 
+import org.jetbrains.kotlin.backend.common.LoadedNativeKlibs
 import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.CompilerConfigurationKey
 import org.jetbrains.kotlin.config.metadataKlib
+import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.konan.config.NativeConfigurationKeys
-import org.jetbrains.kotlin.konan.config.konanFriendLibraries
 import org.jetbrains.kotlin.konan.config.konanIncludedBinaries
 import org.jetbrains.kotlin.konan.config.konanNativeLibraries
 import org.jetbrains.kotlin.konan.config.konanOutputPath
@@ -16,12 +18,13 @@ import org.jetbrains.kotlin.konan.config.konanProducedArtifactKind
 import org.jetbrains.kotlin.konan.config.konanRefinesModules
 import org.jetbrains.kotlin.konan.config.konanShortModuleName
 import org.jetbrains.kotlin.konan.config.konanWriteDependenciesOfProducedKlibTo
-import org.jetbrains.kotlin.konan.file.File
-import org.jetbrains.kotlin.konan.properties.Properties
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.visibleName
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
+import java.nio.file.Path
+import java.util.Properties
+import kotlin.io.path.Path
 
 /**
  * This interface exists not because it is a good abstraction. Rather, it emerged
@@ -34,17 +37,16 @@ interface NativeCompilationConfig {
 
     val moduleId: String
 
+    val loadedKlibs: LoadedNativeKlibs
+
     val produce: CompilerOutputKind
         get() = configuration.konanProducedArtifactKind!!
 
     val metadataKlib: Boolean
         get() = configuration.metadataKlib
 
-    val friendModuleFiles: Set<File>
-        get() = configuration.konanFriendLibraries.map { File(it) }.toSet()
-
-    val refinesModuleFiles: Set<File>
-        get() = configuration.konanRefinesModules.map { File(it) }.toSet()
+    val refinesModuleFiles: Set<Path>
+        get() = configuration.konanRefinesModules.map { Path(it) }.toSet()
 
     val nativeLibraries: List<String>
         get() = configuration.konanNativeLibraries
@@ -66,3 +68,15 @@ interface NativeCompilationConfig {
     val outputPath: String
         get() = configuration.konanOutputPath?.removeSuffixIfPresent(produce.suffix(target)) ?: produce.visibleName
 }
+
+/**
+ * Modules that are compiled from sources in the current compilation:
+ * the module being compiled plus the modules of the included (`-Xinclude`) libraries.
+ *
+ * Set by the frontend phase of the second compilation stage; absent during the first (src -> klib) stage.
+ */
+val SOURCES_MODULES = CompilerConfigurationKey.create<Set<ModuleDescriptor>>("SOURCES_MODULES")
+
+var CompilerConfiguration.sourcesModules: Set<ModuleDescriptor>?
+    get() = get(SOURCES_MODULES)
+    set(value) { put(SOURCES_MODULES, requireNotNull(value) { "nullable values are not allowed" }) }

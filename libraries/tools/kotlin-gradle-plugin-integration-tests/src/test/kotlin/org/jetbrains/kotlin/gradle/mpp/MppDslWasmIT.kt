@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.replaceText
 import org.jetbrains.kotlin.test.TestMetadata
 
-@MppGradlePluginTests
+@WasmJsGradlePluginTests
 class MppDslWasmIT : KGPBaseTest() {
 
     @GradleTest
@@ -49,6 +49,8 @@ class MppDslWasmIT : KGPBaseTest() {
         project(
             projectName = "new-mpp-wasm-test",
             gradleVersion = gradleVersion,
+            // KT-75899 Support Gradle Project Isolation in KGP JS & Wasm
+            buildOptions = defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
         ) {
             buildGradleKts.modify {
                 it.replace("<JsEngine>", engine)

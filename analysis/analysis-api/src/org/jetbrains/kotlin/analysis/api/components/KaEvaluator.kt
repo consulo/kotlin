@@ -33,25 +33,18 @@ public interface KaEvaluator : KaSessionComponent {
  * Attempts to evaluate the given [KtExpression] to a [compile-time constant value][KaConstantValue], or returns `null` if this is not
  * possible.
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
+@Deprecated(
+    message = "Use the 'org.jetbrains.kotlin.analysis.api.evaluation' endpoint instead.",
+    replaceWith = ReplaceWith(
+        "this.evaluate()",
+        "org.jetbrains.kotlin.analysis.api.evaluation.evaluate",
+    ),
+    level = DeprecationLevel.HIDDEN,
+)
 @KaContextParameterApi
 context(session: KaSession)
 public fun KtExpression.evaluate(): KaConstantValue? {
     return with(session) {
         evaluate()
-    }
-}
-
-/**
- * Attempts to evaluate the given [KtExpression] to an [annotation value][KaAnnotationValue] (a constant value which can be used as an
- * annotation argument), or returns `null` if this is not possible.
- */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
-@KaExperimentalApi
-@KaContextParameterApi
-context(session: KaSession)
-public fun KtExpression.evaluateAsAnnotationValue(): KaAnnotationValue? {
-    return with(session) {
-        evaluateAsAnnotationValue()
     }
 }

@@ -50,18 +50,102 @@ class KaptIT : KotlinMavenTestBase() {
     }
 
     @MavenTest
-    @DisplayName("KAPT processes Dagger annotations on JDK 8")
-    fun testDaggerAnnotationProcessingJdk8(mavenVersion: TestVersions.Maven) {
+    @DisplayName("KAPT generates Kotlin code from annotation processor using direct stub generation mode")
+    fun testKaptGenerateKotlinCodeUsingDirectStubMode(mavenVersion: TestVersions.Maven) {
+        val buildOptions = if (isWindowsHost) buildOptions.copy(useKotlinDaemon = false) else buildOptions
+        testProject("test-kapt-generateKotlinCode", mavenVersion, buildOptions) {
+            modifyPomXml("app/pom.xml") {
+                val kaptConfiguration = findKotlinPlugin().findExecution("kapt").getOrCreateChild("configuration")
+                kaptConfiguration.getOrCreateChild("stubGenerationScheme").textContent = "direct"
+            }
+
+            build(
+                "package", "-X",
+                expectedToFail = false
+            ) {
+                assertBuildLogContains(
+                    "[INFO] [kapt] Kapt is enabled.",
+                    // the scheme reached the compiler rather than being dropped silently, which would leave
+                    // this test running the default 'jtree' scheme and testing nothing
+                    "plugin:org.jetbrains.kotlin.kapt3:stubGenerationScheme=direct",
+                    "[INFO] [kapt] Annotation processors: example.ExampleAnnotationProcessor"
+                )
+                assertJarExistsAndNotEmpty("app/target/app-1.0-SNAPSHOT.jar")
+                assertFileExists(
+                    "app/target/generated-sources/kaptKotlin/compile/MyClass.kt"
+                ) { "KAPT-generated Kotlin extension file was not found" }
+            }
+        }
+    }
+
+    @MavenTest
+    @DisplayName("KAPT writes stubs in parallel in direct stub generation mode")
+    fun testKaptParallelStubWritesInDirectStubMode(mavenVersion: TestVersions.Maven) {
+        val buildOptions = if (isWindowsHost) buildOptions.copy(useKotlinDaemon = false) else buildOptions
+        testProject("test-kapt-generateKotlinCode", mavenVersion, buildOptions) {
+            modifyPomXml("app/pom.xml") {
+                val kaptConfiguration = findKotlinPlugin().findExecution("kapt").getOrCreateChild("configuration")
+                kaptConfiguration.getOrCreateChild("stubGenerationScheme").textContent = "direct"
+                kaptConfiguration.getOrCreateChild("stubWriterThreads").textContent = "4"
+            }
+
+            build(
+                "package", "-X",
+                expectedToFail = false
+            ) {
+                assertBuildLogContains(
+                    "[INFO] [kapt] Kapt is enabled.",
+                    // the option reached the compiler rather than being dropped silently; only the first line of
+                    // kapt's options dump carries the "[INFO] [kapt]" prefix, the rest are printed raw
+                    "Stub writer threads: 4",
+                    "[INFO] [kapt] Annotation processors: example.ExampleAnnotationProcessor"
+                )
+                assertJarExistsAndNotEmpty("app/target/app-1.0-SNAPSHOT.jar")
+                assertFileExists(
+                    "app/target/generated-sources/kaptKotlin/compile/MyClass.kt"
+                ) { "KAPT-generated Kotlin extension file was not found" }
+            }
+        }
+    }
+
+    @MavenTest
+    @DisplayName("KAPT generates stubs in header mode")
+    fun testKaptHeaderMode(mavenVersion: TestVersions.Maven) {
+        // TODO: Cleanup classloaders after the execution in Maven as well. KT-90859
+        val buildOptions = if (isWindowsHost) buildOptions.copy(useKotlinDaemon = false) else buildOptions
+        testProject("test-kapt-generateKotlinCode", mavenVersion, buildOptions) {
+            modifyPomXml("app/pom.xml") {
+                val kaptConfiguration = findKotlinPlugin().findExecution("kapt").getOrCreateChild("configuration")
+                kaptConfiguration.getOrCreateChild("headerMode").textContent = "true"
+            }
+
+            build(
+                "package", "-X",
+                expectedToFail = false
+            ) {
+                assertBuildLogContains(
+                    "[INFO] [kapt] Kapt is enabled.",
+                    "Skip function body resolution during stub generation: true",
+                    "[INFO] [kapt] Annotation processors: example.ExampleAnnotationProcessor"
+                )
+                assertJarExistsAndNotEmpty("app/target/app-1.0-SNAPSHOT.jar")
+                assertFileExists(
+                    "app/target/generated-sources/kaptKotlin/compile/MyClass.kt"
+                ) { "KAPT-generated Kotlin extension file was not found" }
+            }
+        }
+    }
+
+    @MavenTest
+    @DisplayName("KAPT processes Dagger annotations on JDK 17")
+    fun testDaggerAnnotationProcessing(mavenVersion: TestVersions.Maven) {
         testProject("java8/test-dagger-maven-example", mavenVersion) {
             build(
                 "package",
                 expectedToFail = false,
                 buildOptions = buildOptions.copy(
-                    javaVersion = TestVersions.Java.JDK_1_8,
-                    extraMavenProperties = mapOf("kotlinCompilerJdk" to context.getJavaHomeString(TestVersions.Java.JDK_1_8))
-                ).withoutKotlinDaemon(
-                    "https://youtrack.jetbrains.com/issue/KT-71048: Dagger 2.9 hits ConcurrentModificationException in HashMap.computeIfAbsent on JDK 9+. " +
-                            "The daemon may reuse a JDK 17+ process, so we force in-process compilation on JDK 8."
+                    javaVersion = TestVersions.Java.JDK_17,
+                    extraMavenProperties = mapOf("kotlinCompilerJdk" to context.getJavaHomeString(TestVersions.Java.JDK_17))
                 )
             ) {
                 assertJarExistsAndNotEmpty("target/dagger-maven-example-1.0-SNAPSHOT.jar")
@@ -132,11 +216,8 @@ class KaptIT : KotlinMavenTestBase() {
                 "package",
                 expectedToFail = false,
                 buildOptions = buildOptions.copy(
-                    javaVersion = TestVersions.Java.JDK_1_8,
-                    extraMavenProperties = mapOf("kotlinCompilerJdk" to context.getJavaHomeString(TestVersions.Java.JDK_1_8))
-                ).withoutKotlinDaemon(
-                    "https://youtrack.jetbrains.com/issue/KT-71048: Dagger 2.9 hits ConcurrentModificationException in HashMap.computeIfAbsent on JDK 9+. " +
-                            "The daemon may reuse a JDK 17+ process, so we force in-process compilation on JDK 8."
+                    javaVersion = TestVersions.Java.JDK_17,
+                    extraMavenProperties = mapOf("kotlinCompilerJdk" to context.getJavaHomeString(TestVersions.Java.JDK_17))
                 )
             ) {
                 assertJarExistsAndNotEmpty("target/dagger-maven-example-1.0-SNAPSHOT.jar")
@@ -177,11 +258,8 @@ class KaptIT : KotlinMavenTestBase() {
                 "package",
                 expectedToFail = false,
                 buildOptions = buildOptions.copy(
-                    javaVersion = TestVersions.Java.JDK_1_8,
-                    extraMavenProperties = mapOf("kotlinCompilerJdk" to context.getJavaHomeString(TestVersions.Java.JDK_1_8))
-                ).withoutKotlinDaemon(
-                    "https://youtrack.jetbrains.com/issue/KT-71048: Dagger 2.9 hits ConcurrentModificationException in HashMap.computeIfAbsent on JDK 9+. " +
-                            "The daemon may reuse a JDK 17+ process, so we force in-process compilation on JDK 8."
+                    javaVersion = TestVersions.Java.JDK_17,
+                    extraMavenProperties = mapOf("kotlinCompilerJdk" to context.getJavaHomeString(TestVersions.Java.JDK_17))
                 )
             ) {
                 assertJarExistsAndNotEmpty("target/test-enable-extensions-kapt-allopen-1.0-SNAPSHOT.jar")

@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.incremental.classpathDiff
 
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.jvm.JvmClassName
 import java.util.*
 
@@ -54,10 +55,14 @@ internal interface ImpactingClassesResolver {
  * A composite [Impact] containing all possible concrete impacts. Currently, the types of impact include:
  *   1. [SupertypesInheritorsImpact]
  *   2. [ConstantsInCompanionObjectsImpact]
+ *   3. [TypeAliasExpansionImpact]
+ *   4. [PackageInfoImpact]
+ *   5. [ModuleInfoImpact]
  */
 internal object AllImpacts : Impact {
 
-    private val allImpacts = listOf(SupertypesInheritorsImpact, ConstantsInCompanionObjectsImpact)
+    private val allImpacts =
+        listOf(SupertypesInheritorsImpact, ConstantsInCompanionObjectsImpact, TypeAliasExpansionImpact, PackageInfoImpact, ModuleInfoImpact)
 
     override fun getResolver(allClasses: Iterable<AccessibleClassSnapshot>): ImpactedSymbolsResolver {
         val resolvers = allImpacts.map { it.getResolver(allClasses) }
@@ -116,7 +121,7 @@ private object SupertypesInheritorsImpact : Impact {
 
     private fun getClassIdToSubclassesMap(allClasses: Iterable<AccessibleClassSnapshot>): Map<ClassId, Set<ClassId>> {
         val classIdToSubclasses = mutableMapOf<ClassId, MutableSet<ClassId>>()
-        getClassIdToSupertypesMap(allClasses).forEach { (classId, supertypes) ->
+        getClassIdToSupertypesMap(allClasses).forEach { [classId, supertypes] ->
             supertypes.forEach { supertype ->
                 classIdToSubclasses.getOrPut(supertype) { mutableSetOf() }.add(classId)
             }
@@ -138,6 +143,7 @@ private object SupertypesInheritorsImpact : Impact {
                     emptySet()
                 }
                 is JavaClassSnapshot -> clazz.supertypes.mapNotNullTo(mutableSetOf()) { classNameToClassId[it] }
+                is PackageInfoClassSnapshot, is ModuleInfoClassSnapshot -> emptySet()
             }
             if (supertypes.isNotEmpty()) {
                 clazz.classId to supertypes
@@ -221,6 +227,190 @@ private object ConstantsInCompanionObjectsImpact : Impact {
         }
     }
 }
+
+/**
+ * Describes the impact of a top-level type alias on the class it expands to.
+ *
+ * == Assuming we have "typealias A = B" ==
+ * A type alias A = B exposes B's members (e.g., A.foo when B.foo exists). Therefore:
+ *   - If B (or one of its members) has changed, A (and the corresponding member of A) is impacted, so a source file that references
+ *     A must be recompiled. This is the forward direction ([getResolver]).
+ *   - When a package facade is retained during classpath shrinking (e.g., because one of its type aliases is referenced), the classes its
+ *     aliases expand to must be retained too; otherwise a later change in the expanded class could not be detected as a change in the
+ *     alias. This is the reverse direction ([getReverseResolver]).
+ */
+private object TypeAliasExpansionImpact : Impact {
+
+    /**
+     * == Assuming we have "typealias A = B" ==
+     * Forward direction is keyed by the expanded class B: only real classes ever appear in the changed set, and the alias A has no
+     * class file of its own. So "B (or B.foo) changed" maps to the alias A (and A.foo) that mirror it, so consumers of A recompile.
+     */
+    override fun getResolver(allClasses: Iterable<AccessibleClassSnapshot>): ImpactedSymbolsResolver {
+        val expandedClassToAliases: Map<ClassId, Set<ClassId>> = getExpandedClassToAliasesMap(allClasses)
+
+        return object : ImpactedSymbolsResolver {
+            override fun getImpactedClasses(classId: ClassId): Set<ClassId> {
+                return expandedClassToAliases[classId] ?: emptySet()
+            }
+
+            override fun getImpactedClassMembers(classMembers: ClassMembers): Set<ClassMembers> =
+                expandedClassToAliases[classMembers.classId]
+                    ?.map { aliasClassId -> ClassMembers(aliasClassId, classMembers.memberNames) }
+                    ?.toSet() ?: emptySet()
+        }
+    }
+
+    private fun getExpandedClassToAliasesMap(allClasses: Iterable<AccessibleClassSnapshot>): Map<ClassId, Set<ClassId>> =
+        buildMap<ClassId, MutableSet<ClassId>> {
+            allClasses.filterIsInstance<PackageFacadeKotlinClassSnapshot>().flatMap { it.typeAliases.orEmpty() }.forEach { snapshot ->
+                getOrPut(snapshot.expandedClassId) { mutableSetOf() }.add(snapshot.aliasClassId)
+            }
+        }
+
+    /**
+     * == Assuming we have "typealias A = B" ==
+     * Reverse direction is keyed by the facade that declares the alias, NOT by the alias A (which has no class file and so never appears
+     * in the shrinker's referenced set). When A is referenced, the facade is what gets retained (via its packageMemberNames); retaining
+     * it must also retain B, otherwise a later change in B could not be detected. This is deliberately not the exact inverse of the
+     * forward map above.
+     */
+    override fun getReverseResolver(allClasses: Iterable<AccessibleClassSnapshot>): ImpactingClassesResolver {
+        val facadeToExpandedClasses: Map<ClassId, Set<ClassId>> = getFacadeToExpandedClassesMap(allClasses)
+
+        return object : ImpactingClassesResolver {
+            override fun getImpactingClasses(classId: ClassId): Set<ClassId> {
+                return facadeToExpandedClasses[classId] ?: emptySet()
+            }
+        }
+    }
+
+    private fun getFacadeToExpandedClassesMap(allClasses: Iterable<AccessibleClassSnapshot>): Map<ClassId, Set<ClassId>> =
+        buildMap<ClassId, MutableSet<ClassId>> {
+            allClasses.filterIsInstance<PackageFacadeKotlinClassSnapshot>().forEach { snapshot ->
+                getOrPut(snapshot.classId) { mutableSetOf() }.addAll(snapshot.typeAliases.orEmpty().map { it.expandedClassId })
+            }
+        }
+}
+
+/**
+ * Describes the impact of a package's `package-info.class` on the classes of that package: package-level annotations (e.g. nullability
+ * defaults) change how every class in the package is seen by consumers.
+ *   - Forward ([getResolver]): if `pkg.package-info` has changed, every class in `pkg` is impacted (and, transitively via
+ *     [SupertypesInheritorsImpact], their subclasses).
+ *   - Reverse ([getReverseResolver]): when a class in `pkg` is retained during classpath shrinking, `pkg.package-info` must be retained
+ *     too, otherwise a later change in it could not be detected.
+ */
+private object PackageInfoImpact : Impact {
+
+    override fun getResolver(allClasses: Iterable<AccessibleClassSnapshot>): ImpactedSymbolsResolver {
+        val packageInfoClassIds: Set<ClassId> = allClasses.filterIsInstance<PackageInfoClassSnapshot>().mapTo(mutableSetOf()) { it.classId }
+        val packageToClasses: Map<FqName, Set<ClassId>> = getPackageToRegularClassesMap(allClasses)
+
+        return object : ImpactedSymbolsResolver {
+            override fun getImpactedClasses(classId: ClassId): Set<ClassId> {
+                return if (classId in packageInfoClassIds) packageToClasses[classId.packageFqName] ?: emptySet() else emptySet()
+            }
+
+            override fun getImpactedClassMembers(classMembers: ClassMembers): Set<ClassMembers> = emptySet()
+        }
+    }
+
+    override fun getReverseResolver(allClasses: Iterable<AccessibleClassSnapshot>): ImpactingClassesResolver {
+        val packageToPackageInfoClassId: Map<FqName, ClassId> =
+            allClasses.filterIsInstance<PackageInfoClassSnapshot>().associate { it.classId.packageFqName to it.classId }
+
+        return object : ImpactingClassesResolver {
+            override fun getImpactingClasses(classId: ClassId): Set<ClassId> {
+                val packageInfoClassId = packageToPackageInfoClassId[classId.packageFqName]
+                return if (packageInfoClassId != null && packageInfoClassId != classId) setOf(packageInfoClassId) else emptySet()
+            }
+        }
+    }
+}
+
+/**
+ * Describes the impact of a module's `module-info.class` on the classes it governs. The compiler consults the descriptor of the module
+ * owning a referenced class (`exports`/`opens`, module annotations) and the readability graph built from `requires` directives, so:
+ *   - Forward ([getResolver]): if `m.module-info` has changed, every class in the packages of `m` is impacted (including package facades,
+ *     whose package members are then impacted, see [ClasspathChangesComputer]), and so is the descriptor of every module `m`
+ *     `requires transitive` (whose classes are then impacted transitively via [BreadthFirstSearch]), because the consumer may read those
+ *     modules only through `m`.
+ *   - Reverse ([getReverseResolver]): when a class of `m` is retained during classpath shrinking, `m.module-info` must be retained too;
+ *     when `m.module-info` is retained, the descriptors of all modules that `requires transitive m` must be retained as well.
+ */
+private object ModuleInfoImpact : Impact {
+
+    private class ModuleGraph(allClasses: Iterable<AccessibleClassSnapshot>) {
+        val packagesByModule: Map<ClassId, Set<FqName>>
+        val transitiveRequiresByModule: Map<ClassId, Set<ClassId>>
+        val transitivelyRequiredByModule: Map<ClassId, Set<ClassId>>
+
+        init {
+            val packagesByModule = mutableMapOf<ClassId, MutableSet<FqName>>()
+            val transitiveRequiresByModule = mutableMapOf<ClassId, MutableSet<ClassId>>()
+            allClasses.filterIsInstance<ModuleInfoClassSnapshot>().forEach { moduleInfo ->
+                packagesByModule.getOrPut(moduleInfo.classId) { mutableSetOf() }.addAll(moduleInfo.packages)
+                transitiveRequiresByModule.getOrPut(moduleInfo.classId) { mutableSetOf() }
+                    .addAll(moduleInfo.transitiveRequires.map { ModuleInfoClassSnapshot.moduleInfoClassId(it) })
+            }
+            // Only keep edges to modules that are present in `allClasses`; the others (e.g., JDK modules) can't be impacted here.
+            transitiveRequiresByModule.values.forEach { it.retainAll(packagesByModule.keys) }
+
+            this.packagesByModule = packagesByModule
+            this.transitiveRequiresByModule = transitiveRequiresByModule
+            this.transitivelyRequiredByModule = buildMap<ClassId, MutableSet<ClassId>> {
+                transitiveRequiresByModule.forEach { [module, required] ->
+                    required.forEach { getOrPut(it) { mutableSetOf() }.add(module) }
+                }
+            }
+        }
+
+        val moduleByPackage: Map<FqName, ClassId> = buildMap {
+            // If two modules declare the same package (not allowed by JPMS, but possible on a classpath), the first one wins, which
+            // matches how duplicate classes are resolved.
+            packagesByModule.forEach { [module, packages] -> packages.forEach { putIfAbsent(it, module) } }
+        }
+    }
+
+    override fun getResolver(allClasses: Iterable<AccessibleClassSnapshot>): ImpactedSymbolsResolver {
+        val moduleGraph = ModuleGraph(allClasses)
+        val classesByPackage: Map<FqName, Set<ClassId>> = getPackageToRegularClassesMap(allClasses)
+
+        return object : ImpactedSymbolsResolver {
+            override fun getImpactedClasses(classId: ClassId): Set<ClassId> {
+                val packages = moduleGraph.packagesByModule[classId] ?: return emptySet()
+                val impactedClasses = packages.flatMapTo(mutableSetOf()) { classesByPackage[it].orEmpty() }
+                impactedClasses.addAll(moduleGraph.transitiveRequiresByModule[classId].orEmpty())
+                return impactedClasses
+            }
+
+            override fun getImpactedClassMembers(classMembers: ClassMembers): Set<ClassMembers> = emptySet()
+        }
+    }
+
+    override fun getReverseResolver(allClasses: Iterable<AccessibleClassSnapshot>): ImpactingClassesResolver {
+        val moduleGraph = ModuleGraph(allClasses)
+
+        return object : ImpactingClassesResolver {
+            override fun getImpactingClasses(classId: ClassId): Set<ClassId> {
+                moduleGraph.transitivelyRequiredByModule[classId]?.let { return it }
+                if (classId in moduleGraph.packagesByModule) return emptySet()
+                return moduleGraph.moduleByPackage[classId.packageFqName]?.let { setOf(it) } ?: emptySet()
+            }
+        }
+    }
+}
+
+/** Maps each package to the classes in it, excluding the synthetic `package-info` and `module-info` snapshots. */
+private fun getPackageToRegularClassesMap(allClasses: Iterable<AccessibleClassSnapshot>): Map<FqName, Set<ClassId>> =
+    buildMap<FqName, MutableSet<ClassId>> {
+        allClasses.forEach { clazz ->
+            if (clazz !is PackageInfoClassSnapshot && clazz !is ModuleInfoClassSnapshot) {
+                getOrPut(clazz.classId.packageFqName) { mutableSetOf() }.add(clazz.classId)
+            }
+        }
+    }
 
 internal object BreadthFirstSearch {
 

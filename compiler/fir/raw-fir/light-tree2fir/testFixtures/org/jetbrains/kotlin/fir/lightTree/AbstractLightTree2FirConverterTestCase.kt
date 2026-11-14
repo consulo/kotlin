@@ -8,11 +8,13 @@ package org.jetbrains.kotlin.fir.lightTree
 import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.util.PathUtil
 import org.jetbrains.kotlin.ObsoleteTestInfrastructure
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.fir.builder.AbstractRawFirBuilderTestCase
 import org.jetbrains.kotlin.fir.builder.StubFirScopeProvider
 import org.jetbrains.kotlin.fir.renderer.FirRenderer
 import org.jetbrains.kotlin.fir.session.FirSessionFactoryHelper
 import org.jetbrains.kotlin.test.TestDataAssertions
+import org.jetbrains.kotlin.test.util.trimTrailingWhitespacesAndRemoveRedundantEmptyLinesAtTheEnd
 import java.io.File
 import java.nio.file.Paths
 import kotlin.io.path.readText
@@ -20,18 +22,35 @@ import kotlin.io.path.readText
 
 abstract class AbstractLightTree2FirConverterTestCase : AbstractRawFirBuilderTestCase() {
     @OptIn(ObsoleteTestInfrastructure::class)
-    fun doTest(filePath: String) {
+    override fun runTest(filePath: String) {
         myFileExt = FileUtilRt.getExtension(PathUtil.getFileName(filePath))
-        val path = Paths.get(filePath)
+        val absolutePath = ForTestCompileRuntime.transformTestDataPath(filePath).path
+        val path = Paths.get(absolutePath)
+        val session = FirSessionFactoryHelper.createEmptySession(parseLanguageFeatures(path.readText()))
+        session.registerReplSnippetConfiguratorForReplFixture(filePath)
         val firFile = LightTree2Fir(
-            session = FirSessionFactoryHelper.createEmptySession(parseLanguageFeatures(path.readText())),
+            session = session,
             scopeProvider = StubFirScopeProvider,
             diagnosticsReporter = null
         ).buildFirFile(path)
         val firDump = FirRenderer.withDeclarationAttributes().renderElementAsString(firFile)
 
-        val expectedFile = File(expectedPath(filePath, ".txt"))
+        val originalExpectedFile = File(expectedPath(absolutePath, ".txt"))
+        val lightTreeExpectedFile = File(expectedPath(absolutePath, ".lt.txt"))
+        val expectedFile = lightTreeExpectedFile.takeIf { it.exists() } ?: originalExpectedFile
         TestDataAssertions.assertEqualsToFile(expectedFile, firDump)
-        checkAnnotationOwners(filePath, firFile)
+
+        if (lightTreeExpectedFile.exists()) {
+            val lightTreeFileContent = lightTreeExpectedFile.readText().trimTrailingWhitespacesAndRemoveRedundantEmptyLinesAtTheEnd()
+            val originalFileContent = originalExpectedFile.readText().trimTrailingWhitespacesAndRemoveRedundantEmptyLinesAtTheEnd()
+            if (lightTreeFileContent == originalFileContent) {
+                error(
+                    "'${lightTreeExpectedFile.name}' has the same content as '${originalExpectedFile.name}'. " +
+                            "Remove '${lightTreeExpectedFile.name}'"
+                )
+            }
+        }
+
+        checkAnnotationOwners(absolutePath, firFile)
     }
 }

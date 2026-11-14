@@ -1,41 +1,44 @@
 <caret_1>:
   KDocName(121,126): 'super'
-    KaSymbolResolutionSuccess:
+    KaSimpleSymbolResolutionSuccess:
       symbols = [
         val super: kotlin.Int
       ]
 
 <caret_2>:
   KDocName(136,143): '`super`'
-    KaSymbolResolutionSuccess:
+    KaSimpleSymbolResolutionSuccess:
       symbols = [
         val super: kotlin.Int
       ]
 
 <caret_3>:
   KDocName(153,157): 'this'
-    KaSymbolResolutionSuccess:
+    KaSimpleSymbolResolutionSuccess:
       symbols = [
         val this: kotlin.String
       ]
 
 <caret_4>:
   KDocName(167,173): '`this`'
-    KaSymbolResolutionSuccess:
+    KaSimpleSymbolResolutionSuccess:
       symbols = [
         val this: kotlin.String
       ]
 
 <caret_5>:
   KDocName(230,234): 'this'
-    KaSymbolResolutionSuccess:
+    KaSimpleSymbolResolutionSuccess:
       symbols = [
         KaReceiverParameterSymbol:
+          anchorPsi: KtTypeReference
           annotations: []
           callableId: null
-          compilerVisibility: Public
+          contextParameters: []
           contextReceivers: []
           isActual: false
+          isCompanion: false
+          isDelegated: false
           isExpect: false
           isExtension: false
           isExternal: false
@@ -45,24 +48,30 @@
           name: <receiver>
           origin: SOURCE
           owningCallableSymbol: KaNamedFunctionSymbol(/Impl.withReceiver)
+          psi: KtTypeReference
+          realPsi: KtTypeReference
           receiverParameter: null
           returnType: KaUsualClassType:
             annotations: []
             typeArguments: []
             type: kotlin/Long
+          typeParameters: []
           visibility: PUBLIC
       ]
 
 <caret_6>:
   KDocName(244,250): '`this`'
-    KaSymbolResolutionSuccess:
+    KaSimpleSymbolResolutionSuccess:
       symbols = [
         KaReceiverParameterSymbol:
+          anchorPsi: KtTypeReference
           annotations: []
           callableId: null
-          compilerVisibility: Public
+          contextParameters: []
           contextReceivers: []
           isActual: false
+          isCompanion: false
+          isDelegated: false
           isExpect: false
           isExtension: false
           isExternal: false
@@ -72,10 +81,13 @@
           name: <receiver>
           origin: SOURCE
           owningCallableSymbol: KaNamedFunctionSymbol(/Impl.withReceiver)
+          psi: KtTypeReference
+          realPsi: KtTypeReference
           receiverParameter: null
           returnType: KaUsualClassType:
             annotations: []
             typeArguments: []
             type: kotlin/Long
+          typeParameters: []
           visibility: PUBLIC
       ]

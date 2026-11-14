@@ -1,5 +1,5 @@
 KtOperationReferenceExpression(58,65): 'infixOp'
-  KaSuccessCallInfo:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []

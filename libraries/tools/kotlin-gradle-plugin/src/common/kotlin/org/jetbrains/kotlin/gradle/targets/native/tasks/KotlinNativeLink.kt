@@ -18,6 +18,8 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.*
+import org.gradle.api.tasks.Optional
+import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.cli.common.arguments.K2NativeCompilerArguments
 import org.jetbrains.kotlin.commonizer.KonanDistribution
 import org.jetbrains.kotlin.compilerRunner.*
@@ -32,6 +34,7 @@ import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.UsesKotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.useXcodeMessageStyle
+import org.jetbrains.kotlin.gradle.plugin.statistics.CompilerArgumentMetrics
 import org.jetbrains.kotlin.gradle.plugin.statistics.UsesBuildFusService
 import org.jetbrains.kotlin.gradle.report.UsesBuildMetricsService
 import org.jetbrains.kotlin.gradle.targets.native.DisableNativeCacheSettings
@@ -45,17 +48,16 @@ import org.jetbrains.kotlin.gradle.targets.native.toolchain.UsesKotlinNativeBund
 import org.jetbrains.kotlin.gradle.utils.*
 import org.jetbrains.kotlin.internal.compilerRunner.native.KotlinNativeCompilerRunner
 import org.jetbrains.kotlin.internal.compilerRunner.native.KotlinNativeToolRunner
+import org.jetbrains.kotlin.internal.compilerRunner.native.UsesKotlinNativeToolParallelismProbe
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.HostManager
-import org.jetbrains.kotlin.project.model.LanguageSettings
 import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
 import org.jetbrains.kotlin.tooling.core.toKotlinVersion
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
 import java.io.File
 import java.io.Serializable
-import java.util.Locale
+import java.util.*
 import javax.inject.Inject
-import kotlin.collections.map
 
 /**
  * A task producing a final binary from a compilation.
@@ -74,6 +76,7 @@ constructor(
     UsesClassLoadersCachingBuildService,
     KotlinToolTask<KotlinCommonCompilerToolOptions>,
     UsesKotlinNativeBundleBuildService,
+    UsesKotlinNativeToolParallelismProbe,
     UsesKotlinToolingDiagnostics,
     UsesBuildFusService {
 
@@ -112,6 +115,7 @@ constructor(
         }, konanTarget)
 
     @get:Classpath
+    @get:NormalizeLineEndings
     override val libraries: ConfigurableFileCollection = objectFactory.fileCollection().from(
         {
             // Avoid resolving these dependencies during task graph construction when we can't build the target:
@@ -145,14 +149,6 @@ constructor(
     internal val binaryBuildType: Provider<String> = objectFactory.providerWithLazyConvention {
         binary.buildType.name.lowercase(Locale.ROOT).replaceFirstChar { it.titlecase(Locale.ROOT) }
     }
-
-    @Suppress("DEPRECATION_ERROR")
-    @Deprecated(
-        message = "Use toolOptions to configure the task",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val languageSettings: LanguageSettings = compilation.defaultSourceSet.languageSettings
 
     @get:Internal
     internal val disableCache: Provider<Boolean> = objects.propertyWithConvention(
@@ -192,15 +188,6 @@ constructor(
         data class Configured(val kind: NativeCacheKind) : CacheSettingsInput
     }
 
-    @Suppress("unused", "UNCHECKED_CAST")
-    @Deprecated(
-        message = "Use toolOptions.freeCompilerArgs",
-        level = DeprecationLevel.ERROR,
-        replaceWith = ReplaceWith("toolOptions.freeCompilerArgs.get()")
-    )
-    @get:Internal
-    val additionalCompilerOptions: Provider<Collection<String>> = toolOptions.freeCompilerArgs as Provider<Collection<String>>
-
     @Suppress("DEPRECATION_ERROR")
     @Deprecated(KOTLIN_OPTIONS_AS_TOOLS_DEPRECATION_MESSAGE)
     @get:Internal
@@ -239,6 +226,19 @@ constructor(
     @get:Input
     val linkerOpts: List<String> by lazyConvention { binary.linkerOpts }
 
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    @get:InputFiles
+    internal val linkerOptsFiles: ConfigurableFileCollection = objectFactory.fileCollection().apply {
+        val projectDirectory = project.layout.projectDirectory
+        // linkerOpts is still an input itself. Register existing options that point to files
+        // lazily so that files created after task initialization are also tracked.
+        val linkerOptPaths = objectFactory.fileCollection()
+        linkerOptPaths.from({
+            linkerOpts.map { projectDirectory.file(it) }
+        })
+        from(linkerOptPaths.filter { it.isFile })
+    }
+
     /**
      * FIXME: KT-85118 This @Input annotation is incorrect and will not be part of KotlinNativeLink fingerprint because it is now used to
      * pass linker options in doFirst
@@ -248,6 +248,7 @@ constructor(
 
     @get:PathSensitive(PathSensitivity.RELATIVE)
     @get:InputFiles
+    @get:NormalizeLineEndings
     internal abstract val linkerOptionsProducerFingerprint: ConfigurableFileCollection
 
     @get:Input
@@ -257,6 +258,7 @@ constructor(
     val processTests: Boolean by lazyConvention { binary is TestExecutable }
 
     @get:Classpath
+    @get:NormalizeLineEndings
     val exportLibraries: FileCollection get() = exportLibrariesResolvedConfiguration?.files ?: objectFactory.fileCollection()
 
     private val exportLibrariesResolvedConfiguration = if (binary is AbstractNativeLibrary) {
@@ -290,13 +292,15 @@ constructor(
         val threads: Int,
         val gradleUserHomeDir: File,
         val gradleBuildDir: File,
+        val enabledWithOptimizations: Boolean,
     )
 
     private val cacheSettings = CacheSettings(
-        project.isKonanIncrementalCompilationEnabled(),
+        project.isKonanIncrementalCompilationEnabled(konanTarget),
         project.getKonanParallelThreads(),
         project.gradle.gradleUserHomeDir,
-        project.layout.buildDirectory.get().asFile
+        project.layout.buildDirectory.get().asFile,
+        PropertiesProvider(project).nativeEnableReleaseBinaryCache,
     )
 
     override fun createCompilerArguments(context: CreateCompilerArgumentsContext) = context.create<K2NativeCompilerArguments> {
@@ -313,8 +317,6 @@ constructor(
             args.target = konanTarget.name
             args.produce = outputKind.name.toLowerCaseAsciiOnly()
             args.multiPlatform = true
-            @Suppress("DEPRECATION")
-            args.noendorsedlibs = true
             args.nostdlib = true
             args.exportKDoc = exportKdoc.get()
             args.pluginOptions = compilerPlugins.flatMap { it.options.arguments }.toTypedArray()
@@ -334,9 +336,9 @@ constructor(
 
         dependencyClasspath { args ->
             args.libraries = runSafe {
-                libraries.exclude(excludeDependencies).files.filterKlibsPassedToCompiler()
+                libraries.exclude(excludeDependencies).files.filterKlibsPassedToCompiler(this@KotlinNativeLink)
             }?.toPathsArray() ?: emptyArray()
-            args.exportedLibraries = runSafe { exportLibraries.files.filterKlibsPassedToCompiler() }?.toPathsArray() ?: emptyArray()
+            args.exportedLibraries = runSafe { exportLibraries.files.filterKlibsPassedToCompiler(this@KotlinNativeLink) }?.toPathsArray() ?: emptyArray()
             args.friendModules = runSafe { friendModule.files.toList().takeIf { it.isNotEmpty() } }
                 ?.joinToString(File.pathSeparator) { it.absolutePath }
         }
@@ -354,7 +356,8 @@ constructor(
             .allDependencies
             .filterIsInstance<ResolvedDependencyResult>()
             .forEach {
-                val dependencyFiles = exportLibrariesResolvedConfiguration.getArtifacts(it).map { it.file }.filterKlibsPassedToCompiler()
+                val dependencyFiles = exportLibrariesResolvedConfiguration.getArtifacts(it).map { it.file }
+                    .filterKlibsPassedToCompiler(this@KotlinNativeLink)
                 if (!apiFiles.files.containsAll(dependencyFiles)) {
                     failed.add(it)
                 }
@@ -425,6 +428,7 @@ constructor(
 
     @Suppress("DEPRECATION_ERROR")
     @get:Classpath
+    @get:NormalizeLineEndings
     protected val friendModule: FileCollection = objectFactory.fileCollection().from({ compilation.friendPaths })
 
     @get:Internal
@@ -450,6 +454,7 @@ constructor(
 
     @Optional
     @Classpath
+    @NormalizeLineEndings
     open var compilerPluginClasspath: FileCollection? = null
 
     /**
@@ -467,20 +472,6 @@ constructor(
             // and added convention for backwards compatibility.
             NoopKotlinNativeProvider(project)
         )
-
-    @Deprecated(
-        message = "This property will be removed in future releases. Don't use it in your code.",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val konanDataDir: Provider<String?> = kotlinNativeProvider.flatMap { it.konanDataDir }
-
-    @Deprecated(
-        message = "This property will be removed in future releases. Don't use it in your code.",
-        level = DeprecationLevel.ERROR,
-    )
-    @get:Internal
-    val konanHome: Provider<String> = kotlinNativeProvider.flatMap { it.bundleDirectory }
 
     @get:Internal
     internal abstract val kotlinCompilerArgumentsLogLevel: Property<KotlinCompilerArgumentsLogLevel>
@@ -519,12 +510,12 @@ constructor(
             val additionalOptions = mutableListOf<String>().apply {
                 addAll(externalDependenciesBuildCompilerArgs.get())
                 if (konanCacheKind.get() != NativeCacheKind.NONE
-                    && !optimized
+                    && (!optimized || cacheSettings.enabledWithOptimizations)
                     && konanPropertiesService.get().cacheWorksFor(konanTarget)
                 ) {
                     add("-Xauto-cache-from=${cacheSettings.gradleUserHomeDir}")
                     add("-Xbackend-threads=${cacheSettings.threads}")
-                    if (cacheSettings.icEnabled) {
+                    if (cacheSettings.icEnabled && !optimized) {
                         val icCacheDir = cacheSettings.gradleBuildDir
                             .resolve("kotlin-native-ic-cache")
                             .resolve(binaryName.get())
@@ -538,12 +529,19 @@ constructor(
             val arguments = createCompilerArguments()
             val buildArguments = ArgumentUtils.convertArgumentsToStringList(arguments) + additionalOptions
 
-            nativeCompilerRunner.runTool(
+            // 'additionalOptions' is appended after serialization, so only the flat list is the complete picture.
+            buildFusService.orNull?.reportFusMetrics {
+                CompilerArgumentMetrics.collectMetrics(arguments, buildArguments.toTypedArray(), logger, it)
+            }
+
+            nativeCompilerRunner.runToolWithWorkers(
                 KotlinNativeToolRunner.ToolArguments(
                     shouldRunInProcessMode = !forceDisableRunningInProcess.get(),
                     compilerArgumentsLogLevel = kotlinCompilerArgumentsLogLevel.get(),
                     arguments = buildArguments
-                )
+                ),
+                taskPath = path,
+                parallelismProbe = kotlinNativeToolParallelismProbe,
             )
         }
     }

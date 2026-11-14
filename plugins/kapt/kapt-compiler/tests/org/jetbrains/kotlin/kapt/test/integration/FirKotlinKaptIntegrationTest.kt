@@ -6,10 +6,9 @@
 package org.jetbrains.kotlin.kapt.test.integration
 
 import org.jetbrains.kotlin.analyzer.CompilationErrorException
-import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollectorImpl
-import org.jetbrains.kotlin.kapt.javac.KaptJavaFileObject
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.test.services.JUnit5Assertions.assertEquals
 import org.jetbrains.kotlin.test.services.JUnit5Assertions.assertNotNull
 import org.jetbrains.kotlin.test.services.JUnit5Assertions.assertTrue
@@ -27,7 +26,7 @@ import javax.tools.Diagnostic
 
 class FirKotlinKaptIntegrationTest(private val testInfo: TestInfo) {
     private companion object {
-        val TEST_DATA_DIR = File("plugins/kapt/kapt-compiler/testData/kotlinRunner")
+        val TEST_DATA_DIR: File = ForTestCompileRuntime.transformTestDataPath("plugins/kapt/kapt-compiler/testData/kotlinRunner")
     }
 
     private fun test(
@@ -35,19 +34,13 @@ class FirKotlinKaptIntegrationTest(private val testInfo: TestInfo) {
         vararg supportedAnnotations: String,
         options: Map<String, String> = emptyMap(),
         expectFailure: Boolean = false,
-        additionalPluginExtension: IrGenerationExtension? = null,
-        process: (Set<TypeElement>, RoundEnvironment, ProcessingEnvironment, FirKaptExtensionForTests) -> Unit
+        process: (Set<TypeElement>, RoundEnvironment, ProcessingEnvironment, FirKaptExtensionForTests) -> Unit,
     ) {
         val file = File(TEST_DATA_DIR, "$name.kt")
-        AbstractFirKotlinKaptIntegrationTestRunner(
-            options,
-            supportedAnnotations.toList(),
-            additionalPluginExtension,
-            process
-        ).apply {
+        AbstractFirKotlinKaptIntegrationTestRunner(options, supportedAnnotations.toList(), process).apply {
             initTestInfo(testInfo)
             try {
-                runTest(file.absolutePath)
+                runTest(file.path)
                 if (expectFailure) throw AssertionError("Expected compilation to fail, but it didn't.")
             } catch (ex: CompilationErrorException) {
                 if (!expectFailure) throw ex
@@ -91,33 +84,30 @@ class FirKotlinKaptIntegrationTest(private val testInfo: TestInfo) {
     }
 
     @Test
-    fun testSimpleStubsAndIncrementalData() = bindingsTest("Simple") { stubsOutputDir, incrementalDataOutputDir, bindings ->
+    fun testSimpleStubsAndIncrementalData() = stubsTest("Simple") { stubsOutputDir, incrementalDataOutputDir ->
         assertTrue(File(stubsOutputDir, "error/NonExistentClass.java").exists())
         assertTrue(File(stubsOutputDir, "test/Simple.java").exists())
         assertTrue(File(stubsOutputDir, "test/EnumClass.java").exists())
 
         assertTrue(File(incrementalDataOutputDir, "test/Simple.class").exists())
         assertTrue(File(incrementalDataOutputDir, "test/EnumClass.class").exists())
-
-        assertTrue(bindings.any { it.key == "test/Simple" && it.value.name == "test/Simple.java" })
-        assertTrue(bindings.any { it.key == "test/EnumClass" && it.value.name == "test/EnumClass.java" })
     }
 
     @Test
     fun testStubsAndIncrementalDataForNestedClasses() {
-        bindingsTest("NestedClasses") { stubsOutputDir, incrementalDataOutputDir, bindings ->
-            assertTrue(File(stubsOutputDir, "test/Simple.java").exists())
-            assertTrue(!File(stubsOutputDir, "test/Simple/InnerClass.java").exists())
-
+        stubsTest("NestedClasses") { stubsOutputDir, incrementalDataOutputDir ->
             assertTrue(File(incrementalDataOutputDir, "test/Simple.class").exists())
             assertTrue(File(incrementalDataOutputDir, $$"test/Simple$Companion.class").exists())
             assertTrue(File(incrementalDataOutputDir, $$"test/Simple$InnerClass.class").exists())
             assertTrue(File(incrementalDataOutputDir, $$"test/Simple$NestedClass.class").exists())
             assertTrue(File(incrementalDataOutputDir, $$"test/Simple$NestedClass$NestedNestedClass.class").exists())
 
-            assertTrue(bindings.any { it.key == "test/Simple" && it.value.name == "test/Simple.java" })
-            assertTrue(bindings.none { it.key.contains("Companion") })
-            assertTrue(bindings.none { it.key.contains("InnerClass") })
+            // One stub per top-level class: nested, inner and companion classes are folded into the
+            // stub of their outermost class rather than getting stubs of their own.
+            assertEquals(
+                sortedSetOf("error/NonExistentClass.java", "test/MyAnnotation.java", "test/Simple.java"),
+                generatedStubs(stubsOutputDir),
+            )
         }
     }
 
@@ -186,16 +176,20 @@ class FirKotlinKaptIntegrationTest(private val testInfo: TestInfo) {
     }
 
 
-    private fun bindingsTest(name: String, test: (File, File, Map<String, KaptJavaFileObject>) -> Unit) {
+    private fun stubsTest(name: String, test: (File, File) -> Unit) {
         test(name, "test.MyAnnotation") { _, _, _, kaptExtension ->
             val stubsOutputDir = kaptExtension.options.stubsOutputDir
             val incrementalDataOutputDir = kaptExtension.options.incrementalDataOutputDir
 
-            val bindings = kaptExtension.savedBindings!!
-
-            test(stubsOutputDir, incrementalDataOutputDir!!, bindings)
+            test(stubsOutputDir, incrementalDataOutputDir!!)
         }
     }
+
+    private fun generatedStubs(stubsOutputDir: File): Set<String> =
+        stubsOutputDir.walkTopDown()
+            .filter { it.extension == "java" }
+            .map { it.relativeTo(stubsOutputDir).invariantSeparatorsPath }
+            .toSortedSet()
 
     @Test
     fun testOptions() = test(

@@ -7,7 +7,7 @@ fun box() {
     "OK".test()
 }
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:7 box:
 // test.kt:4 test: $this$test:java.lang.String="OK":java.lang.String
 // test.kt:8 box:
@@ -16,3 +16,8 @@ fun box() {
 // test.kt:7 box:
 // test.kt:4 test: <this>="OK":kotlin.String
 // test.kt:8 box:
+
+// EXPECTATIONS WASM
+// test.kt:7 $box: (4, 9)
+// test.kt:4 $test: $<this>:(ref $kotlin.String)=(ref $kotlin.String) (1, 1)
+// test.kt:8 $box: (1)

@@ -42,6 +42,7 @@ class JvmSnapshotBasedIncrementalCompilationConfigurationDefaultsTest {
         assertEquals(null, icConfiguration[BaseIncrementalCompilationConfiguration.OUTPUT_DIRS])
         assertEquals(false, icConfiguration[JvmSnapshotBasedIncrementalCompilationConfiguration.ASSURED_NO_CLASSPATH_SNAPSHOT_CHANGES])
         @OptIn(ExperimentalCompilerArgument::class)
+        @Suppress("DEPRECATION_ERROR")
         assertEquals(false, icConfiguration[JvmSnapshotBasedIncrementalCompilationConfiguration.USE_FIR_RUNNER])
         @OptIn(ExperimentalCompilerArgument::class)
         assertEquals(
@@ -50,19 +51,11 @@ class JvmSnapshotBasedIncrementalCompilationConfigurationDefaultsTest {
         )
         @OptIn(ExperimentalCompilerArgument::class)
         assertEquals(
-            false,
-            icConfiguration[JvmSnapshotBasedIncrementalCompilationConfiguration.UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM]
-        )
-        @OptIn(ExperimentalCompilerArgument::class)
-        assertEquals(
             true,
             icConfiguration[BaseIncrementalCompilationConfiguration.MONOTONOUS_INCREMENTAL_COMPILE_SET_EXPANSION]
         )
-        @OptIn(ExperimentalCompilerArgument::class)
-        assertEquals(
-            true,
-            icConfiguration[JvmSnapshotBasedIncrementalCompilationConfiguration.MONOTONOUS_INCREMENTAL_COMPILE_SET_EXPANSION]
-        )
         assertEquals(false, icConfiguration[BaseIncrementalCompilationConfiguration.TRACK_CONFIGURATION_INPUTS])
+        @OptIn(ExperimentalCompilerArgument::class)
+        assertEquals(true, icConfiguration[JvmSnapshotBasedIncrementalCompilationConfiguration.ENABLE_ERROR_RECOVERY_ROUND])
     }
 }

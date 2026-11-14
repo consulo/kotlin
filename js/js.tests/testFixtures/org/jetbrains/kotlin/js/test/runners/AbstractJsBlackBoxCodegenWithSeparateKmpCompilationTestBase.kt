@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.js.test.runners
 
 import org.jetbrains.kotlin.js.test.converters.Fir2IrCliWebFacade
 import org.jetbrains.kotlin.js.test.converters.FirCliWebFacade
-import org.jetbrains.kotlin.js.test.converters.FirKlibSerializerCliWebFacade
+import org.jetbrains.kotlin.js.test.converters.FirKlibSerializerCliJsFacade
 import org.jetbrains.kotlin.js.test.converters.JsIrPreSerializationLoweringFacade
 import org.jetbrains.kotlin.js.test.runners.AbstractJsBlackBoxCodegenTestBase.JsBackendFacades
 import org.jetbrains.kotlin.test.FirParser
@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives.DISABLE_DOU
 import org.jetbrains.kotlin.test.frontend.fir.FirCliMetadataFrontendFacade
 import org.jetbrains.kotlin.test.frontend.fir.FirCliMetadataSerializerFacade
 import org.jetbrains.kotlin.test.model.TestModule
-import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerWithTargetBackendTest
+import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerJsTest
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.configuration.*
 import org.jetbrains.kotlin.test.services.isLeafModuleInMppGraph
@@ -30,7 +30,7 @@ abstract class AbstractJsBlackBoxCodegenWithSeparateKmpCompilationTestBase(
     val parser: FirParser,
     private val pathToTestDir: String,
     private val testGroupOutputDirPrefix: String,
-) : AbstractKotlinCompilerWithTargetBackendTest(TargetBackend.JS_IR) {
+) : AbstractKotlinCompilerJsTest(TargetBackend.JS_IR) {
 
     override fun configure(builder: TestConfigurationBuilder) = with(builder) {
         setUpDefaultDirectivesForJsBoxTest(parser)
@@ -70,7 +70,7 @@ abstract class AbstractJsBlackBoxCodegenWithSeparateKmpCompilationTestBase(
         irHandlersStep()
         facadeStep(::JsIrPreSerializationLoweringFacade)
         loweredIrHandlersStep()
-        facadeStep(::FirKlibSerializerCliWebFacade)
+        facadeStep(::FirKlibSerializerCliJsFacade)
         klibArtifactsHandlersStep()
     }
 }

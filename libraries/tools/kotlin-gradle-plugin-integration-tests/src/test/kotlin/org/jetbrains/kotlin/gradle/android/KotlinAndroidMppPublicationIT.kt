@@ -5,26 +5,42 @@
 
 package org.jetbrains.kotlin.gradle.android
 
+import org.gradle.api.logging.configuration.WarningMode
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.testbase.TestVersions.AgpCompatibilityMatrix
 import org.jetbrains.kotlin.gradle.util.replaceText
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
+import org.jetbrains.kotlin.testFederation.NightlyTest
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.DynamicContainer
+import org.junit.jupiter.api.DynamicContainer.dynamicContainer
+import org.junit.jupiter.api.DynamicTest.dynamicTest
+import org.junit.jupiter.api.TestFactory
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.io.path.*
-import kotlin.test.*
+import kotlin.io.path.appendText
+import kotlin.io.path.deleteRecursively
+import kotlin.io.path.extension
+import kotlin.io.path.readText
+import kotlin.test.assertContains
+import kotlin.test.assertTrue
+import kotlin.test.fail
 
 @DisplayName("KMP/Android: publication")
 @AndroidGradlePluginTests
+@MustRunOnChangesInGradle
 class KotlinAndroidMppPublicationIT : KGPBaseTest() {
 
+    @TestMetadata("new-mpp-android")
     @DisplayName("android mpp lib flavors publication can be configured")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testMppAndroidLibFlavorsPublication(
         gradleVersion: GradleVersion,
         agpVersion: String,
@@ -247,8 +263,10 @@ class KotlinAndroidMppPublicationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("new-mpp-android")
     @DisplayName("Sources publication can be disabled")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testDisableSourcesPublication(
         gradleVersion: GradleVersion,
         agpVersion: String,
@@ -286,8 +304,10 @@ class KotlinAndroidMppPublicationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("new-mpp-android")
     @DisplayName("android mpp lib dependencies are properly rewritten")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testMppAndroidLibDependenciesRewriting(
         gradleVersion: GradleVersion,
         agpVersion: String,
@@ -401,8 +421,10 @@ class KotlinAndroidMppPublicationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("new-mpp-android")
     @DisplayName("KT-69585: kmp + android depends on another kmp + android project via included build should not fail on pom rewrite action")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun kt69585PublishWithDependencyOnIncludedBuildsDoesntFail(
         gradleVersion: GradleVersion,
         agpVersion: String,
@@ -445,8 +467,10 @@ class KotlinAndroidMppPublicationIT : KGPBaseTest() {
      * Starting from AGP version 7.1.0-alpha13, a new attribute com.android.build.api.attributes.AgpVersionAttr was added.
      * This attribute is *not intended* to be published.
      */
+    @TestMetadata("new-mpp-android")
     @DisplayName("KT-49798: com.android.build.api.attributes.AgpVersionAttr is not published")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testKT49798AgpVersionAttrNotPublished(
         gradleVersion: GradleVersion,
         agpVersion: String,
@@ -480,72 +504,81 @@ class KotlinAndroidMppPublicationIT : KGPBaseTest() {
         }
     }
 
-    // TODO: improve it via KT-63409
+    /**
+     * Publishes with the min and max supported AGP versions and consumes the publication with older AGP versions.
+     */
+    @TestMetadata("new-mpp-android-agp-compatibility")
     @DisplayName("produced artifacts are consumable by projects with various AGP versions")
-    @GradleAndroidTest
+    @TestFactory
+    @NightlyTest
     fun testAndroidMultiplatformPublicationAGPCompatibility(
-        gradleVersion: GradleVersion,
-        agpVersion: String,
-        jdkVersion: JdkVersions.ProvidedJdk,
         @TempDir tempDir: Path,
-    ) {
-        project(
-            "new-mpp-android-agp-compatibility",
-            gradleVersion,
-            buildOptions = defaultBuildOptions.copy(androidVersion = agpVersion),
-            buildJdk = jdkVersion.location,
-            localRepoDir = tempDir
-        ) {
-            /* Publish a producer library with the current version of AGP */
-            build(
-                ":producer:publishAllPublicationsToBuildDirRepository",
-            ) {
-                /* Check expected publication layout */
-                assertDirectoryExists(tempDir.resolve("com/example/producer-android"))
-                assertDirectoryExists(tempDir.resolve("com/example/producer-android-debug"))
-                assertDirectoryExists(tempDir.resolve("com/example/producer-jvm"))
+    ): List<DynamicContainer> {
+        val producerVersions = listOf(TestVersions.AGP.MIN_SUPPORTED, TestVersions.AGP.MAX_SUPPORTED)
+            .filter { agp ->
+                gradleTestVersionFilter == null || AgpCompatibilityMatrix.fromVersion(agp).minSupportedGradleVersion == gradleTestVersionFilter
             }
-        }
 
         val checkedConsumerAGPVersions = AgpCompatibilityMatrix.entries
             .filter { agp ->
                 AgpCompatibilityMatrix.fromVersion(agp.version) < AgpCompatibilityMatrix.fromVersion(TestVersions.AGP.MAX_SUPPORTED)
             }
 
-        checkedConsumerAGPVersions.forEach { consumerAgpVersion ->
-            println(
-                "Testing compatibility for AGP consumer version $consumerAgpVersion on Gradle" +
-                        " ${consumerAgpVersion.minSupportedGradleVersion} (Producer: $agpVersion)"
-            )
+        return producerVersions.map { agpVersion ->
+            val producerAgpVersion = AgpCompatibilityMatrix.fromVersion(agpVersion)
+            val gradleVersion = producerAgpVersion.minSupportedGradleVersion
+            val localRepoDir = tempDir.resolve(agpVersion)
             project(
                 "new-mpp-android-agp-compatibility",
-                consumerAgpVersion.minSupportedGradleVersion,
-                buildOptions = defaultBuildOptions.copy(androidVersion = consumerAgpVersion.version),
-                buildJdk = File(System.getProperty("jdk${consumerAgpVersion.requiredJdkVersion.majorVersion}Home")),
-                localRepoDir = tempDir
+                gradleVersion,
+                buildOptions = defaultBuildOptions
+                    .copy(androidVersion = agpVersion),
+                buildJdk = File(System.getProperty("jdk${producerAgpVersion.requiredJdkVersion.majorVersion}Home")),
+                localRepoDir = localRepoDir
             ) {
-                /*
-                Project: multiplatformAndroidConsumer is a mpp project with jvm and android targets.
-                This project depends on the previous publication as 'commonMainImplementation' dependency
-                */
-                build(":multiplatformAndroidConsumer:assemble")
-
-                /*
-                Project: plainAndroidConsumer only uses the 'kotlin("android")' plugin
-                This project depends on the previous publication as 'implementation' dependency
-                 */
-                build(":plainAndroidConsumer:assemble")
+                /* Publish a producer library with the current version of AGP */
+                build(
+                    ":producer:publishAllPublicationsToBuildDirRepository",
+                ) {
+                    /* Check expected publication layout */
+                    assertDirectoryExists(localRepoDir.resolve("com/example/producer-android"))
+                    assertDirectoryExists(localRepoDir.resolve("com/example/producer-android-debug"))
+                    assertDirectoryExists(localRepoDir.resolve("com/example/producer-jvm"))
+                }
             }
-            println(
-                "Successfully tested compatibility for AGP consumer version $consumerAgpVersion on Gradle" +
-                        " ${consumerAgpVersion.minSupportedGradleVersion} (Producer: $agpVersion)"
-            )
+
+            dynamicContainer("Producer AGP $agpVersion with $gradleVersion", checkedConsumerAGPVersions.map { consumerAgpVersion ->
+                dynamicTest("Consumer AGP ${consumerAgpVersion.version} with ${consumerAgpVersion.minSupportedGradleVersion}") {
+                    project(
+                        "new-mpp-android-agp-compatibility",
+                        consumerAgpVersion.minSupportedGradleVersion,
+                        buildOptions = defaultBuildOptions
+                            .copy(androidVersion = consumerAgpVersion.version)
+                            // is property deprecation warning is only produced on the first run, which is hard to detect in this particular test
+                            .copy(warningMode = WarningMode.None),
+                        buildJdk = File(System.getProperty("jdk${consumerAgpVersion.requiredJdkVersion.majorVersion}Home")),
+                        localRepoDir = localRepoDir
+                    ) {
+                        /*
+                        Project: multiplatformAndroidConsumer is a mpp project with jvm and android targets.
+                        This project depends on the previous publication as 'commonMainImplementation' dependency
+                        */
+                        build(":multiplatformAndroidConsumer:assemble")
+
+                        /*
+                        Project: plainAndroidConsumer only uses the 'kotlin("android")' plugin
+                        This project depends on the previous publication as 'implementation' dependency
+                         */
+                        build(":plainAndroidConsumer:assemble")
+                    }
+                }
+            })
         }
     }
 
+    @TestMetadata("base-kotlin-android-library")
     @DisplayName("KT-70380: KMM App failed to consume android binary lib when published incorrectly")
     @GradleAndroidTest
-    @GradleTestVersions(additionalVersions = [TestVersions.Gradle.G_8_1, TestVersions.Gradle.G_8_2, TestVersions.Gradle.G_8_3])
     fun kotlinAndroidHasBuildTypeAttribute(
         gradleVersion: GradleVersion,
         agpVersion: String,

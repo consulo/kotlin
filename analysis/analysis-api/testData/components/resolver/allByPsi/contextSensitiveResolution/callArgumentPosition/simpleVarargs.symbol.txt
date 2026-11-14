@@ -35,13 +35,25 @@ KtDeclarationModifierList(118,124): 'vararg'
   null
 
 KtTypeReference(128,134): 'MyEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtUserType(128,134): 'MyEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtNameReferenceExpression(128,134): 'MyEnum'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyEnum
+    ]
 
 KtBlockExpression(136,138): '{}'
   null
@@ -56,13 +68,16 @@ KtBlockExpression(151,168): '{'
   null
 
 KtCallExpression(157,166): 'foo(X, Y)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(vararg a: MyEnum): kotlin.Unit
     ]
 
 KtNameReferenceExpression(157,160): 'foo'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(vararg a: MyEnum): kotlin.Unit
     ]
@@ -74,7 +89,10 @@ KtValueArgument(161,162): 'X'
   null
 
 KtNameReferenceExpression(161,162): 'X'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: Used
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MyEnum.X
     ]
@@ -83,7 +101,10 @@ KtValueArgument(164,165): 'Y'
   null
 
 KtNameReferenceExpression(164,165): 'Y'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: Used
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MyEnum.Y
     ]

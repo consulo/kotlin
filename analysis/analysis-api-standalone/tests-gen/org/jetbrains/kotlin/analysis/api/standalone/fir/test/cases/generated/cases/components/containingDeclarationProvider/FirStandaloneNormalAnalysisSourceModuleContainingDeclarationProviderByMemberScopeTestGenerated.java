@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.standalone.fir.test.configurators.Analy
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.containingDeclarationProvider.AbstractContainingDeclarationProviderByMemberScopeTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.containingDeclarationProvider.AbstractContainingDeclarationProviderByMemberScopeTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirStandaloneNormalAnalysisSourceModuleContainingDeclarationProvide
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirStandaloneModeTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.Source,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Standalone,
@@ -49,6 +47,12 @@ public class FirStandaloneNormalAnalysisSourceModuleContainingDeclarationProvide
   @Test
   public void testAllFilesPresentInContainingDeclarationFromMemberScope() {
     KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/components/containingDeclarationProvider/containingDeclarationFromMemberScope"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+  }
+
+  @Test
+  @TestMetadata("delegationOverride.kt")
+  public void testDelegationOverride() {
+    run("delegationOverride.kt");
   }
 
   @Test

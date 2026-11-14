@@ -118,7 +118,7 @@ class RegexTest {
 
             assertEquals(listOf("1a", "1", "a"), m.groupValues)
 
-            val (g1, g2) = m.destructured
+            val [g1, g2] = m.destructured
             assertEquals("1", g1)
             assertEquals("a", g2)
             assertEquals(listOf("1", "a"), m.destructured.toList())
@@ -131,7 +131,7 @@ class RegexTest {
 
             assertEquals(listOf("2b", "2", "b"), m.groupValues)
 
-            val (g1, g2) = m.destructured
+            val [g1, g2] = m.destructured
             assertEquals("2", g1)
             assertEquals("b", g2)
             assertEquals(listOf("2", "b"), m.destructured.toList())
@@ -148,7 +148,7 @@ class RegexTest {
 
             assertEquals(listOf("Hi", "Hi", ""), m.groupValues)
 
-            val (g1, g2) = m.destructured
+            val [g1, g2] = m.destructured
             assertEquals("Hi", g1)
             assertEquals("", g2)
             assertEquals(listOf("Hi", ""), m.destructured.toList())
@@ -161,7 +161,7 @@ class RegexTest {
 
             assertEquals(listOf("bye", "", "bye"), m.groupValues)
 
-            val (g1, g2) = m.destructured
+            val [g1, g2] = m.destructured
             assertEquals("", g1)
             assertEquals("bye", g2)
             assertEquals(listOf("", "bye"), m.destructured.toList())
@@ -335,7 +335,7 @@ class RegexTest {
         val regex = "(\\d)(\\w)".toRegex()
 
         assertNull(regex.matchEntire("1a 2b"))
-        assertNotNull(regex.matchEntire("3c")) { m ->
+        assertNotNull(regex.matchEntire("3c")).let { m ->
             assertEquals("3c", m.value)
             assertEquals(3, m.groups.size)
             assertEquals(listOf("3c", "3", "c"), m.groups.map { it!!.value })
@@ -374,12 +374,12 @@ class RegexTest {
 
         val matches = positions.mapNotNull { index -> regex.matchAt(input, index)?.let { index to it } }
         assertEquals(matchIndices, matches.map { it.first })
-        matches.forEach { (index, match) ->
+        matches.forEach { [index, match] ->
             assertEquals(index..index + 1, match.range)
             assertEquals(input.substring(match.range), match.value)
         }
 
-        matches.zipWithNext { (_, m1), (_, m2) ->
+        val _ = matches.zipWithNext { [_, m1], [_, m2] ->
             assertEquals(m2.range, assertNotNull(m1.next()).range)
         }
         assertNull(matches.last().second.next())

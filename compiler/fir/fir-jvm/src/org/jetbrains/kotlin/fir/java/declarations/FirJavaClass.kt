@@ -5,12 +5,11 @@
 
 package org.jetbrains.kotlin.fir.java.declarations
 
+import org.jetbrains.kotlin.GeneratedDeclarationKey
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.descriptors.ClassKind
-import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibility
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirImplementationDetail
 import org.jetbrains.kotlin.fir.FirModuleData
 import org.jetbrains.kotlin.fir.builder.FirAnnotationContainerBuilder
@@ -34,6 +33,8 @@ import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.fir.visitors.FirVisitor
 import org.jetbrains.kotlin.load.java.structure.JavaClass
 import org.jetbrains.kotlin.load.java.structure.JavaPackage
+import org.jetbrains.kotlin.load.java.structure.classId
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
@@ -63,7 +64,7 @@ class FirJavaClass @FirImplementationDetail internal constructor(
      * @see javaTypeParameterStack
      */
     val classJavaTypeParameterStack: MutableJavaTypeParameterStack,
-    internal val existingNestedClassifierNames: List<Name>,
+    val existingNestedClassifierNames: List<Name>,
     internal val containingClassSymbol: FirClassSymbol<*>?,
 ) : FirRegularClass() {
     init {
@@ -97,6 +98,7 @@ class FirJavaClass @FirImplementationDetail internal constructor(
 
     override val hasLazyNestedClassifiers: Boolean get() = true
     override val controlFlowGraphReference: FirControlFlowGraphReference? get() = null
+    override val staticControlFlowGraphReference: FirControlFlowGraphReference? get() = null
 
     override val contextParameters: List<FirValueParameter>
         get() = emptyList()
@@ -139,6 +141,26 @@ class FirJavaClass @FirImplementationDetail internal constructor(
         val fakeSource = source?.fakeElement(KtFakeSourceElementKind.Enhancement)
         return supertypes.map { it.toFirJavaTypeRef(session, fakeSource) }
     }
+
+    /**
+     * Pre-resolved direct-supertype `ClassId`s, populated lazily from [javaClass]'s AST/binary
+     * supertype list at first read.
+     *
+     * exposes the supertype-`ClassId`s the Java Model's `JavaResolutionContext.directSupertypeClassIds`
+     * dispatcher needs for the binary-Java arm of supertype-walking, **without** going through
+     * the lazy [superTypeRefs] enhancement (which is unsafe to read while the symbol's own
+     * `SUPER_TYPES` resolution is on the stack.
+     */
+    private val directSupertypeClassIdsCache: List<ClassId>? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        val supertypes = javaClass?.supertypes ?: return@lazy null
+        supertypes.map { (it.classifier as? JavaClass)?.classId ?: return@lazy null }
+    }
+
+    fun directSupertypeClassIds(): List<ClassId>? = directSupertypeClassIdsCache
+
+    // returns original visibility to avoid triggering status transformers application
+    // NB: according to the assertions in the [applyStatusTransformerExtensions] the transformers should not change the visibility
+    val nonEnhancedVisibility: Visibility get() = originalStatus.visibility
 
     // TODO: the lazy annotations is a workaround for KT-55387, some non-lazy solution should probably be used instead
     override val annotations: List<FirAnnotation> get() = annotationList
@@ -190,6 +212,7 @@ class FirJavaClass @FirImplementationDetail internal constructor(
     }
 
     override fun replaceControlFlowGraphReference(newControlFlowGraphReference: FirControlFlowGraphReference?) {}
+    override fun replaceStaticControlFlowGraphReference(newStaticControlFlowGraphReference: FirControlFlowGraphReference?) {}
 
     override val companionObjectSymbol: FirRegularClassSymbol?
         get() = null
@@ -250,8 +273,8 @@ class FirJavaClass @FirImplementationDetail internal constructor(
 
 @FirBuilderDsl
 class FirJavaClassBuilder : FirRegularClassBuilder(), FirAnnotationContainerBuilder {
-    lateinit var visibility: Visibility
-    var isFromSource: Boolean by Delegates.notNull()
+    var javaOrigin: FirDeclarationOrigin.Java by Delegates.notNull()
+    var key: GeneratedDeclarationKey? = null
     var javaPackage: JavaPackage? = null
     lateinit var javaTypeParameterStack: MutableJavaTypeParameterStack
     val existingNestedClassifierNames: MutableList<Name> = mutableListOf()
@@ -279,7 +302,7 @@ class FirJavaClassBuilder : FirRegularClassBuilder(), FirAnnotationContainerBuil
             source,
             moduleData,
             name,
-            origin = javaOrigin(isFromSource),
+            javaOrigin,
             annotationList,
             status as FirResolvedDeclarationStatusImpl,
             classKind,
@@ -295,11 +318,10 @@ class FirJavaClassBuilder : FirRegularClassBuilder(), FirAnnotationContainerBuil
         )
     }
 
-    @Deprecated("Modification of 'origin' has no impact for FirJavaClassBuilder", level = DeprecationLevel.HIDDEN)
     override var origin: FirDeclarationOrigin
-        get() = throw IllegalStateException()
-        set(@Suppress("UNUSED_PARAMETER") value) {
-            throw IllegalStateException()
+        get() = javaOrigin
+        set(value) {
+            javaOrigin = value as FirDeclarationOrigin.Java
         }
 }
 

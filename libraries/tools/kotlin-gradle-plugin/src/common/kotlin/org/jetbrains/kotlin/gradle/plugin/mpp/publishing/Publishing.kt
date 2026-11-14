@@ -12,12 +12,17 @@ import org.gradle.api.publish.PublicationContainer
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.internal.publication.MavenPublicationInternal
+import org.gradle.api.publish.maven.tasks.AbstractPublishToMaven
+import org.gradle.api.publish.maven.tasks.GenerateMavenPom
+import org.gradle.api.publish.tasks.GenerateModuleMetadata
+import org.gradle.plugins.signing.Sign
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.reportDiagnostic
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
+import org.jetbrains.kotlin.gradle.plugin.mpp.archive.KotlinTargetWithKotlinArchiveSupport
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
 import org.jetbrains.kotlin.gradle.tooling.buildKotlinToolingMetadataTask
 import org.jetbrains.kotlin.gradle.utils.*
@@ -129,27 +134,43 @@ private fun createTargetPublications(project: Project, publishing: PublishingExt
                 is KotlinAndroidTarget -> project.whenEvaluated {
                     kotlinTarget.createTargetSpecificMavenPublications(publishing.publications)
                 }
-                is KotlinNativeTarget -> {
-                    project.launch {
-                        val crossCompilationSupported = kotlinTarget.crossCompilationOnCurrentHostSupported.await()
-                        if (!crossCompilationSupported) return@launch
-                        kotlinTarget.createTargetSpecificMavenPublications(publishing.publications)
+                is KotlinTargetWithKotlinArchiveSupport -> kotlinTarget.createTargetSpecificMavenPublications(
+                    publishing.publications,
+                    enabled = enabled@{
+                        if (kotlinTarget is KotlinNativeTarget) {
+                            val crossCompilationSupported = kotlinTarget.crossCompilationOnCurrentHostSupported.await()
+                            if (!crossCompilationSupported) return@enabled false
+                        }
+                        KotlinPluginLifecycle.Stage.AfterFinaliseDsl.await()
+                        !kotlinTarget.isStoredInKotlinArchive.get()
                     }
-                }
+                )
                 else -> kotlinTarget.createTargetSpecificMavenPublications(publishing.publications)
             }
         }
 }
 
-private fun InternalKotlinTarget.createTargetSpecificMavenPublications(publications: PublicationContainer) {
+/**
+ * Publication creation waits for [enabled], so it can occur after the build script runs.
+ * Gradle runs `configureEach` actions when a publication is added, before the action given to `create`.
+ * Thus, if KGP configures the publication in `create`, KGP overrides the values from user `configureEach` actions.
+ *
+ * To keep the old order, KGP registers its `configureEach` action immediately and creates the publication later.
+ * If KGP does not create the publication, the action has no effect.
+ *
+ * A build script that reads the publication list eagerly can still get an incomplete list.
+ * Idiomatic build scripts do not do this.
+ */
+private fun InternalKotlinTarget.createTargetSpecificMavenPublications(
+    publications: PublicationContainer,
+    enabled: suspend () -> Boolean = { true }
+) {
     kotlinComponents
         .filter { kotlinComponent -> kotlinComponent.publishableOnCurrentHost }
         .forEach { kotlinComponent ->
-            val componentPublication = publications.create(kotlinComponent.name, MavenPublication::class.java).apply {
-                val publication = this
-
+            publications.matching { it.name == kotlinComponent.name }.withType().configureEach { publication ->
                 (publication as MavenPublicationInternal).publishWithOriginalFileName()
-                artifactId = kotlinComponent.defaultArtifactId
+                publication.artifactId = kotlinComponent.defaultArtifactId
 
                 // do await for usages since older Gradle versions seem to check the files in the variant eagerly:
                 // We are deferring this to 'AfterFinaliseCompilations' as safety measure for now.
@@ -160,9 +181,59 @@ private fun InternalKotlinTarget.createTargetSpecificMavenPublications(publicati
                 project.rewriteKmpDependenciesInPomForTargetPublication(kotlinComponent, publication)
             }
 
-            (kotlinComponent as? KotlinTargetComponentWithPublication)?.publicationDelegate = componentPublication
-            onPublicationCreated(componentPublication)
+            // Undispatched creates the publication immediately if [enabled] does not suspend, as in old versions
+            project.launch(start = KotlinPluginLifecycle.CoroutineStart.Undispatched) {
+                if (!enabled()) return@launch
+                val componentPublication = publications.create(kotlinComponent.name, MavenPublication::class.java)
+                (kotlinComponent as? KotlinTargetComponentWithPublication)?.publicationDelegate = componentPublication
+                onPublicationCreated(componentPublication)
+
+                // Also skip publishing when a project dependency disables cross-compilation (KT-87394).
+                if (this@createTargetSpecificMavenPublications is KotlinNativeTarget) {
+                    skipPublicationTasksWhenCrossCompilationWithDependenciesUnsupported(componentPublication)
+                }
+            }
         }
+}
+
+/**
+ * The publication is created eagerly, but the target's compilation may be skipped by the dependency-aware
+ * cross-compilation check. Gate its publish tasks on the same check so they don't fail on a missing KLIB.
+ */
+private fun KotlinNativeTarget.skipPublicationTasksWhenCrossCompilationWithDependenciesUnsupported(
+    publication: MavenPublication
+) {
+    val mainCompilation = compilations.getByName(KotlinCompilation.MAIN_COMPILATION_NAME)
+    val crossCompilationSharedData = mainCompilation.crossCompilationSharedData
+    fun isCrossCompilationSupported() = crossCompilationSharedData.dataForAllDependencies.all { it.crossCompilationSupported }
+
+    val skipReason = "Cross-compilation of target '$targetName' with project dependencies is supported on this host"
+
+    // These tasks expose the publication they operate on, so match by identity.
+    project.tasks.withType<GenerateModuleMetadata>().configureEach { task ->
+        if (task.publication.orNull === publication) {
+            task.onlyIf(skipReason) { isCrossCompilationSupported() }
+        }
+    }
+    project.tasks.withType<GenerateMavenPom>().configureEach { task ->
+        if (task.pom === publication.pom) {
+            task.onlyIf(skipReason) { isCrossCompilationSupported() }
+        }
+    }
+    project.tasks.withType<AbstractPublishToMaven>().configureEach { task ->
+        if (task.publication === publication) {
+            task.onlyIf(skipReason) { isCrossCompilationSupported() }
+        }
+    }
+
+    // The signing plugin's Sign task has no public accessor for the publication it signs, so it is matched
+    // by its conventional name 'sign<Publication>Publication'.
+    val signTaskName = lowerCamelCaseName("sign", publication.name, "publication")
+    project.tasks.withType<Sign>().configureEach { task ->
+        if (task.name == signTaskName) {
+            task.onlyIf(skipReason) { isCrossCompilationSupported() }
+        }
+    }
 }
 
 internal fun Configuration.configureSourcesPublicationAttributes(target: KotlinTarget) {

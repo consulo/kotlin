@@ -24,10 +24,9 @@ import org.jetbrains.kotlin.backend.konan.driver.utilities.getDefaultLlvmModuleA
 import org.jetbrains.kotlin.backend.konan.llvm.LlvmFunctionAttribute
 import org.jetbrains.kotlin.backend.konan.llvm.addLlvmFunctionEnumAttribute
 import org.jetbrains.kotlin.backend.konan.llvm.getFunctions
-import org.jetbrains.kotlin.backend.konan.llvm.name
+import org.jetbrains.kotlin.backend.konan.llvm.valueName
 import org.jetbrains.kotlin.backend.konan.llvm.verifyModule
 import org.jetbrains.kotlin.backend.konan.optimizations.RemoveRedundantSafepointsPass
-import org.jetbrains.kotlin.backend.konan.optimizations.removeMultipleThreadDataLoads
 import org.jetbrains.kotlin.config.nativeBinaryOptions.SanitizerKind
 import org.jetbrains.kotlin.util.PerformanceManager
 import java.io.File
@@ -39,33 +38,37 @@ internal data class WriteBitcodeFileInput(
         val outputFile: File,
 ) : LlvmIrHolder
 
+internal data class InsertEntryPointAliasInput(
+        override val llvmModule: LLVMModuleRef,
+        val entryPointName: String,
+) : LlvmIrHolder
+
+internal val InsertEntryPointAliasPhase = createSimpleNamedCompilerPhase<NativeBackendPhaseContext, InsertEntryPointAliasInput>(
+        "InsertEntryPointAlias"
+) { _, (llvmModule, entryPointName) ->
+    // Insert `_main` after pipeline, so we won't worry about optimizations corrupting entry point.
+    insertAliasToEntryPoint(llvmModule, entryPointName)
+}
+
 /**
  * Write in-memory LLVM module to filesystem as a bitcode.
  */
 internal val WriteBitcodeFilePhase = createSimpleNamedCompilerPhase<NativeBackendPhaseContext, WriteBitcodeFileInput>(
         "WriteBitcodeFile",
-) { context, (llvmModule, outputFile) ->
-    // Insert `_main` after pipeline, so we won't worry about optimizations corrupting entry point.
-    insertAliasToEntryPoint(context, llvmModule)
+        postactions = getDefaultLlvmModuleActions(),
+) { _, (llvmModule, outputFile) ->
     LLVMWriteBitcodeToFile(llvmModule, outputFile.canonicalPath)
 }
 
-internal val CheckExternalCallsPhase = createSimpleNamedCompilerPhase<NativeGenerationState, Unit>(
-        name = "CheckExternalCalls",
-        postactions = getDefaultLlvmModuleActions(),
-) { context, _ ->
-    checkLlvmModuleExternalCalls(context)
-}
+internal val ModuleCallsChecker = optimizationPipelinePass(
+        name = "ModuleCallsChecker",
+        pipeline = ::ModuleCallsCheckerPipeline
+)
 
-/**
- * Rewrites globals for external calls checker after optimizer run.
- */
-internal val RewriteExternalCallsCheckerGlobals = createSimpleNamedCompilerPhase<NativeGenerationState, Unit>(
-        name = "RewriteExternalCallsCheckerGlobals",
-        postactions = getDefaultLlvmModuleActions(),
-) { context, _ ->
-    addFunctionsListSymbolForChecker(context)
-}
+internal val CallsChecker = optimizationPipelinePass(
+        name = "CallsChecker",
+        pipeline = ::CallsCheckerPipeline
+)
 
 internal class OptimizationState(
         config: NativeSecondStageCompilationConfig,
@@ -103,7 +106,7 @@ internal val ThreadSanitizerPhase = optimizationPipelinePass(
         pipeline = ::ThreadSanitizerPipeline
 )
 
-internal val StackProtectorPhase = createSimpleNamedCompilerPhase<OptimizationState, LLVMModuleRef>(
+internal val StackProtectorPhaseInCompiler = createSimpleNamedCompilerPhase<OptimizationState, LLVMModuleRef>(
         name = "StackProtectorPhase",
         postactions = getDefaultLlvmModuleActions(),
         op = { context: OptimizationState, module: LLVMModuleRef ->
@@ -115,13 +118,18 @@ internal val StackProtectorPhase = createSimpleNamedCompilerPhase<OptimizationSt
             }
             attribute?.let { sspAttribute ->
                 getFunctions(module)
-                        .filter { LLVMIsDeclaration(it) == 0 && it.name != "__clang_call_terminate" }
+                        .filter { LLVMIsDeclaration(it) == 0 && it.valueName != "__clang_call_terminate" }
                         .forEach { addLlvmFunctionEnumAttribute(it, sspAttribute) }
             }
         }
 )
 
-internal val RemoveRedundantSafepointsPhase = createSimpleNamedCompilerPhase<BitcodePostProcessingContext, Unit>(
+internal val StackProtectorPhaseInLLVM = optimizationPipelinePass(
+        name = "StackProtectorPhase",
+        pipeline = ::StackProtectorPipeline
+)
+
+internal val RemoveRedundantSafepointsPhaseInCompiler = createSimpleNamedCompilerPhase<BitcodePostProcessingContext, Unit>(
         name = "RemoveRedundantSafepoints",
         postactions = getDefaultLlvmModuleActions(),
         op = { context, _ ->
@@ -132,10 +140,9 @@ internal val RemoveRedundantSafepointsPhase = createSimpleNamedCompilerPhase<Bit
         }
 )
 
-internal val OptimizeTLSDataLoadsPhase = createSimpleNamedCompilerPhase<BitcodePostProcessingContext, Unit>(
-        name = "OptimizeTLSDataLoads",
-        postactions = getDefaultLlvmModuleActions(),
-        op = { context, _ -> removeMultipleThreadDataLoads(context) }
+internal val RemoveRedundantSafepointsPhaseInLLVM = optimizationPipelinePass(
+        name = "RemoveRedundantSafepoints",
+        pipeline = ::RemoveRedundantSafepointsPipeline
 )
 
 internal val CStubsPhase = createSimpleNamedCompilerPhase<NativeGenerationState, Unit>(
@@ -169,7 +176,15 @@ internal fun <T : BitcodePostProcessingContext> PhaseEngine<T>.runBitcodePostPro
     )
     useContext(OptimizationState(context.config, optimizationConfig, context.performanceManager)) {
         val module = this@runBitcodePostProcessing.context.llvmModule
-        it.runAndMeasurePhase(StackProtectorPhase, module)
+        if (context.config.checkStateAtExternalCalls) {
+            // Instrument functions before running any lowerings and optimizations, that could complicate the callgraph.
+            it.runAndMeasurePhase(CallsChecker, module)
+        }
+        if (context.config.runLLVMPassesInCompiler) {
+            it.runAndMeasurePhase(StackProtectorPhaseInCompiler, module)
+        } else {
+            it.runAndMeasurePhase(StackProtectorPhaseInLLVM, module)
+        }
         it.runAndMeasurePhase(MandatoryBitcodeLLVMPostprocessingPhase, module)
         it.runAndMeasurePhase(ModuleBitcodeOptimizationPhase, module)
         it.runAndMeasurePhase(LTOBitcodeOptimizationPhase, module)
@@ -178,9 +193,15 @@ internal fun <T : BitcodePostProcessingContext> PhaseEngine<T>.runBitcodePostPro
             SanitizerKind.ADDRESS -> context.reportCompilationError("Address sanitizer is not supported yet")
             null -> {}
         }
+        if (!context.config.runLLVMPassesInCompiler) {
+            it.runAndMeasurePhase(RemoveRedundantSafepointsPhaseInLLVM, module)
+        }
+        if (context.config.checkStateAtExternalCalls) {
+            // The list of known functions has to be created after all optimizations (notably, DCE).
+            it.runAndMeasurePhase(ModuleCallsChecker, module)
+        }
     }
-    runAndMeasurePhase(RemoveRedundantSafepointsPhase)
-    if (context.config.optimizationsEnabled) {
-        runAndMeasurePhase(OptimizeTLSDataLoadsPhase)
+    if (context.config.runLLVMPassesInCompiler) {
+        runAndMeasurePhase(RemoveRedundantSafepointsPhaseInCompiler)
     }
 }

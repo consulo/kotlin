@@ -3,13 +3,11 @@ import Foundation
 import KotlinRuntime
 import KotlinRuntimeSupport
 
-@_spi(kotlinx$cinterop$ExperimentalForeignApi)
+@available(*, unavailable, message: "Declaration uses unsupported types")
 public var store_cgReck: Swift.Never {
-    @_spi(kotlinx$cinterop$ExperimentalForeignApi)
     get {
         fatalError()
     }
-    @_spi(kotlinx$cinterop$ExperimentalForeignApi)
     set {
         fatalError()
     }
@@ -30,6 +28,7 @@ public func consume_nsdate(
 public func produce_nsdate() -> Foundation.NSDate {
     return __root___produce_nsdate() as! Foundation.NSDate
 }
+@available(*, unavailable, message: "Declaration uses unsupported types")
 public func produce_typealias() -> Swift.Never {
     fatalError()
 }

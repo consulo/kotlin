@@ -10,6 +10,7 @@ To run all tests for all Gradle plugins use `check` task.
 More fine-grained test tasks exist covering different parts of Gradle plugins:
 - `kgpJvmTests` - runs all tests for Kotlin Gradle Plugin/Jvm platform (parallel execution)
 - `kgpJsTests` - runs all tests for Kotlin Gradle Plugin/Js platform (parallel execution)
+- `kgpJsBrowserTests` - runs tests for Kotlin Gradle Plugin/Js platform that require running browser
 - `kgpAndroidTests` - runs all tests for Kotlin Gradle Plugin/Android platform (parallel execution)
 - `kgpMppTests` - run all tests for Kotlin Gradle Multiplatform plugin (parallel execution)
 - `kgpNativeTests` - run all tests for Kotlin Gradle Plugin with K/N (parallel execution)
@@ -20,6 +21,19 @@ More fine-grained test tasks exist covering different parts of Gradle plugins:
 If you want to run only one test class, you need to append `--tests` flag with value of test class, which you want to run
 ```shell
 ./gradlew :kotlin-gradle-plugin-integration-tests:kgpAllParallelTests --tests <class-name-with-package>
+```
+
+#### How to run architecture tests
+
+The `archTest` suite documents architectural conventions of this module's test code in the form of tests, using [ArchUnit](https://www.archunit.org).
+The rules are frozen: existing violations are stored in [src/archTest/archunit-store](src/archTest/archunit-store), and only new violations fail the tests:
+```shell
+./gradlew :kotlin-gradle-plugin-integration-tests:archTest
+```
+
+After adding a new rule or fixing an existing violation, update the store by running the task with `-ParchunitRefreeze` and commit the updated store:
+```shell
+./gradlew :kotlin-gradle-plugin-integration-tests:archTest -ParchunitRefreeze
 ```
 
 #### How to Run Using Kotlin Native from Master
@@ -158,7 +172,7 @@ pluginManagement {
         mavenLocal()
     }
 
-    val test_fixes_version: String by settings
+    val test_fixes_version: String = providers.gradleProperty("test_fixes_version").get()
     plugins {
        id("org.jetbrains.kotlin.test.fixes.android") version test_fixes_version
     }

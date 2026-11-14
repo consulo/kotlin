@@ -2,15 +2,16 @@ packages: 0
 classifiers: 0
 callables: 1
   KaNamedFunctionSymbol:
+    anchorPsi: null
     annotations: []
     callableId: test/testFun_generated
-    compilerVisibility: Private
     contextParameters: []
     contextReceivers: []
     contractEffects: []
     hasStableParameterNames: true
     isActual: false
     isBuiltinFunctionInvoke: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -25,6 +26,8 @@ callables: 1
     modality: FINAL
     name: testFun_generated
     origin: PLUGIN
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []

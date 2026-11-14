@@ -1,4 +1,6 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
@@ -9,7 +11,7 @@ dependencies {
     api("org.jetbrains.kotlin:kotlin-reflect:$bootstrapKotlinVersion")
 }
 
-val copyCopyrightProfile by tasks.registering(Copy::class) {
+val copyCopyrightProfile = tasks.register("copyCopyrightProfile", Copy::class) {
     from("$rootDir/.idea/copyright")
     into(copyrightDirectory)
     include("apache.xml")

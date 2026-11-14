@@ -9,32 +9,27 @@ import org.jetbrains.kotlin.backend.common.actualizer.IrActualizerMapContributor
 import org.jetbrains.kotlin.fir.FirModuleData
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.backend.Fir2IrComponents
+import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
 import org.jetbrains.kotlin.fir.declarations.fullyExpandedClass
 import org.jetbrains.kotlin.fir.moduleData
 import org.jetbrains.kotlin.fir.resolve.providers.impl.FirCachingCompositeSymbolProvider
-import org.jetbrains.kotlin.fir.resolve.providers.impl.FirCommonDeclarationsMappingSymbolProvider
+import org.jetbrains.kotlin.fir.resolve.providers.impl.FirCommonDeclarationsMappingCollectingSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.fir.session.NativeForwardDeclarationsSymbolProvider
 import org.jetbrains.kotlin.fir.session.structuredProviders
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.*
-import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
-import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
-import org.jetbrains.kotlin.ir.symbols.IrSymbol
-import org.jetbrains.kotlin.ir.symbols.IrTypeAliasSymbol
-import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
+import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.classOrFail
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.StandardClassIds
-import org.jetbrains.kotlin.utils.addIfNotNull
-import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 
 
 class IrCommonToPlatformDependencyActualizerMapContributor private constructor(
     private val platformSession: FirSession,
-    private val platformMappingProvider: FirCommonDeclarationsMappingSymbolProvider,
-    private val commonMappingProviders: List<FirCommonDeclarationsMappingSymbolProvider>,
+    private val platformMappingProviders: List<FirCommonDeclarationsMappingCollectingSymbolProvider>,
+    private val commonMappingProviders: List<FirCommonDeclarationsMappingCollectingSymbolProvider>,
     private val componentsPerSession: Map<FirSession, Fir2IrComponents>,
 ) : IrActualizerMapContributor() {
     companion object {
@@ -42,25 +37,24 @@ class IrCommonToPlatformDependencyActualizerMapContributor private constructor(
             platformSession: FirSession,
             componentsPerSession: Map<FirSession, Fir2IrComponents>,
         ): IrCommonToPlatformDependencyActualizerMapContributor? {
-            val mappingProviders = mutableListOf<FirCommonDeclarationsMappingSymbolProvider>()
+            val mappingProviders = mutableListOf<FirCommonDeclarationsMappingCollectingSymbolProvider>()
 
             fun process(session: FirSession) {
-                val mappingProvider = (session.symbolProvider as FirCachingCompositeSymbolProvider)
+                val mappingProvidersOfSession = (session.symbolProvider as FirCachingCompositeSymbolProvider)
                     .providers
-                    .firstIsInstanceOrNull<FirCommonDeclarationsMappingSymbolProvider>()
-                mappingProviders.addIfNotNull(mappingProvider)
+                    .filterIsInstance<FirCommonDeclarationsMappingCollectingSymbolProvider>()
+                mappingProviders.addAll(mappingProvidersOfSession)
                 for (dependency in session.moduleData.dependsOnDependencies) {
                     process(dependency.session)
                 }
             }
             process(platformSession)
 
-            val (platformMappingProviders, commonMappingProviders) = mappingProviders.partition { it.session == platformSession }
+            val [platformMappingProviders, commonMappingProviders] = mappingProviders.partition { it.session == platformSession }
             if (platformMappingProviders.isEmpty()) return null
-            val platformMappingProvider = platformMappingProviders.single()
             return IrCommonToPlatformDependencyActualizerMapContributor(
                 platformSession,
-                platformMappingProvider,
+                platformMappingProviders,
                 commonMappingProviders,
                 componentsPerSession
             )
@@ -115,10 +109,10 @@ class IrCommonToPlatformDependencyActualizerMapContributor private constructor(
 
         fun handleCloneable() {
             val classId = StandardClassIds.Cloneable
-            val fromPlatform = platformMappingProvider.platformSymbolProvider.getClassLikeSymbolByClassId(classId) ?: return
-            val fromCommon = platformMappingProvider.commonSymbolProvider.getClassLikeSymbolByClassId(classId)
+            val fromPlatform = platformMappingProviders.firstNotNullOfOrNull { it.platformSymbolProvider.getClassLikeSymbolByClassId(classId) } ?: return
+            val fromCommon = platformMappingProviders.firstNotNullOfOrNull { it.commonSymbolProvider.getClassLikeSymbolByClassId(classId) }
             if (fromCommon != null) return
-            val fromShared = platformMappingProvider.session.structuredProviders.sharedProvider.getClassLikeSymbolByClassId(classId) ?: return
+            val fromShared = platformSession.structuredProviders.sharedProvider.getClassLikeSymbolByClassId(classId) ?: return
             processPairOfClasses(fromShared, fromPlatform)
         }
 
@@ -128,6 +122,13 @@ class IrCommonToPlatformDependencyActualizerMapContributor private constructor(
                 val commonFirClassSymbol = pair.platformClass ?: pair.commonClass ?: continue
                 val platformFirClassSymbol = platformSession.symbolProvider.getClassLikeSymbolByClassId(commonFirClassSymbol.classId)!!
                 processPairOfClasses(commonFirClassSymbol, platformFirClassSymbol)
+            }
+        }
+
+        for (platformMappingProvider in platformMappingProviders) {
+            for ((commonClass, platformClass) in platformMappingProvider.classMapping.values.toList()) {
+                if (commonClass == null || platformClass == null) continue
+                processPairOfClasses(commonClass, platformClass)
             }
         }
 
@@ -143,24 +144,26 @@ class IrCommonToPlatformDependencyActualizerMapContributor private constructor(
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     private val topLevelCallablesMap by lazy {
         buildMap {
-            for ((commonFirSymbol, platformFirSymbol) in platformMappingProvider.commonCallableToPlatformCallableMap) {
-                val commonIrSymbol = commonFirSymbol.toIrSymbol()
-                val platformIrSymbol = platformFirSymbol.toIrSymbol()
-                put(commonIrSymbol, platformIrSymbol)
+            for (platformMappingProvider in platformMappingProviders) {
+                for ([commonFirSymbol, platformFirSymbol] in platformMappingProvider.commonCallableToPlatformCallableMap) {
+                    val commonIrSymbol = commonFirSymbol.toIrSymbol()
+                    val platformIrSymbol = platformFirSymbol.toIrSymbol()
+                    put(commonIrSymbol, platformIrSymbol)
 
-                if (commonIrSymbol is IrPropertySymbol && platformIrSymbol is IrPropertySymbol) {
-                    val commonIrGetterSymbol = commonIrSymbol.owner.getter?.symbol
-                    val platformIrGetterSymbol = platformIrSymbol.owner.getter?.symbol
+                    if (commonIrSymbol is IrPropertySymbol && platformIrSymbol is IrPropertySymbol) {
+                        val commonIrGetterSymbol = commonIrSymbol.owner.getter?.symbol
+                        val platformIrGetterSymbol = platformIrSymbol.owner.getter?.symbol
 
-                    if (commonIrGetterSymbol != null && platformIrGetterSymbol != null) {
-                        put(commonIrGetterSymbol, platformIrGetterSymbol)
-                    }
+                        if (commonIrGetterSymbol != null && platformIrGetterSymbol != null) {
+                            put(commonIrGetterSymbol, platformIrGetterSymbol)
+                        }
 
-                    val commonIrSetterSymbol = commonIrSymbol.owner.setter?.symbol
-                    val platformIrSetterSymbol = platformIrSymbol.owner.setter?.symbol
+                        val commonIrSetterSymbol = commonIrSymbol.owner.setter?.symbol
+                        val platformIrSetterSymbol = platformIrSymbol.owner.setter?.symbol
 
-                    if (commonIrSetterSymbol != null && platformIrSetterSymbol != null) {
-                        put(commonIrSetterSymbol, platformIrSetterSymbol)
+                        if (commonIrSetterSymbol != null && platformIrSetterSymbol != null) {
+                            put(commonIrSetterSymbol, platformIrSetterSymbol)
+                        }
                     }
                 }
             }
@@ -174,13 +177,16 @@ class IrCommonToPlatformDependencyActualizerMapContributor private constructor(
 
     override fun actualizeClass(classId: ClassId): IrClassSymbol? {
         val symbol = platformSession.symbolProvider.getClassLikeSymbolByClassId(classId) ?: return null
-        val fullyExpandedClass = symbol.fullyExpandedClass(platformMappingProvider.session) ?: return null
+        val fullyExpandedClass = symbol.fullyExpandedClass(platformSession) ?: return null
         if (fullyExpandedClass.moduleData !in dependencyToSourceSession) return null
         return fullyExpandedClass.toIrSymbol() as? IrClassSymbol
     }
 
     private fun FirBasedSymbol<*>.properComponents(): Fir2IrComponents {
-        val sourceSession = dependencyToSourceSession.getValue(moduleData)
+        val sourceSession = when (moduleData.session.kind) {
+            Source -> moduleData.session
+            Library -> dependencyToSourceSession.getValue(moduleData)
+        }
         return componentsPerSession.getValue(sourceSession)
     }
 

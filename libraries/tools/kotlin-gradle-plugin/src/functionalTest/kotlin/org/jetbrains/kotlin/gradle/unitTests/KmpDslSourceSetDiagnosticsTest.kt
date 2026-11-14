@@ -2,15 +2,12 @@
  * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.gradle.api.internal.project.ProjectInternal
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.util.assertContainsDiagnostic
 import org.jetbrains.kotlin.gradle.util.assertNoDiagnostics
 import org.jetbrains.kotlin.gradle.util.buildProjectWithMPP
@@ -72,15 +69,12 @@ class KmpDslSourceSetDiagnosticsTest {
                     js {
                         nodejs()
                     }
-                    @OptIn(ExperimentalWasmDsl::class)
                     wasmJs {
                         nodejs()
                     }
 
                     linuxX64()
                     mingwX64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                    macosX64()
                     macosArm64()
 
                     applyDefaultHierarchyTemplate()

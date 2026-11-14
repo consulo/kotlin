@@ -25,12 +25,9 @@ class K2JVMCompilerArgumentsConfigurator : CommonCompilerArgumentsConfigurator()
 
             configureJvmDefaultMode(reporter)?.let {
                 putAnalysisFlag(JvmAnalysisFlags.jvmDefaultMode, it)
-                @Suppress("DEPRECATION")
-                if (jvmDefault != null) {
-                    reporter.reportWarning( "-Xjvm-default is deprecated. Use -jvm-default instead.")
-                }
             }
 
+            putAnalysisFlag(JvmAnalysisFlags.valhallaValueClasses, valhallaValueClasses)
             putAnalysisFlag(JvmAnalysisFlags.inheritMultifileParts, inheritMultifileParts)
             putAnalysisFlag(JvmAnalysisFlags.sanitizeParentheses, sanitizeParentheses)
             putAnalysisFlag(JvmAnalysisFlags.suppressMissingBuiltinsError, suppressMissingBuiltinsError)
@@ -38,6 +35,7 @@ class K2JVMCompilerArgumentsConfigurator : CommonCompilerArgumentsConfigurator()
             putAnalysisFlag(JvmAnalysisFlags.implicitJvmExposeBoxed, jvmExposeBoxed)
             putAnalysisFlag(AnalysisFlags.allowUnstableDependencies, allowUnstableDependencies)
             putAnalysisFlag(JvmAnalysisFlags.outputBuiltinsMetadata, outputBuiltinsMetadata)
+            putAnalysisFlag(AnalysisFlags.kmpJvmIncrementalCompilationEnabled, useMetadataOnIncrementalClasspath && multiPlatform)
         }
     }
 

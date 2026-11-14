@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
@@ -33,6 +31,7 @@ class KotlinHierarchyBuilderTest {
             // jvmWithJava is covered by the withJvm() call
             .filter { it !is KotlinJvmWithJavaTargetPreset }
             .filter { it.name != "linuxArm32Hfp" } // KT-61122. Deprecated target. We do not support it in the hierarchy builder
+            .filter { it.name != "watchosArm32" } // KT-87513. Deprecated with error. We do not support it in the hierarchy builder
             .forEach { preset ->
                 val presetName = if (preset.name == "android") "androidTarget" else preset.name
                 val expectedFunctionName = "with${presetName.capitalizeAsciiOnly()}"

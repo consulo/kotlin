@@ -1,26 +1,29 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("d8-configuration")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
 dependencies {
-    api(project(":core:descriptors"))
-    api(project(":core:descriptors.jvm"))
-    api(project(":core:deserialization"))
+    implementation(project(":core:descriptors"))
+    implementation(project(":core:descriptors.jvm"))
+    implementation(project(":kotlin-util-klib-metadata"))
+    implementation(libs.intellij.asm)
+    implementation(libs.guava)
+    implementation(commonDependency("com.google.code.findbugs", "jsr305"))
     api(project(":compiler:util"))
-    api(project(":compiler:frontend"))
-    api(project(":compiler:frontend.java"))
     api(project(":compiler:cli"))
     api(project(":compiler:cli-jvm"))
+    implementation(project(":core:language.targets.jvm"))
+    implementation(project(":compiler:config.jvm"))
+    implementation(project(":compiler:backend.jvm"))
     api(project(":compiler:cli-js"))
     api(project(":compiler:cli-metadata"))
     api(project(":compiler:fir:entrypoint"))
     api(project(":compiler:fir:fir2ir:jvm-backend"))
-    api(project(":compiler:ir.serialization.jvm"))
-    api(project(":compiler:backend.jvm.entrypoint"))
     api(project(":kotlin-build-common"))
     api(project(":daemon-common"))
     api(project(":compiler:build-tools:kotlin-build-statistics"))
@@ -28,8 +31,9 @@ dependencies {
     implementation(project(":compiler:build-tools:kotlin-build-tools-cri-impl"))
     compileOnly(intellijCore())
 
-    testFixturesApi(libs.junit4)
-    testFixturesApi(kotlinTest("junit"))
+    testFixturesApi(platform(libs.junit.bom))
+    testFixturesApi(libs.junit.jupiter.api)
+    testImplementation(libs.junit.jupiter.params)
     testFixturesApi(kotlinStdlib())
     testFixturesApi(testFixtures(project(":kotlin-build-common")))
     testFixturesApi(testFixtures(project(":compiler:tests-common")))
@@ -40,40 +44,23 @@ dependencies {
     testFixturesImplementation(commonDependency("com.google.code.gson:gson"))
     testImplementation(commonDependency("com.google.code.gson:gson"))
     testRuntimeOnly(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
+
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
-optInToK1Deprecation()
-
 sourceSets {
-    "main" { projectDefault() }
-    "test" {
+    main { projectDefault() }
+    test {
         projectDefault()
         generatedTestDir()
     }
-    "testFixtures" { projectDefault() }
+    testFixtures { projectDefault() }
 }
+
 projectTests {
-    testTask(parallel = true, jUnitMode = JUnitMode.JUnit4) {
+    testTask {
         useJsIrBoxTests(buildDir = layout.buildDirectory)
-    }
-
-    testTask("testJvmICWithJdk11", parallel = true, jUnitMode = JUnitMode.JUnit4, skipInLocalBuild = false) {
-        useJsIrBoxTests(buildDir = layout.buildDirectory)
-        filter {
-            includeTestsMatching("org.jetbrains.kotlin.incremental.IncrementalK1JvmCompilerRunnerTestGenerated*")
-            includeTestsMatching("org.jetbrains.kotlin.incremental.IncrementalK2JvmCompilerRunnerTestGenerated*")
-        }
-        javaLauncher.set(project.getToolchainLauncherFor(JdkMajorVersion.JDK_11_0))
-    }
-
-    tasks.withType<Test> {
-        workingDir(tasks.processTestResources.map { it.destinationDir }) // to let JUnit Foundation find the empty junit.properties and stop scanning
-        extensions.configure<TestInputsCheckExtension> {
-            with(extraPermissions) {
-                add("permission java.util.PropertyPermission \"kotlin.incremental.compilation\", \"write\";")
-                add("permission java.util.PropertyPermission \"kotlin.incremental.compilation.js\", \"write\";")
-            }
-        }
     }
 
     testGenerator("org.jetbrains.kotlin.incremental.TestGeneratorForICTestsKt")
@@ -81,9 +68,5 @@ projectTests {
     testData(project(":jps:jps-plugin").isolated, "testData")
     withJsRuntime()
     withJvmStdlibAndReflect()
-    @OptIn(KotlinCompilerDistUsage::class)
-    withDist()
     withMockJdkAnnotationsJar()
 }
-
-testsJar()

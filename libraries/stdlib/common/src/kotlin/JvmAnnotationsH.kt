@@ -196,6 +196,16 @@ public expect annotation class Strictfp()
  *
  * Note that for an extension function, the monitor of the facade class, where it gets compiled to a static method, is used.
  * Therefore, this annotation is recommended to be applied only to member functions and properties.
+ *
+ * If you need to annotate a common method as JVM-synchronized, introduce a new annotation marked with [OptionalExpectation] in your common code:
+ * ```kotlin
+ * @OptionalExpectation
+ * expect annotation class JvmSynchronized
+ * ```
+ * Then, in your JVM code, actualize it:
+ * ```kotlin
+ * actual typealias JvmSynchronized = kotlin.jvm.Synchronized
+ * ```
  */
 @Target(FUNCTION, PROPERTY_GETTER, PROPERTY_SETTER)
 @MustBeDocumented
@@ -238,6 +248,9 @@ public expect annotation class JvmSerializableLambda()
  *   the compiler to generate wrappers for them.
  *
  * - A constructor is made available from Java.
+ *
+ * - A `vararg` parameter of an unsigned type, e.g. `vararg xs: UInt`, is exposed twice:
+ *   as a Java vararg of boxed elements (`UInt...`) and as the unsigned array (`UIntArray`).
  *
  * These changes maintain backward compatibility, allowing existing API to be safely marked.
  *

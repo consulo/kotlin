@@ -8,16 +8,17 @@ package org.jetbrains.kotlin.gradle.utils
 import org.gradle.api.Project
 import org.gradle.api.file.*
 import org.gradle.api.provider.Provider
-import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.plugin.internal.CustomPropertiesFileValueSource
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.attribute.PosixFilePermission
 import java.util.*
 import java.util.function.Consumer
-import kotlin.collections.map
+import kotlin.io.path.getPosixFilePermissions
+import kotlin.io.path.setPosixFilePermissions
 
 /**
  * Create all possible case-sensitive permutations for given [String].
@@ -54,7 +55,13 @@ internal fun File.relativeOrAbsolute(base: File): String =
  * Does not resolve symlinks. Avoids [java.io.File.getCanonicalFile] (banned per KT-69613).
  */
 internal fun File.normalizedAbsoluteFile(): File =
-    toPath().toAbsolutePath().normalize().toFile()
+    normalizedAbsolutePath().toFile()
+
+/**
+ * Same as [normalizedAbsoluteFile], but returns a [Path] and avoids the extra conversion back to [File].
+ */
+internal fun File.normalizedAbsolutePath(): Path =
+    toPath().toAbsolutePath().normalize()
 
 internal fun Iterable<File>.pathsAsStringRelativeTo(base: File): String =
     map { it.relativeOrAbsolute(base) }.sorted().joinToString()
@@ -63,18 +70,14 @@ internal fun Iterable<File>.toPathsArray(): Array<String> =
     map { it.normalize().absolutePath }.toTypedArray()
 
 internal fun newTmpFile(prefix: String, suffix: String? = null, directory: File? = null, deleteOnExit: Boolean = true): File {
-    return try {
-        (if (directory == null) Files.createTempFile(prefix, suffix) else Files.createTempFile(directory.toPath(), prefix, suffix))
-    } catch (e: NoSuchFileException) {
-        val parentDir = e.file.parentFile
-
-        if (parentDir.isFile) throw IOException("Temp folder $parentDir is not a directory")
-        if (!parentDir.isDirectory) {
-            if (!parentDir.mkdirs()) throw IOException("Could not create temp directory $parentDir")
-        }
-
-        Files.createTempFile(parentDir.toPath(), prefix, suffix)
-    }.toFile().apply { if (deleteOnExit) deleteOnExit() }
+    val tempFile = if (directory == null) {
+        Files.createTempFile(prefix, suffix)
+    } else {
+        val tempDir = directory.toPath()
+        Files.createDirectories(tempDir)
+        Files.createTempFile(tempDir, prefix, suffix)
+    }
+    return tempFile.toFile().apply { if (deleteOnExit) deleteOnExit() }
 }
 
 internal fun File.isParentOf(childCandidate: File, strict: Boolean = false): Boolean {
@@ -82,7 +85,7 @@ internal fun File.isParentOf(childCandidate: File, strict: Boolean = false): Boo
     val childCandidatePath = Paths.get(childCandidate.absolutePath).normalize()
 
     return if (strict) {
-        childCandidatePath.startsWith(parentPath) && parentPath != childCandidate
+        childCandidatePath.startsWith(parentPath) && parentPath != childCandidatePath
     } else {
         childCandidatePath.startsWith(parentPath)
     }
@@ -90,24 +93,26 @@ internal fun File.isParentOf(childCandidate: File, strict: Boolean = false): Boo
 
 internal fun File.listFilesOrEmpty() = (if (exists()) listFiles() else null).orEmpty()
 
+@Deprecated("Internal KGP utility. Scheduled for removal in Kotlin 2.7.")
 fun contentEquals(file1: File, file2: File): Boolean {
-    if (file1.readLines().size != file2.readLines().size) return false
+    return contentEqualsIgnoringLineEndings(file1, file2)
+}
 
+internal fun contentEqualsIgnoringLineEndings(file1: File, file2: File): Boolean {
     file1.useLines { seq1 ->
         file2.useLines { seq2 ->
             val iterator1 = seq1.iterator()
             val iterator2 = seq2.iterator()
 
-            while (iterator1.hasNext() == iterator2.hasNext()) {
-
-                if (!iterator1.hasNext()) return true
-
-                if (iterator1.next() != iterator2.next()) {
-                    return false
-                }
+            while (iterator1.hasNext() && iterator2.hasNext()) {
+                if (iterator1.next() != iterator2.next()) return false
             }
 
-            return true
+            return when {
+                iterator1.hasNext() -> false
+                iterator2.hasNext() -> false
+                else -> true
+            }
         }
     }
 }
@@ -123,21 +128,6 @@ internal fun Provider<RegularFile>.getFile(): File = get().asFile
 
 @JvmName("getDirectoryAsFile") // avoids jvm signature clash
 internal fun Provider<Directory>.getFile(): File = get().asFile
-
-/**
- * Checks if the file exists, taking into account compatibility with different versions of Gradle.
- * It should be used instead of [File.exists] in checking UPD inputs. See KT-54232 for more info.
- *
- * @return `true` if the file exists, `false` otherwise.
- *
- * NOTE: You can remove this method and all its usages since the minimal supported version of gradle become 8.0
- */
-internal fun File.existsCompat(): Boolean =
-    if (GradleVersion.current() >= GradleVersion.version("8.0")) {
-        true
-    } else {
-        exists()
-    }
 
 /**
  * Loads 'local.properties' file content as [Properties].
@@ -216,7 +206,8 @@ internal fun getJdkClassesRoots(home: Path, isJre: Boolean): List<File> {
                     .findFirst()
                     .ifPresent(Consumer { e -> rootFiles.add(e) })
             }
-        } catch (_: IOException) {}
+        } catch (_: IOException) {
+        }
     }
 
     val classesZip = home.resolve("lib/classes.zip")
@@ -245,7 +236,8 @@ internal inline fun <T : AutoCloseable?, R> T.use(block: (T) -> R): R {
         closed = true
         try {
             this?.close()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         throw e
     } finally {
         if (!closed) {
@@ -260,3 +252,48 @@ internal val Path.invariantSeparatorsPathString: String
         val separator = fileSystem.separator
         return if (separator != "/") toString().replace(separator, "/") else toString()
     }
+
+// replacement for File.setExecutable
+internal fun Path.setExecutable() {
+    setPosixFilePermissions(
+        getPosixFilePermissions() + PosixFilePermission.OWNER_EXECUTE
+    )
+}
+
+/**
+ * Single path component: Latin letters, digits, '-', '_' and '.', but not starting with '.'.
+ * This rules out separators, `.`, `..` and hidden files.
+ */
+private val pathSafeStringRegex = Regex("[A-Za-z0-9_-][A-Za-z0-9._-]*")
+
+internal val String.isPathComponentSafe: Boolean get() = pathSafeStringRegex.matches(this)
+
+internal fun ensurePathComponentSafeString(pathComponent: String): String {
+    require(pathComponent.isPathComponentSafe) {
+        "String '$pathComponent' is not safe for path component. " +
+                "Only Latin characters, numbers, '-', '_' and '.' (not as the first character) are allowed. Check origin of this string."
+    }
+    return pathComponent
+}
+
+/**
+ * Resolves [relative] against [this] directory and ensures that the result stays strictly inside of it.
+ * This is important for security reasons to prevent malicious writes outside expected directory.
+ *
+ * Permitted resolves:
+ *    * a.txt
+ *    * b/c/d/
+ *
+ * Forbidden resolves:
+ *    * /absolute
+ *    * ../relative/
+ */
+internal fun File.resolveInside(relative: String): File = resolveInside(File(relative))
+
+internal fun File.resolveInside(relative: File): File {
+    val resolved = resolve(relative)
+    require(!relative.isAbsolute && isParentOf(resolved, strict = true)) {
+        "Path '$relative' points outside of '$this'. Check origin of this path."
+    }
+    return resolved
+}

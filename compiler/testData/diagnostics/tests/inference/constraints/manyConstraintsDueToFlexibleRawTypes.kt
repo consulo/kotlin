@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// SKIP_JAVAC
+// RUN_PIPELINE_TILL: CODEGEN
 
 // FILE: MyComparableSettings.java
 abstract class MyComparableSettings implements Comparable<MyComparableSettings> {}

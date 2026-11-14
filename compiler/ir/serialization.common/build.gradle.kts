@@ -1,14 +1,23 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("gradle-plugin-compiler-dependency-configuration")
     id("java-test-fixtures")
+    id("test-inputs-check")
+}
+
+projectTests {
+    testTask()
 }
 
 dependencies {
     api(project(":compiler:ir.tree"))
-    api(project(":compiler:serialization"))
     api(project(":kotlin-util-klib"))
-    api(project(":kotlin-util-klib-metadata"))
+    implementation(project(":core:descriptors"))
+    implementation(project(":core:deserialization.common"))
+    implementation(project(":kotlin-util-klib-metadata"))
+    implementation(project(":kotlin-tooling-core"))
     api(project(":compiler:util"))
     implementation(project(":compiler:fir:diagnostic-renderers"))
     implementation(project(":compiler:psi:psi-api"))
@@ -21,7 +30,11 @@ dependencies {
     compileOnly(project(":compiler:cli-base"))
     compileOnly(project(":compiler:fir:diagnostic-renderers"))
 
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(testFixtures(project(":compiler:tests-common-new")))
+
     testFixturesApi(libs.junit.jupiter.api)
+    testFixturesImplementation(project(":core:descriptors"))
     testFixturesImplementation(testFixtures(project(":compiler:ir.tree")))
 }
 
@@ -30,6 +43,6 @@ optInToObsoleteDescriptorBasedAPI()
 
 sourceSets {
     "main" { projectDefault() }
-    "test" {}
+    "test" { projectDefault() }
     "testFixtures" { projectDefault() }
 }

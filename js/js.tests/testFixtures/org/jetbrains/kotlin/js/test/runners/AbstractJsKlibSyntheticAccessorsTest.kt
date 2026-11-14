@@ -10,17 +10,17 @@ import org.jetbrains.kotlin.platform.js.JsPlatforms
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.configuration.commonConfigurationForDumpSyntheticAccessorsTest
-import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerWithTargetBackendTest
+import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerJsTest
 import org.jetbrains.kotlin.test.services.configuration.JsFirstStageEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.JsSecondStageEnvironmentConfigurator
 
-abstract class AbstractJsKlibSyntheticAccessorTest : AbstractKotlinCompilerWithTargetBackendTest(TargetBackend.JS_IR) {
+abstract class AbstractJsKlibSyntheticAccessorTest : AbstractKotlinCompilerJsTest(TargetBackend.JS_IR) {
     override fun configure(builder: TestConfigurationBuilder) = with(builder) {
         commonConfigurationForDumpSyntheticAccessorsTest(
             frontendFacade = ::FirCliWebFacade,
             frontendToIrConverter = ::Fir2IrCliWebFacade,
             irInliningFacade = ::JsIrPreSerializationLoweringFacade,
-            serializerFacade = ::FirKlibSerializerCliWebFacade,
+            serializerFacade = ::FirKlibSerializerCliJsFacade,
             deserializerFacade = ::JsIrDeserializerFacade,
         )
         globalDefaults {

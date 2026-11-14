@@ -9,24 +9,14 @@ import org.jetbrains.kotlin.backend.common.lower.optimizations.LivenessAnalysis
 import org.jetbrains.kotlin.backend.common.peek
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
-import org.jetbrains.kotlin.backend.konan.DECLARATION_ORIGIN_INLINE_CLASS_SPECIAL_FUNCTION
+import org.jetbrains.kotlin.backend.common.serialization.kotlinLibrary
 import org.jetbrains.kotlin.backend.konan.NativeGenerationState
 import org.jetbrains.kotlin.backend.konan.ir.isArray
 import org.jetbrains.kotlin.backend.konan.ir.isBoxOrUnbox
-import org.jetbrains.kotlin.backend.konan.ir.konanLibrary
-import org.jetbrains.kotlin.backend.konan.lower.PreCodegenFunctionInlining
-import org.jetbrains.kotlin.backend.konan.lower.bridgeTarget
-import org.jetbrains.kotlin.backend.konan.lower.liveVariablesAtSuspensionPoint
-import org.jetbrains.kotlin.backend.konan.lower.originalConstructor
+import org.jetbrains.kotlin.backend.konan.ir.isInlineClass
+import org.jetbrains.kotlin.backend.konan.lower.*
 import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.isSingleFieldValueClass
-import org.jetbrains.kotlin.ir.expressions.IrCall
-import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
-import org.jetbrains.kotlin.ir.expressions.IrMemberAccessExpression
 import org.jetbrains.kotlin.ir.expressions.IrSuspensionPoint
-import org.jetbrains.kotlin.ir.inline.FunctionInlining
-import org.jetbrains.kotlin.ir.inline.InlineFunctionResolver
-import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.library.metadata.isCInteropLibrary
@@ -83,14 +73,18 @@ internal class PreCodegenInliner(
         while (stack.isNotEmpty()) {
             val functionSymbol = stack.peek()!!
             val color = nodeColors[functionSymbol]!!
-            val callSites = callGraph.directEdges[functionSymbol]!!.callSites.filter {
-                !it.isVirtual && callGraph.directEdges.containsKey(it.actualCallee)
+            val callees = buildList {
+                for (callSite in callGraph.directEdges[functionSymbol]!!.callSites) {
+                    (callSite as? CallGraphNode.CallSite.Static)?.forEachCallee {
+                        if (callGraph.directEdges.containsKey(it)) add(it)
+                    }
+                }
             }
             when (color) {
                 NodeColor.WHITE -> {
                     nodeColors[functionSymbol] = NodeColor.GRAY
-                    for (callSite in callSites) {
-                        val calleeSymbol = callSite.actualCallee as DataFlowIR.FunctionSymbol.Declared
+                    for (callee in callees) {
+                        val calleeSymbol = callee as DataFlowIR.FunctionSymbol.Declared
                         if (nodeColors[calleeSymbol] == null || nodeColors[calleeSymbol] == NodeColor.WHITE) {
                             nodeColors[calleeSymbol] = NodeColor.WHITE
                             stack.push(calleeSymbol)
@@ -105,7 +99,7 @@ internal class PreCodegenInliner(
                     val irFunction = functionSymbol.irFunction ?: continue
                     val irBody = irFunction.body ?: continue
                     if (irFunction.bridgeTarget != null
-                            || irFunction.konanLibrary?.isCInteropLibrary() == true
+                            || irFunction.moduleFragment.kotlinLibrary?.isCInteropLibrary() == true
                             || irFunction.originalConstructor?.let { constructor ->
                                 // To support IR pattern recognition in IrToBitcode.kt on IrConstantObject generation.
                                 constructor.parameters.isEmpty()
@@ -118,10 +112,9 @@ internal class PreCodegenInliner(
                     }
 
                     val functionsToInline = mutableSetOf<IrFunction>()
-                    for (callSite in callSites) {
-                        val calleeSymbol = callSite.actualCallee as DataFlowIR.FunctionSymbol.Declared
+                    for (calleeSymbol in callees) {
                         if (nodeColors[calleeSymbol] != NodeColor.BLACK) continue
-                        val calleeIrFunction = calleeSymbol.irFunction ?: continue
+                        val calleeIrFunction = (calleeSymbol as DataFlowIR.FunctionSymbol.Declared).irFunction ?: continue
                         val callee = moduleDFG.functions[calleeSymbol]!!
 
                         var isALoop = false
@@ -135,12 +128,14 @@ internal class PreCodegenInliner(
                                 && calleeSize <= inlineThreshold
                                 && calleeIrFunction.symbol != context.symbols.entryPoint // Might be unexpected to not see [main] in stacktraces.
                                 && !calleeIrFunction.isBoxOrUnbox()
-                                && calleeIrFunction.konanLibrary?.isCInteropLibrary() != true
+                                && !calleeIrFunction.isLazyStaticInitializer
+                                && !calleeIrFunction.isEagerStaticInitializer
+                                && calleeIrFunction.moduleFragment.kotlinLibrary?.isCInteropLibrary() != true
                                 && !calleeIrFunction.hasAnnotation(noInline)
                                 && calleeIrFunction.correspondingPropertySymbol?.owner?.hasAnnotation(noInline) != true
                                 && !calleeIrFunction.overrides(invokeSuspendFunction.owner)
                                 && calleeIrFunction.correspondingPropertySymbol?.owner?.let {
-                            it.parentClassOrNull?.isSingleFieldValueClass == true && it.backingField != null
+                            it.parentClassOrNull?.isInlineClass == true && it.backingField != null
                         } != true
                                 && calleeIrFunction.originalConstructor?.constructedClass?.let { it.isArray || it.symbol == string } != true
                                 && calleeIrFunction.originalConstructor?.constructedClass?.getAllSuperclasses()?.contains(throwable.owner) != true
@@ -153,7 +148,7 @@ internal class PreCodegenInliner(
 
                         // KT-72336: This is not entirely correct since coroutinesLivenessAnalysisPhase could be turned off.
                         LivenessAnalysis.run(irBody) { it is IrSuspensionPoint }
-                                .forEach { (irElement, liveVariables) ->
+                                .forEach { [irElement, liveVariables] ->
                                     (irElement as IrSuspensionPoint).liveVariablesAtSuspensionPoint = liveVariables
                                 }
 

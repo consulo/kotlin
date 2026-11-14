@@ -17,9 +17,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.analysis.api.types.KaTypeMappingMode
-import org.jetbrains.kotlin.load.kotlin.TypeMappingMode
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.org.objectweb.asm.Type
 
 @KaSessionComponentImplementationDetail
 @SubclassOptInRequired(KaSessionComponentImplementationDetail::class)
@@ -77,15 +75,27 @@ public interface KaJavaInteroperabilityComponent : KaSessionComponent {
     public fun PsiType.asKaType(useSitePosition: PsiElement): KaType?
 
     /**
-     * Convert the given [KaType] to a JVM [ASM](https://asm.ow2.io) type.
-     *
-     * @see TypeMappingMode
+     * Convert the given [KaType] to a JVM type descriptor with the [KaTypeMappingMode.DEFAULT].
+     * To learn more about JVM descriptors, check out the
+     * [JVM specification](https://docs.oracle.com/javase/specs/jvms/se24/html/jvms-4.html#jvms-4.3).
      */
     @KaExperimentalApi
-    public fun KaType.mapToJvmType(mode: TypeMappingMode = TypeMappingMode.DEFAULT): Type
+    public fun KaType.mapToJvmTypeDescriptor(): String
 
     /**
      * Whether the given [KaType] is backed by a single JVM primitive type.
+     *
+     * This is `true` for non-nullable primitive types and for non-nullable inline value class types whose single underlying property is
+     * primitive-backed, recursively. It is `false` for nullable types, regular reference types, and types without a single primitive-backed
+     * representation.
+     *
+     * Only the inline representation counts. A full value class is compiled as a regular class on the JVM, so it is never
+     * primitive-backed, even with exactly one primary property; see [org.jetbrains.kotlin.analysis.api.symbols.KaNamedClassSymbol.isInline].
+     *
+     * This property describes the type's underlying representation. It does not imply that every use of the type is emitted as a JVM
+     * primitive, as boxing can still be required by the use-site context.
+     *
+     * For non-JVM modules, the result describes the equivalent JVM representation inferred from the Kotlin declaration.
      */
     @KaExperimentalApi
     public val KaType.isPrimitiveBacked: Boolean
@@ -105,7 +115,7 @@ public interface KaJavaInteroperabilityComponent : KaSessionComponent {
      * The containing JVM class name for the given [KaCallableSymbol].
      *
      * The property works for both source and library declarations.
-     * The returned JVM class name is a fully qualified name separated by dots, such as `foo.bar.Baz.Companion`.
+     * The JVM class name is a fully qualified name separated by dots, such as `foo.bar.Baz.Companion`.
      *
      * Applicable only to JVM modules, and common modules with JVM targets.
      * [containingJvmClassName] is always `null` all other kinds of modules.
@@ -118,6 +128,10 @@ public interface KaJavaInteroperabilityComponent : KaSessionComponent {
      * The behavior is undefined for modules other than JVM and common (with a JVM implementation).
      */
     @KaExperimentalApi
+    @Deprecated(
+        message = "Use the 'javaMethodName' endpoint on the property getter instead.",
+        replaceWith = ReplaceWith("this.getter?.javaMethodName", "org.jetbrains.kotlin.analysis.api.javaInterop.javaMethodName"),
+    )
     public val KaPropertySymbol.javaGetterName: Name
 
     /**
@@ -125,6 +139,10 @@ public interface KaJavaInteroperabilityComponent : KaSessionComponent {
      * The behavior is undefined for modules other than JVM and common (with a JVM implementation).
      */
     @KaExperimentalApi
+    @Deprecated(
+        message = "Use the 'javaMethodName' endpoint on the property setter instead.",
+        replaceWith = ReplaceWith("this.setter?.javaMethodName", "org.jetbrains.kotlin.analysis.api.javaInterop.javaMethodName"),
+    )
     public val KaPropertySymbol.javaSetterName: Name?
 }
 
@@ -156,9 +174,7 @@ public interface KaJavaInteroperabilityComponent : KaSessionComponent {
  * @param allowNonJvmPlatforms Whether the [PsiType] should be computed even for non-JVM modules. The flag provides no validity
  * guarantees – the returned type may be unresolvable from Java, or `null`.
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
 @KaExperimentalApi
-@KaContextParameterApi
 context(session: KaSession)
 public fun KaType.asPsiType(
     useSitePosition: PsiElement,
@@ -183,59 +199,14 @@ public fun KaType.asPsiType(
 }
 
 /**
- * Converts the given [PsiType] to a [KaType] in the context of the [useSitePosition].
- *
- * [useSitePosition] clarifies how to resolve some parts of the [PsiType]. For instance, it can be used to collect type parameters and
- * apply them during the conversion.
- *
- * @receiver The [PsiType] to be converted.
- *
- * @return The converted [KaType], or `null` if conversion is not possible. For example, [PsiType] might not be resolvable.
- */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
-@KaExperimentalApi
-@KaContextParameterApi
-context(session: KaSession)
-public fun PsiType.asKaType(useSitePosition: PsiElement): KaType? {
-    return with(session) {
-        asKaType(
-            useSitePosition = useSitePosition,
-        )
-    }
-}
-
-/**
- * Convert the given [KaType] to a JVM [ASM](https://asm.ow2.io) type.
- *
- * @see TypeMappingMode
- */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
-@KaExperimentalApi
-@KaContextParameterApi
-context(session: KaSession)
-public fun KaType.mapToJvmType(mode: TypeMappingMode = TypeMappingMode.DEFAULT): Type {
-    return with(session) {
-        mapToJvmType(
-            mode = mode,
-        )
-    }
-}
-
-/**
- * Whether the given [KaType] is backed by a single JVM primitive type.
- */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
-@KaExperimentalApi
-@KaContextParameterApi
-context(session: KaSession)
-public val KaType.isPrimitiveBacked: Boolean
-    get() = with(session) { isPrimitiveBacked }
-
-/**
  * A [KaNamedClassSymbol] for the given [PsiClass], or `null` for anonymous classes, local classes, type parameters (which are also
  * [PsiClass]es), and Kotlin light classes.
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
+@Deprecated(
+    message = "Use the 'org.jetbrains.kotlin.analysis.api.javaInterop' endpoint instead.",
+    replaceWith = ReplaceWith("this.namedClassSymbol", "org.jetbrains.kotlin.analysis.api.javaInterop.namedClassSymbol"),
+    level = DeprecationLevel.HIDDEN,
+)
 @KaContextParameterApi
 context(session: KaSession)
 public val PsiClass.namedClassSymbol: KaNamedClassSymbol?
@@ -244,46 +215,44 @@ public val PsiClass.namedClassSymbol: KaNamedClassSymbol?
 /**
  * A [KaCallableSymbol] for the given [PsiMember] method or field, or `null` for local declarations and Kotlin light classes.
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
+@Deprecated(
+    message = "Use the 'org.jetbrains.kotlin.analysis.api.javaInterop' endpoint instead.",
+    replaceWith = ReplaceWith("this.callableSymbol", "org.jetbrains.kotlin.analysis.api.javaInterop.callableSymbol"),
+    level = DeprecationLevel.HIDDEN,
+)
 @KaContextParameterApi
 context(session: KaSession)
 public val PsiMember.callableSymbol: KaCallableSymbol?
     get() = with(session) { callableSymbol }
 
 /**
- * The containing JVM class name for the given [KaCallableSymbol].
- *
- * The property works for both source and library declarations.
- * The returned JVM class name is a fully qualified name separated by dots, such as `foo.bar.Baz.Companion`.
- *
- * Applicable only to JVM modules, and common modules with JVM targets.
- * [containingJvmClassName] is always `null` all other kinds of modules.
- */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
-@KaExperimentalApi
-@KaContextParameterApi
-context(session: KaSession)
-public val KaCallableSymbol.containingJvmClassName: String?
-    get() = with(session) { containingJvmClassName }
-
-/**
  * The JVM getter method name for the given [KaPropertySymbol].
  * The behavior is undefined for modules other than JVM and common (with a JVM implementation).
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
 @KaExperimentalApi
-@KaContextParameterApi
+@Deprecated(
+    message = "Use the 'javaMethodName' endpoint on the property getter instead.",
+    replaceWith = ReplaceWith("this.getter?.javaMethodName", "org.jetbrains.kotlin.analysis.api.javaInterop.javaMethodName"),
+)
 context(session: KaSession)
 public val KaPropertySymbol.javaGetterName: Name
-    get() = with(session) { javaGetterName }
+    get() = with(session) {
+        @Suppress("DEPRECATION")
+        javaGetterName
+    }
 
 /**
  * The JVM setter method name for the given [KaPropertySymbol].
  * The behavior is undefined for modules other than JVM and common (with a JVM implementation).
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
 @KaExperimentalApi
-@KaContextParameterApi
+@Deprecated(
+    message = "Use the 'javaMethodName' endpoint on the property setter instead.",
+    replaceWith = ReplaceWith("this.setter?.javaMethodName", "org.jetbrains.kotlin.analysis.api.javaInterop.javaMethodName"),
+)
 context(session: KaSession)
 public val KaPropertySymbol.javaSetterName: Name?
-    get() = with(session) { javaSetterName }
+    get() = with(session) {
+        @Suppress("DEPRECATION")
+        javaSetterName
+    }

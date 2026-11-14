@@ -1,5 +1,7 @@
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
@@ -13,10 +15,17 @@ dependencies {
     testRuntimeOnly(project(":kotlin-compiler-embeddable"))
     testRuntimeOnly(project(":kotlin-scripting-compiler-embeddable"))
 
-    testImplementation(libs.junit4)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 sourceSets {
     "main" { projectDefault() }
     "test" { projectDefault() }
+}
+
+tasks.test {
+    useJUnitPlatform()
 }

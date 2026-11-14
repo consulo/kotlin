@@ -11,6 +11,8 @@ import org.jetbrains.kotlin.fir.render
 import org.jetbrains.kotlin.fir.resolve.ResolutionMode.ArrayLiteralPosition
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
+import org.jetbrains.kotlin.fir.useArrayLiteralResolution
+import org.jetbrains.kotlin.util.ArrayLiteralResolution
 
 sealed class ResolutionMode(
     val forceFullCompletion: Boolean,
@@ -63,6 +65,7 @@ sealed class ResolutionMode(
          * `ArrayLiteralPosition.AnnotationArgument` does not produce a constraint during completion because
          * it can contain type parameter types which aren't substituted to type variable types.
          */
+        @property:ArrayLiteralResolution
         val arrayLiteralPosition: ArrayLiteralPosition? = null,
         override val hintForContextSensitiveResolution: ConeKotlinType? = null,
         /** Currently the only case for expected type when we don't force completion are when's branches */
@@ -77,6 +80,7 @@ sealed class ResolutionMode(
 
         val expectedType: ConeKotlinType get() = expectedTypeRef.coneType
 
+        @OptIn(ArrayLiteralResolution::class)
         fun copy(
             expectedTypeRef: FirResolvedTypeRef = this.expectedTypeRef,
             lastStatementInBlock: Boolean = this.lastStatementInBlock,
@@ -89,6 +93,7 @@ sealed class ResolutionMode(
             forceFullCompletion = forceFullCompletion
         )
 
+        @OptIn(ArrayLiteralResolution::class)
         override fun toString(): String {
             return "WithExpectedType: ${expectedTypeRef.prettyString()}, " +
                     "lastStatementInBlock=${lastStatementInBlock}, " +
@@ -99,7 +104,10 @@ sealed class ResolutionMode(
     }
 
     enum class ArrayLiteralPosition {
+        @ArrayLiteralResolution
         AnnotationArgument,
+
+        @ArrayLiteralResolution
         AnnotationParameter,
     }
 
@@ -147,6 +155,7 @@ val ResolutionMode.expectedType: ConeKotlinType?
         else -> null
     }
 
+@ArrayLiteralResolution
 fun withExpectedType(
     expectedTypeRef: FirTypeRef,
     arrayLiteralPosition: ArrayLiteralPosition? = null,
@@ -159,6 +168,12 @@ fun withExpectedType(
     )
     else -> ResolutionMode.ContextIndependent
 }
+
+@OptIn(ArrayLiteralResolution::class)
+fun withExpectedType(
+    expectedTypeRef: FirTypeRef,
+    hintForContextSensitiveResolution: ConeKotlinType? = null,
+): ResolutionMode = withExpectedType(expectedTypeRef, arrayLiteralPosition = null, hintForContextSensitiveResolution)
 
 @JvmName("withExpectedTypeNullable")
 fun withExpectedType(coneType: ConeKotlinType?, lastStatementInBlock: Boolean = false): ResolutionMode {

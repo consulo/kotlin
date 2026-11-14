@@ -1,18 +1,14 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
-val jflexPath by configurations.creating
+val jflexPath = configurations.create("jflexPath")
 
 dependencies {
-    api(project(":core:compiler.common"))
-    api(project(":compiler:util"))
-    api(project(":compiler:frontend.common"))
-    api(project(":kotlin-script-runtime"))
-
     compileOnly(intellijCore())
-    compileOnly(libs.guava)
-    compileOnly(libs.intellij.fastutil)
+    compileOnly(libs.org.jetbrains.annotations)
 
     implementation(project(":compiler:psi:psi-api"))
 

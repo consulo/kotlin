@@ -6,10 +6,10 @@
 package org.jetbrains.kotlin.fir.backend.generators
 
 import org.jetbrains.kotlin.builtins.StandardNames.DATA_CLASS_COPY
-import org.jetbrains.kotlin.builtins.StandardNames.HASHCODE_NAME
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.backend.Fir2IrCommonMemberStorage.DataValueClassGeneratedMembersInfo
 import org.jetbrains.kotlin.fir.backend.Fir2IrComponents
 import org.jetbrains.kotlin.fir.backend.FirMetadataSource
@@ -34,8 +34,8 @@ import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.IrGeneratorContextBase
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin.Companion.GENERATED_DATA_CLASS_MEMBER
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin.Companion.GENERATED_MULTI_FIELD_VALUE_CLASS_MEMBER
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin.Companion.GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin.Companion.GENERATED_INLINE_CLASS_MEMBER
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin.Companion.GENERATED_FULL_VALUE_CLASS_MEMBER
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
 import org.jetbrains.kotlin.ir.expressions.IrMemberAccessExpression
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
@@ -47,6 +47,7 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.resolve.DataClassResolver
 import org.jetbrains.kotlin.util.OperatorNameConventions.EQUALS
+import org.jetbrains.kotlin.util.OperatorNameConventions.HASH_CODE
 import org.jetbrains.kotlin.util.OperatorNameConventions.TO_STRING
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 
@@ -62,16 +63,20 @@ class Fir2IrDataClassMembersGenerator(
     private val c: Fir2IrComponents,
     private val generatedDataValueClassSyntheticFunctionsStorage: MutableMap<IrClass, DataValueClassGeneratedMembersInfo>,
 ) : Fir2IrComponents by c {
-    fun generateSingleFieldValueClassMembers(klass: FirRegularClass, irClass: IrClass): List<FirDeclaration> {
-        return MyDataClassMethodsGenerator(irClass, klass, GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER).generateHeaders()
+    fun generateInlineClassMembers(klass: FirRegularClass, irClass: IrClass): List<FirDeclaration> {
+        return MyDataClassMethodsGenerator(irClass, klass, GENERATED_INLINE_CLASS_MEMBER).generateHeaders()
     }
 
-    fun generateMultiFieldValueClassMembers(klass: FirRegularClass, irClass: IrClass): List<FirDeclaration> {
-        return MyDataClassMethodsGenerator(irClass, klass, GENERATED_MULTI_FIELD_VALUE_CLASS_MEMBER).generateHeaders()
+    fun generateFullValueClassMembers(klass: FirRegularClass, irClass: IrClass): List<FirDeclaration> {
+        return MyDataClassMethodsGenerator(irClass, klass, GENERATED_FULL_VALUE_CLASS_MEMBER).generateHeaders()
     }
 
     fun generateDataClassMembers(klass: FirRegularClass, irClass: IrClass): List<FirDeclaration> {
         return MyDataClassMethodsGenerator(irClass, klass, GENERATED_DATA_CLASS_MEMBER).generateHeaders()
+    }
+
+    fun generateRichErrorClassMembers(klass: FirRegularClass, irClass: IrClass): List<FirDeclaration> {
+        return MyDataClassMethodsGenerator(irClass, klass, DEFINED).generateHeaders()
     }
 
     fun registerCopyOrComponentFunction(irFunction: IrSimpleFunction) {
@@ -106,11 +111,11 @@ class Fir2IrDataClassMembersGenerator(
                 generatedIrFunctions += toStringFunction
             }
 
-            val hashcodeNameContributedFunction = contributedSyntheticFunctions[HASHCODE_NAME]
+            val hashcodeNameContributedFunction = contributedSyntheticFunctions[HASH_CODE]
             if (hashcodeNameContributedFunction != null) {
                 result.add(hashcodeNameContributedFunction)
                 val hashCodeFunction = createSyntheticIrFunctionFromAny(
-                    HASHCODE_NAME,
+                    HASH_CODE,
                     hashcodeNameContributedFunction,
                     c.builtins.intType,
                 )
@@ -143,7 +148,7 @@ class Fir2IrDataClassMembersGenerator(
             val scope = klass.unsubstitutedScope()
             val contributedSyntheticFunctions =
                 buildMap<Name, FirNamedFunction> {
-                    for (name in listOf(EQUALS, HASHCODE_NAME, TO_STRING)) {
+                    for (name in [EQUALS, HASH_CODE, TO_STRING]) {
                         scope.processFunctionsByName(name) {
                             // We won't synthesize a function if there is a user-contributed (non-synthetic) one.
                             if (it.origin !is FirDeclarationOrigin.Synthetic) return@processFunctionsByName
@@ -225,8 +230,8 @@ class Fir2IrDataClassGeneratedMemberBodyGenerator(private val irBuiltins: IrBuil
         members: Map<IrClass, DataValueClassGeneratedMembersInfo>,
         symbolTable: SymbolTable,
     ) {
-        for ((irClass, info) in members) {
-            val (c, firClass, origin, functions) = info
+        for ([irClass, info] in members) {
+            (val c = components, val firClass, val origin, val functions = generatedFunctions) = info
             MyDataClassMethodsGenerator(c, irClass, firClass, origin, symbolTable).generateBodies(functions)
         }
     }
@@ -248,7 +253,7 @@ class Fir2IrDataClassGeneratedMemberBodyGenerator(private val irBuiltins: IrBuil
             for (irFunction in functions) {
                 when (val name = irFunction.name) {
                     TO_STRING -> irDataClassMembersGenerator.generateToStringMethod(irFunction, properties)
-                    HASHCODE_NAME -> irDataClassMembersGenerator.generateHashCodeMethod(irFunction, properties)
+                    HASH_CODE -> irDataClassMembersGenerator.generateHashCodeMethod(irFunction, properties)
                     EQUALS -> irDataClassMembersGenerator.generateEqualsMethod(irFunction, properties)
                     DATA_CLASS_COPY -> {
                         irFunction.origin = GENERATED_DATA_CLASS_MEMBER
@@ -271,8 +276,8 @@ class Fir2IrDataClassGeneratedMemberBodyGenerator(private val irBuiltins: IrBuil
          */
         private fun ConeKotlinType.coerceToAny(): ConeKotlinType {
             return when {
-                this.isNothingOrNullableNothing -> session.builtinTypes.anyType.coneType
-                this is ConeDynamicType -> session.builtinTypes.anyType.coneType
+                this.isNothingOrNullableNothing -> StandardTypes.Any
+                this is ConeDynamicType -> StandardTypes.Any
                 else -> this
             }
         }
@@ -311,10 +316,10 @@ class Fir2IrDataClassGeneratedMemberBodyGenerator(private val irBuiltins: IrBuil
             private fun getHashCodeFunction(klass: FirRegularClass): FirNamedFunctionSymbol {
                 if (klass.classId == StandardClassIds.Nothing) {
                     // scope of kotlin.Nothing is empty, so we need to search for `hashCode` in the scope of kotlin.Any
-                    return getHashCodeFunction(session.builtinTypes.anyType.coneType.toRegularClassSymbol()!!.fir)
+                    return getHashCodeFunction(StandardTypes.Any.toRegularClassSymbol()!!.fir)
                 }
                 val scope = klass.symbol.unsubstitutedScope()
-                return scope.getFunctions(HASHCODE_NAME).first { symbol ->
+                return scope.getFunctions(HASH_CODE).first { symbol ->
                     val function = symbol.fir
                     function.valueParameters.isEmpty() && function.receiverParameter == null && function.contextParameters.isEmpty()
                 }
@@ -333,7 +338,7 @@ class Fir2IrDataClassGeneratedMemberBodyGenerator(private val irBuiltins: IrBuil
                     // Otherwise, choose either the first IrClass supertype or recurse.
                     // In the first case, all supertypes are interface types and the choice was arbitrary.
                     // In the second case, there is only a single supertype.
-                    val firstBoundType = bounds.first().coneType.fullyExpandedType().coerceToAny()
+                    val firstBoundType = bounds.first().coneType.fullyExpandedType().unwrapLowerBound().coerceToAny()
                     return when (val firstSuper = firstBoundType.toSymbol()?.fir) {
                         is FirRegularClass -> firstSuper
                         is FirTypeParameter -> firstSuper.erasedUpperBound
@@ -351,7 +356,7 @@ class Fir2IrDataClassGeneratedMemberBodyGenerator(private val irBuiltins: IrBuil
                     .first { (it as FirPropertySymbol).fromPrimaryConstructor } as FirPropertySymbol
 
                 val type = firProperty.resolvedReturnType.fullyExpandedType()
-                val (symbol, hasDispatchReceiver) = when {
+                val [symbol, hasDispatchReceiver] = when {
                     type.isArrayOrPrimitiveArray(checkUnsignedArrays = false) -> context.irBuiltIns.dataClassArrayMemberHashCodeSymbol to false
                     else -> {
                         val preparedType = type.unwrapToSimpleTypeUsingLowerBound().coerceToAny()

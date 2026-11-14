@@ -22,7 +22,9 @@ import java.lang.management.ManagementFactory
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.jar.Manifest
-import java.util.logging.*
+import java.util.logging.Level
+import java.util.logging.LogManager
+import java.util.logging.Logger
 import kotlin.concurrent.schedule
 import kotlin.system.exitProcess
 
@@ -64,9 +66,10 @@ abstract class KotlinCompileDaemonBase {
     protected abstract fun getCompileServiceAndPort(
         compilerSelector: CompilerSelector,
         compilerId: CompilerId,
+        javaLanguageVersion: JavaLanguageVersion,
         daemonOptions: DaemonOptions,
         daemonJVMOptions: DaemonJVMOptions,
-        timer: Timer
+        timer: Timer,
     ) : Pair<CompileServiceImplBase, Int>
 
     protected open fun runCompileService(compileService: CompileServiceImplBase) : Any? = null
@@ -75,7 +78,7 @@ abstract class KotlinCompileDaemonBase {
 
     private fun setupLogging(options: DaemonLogOptions) {
         val logTime: String = SimpleDateFormat("yyyy-MM-dd.HH-mm-ss-SSS").format(Date())
-        val (logPath: String, fileIsGiven: Boolean) =
+        val [logPath: String, fileIsGiven: Boolean] =
             CompilerSystemProperties.COMPILE_DAEMON_LOG_PATH_PROPERTY.value?.trimQuotes()?.let { Pair(it, File(it).isFile) } ?: Pair(
                 options.logsPath,
                 false
@@ -115,6 +118,7 @@ abstract class KotlinCompileDaemonBase {
     protected fun mainImpl(args: Array<String>) {
         val compilerId = CompilerId()
         val daemonOptions = DaemonOptions()
+        val javaLanguageVersion = JavaLanguageVersion.parse(CompilerSystemProperties.JAVA_VERSION.value)
         DaemonLogOptions().run {
             val unknownArgs = args.asIterable().filterExtractProps(compilerId, daemonOptions, this, prefix = COMPILE_DAEMON_CMDLINE_OPTIONS_PREFIX)
             setupLogging(this)
@@ -143,12 +147,8 @@ abstract class KotlinCompileDaemonBase {
 
                 log.info("starting daemon")
 
-                // TODO: find minimal set of permissions and restore security management
-                // note: may be not needed anymore since (hopefully) server is now loopback-only
-                //            if (System.getSecurityManager() == null)
-                //                System.setSecurityManager (RMISecurityManager())
-                //
-                //            setDaemonPermissions(daemonOptions.port)
+                // The RMI endpoints are loopback-only, and every connection to them is authenticated with the secret
+                // published in the run file, see DaemonConnectionAuth.
 
                 val compilerSelector = object : CompilerSelector {
                     private val jvm by lazy { K2JVMCompiler() }
@@ -164,7 +164,14 @@ abstract class KotlinCompileDaemonBase {
                 }
                 // timer with a daemon thread, meaning it should not prevent JVM to exit normally
                 val timer = Timer(true)
-                val (compilerService, port) = getCompileServiceAndPort(compilerSelector, compilerId, daemonOptions, daemonJVMOptions, timer)
+                val [compilerService, port] = getCompileServiceAndPort(
+                    compilerSelector,
+                    compilerId,
+                    javaLanguageVersion,
+                    daemonOptions,
+                    daemonJVMOptions,
+                    timer
+                )
                 compilerService.startDaemonElections()
                 compilerService.registerInitialClient(initialClientInfo)
                 compilerService.configurePeriodicActivities()
@@ -210,22 +217,24 @@ object KotlinCompileDaemon : KotlinCompileDaemonBase() {
     override fun getCompileServiceAndPort(
         compilerSelector: CompilerSelector,
         compilerId: CompilerId,
+        javaLanguageVersion: JavaLanguageVersion,
         daemonOptions: DaemonOptions,
         daemonJVMOptions: DaemonJVMOptions,
-        timer: Timer
+        timer: Timer,
     ) = run {
-        val (registry, port) = findPortAndCreateRegistry(COMPILE_DAEMON_FIND_PORT_ATTEMPTS, COMPILE_DAEMON_PORTS_RANGE_START, COMPILE_DAEMON_PORTS_RANGE_END)
+        val [registry, port] = findPortAndCreateRegistry(COMPILE_DAEMON_FIND_PORT_ATTEMPTS, COMPILE_DAEMON_PORTS_RANGE_START, COMPILE_DAEMON_PORTS_RANGE_END)
         val compilerService = CompileServiceImpl(registry = registry,
                                                  compiler = compilerSelector,
                                                  compilerId = compilerId,
                                                  daemonOptions = daemonOptions,
                                                  daemonJVMOptions = daemonJVMOptions,
+                                                 javaLanguageVersion = javaLanguageVersion,
                                                  port = port,
                                                  timer = timer,
                                                  onShutdown = {
                                                      if (daemonOptions.forceShutdownTimeoutMilliseconds != COMPILE_DAEMON_TIMEOUT_INFINITE_MS) {
-                                                         // running a watcher thread that ensures that if the daemon is not exited normally (may be due to RMI leftovers), it's forced to exit
-                                                         timer.schedule(daemonOptions.forceShutdownTimeoutMilliseconds) {
+                                                        // running a watcher thread that ensures that if the daemon is not exited normally (may be due to RMI leftovers), it's forced to exit
+                                                         val _ = timer.schedule(daemonOptions.forceShutdownTimeoutMilliseconds) {
                                                              cancel()
                                                              log.info("force JVM shutdown")
                                                              exitProcess(0)

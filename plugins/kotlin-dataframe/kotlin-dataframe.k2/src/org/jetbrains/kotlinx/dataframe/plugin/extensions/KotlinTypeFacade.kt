@@ -6,9 +6,18 @@ import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
+import org.jetbrains.kotlin.types.TypeApproximatorConfiguration
 
 interface KotlinTypeFacade : SessionHolder {
     val isTest: Boolean
+}
+
+context(sessionHolder: SessionHolder)
+internal fun ConeKotlinType.approximateIntersections(): ConeKotlinType {
+    return sessionHolder.session.typeApproximator.approximateToSuperType(
+        this,
+        TypeApproximatorConfiguration.PublicDeclaration.SaveAnonymousTypes,
+    ) ?: this
 }
 
 context(sessionHolder: SessionHolder)
@@ -29,10 +38,6 @@ fun ColumnType.typeArgument(): ColumnType {
     return ColumnType(argument)
 }
 
-fun SessionContext(session: FirSession) = object : SessionHolder {
-    override val session: FirSession = session
-}
-
 private val List = "List".collectionsId()
 
 private fun ConeKotlinType.isBuiltinType(classId: ClassId, isNullable: Boolean?): Boolean {
@@ -51,18 +56,10 @@ class ColumnType private constructor(internal val coneType: ConeKotlinType) {
     companion object {
         context(context: SessionHolder)
         operator fun invoke(type: ConeKotlinType): ColumnType {
-            val type = when (type) {
-                is ConeFlexibleType -> {
-                    type.lowerBound
-                }
-
-                is ConeTypeParameterType -> {
-                    type.lookupTag.typeParameterSymbol.resolvedBounds.singleOrNull()?.coneType ?: TODO()
-                }
-
-                else -> {
-                    type
-                }
+            val type = if (type is ConeFlexibleType) {
+                type.lowerBound
+            } else {
+                type
             }
             return ColumnType(type)
         }
@@ -93,6 +90,3 @@ fun ConeKotlinType.wrap(): ColumnType = ColumnType(this)
 
 // The resulting type should not be materialized as a type of a property. Only for testing
 fun ConeKotlinType.wrapUnsafe(): ColumnType = ColumnType.convertUnsafe(type = this)
-
-
-

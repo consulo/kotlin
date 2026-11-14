@@ -14,16 +14,17 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.specs.Spec
 import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.util.PatternFilterable
 import org.gradle.api.tasks.util.PatternSet
 import org.gradle.work.DisableCachingByDefault
+import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.build.DEFAULT_KOTLIN_SOURCE_FILES_EXTENSIONS
 import org.jetbrains.kotlin.build.report.metrics.BuildMetricsReporter
 import org.jetbrains.kotlin.build.report.metrics.BuildPerformanceMetric
 import org.jetbrains.kotlin.build.report.metrics.BuildTimeMetric
 import org.jetbrains.kotlin.cli.common.arguments.CommonToolArguments
-import org.jetbrains.kotlin.gradle.internal.*
 import org.jetbrains.kotlin.gradle.internal.tasks.TaskWithLocalState
 import org.jetbrains.kotlin.gradle.plugin.COMPILER_CLASSPATH_CONFIGURATION_NAME
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer
@@ -32,14 +33,12 @@ import org.jetbrains.kotlin.gradle.utils.fileExtensionCasePermutations
 import org.jetbrains.kotlin.gradle.utils.property
 import javax.inject.Inject
 
-@Suppress("TYPEALIAS_EXPANSION_DEPRECATION")
 @DisableCachingByDefault(because = "Abstract super-class, not to be instantiated directly")
 abstract class AbstractKotlinCompileTool<T : CommonToolArguments> @Inject constructor(
     objectFactory: ObjectFactory,
 ) : DefaultTask(),
     KotlinCompileTool,
     KotlinCompilerArgumentsProducer,
-    DeprecatedCompilerArgumentAware<T>,
     TaskWithLocalState {
 
     @Internal
@@ -85,7 +84,7 @@ abstract class AbstractKotlinCompileTool<T : CommonToolArguments> @Inject constr
         sourceFileFilter.setExcludes(excludes)
     }
 
-    final override fun include(vararg includes: String?): PatternFilterable = also {
+    final override fun include(vararg includes: String): PatternFilterable = also {
         sourceFileFilter.include(*includes)
     }
 
@@ -101,7 +100,7 @@ abstract class AbstractKotlinCompileTool<T : CommonToolArguments> @Inject constr
         sourceFileFilter.include(includeSpec)
     }
 
-    final override fun exclude(vararg excludes: String?): PatternFilterable = also {
+    final override fun exclude(vararg excludes: String): PatternFilterable = also {
         sourceFileFilter.exclude(*excludes)
     }
 
@@ -127,13 +126,14 @@ abstract class AbstractKotlinCompileTool<T : CommonToolArguments> @Inject constr
      * Empty classpath will fail the build.
      */
     @get:Classpath
+    @get:NormalizeLineEndings
     internal val defaultCompilerClasspath: ConfigurableFileCollection =
         project.objects.fileCollection()
 
     @get:Internal
     internal abstract val runViaBuildToolsApi: Property<Boolean>
 
-    @get:Internal
+    @get:Input
     internal abstract val generateCompilerRefIndex: Property<Boolean>
 
     protected fun validateCompilerClasspath() {
@@ -142,4 +142,6 @@ abstract class AbstractKotlinCompileTool<T : CommonToolArguments> @Inject constr
             "Default Kotlin compiler classpath is empty! Task: $path (${this::class.qualifiedName})"
         }
     }
+
+    abstract override fun createCompilerArguments(context: KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext): T
 }

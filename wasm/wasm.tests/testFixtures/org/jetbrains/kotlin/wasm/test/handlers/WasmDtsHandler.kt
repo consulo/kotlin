@@ -6,27 +6,29 @@
 package org.jetbrains.kotlin.wasm.test.handlers
 
 import org.jetbrains.kotlin.test.TestDataAssertions
-import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.backend.handlers.WasmBinaryArtifactHandler
 import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives
 import org.jetbrains.kotlin.test.model.BinaryArtifacts
+import org.jetbrains.kotlin.test.model.TestModule
+import org.jetbrains.kotlin.test.model.WasmCompilationSetsBinaryArtifact
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.moduleStructure
+import org.jetbrains.kotlin.test.testInfraError
 
 class WasmDtsHandler(testServices: TestServices) : WasmBinaryArtifactHandler(testServices) {
     override fun processAfterAllModules(someAssertionWasFailed: Boolean) {}
 
     override fun processModule(module: TestModule, info: BinaryArtifacts.Wasm) {
-        require(info is BinaryArtifacts.Wasm.CompilationSets)
+        require(info is WasmCompilationSetsBinaryArtifact)
         val globalDirectives = testServices.moduleStructure.allDirectives
         if (WasmEnvironmentConfigurationDirectives.CHECK_TYPESCRIPT_DECLARATIONS !in globalDirectives) return
 
         val referenceDtsFile = module.files.first().originalFile.parentFile
             .resolve("index.d.mts")
-            .run { takeIf { it.exists() } ?: error("'${path}' doesn't exist") }
+            .run { takeIf { it.exists() } ?: testInfraError("'${path}' doesn't exist") }
 
         val generatedDts = info.compilation.compilerResult.dts
-            ?: error("Can't find generated .d.ts file")
+            ?: testInfraError("Can't find generated .d.ts file")
 
         TestDataAssertions.assertEqualsToFile(referenceDtsFile, generatedDts)
     }

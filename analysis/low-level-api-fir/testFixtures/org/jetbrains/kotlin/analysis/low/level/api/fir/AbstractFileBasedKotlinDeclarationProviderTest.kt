@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir
 
-import org.jetbrains.kotlin.analysis.api.impl.base.util.callableId
+import org.jetbrains.kotlin.analysis.api.fir.utils.callableId
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinFileBasedDeclarationProvider
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators.LLSourceLikeTestConfigurator
 import org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiBasedTest
@@ -39,13 +39,13 @@ abstract class AbstractFileBasedKotlinDeclarationProviderTest : AbstractAnalysis
         for (directive in moduleStructure.allDirectives[Directives.CLASS]) {
             val classId = ClassId.fromString(directive)
             assert(provider.getAllClassesByClassId(classId).isNotEmpty()) { "Class $classId not found" }
-            assertNotNull(provider.getClassLikeDeclarationByClassId(classId)) { "Class-like declaration $classId not found" }
+            assertNotNull(provider.getClassLikeDeclarationByClassId(classId), "Class-like declaration $classId not found")
         }
 
         for (directive in moduleStructure.allDirectives[Directives.TYPE_ALIAS]) {
             val classId = ClassId.fromString(directive)
             assert(provider.getAllTypeAliasesByClassId(classId).isNotEmpty()) { "Type alias $classId not found" }
-            assertNotNull(provider.getClassLikeDeclarationByClassId(classId)) { "Class-like declaration $classId not found" }
+            assertNotNull(provider.getClassLikeDeclarationByClassId(classId), "Class-like declaration $classId not found")
         }
 
         for (directive in moduleStructure.allDirectives[Directives.FUNCTION]) {
@@ -69,6 +69,12 @@ abstract class AbstractFileBasedKotlinDeclarationProviderTest : AbstractAnalysis
             override fun visitTypeAlias(typeAlias: KtTypeAlias) {
                 super.visitTypeAlias(typeAlias)
                 processClassLikeDeclaration(typeAlias)
+            }
+
+            override fun visitScript(script: KtScript) {
+                super.visitScript(script)
+
+                assertContains(provider.findFilesForScript(script.fqName), script)
             }
 
             private fun processClassLikeDeclaration(declaration: KtClassLikeDeclaration) {

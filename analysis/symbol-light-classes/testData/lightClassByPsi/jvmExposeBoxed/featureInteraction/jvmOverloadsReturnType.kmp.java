@@ -1,12 +1,10 @@
 public final class JvmOverloadsReturnTypeKt /* JvmOverloadsReturnTypeKt*/ {
-  @<error>()
-  @<error>()
   @kotlin.OptIn(markerClass = {kotlin.ExperimentalStdlibApi.class})
   @org.jetbrains.annotations.NotNull()
   public static final @org.jetbrains.annotations.NotNull() java.lang.String foo(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() java.lang.String, @org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() java.lang.String);//  foo(@org.jetbrains.annotations.NotNull() java.lang.String, @org.jetbrains.annotations.NotNull() java.lang.String)
 }
 
-@<error>()
+@kotlin.jvm.JvmInline()
 public final class StringWrapper /* StringWrapper*/ {
   @org.jetbrains.annotations.NotNull()
   private final @org.jetbrains.annotations.NotNull() java.lang.String s;

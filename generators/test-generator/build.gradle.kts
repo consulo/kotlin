@@ -1,4 +1,6 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
 }
@@ -10,11 +12,11 @@ dependencies {
 
     testFixturesApi(kotlinStdlib())
     testFixturesApi(platform(libs.junit.bom))
-    testFixturesImplementation(libs.junit4)
     testFixturesImplementation(libs.junit.jupiter.api)
     testFixturesImplementation(intellijCore())
 
     testFixturesImplementation(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
+    testFixturesImplementation(project(":repo:test-runtime"))
 }
 
 sourceSets {
@@ -23,4 +25,3 @@ sourceSets {
     "testFixtures" { projectDefault() }
 }
 
-testsJar {}

@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // FIR_DUMP
-// LANGUAGE: +SuspendConversion
 // DIAGNOSTICS: -UNUSED_PARAMETER
 
 fun interface SuspendRunnable {

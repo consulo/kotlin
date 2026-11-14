@@ -4,6 +4,20 @@ public abstract interface annotation class org/jetbrains/kotlin/analysis/api/pla
 public abstract interface class org/jetbrains/kotlin/analysis/api/platform/KaEngineService {
 }
 
+public abstract interface class org/jetbrains/kotlin/analysis/api/platform/KaSessionListener {
+	public static final field Companion Lorg/jetbrains/kotlin/analysis/api/platform/KaSessionListener$Companion;
+	public fun afterAcquiringSession (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;)V
+	public fun afterLeavingAnalysis (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;)V
+	public fun beforeAcquiringSession (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;)V
+	public fun beforeEnteringAnalysis (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;)V
+	public fun onAnalysisException (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;Ljava/lang/Throwable;)V
+	public fun onSessionAcquisitionException (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;Lcom/intellij/psi/PsiElement;Ljava/lang/Throwable;)V
+}
+
+public final class org/jetbrains/kotlin/analysis/api/platform/KaSessionListener$Companion {
+	public final fun getEP_NAME ()Lcom/intellij/openapi/extensions/ExtensionPointName;
+}
+
 public abstract interface class org/jetbrains/kotlin/analysis/api/platform/KotlinAnalysisInWriteActionListener {
 	public static final field Companion Lorg/jetbrains/kotlin/analysis/api/platform/KotlinAnalysisInWriteActionListener$Companion;
 	public abstract fun afterLeavingAnalysisInWriteAction ()V
@@ -145,6 +159,8 @@ public final class org/jetbrains/kotlin/analysis/api/platform/declarations/Kotli
 	public fun getClassLikeDeclarationByClassId (Lorg/jetbrains/kotlin/name/ClassId;)Lorg/jetbrains/kotlin/psi/KtClassLikeDeclaration;
 	public fun getHasSpecificCallablePackageNamesComputation ()Z
 	public fun getHasSpecificClassifierPackageNamesComputation ()Z
+	public fun getMayHaveTopLevelCallable ()Lkotlin/jvm/functions/Function2;
+	public fun getMayHaveTopLevelKotlinClassLikeDeclaration ()Lkotlin/jvm/functions/Function1;
 	public fun getProviders ()Ljava/util/List;
 	public fun getTopLevelCallableFiles (Lorg/jetbrains/kotlin/name/CallableId;)Ljava/util/Collection;
 	public fun getTopLevelCallableNamesInPackage (Lorg/jetbrains/kotlin/name/FqName;)Ljava/util/Set;
@@ -171,6 +187,8 @@ public abstract interface class org/jetbrains/kotlin/analysis/api/platform/decla
 	public abstract fun getClassLikeDeclarationByClassId (Lorg/jetbrains/kotlin/name/ClassId;)Lorg/jetbrains/kotlin/psi/KtClassLikeDeclaration;
 	public abstract fun getHasSpecificCallablePackageNamesComputation ()Z
 	public abstract fun getHasSpecificClassifierPackageNamesComputation ()Z
+	public fun getMayHaveTopLevelCallable ()Lkotlin/jvm/functions/Function2;
+	public fun getMayHaveTopLevelKotlinClassLikeDeclaration ()Lkotlin/jvm/functions/Function1;
 	public abstract fun getTopLevelCallableFiles (Lorg/jetbrains/kotlin/name/CallableId;)Ljava/util/Collection;
 	public abstract fun getTopLevelCallableNamesInPackage (Lorg/jetbrains/kotlin/name/FqName;)Ljava/util/Set;
 	public abstract fun getTopLevelFunctions (Lorg/jetbrains/kotlin/name/CallableId;)Ljava/util/Collection;
@@ -228,6 +246,8 @@ public final class org/jetbrains/kotlin/analysis/api/platform/declarations/Kotli
 	public fun getClassLikeDeclarationByClassId (Lorg/jetbrains/kotlin/name/ClassId;)Lorg/jetbrains/kotlin/psi/KtClassLikeDeclaration;
 	public fun getHasSpecificCallablePackageNamesComputation ()Z
 	public fun getHasSpecificClassifierPackageNamesComputation ()Z
+	public fun getMayHaveTopLevelCallable ()Lkotlin/jvm/functions/Function2;
+	public fun getMayHaveTopLevelKotlinClassLikeDeclaration ()Lkotlin/jvm/functions/Function1;
 	public synthetic fun getTopLevelCallableFiles (Lorg/jetbrains/kotlin/name/CallableId;)Ljava/util/Collection;
 	public fun getTopLevelCallableFiles (Lorg/jetbrains/kotlin/name/CallableId;)Ljava/util/List;
 	public fun getTopLevelCallableNamesInPackage (Lorg/jetbrains/kotlin/name/FqName;)Ljava/util/Set;
@@ -668,6 +688,16 @@ public final class org/jetbrains/kotlin/analysis/api/platform/permissions/Kotlin
 	public fun getDefaultIsAnalysisAllowedOnEdt ()Z
 }
 
+public final class org/jetbrains/kotlin/analysis/api/platform/projectStructure/KaBuiltinsModuleImpl : org/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModuleBase, org/jetbrains/kotlin/analysis/api/projectStructure/KaBuiltinsModule {
+	public fun <init> (Lorg/jetbrains/kotlin/platform/TargetPlatform;Lcom/intellij/openapi/project/Project;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getBaseContentScope ()Lcom/intellij/psi/search/GlobalSearchScope;
+	public fun getProject ()Lcom/intellij/openapi/project/Project;
+	public fun getTargetPlatform ()Lorg/jetbrains/kotlin/platform/TargetPlatform;
+	public fun getTransitiveDependsOnDependencies ()Ljava/util/List;
+	public fun hashCode ()I
+}
+
 public abstract interface class org/jetbrains/kotlin/analysis/api/platform/projectStructure/KaContentScopeProvider : org/jetbrains/kotlin/analysis/api/platform/KaEngineService {
 	public static final field Companion Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaContentScopeProvider$Companion;
 	public abstract fun getRefinedContentScope (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;)Lcom/intellij/psi/search/GlobalSearchScope;
@@ -709,6 +739,31 @@ public abstract class org/jetbrains/kotlin/analysis/api/platform/projectStructur
 	public fun <init> ()V
 	public fun getContentScope ()Lcom/intellij/psi/search/GlobalSearchScope;
 	public fun getTransitiveDependsOnDependencies ()Ljava/util/List;
+}
+
+public abstract interface class org/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModuleConverter : org/jetbrains/kotlin/analysis/api/platform/KotlinOptionalPlatformComponent {
+	public static final field Companion Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModuleConverter$Companion;
+	public abstract fun asOpenApiModule (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;)Lcom/intellij/openapi/module/Module;
+}
+
+public final class org/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModuleConverter$Companion {
+	public final fun getInstance ()Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModuleConverter;
+}
+
+public final class org/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModulePlatformKind : java/lang/Enum {
+	public static final field JS Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModulePlatformKind;
+	public static final field JVM Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModulePlatformKind;
+	public static final field METADATA Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModulePlatformKind;
+	public static final field NATIVE Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModulePlatformKind;
+	public static final field WASM Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModulePlatformKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModulePlatformKind;
+	public static fun values ()[Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModulePlatformKind;
+}
+
+public final class org/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModulePlatformKindKt {
+	public static final fun getPlatformKind (Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;)Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModulePlatformKind;
+	public static final fun toModulePlatformKind (Lorg/jetbrains/kotlin/platform/TargetPlatform;)Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KaModulePlatformKind;
 }
 
 public abstract class org/jetbrains/kotlin/analysis/api/platform/projectStructure/KaResolutionScope : com/intellij/psi/search/GlobalSearchScope {
@@ -781,7 +836,7 @@ public final class org/jetbrains/kotlin/analysis/api/platform/projectStructure/K
 public abstract interface class org/jetbrains/kotlin/analysis/api/platform/projectStructure/KotlinGlobalSearchScopeMergeStrategy : org/jetbrains/kotlin/analysis/api/platform/KotlinPlatformComponent {
 	public static final field Companion Lorg/jetbrains/kotlin/analysis/api/platform/projectStructure/KotlinGlobalSearchScopeMergeStrategy$Companion;
 	public abstract fun getTargetType ()Lkotlin/reflect/KClass;
-	public abstract fun uniteScopes (Ljava/util/List;)Ljava/util/List;
+	public abstract fun uniteScopes (Ljava/util/List;Lcom/intellij/openapi/project/Project;)Ljava/util/List;
 }
 
 public final class org/jetbrains/kotlin/analysis/api/platform/projectStructure/KotlinGlobalSearchScopeMergeStrategy$Companion {
@@ -844,11 +899,6 @@ public abstract class org/jetbrains/kotlin/analysis/api/platform/projectStructur
 	public fun <init> ()V
 	protected final fun computeSpecialModule (Lcom/intellij/psi/PsiFile;)Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaModule;
 	protected abstract fun getNotUnderContentRootModule (Lcom/intellij/openapi/project/Project;)Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaNotUnderContentRootModule;
-}
-
-public final class org/jetbrains/kotlin/analysis/api/platform/projectStructure/KotlinProjectStructureProviderBaseKt {
-	public static final fun getForcedSpecialModule (Lorg/jetbrains/kotlin/psi/KtCodeFragment;)Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaDanglingFileModule;
-	public static final fun setForcedSpecialModule (Lorg/jetbrains/kotlin/psi/KtCodeFragment;Lorg/jetbrains/kotlin/analysis/api/projectStructure/KaDanglingFileModule;)V
 }
 
 public final class org/jetbrains/kotlin/analysis/api/platform/projectStructure/UtilsKt {
@@ -936,5 +986,9 @@ public final class org/jetbrains/kotlin/analysis/api/platform/utils/SublistMerge
 public final class org/jetbrains/kotlin/analysis/api/platform/utils/UtilsKt {
 	public static final field KOTLIN_JAVA_ELEMENT_FINDER_CLASS_NAME Ljava/lang/String;
 	public static final fun forEachNonKotlinPsiElementFinder (Lcom/intellij/openapi/project/Project;Lkotlin/jvm/functions/Function1;)V
+}
+
+public abstract interface class org/jetbrains/kotlin/analysis/api/resolution/KaResolvableReferenceBridge {
+	public abstract fun resolveToSymbols (Lorg/jetbrains/kotlin/analysis/api/KaSession;)Ljava/util/Collection;
 }
 

@@ -6,12 +6,16 @@
 package org.jetbrains.kotlin.test.frontend.fir.handlers
 
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
+import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirClass
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
+import org.jetbrains.kotlin.fir.declarations.FirTypeParameter
 import org.jetbrains.kotlin.fir.declarations.isItAllowedToCallLazyResolveTo
 import org.jetbrains.kotlin.fir.declarations.resolvePhase
 import org.jetbrains.kotlin.fir.symbols.FirLazyDeclarationResolver
 import org.jetbrains.kotlin.fir.symbols.FirLazyResolveContractViolationException
+import org.jetbrains.kotlin.test.checkTestInfrastructure
+import org.jetbrains.kotlin.test.testInfraError
 
 
 class FirCompilerLazyDeclarationResolverWithPhaseChecking : FirLazyDeclarationResolver() {
@@ -30,25 +34,39 @@ class FirCompilerLazyDeclarationResolverWithPhaseChecking : FirLazyDeclarationRe
         checkIfCanLazyResolveToPhase(toPhase, clazz.resolvePhase)
     }
 
+    override fun lazyResolveToPhaseWithCallableMembersInSupertypes(clazz: FirClass, useSiteSession: FirSession, toPhase: FirResolvePhase) {
+        checkIfCanLazyResolveToPhase(toPhase, clazz.resolvePhase)
+    }
+
+    override fun lazyResolveBoundsToPhaseWithCallableMembersInSupertypes(
+        typeParameter: FirTypeParameter,
+        useSiteSession: FirSession,
+        toPhase: FirResolvePhase,
+    ) {
+        checkIfCanLazyResolveToPhase(toPhase, typeParameter.resolvePhase)
+    }
+
     override fun lazyResolveToPhaseRecursively(element: FirElementWithResolveState, toPhase: FirResolvePhase) {
         checkIfCanLazyResolveToPhase(toPhase, element.resolvePhase)
     }
 
     override fun startResolvingPhase(phase: FirResolvePhase) {
-        check(currentTransformerPhase == null)
+        checkTestInfrastructure(currentTransformerPhase == null) { "currentTransformerPhase must be null"}
         currentTransformerPhase = phase
     }
 
     override fun finishResolvingPhase(phase: FirResolvePhase) {
-        check(currentTransformerPhase == phase)
-        currentTransformerPhase = null
+        checkTestInfrastructure(currentTransformerPhase == phase)  { "currentTransformerPhase must be $phase"}
+        // We can trigger lazy resolution after resolution is done from handlers that render diagnostics.
+        // To prevent bogus errors, keep the current phase if it's the last.
+        if (phase != FirResolvePhase.entries.last()) currentTransformerPhase = null
     }
 
     private fun checkIfCanLazyResolveToPhase(requestedPhase: FirResolvePhase, elementPhase: FirResolvePhase) {
         if (!lazyResolveContractChecksEnabled || elementPhase >= requestedPhase) return
 
         val currentPhase = currentTransformerPhase
-            ?: error("Current phase is not set, please call ${this::startResolvingPhase.name} before starting transforming the file")
+            ?: testInfraError("Current phase is not set, please call ${this::startResolvingPhase.name} before starting transforming the file")
 
         // This case is not a violation of any contract
         // However, now we keep more strict invariant here,

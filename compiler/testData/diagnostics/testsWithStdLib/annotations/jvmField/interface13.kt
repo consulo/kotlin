@@ -1,5 +1,4 @@
 // RUN_PIPELINE_TILL: FRONTEND
-// LANGUAGE: +JvmFieldInInterface
 
 interface A {
 
@@ -40,7 +39,7 @@ interface D {
 
 interface E {
     companion object {
-        <!INAPPLICABLE_JVM_FIELD!>@JvmField<!>
+        <!INAPPLICABLE_JVM_FIELD, INAPPLICABLE_JVM_FIELD!>@JvmField<!>
         private val a = 3
 
         <!INAPPLICABLE_JVM_FIELD!>@JvmField<!>

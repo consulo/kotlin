@@ -13,10 +13,10 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.tasks.*
 import org.gradle.work.DisableCachingByDefault
+import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtensionOrNull
 import org.jetbrains.kotlin.gradle.plugin.*
-import org.jetbrains.kotlin.gradle.plugin.AndroidGradlePluginVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinProjectSetupAction
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinAndroidTarget
@@ -62,15 +62,11 @@ internal val SetUpMultiplatformAndroidAssetsAndResourcesPublicationAction = Kotl
             }
             isConfigured = true
 
-            // Bundle assets and resources only if AGP is 7.3.0+ due to "addGeneratedSourceDirectory" API availability. And the resources
-            // API is only supported in CMP since 7.3.1
-            if (AndroidGradlePluginVersion.current >= KotlinAndroidTargetResourcesPublication.MIN_AGP_VERSION) {
-                project.extensions.findByType<AndroidComponentsExtension<*, *, *>>()?.onVariants { newAgpVariant ->
-                    kotlinMultiplatformAndroidResourcesPublication.setUpCopyAssetsTasksForNewAgpVariants(
-                        project,
-                        newAgpVariant,
-                    )
-                }
+            project.extensions.findByType<AndroidComponentsExtension<*, *, *>>()?.onVariants { newAgpVariant ->
+                kotlinMultiplatformAndroidResourcesPublication.setUpCopyAssetsTasksForNewAgpVariants(
+                    project,
+                    newAgpVariant,
+                )
             }
         }
     }
@@ -86,6 +82,7 @@ internal class KotlinAndroidTargetResourcesPublication {
         @get:SkipWhenEmpty
         @get:PathSensitive(PathSensitivity.RELATIVE)
         @get:InputDirectory
+        @get:NormalizeLineEndings
         abstract val inputDirectory: DirectoryProperty
 
         @get:OutputDirectory
@@ -140,11 +137,6 @@ internal class KotlinAndroidTargetResourcesPublication {
         copyTaskFromVariantName[variantName]?.let(notify)
         subscribers.getOrPut(variantName, { mutableListOf() }).add(notify)
     }
-
-    companion object {
-        const val MIN_AGP_VERSION = "7.3.1"
-    }
-
 }
 
 

@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.jetbrains.kotlin.gradle.dependencyResolutionTests.configureRepositoriesForTests
@@ -151,7 +149,6 @@ class UnsupportedKotlinNativeHostTest {
         val expectedFormattedNames = setOf(
             "Linux (x86_64)",
             "Windows (x86_64)",
-            "macOS (x86_64)",
             "macOS (arm64)",
         )
 

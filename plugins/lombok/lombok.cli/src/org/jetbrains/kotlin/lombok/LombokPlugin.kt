@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.lombok
 
+import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.cli.report
 import org.jetbrains.kotlin.compiler.plugin.*
 import org.jetbrains.kotlin.config.CompilerConfiguration
@@ -13,24 +14,23 @@ import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 import org.jetbrains.kotlin.lombok.LombokConfigurationKeys.LOMBOK_CONFIG_FILE
 import org.jetbrains.kotlin.lombok.LombokPluginNames.CONFIG_OPTION_NAME
 import org.jetbrains.kotlin.lombok.LombokPluginNames.PLUGIN_ID
-import org.jetbrains.kotlin.lombok.k2.FirLombokRegistrar
-import org.jetbrains.kotlin.lombok.k2.LombokDiagnostics
-import org.jetbrains.kotlin.resolve.jvm.extensions.SyntheticJavaResolveExtension
+import org.jetbrains.kotlin.lombok.generators.kotlin.ir.LombokIrGenerationExtension
 import java.io.File
 
 class LombokComponentRegistrar : CompilerPluginRegistrar() {
     companion object {
         fun registerComponents(extensionStorage: ExtensionStorage, compilerConfiguration: CompilerConfiguration) = with(extensionStorage) {
             val configFile = compilerConfiguration[LOMBOK_CONFIG_FILE]
-            val config = LombokPluginConfig(configFile)
-            SyntheticJavaResolveExtension.registerExtension(LombokResolveExtension(config))
-            FirExtensionRegistrar.registerExtension(FirLombokRegistrar(configFile))
+            FirExtensionRegistrar.registerExtension(FirLombokCommonRegistrar(configFile))
+            FirExtensionRegistrar.registerExtension(FirLombokJavaRegistrar())
+            FirExtensionRegistrar.registerExtension(FirLombokKotlinRegistrar())
+            IrGenerationExtension.registerExtension(LombokIrGenerationExtension())
         }
     }
 
     override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
         configuration.report(
-            LombokDiagnostics.LOMBOK_PLUGIN_IS_EXPERIMENTAL,
+            LombokCliDiagnostics.LOMBOK_PLUGIN_IS_EXPERIMENTAL,
             "Lombok Kotlin compiler plugin is an experimental feature. See: https://kotlinlang.org/docs/components-stability.html.",
         )
         registerComponents(this, configuration)
@@ -66,7 +66,7 @@ class LombokCommandLineProcessor : CommandLineProcessor {
                 val file = File(value)
                 if (!file.exists()) {
                     configuration.report(
-                        LombokDiagnostics.LOMBOK_CONFIG_IS_MISSING,
+                        LombokCliDiagnostics.LOMBOK_CONFIG_IS_MISSING,
                         "lombok.config file not found: ${file.absolutePath}"
                     )
                     return
@@ -74,7 +74,7 @@ class LombokCommandLineProcessor : CommandLineProcessor {
                 configuration.put(LOMBOK_CONFIG_FILE, file)
             }
             else -> configuration.report(
-                LombokDiagnostics.UNKNOWN_PLUGIN_OPTION,
+                LombokCliDiagnostics.UNKNOWN_PLUGIN_OPTION,
                 "Unknown lombok plugin option: '${option.optionName}=$value'"
             )
         }

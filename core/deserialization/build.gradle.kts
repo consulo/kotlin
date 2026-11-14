@@ -1,14 +1,14 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
-
-project.configureJvmToolchain(JdkMajorVersion.JDK_1_8)
 
 dependencies {
     api(project(":core:metadata"))
     api(project(":core:deserialization.common"))
     api(project(":core:util.runtime"))
-    api(project(":core:descriptors"))
+    implementation(project(":core:descriptors"))
     api(commonDependency("javax.inject"))
 }
 

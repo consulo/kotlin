@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.parcelize.test.services.ParcelizeMainClassProvider
 import org.jetbrains.kotlin.parcelize.test.services.ParcelizeRuntimeClasspathProvider
 import org.jetbrains.kotlin.parcelize.test.services.ParcelizeUtilSourcesProvider
 import org.jetbrains.kotlin.test.FirParser
-import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.TestJdkKind
 import org.jetbrains.kotlin.test.backend.BlackBoxCodegenSuppressor
 import org.jetbrains.kotlin.test.backend.handlers.IrTextDumpHandler
@@ -20,18 +19,18 @@ import org.jetbrains.kotlin.test.builders.configureFirHandlersStep
 import org.jetbrains.kotlin.test.builders.configureIrHandlersStep
 import org.jetbrains.kotlin.test.configuration.configureCommonHandlersForBoxTest
 import org.jetbrains.kotlin.test.configuration.setupJvmPipelineSteps
-import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.REQUIRES_SEPARATE_PROCESS
 import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives.REPORT_ONLY_EXPLICITLY_DEFINED_DEBUG_INFO
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives.ENABLE_PLUGIN_PHASES
+import org.jetbrains.kotlin.test.directives.JvmCodegenDirectives.REQUIRES_SEPARATE_PROCESS
 import org.jetbrains.kotlin.test.directives.JvmEnvironmentConfigurationDirectives.JDK_KIND
 import org.jetbrains.kotlin.test.frontend.fir.FirMetaInfoDiffSuppressor
 import org.jetbrains.kotlin.test.frontend.fir.handlers.FirDiagnosticsHandler
-import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerWithTargetBackendTest
+import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerJvmTest
 import org.jetbrains.kotlin.test.services.jvm.JvmBoxMainClassProvider
 import org.jetbrains.kotlin.test.services.service
-import org.jetbrains.kotlin.test.services.sourceProviders.MainFunctionForBlackBoxTestsSourceProvider
+import org.jetbrains.kotlin.test.services.sourceProviders.JvmMainFunctionForBlackBoxTestsSourceProvider
 
-abstract class AbstractParcelizeBoxTest : AbstractKotlinCompilerWithTargetBackendTest(TargetBackend.JVM_IR) {
+abstract class AbstractParcelizeBoxTest : AbstractKotlinCompilerJvmTest() {
     override fun configure(builder: TestConfigurationBuilder) = with(builder) {
         defaultDirectives {
             +ENABLE_PARCELIZE
@@ -58,9 +57,9 @@ abstract class AbstractParcelizeBoxTest : AbstractKotlinCompilerWithTargetBacken
 
         useCustomRuntimeClasspathProviders(::ParcelizeRuntimeClasspathProvider)
         useConfigurators(::ParcelizeEnvironmentConfigurator)
-        useAdditionalSourceProviders(::ParcelizeUtilSourcesProvider, ::MainFunctionForBlackBoxTestsSourceProvider)
+        useAdditionalSourceProviders(::ParcelizeUtilSourcesProvider, ::JvmMainFunctionForBlackBoxTestsSourceProvider)
         useAdditionalServices(service<JvmBoxMainClassProvider>(::ParcelizeMainClassProvider))
-        useAfterAnalysisCheckers(::BlackBoxCodegenSuppressor, ::FirMetaInfoDiffSuppressor)
+        useFailureSuppressors(::BlackBoxCodegenSuppressor, ::FirMetaInfoDiffSuppressor)
         enableMetaInfoHandler()
     }
 }

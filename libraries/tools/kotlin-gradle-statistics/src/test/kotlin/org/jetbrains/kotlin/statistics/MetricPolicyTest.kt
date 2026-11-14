@@ -6,13 +6,12 @@
 package org.jetbrains.kotlin.statistics
 
 import org.jetbrains.kotlin.statistics.fileloggers.MetricsContainer
-import org.jetbrains.kotlin.statistics.metrics.ConcatMetricContainer
 import org.jetbrains.kotlin.statistics.metrics.NumberAnonymizationPolicy.RANDOM_10_PERCENT
 import org.jetbrains.kotlin.statistics.metrics.StringAnonymizationPolicy
-import org.jetbrains.kotlin.statistics.metrics.StringMetrics
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import org.jetbrains.kotlin.statistics.metrics.StringListMetrics
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 
 class MetricPolicyTest {
@@ -60,13 +59,13 @@ class MetricPolicyTest {
 
     @Test
     fun versionStringValidation() {
-        val separator = ConcatMetricContainer.SEPARATOR
-        val container = MetricsContainer()
+        val separator = "0123"
+        val container = MetricsContainer(metricConcatContainerValuesSeparator = separator)
         fun whenAdded(newValue: String, expected: String) {
-            container.report(StringMetrics.MPP_PLATFORMS, newValue)
-            val currentValue = container.getMetric(StringMetrics.MPP_PLATFORMS)!!.toStringRepresentation()
+            container.report(StringListMetrics.MPP_PLATFORMS, newValue)
+            val currentValue = container.getMetric(StringListMetrics.MPP_PLATFORMS)!!.toStringRepresentation()
             assertEquals(expected, currentValue)
-            val regex = StringMetrics.MPP_PLATFORMS.anonymization.validationRegexp()
+            val regex = StringListMetrics.MPP_PLATFORMS.anonymization.validationRegexp(separator)
             assertTrue(currentValue.matches(Regex(regex)), "'${currentValue}' should match '${regex}'")
         }
         whenAdded("js", "js")
@@ -74,5 +73,14 @@ class MetricPolicyTest {
         whenAdded("jvm", "common${separator}js${separator}jvm")
         whenAdded("AAA", "UNEXPECTED-VALUE${separator}common${separator}js${separator}jvm")
         whenAdded("BBB", "UNEXPECTED-VALUE${separator}common${separator}js${separator}jvm")
+    }
+
+    @Test
+    fun allowedListAnonymizationKeepsRegexMatchedItems() {
+        val anonymizer = StringAnonymizationPolicy.AllowedListAnonymizer(listOf("+A", "-A"))
+        assertEquals("+A;-A", anonymizer.anonymize("+A;-A"))
+        assertEquals("+A;-A;UNEXPECTED-VALUE", anonymizer.anonymize("+A;-A;Bogus"))
+        assertEquals("UNEXPECTED-VALUE;UNEXPECTED-VALUE", anonymizer.anonymize("+AB;-"))
+        assertEquals("UNEXPECTED-VALUE", anonymizer.anonymize("""\+A"""))
     }
 }

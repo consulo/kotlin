@@ -6,12 +6,14 @@
 package org.jetbrains.kotlin.codegen.inline
 
 import org.jetbrains.kotlin.codegen.*
+import org.jetbrains.kotlin.codegen.coroutines.withInstructionAdapter
 import org.jetbrains.kotlin.codegen.inline.FieldRemapper.Companion.foldName
 import org.jetbrains.kotlin.codegen.inline.coroutines.CoroutineTransformer
 import org.jetbrains.kotlin.codegen.inline.coroutines.markNoinlineLambdaIfSuspend
 import org.jetbrains.kotlin.codegen.inline.coroutines.surroundInvokesWithSuspendMarkersIfNeeded
 import org.jetbrains.kotlin.codegen.optimization.ApiVersionCallsPreprocessingMethodTransformer
 import org.jetbrains.kotlin.codegen.optimization.FixStackWithLabelNormalizationMethodTransformer
+import org.jetbrains.kotlin.codegen.optimization.common.intConstantOrError
 import org.jetbrains.kotlin.codegen.optimization.common.isMeaningful
 import org.jetbrains.kotlin.codegen.optimization.common.nodeType
 import org.jetbrains.kotlin.codegen.optimization.common.removeEmptyCatchBlocks
@@ -19,7 +21,8 @@ import org.jetbrains.kotlin.codegen.optimization.fixStack.*
 import org.jetbrains.kotlin.codegen.optimization.nullCheck.isCheckParameterIsNotNull
 import org.jetbrains.kotlin.codegen.optimization.temporaryVals.TemporaryVariablesEliminationTransformer
 import org.jetbrains.kotlin.codegen.pseudoInsns.PseudoInsn
-import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.codegen.state.GenerationState
+import org.jetbrains.kotlin.codegen.state.JvmBackendConfig
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.resolve.jvm.AsmTypes
 import org.jetbrains.kotlin.utils.SmartList
@@ -39,6 +42,7 @@ import java.util.*
 import kotlin.math.max
 
 class MethodInliner(
+    private val state: GenerationState,
     private val node: MethodNode,
     private val parameters: Parameters,
     private val inliningContext: InliningContext,
@@ -50,10 +54,15 @@ class MethodInliner(
     private val isInlineOnlyMethod: Boolean = false,
     private val shouldPreprocessApiVersionCalls: Boolean = false,
     private val defaultMaskStart: Int = -1,
-    private val defaultMaskEnd: Int = -1
+    private val defaultMaskEnd: Int = -1,
+    private val skipLineNumbers: Boolean = false,
+    // Whether this is the call to the underlying function in a `$default` stub, which
+    // could not be handled because the two disagree on the JVM parameter layout. See KT-89206.
+    private val skipParameterLocalVariables: Boolean = false,
 ) {
-    private val languageVersionSettings = inliningContext.state.config.languageVersionSettings
+    private val config: JvmBackendConfig = state.config
     private val invokeCalls = ArrayList<InvokeCall>()
+    private val anonymousObjectCapturedFieldsByConstructorArgumentCache = hashMapOf<String, List<String?>>()
 
     //keeps order
     private val transformations = ArrayList<TransformationInfo>()
@@ -63,18 +72,19 @@ class MethodInliner(
     private val result = InlineResult.create()
     private var lambdasFinallyBlocks: Int = 0
 
-    fun doInline(
-        adapter: MethodVisitor,
-        remapper: LocalVarRemapper,
-        remapReturn: Boolean,
-        returnLabels: Map<String, Label?>
-    ): InlineResult {
-        return doInline(adapter, remapper, remapReturn, returnLabels, 0)
-    }
+    // TODO: This data class can be extended to include more info,
+    // TODO: which is currently being stored in the inlining context or
+    // TODO: in the bytecode.
+    private data class PreparedInlineNode(
+        val node: MethodNode,
+        // The renamed marker variable of the node being inlined or null otherwise.
+        // Used by the shared InlineScopesGenerator and will be reused by nested lambda inlining.
+        val inlinedFunctionMarkerVariableName: String?,
+    )
 
     private fun recordTransformation(info: TransformationInfo) {
         if (!inliningContext.isInliningLambda) {
-            inliningContext.root.state.globalInlineContext.recordTypeFromInlineFunction(info.oldClassName)
+            state.globalInlineContext.recordTypeFromInlineFunction(info.oldClassName)
         }
         if (info.shouldRegenerate(isSameModule)) {
             inliningContext.recordRegeneratedAnonymousObject(info.oldClassName)
@@ -82,7 +92,7 @@ class MethodInliner(
         transformations.add(info)
     }
 
-    private fun doInline(
+    fun doInline(
         adapter: MethodVisitor,
         remapper: LocalVarRemapper,
         remapReturn: Boolean,
@@ -90,12 +100,12 @@ class MethodInliner(
         finallyDeepShift: Int
     ): InlineResult {
         //analyze body
-        var transformedNode = markPlacesForInlineAndRemoveInlinable(node, returnLabels, finallyDeepShift)
+        val preparedNode = markPlacesForInlineAndRemoveInlinable(node, returnLabels, finallyDeepShift)
 
         //substitute returns with "goto end" instruction to keep non local returns in lambdas
         val end = linkedLabel()
         val isTransformingAnonymousObject = nodeRemapper is RegeneratedLambdaFieldRemapper
-        transformedNode = doInline(transformedNode)
+        val transformedNode = doInline(preparedNode.node, preparedNode.inlinedFunctionMarkerVariableName)
         if (!isTransformingAnonymousObject) {
             //don't remove assertion in transformed anonymous object
             removeClosureAssertions(transformedNode)
@@ -125,8 +135,7 @@ class MethodInliner(
         if (inliningContext.isRoot) {
             val remapValue = remapper.remap(parameters.argsSizeOnStack + 1).value
             InternalFinallyBlockInliner.processInlineFunFinallyBlocks(
-                resultNode, lambdasFinallyBlocks, (remapValue as StackValue.Local).index,
-                languageVersionSettings.supportsFeature(LanguageFeature.ProperFinally)
+                resultNode, lambdasFinallyBlocks, (remapValue as StackValue.Local).index
             )
         }
 
@@ -138,7 +147,7 @@ class MethodInliner(
         return result
     }
 
-    private fun doInline(node: MethodNode): MethodNode {
+    private fun doInline(node: MethodNode, inlinedFunctionMarkerVariableName: String?): MethodNode {
         val currentInvokes = LinkedList(invokeCalls)
 
         val resultNode = MethodNode(node.access, node.name, node.desc, node.signature, null)
@@ -166,6 +175,8 @@ class MethodInliner(
             }
 
             override fun visitLineNumber(line: Int, start: Label) {
+                if (skipLineNumbers) return
+
                 if (!isInlineOnlyMethod) {
                     currentLineNumber = line
                 }
@@ -190,18 +201,18 @@ class MethodInliner(
                         transformationInfo!!
                     )
                     val transformer = transformationInfo!!.createTransformer(
-                        childInliningContext, isSameModule, fakeContinuationName
+                        state, childInliningContext, isSameModule, fakeContinuationName,
                     )
 
                     val transformResult = transformer.doTransform(nodeRemapper)
-                    transformResult.getChangedTypes().forEach { (oldType, newType) ->
+                    transformResult.getChangedTypes().forEach { [oldType, newType] ->
                         // KT-65503 For all changed types, if oldType is a lambda or an anonymous object,
                         // and the newType is a name for an inline call,
                         // it should be added to the remapper to ensure correct inline conversion of nested anonymous objects or lambdas.
                         if (newType.contains(INLINE_CALL_TRANSFORMATION_SUFFIX) &&
                             !oldType.contains(INLINE_CALL_TRANSFORMATION_SUFFIX) &&
                             isAnonymousClass(oldType) &&
-                            !remapper.hasNoAdditionalMapping(oldType)
+                            !remapper.hasPrimaryMapping(oldType)
                         ) {
                             remapper.addMapping(oldType, newType)
                         }
@@ -212,7 +223,7 @@ class MethodInliner(
                     if (inliningContext.isInliningLambda &&
                         inliningContext.lambdaInfo !is DefaultLambda && //never delete default lambda classes
                         transformationInfo!!.canRemoveAfterTransformation() &&
-                        !inliningContext.root.state.globalInlineContext.isTypeFromInlineFunction(oldClassName)
+                        !state.globalInlineContext.isTypeFromInlineFunction(oldClassName)
                     ) {
                         // this class is transformed and original not used so we should remove original one after inlining
                         result.addClassToRemove(oldClassName)
@@ -224,7 +235,7 @@ class MethodInliner(
                     }
 
                     for (classBuilder in childInliningContext.continuationBuilders.values) {
-                        classBuilder.done(inliningContext.state.config.generateSmapCopyToAnnotation)
+                        classBuilder.done(config.generateSmapCopyToAnnotation)
                     }
                 } else {
                     result.addNotChangedClass(oldClassName)
@@ -253,7 +264,7 @@ class MethodInliner(
                         return
                     }
 
-                    val nullableAnyType = inliningContext.typeMapper.typeSystem.nullableAnyType()
+                    val nullableAnyType = inliningContext.typeMapper.typeSystem.irBuiltIns.anyNType
                     val expectedParameters = info.invokeMethod.argumentTypes
                     val expectedKotlinParameters = info.invokeMethodParameters
                     val argumentCount = Type.getArgumentTypes(desc).size
@@ -276,7 +287,7 @@ class MethodInliner(
                     }
 
                     val firstLine = info.node.node.instructions.asSequence().mapNotNull { it as? LineNumberNode }.firstOrNull()?.line ?: -1
-                    if ((info is DefaultLambda != isInlineOnlyMethod) && currentLineNumber >= 0 && firstLine == currentLineNumber) {
+                    if ((info is DefaultLambda != isInlineOnlyMethod) && !skipLineNumbers && currentLineNumber >= 0 && firstLine == currentLineNumber) {
                         // This can happen in two cases:
                         //   1. `someInlineOnlyFunction { singleLineLambda }`: in this case line numbers are removed
                         //      from the inline function, so the entirety of its bytecode has the line number of
@@ -307,12 +318,12 @@ class MethodInliner(
 
                     val callSite = sourceMapper.callSite.takeIf { info is DefaultLambda }
                     val inliner = MethodInliner(
-                        info.node.node, lambdaParameters, inliningContext.subInlineLambda(info),
-                        newCapturedRemapper,
+                        state, info.node.node, lambdaParameters, inliningContext.subInlineLambda(info), newCapturedRemapper,
                         if (info is DefaultLambda) isSameModule else true /*cause all nested objects in same module as lambda*/,
                         { "Lambda inlining " + info.lambdaClassType.internalName },
                         SourceMapCopier(sourceMapper.parent, info.node.classSMAP, callSite), inlineCallSiteInfo,
-                        isInlineOnlyMethod = false
+                        isInlineOnlyMethod = false,
+                        skipLineNumbers = skipLineNumbers,
                     )
 
                     val varRemapper = LocalVarRemapper(lambdaParameters, valueParamShift)
@@ -336,7 +347,9 @@ class MethodInliner(
                     inlineScopesGenerator?.apply {
                         inlinedScopes += inlineScopeNumberIncrement
                         currentCallSiteLineNumber =
-                            if (isInlineOnlyMethod) {
+                            if (currentLineNumber == -1)
+                                0
+                            else if (isInlineOnlyMethod) {
                                 currentLineNumber
                             } else {
                                 sourceMapper.mapLineNumber(currentLineNumber)
@@ -359,7 +372,7 @@ class MethodInliner(
                     setLambdaInlining(false)
                     addInlineMarker(this, false)
 
-                    if (currentLineNumber != -1) {
+                    if (currentLineNumber != -1 && !skipLineNumbers) {
                         val endLabel = Label()
                         mv.visitLabel(endLabel)
                         if (isInlineOnlyMethod) {
@@ -433,13 +446,17 @@ class MethodInliner(
         surroundInvokesWithSuspendMarkersIfNeeded(resultNode)
 
         if (inliningContext.inlineScopesGenerator != null && GENERATE_SMAP) {
-            updateCallSiteLineNumbers(resultNode, node)
+            updateCallSiteLineNumbers(resultNode, node, inlinedFunctionMarkerVariableName)
         }
 
         return resultNode
     }
 
-    private fun updateCallSiteLineNumbers(resultNode: MethodNode, inlinedNode: MethodNode) {
+    private fun updateCallSiteLineNumbers(
+        resultNode: MethodNode,
+        inlinedNode: MethodNode,
+        inlinedFunctionMarkerVariableName: String?,
+    ) {
         val inlinedNodeLocalVariables = inlinedNode.localVariables ?: return
         val resultNodeLocalVariables = resultNode.localVariables ?: return
         if (inlinedNodeLocalVariables.isEmpty() || resultNodeLocalVariables.isEmpty()) {
@@ -458,9 +475,15 @@ class MethodInliner(
         // the inliner copies the bodies of the regenerated methods and no marker variables are introduced during this process.
         // So in case with anonymous object regeneration we don't have to skip anything.
         if (!isRegeneratingAnonymousObject()) {
-            val labelToIndex = inlinedNode.getLabelToIndexMap()
-            val markerVariableOfInlinedNode = markerVariablesFromInlinedNode.sortedBy { labelToIndex[it.start.label] }.first()
-            markerVariableNamesFromInlinedNode.remove(markerVariableOfInlinedNode.name)
+            if (inlinedFunctionMarkerVariableName != null) {
+                markerVariableNamesFromInlinedNode.remove(inlinedFunctionMarkerVariableName)
+            } else {
+                // Inlining code produced by old compiler versions, where the marker variable of an
+                // inlined method was always the bytecode-first one.
+                val labelToIndex = inlinedNode.getLabelToIndexMap()
+                val markerVariableOfInlinedNode = markerVariablesFromInlinedNode.sortedBy { labelToIndex[it.start.label] }.first()
+                markerVariableNamesFromInlinedNode.remove(markerVariableOfInlinedNode.name)
+            }
         }
 
         for (variable in resultNodeLocalVariables) {
@@ -471,7 +494,7 @@ class MethodInliner(
         }
     }
 
-    private fun prepareNode(node: MethodNode, finallyDeepShift: Int): MethodNode {
+    private fun prepareNode(node: MethodNode, finallyDeepShift: Int): PreparedInlineNode {
         node.instructions.resetLabels()
 
         val capturedParamsSize = parameters.capturedParametersSizeOnStack
@@ -496,7 +519,11 @@ class MethodInliner(
             node.signature, node.exceptions?.toTypedArray()
         )
 
-        inliningContext.inlineScopesGenerator?.addInlineScopesInfo(node, isRegeneratingAnonymousObject())
+        val inlinedFunctionMarkerVariableName =
+            inliningContext.inlineScopesGenerator?.addInlineScopesInfo(node, isRegeneratingAnonymousObject())
+
+        val skippedParameterLocalVariablesEnd =
+            if (skipParameterLocalVariables) argumentsSize(node.desc, node.access and Opcodes.ACC_STATIC != 0) else 0
 
         val transformationVisitor = object : InlineMethodInstructionAdapter(transformedNode) {
             private val GENERATE_DEBUG_INFO = GENERATE_SMAP && !isInlineOnlyMethod
@@ -565,6 +592,7 @@ class MethodInliner(
 
             override fun visitLocalVariable(name: String, desc: String, signature: String?, start: Label, end: Label, index: Int) {
                 if (!isInliningLambda && !GENERATE_DEBUG_INFO) return
+                if (index < skippedParameterLocalVariablesEnd) return
 
                 val isInlineFunctionMarker = name.startsWith(JvmAbi.LOCAL_VARIABLE_NAME_PREFIX_INLINE_FUNCTION)
                 val newName = when {
@@ -596,25 +624,25 @@ class MethodInliner(
 
         node.accept(transformationVisitor)
 
-        transformCaptured(transformedNode)
         transformFinallyDeepIndex(transformedNode, finallyDeepShift)
 
-        return transformedNode
+        return PreparedInlineNode(transformedNode, inlinedFunctionMarkerVariableName)
     }
 
     private fun markPlacesForInlineAndRemoveInlinable(
         node: MethodNode, returnLabels: Map<String, Label?>, finallyDeepShift: Int
-    ): MethodNode {
-        val processingNode = prepareNode(node, finallyDeepShift)
+    ): PreparedInlineNode {
+        val preparedNode = prepareNode(node, finallyDeepShift)
+        val processingNode = preparedNode.node
 
         preprocessNodeBeforeInline(processingNode, returnLabels)
 
         val sources = analyzeMethodNodeWithInterpreter(processingNode, FunctionalArgumentInterpreter(this))
         val instructions = processingNode.instructions
-        val toDelete = markObsoleteInstruction(instructions, sources)
+        val [toDelete, toReplaceWithPop] = markObsoleteInstruction(instructions, sources)
 
         var awaitClassReification = false
-        var currentFinallyDeep = 0
+        var currentFinallyDeep = finallyDeepShift
 
         InsnSequence(instructions).forEach { cur ->
             val frame = sources[instructions.indexOf(cur)]
@@ -626,7 +654,7 @@ class MethodInliner(
                     cur is MethodInsnNode -> {
                         if (isFinallyStart(cur)) {
                             //TODO deep index calc could be more precise
-                            currentFinallyDeep = getConstant(cur.previous)
+                            currentFinallyDeep = cur.previous.intConstantOrError
                         }
 
                         val owner = cur.owner
@@ -730,15 +758,13 @@ class MethodInliner(
                             nodeRemapper is InlinedLambdaRemapper &&
                             nodeRemapper.originalLambdaInternalName == fieldInsn.owner
                         ) {
-                            val stackTransformations = mutableSetOf<AbstractInsnNode>()
                             val lambdaInfo = frame.peek(1)?.functionalArgument
-                            if (lambdaInfo is LambdaInfo && stackTransformations.all { it is VarInsnNode }) {
+                            if (lambdaInfo is LambdaInfo) {
                                 assert(lambdaInfo.lambdaClassType.internalName == nodeRemapper.originalLambdaInternalName) {
                                     "Wrong bytecode template for contract template: ${lambdaInfo.lambdaClassType.internalName} != ${nodeRemapper.originalLambdaInternalName}"
                                 }
                                 fieldInsn.name = foldName(fieldInsn.name)
                                 fieldInsn.opcode = Opcodes.PUTSTATIC
-                                toDelete.addAll(stackTransformations)
                             }
                         }
                     }
@@ -756,18 +782,28 @@ class MethodInliner(
             }
         }
 
+        for (instruction in toReplaceWithPop) {
+            processingNode.instructions.insertBefore(instruction, withInstructionAdapter {
+                pop()
+            })
+            toDelete.add(instruction)
+        }
         processingNode.remove(toDelete)
 
         //clean dead try/catch blocks
         processingNode.tryCatchBlocks.removeIf { it.isMeaningless() }
 
-        return processingNode
+        return preparedNode
     }
 
-    private fun markObsoleteInstruction(instructions: InsnList, sources: Array<out Frame<BasicValue>?>): SmartSet<AbstractInsnNode> {
-        return instructions.filterIndexedTo(SmartSet.create()) { index, insn ->
-            // Parameter checks are processed separately
-            !insn.isAloadBeforeCheckParameterIsNotNull() && when (insn.opcode) {
+    private fun markObsoleteInstruction(instructions: InsnList, sources: Array<out Frame<BasicValue>?>): Pair<SmartSet<AbstractInsnNode>, SmartSet<AbstractInsnNode>> {
+        fun isGetLambdaFieldFromCreatedObject(index: Int, insn: AbstractInsnNode): Boolean =
+            insn.opcode == Opcodes.GETFIELD &&
+                    sources[index]?.top() is AnonymousObjectValue &&
+                    sources[index + 1]?.top().functionalArgument is LambdaInfo
+
+        fun isGetOrPutLambdaArgument(index: Int, insn: AbstractInsnNode): Boolean =
+            when (insn.opcode) {
                 Opcodes.GETFIELD, Opcodes.GETSTATIC, Opcodes.ALOAD ->
                     sources[index + 1]?.top().functionalArgument is LambdaInfo
                 Opcodes.PUTFIELD, Opcodes.PUTSTATIC, Opcodes.ASTORE ->
@@ -776,7 +812,31 @@ class MethodInliner(
                     sources[index]?.peek(0).functionalArgument is LambdaInfo || sources[index]?.peek(1).functionalArgument is LambdaInfo
                 else -> false
             }
+
+        fun isCallGetAccessorOfLambdaFieldFromCreatedObject(index: Int, insn: AbstractInsnNode): Boolean =
+            insn.opcode == Opcodes.INVOKESTATIC &&
+                    sources[index]?.top() is AnonymousObjectValue &&
+                    sources[index + 1]?.top().functionalArgument is LambdaInfo
+
+        val toDelete = SmartSet.create<AbstractInsnNode>()
+        val toReplaceWithPop = SmartSet.create<AbstractInsnNode>()
+        for ([index, insn] in instructions.withIndex()) {
+            when {
+                insn.isAloadBeforeCheckParameterIsNotNull() -> {
+                    // Parameter checks are processed separately
+                }
+                isGetLambdaFieldFromCreatedObject(index, insn) -> {
+                    // no need to recognize/delete ALOAD+GETFIELD patterns, as ALOAD+POP will be cleaned away on later stages
+                    toReplaceWithPop.add(insn)
+                }
+                isCallGetAccessorOfLambdaFieldFromCreatedObject(index, insn) -> {
+                    // same as above, but accesses the field through synthetic accessor
+                    toReplaceWithPop.add(insn)
+                }
+                isGetOrPutLambdaArgument(index, insn) -> toDelete.add(insn)
+            }
         }
+        return toDelete to toReplaceWithPop
     }
 
     private fun preprocessNodeBeforeInline(node: MethodNode, returnLabels: Map<String, Label?>) {
@@ -789,9 +849,11 @@ class MethodInliner(
         }
 
         if (shouldPreprocessApiVersionCalls) {
-            val targetApiVersion = inliningContext.state.config.languageVersionSettings.apiVersion
+            val targetApiVersion = config.languageVersionSettings.apiVersion
             ApiVersionCallsPreprocessingMethodTransformer(targetApiVersion).transform("fake", node)
         }
+
+        transformCaptured(node)
 
         removeFakeVariablesInitializationIfPresent(node)
 
@@ -800,7 +862,7 @@ class MethodInliner(
 
         val localReturnsNormalizer = LocalReturnsNormalizer()
 
-        for ((index, insnNode) in node.instructions.toArray().withIndex()) {
+        for ([index, insnNode] in node.instructions.toArray().withIndex()) {
             val frame = frames[index] ?: continue
             // Don't care about dead code, it will be eliminated
 
@@ -921,7 +983,15 @@ class MethodInliner(
     }
 
     private fun isAlreadyRegenerated(owner: String): Boolean {
-        return inliningContext.typeRemapper.hasNoAdditionalMapping(owner)
+        return inliningContext.typeRemapper.hasPrimaryMapping(owner)
+    }
+
+    internal fun resolveAnonymousObjectCapturedFieldsByConstructorArgument(ownerInternalName: String): List<String?> {
+        require(isAnonymousClass(ownerInternalName)) { "An anonymous object class name is expected, but got $ownerInternalName" }
+        return anonymousObjectCapturedFieldsByConstructorArgumentCache.getOrPut(ownerInternalName) {
+            inliningContext.root.sourceCompilerForInline.resolveAnonymousObjectCapturedFieldsByConstructorArgument(ownerInternalName)
+                ?: getAnonymousObjectCapturedFieldsByConstructorArgumentFromBytecode(state, ownerInternalName)
+        }
     }
 
     internal fun getFunctionalArgumentIfExists(insnNode: FieldInsnNode): FunctionalArgument? {
@@ -975,25 +1045,21 @@ class MethodInliner(
         }
 
         // Fold all captured variables access chains
-        //          ALOAD 0
-        //          [ALOAD this$0]*
-        //          GETFIELD $captured
+        //          ALOAD 0 // or local alias of `this` previously stored to another local
+        //          [GETFIELD this$0]*
+        //          GETFIELD $captured || INVOKESTATIC $access$get$captured$p
         //  to GETFIELD $$$$captured
         // On future decoding this field could be inlined or unfolded to another field access chain
         // (this chain could differ cause some of this$0 could be inlined)
-        var cur: AbstractInsnNode? = node.instructions.first
-        while (cur != null) {
+        val thisAliasFrames = analyzeThisAliases(node)
+        for ([index, cur] in node.instructions.toArray().withIndex()) {
             if (cur is VarInsnNode && cur.opcode == Opcodes.ALOAD) {
-                val varIndex = cur.`var`
-                if (varIndex == 0 || nodeRemapper.shouldProcessNonAload0FieldAccessChains()) {
+                val isLoadThis = cur.`var` == 0 || thisAliasFrames[index]?.isThisValue(cur.`var`) == true
+                if (isLoadThis || nodeRemapper.shouldProcessNonAload0FieldAccessChains()) {
                     val accessChain = getCapturedFieldAccessChain((cur as VarInsnNode?)!!)
-                    val insnNode = nodeRemapper.foldFieldAccessChainIfNeeded(accessChain, node)
-                    if (insnNode != null) {
-                        cur = insnNode
-                    }
+                    nodeRemapper.foldFieldAccessChainIfNeeded(accessChain, node)
                 }
             }
-            cur = cur.next
         }
     }
 
@@ -1124,7 +1190,7 @@ class MethodInliner(
             while (cur != null) {
                 if (cur is MethodInsnNode && isFinallyMarker(cur)) {
                     val constant = cur.previous
-                    val curDeep = getConstant(constant)
+                    val curDeep = constant.intConstantOrError
                     node.instructions.insert(constant, LdcInsnNode(curDeep + finallyDeepShift))
                     node.instructions.remove(constant)
                 }
@@ -1132,15 +1198,15 @@ class MethodInliner(
             }
         }
 
-        private fun getCapturedFieldAccessChain(aload0: VarInsnNode): List<AbstractInsnNode> {
-            val lambdaAccessChain = mutableListOf<AbstractInsnNode>(aload0).apply {
-                addAll(InsnSequence(aload0.next, null).filter { it.isMeaningful }.takeWhile { insnNode ->
+        private fun getCapturedFieldAccessChain(aloadThis: VarInsnNode): List<AbstractInsnNode> {
+            val lambdaAccessChain = mutableListOf<AbstractInsnNode>(aloadThis).apply {
+                addAll(InsnSequence(aloadThis.next, null).filter { it.isMeaningful }.takeWhile { insnNode ->
                     insnNode is FieldInsnNode && AsmUtil.CAPTURED_THIS_FIELD == insnNode.name
                 }.toList())
             }
 
             return lambdaAccessChain.apply {
-                last().getNextMeaningful().takeIf { insn -> insn is FieldInsnNode }?.also {
+                last().getNextMeaningful()?.takeIf { insn -> insn is FieldInsnNode || insn.isCallGetAccessorToCapturedField() }?.also {
                     //captured field access
                         insn ->
                     add(insn)
@@ -1207,7 +1273,7 @@ private fun incrementScopeNumbersOfVariables(node: MethodNode, label: Label): In
     var inlineScopeNumberIncrement = 0
     for (variable in localVariables) {
         val variableStartIndex = labelToIndex[variable.start.label] ?: continue
-        if (variableStartIndex < currentIndex && JvmAbi.isFakeLocalVariableForInline(variable.name)) {
+        if (variableStartIndex <= currentIndex && JvmAbi.isFakeLocalVariableForInline(variable.name)) {
             inlineScopeNumberIncrement += 1
         }
 

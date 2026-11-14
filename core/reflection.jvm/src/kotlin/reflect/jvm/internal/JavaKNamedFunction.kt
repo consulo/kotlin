@@ -5,15 +5,22 @@
 
 package kotlin.reflect.jvm.internal
 
+import org.jetbrains.kotlin.descriptors.runtime.structure.classId
+import org.jetbrains.kotlin.load.java.typeEnhancement.PREDEFINED_FUNCTION_ENHANCEMENT_INFO_BY_SIGNATURE
+import org.jetbrains.kotlin.load.java.typeEnhancement.PredefinedFunctionEnhancementInfo
+import org.jetbrains.kotlin.load.kotlin.SignatureBuildingComponents
+import org.jetbrains.kotlin.load.kotlin.internalName
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.lang.reflect.Type
 import java.lang.reflect.TypeVariable
 import kotlin.LazyThreadSafetyMode.PUBLICATION
 import kotlin.jvm.internal.CallableReference
+import kotlin.reflect.KParameter
 import kotlin.reflect.KType
 import kotlin.reflect.jvm.internal.calls.Caller
 import kotlin.reflect.jvm.internal.calls.CallerImpl
+import kotlin.reflect.jvm.internal.types.AbstractKType
 
 internal class JavaKNamedFunction(
     container: KDeclarationContainerImpl,
@@ -21,6 +28,39 @@ internal class JavaKNamedFunction(
     rawBoundReceiver: Any?,
     overriddenStorage: KCallableOverriddenStorage,
 ) : JavaKFunction(container, method, rawBoundReceiver, overriddenStorage) {
+    override val originalParameters: List<KParameter> by lazy(PUBLICATION) {
+        computeParameters()
+    }
+
+    override val originalReturnType: AbstractKType by lazy(PUBLICATION) {
+        val unsubstitutedReturnType =
+            if (overriddenStorage.isFakeOverride) {
+                overriddenStorage.overridden.first().returnType
+            } else {
+                jMethod.genericReturnType.toKType(
+                    javaTypeParameters.zip(typeParameters).toMap(),
+                    // Return type of enum values/valueOf methods is not flexible in the compiler even for Java enums, so we use the annotation
+                    // parameter mapping mode, which removes all flexibility.
+                    isForAnnotationParameter = member.isEnumValuesValueOfMethod(),
+                )
+            }
+        substituteType(unsubstitutedReturnType) as AbstractKType
+    }
+
+    // Predefined enhancement of well-known JDK methods (e.g. `Iterator.forEachRemaining`, whose `Consumer<in T>` parameter must not be
+    // flexible). It's applied only in the "errors" mode; the "warnings-only" entries don't change the type. See
+    // `SignatureEnhancement.enhanceSignature` in the compiler.
+    override val predefinedEnhancementInfo: PredefinedFunctionEnhancementInfo?
+        get() = PREDEFINED_FUNCTION_ENHANCEMENT_INFO_BY_SIGNATURE[
+            SignatureBuildingComponents.signature(container.methodOwner.classId.internalName, jMethod.jvmSignature)
+        ]?.takeIf { it.errorsSinceLanguageVersion == null }
+
+    override fun computeOverriddenFunctionsForEnhancement(): Collection<ReflectKFunction> {
+        if (Modifier.isStatic(jMethod.modifiers)) return emptyList()
+        val signature = toEquatableCallableSignature(EqualityMode.KotlinSignature)
+        return computeOverriddenFunctions(container as MemberContainer<*>, signature, substituted = true)
+    }
+
     val jMethod: Method get() = member as Method
 
     override val name: String
@@ -38,40 +78,42 @@ internal class JavaKNamedFunction(
     override val isVararg: Boolean
         get() = jMethod.isVarArgs
 
+    override val isOperator: Boolean by lazy(PUBLICATION, jMethod::isJavaMethodAnOperator)
+
     override val javaTypeParameters: Array<out TypeVariable<*>> by lazy(PUBLICATION) {
         jMethod.typeParameters
     }
 
-    override val returnType: KType by lazy(PUBLICATION) {
-        // Return type of enum values/valueOf methods is not flexible in the compiler even for Java enums, so we use the annotation
-        // parameter mapping mode, which removes all flexibility.
-        jMethod.genericReturnType.toKType(emptyMap(), isForAnnotationParameter = member.isEnumValuesValueOfMethod())
-    }
+    override val returnType: KType
+        get() = enhancedSignature?.returnType ?: originalReturnType
 
     override val isPrimaryConstructor: Boolean get() = false
 
-    override val overridden: Collection<ReflectKFunction>
-        get() {
-            require(Modifier.isStatic(jMethod.modifiers)) {
-                "Only static Java methods are supported for now: $member"
-            }
-            return emptyList()
-        }
-
-    override val caller: Caller<*> by lazy(PUBLICATION) {
-        require(Modifier.isStatic(jMethod.modifiers)) {
-            "Only static Java methods are supported for now: $member"
-        }
-        createStaticMethodCaller(jMethod)
+    override val overridden: Collection<ReflectKFunction> by lazy(PUBLICATION) {
+        computeOverriddenFunctions(this)
     }
 
-    private fun createStaticMethodCaller(member: Method): Caller<*> =
-        if (isBound)
-            CallerImpl.Method.BoundStatic(member, isCallByToValueClassMangledMethod = false, boundReceiver)
-        else CallerImpl.Method.Static(member)
+    override val allParameters: List<KParameter>
+        get() = enhancedSignature?.allParameters ?: originalParameters
+
+    override val caller: Caller<*> by lazy(PUBLICATION) {
+        if (Modifier.isStatic(jMethod.modifiers))
+            CallerImpl.Method.Static(
+                jMethod, isCallByToValueClassMangledMethod = false, boundReceiver,
+                boundContextArguments = emptyArray(), hasInstanceParameter = false,
+            )
+        else
+            CallerImpl.Method.Instance(jMethod, boundReceiver, boundContextArguments = emptyArray())
+    }
 
     override val callerWithDefaults: Caller<*>? get() = null
 
     override fun shallowCopy(container: KDeclarationContainerImpl, overriddenStorage: KCallableOverriddenStorage): ReflectKCallable<Any?> =
         JavaKNamedFunction(container, jMethod, CallableReference.NO_RECEIVER, overriddenStorage)
+
+    override fun bindToLowerArity(boundReceiver: Any?, boundContextArguments: List<Any?>): ReflectKCallable<Any?> {
+        require(boundContextArguments.isEmpty()) { "Java methods cannot have bound context arguments: $this" }
+        return JavaKNamedFunction(container, jMethod, boundReceiver, overriddenStorage)
+    }
+
 }

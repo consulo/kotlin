@@ -9,9 +9,8 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.ValueSource
 import org.gradle.api.provider.ValueSourceParameters
-import org.jetbrains.kotlin.gradle.targets.native.internal.NativeDistributionCommonizerLock
-import org.jetbrains.kotlin.konan.util.ArchiveType
-import org.jetbrains.kotlin.konan.util.DependencyExtractor
+import org.jetbrains.kotlin.gradle.targets.native.internal.KotlinInterprocessDirectoryLock
+import org.jetbrains.kotlin.gradle.targets.native.internal.unzipTo
 import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -65,10 +64,7 @@ internal abstract class NativeVersionValueSource :
         kotlinNativeVersion: String,
         kotlinNativeBundleConfiguration: ConfigurableFileCollection,
     ) {
-        val lock =
-            NativeDistributionCommonizerLock(bundleDir) { message -> logger.info("Kotlin Native Bundle: $message") }
-
-        lock.withLock {
+        bundleLock(bundleDir).withLock {
             val needToReinstall = isSnapshotVersion(parameters.simpleKotlinNativeVersion.get())
             if (needToReinstall) {
                 logger.debug("Snapshot version could be changed, to be sure that up-to-date version is used, Kotlin/Native should be reinstalled")
@@ -76,7 +72,7 @@ internal abstract class NativeVersionValueSource :
 
             removeBundleIfNeeded(reinstallFlag || needToReinstall, bundleDir)
 
-            if (!bundleDir.resolve(MARKER_FILE).exists()) {
+            if (!isProvisioned(bundleDir)) {
                 val gradleCachesKotlinNativeDir =
                     resolveKotlinNativeConfiguration(kotlinNativeVersion, kotlinNativeBundleConfiguration)
 
@@ -128,7 +124,7 @@ internal abstract class NativeVersionValueSource :
 
             checkKotlinNativeVersionWasDownloaded(toDirectory)
 
-            createSuccessfulInstallationFile(toDirectory)
+            markAsProvisioned(toDirectory)
 
             logger.info("Moved Kotlin/Native bundle from $fromDirectory to ${toDirectory.absolutePath}")
         }
@@ -145,16 +141,22 @@ internal abstract class NativeVersionValueSource :
             }
         }
 
-        private fun unzipTo(archive: File, toDirectory: File) {
-            when {
-                archive.name.endsWith("zip") -> DependencyExtractor().extract(archive, toDirectory, ArchiveType.ZIP)
-                archive.name.endsWith(".tar.gz") -> DependencyExtractor().extract(archive, toDirectory, ArchiveType.TAR_GZ)
-                else -> error("Unsupported format for unzipping $archive")
-            }
-        }
+        private fun provisionedMarkerFile(bundleDir: File): File = bundleDir.resolve(MARKER_FILE)
 
-        private fun createSuccessfulInstallationFile(bundleDir: File) {
-            bundleDir.resolve(MARKER_FILE).createNewFile()
+        /** Whether [bundleDir] holds a complete distribution. The marker is the last thing an installation writes. */
+        internal fun isProvisioned(bundleDir: File): Boolean = provisionedMarkerFile(bundleDir).exists()
+
+        // The toolchain unpacks in place, so its lock lives inside the distribution directory.
+        private fun bundleLock(bundleDir: File) =
+            KotlinInterprocessDirectoryLock(bundleDir) { message -> logger.info("Kotlin Native Bundle: $message") }
+
+        /** Waits for a toolchain installation of [bundleDir] that may be running, then tells whether it is complete. */
+        internal fun isProvisionedOnceToolchainIsDone(bundleDir: File): Boolean =
+            bundleLock(bundleDir).withLock { isProvisioned(bundleDir) }
+
+        // both provisioners have to agree on what a finished installation looks like, see KT-86251
+        internal fun markAsProvisioned(bundleDir: File) {
+            provisionedMarkerFile(bundleDir).createNewFile()
         }
     }
 }

@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +SamConversionForKotlinFunctions +SamConversionPerArgument
+// RUN_PIPELINE_TILL: CODEGEN
 // FILE: Runnable.java
 public interface Runnable {
     void run();

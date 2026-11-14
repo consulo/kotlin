@@ -1,7 +1,8 @@
-import org.jetbrains.kotlin.testFederation.TemporaryTestFederationApi
-import org.jetbrains.kotlin.testFederation.isSmokeTest
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("generated-sources")
 }
@@ -33,6 +34,7 @@ sourcesJar()
 javadocJar()
 
 tasks.test.configure {
-    @OptIn(TemporaryTestFederationApi::class)
-    isSmokeTest = true
+    testFederation {
+        smokeTests { includeAll() }
+    }
 }

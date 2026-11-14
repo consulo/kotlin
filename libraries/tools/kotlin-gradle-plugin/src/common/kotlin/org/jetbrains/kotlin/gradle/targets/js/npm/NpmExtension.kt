@@ -8,10 +8,12 @@ package org.jetbrains.kotlin.gradle.targets.js.npm
 import org.gradle.api.Project
 import org.gradle.api.model.ObjectFactory
 import org.gradle.process.ExecOperations
+import org.jetbrains.kotlin.gradle.targets.js.internal.jsToolingProject
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.JsPlatformDisambiguator
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
 import org.jetbrains.kotlin.gradle.targets.web.HasPlatformDisambiguator
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 
 /**
  * Represents an extension for configuring npm-related tasks and settings in a Gradle project.
@@ -22,6 +24,7 @@ import org.jetbrains.kotlin.gradle.targets.web.HasPlatformDisambiguator
  * @param project The Gradle [Project] instance to which this extension is applied.
  * @param nodeJsRoot The root extension for configuring Node.js and npm settings.
  */
+@ObsoleteNpmDependencyModel
 abstract class NpmExtension internal constructor(
     project: Project,
     nodeJsRoot: NodeJsRootExtension,
@@ -33,12 +36,13 @@ abstract class NpmExtension internal constructor(
     objects = objects,
     execOps = execOps,
 ) {
+    @ObsoleteNpmDependencyModel
     companion object : HasPlatformDisambiguator by JsPlatformDisambiguator {
         val EXTENSION_NAME: String
             get() = extensionName("npm")
 
         operator fun get(project: Project): NpmExtension {
-            val rootProject = project.rootProject
+            val rootProject = project.jsToolingProject()
             rootProject.plugins.apply(NodeJsRootPlugin::class.java)
             return rootProject.extensions.getByName(EXTENSION_NAME) as NpmExtension
         }

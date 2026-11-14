@@ -21,13 +21,15 @@ value class NullableMap<K, V>(
      * Execute [orElse] otherwise and return it result,
      * [orElse] can modify the map inside
      */
-    @Suppress("UNCHECKED_CAST")
-    inline fun getOrElse(key: K, orElse: () -> V): V =
-        when (val value = map[key]) {
+    inline fun getOrElse(key: K, orElse: () -> V): V {
+        val result = when (val value = map[key]) {
             null -> orElse()
             NullValue -> null
             else -> value
-        } as V
+        }
+        @Suppress("UNCHECKED_CAST")
+        return result as V
+    }
 
     @Suppress("NOTHING_TO_INLINE")
     inline operator fun set(key: K, value: V) {
@@ -49,6 +51,10 @@ value class NullableMap<K, V>(
 
     @PrivateForInline
     object NullValue
+
+    fun clear() {
+        map.clear()
+    }
 }
 
 inline fun <K, V> NullableMap<K, V>.getOrPut(key: K, defaultValue: () -> V): V {

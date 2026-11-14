@@ -17,16 +17,13 @@
 package org.jetbrains.kotlin.js.inline.clean
 
 import org.jetbrains.kotlin.js.backend.ast.*
+import org.jetbrains.kotlin.js.backend.ast.JsVars.JsVar
 import org.jetbrains.kotlin.js.backend.ast.metadata.synthetic
 import org.jetbrains.kotlin.js.translate.utils.JsAstUtils
 
-class IfStatementReduction(private val root: JsStatement) {
-    private var hasChanges = false
-
-    fun apply(): Boolean {
+internal class IfStatementReduction(private val root: JsStatement) : FunctionPostProcessorStep() {
+    override fun apply() {
         visitor.accept(root)
-
-        return hasChanges
     }
 
     val visitor = object : JsVisitorWithContextImpl() {
@@ -41,8 +38,8 @@ class IfStatementReduction(private val root: JsStatement) {
                     val thenAssignment = JsAstUtils.decomposeAssignment(thenStatement.expression)
                     val elseAssignment = JsAstUtils.decomposeAssignment(elseStatement.expression)
                     if (thenAssignment != null && elseAssignment != null) {
-                        val (thenTarget, thenValue) = thenAssignment
-                        val (elseTarget, elseValue) = elseAssignment
+                        val [thenTarget, thenValue] = thenAssignment
+                        val [elseTarget, elseValue] = elseAssignment
                         if (lhsEqual(thenTarget, elseTarget)) {
                             hasChanges = true
                             val ternary = JsConditional(x.ifExpression, thenValue, elseValue)
@@ -64,7 +61,7 @@ class IfStatementReduction(private val root: JsStatement) {
                         if (thenVar.name == elseVar.name && thenVarName != null && thenValue != null && elseValue != null) {
                             hasChanges = true
                             val ternary = JsConditional(x.ifExpression, thenValue, elseValue)
-                            val replacement = JsAstUtils.newVar(thenVarName, ternary)
+                            val replacement = JsVars(thenStatement.variant, JsVar(thenVarName, ternary))
                             replacement.synthetic = thenStatement.synthetic && elseStatement.synthetic
                             ctx.replaceMe(replacement)
                             accept(replacement)

@@ -20,6 +20,8 @@ import org.gradle.deployment.internal.DeploymentRegistry
 import org.gradle.process.ExecOperations
 import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.build.report.metrics.*
+import org.jetbrains.kotlin.gradle.ExperimentalNodeJsToolchainDsl
+import org.jetbrains.kotlin.gradle.dsl.toolchain.nodejs.NodeJsRequest
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.report.UsesBuildMetricsService
 import org.jetbrains.kotlin.gradle.targets.js.NpmVersions
@@ -28,9 +30,12 @@ import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinWebpackRulesContainer
 import org.jetbrains.kotlin.gradle.targets.js.dsl.WebpackRulesDsl
 import org.jetbrains.kotlin.gradle.targets.js.dsl.WebpackRulesDsl.Companion.webpackRulesContainer
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrCompilation
-import org.jetbrains.kotlin.gradle.targets.js.npm.RequiresNpmDependencies
+import org.jetbrains.kotlin.gradle.targets.js.npm.RequiresNpmDependenciesTask
 import org.jetbrains.kotlin.gradle.targets.js.npm.npmProject
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig.Mode
+import org.jetbrains.kotlin.gradle.targets.web.nodejs.toolchain.requestDefaultNodeJs
+import org.jetbrains.kotlin.gradle.targets.web.nodejs.toolchain.resolveNodeJsExecutable
+import org.jetbrains.kotlin.gradle.tasks.nodejs.UsesNodeJsToolchainService
 import org.jetbrains.kotlin.gradle.utils.*
 import org.jetbrains.kotlin.gradle.utils.processes.ExecAsyncHandle
 import java.io.File
@@ -50,6 +55,7 @@ import javax.inject.Inject
  *
  * @see org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
  */
+@OptIn(ExperimentalNodeJsToolchainDsl::class)
 @CacheableTask
 abstract class KotlinWebpack
 @Inject
@@ -59,7 +65,7 @@ internal constructor(
     final override val compilation: KotlinJsIrCompilation,
     private val objects: ObjectFactory,
     private val execOps: ExecOperations,
-) : DefaultTask(), RequiresNpmDependencies, WebpackRulesDsl, UsesBuildMetricsService {
+) : DefaultTask(), RequiresNpmDependenciesTask, WebpackRulesDsl, UsesBuildMetricsService, UsesNodeJsToolchainService {
 
     @get:Internal
     internal abstract val versions: Property<NpmVersions>
@@ -214,7 +220,8 @@ internal constructor(
      * KT-77145 Workaround because [KotlinWebpackConfig] doesn't use Provider API.
      */
     private val fakeWebpackConfig: KotlinWebpackConfig = KotlinWebpackConfig(
-        rules = project.objects.webpackRulesContainer()
+        rules = project.objects.webpackRulesContainer(),
+        defineNonBrowserEnvironmentProperties = objects.property<Boolean>().convention(getIsWasm),
     )
 
     fun webpackConfigApplier(body: Action<KotlinWebpackConfig>) {
@@ -228,6 +235,10 @@ internal constructor(
     @get:Nested
     internal val webpackConfigAppliers: MutableList<Action<KotlinWebpackConfig>> =
         mutableListOf()
+
+    @get:Input
+    internal val nodeJsRequest: Provider<NodeJsRequest> = compilation.project.requestDefaultNodeJs()
+
 
     private val platformType by project.provider {
         compilation.platformType
@@ -251,7 +262,8 @@ internal constructor(
         devtool = devtool,
         sourceMaps = sourceMaps,
         resolveFromModulesFirst = resolveFromModulesFirst,
-        resolveLoadersFromKotlinToolingDir = getIsWasm.get()
+        resolveLoadersFromKotlinToolingDir = getIsWasm.get(),
+        defineNonBrowserEnvironmentProperties = objects.property<Boolean>().convention(getIsWasm),
     )
 
     private fun createRunner(): KotlinWebpackRunner {
@@ -274,7 +286,9 @@ internal constructor(
         }
 
         return KotlinWebpackRunner(
-            npmProject = npmProject,
+            name = npmProject.compilationName,
+            npmProjectDir = npmProject.dir.get().asFile,
+            nodeExecutable = nodeJsToolchainService.get().resolveNodeJsExecutable(npmProject, nodeJsRequest),
             logger = logger,
             configFile = configFile.get(),
             tool = bin,

@@ -25,7 +25,10 @@ import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.checkBytecodeContains
 import org.jetbrains.kotlin.gradle.util.checkedReplace
 import org.jetbrains.kotlin.gradle.util.testResolveAllConfigurations
-import org.jetbrains.kotlin.testFederation.SmokeTest
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInBuildToolsApi
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerInfrastructure
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.DisabledOnOs
@@ -41,9 +44,10 @@ import kotlin.test.assertTrue
 
 @DisplayName("Basic Kotlin/JVM plugin tests")
 @JvmGradlePluginTests
-@SmokeTest
+@MustRunOnChangesInGradle
 class KotlinGradleIT : KGPBaseTest() {
 
+    @TestMetadata("kotlinJavaProject")
     @DisplayName("Kotlin/Java cross compilation")
     @GradleTest
     fun testCrossCompile(gradleVersion: GradleVersion) {
@@ -67,6 +71,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("Kotlin only project compilation")
     @GradleTest
     fun testKotlinOnlyCompile(gradleVersion: GradleVersion) {
@@ -86,6 +91,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("Logs contain memory usage entries on LIFECYCLE log level")
     @GradleTest
     fun testLogLevelForceGC(gradleVersion: GradleVersion) {
@@ -108,7 +114,8 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
-    @DisplayName("Plugin is avialble when applied via buildscript classpath")
+    @TestMetadata("multiprojectClassPathTest")
+    @DisplayName("Plugin is available when applied via buildscript classpath")
     @GradleTest
     fun testMultiprojectPluginClasspath(gradleVersion: GradleVersion) {
         project("multiprojectClassPathTest", gradleVersion) {
@@ -121,8 +128,10 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("Incremental logs are available on INFO log level")
     @GradleTest
+    @MustRunOnChangesInBuildToolsApi
     fun testIncrementalCompilationLogLevel(gradleVersion: GradleVersion) {
         project("kotlinProject", gradleVersion) {
             build(
@@ -141,8 +150,10 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("convertBetweenJavaAndKotlin")
     @DisplayName("Conversion between Kotlin and Java")
     @GradleTest
+    @MustRunOnChangesInBuildToolsApi
     fun testConvertJavaToKotlin(gradleVersion: GradleVersion) {
         project("convertBetweenJavaAndKotlin", gradleVersion) {
             val barKt = javaSourcesDir().resolve("foo/Bar.kt")
@@ -169,8 +180,10 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("moveClassToOtherModule")
     @DisplayName("Moving class to another Gradle subproject")
     @GradleTest
+    @MustRunOnChangesInBuildToolsApi
     fun testMoveClassToOtherModule(gradleVersion: GradleVersion) {
         project("moveClassToOtherModule", gradleVersion) {
             build("assemble")
@@ -188,6 +201,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("Adding free compiler arguments")
     @GradleTest
     fun testFreeCompilerArgs(gradleVersion: GradleVersion) {
@@ -210,6 +224,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("KT-52239: Changing Kotlin options via deprecated 'dsl.KotlinJvmOptions' interface")
     @GradleTest
     fun testKotlinOptionsViaDeprecatedKotlinJvmOptionsDsl(gradleVersion: GradleVersion) {
@@ -232,6 +247,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("Downgrading Kotlin plugin version")
     @GradleTest
     fun testDowngradePluginVersion(gradleVersion: GradleVersion) {
@@ -252,13 +268,14 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("Passing api/language version")
     @GradleTest
+    @MustRunOnChangesInCompilerInfrastructure
     fun testLanguageVersionApiVersionExplicit(gradleVersion: GradleVersion) {
         project(
             "kotlinProject",
             gradleVersion,
-            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
         ) {
             val buildGradleContentCopy = buildGradle.readText()
 
@@ -315,6 +332,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinJavaProject")
     @DisplayName("Mixed project with additional sourceset produce outputs in correct dirs")
     @GradleTest
     fun testSeparateOutputGradle40(gradleVersion: GradleVersion) {
@@ -339,6 +357,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("archivesBaseName is used for module name")
     @GradleTest
     fun testArchiveBaseNameForModuleName(gradleVersion: GradleVersion) {
@@ -360,6 +379,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("javaPackagePrefix")
     @DisplayName("'javaPackagePrefix' change is applied")
     @GradleTest
     fun testJavaPackagePrefix(gradleVersion: GradleVersion) {
@@ -374,6 +394,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("Should add generated sources from task dependency")
     @Disabled("Not working as expected")
     @GradleTest
@@ -411,6 +432,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("Sources jar include Kotlin files")
     @GradleTest
     fun testSourceJar(gradleVersion: GradleVersion) {
@@ -443,6 +465,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("typeAlias")
     @DisplayName("Handling special characters in Kotlin module name")
     @GradleTest
     fun testModuleNameFiltering(gradleVersion: GradleVersion) {
@@ -469,6 +492,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProjectWithBuildSrc")
     @DisplayName("Plugin from buildSrc dependencies is available")
     @GradleTest
     fun testApplyPluginFromBuildSrc(gradleVersion: GradleVersion) {
@@ -492,8 +516,8 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinPluginDepsInBuildSrc")
     @DisplayName("KGP dependencies in buildSrc module")
-    @GradleTestVersions(minVersion = TestVersions.Gradle.G_8_3)
     @GradleTest
     fun testKotlinPluginDependenciesInBuildSrc(gradleVersion: GradleVersion) {
         project("kotlinPluginDepsInBuildSrc", gradleVersion) {
@@ -503,6 +527,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("internalTest")
     @DisplayName("Test sources should be able to access internal methods or properties")
     @GradleTest
     fun testInternalTest(gradleVersion: GradleVersion) {
@@ -513,6 +538,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("internalTest")
     @DisplayName("KT-35341: symlinked build dir")
     @DisabledOnOs(OS.WINDOWS, disabledReason = "Windows requires SeSymbolicLink privilege and we can't grant it")
     @GradleTest
@@ -530,6 +556,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("javaLibraryProject")
     @DisplayName("'java-library' plugin compatibility")
     @GradleTest
     fun testJavaLibraryCompatibility(gradleVersion: GradleVersion) {
@@ -559,6 +586,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("Default Kotlin version is not affected by transitive dependencies")
     @GradleTest
     fun testDefaultKotlinVersionIsNotAffectedByTransitiveDependencies(gradleVersion: GradleVersion) {
@@ -576,6 +604,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kt-29971")
     @DisplayName("KT-29971: concurrent modification exception on task execution")
     @GradleTest
     fun concurrentModificationException(gradleVersion: GradleVersion) {
@@ -586,6 +615,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("new-model-in-old-plugin")
     @DisplayName("New extensions models are working as expected")
     @GradleTest
     fun testNewModelInOldJvmPlugin(gradleVersion: GradleVersion) {
@@ -630,6 +660,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("multiprojectWithDependency")
     @DisplayName("User-defined attributes")
     @GradleTest
     fun testUserDefinedAttributesInSinglePlatformProject(gradleVersion: GradleVersion) {
@@ -658,45 +689,20 @@ class KotlinGradleIT : KGPBaseTest() {
             // Break dependency resolution by providing incompatible custom attributes in the target:
             subProject("projB").buildGradle.appendText("\nkotlin.target.attributes.attribute(targetAttribute, \"bar\")")
             buildAndFail(":projB:compileKotlin") {
-                when {
-                    gradleVersion <= GradleVersion.version(TestVersions.Gradle.G_7_6) -> {
-                        // Attributes may change order in the build output message
-                        val expectedLine = output.lines().find {
-                            it.contains(
-                                "No matching variant of project :projA was found. The consumer was configured to find an API of a library " +
-                                        "compatible with Java 17, preferably in the form of class files, " +
-                                        "preferably optimized for standard JVMs, " +
-                                        "and its dependencies declared externally, " +
-                                        "as well as attribute 'org.jetbrains.kotlin.platform.type' with value 'jvm', "
-                            )
-                        }
-
-                        assertNotNull(expectedLine, "Expected variant failure was not found in the build logs.\n${printBuildOutput()}")
-                        assertTrue(
-                            expectedLine.contains("attribute 'com.example.compilation' with value 'foo'"),
-                            "$expectedLine does not contain expected attribute 'com.example.compilation' with value 'foo'"
-                        )
-                        assertTrue(
-                            expectedLine.contains("attribute 'com.example.target' with value 'bar'"),
-                            "$expectedLine does not contain expected attribute 'com.example.target' with value 'bar'"
-                        )
-                    }
-                    else -> {
-                        // Attributes may come in random order
-                        val attributeMatchingString = output.lineSequence().find {
-                            it.trimStart().startsWith(
-                                "> No matching variant of project :projA was found. " +
-                                        "The consumer was configured to find a library for use during compile-time, " +
-                                        "compatible with Java 17, preferably in the form of class files, " +
-                                        "preferably optimized for standard JVMs, and its dependencies declared externally, "
-                            )
-                        }
-                        assertNotNull(attributeMatchingString, "Expected variant mismatch string is not found")
-                        assertTrue(attributeMatchingString.contains("attribute 'com.example.compilation' with value 'foo'"))
-                        assertTrue(attributeMatchingString.contains("attribute 'com.example.target' with value 'bar'"))
-                        assertTrue(attributeMatchingString.contains("attribute 'org.jetbrains.kotlin.platform.type' with value 'jvm'"))
-                    }
+                // Attributes may come in random order
+                val projName = if (gradleVersion < GradleVersion.version(TestVersions.Gradle.G_9_6)) ":projA" else "':projA'"
+                val attributeMatchingString = output.lineSequence().find {
+                    it.trimStart().startsWith(
+                        "> No matching variant of project $projName was found. " +
+                                "The consumer was configured to find a library for use during compile-time, " +
+                                "compatible with Java 17, preferably in the form of class files, " +
+                                "preferably optimized for standard JVMs, and its dependencies declared externally, "
+                    )
                 }
+                assertNotNull(attributeMatchingString, "Expected variant mismatch string is not found")
+                assertTrue(attributeMatchingString.contains("attribute 'com.example.compilation' with value 'foo'"))
+                assertTrue(attributeMatchingString.contains("attribute 'com.example.target' with value 'bar'"))
+                assertTrue(attributeMatchingString.contains("attribute 'org.jetbrains.kotlin.platform.type' with value 'jvm'"))
             }
 
             // And using the compilation attributes (fix the target attributes first):
@@ -708,49 +714,25 @@ class KotlinGradleIT : KGPBaseTest() {
                 """.trimIndent()
             )
             buildAndFail(":projB:compileKotlin") {
-                when {
-                    gradleVersion <= GradleVersion.version(TestVersions.Gradle.G_7_6) -> {
-                        // Attributes may change order in the build output message
-                        val expectedLine = output.lines().find {
-                            it.contains(
-                                "No matching variant of project :projA was found. The consumer was configured to find an API of a library " +
-                                        "compatible with Java 17, preferably in the form of class files, " +
-                                        "preferably optimized for standard JVMs, " +
-                                        "and its dependencies declared externally, " +
-                                        "as well as attribute 'org.jetbrains.kotlin.platform.type' with value 'jvm', "
-                            )
-                        }
-
-                        assertNotNull(expectedLine, "Expected variant failure was not found in the build logs.\n${printBuildOutput()}")
-                        assertTrue(
-                            expectedLine.contains("attribute 'com.example.compilation' with value 'bar'"),
-                            "$expectedLine does not contain expected attribute 'com.example.compilation' with value 'bar'"
-                        )
-                        assertTrue(
-                            expectedLine.contains("attribute 'com.example.target' with value 'foo'"),
-                            "$expectedLine does not contain expected attribute 'com.example.target' with value 'foo'"
-                        )
-                    }
-                    else -> {
-                        // Attributes may come in random order
-                        val attributeMatchingString = output.lineSequence().find {
-                            it.contains(
-                                "No matching variant of project :projA was found. " +
-                                        "The consumer was configured to find a library for use during compile-time, " +
-                                        "compatible with Java 17, preferably in the form of class files, " +
-                                        "preferably optimized for standard JVMs, and its dependencies declared externally, "
-                            )
-                        }
-                        assertNotNull(attributeMatchingString, "Expected variant mismatch string is not found")
-                        assertTrue(attributeMatchingString.contains("attribute 'com.example.compilation' with value 'bar'"))
-                        assertTrue(attributeMatchingString.contains("attribute 'com.example.target' with value 'foo'"))
-                        assertTrue(attributeMatchingString.contains("attribute 'org.jetbrains.kotlin.platform.type' with value 'jvm'"))
-                    }
+                // Attributes may come in random order
+                val projName = if (gradleVersion < GradleVersion.version(TestVersions.Gradle.G_9_6)) ":projA" else "':projA'"
+                val attributeMatchingString = output.lineSequence().find {
+                    it.contains(
+                        "No matching variant of project $projName was found. " +
+                                "The consumer was configured to find a library for use during compile-time, " +
+                                "compatible with Java 17, preferably in the form of class files, " +
+                                "preferably optimized for standard JVMs, and its dependencies declared externally, "
+                    )
                 }
+                assertNotNull(attributeMatchingString, "Expected variant mismatch string is not found")
+                assertTrue(attributeMatchingString.contains("attribute 'com.example.compilation' with value 'bar'"))
+                assertTrue(attributeMatchingString.contains("attribute 'com.example.target' with value 'foo'"))
+                assertTrue(attributeMatchingString.contains("attribute 'org.jetbrains.kotlin.platform.type' with value 'jvm'"))
             }
         }
     }
 
+    @TestMetadata("simpleProjectClasspath")
     @DisplayName("Load compiler-embeddable after other plugin artifacts")
     @GradleTest
     fun testLoadCompilerEmbeddableAfterOtherKotlinArtifacts(gradleVersion: GradleVersion) {
@@ -793,6 +775,7 @@ class KotlinGradleIT : KGPBaseTest() {
     }
 
     /** Regression test for KT-45787. **/
+    @TestMetadata("associatedDependencies")
     @DisplayName("KT-45787: no Gradle deprecation on adding associated dependencies")
     @GradleTest
     fun testNoDeprecationOnAssociatedDep(gradleVersion: GradleVersion) {
@@ -804,6 +787,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("legacyConfigurationConsumer")
     @DisplayName("KT-51913: KGP should not add attributes to 'legacy' configurations")
     @GradleTest
     fun noAttributesLegacyConfigurations(gradleVersion: GradleVersion) {
@@ -815,6 +799,7 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("KT-61273: task output backup works correctly if the first output is absent")
     @GradleTest
     fun taskOutputBackupWorksIfFirstOutputIsAbsent(gradleVersion: GradleVersion) {
@@ -849,9 +834,9 @@ class KotlinGradleIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("convention-plugin")
     @DisplayName("KT-73090: BTA does not break Gradle convention plugins compilation")
     @GradleTest
-    @GradleTestVersions(minVersion = TestVersions.Gradle.G_8_3)
     fun testConventionPlugins(gradleVersion: GradleVersion) {
         project("convention-plugin", gradleVersion, buildOptions = defaultBuildOptions.copy(runViaBuildToolsApi = true)) {
             build("help") {

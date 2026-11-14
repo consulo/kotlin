@@ -7,13 +7,11 @@ package org.jetbrains.kotlin.backend.jvm.codegen
 
 import org.jetbrains.kotlin.backend.jvm.JvmBackendErrors
 import org.jetbrains.kotlin.backend.jvm.ir.fileParent
-import org.jetbrains.kotlin.backend.jvm.ir.psiElement
 import org.jetbrains.kotlin.backend.jvm.ir.suspendFunctionOriginal
 import org.jetbrains.kotlin.backend.jvm.mapping.IrCallableMethod
 import org.jetbrains.kotlin.codegen.AsmUtil
 import org.jetbrains.kotlin.codegen.inline.GlobalInlineContext
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.descriptors.toIrBasedDescriptor
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 
 interface IrInlineCallGenerator : IrCallGenerator {
@@ -24,12 +22,13 @@ interface IrInlineCallGenerator : IrCallGenerator {
         isInsideIfCondition: Boolean,
     ) {
         val element = IrInlineFunctionSource(expression)
-        val descriptor = expression.symbol.owner.suspendFunctionOriginal().toIrBasedDescriptor()
-        if (!codegen.state.globalInlineContext.enterIntoInlining(descriptor, element) { reportOn, callee ->
-                codegen.context.ktDiagnosticReporter.at((reportOn as IrInlineFunctionSource).ir, codegen.irFunction.fileParent)
+        val function = expression.symbol.owner.suspendFunctionOriginal()
+        if (!codegen.state.globalInlineContext.enterIntoInlining(function, element) { reportOn, callee ->
+                codegen.context.diagnosticReporter.at((reportOn as IrInlineFunctionSource).ir, codegen.irFunction.fileParent)
                     .report(JvmBackendErrors.INLINE_CALL_CYCLE, callee.name)
             }) {
-            genCycleStub(expression.psiElement?.text ?: "<no source>", codegen)
+            leaveTemps()
+            AsmUtil.genThrow(codegen.visitor, "java/lang/UnsupportedOperationException", "Call is a part of inline call cycle")
             return
         }
         try {
@@ -46,9 +45,7 @@ interface IrInlineCallGenerator : IrCallGenerator {
         isInsideIfCondition: Boolean,
     )
 
-    fun genCycleStub(text: String, codegen: ExpressionCodegen) {
-        AsmUtil.genThrow(codegen.visitor, "java/lang/UnsupportedOperationException", "Call is a part of inline call cycle: $text")
-    }
+    fun leaveTemps() {}
 
     private class IrInlineFunctionSource(val ir: IrElement) : GlobalInlineContext.InlineFunctionSource()
 }

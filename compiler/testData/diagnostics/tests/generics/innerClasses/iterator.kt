@@ -1,7 +1,6 @@
 // RUN_PIPELINE_TILL: FRONTEND
 // CHECK_TYPE
 // DIAGNOSTICS: -ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE -UNUSED_VALUE -UNUSED_PARAMETER -UNUSED_VARIABLE
-// JAVAC_EXPECTED_FILE
 import java.util.*
 
 class A<T> : AbstractCollection<T>() {
@@ -29,7 +28,7 @@ fun <E> commonSupertype(x: E, y: E): E = x
 
 fun foo() {
     var myIt = A<String>().iterator()
-    myIt <!ASSIGNMENT_TYPE_MISMATCH!>=<!> A<Int>().iterator()
+    myIt = A<Int>().<!ASSIGNMENT_TYPE_MISMATCH!>iterator<!>()
 
     val csIt: Iterator<CharSequence> = A<String>().iterator()
 

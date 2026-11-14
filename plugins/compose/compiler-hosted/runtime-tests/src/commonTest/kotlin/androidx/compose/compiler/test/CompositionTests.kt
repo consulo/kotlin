@@ -25,17 +25,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.setMain
-import org.jetbrains.kotlin.testFederation.SmokeTest
-import org.junit.BeforeClass
-import org.junit.experimental.categories.Category
+import org.jetbrains.kotlin.testFederation.MustRunAlways
+import org.junit.jupiter.api.BeforeAll
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-@Category(SmokeTest::class)
+@MustRunAlways
 class CompositionTests {
     companion object {
         @OptIn(ExperimentalCoroutinesApi::class)
-        @BeforeClass
+        @BeforeAll
         @JvmStatic
         fun setupMainDispatcher() {
             Dispatchers.setMain(StandardTestDispatcher())
@@ -479,6 +478,147 @@ class CompositionTests {
             AnyParameter(Any())
         }
     }
+
+
+    // Regression test for b/509945632
+    @Test
+    fun testInlineFunctionWith2Lambdas() = compositionTest {
+        var elements by mutableStateOf(emptyList<String>())
+        var counter = 0
+        compose {
+            // if lambdas introduce a group, `ReceiveValueGroup` is removed after update
+            elements.associateBy({ it }, { it.length })
+            ReceiveValueGroup(counter)
+        }
+
+        elements = List(100) { "$it" }
+        counter += 10
+        advance()
+    }
+
+    // Regression test for b/509945632
+    @Test
+    fun testInlineFunctionWith2LambdasComposable() = compositionTest {
+        var elements by mutableStateOf(emptyList<String>())
+        var counter = 0
+        compose {
+            // if not wrapped with a group, `ReceiveValueGroup` is removed after update
+            elements.associateBy({
+                remember { it }
+            }, {
+                it.length
+            })
+            ReceiveValueGroup(counter)
+        }
+
+        elements = List(100) { "$it" }
+        counter += 10
+        advance()
+    }
+
+    /**
+     * This is a regression test against a bug that made it possible for a value of an unstable type
+     * to get passed into code that was generated to only expect to receive values of stable types.
+     * types. For more details, see https://issuetracker.google.com/issues/511102714.
+     */
+    @Test
+    fun subtypeStabilityNeglectedRegressionTest() = compositionTest {
+        val state = mutableStateOf<LoadingState<Unstable>>(LoadingState.Loading)
+        val result = mutableStateOf(false)
+
+        compose {
+            SubtypeStabilityNeglectedRegressionTestEntrypoint(state.value, result)
+        }
+
+        state.value = LoadingState.Content(Unstable())
+        advance()
+        assertEquals(true, result.value)
+    }
+
+    /**
+     * This is a regression test against a bug that made it possible for the `$changed` mask passed
+     * to [ConsumeChildState] to incorrectly say that the `state` parameter is of an unstable type,
+     * causing the function to skip too often. For more details, see
+     * https://issuetracker.google.com/issues/522127447.
+     */
+    @Test
+    fun castTargetTypeStabilityNeglectedTest() = compositionTest {
+        val state = mutableStateOf<ParentState>(ChildState(0))
+        val result = mutableStateOf(false)
+
+        compose {
+            CastTargetTypeStabilityNeglectedTestEntrypoint(state.value, result)
+        }
+
+        state.value = ChildState(1)
+        advance()
+        assertEquals(true, result.value)
+    }
+
+    /**
+     * This is a regression test against a bug that caused miscompilation of cross-module calls to
+     * getters and setters. For more details, see https://issuetracker.google.com/issues/537617330.
+     */
+    @Test
+    @OptIn(InternalComposeApi::class)
+    fun testComposableTypeRemappingOfExternalGetter() = compositionTest {
+        compose {
+            val movableContent = MovableContent<Unit> {}
+            movableContent.content
+        }
+    }
+
+    /**
+     * This is a regression test against a bug that, in certain cases, prevented execution of
+     * non-local `return` statements inside lambdas called from `when` expressions.
+     * For more details, see https://issuetracker.google.com/issues/549552317.
+     */
+    @Test
+    @OptIn(InternalComposeApi::class)
+    fun testNonLocalReturnFromWhen() = compositionTest {
+        val failed = FakeResult(RuntimeException("error"))
+        var reachedCodeAfterGuard = false
+        var leaked: String? = "guard-not-reached"
+
+        compose {
+            Wrapper {
+                val value: String = failed.fold(
+                    onSuccess = { "Ok" },
+                    onFailure = {
+                        stringResource()
+                        return@Wrapper
+                    }
+                )
+                leaked = value
+                reachedCodeAfterGuard = true
+            }
+
+            if (reachedCodeAfterGuard) {
+                error(
+                    "return@Wrapper had no effect and the String-typed `val value` held: $leaked"
+                )
+            }
+        }
+    }
+
+    /**
+     * This is a regression test against a bug that caused groups to be generated incorrectly
+     * whenever a `when` expression had a result that was computed by another `when` expression, and
+     * the inner `when` expression had a `@Composable` call in one of its conditions.
+     * For more details, see https://issuetracker.google.com/issues/546101628.
+     */
+    @Test
+    fun testComposableCallInWhenConditionNestedInWhenResult() = compositionTest {
+        val eligible = mutableStateOf(true)
+
+        compose {
+            val enabled = eligible.value && (getCondition() || false)
+            val one = remember { 1 }
+        }
+
+        eligible.value = false
+        advance()
+    }
 }
 
 @Composable
@@ -490,6 +630,12 @@ fun getCondition() = remember { false }
 @NonRestartableComposable
 @Composable
 fun ReceiveValue(value: Int) {
+    val string = remember { "$value" }
+    assertEquals(1, string.length)
+}
+
+@Composable
+fun ReceiveValueGroup(value: Int) {
     val string = remember { "$value" }
     assertEquals(1, string.length)
 }
@@ -629,4 +775,55 @@ private fun Modifier.clickable(f: () -> Unit): Modifier = this
 @Composable
 fun AnyParameter(any: Any = Any()) {
     use(any)
+}
+
+internal class Unstable {
+    @Suppress("unused")
+    var x: Int = 0
+}
+
+internal sealed class LoadingState<T> {
+    data object Loading : LoadingState<Unstable>()
+    data class Content<T : Any>(var data: T) : LoadingState<T>()
+}
+
+@Composable
+internal fun <T> LoadingContent(state: LoadingState<T>, result: MutableState<Boolean>) {
+    LaunchedEffect(state) {
+        if (state is LoadingState.Content<*>) {
+            result.value = true
+        }
+    }
+}
+
+internal open class ParentState
+
+internal class ChildState(val value: Int) : ParentState()
+
+// This function and [ChildState] need to be in the same file so that the stability of [ChildState]
+// is `Stability.Stable` from the perspective of this function.
+@Composable
+internal fun ConsumeChildState(state: ChildState, result: MutableState<Boolean>) {
+    LaunchedEffect(state) {
+        if (state.value > 0) {
+            result.value = true
+        }
+    }
+}
+
+@Composable
+fun Wrapper(content: @Composable () -> Unit) {
+    content()
+}
+
+class FakeResult(val value: Exception?) {
+    inline fun fold(
+        onSuccess: () -> String,
+        onFailure: (exception: Exception) -> String,
+    ): String {
+        return when (value) {
+            null -> onSuccess()
+            else -> onFailure(value)
+        }
+    }
 }

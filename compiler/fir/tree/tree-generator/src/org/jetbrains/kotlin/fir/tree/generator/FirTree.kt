@@ -94,7 +94,7 @@ object FirTree : AbstractFirTreeBuilder() {
             This includes all function-like declarations (see [FirFunction] and all variable-like declarations (see [FirVariable]).
 
             Notable properties:
-            - [symbol] — the symbol which serves as a pointer to this càllable declaration.
+            - [symbol] — the symbol which serves as a pointer to this callable declaration.
             - [typeParameters] — type parameter references declared for this callable declaration, if any.
             In certain situations, references to type parameters of its outer classes may also be present in the list. 
             - [dispatchReceiverType] — dispatch receiver type for non-static member callables, or null for top-level or static callables.
@@ -267,7 +267,7 @@ object FirTree : AbstractFirTreeBuilder() {
 
         parent(jump.withArgs("E" to function))
 
-        +field("result", expression, withTransform = true)
+        +field("result", expression, withReplace = true, withTransform = true)
     }
 
     val label: Element by element(Other) {
@@ -368,6 +368,17 @@ object FirTree : AbstractFirTreeBuilder() {
         """.trimIndent()
     }
 
+    val numericClassConversion: Element by element(Expression) {
+        parent(expression)
+
+        +field("originalExpression", expression)
+
+        kDoc = """
+            Represents a point of implicit conversion between an object of a builtin numeric type and an expect numeric class annotated with
+            `@NumericClass` annotation.
+        """.trimIndent()
+    }
+
     val functionCall: Element by element(Expression) {
         parent(qualifiedAccessExpression)
         parent(call)
@@ -385,6 +396,25 @@ object FirTree : AbstractFirTreeBuilder() {
     }
 
     val collectionLiteral: Element by element(Expression) {
+        kDoc = """
+                |### Up to and including body resolution phase
+                |
+                |Represents unresolved collection literal. During body resolution, it is replaced with resolved [${functionCall.render()}]
+                |to operator `of`.
+                |  
+                |### After body resolution phase / deserialized
+                |
+                |Represents array literals in _evaluated_ annotation argument mappings or _evaluated_ default initializers of annotation
+                |parameters. Both original collection literals and explicit `arrayOf` (`intArrayOf`, `doubleArrayOf`, etc.) calls are
+                |represented as [${collectionLiteral.render()}] nodes in these cases.
+                |
+                |When [org.jetbrains.kotlin.util.ArrayLiteralResolution] is used, also represents array literals in
+                |annotation arguments and default initializers of annotation parameters.
+                |
+                |The structure of its [argumentList] is the same as for [${varargArgumentsExpression.render()}] - both regular expressions
+                |and [${spreadArgumentExpression.render()}]s are possible (consider `intArrayOf(0, *[1, 2, 3], 4)`).
+            """.trimMargin()
+
         parent(expression)
         parent(call)
     }
@@ -410,7 +440,7 @@ object FirTree : AbstractFirTreeBuilder() {
 
         +field("operation", operationType)
         +field("conversionTypeRef", typeRef, withTransform = true, withReplace = true)
-        +field("argFromStubType", boolean, withReplace = true)
+        +listField("nonFatalDiagnostics", coneDiagnosticType, useMutableOrEmpty = true, withReplace = true)
     }
 
     val augmentedAssignment: Element by element(Expression) {
@@ -500,12 +530,13 @@ object FirTree : AbstractFirTreeBuilder() {
 
         +declaredSymbol(classSymbolType.withArgs(klass))
         +field(classKindType)
-        +listField("superTypeRefs", typeRef, withReplace = true, withTransform = true)
+        +listField("superTypeRefs", typeRef, withReplace = true, useMutableOrEmpty = true, withTransform = true)
         +declarations {
             withTransform = true
             withReplace = true
         }
         +annotations
+        +field("staticControlFlowGraphReference", controlFlowGraphReference, withReplace = true, nullable = true)
     }
 
     val regularClass: Element by element(Declaration) {
@@ -532,7 +563,7 @@ object FirTree : AbstractFirTreeBuilder() {
         +declaredSymbol(regularClassSymbolType)
         +field("hasLazyNestedClassifiers", boolean)
         +referencedSymbol("companionObjectSymbol", regularClassSymbolType, nullable = true, withReplace = true)
-        +listField("superTypeRefs", typeRef, withReplace = true)
+        +listField("superTypeRefs", typeRef, withReplace = true, useMutableOrEmpty = true)
         +listField(name = "contextParameters", valueParameter, useMutableOrEmpty = true, withTransform = true)
     }
 
@@ -646,8 +677,15 @@ object FirTree : AbstractFirTreeBuilder() {
         +field(varianceType)
         +field("isReified", boolean)
         // TODO: `useMutableOrEmpty = true` is a workaround for KT-60324 until KT-60445 has been fixed.
-        +listField("bounds", typeRef, withReplace = true, useMutableOrEmpty = true)
+        +listField("bounds", typeRef, withReplace = true, useMutableOrEmpty = true, withTransform = true)
         +annotations
+        +listField("constraintAnnotations", annotation, withReplace = true, useMutableOrEmpty = true, withTransform = true) {
+            kDoc = """
+                Annotations written on the `where` constraints of this type parameter (`where @A T : Any`).
+                Annotations are not allowed there, and they don't annotate the type parameter, so they are not in [annotations].
+                They are kept as error annotation calls, so they are resolved and ANNOTATION_IN_WHERE_CLAUSE_ERROR is reported.
+            """.trimIndent()
+        }
     }
 
     val constructedClassTypeParameterRef: Element by element(Declaration) {
@@ -772,11 +810,13 @@ object FirTree : AbstractFirTreeBuilder() {
         generateBooleanFields(
             "expect", "actual", "override", "operator", "infix", "inline", "value", "tailRec",
             "external", "const", "lateInit", "inner", "companion", "data", "suspend", "static",
-            "fromSealedClass", "fromEnumClass", "fun", "hasStableParameterNames"
+            "fromSealedClass", "fromEnumClass", "fun", "richError", "hasStableParameterNames"
         )
         +field("returnValueStatus", returnValueStatusType, nullable = false)
         +field("defaultVisibility", visibilityType, nullable = false)
         +field("defaultModality", modalityType, nullable = false)
+
+        fields.find { it.name == "isRichError" }!!.kDoc = "A class or object with the `error` modifier."
     }
 
     val resolvedDeclarationStatus: Element by element(Declaration) {
@@ -916,6 +956,9 @@ object FirTree : AbstractFirTreeBuilder() {
 
     val enumEntry: Element by element(Declaration) {
         parent(variable)
+        parent(controlFlowGraphOwner)
+
+        customParentInVisitor = variable
 
         +declaredSymbol(enumEntrySymbolType)
     }
@@ -1084,6 +1127,7 @@ object FirTree : AbstractFirTreeBuilder() {
         """.trimIndent()
         parent(expression)
 
+        +field("source", sourceElementType, nullable = true, withReplace = true)
         +field("useSiteTarget", annotationUseSiteTargetType, nullable = true, withReplace = true)
         +field("annotationTypeRef", typeRef, withReplace = true, withTransform = true)
         +field("argumentMapping", annotationArgumentMapping, withReplace = true)
@@ -1170,6 +1214,8 @@ object FirTree : AbstractFirTreeBuilder() {
 
         +field("explicitReceiver", expression)
         +field("componentIndex", int)
+        +field("initializerName", nameType)
+        +field("isShortFormWithParentheses", StandardTypes.boolean)
     }
 
     val smartCastExpression: Element by element(Expression) {
@@ -1192,6 +1238,7 @@ object FirTree : AbstractFirTreeBuilder() {
         +field("checkedSubjectRef", safeCallCheckedSubjectReferenceType)
         // One that uses checkedReceiver as a receiver
         +field("selector", statement, withReplace = true, withTransform = true)
+        +field("kind", safeCallKind)
     }
 
     val checkedSafeCallSubject: Element by element(Expression) {
@@ -1204,7 +1251,7 @@ object FirTree : AbstractFirTreeBuilder() {
         parent(qualifiedAccessExpression)
 
         +field("calleeReference", namedReference, withReplace = true, withTransform = true)
-        +field("hasQuestionMarkAtLHS", boolean, withReplace = true)
+        +field("hasQuestionMarkAtLhs", boolean, withReplace = true)
         +field("errorArgumentList", argumentList, nullable = true, withReplace = true, withTransform = true) {
             kDoc = """
                 The erroneous argument list that may be present after the callable reference.
@@ -1337,20 +1384,75 @@ object FirTree : AbstractFirTreeBuilder() {
 
         customParentInVisitor = expression
 
+        kDoc = """A class or package qualifier.
+            |
+            |If [qualifierSymbol] is `null`, [this] is a package qualifier, otherwise this is a class qualifier.
+            |
+            |The [coneTypeOrNull] is `Unit` when [qualifierSymbol] is `null` or resolves to a class without companion object.
+            |Otherwise, it's the type of the resolved object or the class' companion object.
+            |
+            |Note that even when the qualifier is **not** used as an expression ([accessedObjectSymbol] is `null`), but the resolved class
+            |has a companion object, the [coneTypeOrNull] is the type of the companion object
+            |This is relied upon by AA & the IDE plugin (mostly in completion) and is difficult to change.
+            |Because this can lead to subtle bugs, the overload of |[org.jetbrains.kotlin.fir.types.resolvedType]
+            |with a [FirResolvedQualifier] receiver requires an opt-in.
+            |
+            |TODO for fixing it: KT-87036.
+        """.trimMargin()
+
         +field("packageFqName", fqNameType)
         +field("relativeClassFqName", fqNameType, nullable = true)
-        +field("classId", classIdType, nullable = true)
-        +referencedSymbol("symbol", classLikeSymbolType, nullable = true)
-        +field("explicitParent", resolvedQualifier, nullable = true)
-        +field("isNullableLHSForCallableReference", boolean, withReplace = true)
-        +field("resolvedLHSTypeForCallableReferenceOrNull", coneKotlinTypeType, nullable = true, withReplace = true)
-        +field("resolvedToCompanionObject", boolean, withReplace = true)
-        +field("canBeValue", boolean, withReplace = true) {
-            kDoc = "If true, the qualifier is resolved to an object or companion object and can be used as an expression."
+        +referencedSymbol("qualifierSymbol", classLikeSymbolType, nullable = true) {
+            kDoc = """If not null, refers to the class or **unexpanded** typealias with the name denoted by the qualifier.
+                |
+                |If it's null, [this] is a package qualifier.
+            """.trimMargin()
         }
-        +field("isFullyQualified", boolean)
+        +referencedSymbol("accessedObjectSymbol", regularClassSymbolType, nullable = true, withReplace = true) {
+            kDoc = """
+                |### During resolution
+                |
+                |If the [qualifierSymbol] resolves to a named object (or a typealias of that object),
+                |it's the symbol of that named object.
+                | 
+                |If the [qualifierSymbol] resolves to a class with companion object (or a typealias of that class),
+                |it's the symbol of the companion object.
+                |
+                |Otherwise `null`.
+                |
+                |A not-null value indicates that the qualifier _can_ be used as an expression.
+                |
+                |### After resolution
+                |
+                |Same as above but **if and only if** the qualifier is used as an expression.
+            """.trimMargin()
+        }
+        +field("explicitParent", resolvedQualifier, nullable = true)
+        +field("isNullableLhsForCallableReference", boolean, withReplace = true)
+        +field("resolvedLhsTypeForCallableReferenceOrNull", coneKotlinTypeType, nullable = true, withReplace = true)
+        +field("resolvedToCompanionObject", boolean, withReplace = true) {
+            kDoc = """
+                ### During resolution
+                
+                True, if [qualifierSymbol] refers to a class (or typealias of) with a companion object.
+                
+                ### After resolution
+                
+                Same as above **and** the qualifier is used as an expression.
+                
+                Technically this property is redundant because the information can be deduced from the combination of
+                [qualifierSymbol] and [accessedObjectSymbol], but it would require carefully expanding type aliases and comparing
+                symbols.
+                """.trimIndent()
+        }
         +listField("nonFatalDiagnostics", coneDiagnosticType, useMutableOrEmpty = true, withReplace = true)
         +field("resolvedSymbolOrigin", resolvedSymbolOrigin, nullable = true, withReplace = true)
+        +field("originalNameForContextSensitiveResolution", nameType, nullable = true, withReplace = true) {
+            kDoc = """
+                |Having a non-null value in a case when the qualifier should be considered as a candidate for CSR.
+                |It might be different from the name of [qualifierSymbol], e.g., when the qualifier is resolved via an import alias.
+            """.trimMargin()
+        }
         +typeArguments {
             withTransform = true
         }
@@ -1385,7 +1487,7 @@ object FirTree : AbstractFirTreeBuilder() {
         parent(statement)
 
         +field("lValue", expression, withReplace = true, withTransform = true)
-        +field("rValue", expression, withTransform = true)
+        +field("rValue", expression, withReplace = true, withTransform = true)
     }
 
     val whenSubjectExpression: Element by element(Expression) {
@@ -1563,6 +1665,11 @@ object FirTree : AbstractFirTreeBuilder() {
         +field("rightType", typeRef)
     }
 
+    val unionTypeRef: Element by element(TypeRefElement) {
+        parent(unresolvedTypeRef)
+        +listField("types", typeRef)
+    }
+
     val thisReceiverExpression: Element by element(Expression) {
         parent(qualifiedAccessExpression)
 
@@ -1611,6 +1718,7 @@ object FirTree : AbstractFirTreeBuilder() {
 
     val placeholderProjection: Element by element(TypeRefElement) {
         parent(typeProjection)
+        kDoc = "Represents an underscore type argument."
     }
 
     val contractElementDeclaration: Element by element(Contracts) {

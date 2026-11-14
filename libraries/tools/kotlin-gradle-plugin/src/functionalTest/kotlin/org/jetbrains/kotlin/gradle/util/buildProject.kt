@@ -19,14 +19,10 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 import org.jetbrains.kotlin.gradle.plugin.*
-import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames.KOTLIN_RUN_COMPILER_VIA_BUILD_TOOLS_API
 import org.jetbrains.kotlin.gradle.plugin.cocoapods.CocoapodsExtension
-import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.SwiftExportExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.SwiftPMImportExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.uklibs.consumption.KmpResolutionStrategy
 import org.jetbrains.kotlin.gradle.plugin.mpp.uklibs.publication.KmpPublicationStrategy
-
-
 import org.jetbrains.kotlin.gradle.utils.getFile
 import org.jetbrains.kotlin.konan.target.XcodeVersion
 
@@ -139,10 +135,6 @@ fun KotlinMultiplatformExtension.cocoapods(code: CocoapodsExtension.() -> Unit) 
     requireNotNull(getExtension<CocoapodsExtension>("cocoapods")).apply(code)
 }
 
-fun KotlinMultiplatformExtension.swiftExport(code: SwiftExportExtension.() -> Unit) {
-    requireNotNull(getExtension<SwiftExportExtension>("swiftExport")).apply(code)
-}
-
 fun KotlinMultiplatformExtension.swiftPMDependencies(code: SwiftPMImportExtension.() -> Unit) {
     requireNotNull(getExtension<SwiftPMImportExtension>("swiftPMDependencies")).apply(code)
 }
@@ -158,12 +150,20 @@ fun Project.enableMppResourcesPublication(enabled: Boolean = true) {
     propertiesExtension.set(PropertiesProvider.PropertyNames.KOTLIN_MPP_ENABLE_RESOURCES_PUBLICATION, enabled.toString())
 }
 
+fun Project.allowIncompleteKotlinArchivePublication(allowed: Boolean = true) {
+    propertiesExtension.set(PropertiesProvider.PropertyNames.KOTLIN_ALLOW_INCOMPLETE_KOTLIN_ARCHIVE_PUBLICATION, allowed.toString())
+}
+
 internal fun Project.setUklibPublicationStrategy(strategy: KmpPublicationStrategy = KmpPublicationStrategy.UklibPublicationInASingleComponentWithKMPPublication) {
     propertiesExtension.set(PropertiesProvider.PropertyNames.KOTLIN_KMP_PUBLICATION_STRATEGY, strategy.propertyName)
 }
 
 fun Project.enableCrossCompilation(enabled: Boolean = true) {
     propertiesExtension.set(PropertiesProvider.PropertyNames.KOTLIN_NATIVE_ENABLE_KLIBS_CROSSCOMPILATION, enabled.toString())
+}
+
+fun Project.enableKmpSeparateCompilation(enabled: Boolean = true) {
+    propertiesExtension.set(PropertiesProvider.PropertyNames.KOTLIN_KMP_SEPARATE_COMPILATION, enabled.toString())
 }
 
 internal fun Project.setUklibResolutionStrategy(strategy: KmpResolutionStrategy) {
@@ -199,16 +199,6 @@ fun Project.enableSecondaryJvmClassesVariant(enabled: Boolean = true) {
     project.propertiesExtension.set(PropertiesProvider.PropertyNames.KOTLIN_JVM_ADD_CLASSES_VARIANT, enabled.toString())
 }
 
-
-fun Project.enableBtaJvm(enabled: Boolean = true) {
-    @Suppress("DEPRECATION")
-    project.propertiesExtension.set(KOTLIN_RUN_COMPILER_VIA_BUILD_TOOLS_API, enabled)
-}
-
-fun Project.enableNonPackedKlibsUsage(enabled: Boolean = true) {
-    project.propertiesExtension.set(PropertiesProvider.PropertyNames.KOTLIN_USE_NON_PACKED_KLIBS, enabled.toString())
-}
-
 fun Project.enableEagerUnresolvedDependenciesDiagnostic(enabled: Boolean = true) {
     project.propertiesExtension.set(
         PropertiesProvider.PropertyNames.KOTLIN_KMP_EAGER_UNRESOLVED_DEPENDENCIES_DIAGNOSTIC,
@@ -218,4 +208,8 @@ fun Project.enableEagerUnresolvedDependenciesDiagnostic(enabled: Boolean = true)
 
 fun Project.enableUnresolvedDependenciesDiagnostic(enabled: Boolean = true) {
     project.propertiesExtension.set(PropertiesProvider.PropertyNames.KOTLIN_KMP_UNRESOLVED_DEPENDENCIES_DIAGNOSTIC, enabled.toString())
+}
+
+fun Project.withTemporaryKotlinNativeHome() {
+    project.extraProperties.set("kotlin.native.home", System.getProperty("kotlin.native.home"))
 }

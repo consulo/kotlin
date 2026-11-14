@@ -6,14 +6,13 @@
 package org.jetbrains.kotlin.psi;
 
 import com.intellij.lang.ASTNode;
-import com.intellij.psi.PsiComment;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiWhiteSpace;
-import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.psi.util.PsiUtilCore;
+import kotlin.DeprecationLevel;
+import kotlin.ReplaceWith;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.KtStubBasedElementTypes;
+import org.jetbrains.kotlin.KtNodeTypes;
 import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.name.ClassId;
 import org.jetbrains.kotlin.psi.psiUtil.KtPsiUtilKt;
@@ -36,13 +35,19 @@ import java.util.Objects;
  * }
  * }</pre>
  */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public class KtEnumEntry extends KtClass implements KtDeclarationWithReturnType {
+    /** A shared empty array, which can be reused to avoid unnecessary allocations. */
+    public static final KtEnumEntry[] EMPTY_ARRAY = new KtEnumEntry[0];
+
+    @KtImplementationDetail
     public KtEnumEntry(@NotNull ASTNode node) {
         super(node);
     }
 
+    @KtImplementationDetail
     public KtEnumEntry(@NotNull KotlinClassStub stub) {
-        super(stub, KtStubBasedElementTypes.ENUM_ENTRY);
+        super(stub, KtNodeTypes.ENUM_ENTRY);
     }
 
     @NotNull
@@ -55,20 +60,22 @@ public class KtEnumEntry extends KtClass implements KtDeclarationWithReturnType 
         return initializerList.getInitializers();
     }
 
+    /** Returns {@code true} if this enum entry has a supertype initializer, as in {@code ENTRY()} or {@code ENTRY(value)}. */
     public boolean hasInitializer() {
         return !getSuperTypeListEntries().isEmpty();
     }
 
+    /** Always {@code null}: an enum entry is not a class semantically, so it has no {@link ClassId}. */
     @Nullable
     @Override
     public ClassId getClassId() {
         return null;
     }
 
+    /** Returns the initializer list holding the constructor arguments of this enum entry, or {@code null} if it passes no arguments. */
     @Nullable
-    @SuppressWarnings("deprecation") // KT-78356
     public KtInitializerList getInitializerList() {
-        return getStubOrPsiChild(KtStubBasedElementTypes.INITIALIZER_LIST);
+        return getStubOrPsiChild(KtNodeTypes.INITIALIZER_LIST, KtInitializerList.class);
     }
 
     @Override
@@ -119,59 +126,34 @@ public class KtEnumEntry extends KtClass implements KtDeclarationWithReturnType 
      * semicolon onto the parent {@link KtClassBody}) and inserted a new {@link KtEnumEntry}.
      *
      * @return The added (or existing) semicolon element.
+     * @deprecated Use {@code org.jetbrains.kotlin.idea.base.psi.KotlinPsiModificationUtils.addEnumEntrySemicolon(this)}
+     * instead.
      */
     @KtExperimentalApi
     @NotNull
+    @kotlin.Deprecated(
+            message = "Use 'org.jetbrains.kotlin.idea.base.psi.KotlinPsiModificationUtils.addEnumEntrySemicolon(this)' instead.",
+            replaceWith = @ReplaceWith(
+                    expression = "this.addEnumEntrySemicolon()",
+                    imports = "org.jetbrains.kotlin.idea.base.psi.addEnumEntrySemicolon"
+            ),
+            level = DeprecationLevel.HIDDEN
+    )
+    @Deprecated
     public PsiElement addSemicolon() {
-        PsiElement semicolon = getSemicolon();
-        if (semicolon != null) {
-            return semicolon;
-        }
-        // when adding a declaration to an enum class body, there's a chance the next
-        // non-whitespace sibling is a semicolon; we should embed it into ourselves
-        PsiElement tailStart = getNextSibling();
-        PsiElement tailEnd = PsiTreeUtil.skipSiblingsForward(this, PsiWhiteSpace.class, PsiComment.class);
-        if (tailEnd != null && PsiUtilCore.getElementType(tailEnd) == KtTokens.SEMICOLON) {
-            PsiElement elem = this.addRangeAfter(tailStart, tailEnd, getLastChild());
-            getParent().deleteChildRange(tailStart, tailEnd);
-
-            while (elem.getNextSibling() != null) {
-                elem = elem.getNextSibling();
-            }
-
-            return elem;
-        }
-
-        semicolon = new KtPsiFactory(getProject()).createSemicolon();
-        PsiElement comma = getComma();
-        if (comma != null) {
-            return comma.replace(semicolon);
-        }
-
-        return addAfter(semicolon, getLastChild());
+        return KtPsiMutationService.getInstance().addEnumEntrySemicolon(this);
     }
 
+    /**
+     * Deletes this enum entry.
+     * <p>
+     * When {@link KtPsiMutationService} is registered, as in the IntelliJ Kotlin plugin, the deletion may also adjust the surrounding code,
+     * e.g., move the semicolon that ends the list of entries to the previous entry. Without the service, it performs only the plain
+     * platform deletion, which deletes such a semicolon along with the entry, as the semicolon belongs to the last entry.
+     */
     @Override
     public void delete() {
-        PsiElement semicolon = getSemicolon();
-        if (semicolon != null) {
-            // Get previous KtEnumEntry, and move semicolon to it
-            KtEnumEntry prevEntry = PsiTreeUtil.getPrevSiblingOfType(this, KtEnumEntry.class);
-
-            if (prevEntry == null) {
-                // if there's no previous KtEnumEntry, we embed it into the parent (expected to be a KtClassBody)
-                PsiElement parent = getParent();
-                if (!(parent instanceof KtClassBody))
-                    throw new IllegalStateException("Enum entry should be a child of KtClassBody");
-                parent.addAfter(semicolon, this);
-            }
-            else {
-                // if there is, we move semicolon to it
-                prevEntry.addSemicolon();
-            }
-        }
-
-        super.delete();
+        KtPsiMutationServiceKt.deleteWithMutationService(this, mutationService -> mutationService.deleteEnumEntry(this));
     }
 
     @Override
@@ -179,6 +161,7 @@ public class KtEnumEntry extends KtClass implements KtDeclarationWithReturnType 
         return visitor.visitEnumEntry(this, data);
     }
 
+    /** Always {@code null}: an enum entry has no type reference. */
     @Nullable
     @Override
     public KtTypeReference getTypeReference() {

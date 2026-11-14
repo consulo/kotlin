@@ -1,11 +1,13 @@
 CONSTRUCTOR:
   KaSamConstructorSymbol:
+  anchorPsi: KtClass
   annotations: []
   callableId: /Predicate
-  compilerVisibility: Public
+  contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -13,6 +15,8 @@ CONSTRUCTOR:
   modality: FINAL
   name: Predicate
   origin: SAM_CONSTRUCTOR
+  psi: KtClass
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     abbreviation: null
@@ -28,8 +32,8 @@ CONSTRUCTOR:
             annotations: []
             name: A
             symbol: KaTypeParameterSymbol:
+              anchorPsi: KtTypeParameter
               annotations: []
-              compilerVisibility: Local
               isActual: false
               isExpect: false
               isExternal: false
@@ -38,12 +42,14 @@ CONSTRUCTOR:
               modality: FINAL
               name: A
               origin: SAM_CONSTRUCTOR
+              psi: KtTypeParameter
+              realPsi: null
               upperBounds: []
               variance: INVARIANT
               visibility: LOCAL
               getContainingFileSymbol: KaFileSymbol(samClassWithTypeArguments.kt)
               getContainingModule: KaSourceModule "Sources of main"
-              deprecationStatus: null
+              deprecation: null
               importableFqName: null
             isMarkedNullable: false
             isNullable: true
@@ -57,8 +63,8 @@ CONSTRUCTOR:
         annotations: []
         name: A
         symbol: KaTypeParameterSymbol:
+          anchorPsi: KtTypeParameter
           annotations: []
-          compilerVisibility: Local
           isActual: false
           isExpect: false
           isExternal: false
@@ -67,12 +73,14 @@ CONSTRUCTOR:
           modality: FINAL
           name: A
           origin: SAM_CONSTRUCTOR
+          psi: KtTypeParameter
+          realPsi: null
           upperBounds: []
           variance: INVARIANT
           visibility: LOCAL
           getContainingFileSymbol: KaFileSymbol(samClassWithTypeArguments.kt)
           getContainingModule: KaSourceModule "Sources of main"
-          deprecationStatus: null
+          deprecation: null
           importableFqName: null
         isMarkedNullable: false
         isNullable: true
@@ -83,8 +91,8 @@ CONSTRUCTOR:
     hasFlexibleNullability: false
   typeParameters: [
     KaTypeParameterSymbol:
+      anchorPsi: KtTypeParameter
       annotations: []
-      compilerVisibility: Local
       isActual: false
       isExpect: false
       isExternal: false
@@ -93,25 +101,29 @@ CONSTRUCTOR:
       modality: FINAL
       name: A
       origin: SAM_CONSTRUCTOR
+      psi: KtTypeParameter
+      realPsi: null
       upperBounds: []
       variance: INVARIANT
       visibility: LOCAL
       getContainingFileSymbol: KaFileSymbol(samClassWithTypeArguments.kt)
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -123,13 +135,15 @@ CONSTRUCTOR:
       modality: FINAL
       name: function
       origin: SAM_CONSTRUCTOR
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaFunctionType:
         abbreviation: null
         annotations: []
         classId: kotlin/Function1
-        contextReceivers: []
-        hasContextReceivers: false
+        contextParameterTypes: []
         hasReceiver: false
         isReflectType: false
         isSuspend: false
@@ -139,8 +153,8 @@ CONSTRUCTOR:
             annotations: []
             name: A
             symbol: KaTypeParameterSymbol:
+              anchorPsi: KtTypeParameter
               annotations: []
-              compilerVisibility: Local
               isActual: false
               isExpect: false
               isExternal: false
@@ -149,19 +163,49 @@ CONSTRUCTOR:
               modality: FINAL
               name: A
               origin: SAM_CONSTRUCTOR
+              psi: KtTypeParameter
+              realPsi: null
               upperBounds: []
               variance: INVARIANT
               visibility: LOCAL
               getContainingFileSymbol: KaFileSymbol(samClassWithTypeArguments.kt)
               getContainingModule: KaSourceModule "Sources of main"
-              deprecationStatus: null
+              deprecation: null
               importableFqName: null
             isMarkedNullable: false
             isNullable: true
             hasFlexibleNullability: false
         ]
         parameters: [
-          KaBaseFunctionValueParameter [name: null, type: null]
+          KaFunctionValueParameter:
+            name: null
+            type: KaTypeParameterType:
+              abbreviation: null
+              annotations: []
+              name: A
+              symbol: KaTypeParameterSymbol:
+                anchorPsi: KtTypeParameter
+                annotations: []
+                isActual: false
+                isExpect: false
+                isExternal: false
+                isReified: false
+                location: LOCAL
+                modality: FINAL
+                name: A
+                origin: SAM_CONSTRUCTOR
+                psi: KtTypeParameter
+                realPsi: null
+                upperBounds: []
+                variance: INVARIANT
+                visibility: LOCAL
+                getContainingFileSymbol: KaFileSymbol(samClassWithTypeArguments.kt)
+                getContainingModule: KaSourceModule "Sources of main"
+                deprecation: null
+                importableFqName: null
+              isMarkedNullable: false
+              isNullable: true
+              hasFlexibleNullability: false
         ]
         qualifiers: [
           KaResolvedClassTypeQualifier:
@@ -173,8 +217,8 @@ CONSTRUCTOR:
                 annotations: []
                 name: A
                 symbol: KaTypeParameterSymbol:
+                  anchorPsi: KtTypeParameter
                   annotations: []
-                  compilerVisibility: Local
                   isActual: false
                   isExpect: false
                   isExternal: false
@@ -183,12 +227,14 @@ CONSTRUCTOR:
                   modality: FINAL
                   name: A
                   origin: SAM_CONSTRUCTOR
+                  psi: KtTypeParameter
+                  realPsi: null
                   upperBounds: []
                   variance: INVARIANT
                   visibility: LOCAL
                   getContainingFileSymbol: KaFileSymbol(samClassWithTypeArguments.kt)
                   getContainingModule: KaSourceModule "Sources of main"
-                  deprecationStatus: null
+                  deprecation: null
                   importableFqName: null
                 isMarkedNullable: false
                 isNullable: true
@@ -233,8 +279,8 @@ CONSTRUCTOR:
             annotations: []
             name: A
             symbol: KaTypeParameterSymbol:
+              anchorPsi: KtTypeParameter
               annotations: []
-              compilerVisibility: Local
               isActual: false
               isExpect: false
               isExternal: false
@@ -243,12 +289,14 @@ CONSTRUCTOR:
               modality: FINAL
               name: A
               origin: SAM_CONSTRUCTOR
+              psi: KtTypeParameter
+              realPsi: null
               upperBounds: []
               variance: INVARIANT
               visibility: LOCAL
               getContainingFileSymbol: KaFileSymbol(samClassWithTypeArguments.kt)
               getContainingModule: KaSourceModule "Sources of main"
-              deprecationStatus: null
+              deprecation: null
               importableFqName: null
             isMarkedNullable: false
             isNullable: true
@@ -272,27 +320,29 @@ CONSTRUCTOR:
         isMarkedNullable: false
         isNullable: false
         hasFlexibleNullability: false
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(samClassWithTypeArguments.kt)
       getContainingJvmClassName: SamClassWithTypeArgumentsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(samClassWithTypeArguments.kt)
   getContainingJvmClassName: SamClassWithTypeArgumentsKt
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: Predicate
 
 FUNCTIONAL INTERFACE:
   KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: Predicate
   classKind: INTERFACE
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -301,10 +351,13 @@ FUNCTIONAL INTERFACE:
   isFun: true
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: ABSTRACT
   name: Predicate
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       abbreviation: null
@@ -324,8 +377,8 @@ FUNCTIONAL INTERFACE:
   ]
   typeParameters: [
     KaTypeParameterSymbol:
+      anchorPsi: KtTypeParameter
       annotations: []
-      compilerVisibility: Local
       isActual: false
       isExpect: false
       isExternal: false
@@ -334,17 +387,19 @@ FUNCTIONAL INTERFACE:
       modality: FINAL
       name: A
       origin: SOURCE
+      psi: KtTypeParameter
+      realPsi: KtTypeParameter
       upperBounds: []
       variance: INVARIANT
       visibility: LOCAL
       getContainingFileSymbol: KaFileSymbol(samClassWithTypeArguments.kt)
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(samClassWithTypeArguments.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: Predicate

@@ -14,16 +14,19 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
+import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.buildtools.api.jvm.ClassSnapshotGranularity
 import org.jetbrains.kotlin.buildtools.api.jvm.ClassSnapshotGranularity.CLASS_LEVEL
 import org.jetbrains.kotlin.buildtools.api.jvm.ClassSnapshotGranularity.CLASS_MEMBER_LEVEL
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmPlatformToolchain.Companion.jvm
+import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmClasspathSnapshottingOperation.Companion.EXPAND_TYPE_ALIASES
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmClasspathSnapshottingOperation.Companion.GRANULARITY
-import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmClasspathSnapshottingOperation.Companion.PARSE_INLINED_LOCAL_CLASSES
 import org.jetbrains.kotlin.compilerRunner.btapi.BuildSessionService
 import org.jetbrains.kotlin.gradle.internal.ClassLoadersCachingBuildService
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.TransformActionUsingKotlinToolingDiagnostics
+import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
+import org.jetbrains.kotlin.tooling.core.toKotlinVersion
 import java.io.File
 
 /** Transform to create a snapshot of a classpath entry (directory or jar). */
@@ -42,10 +45,8 @@ internal abstract class ClasspathEntrySnapshotTransform : TransformAction<Classp
         internal abstract val classLoadersCachingService: Property<ClassLoadersCachingBuildService>
 
         @get:Classpath
+        @get:NormalizeLineEndings
         internal abstract val classpath: ConfigurableFileCollection
-
-        @get:Input
-        internal abstract val compilationViaBuildToolsApi: Property<Boolean>
 
         @get:Internal
         internal abstract val buildToolsImplVersion: Property<String>
@@ -57,30 +58,22 @@ internal abstract class ClasspathEntrySnapshotTransform : TransformAction<Classp
         internal abstract val suppressVersionInconsistencyChecks: Property<Boolean>
 
         @get:Input
-        abstract val parseInlinedLocalClasses: Property<Boolean>
+        abstract val expandTypeAliases: Property<Boolean>
 
         @get:Internal
         abstract val buildSessionService: Property<BuildSessionService>
     }
 
     @get:Classpath
+    @get:NormalizeLineEndings
     @get:InputArtifact
     abstract val inputArtifact: Provider<FileSystemLocation>
 
-    private fun checkVersionConsistency() {
-        if (parameters.suppressVersionInconsistencyChecks.get()) return
-        val kgpVersion = parameters.kgpVersion.get()
-        val buildToolsImplVersion = parameters.buildToolsImplVersion.orNull
-            .takeIf { it != "null" } // workaround for incorrect nullability of `map`
-        if (kgpVersion != buildToolsImplVersion) {
-            reportDiagnostic(KotlinToolingDiagnostics.BuildToolsApiVersionInconsistency(kgpVersion, buildToolsImplVersion))
-        }
-    }
+    // workaround for incorrect nullability of `map`
+    private val buildToolsImplVersion: String?
+        get() = parameters.buildToolsImplVersion.orNull.takeIf { it != "null" }
 
     override fun transform(outputs: TransformOutputs) {
-        if (!parameters.compilationViaBuildToolsApi.get()) {
-            checkVersionConsistency()
-        }
         val classpathEntryInputDirOrJar = inputArtifact.get().asFile
         if (!classpathEntryInputDirOrJar.exists()) {
             reportDiagnostic(KotlinToolingDiagnostics.DependencyDoesNotPhysicallyExist(classpathEntryInputDirOrJar))
@@ -94,7 +87,7 @@ internal abstract class ClasspathEntrySnapshotTransform : TransformAction<Classp
             parameters.gradleUserHomeDir.get().asFile,
             parameters.gradleReadOnlyDependenciesCacheDir.orNull?.asFile
         )
-        val parseInlinedLocalClasses = parameters.parseInlinedLocalClasses.get()
+        val expandTypeAliases = parameters.expandTypeAliases.get()
 
         val buildSession = parameters.buildSessionService.get().getOrCreateBuildSession(
             parameters.classLoadersCachingService.get(),
@@ -105,7 +98,10 @@ internal abstract class ClasspathEntrySnapshotTransform : TransformAction<Classp
         val snapshotOperation = kotlinToolchains.jvm.classpathSnapshottingOperationBuilder(classpathEntryInputDirOrJar.toPath())
             .apply {
                 this[GRANULARITY] = granularity
-                this[PARSE_INLINED_LOCAL_CLASSES] = parseInlinedLocalClasses
+
+                if (supportsExpandTypeAliases()) {
+                    this[EXPAND_TYPE_ALIASES] = expandTypeAliases
+                }
             }.build()
         val snapshot = buildSession.executeOperation(snapshotOperation)
         snapshot.saveSnapshot(snapshotOutputFile)
@@ -129,5 +125,13 @@ internal abstract class ClasspathEntrySnapshotTransform : TransformAction<Classp
             classpathEntryDirOrJar.name == "android.jar"
         ) CLASS_LEVEL
         else CLASS_MEMBER_LEVEL
+    }
+
+    private fun supportsExpandTypeAliases(): Boolean {
+        val implVersionString = buildToolsImplVersion ?: return false
+        val implVersion = KotlinToolingVersion(implVersionString)
+
+        return implVersion.toKotlinVersion()
+            .isAtLeast(EXPAND_TYPE_ALIASES.availableSinceVersion.major, EXPAND_TYPE_ALIASES.availableSinceVersion.minor)
     }
 }

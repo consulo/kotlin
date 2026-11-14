@@ -5,15 +5,12 @@
 
 package org.jetbrains.kotlin.arguments.description
 
-import org.jetbrains.kotlin.arguments.dsl.base.KotlinReleaseVersion
-import org.jetbrains.kotlin.arguments.dsl.base.ReleaseDependent
-import org.jetbrains.kotlin.arguments.dsl.base.asReleaseDependent
-import org.jetbrains.kotlin.arguments.dsl.base.compilerArgumentsLevel
+import org.jetbrains.kotlin.arguments.dsl.base.*
+import org.jetbrains.kotlin.arguments.dsl.base.KotlinCompilerPhase
 import org.jetbrains.kotlin.arguments.dsl.defaultFalse
 import org.jetbrains.kotlin.arguments.dsl.defaultNull
 import org.jetbrains.kotlin.arguments.dsl.defaultTrue
-import org.jetbrains.kotlin.arguments.dsl.types.BooleanType
-import org.jetbrains.kotlin.arguments.dsl.types.StringType
+import org.jetbrains.kotlin.arguments.dsl.types.*
 
 
 val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wasmArguments) {
@@ -21,19 +18,23 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         name = "Xwasm"
         description = "Use the WebAssembly compiler backend.".asReleaseDependent()
         valueType = BooleanType.defaultFalse
-        additionalAnnotations(
-            Deprecated("This flag is deprecated. Use kotlinc-wasm or the KotlinWasmCompiler class instead to compile to WebAssembly.")
-        )
+        deprecatedMessage = "Use kotlinc-wasm or the KotlinWasmCompiler class instead to compile to WebAssembly."
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
             deprecatedVersion = KotlinReleaseVersion.v2_4_0,
         )
     }
 
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "Xwasm-target"
         description = "Set up the Wasm target (wasm-js or wasm-wasi).".asReleaseDependent()
         valueType = StringType.defaultNull
+        valueDescription = ReleaseDependent(
+            "{wasm-js|wasm-wasi}",
+            KotlinReleaseVersion.v2_1_20..KotlinReleaseVersion.v2_4_0 to null,
+        )
+        argumentType = WasmTargetType()
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
@@ -52,6 +53,7 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -63,6 +65,19 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
+    }
+
+    compilerArgument {
+        name = "Xwasm-IC-generate-unchanged-modules"
+        compilerName = "regenerateUnchangedModules"
+        description = "Regenerate unchanged modules in multimodule IC.".asReleaseDependent()
+        valueType = BooleanType.defaultFalse
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v2_4_20,
+        )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -73,16 +88,19 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_3_0,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
         name = "Xwasm-generate-closed-world-multimodule"
-        description = "Compile modules in multi-module closed-world mode using module passed in `-include` argument as main module".asReleaseDependent()
+        description =
+            "Compile modules in multi-module closed-world mode using module passed in `-include` argument as main module".asReleaseDependent()
         valueType = BooleanType.defaultFalse
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_4_0,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -93,6 +111,7 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -104,16 +123,36 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.KLIB_COMPILATION
     }
 
     compilerArgument {
         name = "Xwasm-enable-array-range-checks"
         description = "Turn on range checks for array access functions.".asReleaseDependent()
-        valueType = BooleanType.defaultFalse
+        valueType = BooleanType(
+            isNullable = false.asReleaseDependent(),
+            defaultValue = ReleaseDependent(
+                true,
+                KotlinReleaseVersion.v2_1_20..KotlinReleaseVersion.v2_4_0 to false,
+            )
+        )
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
+    }
+
+    compilerArgument {
+        name = "Xwasm-disable-array-range-checks-safe-elimination"
+        description =
+            "Disable bounds check elimination for provably-safe array accesses in for-loops. Only effective when -Xwasm-enable-array-range-checks is also enabled.".asReleaseDependent()
+        valueType = BooleanType.defaultFalse
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v2_4_0,
+        )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -124,6 +163,7 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -134,6 +174,7 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -147,6 +188,7 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_4_0
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -166,6 +208,7 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -178,28 +221,33 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_2_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
         name = "Xwasm-debugger-custom-formatters"
         compilerName = "debuggerCustomFormatters"
-        description = "Generates devtools custom formatters (https://firefox-source-docs.mozilla.org/devtools-user/custom_formatters) for Kotlin/Wasm values".asReleaseDependent()
+        description =
+            "Generates devtools custom formatters (https://firefox-source-docs.mozilla.org/devtools-user/custom_formatters) for Kotlin/Wasm values".asReleaseDependent()
         valueType = BooleanType.defaultFalse
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
         name = "Xwasm-source-map-include-mappings-from-unavailable-sources"
         compilerName = "includeUnavailableSourcesIntoSourceMap"
-        description = "Insert source mappings from libraries even if their sources are unavailable on the end-user machine.".asReleaseDependent()
+        description =
+            "Insert source mappings from libraries even if their sources are unavailable on the end-user machine.".asReleaseDependent()
         valueType = BooleanType.defaultFalse
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -211,8 +259,10 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "Xir-dce-dump-reachability-info-to-file"
         description = ("Dump reachability information collected about declarations while performing DCE to a file. " +
@@ -221,12 +271,15 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
                 "and plain text for all other file types.").asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "<path>".asReleaseDependent()
+        argumentType = PathType.defaultNull
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "Xir-dump-declaration-ir-sizes-to-file"
         compilerName = "irDceDumpDeclarationIrSizesToFile"
@@ -236,9 +289,33 @@ val actualWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.wa
                 "and plain text for all other file types.").asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "<path>".asReleaseDependent()
+        argumentType = PathType.defaultNull
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v2_1_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
+    }
+
+    compilerArgument {
+        name = "Xwasm-use-stack-switching-proposal"
+        description = "Compile Kotlin Coroutines with WebAssembly Stack Switching Proposal".asReleaseDependent()
+        valueType = BooleanType.defaultFalse
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v2_4_20,
+        )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
+    }
+
+    compilerArgument {
+        name = "Xwasm-enable-tail-calls"
+        description = "Emit WebAssembly tail call instructions (return_call / return_call_indirect).".asReleaseDependent()
+        valueType = BooleanType.defaultFalse
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v2_4_20,
+        )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 }

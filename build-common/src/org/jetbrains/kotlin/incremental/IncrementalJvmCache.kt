@@ -20,16 +20,19 @@ import com.intellij.openapi.util.io.FileUtil.toSystemIndependentName
 import com.intellij.util.io.BooleanDataDescriptor
 import org.jetbrains.annotations.TestOnly
 import org.jetbrains.kotlin.build.GeneratedJvmClass
+import org.jetbrains.kotlin.build.report.debug
 import org.jetbrains.kotlin.incremental.DifferenceCalculatorForPackageFacade.Companion.getVisibleTypeAliasFqNames
 import org.jetbrains.kotlin.incremental.components.SubtypeTracker
 import org.jetbrains.kotlin.incremental.storage.*
 import org.jetbrains.kotlin.inline.InlineFunction
 import org.jetbrains.kotlin.inline.InlineFunctionOrAccessor
 import org.jetbrains.kotlin.inline.InlinePropertyAccessor
+import org.jetbrains.kotlin.library.metadata.KlibMetadataSerializerProtocol
 import org.jetbrains.kotlin.load.kotlin.header.KotlinClassHeader
 import org.jetbrains.kotlin.load.kotlin.incremental.components.IncrementalCache
 import org.jetbrains.kotlin.load.kotlin.incremental.components.JvmPackagePartProto
 import org.jetbrains.kotlin.metadata.ProtoBuf
+import org.jetbrains.kotlin.metadata.jvm.JvmProtoBuf
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmProtoBufUtil
 import org.jetbrains.kotlin.metadata.jvm.deserialization.ModuleMapping
 import org.jetbrains.kotlin.metadata.jvm.serialization.JvmStringTable
@@ -62,6 +65,8 @@ open class IncrementalJvmCache(
         private const val INLINE_FUNCTIONS = "inline-functions"
         private const val INTERNAL_NAME_TO_SOURCE = "internal-name-to-source"
         private const val JAVA_SOURCES_PROTO_MAP = "java-sources-proto-map"
+        private const val COMMON_METADATA_MAP = "metadata"
+        private const val DIRTY_COMMON_METADATA_MAP = "dirty-metadata"
 
         private const val MODULE_MAPPING_FILE_NAME = "." + ModuleMapping.MAPPING_FILE_EXT
     }
@@ -83,9 +88,16 @@ open class IncrementalJvmCache(
     // gradle only
     private val javaSourcesProtoMap = registerMap(JavaSourcesProtoMap(JAVA_SOURCES_PROTO_MAP.storageFile, icContext))
 
+    // KMP only
+    private val protoDataProvider = ProtoDataProvider(KlibMetadataSerializerProtocol)
+    private val commonMetadataMap = registerMap(CommonMetadataMap(COMMON_METADATA_MAP.storageFile, protoDataProvider, icContext))
+    private val dirtyCommonMetadataMap = registerMap(DirtyCommonMetadataMap(DIRTY_COMMON_METADATA_MAP.storageFile, icContext))
+
     private val outputDir by lazy(LazyThreadSafetyMode.NONE) { requireNotNull(targetOutputDir) { "Target is expected to have output directory" } }
 
-    protected open fun debugLog(message: String) {}
+    protected open fun debugLog(message: String) {
+        icContext.reporter.debug { message }
+    }
 
     fun isTrackedFile(file: File) = sourceToClassesMap.contains(file)
 
@@ -103,6 +115,17 @@ open class IncrementalJvmCache(
 
     fun isMultifileFacade(className: JvmClassName): Boolean =
         className in multifileFacadeToParts
+
+    override fun markDirty(removedAndCompiledSources: Collection<File>) {
+        super.markDirty(removedAndCompiledSources)
+
+        val removedAndCompiledCommonMetadata = removedAndCompiledSources.filter { source ->
+            commonMetadataMap.keys.any { fragmentName ->
+                commonMetadataMap[fragmentName, source] != null
+            }
+        }
+        dirtyCommonMetadataMap.markDirty(removedAndCompiledCommonMetadata)
+    }
 
     override fun getClassFilePath(internalClassName: String): String {
         return toSystemIndependentName(File(outputDir, "$internalClassName.class").normalize().absolutePath)
@@ -128,6 +151,11 @@ open class IncrementalJvmCache(
         saveClassToCache(KotlinClassInfo.createFrom(generatedClass.outputClass), generatedClass.sourceFiles, changesCollector)
     }
 
+    fun saveCommonMetadataToCache(fragmentName: String, metadata: Map<File, ByteArray>, changesCollector: ChangesCollector) {
+        dirtyCommonMetadataMap.notDirty(metadata.keys)
+        commonMetadataMap.putAndCollect(fragmentName, metadata, changesCollector)
+    }
+
     /**
      * Saves information about the given (Kotlin) class to this cache, and stores changes between this class and its previous version into
      * the given [ChangesCollector].
@@ -147,9 +175,6 @@ open class IncrementalJvmCache(
             }
             if (!icContext.useCompilerMapsOnly) internalNameToSource[className.internalName] = sourceFiles
         }
-
-        @OptIn(ClassIdBasedLocality::class)
-        if (kotlinClassInfo.classId.isLocal) return
 
         when (kotlinClassInfo.classKind) {
             KotlinClassHeader.Kind.FILE_FACADE -> {
@@ -210,7 +235,16 @@ open class IncrementalJvmCache(
                 }
             }
             KotlinClassHeader.Kind.CLASS -> {
-                addToClassStorage(kotlinClassInfo.protoData as ClassProtoData, sourceFiles?.singleOrNull(), icContext.useCompilerMapsOnly)
+                val classProtoData = kotlinClassInfo.protoData as ClassProtoData
+                // Regenerated copies of anonymous objects from inline functions can have inconsistent source file
+                // attribution between incremental and clean builds, so we only record hierarchy data for them
+                // to avoid mappings dump mismatches.
+                val isAnonymousObjectCopy = classProtoData.proto.hasExtension(JvmProtoBuf.anonymousObjectOriginName)
+                if (isAnonymousObjectCopy) {
+                    recordClassHierarchyData(classProtoData)
+                } else {
+                    addToClassStorage(classProtoData, sourceFiles?.singleOrNull(), icContext.useCompilerMapsOnly)
+                }
 
                 protoMap.process(kotlinClassInfo, changesCollector)
 
@@ -302,7 +336,7 @@ open class IncrementalJvmCache(
             removedParts.add(dirtyClass.internalName)
         }
 
-        for ((facade, removedParts) in facadesWithRemovedParts.entries) {
+        for ([facade, removedParts] in facadesWithRemovedParts.entries) {
             val allParts = multifileFacadeToParts[facade] ?: continue
             val notRemovedParts = allParts.filter { it !in removedParts }
 
@@ -330,6 +364,12 @@ open class IncrementalJvmCache(
         removeAllFromClassStorage(dirtyClasses.map { it.fqNameForClassNameWithoutDollars }, changesCollector, icContext.useCompilerMapsOnly)
 
         dirtyOutputClassesMap.clear()
+
+        val dirtyCommonMetadataSources = dirtyCommonMetadataMap.getDirtySources()
+        for (fragmentName in commonMetadataMap.keys) {
+            commonMetadataMap.remove(fragmentName, dirtyCommonMetadataSources, changesCollector)
+        }
+        dirtyCommonMetadataMap.clear()
     }
 
     override fun getObsoletePackageParts(): Collection<String> {
@@ -362,6 +402,13 @@ open class IncrementalJvmCache(
 
     override fun getModuleMappingData(): ByteArray? {
         return protoMap[JvmClassName.byInternalName(MODULE_MAPPING_FILE_NAME)]?.bytes
+    }
+
+    override fun getCommonMetadata(fragmentName: String): Map<File, ByteArray> {
+        val metadata = commonMetadataMap[fragmentName] ?: return emptyMap()
+        val dirtyCommonMetadataSources = dirtyCommonMetadataMap.getDirtySources()
+
+        return if (dirtyCommonMetadataSources.isEmpty()) metadata else metadata.filterKeys { it !in dirtyCommonMetadataSources }
     }
 
     private inner class ProtoMap(
@@ -402,7 +449,7 @@ open class IncrementalJvmCache(
             val oldMapValue = storage[key]
             storage[key] = newMapValue
 
-            changesCollector.collectProtoChanges(oldMapValue?.toProtoData(className.packageFqName), newProtoData, packageProtoKey = key)
+            changesCollector.collectProtoChanges(oldMapValue?.toProtoData(className.packageFqName), newProtoData)
         }
 
         fun check(
@@ -411,7 +458,7 @@ open class IncrementalJvmCache(
             val key = className.internalName
             val oldProtoData = storage[key]?.toProtoData(className.packageFqName)
             val newProtoData = ClassProtoData(classProto, stringTable.toNameResolver())
-            changesCollector.collectProtoChanges(oldProtoData, newProtoData, packageProtoKey = key)
+            changesCollector.collectProtoChanges(oldProtoData, newProtoData)
         }
 
         operator fun contains(className: JvmClassName): Boolean =

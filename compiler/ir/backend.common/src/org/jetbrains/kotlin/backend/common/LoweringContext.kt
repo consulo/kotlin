@@ -18,14 +18,11 @@ package org.jetbrains.kotlin.backend.common
 
 import org.jetbrains.kotlin.backend.common.ir.PreSerializationSymbols
 import org.jetbrains.kotlin.backend.common.ir.SharedVariablesManager
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.LoggingContext
-import org.jetbrains.kotlin.config.messageCollector
+import org.jetbrains.kotlin.config.reportLog
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.declarations.IrFactory
-import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 
 /**
  * A context that is used to pass data to both first (before IR serialization) and second (after IR deserialization) stage compiler
@@ -38,13 +35,7 @@ interface LoweringContext : LoggingContext, ErrorReportingContext {
     val irFactory: IrFactory
     val sharedVariablesManager: SharedVariablesManager
 
-    override val messageCollector: MessageCollector
-        get() = configuration.messageCollector
-
-    fun remapMultiFieldValueClassStructure(
-        oldFunction: IrFunction,
-        newFunction: IrFunction,
-        parametersMappingOrNull: Map<IrValueParameter, IrValueParameter>?,
-    ) {
+    override fun log(message: String) {
+        configuration.reportLog(message)
     }
 }

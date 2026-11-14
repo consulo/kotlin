@@ -10,22 +10,22 @@ import org.gradle.api.Project
 import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.plugins.ExtensionContainer
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
-import org.jetbrains.kotlin.gradle.targets.js.MultiplePluginDeclarationDetector
+import org.jetbrains.kotlin.gradle.targets.js.internal.jsToolingProject
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmPlatformDisambiguator
 import org.jetbrains.kotlin.gradle.targets.web.HasPlatformDisambiguator
+import org.jetbrains.kotlin.gradle.targets.web.ObsoleteJsAndWasmToolingProvisioning
 import org.jetbrains.kotlin.gradle.tasks.registerTask
 
 @ExperimentalWasmDsl
+@ObsoleteJsAndWasmToolingProvisioning
 abstract class D8Plugin internal constructor() : Plugin<Project> {
     override fun apply(project: Project) {
-        MultiplePluginDeclarationDetector.detect(project)
-
         project.plugins.apply(BasePlugin::class.java)
 
         val spec = project.extensions.createD8EnvSpec()
 
-        if (project == project.rootProject) {
-            @Suppress("DEPRECATION")
+        if (project == project.jsToolingProject()) {
+            @Suppress("DEPRECATION_ERROR")
             project.extensions.create(
                 D8RootExtension.EXTENSION_NAME,
                 D8RootExtension::class.java,
@@ -34,7 +34,7 @@ abstract class D8Plugin internal constructor() : Plugin<Project> {
             )
         }
 
-        val d8RootExtension = applyRootProject(project.rootProject)
+        val d8RootExtension = applyRootProject(project)
 
         spec.initializeD8EnvSpec(d8RootExtension)
 
@@ -49,24 +49,6 @@ abstract class D8Plugin internal constructor() : Plugin<Project> {
                     .also { conf -> conf.isTransitive = false }
             }
         }
-
-        @Suppress("DEPRECATION")
-        project.registerTask<org.jetbrains.kotlin.gradle.tasks.CleanDataTask>(
-            WasmPlatformDisambiguator.extensionName(
-                "d8" + org.jetbrains.kotlin.gradle.tasks.CleanDataTask.NAME_SUFFIX,
-                prefix = null,
-            )
-        ) {
-            it.doFirst {
-                it.logger.warn(org.jetbrains.kotlin.gradle.tasks.CleanDataTask.Companion.deprecationMessage(it.path))
-            }
-
-            it.cleanableStoreProvider = spec
-                .installationDirectory
-                .map { org.jetbrains.kotlin.gradle.tasks.internal.CleanableStore.Companion[it.asFile.path] }
-            it.group = TASKS_GROUP_NAME
-            it.description = "Clean unused local d8 version"
-        }
     }
 
     private fun ExtensionContainer.createD8EnvSpec(): D8EnvSpec {
@@ -76,7 +58,7 @@ abstract class D8Plugin internal constructor() : Plugin<Project> {
         )
     }
 
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION_ERROR")
     private fun D8EnvSpec.initializeD8EnvSpec(
         d8: D8RootExtension,
     ) {
@@ -90,6 +72,7 @@ abstract class D8Plugin internal constructor() : Plugin<Project> {
         command.convention(d8.commandProperty)
     }
 
+    @ObsoleteJsAndWasmToolingProvisioning
     companion object : HasPlatformDisambiguator by WasmPlatformDisambiguator {
         const val TASKS_GROUP_NAME: String = "d8"
 
@@ -100,10 +83,10 @@ abstract class D8Plugin internal constructor() : Plugin<Project> {
             ) as D8EnvSpec
         }
 
-        @Suppress("DEPRECATION")
+        @Suppress("DEPRECATION_ERROR")
         private fun applyRootProject(project: Project): D8RootExtension {
-            project.rootProject.plugins.apply(D8Plugin::class.java)
-            return project.rootProject.extensions.getByName(
+            project.jsToolingProject().plugins.apply(D8Plugin::class.java)
+            return project.jsToolingProject().extensions.getByName(
                 D8RootExtension.EXTENSION_NAME
             ) as D8RootExtension
         }

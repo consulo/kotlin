@@ -8,27 +8,25 @@ public final class Foo: KotlinRuntime.KotlinBase {
         public init(
             outer__: main.Foo
         ) {
-            if Self.self != main.Foo.Inner.self { fatalError("Inheritance from exported Kotlin classes is not supported yet: \(String(reflecting: Self.self)) inherits from main.Foo.Inner ") }
             let __kt = Foo_Inner_init_allocate()
             super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
             { Foo_Inner_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_Foo__(__kt, outer__.__externalRCRef()); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
         }
     }
     public final class Nested: KotlinRuntime.KotlinBase {
-        public init() {
-            if Self.self != main.Foo.Nested.self { fatalError("Inheritance from exported Kotlin classes is not supported yet: \(String(reflecting: Self.self)) inherits from main.Foo.Nested ") }
+        public override init() {
             let __kt = Foo_Nested_init_allocate()
             super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
             { Foo_Nested_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -45,14 +43,13 @@ public final class Foo: KotlinRuntime.KotlinBase {
             return main.Foo.Nested.__createClassWrapper(externalRCRef: Foo_Nested_plus__TypesOfArguments__Swift_Int32__(self.__externalRCRef(), other))
         }
     }
-    public init() {
-        if Self.self != main.Foo.self { fatalError("Inheritance from exported Kotlin classes is not supported yet: \(String(reflecting: Self.self)) inherits from main.Foo ") }
+    public override init() {
         let __kt = __root___Foo_init_allocate()
         super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
         { __root___Foo_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -100,7 +97,7 @@ extension ExportedKotlinPackages.a.b.c {
             self = E.allCases[Int(rawValue)]
         }
         public init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer!,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             switch a_b_c_E_ordinal(__externalRCRefUnsafe) {
@@ -110,7 +107,7 @@ extension ExportedKotlinPackages.a.b.c {
             default: fatalError()
             }
         }
-        public func __externalRCRef() -> Swift.UnsafeMutableRawPointer! {
+        public func __externalRCRef() -> Swift.UnsafeMutableRawPointer {
             return switch self {
             case .A: a_b_c_E_A()
             case .B: a_b_c_E_B()
@@ -122,5 +119,5 @@ extension ExportedKotlinPackages.a.b.c {
 }
 // Can't export foo: inline functions with reified type parameters are not supported yet.
 // Can't export foo: inline functions with reified type parameters are not supported yet.
-// Can't export a.b.c.E.values: static functions are not supported yet.
-// Can't export a.b.c.E.values: static functions are not supported yet.
+// Can't export a.b.c.E.values: companion blocks and extensions are not supported yet.
+// Can't export a.b.c.E.values: companion blocks and extensions are not supported yet.

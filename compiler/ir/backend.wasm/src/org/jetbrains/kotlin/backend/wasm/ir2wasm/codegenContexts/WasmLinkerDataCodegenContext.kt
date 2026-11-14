@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.backend.common.serialization.cityHash64
 import org.jetbrains.kotlin.ir.declarations.IdSignatureRetriever
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
+import org.jetbrains.kotlin.ir.util.getPackageFragment
 import org.jetbrains.kotlin.wasm.ir.WasmExport
 import org.jetbrains.kotlin.wasm.ir.WasmSymbol
 import org.jetbrains.kotlin.wasm.ir.WasmType
@@ -39,6 +40,10 @@ open class WasmLinkerDataCodegenContext(
     fun referenceTypeId(irClass: IrClassSymbol): Long =
         cityHash64(irClass.getReferenceKey().toString().encodeToByteArray()).toLong()
 
+    fun addUsedAsWasmRawFunctionReference(irFunction: IrFunctionSymbol) {
+        wasmFileFragment.wasmReferencedFunctions.add(irFunction.getReferenceKey())
+    }
+
     fun addJsFun(irFunction: IrFunctionSymbol, importName: WasmSymbol<String>, jsCode: String) {
         wasmFileFragment.jsFuns[irFunction.getReferenceKey()] =
             WasmCompiledModuleFragment.JsCodeSnippet(importName = importName, jsCode = jsCode)
@@ -61,7 +66,9 @@ open class WasmLinkerDataCodegenContext(
     }
 
     open fun addMainFunctionWrapper(mainFunctionWrapper: IrFunctionSymbol) {
-        wasmFileFragment.mainFunctionWrappers.add(mainFunctionWrapper.getReferenceKey())
+        val fqName = mainFunctionWrapper.owner.getPackageFragment().packageFqName.asString()
+        val reference = mainFunctionWrapper.getReferenceKey()
+        wasmFileFragment.mainFunctionWrappers.add(MainFunctionWrapper(fqName, reference))
     }
 
     open fun addTestFunDeclarator(testFunctionDeclarator: IrFunctionSymbol) {
@@ -72,10 +79,14 @@ open class WasmLinkerDataCodegenContext(
         wasmFileFragment.equivalentFunctions.add(key to function.getReferenceKey())
     }
 
+    open fun addEquivalentType(key: String, klass: IrClassSymbol) {
+        wasmFileFragment.equivalentTypes.add(key to klass.getReferenceKey())
+    }
+
     open fun addClassAssociatedObjects(klass: IrClassSymbol, associatedObjectsGetters: List<AssociatedObjectBySymbols>) {
         val classAssociatedObjects = ClassAssociatedObjects(
             referenceTypeId(klass),
-            associatedObjectsGetters.map { (obj, getter, isExternal) ->
+            associatedObjectsGetters.map { (val obj = klass, val getter, val isExternal) ->
                 AssociatedObject(referenceTypeId(obj), getter.getReferenceKey(), isExternal)
             }
         )

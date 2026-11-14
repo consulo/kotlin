@@ -3,10 +3,10 @@ package samples.collections
 import samples.*
 import kotlin.test.*
 
-@RunWith(Enclosed::class)
 class Sequences {
 
-    class Building {
+    @Nested
+    inner class Building {
 
         @Sample
         fun generateSequence() {
@@ -60,14 +60,32 @@ class Sequences {
         }
 
         @Sample
+        fun sequenceOfValuesLiteral() {
+            val sequence: Sequence<String> = ["first", "second", "last"]
+            sequence.forEach(::println)
+        }
+
+        @Sample
         fun sequenceOfSingleValue() {
             val sequence = sequenceOf("single")
             assertPrints(sequence.toList(), "[single]")
         }
 
         @Sample
+        fun sequenceOfSingleValueLiteral() {
+            val sequence: Sequence<String> = ["single"]
+            assertPrints(sequence.toList(), "[single]")
+        }
+
+        @Sample
         fun sequenceOfEmpty() {
             val sequence = sequenceOf<String>()
+            assertPrints(sequence.toList(), "[]")
+        }
+
+        @Sample
+        fun sequenceOfEmptyLiteral() {
+            val sequence: Sequence<String> = []
             assertPrints(sequence.toList(), "[]")
         }
 
@@ -177,7 +195,8 @@ class Sequences {
 
     }
 
-    class Usage {
+    @Nested
+    inner class Usage {
 
         @Sample
         fun sequenceOrEmpty() {
@@ -202,7 +221,8 @@ class Sequences {
         }
     }
 
-    class Transformations {
+    @Nested
+    inner class Transformations {
 
         @Sample
         fun takeWindows() {
@@ -257,7 +277,7 @@ class Sequences {
                 return generateSequence(Pair(0, 1), { Pair(it.second, it.first + it.second) }).map { it.first }
             }
 
-            val (even, odd) = fibonacci().take(10).partition { it % 2 == 0 }
+            val [even, odd] = fibonacci().take(10).partition { it % 2 == 0 }
 
             assertPrints(even, "[0, 2, 8, 34]")
             assertPrints(odd, "[1, 1, 3, 5, 13, 21]")
@@ -290,7 +310,8 @@ class Sequences {
         }
     }
 
-    class Sorting {
+    @Nested
+    inner class Sorting {
         @Sample
         fun sortedBy() {
             class Dish(val name: String, val calories: Int, val tasteRate: Float) {

@@ -13,6 +13,7 @@ import kotlin.time.Duration.Companion.nanoseconds
 class MeasureTimeTest {
 
     companion object {
+        @IgnorableReturnValue
         fun longRunningCalc(): String = buildString {
             repeat(10) {
                 while (Random.nextDouble() >= 0.001);
@@ -42,10 +43,10 @@ class MeasureTimeTest {
         val measured: TimedValue<String> = measureTimedValue { longRunningCalc().also { someResult = it } }
         println("measured: $measured")
 
-        val (result, elapsed) = measured
+        (val value, val duration) = measured
 
-        assertEquals(someResult, result)
-        assertTrue(elapsed > Duration.ZERO)
+        assertEquals(someResult, value)
+        assertTrue(duration > Duration.ZERO)
     }
 
 
@@ -61,7 +62,7 @@ class MeasureTimeTest {
 
         val expectedResult: Long
 
-        val (result, elapsed2) = timeSource.measureTimedValue {
+        (val result = value, val elapsed2 = duration) = timeSource.measureTimedValue {
             timeSource += expectedNs.nanoseconds
             expectedResult = expectedNs
             expectedNs

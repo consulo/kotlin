@@ -1,24 +1,13 @@
 /*
- * Copyright 2010-2016 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.js.inline.util
 
 import org.jetbrains.kotlin.js.backend.ast.*
 import org.jetbrains.kotlin.js.inline.util.collectors.InstanceCollector
-import org.jetbrains.kotlin.js.translate.utils.JsAstUtils
+import kotlin.reflect.KClass
 
 fun collectUsedNames(scope: JsNode): Set<JsName> {
     val references = mutableSetOf<JsName>()
@@ -62,7 +51,7 @@ fun collectDefinedNames(scope: JsNode, skipLabelsAndCatches: Boolean): Set<JsNam
             if (initializer != null) {
                 accept(initializer)
             }
-            names += x.assignable.names
+            names += x.declarable.names
         }
 
         override fun visitExpressionStatement(x: JsExpressionStatement) {
@@ -85,7 +74,7 @@ fun collectDefinedNames(scope: JsNode, skipLabelsAndCatches: Boolean): Set<JsNam
 
         override fun visitCatch(x: JsCatch) {
             if (!skipLabelsAndCatches) {
-                names += x.parameter.assignable.names
+                names += x.parameter.declarable.names
             }
             super.visitCatch(x)
         }
@@ -108,20 +97,18 @@ private fun collectNamedFunctionsAndMetadata(scope: JsNode): Map<JsName, Pair<Fu
     val namedFunctions = mutableMapOf<JsName, Pair<FunctionWithWrapper, JsExpression>>()
 
     scope.accept(object : RecursiveJsVisitor() {
-        override fun visitBinaryExpression(x: JsBinaryOperation) {
-            val assignment = JsAstUtils.decomposeAssignment(x)
-            if (assignment != null) {
-                val (left, right) = assignment
-                if (left is JsNameRef) {
-                    val name = left.name
-                    if (name != null) {
-                        extractFunction(right)?.let { (function, wrapper) ->
-                            namedFunctions[name] = Pair(FunctionWithWrapper(function, wrapper), right)
-                        }
+        override fun visitSimpleAssignment(x: JsAssignmentOperation.Simple) {
+            val left = x.target
+            val right = x.value
+            if (left is JsNameRef) {
+                val name = left.name
+                if (name != null) {
+                    extractFunction(right)?.let { (val function, val wrapper = wrapperBody) ->
+                        namedFunctions[name] = Pair(FunctionWithWrapper(function, wrapper), right)
                     }
                 }
             }
-            super.visitBinaryExpression(x)
+            super.visitSimpleAssignment(x)
         }
 
         override fun visit(x: JsVars.JsVar) {
@@ -154,7 +141,7 @@ private fun extractFunction(expression: JsExpression) = when (expression) {
     else -> null
 }
 
-fun <T : JsNode> collectInstances(klass: Class<T>, scope: JsNode, visitNestedDeclarations: Boolean = false): List<T> {
+fun <T : JsNode> collectInstances(klass: KClass<T>, scope: JsNode, visitNestedDeclarations: Boolean = false): List<T> {
     return with(InstanceCollector(klass, visitNestedDeclarations)) {
         accept(scope)
         collected

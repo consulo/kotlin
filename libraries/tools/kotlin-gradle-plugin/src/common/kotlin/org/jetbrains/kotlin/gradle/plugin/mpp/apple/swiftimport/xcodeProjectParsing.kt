@@ -22,7 +22,7 @@ internal open class JsonElementBacked {
     var jsonElement: JsonElement? = null
 }
 
-private class JsonElementBackedSerializer<T : JsonElementBacked>(
+internal open class JsonElementBackedSerializer<T : JsonElementBacked>(
     private val typeSerializer: KSerializer<T>,
 ) : KSerializer<T> {
 
@@ -120,7 +120,7 @@ private val json = Json {
 internal sealed class PbxObject
 
 internal class PbxObjectEntitySerializer : JsonContentPolymorphicSerializer<PbxObject>(PbxObject::class) {
-    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<out PbxObject> {
+    override fun selectDeserializer(element: JsonElement): DeserializationStrategy<PbxObject> {
         val isa = element.jsonObject["isa"]?.jsonPrimitive?.content ?: error("Missing isa")
         return when (isa) {
             "PBXProject" -> PbxProject.serializer()
@@ -131,6 +131,7 @@ internal class PbxObjectEntitySerializer : JsonContentPolymorphicSerializer<PbxO
             "PBXBuildFile" -> PbxBuildFile.serializer()
             "XCSwiftPackageProductDependency" -> XCSwiftPackageProductDependency.serializer()
             "XCLocalSwiftPackageReference" -> XCLocalSwiftPackageReference.serializer()
+            "XCBuildConfiguration" -> XCBuildConfiguration.serializer()
             else -> Opaque.serializer()
         }
     }
@@ -165,6 +166,13 @@ internal class PbxFrameworksBuildPhase(
 internal class PbxCopyFilesBuildPhase(
     val isa: String,
     var files: MutableList<String>?,
+) : PbxObject()
+
+@Serializable
+internal class XCBuildConfiguration(
+    val isa: String = "XCBuildConfiguration",
+    var buildSettings: MutableMap<String, JsonElement>?,
+    val name: String?,
 ) : PbxObject()
 
 @Serializable
@@ -208,7 +216,7 @@ internal class XcodeProject(
     val rootObject: String,
 ) : JsonElementBacked()
 
-internal fun deserializeXcodeProject(
+internal fun deserializePbxprojJson(
     pbxprojPath: File,
     execOps: ExecOperations,
 ): XcodeProject {
@@ -222,16 +230,16 @@ internal fun deserializeXcodeProject(
             "-o", "-"
         )
     }
-    return deserializeXcodeProject(output.toByteArray())
+    return deserializePbxprojJson(output.toByteArray())
 }
 
-internal fun deserializeXcodeProject(byteArray: ByteArray) =
+internal fun deserializePbxprojJson(byteArray: ByteArray) =
     json.decodeFromStream(
         JsonElementBackedSerializer(XcodeProject.serializer()),
         ByteArrayInputStream(byteArray)
     )
 
-internal fun XcodeProject.serializeXcodeProject(outputStream: OutputStream) =
+internal fun XcodeProject.serializePbxprojJson(outputStream: OutputStream) =
     json.encodeToStream(
         JsonElementBackedSerializer(XcodeProject.serializer()),
         this,

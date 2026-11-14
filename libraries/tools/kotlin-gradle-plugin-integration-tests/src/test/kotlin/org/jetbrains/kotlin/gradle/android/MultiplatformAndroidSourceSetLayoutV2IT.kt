@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.gradle.android
 
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.test.TestMetadata
 import org.junit.jupiter.api.DisplayName
 import kotlin.test.assertNull
 
@@ -14,7 +15,9 @@ import kotlin.test.assertNull
 @DisplayName("Multiplatform Android Source Set Layout 2")
 class MultiplatformAndroidSourceSetLayoutV2IT : KGPBaseTest() {
 
+    @TestMetadata("multiplatformAndroidSourceSetLayout2")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     @DisplayName("test Android project with flavors")
     fun testProjectWithFlavors(gradleVersion: GradleVersion, agpVersion: String, jdkVersion: JdkVersions.ProvidedJdk) {
         project(

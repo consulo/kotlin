@@ -23,6 +23,14 @@ class UnsignedArraysTest {
     }
 
     @Test
+    fun operatorOf() {
+        assertArrayContentEquals(ubyteArrayOf(), UByteArray.of())
+        assertArrayContentEquals(ushortArrayOf(1u, 2u), UShortArray.of(1u, 2u))
+        assertArrayContentEquals(uintArrayOf(1u, 1u, 1u), UIntArray.of(1u, 1u, 1u))
+        assertArrayContentEquals(ulongArrayOf(42u), ULongArray.of(42u))
+    }
+
+    @Test
     fun ubyteArrayInit() {
         val zeroArray = UByteArray(42)
         assertEquals(42, zeroArray.size)
@@ -231,7 +239,7 @@ class UnsignedArraysTest {
             assertTrue(ulongArrayOf() contentEquals ULongArray(3) { it.toULong() }.copyOfRange(pos, pos))
         }
 
-        for ((start, end) in listOf(-1 to 0, 0 to 2, 2 to 2, 1 to 0)) {
+        for ([start, end] in listOf(-1 to 0, 0 to 2, 2 to 2, 1 to 0)) {
             val bounds = "start: $start, end: $end"
             val exClass = if (start > end) IllegalArgumentException::class else IndexOutOfBoundsException::class
             assertFailsWith(exClass, bounds) { uintArrayOf(1u).copyOfRange(start, end) }
@@ -1057,6 +1065,7 @@ class UnsignedArraysTest {
     }
 
     @Test
+    @Suppress("RETURN_VALUE_NOT_USED_COERCION")
     fun onEach() {
         assertEquals(listOf<UInt>(1u, 2u, 3u), mutableListOf<UInt>().apply { uintArrayOf(1u, 2u, 3u).onEach { add(it) } })
         assertEquals(listOf<UByte>(1u, 2u, 3u), mutableListOf<UByte>().apply { ubyteArrayOf(1u, 2u, 3u).onEach { add(it) } })
@@ -1065,6 +1074,7 @@ class UnsignedArraysTest {
     }
 
     @Test
+    @Suppress("RETURN_VALUE_NOT_USED_COERCION")
     fun onEachIndexed() {
         assertEquals(listOf<UInt>(1u, 3u, 5u), mutableListOf<UInt>().apply { uintArrayOf(1u, 2u, 3u).onEachIndexed { i, e -> add(i.toUInt() + e) } })
         assertEquals(listOf<UInt>(1u, 3u, 5u), mutableListOf<UInt>().apply { ubyteArrayOf(1u, 2u, 3u).onEachIndexed { i, e -> add(i.toUByte() + e) } })

@@ -79,7 +79,7 @@ class KaptCommandLineProcessor : CommandLineProcessor {
             CHANGED_FILES -> changedFiles.add(File(value))
             COMPILED_SOURCES_DIR -> compiledSources.addAll(value.split(File.pathSeparator).map { File(it) })
             INCREMENTAL_CACHE -> incrementalCache = File(value)
-            CLASSPATH_CHANGES -> classpathChanges.add(value)
+            CLASSPATH_CHANGES -> classpathChanges.addAll(value.split(',').map { it.trim() }.filter { it.isNotEmpty() })
             PROCESS_INCREMENTALLY -> setFlag(KaptFlag.INCREMENTAL_APT, value)
 
             ANNOTATION_PROCESSOR_CLASSPATH_OPTION -> processingClasspath += File(value)
@@ -89,13 +89,18 @@ class KaptCommandLineProcessor : CommandLineProcessor {
             JAVAC_OPTION_OPTION -> setKeyValue(value) { k, v -> javacOptions[k] = v }
 
             VERBOSE_MODE_OPTION -> setFlag(KaptFlag.VERBOSE, value)
-            USE_LIGHT_ANALYSIS_OPTION -> setFlag(KaptFlag.USE_LIGHT_ANALYSIS, value)
+            USE_LIGHT_ANALYSIS_OPTION -> {}
             CORRECT_ERROR_TYPES_OPTION -> setFlag(KaptFlag.CORRECT_ERROR_TYPES, value)
             DUMP_DEFAULT_PARAMETER_VALUES -> setFlag(KaptFlag.DUMP_DEFAULT_PARAMETER_VALUES, value)
             MAP_DIAGNOSTIC_LOCATIONS_OPTION -> setFlag(KaptFlag.MAP_DIAGNOSTIC_LOCATIONS, value)
             INFO_AS_WARNINGS_OPTION -> setFlag(KaptFlag.INFO_AS_WARNINGS, value)
             STRICT_MODE_OPTION -> setFlag(KaptFlag.STRICT, value)
             STRIP_METADATA_OPTION -> setFlag(KaptFlag.STRIP_METADATA, value)
+            STUB_WRITER_THREADS_OPTION -> stubWriterThreads = value.toIntOrNull()?.takeIf { it >= 1 }
+                ?: throw CliOptionProcessingException("Invalid value $value for option ${option.optionName}: a positive integer expected")
+            ISOLATE_PROCESSORS_FROM_BUILD_CLASSPATH_OPTION -> setFlag(KaptFlag.ISOLATE_PROCESSORS_FROM_BUILD_CLASSPATH, value)
+            HEADER_MODE_OPTION -> setFlag(KaptFlag.HEADER_MODE, value)
+            STUB_GENERATION_SCHEME_OPTION -> setSelector(enumValues<StubGenerationScheme>(), value) { stubGenerationScheme = it }
             USE_K2 -> {}
 
             SHOW_PROCESSOR_STATS -> setFlag(KaptFlag.SHOW_PROCESSOR_STATS, value)
@@ -103,7 +108,14 @@ class KaptCommandLineProcessor : CommandLineProcessor {
             DUMP_FILE_READ_HISTORY -> fileReadHistoryReportFile = File(value)
             INCLUDE_COMPILE_CLASSPATH -> setFlag(KaptFlag.INCLUDE_COMPILE_CLASSPATH, value)
 
-            DETECT_MEMORY_LEAKS_OPTION -> setSelector(enumValues<DetectMemoryLeaksMode>(), value) { detectMemoryLeaks = it }
+            DETECT_MEMORY_LEAKS_OPTION -> {
+                if (value == "default") {
+                    detectMemoryLeaks = DetectMemoryLeaksMode.STANDARD
+                    usedDefaultDetectMemoryLeaks = true
+                } else {
+                    setSelector(enumValues<DetectMemoryLeaksMode>(), value) { detectMemoryLeaks = it }
+                }
+            }
             APT_MODE_OPTION -> setSelector(enumValues<AptMode>(), value) { mode = it }
 
             APT_OPTIONS_OPTION -> processingOptions.putAll(decodeMap(value))

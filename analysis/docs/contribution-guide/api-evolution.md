@@ -11,13 +11,16 @@ The Analysis API consists of several interconnected components, each serving a s
     - Foundation layer providing syntax tree representation through [`KtElement`](../../../compiler/psi/psi-api/src/org/jetbrains/kotlin/psi/KtElement.kt)
     hierarchy
     - Uses `Kt` prefix (compared to `Ka` for Analysis API)
-    - Has own stability annotations: `@KtExperimentalApi`, `@KtImplementationDetail`, `@KtNonPublicApi`
+    - Has own stability annotations mirroring the Analysis API ones: `@KtExperimentalApi`, `@KtImplementationDetail`, `@KtNonPublicApi`,
+    `@KtIdeApi`, `@KtPlatformInterface`, `@KtSpi`, and `@KtSpiExtensionPoint`
     - Key entities: [`KtFile`](../../../compiler/psi/psi-api/src/org/jetbrains/kotlin/psi/KtFile.kt),
     [`KtDeclaration`](../../../compiler/psi/psi-api/src/org/jetbrains/kotlin/psi/KtDeclaration.java),
     and [`KtExpression`](../../../compiler/psi/psi-api/src/org/jetbrains/kotlin/psi/KtExpression.java)
 
 - **Analysis API Surface** ([source](../../analysis-api))
     - User-facing layer of the Analysis API. Maps the Kotlin PSI to its semantic representation
+    - Accessed through the `analyze` entry point, which opens a `KaSession` as a context parameter; capabilities are exposed as top-level
+      `context(session: KaSession)` endpoints
     - Key entities: [`KaSession`](https://kotlin.github.io/analysis-api/fundamentals.html#kasession),
       [`KaSymbol`](https://kotlin.github.io/analysis-api/symbols.html), [`KaType`](https://kotlin.github.io/analysis-api/types.html)
 
@@ -34,12 +37,10 @@ The Analysis API consists of several interconnected components, each serving a s
 - **Implementations**
     - Analysis API implementations
         - K2 implementation, based on the new K2 compiler frontend ([source](../../analysis-api-fir))
-        - K1 implementation, based on the classic, K1 compiler frontend ([source](../../analysis-api-fe10))
     - Platform interface implementations
         - Kotlin IntelliJ IDEA plugin ([source](https://github.com/JetBrains/intellij-community/tree/master/plugins/kotlin/base/analysis-api-platform))
         - Analysis API Standalone ([source](../../analysis-api-standalone))
     - PSI Implementation, including stubs ([source](../../../compiler/psi/psi-impl))
-    - PSI Reference Implementations ([source](../../kt-references))
 
 - **Light Classes** ([source](../../symbol-light-classes))
     - A Java view for Kotlin declarations designed mainly for Java interoperability
@@ -72,7 +73,7 @@ Every part of the Analysis API falls under one of these stability categories:
     - No compatibility guarantees between versions
     - Reserved for internal use only
     - Applies to
-        - *K1* and *K2* implementations of the Analysis API
+        - Implementation of the Analysis API
         - *Platform Interface* implementations
         - *Low-level API*
         - *Light Classes* (unless explicitly exposed in the *Analysis API Surface*)
@@ -80,8 +81,12 @@ Every part of the Analysis API falls under one of these stability categories:
         - Declarations annotated with `@KaImplementationDetail`
 
 > [!NOTE]
-> PSI uses parallel annotations: `@KtExperimentalApi`, `@KtImplementationDetail`, `@KtNonPublicApi`.
+> PSI uses parallel annotations: `@KtExperimentalApi`, `@KtImplementationDetail`, `@KtNonPublicApi`, `@KtIdeApi`, `@KtSpi`, and
+> `@KtSpiExtensionPoint`.
+> `@KtPlatformInterface` is parallel in name only: since the Kotlin PSI has no platform layer of its own, it marks the contract with the
+> Analysis API engine and its platform implementations.
 > The `@KtPsiInconsistencyHandling` annotation marks code handling inconsistent PSI states (no Analysis API equivalent).
+> See [Kotlin PSI Markers](api-development.md#kotlin-psi-markers) for the full mapping.
 
 ## Adding New APIs
 
@@ -95,9 +100,6 @@ This process protects both API designers and users from the cost of breaking cha
 - **Mark with `@KaExperimentalApi`**  
   This annotation serves as both a compiler warning and documentation that the API may change.
   Users must explicitly opt-in, ensuring they understand the risks.
-
-- **Choose whether to implement for both K1 and K2**  
-  If K1 support is impractical, use `@KaK1Unsupported` with clear documentation.
 
 - **Provide comprehensive documentation and tests**  
   Experimental doesn't mean untested. Include edge cases, error conditions, and usage examples.

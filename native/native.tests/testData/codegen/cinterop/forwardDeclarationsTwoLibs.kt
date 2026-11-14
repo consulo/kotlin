@@ -1,4 +1,6 @@
 // This test mostly checks frontend behaviour.
+// KT-86026 TODO: Rework testdata to move functions/globals definitions from .def/.h into separate source files
+
 // TARGET_BACKEND: NATIVE
 // WITH_PLATFORM_LIBS
 // MODULE: cinterop1

@@ -1,4 +1,4 @@
-// TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: JVM
 // CHECK_BYTECODE_TEXT
 // WITH_STDLIB
 
@@ -26,4 +26,5 @@ fun box(): String {
     return "OK"
 }
 
+// @MainKt.class:
 // 0 CHECKCAST

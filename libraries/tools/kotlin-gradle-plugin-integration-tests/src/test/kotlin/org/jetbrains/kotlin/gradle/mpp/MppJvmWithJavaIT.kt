@@ -26,16 +26,6 @@ class MppJvmWithJavaIT : KGPBaseTest() {
         gradleVersion: GradleVersion,
     ): Unit = doTestJvmWithJava(gradleVersion, testJavaSupportInJvmTargets = false)
 
-    @GradleTest
-    @GradleTestVersions(
-        minVersion = TestVersions.Gradle.G_8_3, // Shadow requires Gradle 8.3+
-        maxVersion = TestVersions.Gradle.G_8_6, // last version where 'withJava()' method has warning deprecation
-    )
-    @TestMetadata(value = "new-mpp-lib-and-app")
-    fun testJavaSupportInJvmTargets(
-        gradleVersion: GradleVersion,
-    ): Unit = doTestJvmWithJava(gradleVersion, testJavaSupportInJvmTargets = true)
-
     private fun doTestJvmWithJava(
         gradleVersion: GradleVersion,
         testJavaSupportInJvmTargets: Boolean,
@@ -43,7 +33,7 @@ class MppJvmWithJavaIT : KGPBaseTest() {
         project(
             projectName = "new-mpp-lib-and-app/sample-lib",
             gradleVersion = gradleVersion,
-            // KT-76289 KAPT Gradle Project Isolation Violation
+            // https://github.com/gradle/gradle/issues/27569 - maven-publish is incompatible with isolated projects in Gradle 8.6.
             buildOptions = defaultBuildOptions.disableIsolatedProjects(),
         ) {
             includeOtherProjectAsSubmodule(
@@ -187,9 +177,7 @@ class MppJvmWithJavaIT : KGPBaseTest() {
             build(
                 "clean", "build", "run", "shadowJar",
                 buildOptions = buildOptions
-                    .suppressDeprecationWarningsOn("KT-66542: withJava() produces deprecation warning") {
-                        gradleVersion >= GradleVersion.version(TestVersions.Gradle.G_8_7)
-                    }
+                    .suppressDeprecationWarnings("KT-66542: withJava() produces deprecation warning")
             ) {
                 val expectedMainClasses =
                     classesWithoutJava + setOf(

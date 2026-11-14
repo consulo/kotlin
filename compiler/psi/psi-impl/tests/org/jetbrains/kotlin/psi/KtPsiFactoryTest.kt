@@ -5,57 +5,96 @@
 
 package org.jetbrains.kotlin.psi
 
-import org.jetbrains.kotlin.K1Deprecation
-import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
-import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.lexer.KtTokens
-import org.jetbrains.kotlin.test.KotlinTestUtils
-import org.jetbrains.kotlin.test.KotlinTestWithEnvironment
-import org.junit.Assert
+import org.jetbrains.kotlin.utils.KotlinExceptionWithAttachments
+import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Test
 
 class KtPsiFactoryTest : KotlinTestWithEnvironment() {
+    @Test
     fun testCreateModifierList() {
         val psiFactory = KtPsiFactory(project)
         KtTokens.MODIFIER_KEYWORDS_ARRAY.forEach {
             val modifier = psiFactory.createModifierList(it)
-            Assert.assertTrue(modifier.hasModifier(it))
+            Assertions.assertTrue(modifier.hasModifier(it))
         }
     }
 
+    @Test
     fun testEmptyRawStringTemplate() {
         val psiFactory = KtPsiFactory(project)
         val template = psiFactory.createRawStringTemplate("")
-        Assert.assertEquals("\"\"\"\"\"\"", template.text)
+        Assertions.assertEquals("\"\"\"\"\"\"", template.text)
     }
 
+    @Test
     fun testSingleLineRawStringTemplate() {
         val psiFactory = KtPsiFactory(project)
         val template = psiFactory.createRawStringTemplate("Foo Bar")
-        Assert.assertEquals("\"\"\"Foo Bar\"\"\"", template.text)
+        Assertions.assertEquals("\"\"\"Foo Bar\"\"\"", template.text)
     }
 
+    @Test
     fun testSingleLineRawStringTemplateWithEntries() {
         val psiFactory = KtPsiFactory(project)
         val template = psiFactory.createRawStringTemplate("\$Foo \${Bar}")
-        Assert.assertEquals("\"\"\"\$Foo \${Bar}\"\"\"", template.text)
+        Assertions.assertEquals("\"\"\"\$Foo \${Bar}\"\"\"", template.text)
     }
 
+    @Test
     fun testMultiLineRawStringTemplate() {
         val psiFactory = KtPsiFactory(project)
         val template = psiFactory.createRawStringTemplate("Foo\nBar\nBaz")
-        Assert.assertEquals("\"\"\"Foo\nBar\nBaz\"\"\"", template.text)
+        Assertions.assertEquals("\"\"\"Foo\nBar\nBaz\"\"\"", template.text)
     }
 
+    @Test
     fun testMultiLineRawStringTemplateWithEntries() {
         val psiFactory = KtPsiFactory(project)
         val template = psiFactory.createRawStringTemplate("\$Foo\n\${Bar}")
-        Assert.assertEquals("\"\"\"\$Foo\n\${Bar}\"\"\"", template.text)
+        Assertions.assertEquals("\"\"\"\$Foo\n\${Bar}\"\"\"", template.text)
     }
 
-    @OptIn(K1Deprecation::class)
-    override fun createEnvironment(): KotlinCoreEnvironment {
-        return KotlinCoreEnvironment.createForTests(
-            testRootDisposable, KotlinTestUtils.newConfiguration(), EnvironmentConfigFiles.JVM_CONFIG_FILES
+    @Test
+    fun testCreateEmptyCompanionBlock() {
+        val companionBlock = KtPsiFactory(project).createCompanionBlock()
+
+        Assertions.assertEquals("companion {\n}", companionBlock.text)
+        Assertions.assertTrue(companionBlock.declarations.isEmpty())
+    }
+
+    @Test
+    fun testCreateCompanionBlockFromText() {
+        val text = """
+            companion {
+                val answer = 42
+                fun getAnswer() = answer
+            }
+        """.trimIndent()
+
+        val companionBlock = KtPsiFactory(project).createCompanionBlock(text)
+
+        Assertions.assertEquals(text, companionBlock.text)
+        Assertions.assertEquals(2, companionBlock.declarations.size)
+        Assertions.assertTrue(companionBlock.declarations[0] is KtProperty)
+        Assertions.assertTrue(companionBlock.declarations[1] is KtNamedFunction)
+    }
+
+    @Test
+    fun testCreateCompanionBlockRejectsInvalidText() {
+        val psiFactory = KtPsiFactory(project)
+        val invalidTexts = listOf(
+            "",
+            "companion object {}",
+            "companion {}\ncompanion {}",
+            "companion {}\nval extra = 0",
+            "companion {",
         )
+
+        invalidTexts.forEach { text ->
+            Assertions.assertThrows(KotlinExceptionWithAttachments::class.java) {
+                psiFactory.createCompanionBlock(text)
+            }
+        }
     }
 }

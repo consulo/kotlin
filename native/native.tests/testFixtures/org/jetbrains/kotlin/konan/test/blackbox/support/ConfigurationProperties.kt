@@ -15,7 +15,8 @@ internal enum class ProcessLevelProperty(shortName: String) {
     COMPILER_CLASSPATH("compilerClasspath"),
     TEAMCITY("teamcity"),
     CUSTOM_KOTLIN_NATIVE_HOME("customNativeHome"),
-    MINIDUMP_ANALYZER("minidumpAnalyzer");
+    MINIDUMP_ANALYZER("minidumpAnalyzer"),
+    USE_PROVISIONED_XCODE("useProvisionedXcode");
 
     private val propertyName = fullPropertyName(shortName)
 
@@ -27,9 +28,6 @@ internal enum class ProcessLevelProperty(shortName: String) {
 @Repeatable
 @Target(AnnotationTarget.CLASS)
 annotation class EnforcedProperty(val property: ClassLevelProperty, val propertyValue: String)
-
-@Target(AnnotationTarget.CLASS)
-annotation class EnforcedHostTarget
 
 @Target(AnnotationTarget.CLASS)
 internal annotation class AcceptablePropertyValues(val property: ClassLevelProperty, val acceptableValues: Array<String>)
@@ -81,9 +79,10 @@ enum class ClassLevelProperty(val shortName: String) {
     C_INTERFACE_MODE("cInterfaceMode"),
     XCTEST_FRAMEWORK("xctest"),
     BINARY_OPTIONS("binaryOptions"),
+    DEPEND_ON_PLATFORM_LIBS("dependOnPlatformLibs")
     ;
 
-    internal val propertyName = fullPropertyName(shortName)
+    val propertyName = fullPropertyName(shortName)
 
     fun <T> readValue(enforcedProperties: EnforcedProperties, transform: (String) -> T?, default: T): T {
         val propertyValue = enforcedProperties[this] ?: System.getProperty(propertyName)

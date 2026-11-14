@@ -36,7 +36,7 @@ open class BasicJvmScriptEvaluator : ScriptEvaluator {
                         sharedConfiguration.with {
                             compilationConfiguration(compiledScript.compilationConfiguration)
                         }.refineBeforeEvaluation(compiledScript).valueOr {
-                            return@invoke ResultWithDiagnostics.Failure(it.reports)
+                            return@onSuccess it
                         }
 
                     val resultValue = try {
@@ -47,7 +47,7 @@ open class BasicJvmScriptEvaluator : ScriptEvaluator {
                         val instance =
                             scriptClass.evalWithConfigAndOtherScriptsResults(refinedEvalConfiguration, importedScriptsEvalResults)
 
-                        compiledScript.resultField?.let { (resultFieldName, resultType) ->
+                        compiledScript.resultField?.let { [resultFieldName, resultType] ->
                             val resultField = scriptClass.java.getDeclaredField(resultFieldName).apply { isAccessible = true }
                             ResultValue.Value(resultFieldName, resultField.get(instance), resultType.typeName, scriptClass, instance)
                         } ?: ResultValue.Unit(scriptClass, instance)

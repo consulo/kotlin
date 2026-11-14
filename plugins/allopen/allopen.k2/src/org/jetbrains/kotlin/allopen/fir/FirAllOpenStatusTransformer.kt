@@ -11,21 +11,34 @@ import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.copyWithNewDefaults
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.isLocal
+import org.jetbrains.kotlin.fir.declarations.utils.isStatic
+import org.jetbrains.kotlin.fir.declarations.utils.isValue
 import org.jetbrains.kotlin.fir.extensions.FirStatusTransformerExtension
 import org.jetbrains.kotlin.fir.extensions.predicate.DeclarationPredicate
 import org.jetbrains.kotlin.fir.extensions.utils.AbstractSimpleClassPredicateMatchingService
 import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.JvmStandardClassIds
 
 class FirAllOpenStatusTransformer(session: FirSession) : FirStatusTransformerExtension(session) {
     override fun needTransformStatus(declaration: FirDeclaration): Boolean {
         if (declaration.isJavaOrEnhancement) return false
         return when (declaration) {
-            is FirRegularClass -> declaration.classKind == ClassKind.CLASS && session.allOpenPredicateMatcher.isAnnotated(declaration.symbol)
+            is FirRegularClass -> {
+                declaration.classKind == ClassKind.CLASS &&
+                        !declaration.isValue &&
+                        session.allOpenPredicateMatcher.isAnnotated(declaration.symbol) &&
+                        !declaration.hasAnnotationSafe(JvmStandardClassIds.JVM_RECORD_ANNOTATION_CLASS_ID, session)
+            }
             is FirCallableDeclaration -> {
                 val parentClassSymbol = declaration.symbol.getContainingClassSymbol() as? FirRegularClassSymbol ?: return false
                 if (parentClassSymbol.isLocal) return false
+                if (declaration.isStatic) return false
+                if (parentClassSymbol.rawStatus.let { (it.isInline || it.isValue) && it.modality != Modality.ABSTRACT && it.modality != Modality.SEALED }) {
+                    return false
+                }
                 parentClassSymbol.classKind == ClassKind.CLASS && session.allOpenPredicateMatcher.isAnnotated(parentClassSymbol)
             }
             else -> false
@@ -33,7 +46,13 @@ class FirAllOpenStatusTransformer(session: FirSession) : FirStatusTransformerExt
     }
 
     override fun transformStatus(status: FirDeclarationStatus, declaration: FirDeclaration): FirDeclarationStatus {
-        return when (status.modality) {
+        @OptIn(SymbolInternals::class)
+        val explicitModality = when (declaration) {
+            is FirPropertyAccessor -> declaration.propertySymbol.fir.status.modality
+            else -> status.modality
+        }
+
+        return when (explicitModality) {
             null -> status.copyWithNewDefaults(modality = Modality.OPEN, defaultModality = Modality.OPEN)
             else -> status.copyWithNewDefaults(defaultModality = Modality.OPEN)
         }

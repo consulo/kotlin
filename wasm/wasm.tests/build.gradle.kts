@@ -1,50 +1,33 @@
 import com.github.gradle.node.npm.task.NpmTask
+import org.gradle.kotlin.dsl.support.serviceOf
 import org.gradle.internal.os.OperatingSystem
-import java.net.URI
+import org.jetbrains.kotlin.testFederation.testFederation
 import java.util.*
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     alias(libs.plugins.gradle.node)
     id("d8-configuration")
     id("binaryen-configuration")
     id("nodejs-configuration")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
+    id("wasmtime-configuration")
 }
 
 node {
     download.set(true)
     version.set(nodejsVersion)
     nodeProjectDir.set(layout.buildDirectory.dir("node"))
+    distBaseUrl.set(null as String?)
 }
 
-repositories {
-    ivy {
-        url = URI("https://archive.mozilla.org/pub/firefox/releases/")
-        patternLayout {
-            artifact("[revision]/jsshell/[artifact]-[classifier].[ext]")
-        }
-        metadataSources { artifact() }
-        content { includeModule("org.mozilla", "jsshell") }
-    }
-    ivy {
-        url = URI("https://packages.jetbrains.team/files/p/kt/kotlin-file-dependencies/javascriptcore/")
-        patternLayout {
-            artifact("[classifier]_[revision].zip")
-        }
-        metadataSources { artifact() }
-        content { includeModule("org.jsc", "jsc") }
-    }
-    githubRelease("WasmEdge", "WasmEdge", groupAlias = "org.wasmedge", revisionPrefix = "")
-    githubRelease("bytecodealliance", "wasmtime", groupAlias = "dev.wasmtime")
-}
 
 enum class OsName { WINDOWS, MAC, LINUX, UNKNOWN }
 enum class OsArch { X86_32, X86_64, ARM64, UNKNOWN }
 data class OsType(val name: OsName, val arch: OsArch)
-
 
 abstract class CreateJscRunner : DefaultTask() {
     @get:InputDirectory
@@ -125,28 +108,13 @@ val jsShellSuffix = when (currentOsType) {
     else -> error("unsupported os type $currentOsType")
 }
 
-val jsShell by configurations.creating {
-    isCanBeResolved = true
-    isCanBeConsumed = false
-}
-
-val wasmEdgeVersion = libs.versions.wasmedge
-val wasmEdgeSuffix = when (currentOsType) {
-    OsType(OsName.LINUX, OsArch.X86_64) -> "manylinux_2_28_x86_64@tar.gz"
-    OsType(OsName.MAC, OsArch.X86_64) -> "darwin_x86_64@tar.gz"
-    OsType(OsName.MAC, OsArch.ARM64) -> "darwin_arm64@tar.gz"
-    OsType(OsName.WINDOWS, OsArch.X86_32),
-    OsType(OsName.WINDOWS, OsArch.X86_64) -> "windows@zip"
-    else -> error("unsupported os type $currentOsType")
-}
-
-val wasmEdge by configurations.creating {
+val jsShell = configurations.create("jsShell") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }
 
 val jscOsDependentVersion = when (currentOsType.name) {
-    OsName.MAC -> libs.versions.jscSequoia
+    OsName.MAC -> libs.versions.jscTahoe
     OsName.LINUX -> libs.versions.jscLinux
     OsName.WINDOWS -> libs.versions.jscWindows
     else -> error("unsupported os type $currentOsType")
@@ -154,54 +122,41 @@ val jscOsDependentVersion = when (currentOsType.name) {
 
 //https://youtrack.jetbrains.com/articles/KT-A-950/JavaScript-Core-Update-instruction
 val jscOsDependentClassifier = when (currentOsType.name) {
-    OsName.MAC -> "sequoia"
+    OsName.MAC -> "tahoe"
     OsName.LINUX -> "linux64"
     OsName.WINDOWS -> "win64"
     else -> error("unsupported os type $currentOsType")
 }
 
 val jscOsDependentRevision = when (currentOsType.name) {
-    OsName.MAC -> libs.versions.jscSequoia
+    OsName.MAC -> libs.versions.jscTahoe
     OsName.LINUX -> libs.versions.jscLinux
     OsName.WINDOWS -> libs.versions.jscWindows
     else -> error("unsupported os type $currentOsType")
 }.get()
 
-
-val jsc by configurations.creating {
+val jsc = configurations.create("jsc") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }
 
 val wasmtimeVersion = libs.versions.wasmtime
-val wasmtimePlatformSuffix = when (currentOsType) {
-    OsType(OsName.LINUX, OsArch.X86_64) -> "x86_64-linux"
-    OsType(OsName.MAC, OsArch.X86_64) -> "x86_64-macos"
-    OsType(OsName.MAC, OsArch.ARM64) -> "aarch64-macos"
-    OsType(OsName.WINDOWS, OsArch.X86_32),
-    OsType(OsName.WINDOWS, OsArch.X86_64) -> "x86_64-windows"
-    else -> error("unsupported os type $currentOsType")
-}
-val wasmtimeSuffix = wasmtimePlatformSuffix + "@" + when (currentOsType.name) {
-    OsName.LINUX -> "tar.xz"
-    OsName.MAC -> "tar.xz"
-    OsName.WINDOWS -> "zip"
-    else -> error("unsupported os type $currentOsType")
-}
 
-val wasmtime by configurations.creating {
+configurations.create("wasmtime") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }
 
 dependencies {
+    testFixturesImplementation(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
     testFixturesApi(testFixtures(project(":compiler:tests-common")))
     testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
     testFixturesApi(testFixtures(project(":js:js.tests")))
-    testFixturesImplementation(testFixtures(project(":compiler:fir:analysis-tests")))
     testFixturesImplementation(intellijCore())
+    testFixturesImplementation(project(":wasm:wasm.frontend"))
     testFixturesApi(platform(libs.junit.bom))
     testFixturesApi(libs.junit.jupiter.api)
+    testImplementation(project(":wasm:wasm.frontend"))
     testRuntimeOnly(libs.junit.jupiter.engine)
 
     implicitDependencies("org.nodejs:node:$nodejsVersion:win-x64@zip")
@@ -215,23 +170,15 @@ dependencies {
     implicitDependencies("org.mozilla:jsshell:${jsShellVersion.get()}:linux-x86_64@zip")
     implicitDependencies("org.mozilla:jsshell:${jsShellVersion.get()}:mac@zip")
 
-    wasmEdge("org.wasmedge:WasmEdge:${wasmEdgeVersion.get()}:$wasmEdgeSuffix")
-
-    implicitDependencies("org.wasmedge:WasmEdge:${wasmEdgeVersion.get()}:windows@zip")
-    implicitDependencies("org.wasmedge:WasmEdge:${wasmEdgeVersion.get()}:manylinux_2_28_x86_64@tar.gz")
-    implicitDependencies("org.wasmedge:WasmEdge:${wasmEdgeVersion.get()}:darwin_arm64@tar.gz")
-
     jsc("org.jsc:jsc:$jscOsDependentRevision:$jscOsDependentClassifier")
 
-    implicitDependencies("org.jsc:jsc:${libs.versions.jscSequoia.get()}:sequoia")
+    implicitDependencies("org.jsc:jsc:${libs.versions.jscTahoe.get()}:tahoe")
     implicitDependencies("org.jsc:jsc:${libs.versions.jscLinux.get()}:linux64")
     implicitDependencies("org.jsc:jsc:${libs.versions.jscWindows.get()}:win64")
 
-    wasmtime("dev.wasmtime:wasmtime:${wasmtimeVersion.get()}:$wasmtimeSuffix")
-
-    implicitDependencies("dev.wasmtime:wasmtime:${wasmtimeVersion.get()}:x86_64-windows@zip")
-    implicitDependencies("dev.wasmtime:wasmtime:${wasmtimeVersion.get()}:x86_64-linux@tar.xz")
-    implicitDependencies("dev.wasmtime:wasmtime:${wasmtimeVersion.get()}:aarch64-macos@tar.xz")
+    implicitDependencies("bytecodealliance.wasmtime:wasmtime:${wasmtimeVersion.get()}:x86_64-windows@zip")
+    implicitDependencies("bytecodealliance.wasmtime:wasmtime:${wasmtimeVersion.get()}:x86_64-linux@tar.xz")
+    implicitDependencies("bytecodealliance.wasmtime:wasmtime:${wasmtimeVersion.get()}:aarch64-macos@tar.xz")
 }
 
 optInToExperimentalCompilerApi()
@@ -242,14 +189,14 @@ val testJsFile = testDataDir.resolve("test.js")
 val packageJsonFile = testDataDir.resolve("package.json")
 val packageLockJsonFile = testDataDir.resolve("package-lock.json")
 
-val prepareNpmTestData by task<Copy> {
+val prepareNpmTestData = tasks.register<Copy>("prepareNpmTestData") {
     from(testJsFile)
     from(packageJsonFile)
     from(packageLockJsonFile)
     into(node.nodeProjectDir)
 }
 
-val npmInstall by tasks.getting(NpmTask::class) {
+val npmInstall = tasks.named("npmInstall", NpmTask::class) {
     val packageLockFile = testDataDir.resolve("package-lock.json")
 
     inputs.file(node.nodeProjectDir.file("package.json"))
@@ -273,9 +220,11 @@ sourceSets {
     }
     "testFixtures" { projectDefault() }
 }
+
+optInToK1Deprecation()
 fun Test.setupGradlePropertiesForwarding() {
     val rootLocalProperties = Properties().apply {
-        rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use {
+        File(rootDir,"local.properties").takeIf { it.isFile }?.inputStream()?.use {
             load(it)
         }
     }
@@ -295,7 +244,7 @@ val toolsDirectory = layout.buildDirectory.dir("tools")
 
 val jsShellDirectory = toolsDirectory.map { it.dir("JsShell").asFile }
 val jsShellUnpackedDirectory = jsShellDirectory.map { it.resolve("jsshell-$jsShellSuffix-${jsShellVersion.get()}") }
-val unzipJsShell by task<Copy> {
+val unzipJsShell = tasks.register<Copy>("unzipJsShell") {
     dependsOn(jsShell)
     from {
         zipTree(jsShell.singleFile)
@@ -303,20 +252,8 @@ val unzipJsShell by task<Copy> {
     into(jsShellUnpackedDirectory)
 }
 
-val unzipWasmEdge by task<UnzipWasmEdge> {
-    from.setFrom(wasmEdge)
-
-    val currentOsTypeForConfigurationCache = currentOsType.name
-
-    into.fileProvider(toolsDirectory.map { it.dir("WasmEdge").asFile })
-
-    getIsWindows.set(currentOsTypeForConfigurationCache !in setOf(OsName.MAC, OsName.LINUX))
-    getIsMac.set(currentOsTypeForConfigurationCache == OsName.MAC)
-}
-
-
 val jscDirectory = toolsDirectory.map { it.dir("JavaScriptCore").asFile }
-val unzipJsc by task<UnzipJsc> {
+val unzipJsc = tasks.register<UnzipJsc>("unzipJsc") {
     from.setFrom(jsc)
 
     into.fileProvider(jscDirectory.map { it.resolve("jsc-$jscOsDependentClassifier-$jscOsDependentRevision") })
@@ -325,7 +262,7 @@ val unzipJsc by task<UnzipJsc> {
     getIsLinux.set(isLinux)
 }
 
-val createJscRunner by task<CreateJscRunner> {
+val createJscRunner = tasks.register<CreateJscRunner>("createJscRunner") {
     osTypeName.set(currentOsType.name)
 
     val runnerFileName = if (currentOsType.name == OsName.WINDOWS) "runJsc.cmd" else "runJsc"
@@ -335,20 +272,17 @@ val createJscRunner by task<CreateJscRunner> {
     inputDirectory.set(unzipJsc.flatMap { it.into })
 }
 
-val unzipWasmtime by task<UnzipWasmtime> {
-    from.setFrom(wasmtime)
+val maybeCleanWasmTestOutputTask = tasks.register<Delete>("maybeCleanWasmTestOutput") {
+    description = "Clean the Wasm test output directory if needed"
+    delete(layout.buildDirectory.dir("out"))
 
-    val currentOsTypeForConfigurationCache = currentOsType.name
+    // see <repo-root>/gradle.properties which documents the possible values of fd.kotlin.wasm.debugMode, and fd.kotlin.wasm.neverCleanTestOutput
+    val debugMode = kotlinBuildProperties.stringProperty("fd.kotlin.wasm.debugMode").map { it !in listOf("none", "false", "0") }
+    val neverCleanTestOutput = kotlinBuildProperties.booleanProperty("fd.kotlin.wasm.neverCleanTestOutput")
 
-    getIsWindows.set(currentOsTypeForConfigurationCache !in setOf(OsName.MAC, OsName.LINUX))
-
-    val wasmtimeDirectoryName: Provider<String> = wasmtimeVersion.map { version -> "wasmtime-$version-$wasmtimePlatformSuffix" }
-
-    into.set(
-        toolsDirectory.zip(wasmtimeDirectoryName) { toolsDir: Directory, wasmtimeDir: String ->
-            toolsDir.dir("Wasmtime").dir(wasmtimeDir)
-        }
-    )
+    onlyIf("Only clean test output directory, if we're NOT in debug mode, and neverCleanTestOutput has NOT been specified") {
+        !debugMode.getOrElse(false) && !neverCleanTestOutput.getOrElse(false)
+    }
 }
 
 fun Test.setupSpiderMonkey() {
@@ -362,18 +296,6 @@ fun Test.setupSpiderMonkey() {
     }
 }
 
-fun Test.setupWasmEdge() {
-    val wasmEdgeExecutablePath = unzipWasmEdge
-        .flatMap { task ->
-            task.into.file("bin/wasmedge")
-        }
-
-    jvmArgumentProviders += objects.newInstance<SystemPropertyClasspathProvider>().apply {
-        classpath.from(wasmEdgeExecutablePath)
-        property.set("wasm.engine.path.WasmEdge")
-    }
-}
-
 fun Test.setupJsc() {
     val jscRunnerExecutablePath = createJscRunner
         .flatMap { it.outputFile }
@@ -382,20 +304,13 @@ fun Test.setupJsc() {
         classpath.from(jscRunnerExecutablePath)
         property.set("javascript.engine.path.JavaScriptCore")
     }
+
+    systemProperty(
+        "javascript.engine.JavaScriptCore.EnableOnWindows",
+        kotlinBuildProperties.booleanProperty("kotlin.enable.tests.jsc.on.windows").get()
+    )
 }
 
-fun Test.setupWasmtime() {
-    val wasmtime = unzipWasmtime
-        .flatMap { it.into.dir("wasmtime-v${wasmtimeVersion.get()}-$wasmtimePlatformSuffix") }
-        .map { it.file("wasmtime") }
-
-    jvmArgumentProviders += objects.newInstance<SystemPropertyClasspathProvider>().apply {
-        classpath.from(wasmtime)
-        property.set("wasm.engine.path.Wasmtime")
-    }
-}
-
-testsJar {}
 
 projectTests {
     testGenerator(
@@ -403,61 +318,96 @@ projectTests {
         generateTestsInBuildDirectory = true,
     )
 
-    fun wasmProjectTest(taskName: String, skipInLocalBuild: Boolean = false, body: Test.() -> Unit = {}) {
+    fun wasmProjectTest(
+        taskName: String,
+        tags: String? = null,
+        skipInLocalBuild: Boolean = true,
+        body: Test.() -> Unit = {},
+    ) {
         testTask(
             taskName = taskName,
-            jUnitMode = JUnitMode.JUnit5,
             skipInLocalBuild = skipInLocalBuild,
-            maxHeapSizeMb = 6144
+            enableGroupingTestEngine = true,
+            maxHeapSize = testMaxHeapSizeLarge,
         ) {
-            with(d8KotlinBuild) {
-                setupV8()
+            val buildFeatures = project.serviceOf<BuildFeatures>()
+            if (!buildFeatures.isolatedProjects.active.get()) {
+                with(d8KotlinBuild) {
+                    setupV8()
+                }
+                with(wasmNodeJsKotlinBuild) {
+                    setupNodeJs(nodejsVersion)
+                    dependsOn(":js:js.tests:npmInstall")
+                }
+                // it is necessary for TypeScript tests
+                with(nodeJsKotlinBuild) {
+                    setupNodeJs(nodejsVersion)
+                }
             }
-            with(wasmNodeJsKotlinBuild) {
-                setupNodeJs(nodejsVersion)
-                dependsOn(":js:js.tests:npmInstall")
+            with(wasmtimeKotlinBuild) {
+                setupWasmtime()
             }
             with(binaryenKotlinBuild) {
                 setupBinaryen()
             }
             setupSpiderMonkey()
-            setupWasmEdge()
             setupJsc()
-            setupWasmtime()
-            useJUnitPlatform()
+            // Note: arbitrary JUnit tag expressions can be used here.
+            useJUnitPlatform {
+                tags?.let { includeTags(it) }
+            }
             setupGradlePropertiesForwarding()
-            jvmArgumentProviders += objects.newInstance<AbsolutePathArgumentProvider>().apply {
-                property.set("kotlin.wasm.test.root.out.dir")
-                buildDirectory.set(layout.buildDirectory)
-            }
-            jvmArgumentProviders += objects.newInstance<AbsolutePathArgumentProvider>().apply {
-                property.set("kotlin.wasm.test.node.dir")
-                buildDirectory.set(node.nodeProjectDir)
-            }
+
+            groupingEngineSettings(batchSize = 50, simultaneousBatches = 12)
+
+            addAbsoluteDirectoryProperty(layout.buildDirectory, "kotlin.wasm.test.root.out.dir")
+            addAbsoluteDirectoryProperty(node.nodeProjectDir, "kotlin.wasm.test.node.dir")
             body()
             dependsOn(npmInstall)
+
+            finalizedBy(maybeCleanWasmTestOutputTask)
         }
     }
 
-    // Test everything
-    wasmProjectTest("test") {
-        include("**/*.class")
-        exclude("**/*SingleModule*TestGenerated.class")
-        exclude("**/*MultiModule*TestGenerated.class")
+    // The tags are declared in testFixtures/org/jetbrains/kotlin/wasm/test/WasmTestGroups.kt
+    val icTag = "wasmIc"
+    val jsBoxTag = "wasmJsBox"
+    val jsSplittingTag = "wasmJsSplitting"
+    val jsMultiModuleTag = "wasmJsMultiModule"
+    val wasiBoxTag = "wasmWasiBox"
+    val extraTag = "wasmFirCompilerExtra"
+
+    val allTags = listOf(
+        icTag, jsBoxTag, jsSplittingTag,
+        jsMultiModuleTag, wasiBoxTag, extraTag
+    )
+
+    // Test everything, intended to use locally
+    wasmProjectTest("test", skipInLocalBuild = false) {
+        testFederation {
+            smokeTests {
+                includeAutoSamples(percentage = 1)
+            }
+        }
     }
 
-    wasmProjectTest("diagnosticTest", skipInLocalBuild = true) {
-        include("**/Diagnostics*.class")
+    // The nine tasks below split the content of the `test` task into disjoint groups.
+    // Tests without any of the group tags are run by the `wasmMiscTest` task.
+    // The `wasmFirCompilerExtraTest` task is excluded from aggregate `wasmFirCompilerTest` task.
+    wasmProjectTest("wasmFirCompilerExtraTest", tags = extraTag)
+    wasmProjectTest("wasmJsBoxTest", tags = jsBoxTag)
+    wasmProjectTest("wasmJsBoxWithJscOnWindows", tags = jsBoxTag) {
+        systemProperty("javascript.engine.JavaScriptCore.EnableOnWindows", "true")
     }
-
-    wasmProjectTest("wasmFirCompilerExtraTest") {
-        include("**/*SingleModule*TestGenerated.class")
-        include("**/*MultiModule*TestGenerated.class")
-    }
+    wasmProjectTest("wasmJsSplittingTest", tags = jsSplittingTag)
+    wasmProjectTest("wasmJsMultiModuleTest", tags = jsMultiModuleTag)
+    wasmProjectTest("wasmWasiBoxTest", tags = wasiBoxTag)
+    wasmProjectTest("wasmIcTest", tags = "$icTag & !$extraTag")
+    wasmProjectTest("wasmMiscTest", tags = allTags.joinToString(" & ") { "!$it" })
 
     testData(project(":compiler").isolated, "testData/diagnostics")
     testData(project(":compiler").isolated, "testData/codegen")
-    testData(project(":compiler").isolated, "testData/debug/stepping")
+    testData(project(":compiler").isolated, "testData/debug")
     testData(project(":compiler").isolated, "testData/ir/irText")
     testData(project(":compiler").isolated, "testData/loadJava")
     testData(project(":compiler").isolated, "testData/klib/partial-linkage")
@@ -470,11 +420,12 @@ projectTests {
     testData(project(":js:js.translator").isolated, "testData/typescript-export/wasm/")
 
     withWasmRuntime()
+    withStdlibCommon()
 }
 
 tasks.processTestFixturesResources.configure {
     from(project.layout.projectDirectory.dir("_additionalFilesForTests"))
-    from(project(":compiler").layout.projectDirectory.dir("testData/debug")) {
+    from(project(":compiler").isolated.projectDirectory.dir("testData/debug")) {
         into("debugTestHelpers")
         include("wasmTestHelpers/")
     }

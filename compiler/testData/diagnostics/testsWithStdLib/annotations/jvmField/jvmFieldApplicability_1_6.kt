@@ -1,6 +1,5 @@
 // RUN_PIPELINE_TILL: FRONTEND
-// LANGUAGE: +NestedClassesInAnnotations +InlineClasses +ProhibitJvmFieldOnOverrideFromInterfaceInPrimaryConstructor
-// DIAGNOSTICS: -UNUSED_PARAMETER -UNUSED_VARIABLE -INLINE_CLASS_DEPRECATED
+// DIAGNOSTICS: -INLINE_CLASS_DEPRECATED -INLINE_CLASS_DEPRECATED_ERROR
 
 <!WRONG_ANNOTATION_TARGET!>@kotlin.jvm.JvmField<!>
 fun foo() {
@@ -38,11 +37,11 @@ abstract class C : I{
 
     <!INAPPLICABLE_JVM_FIELD!>@JvmField<!>
     val explicitDefaultAnnotatedGetter: String = ""
-        @DemoAnnotation get
+        <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@DemoAnnotation<!> get
 
     <!INAPPLICABLE_JVM_FIELD!>@JvmField<!>
     var explicitDefaultAnnotatedSetter: String = ""
-        @DemoAnnotation set
+        <!ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR!>@DemoAnnotation<!> set
 
     <!INAPPLICABLE_JVM_FIELD!>@JvmField<!>
     var customSetter: String = ""

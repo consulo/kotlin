@@ -17,13 +17,12 @@ import org.jetbrains.kotlin.fir.renderer.FirRenderer
 import org.jetbrains.kotlin.fir.session.FirSessionFactoryHelper
 import org.jetbrains.kotlin.parsing.KotlinLightParser
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.test.JUnit3RunnerWithInners
-import org.junit.runner.RunWith
+import org.jetbrains.kotlin.test.util.walkRepositoryKotlinFilesWithoutTestData
+import org.junit.jupiter.api.Test
 import java.io.File
 import kotlin.system.measureNanoTime
 
 @TestDataPath("/")
-@RunWith(JUnit3RunnerWithInners::class)
 class TotalKotlinTest : AbstractRawFirBuilderTestCase() {
     private fun generateFirFromPsi(onlyPsi: Boolean, text: String, path: String) {
         val ktFile = createPsiFile(FileUtil.getNameWithoutExtension(PathUtil.getFileName(path)), text) as KtFile
@@ -40,7 +39,7 @@ class TotalKotlinTest : AbstractRawFirBuilderTestCase() {
         text: CharSequence, sourceFile: KtSourceFile, linesMapping: KtSourceFileLinesMapping
     ) {
         if (onlyLightTree) {
-            val lightTree = KotlinLightParser.buildLightTree(text, sourceFile, errorListener = null)
+            val lightTree = KotlinLightParser.buildLightTree(text, sourceFile.isScript(), errorListener = null)
             DebugUtil.lightTreeToString(lightTree, false)
         } else {
             val firFile = converter.buildFirFile(text, sourceFile, linesMapping)
@@ -49,7 +48,8 @@ class TotalKotlinTest : AbstractRawFirBuilderTestCase() {
     }
 
     private fun totalKotlinLight(onlyLightTree: Boolean) {
-        val path = System.getProperty("user.dir")
+        // Back from /compiler/fir/raw-fir/<module>
+        val path = System.getProperty("user.dir") + "/../../../.."
         var counter = 0
         var time = 0L
 
@@ -61,10 +61,10 @@ class TotalKotlinTest : AbstractRawFirBuilderTestCase() {
         )
 
         if (onlyLightTree) println("LightTree generation") else println("Fir from LightTree converter")
-        println("BASE PATH: $path")
-        path.walkTopDown {
+        println("BASE PATH: ${File(path).normalize().absolutePath}")
+        path.walkRepositoryKotlinFilesWithoutTestData {
             val sourceFile = KtIoFileSourceFile(it)
-            val (code, linesMapping) = it.inputStream().reader(Charsets.UTF_8).use {
+            val [code, linesMapping] = it.inputStream().reader(Charsets.UTF_8).use {
                 it.readSourceFileWithMapping()
             }
             time += measureNanoTime {
@@ -79,13 +79,14 @@ class TotalKotlinTest : AbstractRawFirBuilderTestCase() {
     }
 
     private fun totalKotlinPsi(onlyPsi: Boolean) {
-        val path = System.getProperty("user.dir")
+        // Back from /compiler/fir/raw-fir/<module>
+        val path = System.getProperty("user.dir") + "/../../../.."
         val root = File(path)
         var counter = 0
         var time = 0L
 
         if (onlyPsi) println("Psi generation") else println("Fir from Psi converter")
-        println("BASE PATH: $path")
+        println("BASE PATH: ${File(path).normalize().absolutePath}")
         for (file in root.walkTopDown()) {
             if (file.isDirectory) continue
             /* TODO: fix this, please !!! */
@@ -111,18 +112,22 @@ class TotalKotlinTest : AbstractRawFirBuilderTestCase() {
 
     }
 
+    @Test
     fun testTotalKotlinOnlyLightTree() {
         totalKotlinLight(true)
     }
 
+    @Test
     fun testTotalKotlinOnlyPsi() {
         totalKotlinPsi(true)
     }
 
+    @Test
     fun testTotalKotlinFirFromLightTree() {
         totalKotlinLight(false)
     }
 
+    @Test
     fun testTotalKotlinFirFromPsi() {
         totalKotlinPsi(false)
     }

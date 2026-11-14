@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// SKIP_TXT
+// RUN_PIPELINE_TILL: CODEGEN
 
 // FILE: StubElement.java
 public interface StubElement<T extends CharSequence> {}

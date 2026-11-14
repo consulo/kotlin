@@ -5,8 +5,11 @@
 package org.jetbrains.kotlin.compiler.plugins
 
 import org.jetbrains.kotlin.allopen.AllOpenEnvironmentConfigurator
+import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.compiler.based.AbstractLLDiagnosticsTest
 import org.jetbrains.kotlin.assignment.plugin.AssignmentPluginEnvironmentConfigurator
-import org.jetbrains.kotlin.lombok.LombokAdditionalSourceFileProvider
+import org.jetbrains.kotlin.fir.dataframe.services.DataFrameDirectives
+import org.jetbrains.kotlin.fir.dataframe.services.DataFrameEnvironmentConfigurator
+import org.jetbrains.kotlin.fir.dataframe.services.DataFrameRuntimeClasspathProvider
 import org.jetbrains.kotlin.lombok.LombokEnvironmentConfigurator
 import org.jetbrains.kotlin.lombok.LombokRuntimeClassPathProvider
 import org.jetbrains.kotlin.noarg.NoArgEnvironmentConfigurator
@@ -36,6 +39,15 @@ open class AbstractPluginInteractionFirBlackBoxCodegenTest : AbstractFirLightTre
     }
 }
 
+// ---------------------------- LL FIR (IDE) diagnostics ----------------------------
+
+abstract class AbstractPluginInteractionLLDiagnosticsTest : AbstractLLDiagnosticsTest() {
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        builder.enablePlugins()
+    }
+}
+
 // ---------------------------- configuration ----------------------------
 
 /**
@@ -50,21 +62,23 @@ fun TestConfigurationBuilder.enablePlugins() {
         ::NoArgEnvironmentConfigurator,
         ::ParcelizeEnvironmentConfigurator,
         ::PowerAssertEnvironmentConfigurator,
+        ::DataFrameEnvironmentConfigurator,
         // Plugin sandbox configurators.
         ::ExtensionRegistrarConfigurator, ::PluginAnnotationsProvider,
     )
 
-    enableSerializationRuntimeProviders(defaultsProviderBuilder.targetBackend ?: TargetBackend.JVM_IR)
+    enableSerializationRuntimeProviders(defaultsProviderBuilder.targetBackend ?: TargetBackend.JVM)
     useCustomRuntimeClasspathProviders(
         ::LombokRuntimeClassPathProvider,
         ::ParcelizeRuntimeClasspathProvider,
         ::PluginRuntimeAnnotationsProvider,
+        ::DataFrameRuntimeClasspathProvider,
     )
 
     useAdditionalSourceProviders(
-        ::LombokAdditionalSourceFileProvider,
         ::ParcelizeUtilSourcesProvider,
     )
 
     useAdditionalServices(service<JvmBoxMainClassProvider>(::ParcelizeMainClassProvider))
+    useDirectives(DataFrameDirectives)
 }

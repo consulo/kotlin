@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.psi;
 
 import com.intellij.openapi.project.Project;
+import kotlin.DeprecationLevel;
 import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.resolve.ImportPath;
@@ -28,6 +29,10 @@ import java.util.Map;
 /**
  * @deprecated This class is not used in the kotlin plugin/compiler and will be removed soon
  */
+@kotlin.Deprecated(
+        message = "This class is not used in the kotlin plugin/compiler and will be removed soon",
+        level = DeprecationLevel.HIDDEN
+)
 @Deprecated
 public class KtImportsFactory {
     @NotNull private final Project project;
@@ -58,6 +63,19 @@ public class KtImportsFactory {
 
     @NotNull
     public Collection<KtImportDirective> createImportDirectivesNotCached(@NotNull Collection<ImportPath> importPaths) {
-        return new KtPsiFactory(project, false).createImportDirectives(importPaths);
+        StringBuilder fileContent = new StringBuilder();
+        for (ImportPath importPath : importPaths) {
+            if (importPath.getFqName().isRoot()) {
+                throw new IllegalArgumentException("import path must not be empty");
+            }
+
+            fileContent.append("import ").append(importPath.getPathStr());
+            if (importPath.getAlias() != null) {
+                fileContent.append(" as ").append(importPath.getAlias().asString());
+            }
+            fileContent.append('\n');
+        }
+
+        return new KtPsiFactory(project, false).createFile(fileContent.toString()).getImportDirectives();
     }
 }

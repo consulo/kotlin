@@ -8,7 +8,7 @@ package org.jetbrains.kotlin.ir.inline
 import org.jetbrains.kotlin.backend.common.LoweringContext
 import org.jetbrains.kotlin.backend.common.ModuleLoweringPass
 import org.jetbrains.kotlin.backend.common.PreSerializationLoweringContext
-import org.jetbrains.kotlin.backend.common.ir.PreSerializationSymbols
+import org.jetbrains.kotlin.ir.util.isTypeOfIntrinsic
 import org.jetbrains.kotlin.backend.common.lower.ArrayConstructorLowering
 import org.jetbrains.kotlin.backend.common.lower.LateinitLowering
 import org.jetbrains.kotlin.backend.common.lower.RedundantCastsRemoverLowering
@@ -17,8 +17,8 @@ import org.jetbrains.kotlin.backend.common.lower.VersionOverloadsLowering
 import org.jetbrains.kotlin.backend.common.lower.inline.AvoidLocalFOsInInlineFunctionsLowering
 import org.jetbrains.kotlin.backend.common.lower.inline.InlineCallCycleCheckerLowering
 import org.jetbrains.kotlin.backend.common.lower.inline.LocalClassesInInlineLambdasLowering
-import org.jetbrains.kotlin.backend.common.phaser.IrValidationAfterInliningAllFunctionsOnTheFirstStagePhase
-import org.jetbrains.kotlin.backend.common.phaser.IrValidationAfterInliningOnlyPrivateFunctionsPhase
+import org.jetbrains.kotlin.backend.common.phaser.IrValidationAfterInliningAllFunctionsKlibFirstStagePhase
+import org.jetbrains.kotlin.backend.common.phaser.IrValidationAfterInliningPrivateFunctionsKlibPhase
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.utils.addToStdlib.runUnless
@@ -29,16 +29,6 @@ private fun createSharedVariablesLoweringPhase(context: LoweringContext): Shared
 
 private fun createSyntheticAccessorGeneration(context: LoweringContext): SyntheticAccessorLowering {
     return SyntheticAccessorLowering(context, isExecutedOnFirstPhase = true)
-}
-
-private fun createValidateIrAfterInliningOnlyPrivateFunctions(context: LoweringContext): IrValidationAfterInliningOnlyPrivateFunctionsPhase<LoweringContext> {
-    return IrValidationAfterInliningOnlyPrivateFunctionsPhase(
-        context,
-        checkInlineFunctionCallSites = { inlineFunctionUseSite ->
-            // Call sites of only non-private functions are allowed at this stage.
-            !inlineFunctionUseSite.symbol.isConsideredAsPrivateForInlining()
-        }
-    )
 }
 
 fun loweringsOfTheFirstPhase(
@@ -62,9 +52,9 @@ fun loweringsOfTheFirstPhase(
         return InlineFunctionSerializationPreProcessing(crossModuleFunctionInliner = inliner)
     }
 
-    fun createValidateIrAfterInliningAllFunctionsPhase(context: PreSerializationLoweringContext): IrValidationAfterInliningAllFunctionsOnTheFirstStagePhase<LoweringContext> {
+    fun createIrValidationAfterInliningAllFunctionsKlibFirstStagePhase(context: PreSerializationLoweringContext): IrValidationAfterInliningAllFunctionsKlibFirstStagePhase<LoweringContext> {
         val resolver = PreSerializationNonPrivateInlineFunctionResolver(context, inlineCrossModuleFunctions)
-        return IrValidationAfterInliningAllFunctionsOnTheFirstStagePhase(
+        return IrValidationAfterInliningAllFunctionsKlibFirstStagePhase(
             context,
             checkInlineFunctionCallSites = check@{ inlineFunctionUseSite ->
                 // No inline function call sites should remain at this stage.
@@ -72,7 +62,7 @@ fun loweringsOfTheFirstPhase(
                 when {
                     actualCallee?.body == null -> true // does not have a body <=> should not be inlined
                     // it's fine to have typeOf<T>, it would be ignored by inliner and handled on the second stage of compilation
-                    PreSerializationSymbols.isTypeOfIntrinsic(actualCallee.symbol) -> true
+                    actualCallee.symbol.isTypeOfIntrinsic() -> true
                     else -> false // forbidden
                 }
             }
@@ -92,11 +82,11 @@ fun loweringsOfTheFirstPhase(
             this += ::InlineDeclarationCheckerLowering
             this += ::OuterThisInInlineFunctionsSpecialAccessorLowering
             this += ::createSyntheticAccessorGeneration
-            this += ::createValidateIrAfterInliningOnlyPrivateFunctions
+            this += ::IrValidationAfterInliningPrivateFunctionsKlibPhase
             this += ::createInlineAllFunctionsPhase
             this += ::createInlineFunctionSerializationPreProcessing
             this += ::RedundantCastsRemoverLowering
-            this += ::createValidateIrAfterInliningAllFunctionsPhase
+            this += ::createIrValidationAfterInliningAllFunctionsKlibFirstStagePhase
         } else {
             // Drawback: without IR Inliner, no invocation of PreSerializationPrivateFunctionInlining happens,
             //           so InlineDeclarationCheckerLowering won't report any *CASCADING* diagnostics.

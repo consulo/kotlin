@@ -1,17 +1,6 @@
 /*
- * Copyright 2010-2015 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.daemon.common
@@ -19,6 +8,7 @@ package org.jetbrains.kotlin.daemon.common
 import org.jetbrains.kotlin.incremental.components.LookupInfo
 import org.jetbrains.kotlin.load.kotlin.incremental.components.JvmPackagePartProto
 import org.jetbrains.kotlin.modules.TargetId
+import java.io.File
 import java.io.Serializable
 import java.rmi.Remote
 import java.rmi.RemoteException
@@ -57,10 +47,7 @@ interface CompilerCallbackServicesFacade : Remote {
     fun hasImportTracker(): Boolean
 
     @Throws(RemoteException::class)
-    fun hasIncrementalResultsConsumer(): Boolean
-
-    @Throws(RemoteException::class)
-    fun hasIncrementalDataProvider(): Boolean
+    fun hasICFileMappingTracker(): Boolean
 
     // ----------------------------------------------------
     // IncrementalCache
@@ -77,7 +64,7 @@ interface CompilerCallbackServicesFacade : Remote {
     fun incrementalCache_getModuleMappingData(target: TargetId): ByteArray?
 
     @Throws(RemoteException::class)
-    fun incrementalCache_registerInline(target: TargetId, fromPath: String, jvmSignature: String, toPath: String)
+    fun incrementalCache_getCommonMetadata(target: TargetId, fragmentName: String): Map<File, ByteArray>
 
     @Throws(RemoteException::class)
     fun incrementalCache_getClassFilePath(target: TargetId, internalClassName: String): String
@@ -128,46 +115,19 @@ interface CompilerCallbackServicesFacade : Remote {
     fun importTracker_report(filePath: String, importedFqName: String)
 
     // ---------------------------------------------------
-    // IncrementalResultsConsumer (js)
+    // ICFileMappingTracker
     @Throws(RemoteException::class)
-    fun incrementalResultsConsumer_processHeader(headerMetadata: ByteArray)
+    fun icFileMappingTracker_recordSourceFilesToOutputFileMapping(sourceFilePaths: Collection<String>, outputFilePath: String)
 
     @Throws(RemoteException::class)
-    fun incrementalResultsConsumer_processPackagePart(sourceFilePath: String, packagePartMetadata: ByteArray, binaryAst: ByteArray, inlineData: ByteArray)
+    fun icFileMappingTracker_recordSourceReferencedByCompilerPlugin(sourceFilePath: String)
 
     @Throws(RemoteException::class)
-    fun incrementalResultsConsumer_processPackageMetadata(packageName: String, metadata: ByteArray)
-
-    // ---------------------------------------------------
-    // IncrementalDataProvider (js)
-    @Throws(RemoteException::class)
-    fun incrementalDataProvider_getHeaderMetadata(): ByteArray
+    fun icFileMappingTracker_recordOutputFileGeneratedForPlugin(outputFilePath: String)
 
     @Throws(RemoteException::class)
-    fun incrementalDataProvider_getCompiledPackageParts(): Collection<CompiledPackagePart>
-
-    @Throws(RemoteException::class)
-    fun incrementalDataProvider_getMetadataVersion(): IntArray
-
-    @Throws(RemoteException::class)
-    fun incrementalDataProvider_getPackageMetadata(): Collection<PackageMetadata>
+    fun icFileMappingTracker_recordSourceFileGeneratedForPlugin(sourceFilePath: String)
 }
-
-class CompiledPackagePart(
-    val filePath: String,
-    val metadata: ByteArray, val binaryAst: ByteArray, val inlineData: ByteArray
-) : Serializable
-
-class PackageMetadata(
-    val packageName: String,
-    val metadata: ByteArray
-) : Serializable {
-    companion object {
-        // just a random number, but should never be changed to avoid deserialization problems
-        private val serialVersionUID: Long = 54021986502349756L
-    }
-}
-
 
 class RmiFriendlyCompilationCanceledException : Exception(), Serializable {
     companion object {

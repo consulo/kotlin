@@ -1,6 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// FIR_DIFFERENCE
-// The difference is okay: K1 and K2 report a bit differently
+// RUN_PIPELINE_TILL: CODEGEN
 // IGNORE_FIR_DIAGNOSTICS
 @file:Suppress("NOTHING_TO_INLINE")
 

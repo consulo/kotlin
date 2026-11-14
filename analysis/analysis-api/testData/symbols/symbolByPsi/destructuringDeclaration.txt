@@ -1,11 +1,13 @@
 KaConstructorSymbol:
+  anchorPsi: KtPrimaryConstructor
   annotations: []
   callableId: null
-  compilerVisibility: Public
   containingClassId: P
+  contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -13,6 +15,8 @@ KaConstructorSymbol:
   location: CLASS
   modality: FINAL
   origin: SOURCE
+  psi: KtPrimaryConstructor
+  realPsi: KtPrimaryConstructor
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -21,122 +25,17 @@ KaConstructorSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: KaKotlinPropertySymbol:
-        annotations: []
-        backingFieldSymbol: KaBackingFieldSymbol:
-          annotations: []
-          callableId: null
-          compilerVisibility: Private
-          contextReceivers: []
-          isActual: false
-          isExpect: false
-          isExtension: false
-          isExternal: false
-          isNotDefault: false
-          isVal: true
-          location: PROPERTY
-          modality: FINAL
-          name: field
-          origin: PROPERTY_BACKING_FIELD
-          owningProperty: KaKotlinPropertySymbol(/P.x)
-          receiverParameter: null
-          returnType: KaUsualClassType:
-            annotations: []
-            typeArguments: []
-            type: kotlin/Int
-          visibility: PRIVATE
-          getDispatchReceiver(): KaUsualClassType:
-            annotations: []
-            typeArguments: []
-            type: P
-          getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
-          getContainingJvmClassName: P
-          getContainingModule: KaSourceModule "Sources of main"
-          deprecationStatus: null
-          importableFqName: null
-        callableId: /P.x
-        compilerVisibility: Public
-        contextParameters: []
-        contextReceivers: []
-        getter: KaPropertyGetterSymbol:
-          annotations: []
-          callableId: null
-          compilerVisibility: Public
-          contextReceivers: []
-          hasStableParameterNames: true
-          isActual: false
-          isExpect: false
-          isExtension: false
-          isExternal: false
-          isInline: false
-          isNotDefault: false
-          isOverride: false
-          location: PROPERTY
-          modality: FINAL
-          origin: SOURCE
-          receiverParameter: null
-          returnType: KaUsualClassType:
-            annotations: []
-            typeArguments: []
-            type: kotlin/Int
-          valueParameters: []
-          visibility: PUBLIC
-          getDispatchReceiver(): KaUsualClassType:
-            annotations: []
-            typeArguments: []
-            type: P
-          getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
-          getContainingJvmClassName: P
-          getContainingModule: KaSourceModule "Sources of main"
-          deprecationStatus: null
-          importableFqName: null
-        hasBackingField: true
-        hasGetter: true
-        hasSetter: false
-        initializer: KaNonConstantInitializerValue(val x: Int)
-        isActual: false
-        isConst: false
-        isDelegatedProperty: false
-        isExpect: false
-        isExtension: false
-        isExternal: false
-        isFromPrimaryConstructor: true
-        isLateInit: false
-        isOverride: false
-        isStatic: false
-        isVal: true
-        location: CLASS
-        modality: FINAL
-        name: x
-        origin: SOURCE
-        receiverParameter: null
-        returnType: KaUsualClassType:
-          annotations: []
-          typeArguments: []
-          type: kotlin/Int
-        setter: null
-        typeParameters: []
-        visibility: PUBLIC
-        getDispatchReceiver(): KaUsualClassType:
-          annotations: []
-          typeArguments: []
-          type: P
-        getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
-        getContainingJvmClassName: P
-        getContainingModule: KaSourceModule "Sources of main"
-        deprecationStatus: null
-        javaGetterName: getX
-        javaSetterName: null
-        isInline: false
-        importableFqName: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -148,134 +47,33 @@ KaConstructorSymbol:
       modality: FINAL
       name: x
       origin: SOURCE
+      primaryConstructorProperty: KaKotlinPropertySymbol(/P.x)
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
       getContainingJvmClassName: P
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: KaKotlinPropertySymbol:
-        annotations: []
-        backingFieldSymbol: KaBackingFieldSymbol:
-          annotations: []
-          callableId: null
-          compilerVisibility: Private
-          contextReceivers: []
-          isActual: false
-          isExpect: false
-          isExtension: false
-          isExternal: false
-          isNotDefault: false
-          isVal: true
-          location: PROPERTY
-          modality: FINAL
-          name: field
-          origin: PROPERTY_BACKING_FIELD
-          owningProperty: KaKotlinPropertySymbol(/P.y)
-          receiverParameter: null
-          returnType: KaUsualClassType:
-            annotations: []
-            typeArguments: []
-            type: kotlin/Int
-          visibility: PRIVATE
-          getDispatchReceiver(): KaUsualClassType:
-            annotations: []
-            typeArguments: []
-            type: P
-          getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
-          getContainingJvmClassName: P
-          getContainingModule: KaSourceModule "Sources of main"
-          deprecationStatus: null
-          importableFqName: null
-        callableId: /P.y
-        compilerVisibility: Public
-        contextParameters: []
-        contextReceivers: []
-        getter: KaPropertyGetterSymbol:
-          annotations: []
-          callableId: null
-          compilerVisibility: Public
-          contextReceivers: []
-          hasStableParameterNames: true
-          isActual: false
-          isExpect: false
-          isExtension: false
-          isExternal: false
-          isInline: false
-          isNotDefault: false
-          isOverride: false
-          location: PROPERTY
-          modality: FINAL
-          origin: SOURCE
-          receiverParameter: null
-          returnType: KaUsualClassType:
-            annotations: []
-            typeArguments: []
-            type: kotlin/Int
-          valueParameters: []
-          visibility: PUBLIC
-          getDispatchReceiver(): KaUsualClassType:
-            annotations: []
-            typeArguments: []
-            type: P
-          getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
-          getContainingJvmClassName: P
-          getContainingModule: KaSourceModule "Sources of main"
-          deprecationStatus: null
-          importableFqName: null
-        hasBackingField: true
-        hasGetter: true
-        hasSetter: false
-        initializer: KaNonConstantInitializerValue(val y: Int)
-        isActual: false
-        isConst: false
-        isDelegatedProperty: false
-        isExpect: false
-        isExtension: false
-        isExternal: false
-        isFromPrimaryConstructor: true
-        isLateInit: false
-        isOverride: false
-        isStatic: false
-        isVal: true
-        location: CLASS
-        modality: FINAL
-        name: y
-        origin: SOURCE
-        receiverParameter: null
-        returnType: KaUsualClassType:
-          annotations: []
-          typeArguments: []
-          type: kotlin/Int
-        setter: null
-        typeParameters: []
-        visibility: PUBLIC
-        getDispatchReceiver(): KaUsualClassType:
-          annotations: []
-          typeArguments: []
-          type: P
-        getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
-        getContainingJvmClassName: P
-        getContainingModule: KaSourceModule "Sources of main"
-        deprecationStatus: null
-        javaGetterName: getY
-        javaSetterName: null
-        isInline: false
-        importableFqName: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -287,31 +85,36 @@ KaConstructorSymbol:
       modality: FINAL
       name: y
       origin: SOURCE
+      primaryConstructorProperty: KaKotlinPropertySymbol(/P.y)
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
       getContainingJvmClassName: P
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
   getContainingJvmClassName: P
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: P
 
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: P
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: true
@@ -320,10 +123,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: FINAL
   name: P
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -334,16 +140,19 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: P
 
 KaLocalVariableSymbol:
+  anchorPsi: KtDestructuringDeclarationEntry
   annotations: []
   callableId: null
-  compilerVisibility: Local
+  contextParameters: []
   contextReceivers: []
   isActual: false
+  isCompanion: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -353,24 +162,30 @@ KaLocalVariableSymbol:
   modality: FINAL
   name: l
   origin: SOURCE
+  psi: KtDestructuringDeclarationEntry
+  realPsi: KtDestructuringDeclarationEntry
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: kotlin/Int
+  typeParameters: []
   visibility: LOCAL
   getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: null
 
 KaLocalVariableSymbol:
+  anchorPsi: KtDestructuringDeclarationEntry
   annotations: []
   callableId: null
-  compilerVisibility: Local
+  contextParameters: []
   contextReceivers: []
   isActual: false
+  isCompanion: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -380,28 +195,32 @@ KaLocalVariableSymbol:
   modality: FINAL
   name: r
   origin: SOURCE
+  psi: KtDestructuringDeclarationEntry
+  realPsi: KtDestructuringDeclarationEntry
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: kotlin/Int
+  typeParameters: []
   visibility: LOCAL
   getContainingFileSymbol: KaFileSymbol(destructuringDeclaration.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /destruct
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -416,6 +235,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: destruct
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -428,6 +249,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: DestructuringDeclarationKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: destruct
   importableFqName: destruct

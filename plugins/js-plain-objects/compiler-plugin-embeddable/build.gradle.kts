@@ -1,4 +1,6 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("org.jetbrains.kotlin.jvm")
 }
 
@@ -11,9 +13,5 @@ publish {
 }
 
 runtimeJar(rewriteDefaultJarDepsToShadedCompiler())
-sourcesJarWithSourcesFromEmbedded(
-    project(":plugins:js-plain-objects:compiler-plugin").tasks.named<Jar>("sourcesJar")
-)
-javadocJarWithJavadocFromEmbedded(
-    project(":plugins:js-plain-objects:compiler-plugin").tasks.named<Jar>("javadocJar")
-)
+sourcesJarWithSourcesFromEmbedded()
+javadocJarWithJavadocFromEmbedded()

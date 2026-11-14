@@ -1,11 +1,13 @@
 KaConstructorSymbol:
+  anchorPsi: KtPrimaryConstructor
   annotations: []
   callableId: null
-  compilerVisibility: Public
   containingClassId: A
+  contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -13,6 +15,8 @@ KaConstructorSymbol:
   location: CLASS
   modality: FINAL
   origin: SOURCE
+  psi: KtPrimaryConstructor
+  realPsi: KtPrimaryConstructor
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -24,17 +28,20 @@ KaConstructorSymbol:
   getContainingFileSymbol: KaFileSymbol(classSecondaryConstructors.kt)
   getContainingJvmClassName: A
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: A
 
 KaConstructorSymbol:
+  anchorPsi: KtSecondaryConstructor
   annotations: []
   callableId: null
-  compilerVisibility: Public
   containingClassId: A
+  contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -42,6 +49,8 @@ KaConstructorSymbol:
   location: CLASS
   modality: FINAL
   origin: SOURCE
+  psi: KtSecondaryConstructor
+  realPsi: KtSecondaryConstructor
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -50,15 +59,17 @@ KaConstructorSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -70,33 +81,40 @@ KaConstructorSymbol:
       modality: FINAL
       name: x
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(classSecondaryConstructors.kt)
       getContainingJvmClassName: A
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(classSecondaryConstructors.kt)
   getContainingJvmClassName: A
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: A
 
 KaConstructorSymbol:
+  anchorPsi: KtSecondaryConstructor
   annotations: []
   callableId: null
-  compilerVisibility: Public
   containingClassId: A
+  contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -104,6 +122,8 @@ KaConstructorSymbol:
   location: CLASS
   modality: FINAL
   origin: SOURCE
+  psi: KtSecondaryConstructor
+  realPsi: KtSecondaryConstructor
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -112,15 +132,17 @@ KaConstructorSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -132,27 +154,33 @@ KaConstructorSymbol:
       modality: FINAL
       name: y
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(classSecondaryConstructors.kt)
       getContainingJvmClassName: A
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -164,31 +192,36 @@ KaConstructorSymbol:
       modality: FINAL
       name: z
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/String
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(classSecondaryConstructors.kt)
       getContainingJvmClassName: A
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(classSecondaryConstructors.kt)
   getContainingJvmClassName: A
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: A
 
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: A
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -197,10 +230,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: FINAL
   name: A
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -211,6 +247,6 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(classSecondaryConstructors.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: A

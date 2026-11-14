@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.fir.resolve.calls
 
 import org.jetbrains.kotlin.KtFakeSourceElementKind
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.FirVisibilityChecker
 import org.jetbrains.kotlin.fir.declarations.*
@@ -14,7 +13,6 @@ import org.jetbrains.kotlin.fir.declarations.utils.getExplicitBackingField
 import org.jetbrains.kotlin.fir.declarations.utils.isStatic
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.builder.buildSmartCastExpression
-import org.jetbrains.kotlin.fir.isIntersectionOverride
 import org.jetbrains.kotlin.fir.references.FirThisReference
 import org.jetbrains.kotlin.fir.resolve.calls.candidate.CallInfo
 import org.jetbrains.kotlin.fir.resolve.calls.candidate.Candidate
@@ -41,7 +39,7 @@ private fun FirVisibilityChecker.isVisible(
                 declaration.isStatic &&
                 isExplicitReceiverExpression(dispatchReceiver)
     ) {
-        when (val classLikeSymbol = (dispatchReceiver?.unwrapSmartcastExpression() as? FirResolvedQualifier)?.symbol) {
+        when (val classLikeSymbol = (dispatchReceiver?.unwrapSmartcastExpression() as? FirResolvedQualifier)?.qualifierSymbol) {
             is FirRegularClassSymbol -> classLikeSymbol.fir
             is FirTypeAliasSymbol -> classLikeSymbol.fullyExpandedClass(callInfo.session)?.fir
             is FirAnonymousObjectSymbol,

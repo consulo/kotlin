@@ -4,8 +4,8 @@
 
 package org.jetbrains.kotlin.js.backend.ast;
 
-import org.jetbrains.kotlin.js.util.AstUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.kotlin.js.util.AstUtil;
 
 /**
  * Represents a JavaScript catch clause.
@@ -16,20 +16,20 @@ public class JsCatch extends SourceInfoAwareJsNode {
     private JsBlock body;
     private JsParameter param;
 
-    public JsCatch(@NotNull JsAssignable assignable) {
-        param = new JsParameter(assignable);
+    public JsCatch(@NotNull JsDeclarable declarable) {
+        param = new JsParameter(declarable);
         scope = null;
     }
 
-    public JsCatch(JsScope parent, @NotNull JsAssignable assignable) {
+    public JsCatch(JsScope parent, @NotNull JsDeclarable declarable) {
         super();
         assert (parent != null);
-        scope = new JsCatchScope(parent, assignable);
-        param = new JsParameter(assignable);
+        scope = new JsCatchScope(parent, declarable);
+        param = new JsParameter(declarable);
     }
 
-    public JsCatch(JsScope parent, @NotNull JsAssignable assignable, @NotNull JsStatement catchBody) {
-        this(parent, assignable);
+    public JsCatch(JsScope parent, @NotNull JsDeclarable declarable, @NotNull JsStatement catchBody) {
+        this(parent, declarable);
         if (catchBody instanceof JsBlock) {
             body = (JsBlock) catchBody;
         } else {
@@ -80,7 +80,7 @@ public class JsCatch extends SourceInfoAwareJsNode {
         JsBlock bodyCopy = AstUtil.deepCopy(body);
         JsParameter paramCopy = AstUtil.deepCopy(param);
 
-        return new JsCatch(scopeCopy, bodyCopy, paramCopy).withMetadataFrom(this);
+        return AbstractNodeKt.withMetadataFrom(new JsCatch(scopeCopy, bodyCopy, paramCopy), this);
     }
 
     private JsCatch(JsCatchScope scope, JsBlock body, JsParameter param) {

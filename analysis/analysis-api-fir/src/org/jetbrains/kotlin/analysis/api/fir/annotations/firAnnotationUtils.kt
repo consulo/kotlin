@@ -1,24 +1,20 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.fir.annotations
 
-import org.jetbrains.kotlin.analysis.api.annotations.*
+import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotation
+import org.jetbrains.kotlin.analysis.api.annotations.KaNamedAnnotationValue
 import org.jetbrains.kotlin.analysis.api.fir.KaSymbolByFirBuilder
 import org.jetbrains.kotlin.analysis.api.fir.evaluate.FirAnnotationValueConverter
 import org.jetbrains.kotlin.analysis.api.fir.toKaAnnotation
-import org.jetbrains.kotlin.analysis.api.impl.base.annotations.KaArrayAnnotationValueImpl
-import org.jetbrains.kotlin.analysis.api.impl.base.annotations.KaBaseNamedAnnotationValue
-import org.jetbrains.kotlin.analysis.api.impl.base.annotations.KaEnumEntryAnnotationValueImpl
-import org.jetbrains.kotlin.analysis.api.utils.errors.withClassEntry
 import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
 import org.jetbrains.kotlin.fir.FirAnnotationContainer
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.containingClassLookupTag
 import org.jetbrains.kotlin.fir.declarations.*
-import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
@@ -27,8 +23,8 @@ import org.jetbrains.kotlin.fir.symbols.resolvedAnnotationsWithClassIds
 import org.jetbrains.kotlin.fir.symbols.resolvedCompilerRequiredAnnotations
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.name.*
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.utils.exceptions.checkWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.withClassEntry
 import java.lang.annotation.ElementType
 
 internal fun mapAnnotationParameters(annotation: FirAnnotation): Map<Name, FirExpression> {
@@ -43,7 +39,7 @@ internal fun mapAnnotationParameters(annotation: FirAnnotation): Map<Name, FirEx
         annotation.toReferenceUnsafe()?.let { withClassEntry("calleeReference", it) }
     }
 
-    return annotation.argumentMapping.mapping.mapKeys { (name, _) -> name }
+    return annotation.argumentMapping.mapping.mapKeys { [name, _] -> name }
 }
 
 internal fun annotationsByClassId(
@@ -60,7 +56,7 @@ internal fun annotationsByClassId(
         // - `transformAnnotations` theoretically may modify annotations, but it is not allowed due
         // to the compiler contract to change already published annotations – only their content can be changed
         return annotationContainer.resolvedCompilerRequiredAnnotations(firSymbol).mapNotNull { annotation ->
-            if (annotation.toAnnotationClassIdSafe(session) != classId) {
+            if (annotation.toAnnotationNonErrorClassId(session) != classId) {
                 return@mapNotNull null
             }
 
@@ -69,7 +65,7 @@ internal fun annotationsByClassId(
     }
 
     return annotationContainer.resolvedAnnotationsWithClassIds(firSymbol).mapNotNull { annotation ->
-        if (annotation.toAnnotationClassId(session) != classId) {
+        if (annotation.toAnnotationNonErrorClassId(session) != classId) {
             return@mapNotNull null
         }
 
@@ -106,12 +102,12 @@ private fun computeTargetAnnotationArguments(
     annotationParameterName: Name,
     nameMapper: (String) -> String?,
 ): List<KaNamedAnnotationValue> {
-    val rawValues = annotation.findFromRawArguments(expectedEnumClass = expectedEnumClassId, nameMapper)
+    val rawValues = annotation.findFromArgumentMapping(expectedEnumClass = expectedEnumClassId, nameMapper)
 
     if (rawValues.isNotEmpty()) {
         val token = builder.token
 
-        val value = KaBaseNamedAnnotationValue(
+        val value = KaFirNamedAnnotationValue(
             annotationParameterName,
             KaArrayAnnotationValueImpl(
                 values = rawValues.map {
@@ -146,7 +142,7 @@ private fun computeJavaTargetAnnotationArguments(annotation: FirAnnotation, buil
     }
 }
 
-private fun <T> FirAnnotation.findFromRawArguments(expectedEnumClass: ClassId, transformer: (String) -> T?): Set<T> = buildSet {
+private fun <T> FirAnnotation.findFromArgumentMapping(expectedEnumClass: ClassId, transformer: (String) -> T?): Set<T> = buildSet {
     fun addIfMatching(arg: FirExpression) {
         if (arg !is FirQualifiedAccessExpression) return
         val callableSymbol = arg.calleeReference.toResolvedCallableSymbol() ?: return
@@ -155,10 +151,8 @@ private fun <T> FirAnnotation.findFromRawArguments(expectedEnumClass: ClassId, t
         transformer(identifier)?.let(::add)
     }
 
-    if (this@findFromRawArguments is FirAnnotationCall) {
-        for (arg in argumentList.arguments) {
-            arg.unwrapAndFlattenArgument(flattenArrays = true).forEach(::addIfMatching)
-        }
+    for (arg in argumentMapping.mapping.values) {
+        arg.unwrapAndFlattenArgument(flattenArrays = true).forEach(::addIfMatching)
     }
 }
 
@@ -175,7 +169,7 @@ internal fun annotationClassIds(
     useSiteSession: FirSession,
     annotationContainer: FirAnnotationContainer = firSymbol.fir,
 ): Collection<ClassId> = annotationContainer.resolvedAnnotationsWithClassIds(firSymbol).mapNotNull {
-    it.toAnnotationClassId(useSiteSession)
+    it.toAnnotationNonErrorClassId(useSiteSession)
 }
 
 internal fun hasAnnotation(
@@ -190,11 +184,11 @@ internal fun hasAnnotation(
     // - `transformAnnotations` theoretically may modify annotations, but it is not allowed due
     // to the compiler contract to change already published annotations – only their content can be changed
     annotationContainer.resolvedCompilerRequiredAnnotations(firSymbol).any {
-        it.toAnnotationClassIdSafe(useSiteSession) == classId
+        it.toAnnotationNonErrorClassId(useSiteSession) == classId
     }
 } else {
     annotationContainer.resolvedAnnotationsWithClassIds(firSymbol).any {
-        it.toAnnotationClassId(useSiteSession) == classId
+        it.toAnnotationNonErrorClassId(useSiteSession) == classId
     }
 }
 

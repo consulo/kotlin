@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +SamConversionForKotlinFunctions +SamConversionPerArgument +FunctionalInterfaceConversion
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER -NOTHING_TO_INLINE
 
 fun interface SuspendRunnable {

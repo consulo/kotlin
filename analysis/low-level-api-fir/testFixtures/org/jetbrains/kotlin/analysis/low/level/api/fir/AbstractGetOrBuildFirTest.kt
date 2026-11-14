@@ -5,11 +5,11 @@
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir
 
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.AnalysisApiServiceRegistrar
+import com.intellij.psi.util.findParentOfType
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.AnalysisApiServiceRegistrar
 import org.jetbrains.kotlin.analysis.low.level.api.fir.AbstractGetOrBuildFirTest.Directives.SKIP_CONTAINMENT_CHECK
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFir
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFirFile
-import org.jetbrains.kotlin.analysis.low.level.api.fir.services.AnalysisInterruptedException
 import org.jetbrains.kotlin.analysis.low.level.api.fir.services.ErrorResistanceServiceRegistrar
 import org.jetbrains.kotlin.analysis.low.level.api.fir.services.FirRenderingOptions
 import org.jetbrains.kotlin.analysis.low.level.api.fir.services.firRenderingOptions
@@ -22,8 +22,10 @@ import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirImport
+import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
+import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
 import org.jetbrains.kotlin.fir.expressions.arguments
 import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
@@ -31,17 +33,20 @@ import org.jetbrains.kotlin.fir.renderer.FirDeclarationRendererWithFilteredAttri
 import org.jetbrains.kotlin.fir.renderer.FirPackageDirectiveRenderer
 import org.jetbrains.kotlin.fir.renderer.FirRenderer
 import org.jetbrains.kotlin.fir.renderer.FirResolvePhaseRenderer
+import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhaseRecursively
 import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtOperationReferenceExpression
+import org.jetbrains.kotlin.psi.KtPrefixExpression
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.directives.model.SimpleDirectivesContainer
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.assertions
+import org.jetbrains.kotlin.test.services.moduleStructure
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
 abstract class AbstractGetOrBuildFirTest : AbstractAnalysisApiBasedTest() {
@@ -52,6 +57,10 @@ abstract class AbstractGetOrBuildFirTest : AbstractAnalysisApiBasedTest() {
 
     override fun doTestByMainFile(mainFile: KtFile, mainModule: KtTestModule, testServices: TestServices) {
         fun findElement(qualifierIndex: Int?): KtElement? {
+            if (qualifierIndex == null && Directives.RESOLVE_SCRIPT in testServices.moduleStructure.allDirectives) {
+                return mainFile.script
+            }
+
             val qualifier = if (qualifierIndex != null) "$qualifierIndex" else ""
 
             val elements = mainModule.ktFiles
@@ -75,6 +84,12 @@ abstract class AbstractGetOrBuildFirTest : AbstractAnalysisApiBasedTest() {
         val isContainmentCheckActive = SKIP_CONTAINMENT_CHECK !in mainModule.testModule.directives
 
         val results = withResolutionFacade(mainModule.ktModule) { resolutionFacade ->
+            if (Directives.BODY_RESOLVE_FILES in mainModule.testModule.directives) {
+                for (ktFile in mainModule.ktFiles) {
+                    ktFile.getOrBuildFirFile(resolutionFacade).lazyResolveToPhaseRecursively(FirResolvePhase.BODY_RESOLVE)
+                }
+            }
+
             val elementsToAnalyze = sequence {
                 val firstCandidate = findElement(qualifierIndex = null) ?: error("No selected element found")
                 yield(firstCandidate)
@@ -92,7 +107,7 @@ abstract class AbstractGetOrBuildFirTest : AbstractAnalysisApiBasedTest() {
 
             val results = mutableListOf<String>()
 
-            for ((index, element) in elementsToAnalyze.withIndex()) {
+            for ([index, element] in elementsToAnalyze.withIndex()) {
                 val ktFile = element.containingKtFile
                 val firFile by lazy { resolutionFacade.getOrBuildFirFile(ktFile) }
 
@@ -116,7 +131,7 @@ abstract class AbstractGetOrBuildFirTest : AbstractAnalysisApiBasedTest() {
         val actual = if (results.size > 1) {
             results
                 .withIndex()
-                .joinToString(separator = "\n\n=====\n\n") { (index, result) -> "Analysis attempt #$index\n$result" }
+                .joinToString(separator = "\n\n=====\n\n") { [index, result] -> "Analysis attempt #$index\n$result" }
         } else {
             results.single()
         }
@@ -126,17 +141,32 @@ abstract class AbstractGetOrBuildFirTest : AbstractAnalysisApiBasedTest() {
 
     // PSI-to-FIR mapper creates some synthetic FIR expression outside the FIR tree.
     private fun shouldPerformContainmentCheck(firElement: FirElement): Boolean {
-        return !firElement.isSyntheticStringPlus() && !firElement.isSyntheticBuiltInSuspendCall()
+        return !firElement.isSyntheticStringPlus() && !firElement.isSyntheticBuiltInSuspendCall() && !firElement.isSyntheticUnaryOperator()
     }
 
-    // Check `KtToFirMapping.checkStringLiteralFolderExpression`.
+    /**
+     * Check [org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.FirElementsRecorder.visitLiteralExpression] and
+     * [org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.KtToFirMapping.fakeCallForIntLiteralWithUnaryExpression]
+     */
+    private fun FirElement.isSyntheticUnaryOperator(): Boolean {
+        return this is FirLiteralExpression && this.psi?.findParentOfType<KtPrefixExpression>(strict = true) != null ||
+                this is FirFunctionCall &&
+                calleeReference.name.let { it == OperatorNameConventions.UNARY_PLUS || it == OperatorNameConventions.UNARY_MINUS } &&
+                explicitReceiver?.isSyntheticUnaryOperator() == true
+    }
+
+    /**
+     * Check [org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.KtToFirMapping.checkStringLiteralFolderExpression]
+     */
     private fun FirElement.isSyntheticStringPlus(): Boolean {
         return this is FirResolvedNamedReference
                 && this.name == OperatorNameConventions.PLUS
                 && this.psi is KtOperationReferenceExpression
     }
 
-    // Check `KtToFirMapping.fakeCallToBuiltInSuspendOrNull`.
+    /**
+     * Check [org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.KtToFirMapping.fakeCallToBuiltInSuspendOrNull]
+     */
     private fun FirElement.isSyntheticBuiltInSuspendCall(): Boolean {
         return this is FirFunctionCall
                 && calleeReference.name == StandardClassIds.Callables.suspend.callableName
@@ -171,6 +201,10 @@ abstract class AbstractGetOrBuildFirTest : AbstractAnalysisApiBasedTest() {
 
     private object Directives : SimpleDirectivesContainer() {
         val SKIP_CONTAINMENT_CHECK by directive("Do not check that a found child can be accessed from its containing file tree")
+
+        val RESOLVE_SCRIPT by directive("Resolve script instead of selected element")
+
+        val BODY_RESOLVE_FILES by directive("Resolve the main module files to BODY_RESOLVE before analyzing the selected elements")
     }
 }
 
@@ -186,7 +220,7 @@ internal fun renderActualFir(
         appendLine(ktElement.text)
     }
     appendLine("FIR element: ${fir?.let { it::class.simpleName }}")
-    appendLine("FIR source kind: ${fir?.source?.kind?.let { it::class.simpleName }}")
+    appendLine("FIR source kind: ${fir?.source?.kind}")
     if (renderingOptions.renderContainerSource)
         appendLine("FIR container source: ${fir.renderContainerSource()}")
     if (renderingOptions.renderKtFileName)
@@ -225,11 +259,7 @@ abstract class AbstractInterruptingGetOrBuildFirTest : AbstractGetOrBuildFirTest
     override fun <T : Any> intercept(index: Int, testModule: TestModule, block: () -> T?): T? {
         if (index in testModule.directives[Directives.INTERRUPT_AT]) {
             ErrorResistanceServiceRegistrar.handleInterruption {
-                try {
-                    block()
-                    throw IllegalStateException("Analysis should be interrupted")
-                } catch (_: AnalysisInterruptedException) {
-                }
+                val _ = block()
             }
             return null
         } else {
@@ -252,5 +282,4 @@ abstract class AbstractInterruptingSourceLikeGetOrBuildFirTest : AbstractInterru
 abstract class AbstractOutOfContentRootGetOrBuildFirTest : AbstractGetOrBuildFirTest() {
     override val configurator get() = AnalysisApiFirOutOfContentRootTestConfigurator
 }
-
 

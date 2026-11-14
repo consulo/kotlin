@@ -77,7 +77,11 @@ val FirCallableDeclaration.isSubstitutionOverride: Boolean get() = origin is Fir
 val FirCallableDeclaration.isSubstitutionOrIntersectionOverride: Boolean get() = isSubstitutionOverride || isIntersectionOverride
 val FirCallableDeclaration.isDelegated: Boolean get() = origin == FirDeclarationOrigin.Delegated
 val FirCallableDeclaration.isCopyCreatedInScope: Boolean get() = isSubstitutionOrIntersectionOverride || isDelegated
-val FirCallableDeclaration.canHaveDeferredReturnTypeCalculation: Boolean get() = isCopyCreatedInScope || origin == FirDeclarationOrigin.Enhancement || origin == FirDeclarationOrigin.Synthetic.JavaProperty
+val FirCallableDeclaration.canHaveDeferredReturnTypeCalculation: Boolean
+    get() = isCopyCreatedInScope ||
+            origin is FirDeclarationOrigin.Enhancement ||
+            origin == FirDeclarationOrigin.Synthetic.JavaProperty ||
+            origin == FirDeclarationOrigin.ImportedFromObjectOrStatic
 
 val FirCallableSymbol<*>.isIntersectionOverride: Boolean get() = origin == FirDeclarationOrigin.IntersectionOverride
 val FirCallableSymbol<*>.isSubstitutionOverride: Boolean get() = origin is FirDeclarationOrigin.SubstitutionOverride
@@ -236,6 +240,10 @@ val FirCallableDeclaration.propertyIfBackingField: FirCallableDeclaration
 
 private object IsJavaRecordKey : FirDeclarationDataKey()
 var FirRegularClass.isJavaRecord: Boolean? by FirDeclarationDataRegistry.data(IsJavaRecordKey)
+
+private object IsJavaValueClassKey : FirDeclarationDataKey()
+// A Java class declared with the `value` modifier (JEP 401 value class), loaded from source or a binary dependency.
+var FirRegularClass.isJavaValueClass: Boolean? by FirDeclarationDataRegistry.data(IsJavaValueClassKey)
 
 private object IsJavaRecordComponentKey : FirDeclarationDataKey()
 var FirFunction.isJavaRecordComponent: Boolean? by FirDeclarationDataRegistry.data(IsJavaRecordComponentKey)

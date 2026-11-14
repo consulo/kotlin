@@ -1,4 +1,7 @@
 public abstract class CIterable /* test.CIterable*/ implements test.IIterable {
+  @java.lang.Override()
+  public java.util.Iterator<@org.jetbrains.annotations.NotNull() java.lang.String> iterator();//  iterator()
+
   public  CIterable();//  .ctor()
 }
 
@@ -18,5 +21,5 @@ public class CIterable3 /* test.CIterable3*/ implements test.IIterable {
   public  CIterable3();//  .ctor()
 }
 
-public abstract interface IIterable /* test.IIterable*/ extends java.lang.Iterable<@org.jetbrains.annotations.NotNull() java.lang.String>, kotlin.collections.Iterable<@org.jetbrains.annotations.NotNull() java.lang.String>, kotlin.jvm.internal.markers.KMappedMarker {
+public abstract interface IIterable /* test.IIterable*/ extends java.lang.Iterable<@org.jetbrains.annotations.NotNull() java.lang.String>, kotlin.jvm.internal.markers.KMappedMarker {
 }

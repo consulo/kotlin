@@ -1,2 +1,8 @@
 KtNameReferenceExpression(93,96): 'bar'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      foo.bar
+    ]

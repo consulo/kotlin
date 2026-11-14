@@ -1,25 +1,12 @@
 /*
- * Copyright 2010-2015 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.daemon.client
 
 import org.jetbrains.kotlin.daemon.common.*
 import org.jetbrains.kotlin.incremental.components.*
-import org.jetbrains.kotlin.incremental.js.IncrementalDataProvider
-import org.jetbrains.kotlin.incremental.js.IncrementalResultsConsumer
 import org.jetbrains.kotlin.load.kotlin.incremental.components.IncrementalCompilationComponents
 import org.jetbrains.kotlin.load.kotlin.incremental.components.JvmPackagePartProto
 import org.jetbrains.kotlin.modules.TargetId
@@ -36,9 +23,8 @@ open class CompilerCallbackServicesFacadeServer(
     val inlineConstTracker: InlineConstTracker? = null,
     val enumWhenTracker: EnumWhenTracker? = null,
     val importTracker: ImportTracker? = null,
-    val incrementalResultsConsumer: IncrementalResultsConsumer? = null,
-    val incrementalDataProvider: IncrementalDataProvider? = null,
-    port: Int = SOCKET_ANY_FREE_PORT
+    val icFileMappingTracker: ICFileMappingTracker? = null,
+    port: Int = SOCKET_ANY_FREE_PORT,
 ) : @Suppress("DEPRECATION") CompilerCallbackServicesFacade,
     UnicastRemoteObject(
         port,
@@ -59,9 +45,7 @@ open class CompilerCallbackServicesFacadeServer(
 
     override fun hasImportTracker(): Boolean = importTracker != null
 
-    override fun hasIncrementalResultsConsumer(): Boolean = incrementalResultsConsumer != null
-
-    override fun hasIncrementalDataProvider(): Boolean = incrementalDataProvider != null
+    override fun hasICFileMappingTracker(): Boolean = icFileMappingTracker != null
 
     // TODO: consider replacing NPE with other reporting, although NPE here means most probably incorrect usage
 
@@ -80,9 +64,8 @@ open class CompilerCallbackServicesFacadeServer(
     override fun incrementalCache_getModuleMappingData(target: TargetId): ByteArray? =
         incrementalCompilationComponents!!.getIncrementalCache(target).getModuleMappingData()
 
-    // todo: remove (the method it called was relevant only for old IC)
-    override fun incrementalCache_registerInline(target: TargetId, fromPath: String, jvmSignature: String, toPath: String) {
-    }
+    override fun incrementalCache_getCommonMetadata(target: TargetId, fragmentName: String): Map<File, ByteArray> =
+        incrementalCompilationComponents!!.getIncrementalCache(target).getCommonMetadata(fragmentName)
 
     override fun incrementalCache_getClassFilePath(target: TargetId, internalClassName: String): String =
         incrementalCompilationComponents!!.getIncrementalCache(target).getClassFilePath(internalClassName)
@@ -138,34 +121,19 @@ open class CompilerCallbackServicesFacadeServer(
         importTracker?.report(filePath, importedFqName) ?: throw NullPointerException("importTracker was not initialized")
     }
 
-    override fun incrementalResultsConsumer_processHeader(headerMetadata: ByteArray) {
-        incrementalResultsConsumer!!.processHeader(headerMetadata)
+    override fun icFileMappingTracker_recordSourceFilesToOutputFileMapping(sourceFilePaths: Collection<String>, outputFilePath: String) {
+        icFileMappingTracker!!.recordSourceFilesToOutputFileMapping(sourceFilePaths.map(::File), File(outputFilePath))
     }
 
-    override fun incrementalResultsConsumer_processPackagePart(
-        sourceFilePath: String,
-        packagePartMetadata: ByteArray,
-        binaryAst: ByteArray,
-        inlineData: ByteArray
-    ) {
-        incrementalResultsConsumer!!.processPackagePart(File(sourceFilePath), packagePartMetadata, binaryAst, inlineData)
+    override fun icFileMappingTracker_recordSourceReferencedByCompilerPlugin(sourceFilePath: String) {
+        icFileMappingTracker!!.recordSourceReferencedByCompilerPlugin(File(sourceFilePath))
     }
 
-    override fun incrementalResultsConsumer_processPackageMetadata(packageName: String, metadata: ByteArray) {
-        incrementalResultsConsumer!!.processPackageMetadata(packageName, metadata)
+    override fun icFileMappingTracker_recordOutputFileGeneratedForPlugin(outputFilePath: String) {
+        icFileMappingTracker!!.recordOutputFileGeneratedForPlugin(File(outputFilePath))
     }
 
-    override fun incrementalDataProvider_getHeaderMetadata(): ByteArray = incrementalDataProvider!!.headerMetadata
-
-    override fun incrementalDataProvider_getMetadataVersion(): IntArray = incrementalDataProvider!!.metadataVersion
-
-    override fun incrementalDataProvider_getCompiledPackageParts() =
-        incrementalDataProvider!!.compiledPackageParts.entries.map {
-            CompiledPackagePart(it.key.path, it.value.metadata, it.value.binaryAst, it.value.inlineData)
-        }
-
-    override fun incrementalDataProvider_getPackageMetadata(): Collection<PackageMetadata> =
-        incrementalDataProvider!!.packageMetadata.entries.map { (fqName, metadata) ->
-            PackageMetadata(fqName, metadata)
-        }
+    override fun icFileMappingTracker_recordSourceFileGeneratedForPlugin(sourceFilePath: String) {
+        icFileMappingTracker!!.recordSourceFileGeneratedForPlugin(File(sourceFilePath))
+    }
 }

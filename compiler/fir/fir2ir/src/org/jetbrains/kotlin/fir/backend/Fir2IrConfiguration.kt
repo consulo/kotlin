@@ -16,11 +16,12 @@
 
 package org.jetbrains.kotlin.fir.backend
 
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
 import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
 import org.jetbrains.kotlin.incremental.components.InlineConstTracker
+import org.jetbrains.kotlin.ir.IrDiagnosticReporter
+import org.jetbrains.kotlin.ir.KtDiagnosticReporterWithImplicitIrBasedContext
 
 /**
  * @param allowNonCachedDeclarations
@@ -31,21 +32,23 @@ import org.jetbrains.kotlin.incremental.components.InlineConstTracker
  */
 class Fir2IrConfiguration private constructor(
     val languageVersionSettings: LanguageVersionSettings,
-    val diagnosticReporter: BaseDiagnosticsCollector,
-    val messageCollector: MessageCollector,
+    diagnosticReporter: BaseDiagnosticsCollector,
     val inlineConstTracker: InlineConstTracker?,
     val expectActualTracker: ExpectActualTracker?,
     val allowNonCachedDeclarations: Boolean,
     val skipBodies: Boolean,
     val irVerificationSettings: IrVerificationSettings,
     val carefulApproximationOfContravariantProjectionForSam: Boolean,
+    val propagateLazyIrPrivateMembers: Boolean,
 ) {
+    val diagnosticReporter: IrDiagnosticReporter =
+        KtDiagnosticReporterWithImplicitIrBasedContext(diagnosticReporter, languageVersionSettings)
+
     class IrVerificationSettings(
         val mode: IrVerificationMode,
         val validateForKlibSerialization: Boolean,
-        val enableIrVisibilityChecks: Boolean,
-        val enableIrVarargTypesChecks: Boolean,
-        val enableIrNestedOffsetsChecks: Boolean,
+        val disableIrCheckers: List<String>,
+        val additionalIrCheckers: List<String>,
     )
 
     companion object {
@@ -56,19 +59,39 @@ class Fir2IrConfiguration private constructor(
             Fir2IrConfiguration(
                 languageVersionSettings = compilerConfiguration.languageVersionSettings,
                 diagnosticReporter = diagnosticReporter,
-                messageCollector = compilerConfiguration.messageCollector,
                 inlineConstTracker = compilerConfiguration[CommonConfigurationKeys.INLINE_CONST_TRACKER],
                 expectActualTracker = compilerConfiguration[CommonConfigurationKeys.EXPECT_ACTUAL_TRACKER],
                 allowNonCachedDeclarations = false,
                 skipBodies = compilerConfiguration.getBoolean(JVMConfigurationKeys.SKIP_BODIES),
                 irVerificationSettings = IrVerificationSettings(
                     mode = compilerConfiguration.get(CommonConfigurationKeys.VERIFY_IR, IrVerificationMode.NONE),
-                    enableIrVisibilityChecks = compilerConfiguration.enableIrVisibilityChecks,
-                    enableIrVarargTypesChecks = compilerConfiguration.enableIrVarargTypesChecks,
-                    enableIrNestedOffsetsChecks = compilerConfiguration.enableIrNestedOffsetsChecks,
+                    disableIrCheckers = compilerConfiguration.disableIrCheckers,
+                    additionalIrCheckers = compilerConfiguration.additionalIrCheckers,
                     validateForKlibSerialization = false,
                 ),
-                carefulApproximationOfContravariantProjectionForSam = compilerConfiguration.get(JVMConfigurationKeys.SAM_CONVERSIONS) != JvmClosureGenerationScheme.CLASS
+                carefulApproximationOfContravariantProjectionForSam = compilerConfiguration.get(JVMConfigurationKeys.SAM_CONVERSIONS) != JvmClosureGenerationScheme.CLASS,
+                propagateLazyIrPrivateMembers = false,
+            )
+
+        fun forJKlibCompilation(
+            compilerConfiguration: CompilerConfiguration,
+            diagnosticReporter: BaseDiagnosticsCollector,
+        ): Fir2IrConfiguration =
+            Fir2IrConfiguration(
+                languageVersionSettings = compilerConfiguration.languageVersionSettings,
+                diagnosticReporter = diagnosticReporter,
+                inlineConstTracker = compilerConfiguration[CommonConfigurationKeys.INLINE_CONST_TRACKER],
+                expectActualTracker = compilerConfiguration[CommonConfigurationKeys.EXPECT_ACTUAL_TRACKER],
+                allowNonCachedDeclarations = false,
+                skipBodies = compilerConfiguration.getBoolean(JVMConfigurationKeys.SKIP_BODIES),
+                irVerificationSettings = IrVerificationSettings(
+                    mode = compilerConfiguration.get(CommonConfigurationKeys.VERIFY_IR, IrVerificationMode.NONE),
+                    disableIrCheckers = compilerConfiguration.disableIrCheckers,
+                    additionalIrCheckers = compilerConfiguration.additionalIrCheckers,
+                    validateForKlibSerialization = false,
+                ),
+                carefulApproximationOfContravariantProjectionForSam = compilerConfiguration.get(JVMConfigurationKeys.SAM_CONVERSIONS) != JvmClosureGenerationScheme.CLASS,
+                propagateLazyIrPrivateMembers = true,
             )
 
         fun forKlibCompilation(
@@ -78,19 +101,18 @@ class Fir2IrConfiguration private constructor(
             Fir2IrConfiguration(
                 languageVersionSettings = compilerConfiguration.languageVersionSettings,
                 diagnosticReporter = diagnosticReporter,
-                messageCollector = compilerConfiguration.messageCollector,
                 inlineConstTracker = null,
                 expectActualTracker = compilerConfiguration[CommonConfigurationKeys.EXPECT_ACTUAL_TRACKER],
                 allowNonCachedDeclarations = false,
                 skipBodies = false,
                 irVerificationSettings = IrVerificationSettings(
                     mode = compilerConfiguration.get(CommonConfigurationKeys.VERIFY_IR, IrVerificationMode.NONE),
-                    enableIrVisibilityChecks = compilerConfiguration.enableIrVisibilityChecks,
-                    enableIrVarargTypesChecks = compilerConfiguration.enableIrVarargTypesChecks,
-                    enableIrNestedOffsetsChecks = compilerConfiguration.enableIrNestedOffsetsChecks,
+                    disableIrCheckers = compilerConfiguration.disableIrCheckers,
+                    additionalIrCheckers = compilerConfiguration.additionalIrCheckers,
                     validateForKlibSerialization = true,
                 ),
                 carefulApproximationOfContravariantProjectionForSam = false,
+                propagateLazyIrPrivateMembers = false,
             )
 
         fun forAnalysisApi(
@@ -101,19 +123,18 @@ class Fir2IrConfiguration private constructor(
             Fir2IrConfiguration(
                 languageVersionSettings = languageVersionSettings,
                 diagnosticReporter = diagnosticReporter,
-                messageCollector = compilerConfiguration.messageCollector,
                 inlineConstTracker = compilerConfiguration[CommonConfigurationKeys.INLINE_CONST_TRACKER],
                 expectActualTracker = compilerConfiguration[CommonConfigurationKeys.EXPECT_ACTUAL_TRACKER],
                 allowNonCachedDeclarations = true,
                 skipBodies = false,
                 irVerificationSettings = IrVerificationSettings(
                     mode = compilerConfiguration.get(CommonConfigurationKeys.VERIFY_IR, IrVerificationMode.NONE),
-                    enableIrVisibilityChecks = compilerConfiguration.enableIrVisibilityChecks,
-                    enableIrVarargTypesChecks = compilerConfiguration.enableIrVarargTypesChecks,
-                    enableIrNestedOffsetsChecks = compilerConfiguration.enableIrNestedOffsetsChecks,
+                    disableIrCheckers = compilerConfiguration.disableIrCheckers,
+                    additionalIrCheckers = compilerConfiguration.additionalIrCheckers,
                     validateForKlibSerialization = false,
                 ),
                 carefulApproximationOfContravariantProjectionForSam = compilerConfiguration.get(JVMConfigurationKeys.SAM_CONVERSIONS) != JvmClosureGenerationScheme.CLASS,
+                propagateLazyIrPrivateMembers = false,
             )
     }
 }

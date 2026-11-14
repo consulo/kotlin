@@ -29,8 +29,9 @@ internal object SwiftImportManifestGenerator {
         platforms: List<String>,
         repoDependencies: List<String>,
         targetDependencies: List<String>,
+        binaryTargets: List<String> = emptyList(),
     ): String = buildStringBlock(defaultIndent = "  ") {
-        line("// swift-tools-version: 5.9")
+        line("// swift-tools-version: 6.1")
         line("import PackageDescription")
         block("let package = Package(", ")") {
             commaSeparatedEntries {
@@ -58,13 +59,22 @@ internal object SwiftImportManifestGenerator {
                 }
                 entry {
                     block("targets: [", "]") {
-                        block(".target(", ")") {
-                            commaSeparatedEntries {
-                                entry { line("name: \"$identifier\"") }
-                                entry {
-                                    block("dependencies: [", "]") {
-                                        emitListItems(targetDependencies)
+                        commaSeparatedEntries {
+                            entry {
+                                block(".target(", ")") {
+                                    commaSeparatedEntries {
+                                        entry { line("name: \"$identifier\"") }
+                                        entry {
+                                            block("dependencies: [", "]") {
+                                                emitListItems(targetDependencies)
+                                            }
+                                        }
                                     }
+                                }
+                            }
+                            binaryTargets.forEach {
+                                entry {
+                                    line(it)
                                 }
                             }
                         }

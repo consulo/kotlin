@@ -1,5 +1,4 @@
 // RUN_PIPELINE_TILL: FRONTEND
-// SKIP_TXT
 
 interface I1 {
     fun i()
@@ -31,7 +30,7 @@ public class Impl2: I4 {
 }
 
 private class PrivateImpl: I4 {
-    override fun i() = 10
+    override fun <!NO_EXPLICIT_RETURN_TYPE_IN_API_MODE!>i<!>() = 10
     override val v = 10
 }
 

@@ -1,6 +1,7 @@
 // IGNORE_BACKEND: JS_IR, NATIVE
 // IGNORE_HMPP: JS_IR
 // DUMP_IR
+// WITH_AND_WITHOUT_PLUGIN
 
 // MODULE: lib
 // FILE: p3/foo.kt
@@ -12,7 +13,9 @@ import org.jetbrains.kotlin.plugin.sandbox.MyInlineable
 @MyInlineable
 public fun Foo(
     text: @MyInlineable () -> Unit,
-) {}
+) {
+    text()
+}
 
 @MyInlineable
 public fun FooReturn(
@@ -25,12 +28,17 @@ import org.jetbrains.kotlin.plugin.sandbox.MyInlineable
 import p3.Foo
 import p3.FooReturn
 
+var log = ""
+
 @MyInlineable
 public fun Bar() {
     Foo(
-        text = {}, // @Inlineable invocations can only happen from the context of a @Inlineable function
+        text = { log += "O" }, // @Inlineable invocations can only happen from the context of a @Inlineable function
     )
     FooReturn()()
 }
 
-fun box(): String = "OK"
+fun box(): String {
+    Bar()
+    return log + "K"
+}

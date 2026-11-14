@@ -67,34 +67,55 @@ internal object DevirtualizationAnalysis {
 
     private inline fun takeName(block: () -> String) = if (TAKE_NAMES) block() else null
 
-    fun computeRootSet(context: Context, irModule: IrModuleFragment, moduleDFG: ModuleDFG): List<DataFlowIR.FunctionSymbol> {
-        val entryPoint = context.symbols.entryPoint?.owner
-        val exported = if (entryPoint != null)
-            listOf(moduleDFG.symbolTable.mapFunction(entryPoint))
-        else {
+    private fun collectSymbolTableRoots(
+            entryPoint: DataFlowIR.FunctionSymbol?,
+            functionSymbols: Collection<DataFlowIR.FunctionSymbol>,
+            types: Collection<DataFlowIR.Type>,
+            functionsWithBodies: Set<DataFlowIR.FunctionSymbol>,
+    ): MutableSet<DataFlowIR.FunctionSymbol> {
+        val roots = mutableSetOf<DataFlowIR.FunctionSymbol>()
+        if (entryPoint != null) {
+            roots.add(entryPoint)
+        } else {
             // In a library every public function and every function accessible via virtual call belongs to the rootset.
-            moduleDFG.symbolTable.functionMap.values.filter {
-                it is DataFlowIR.FunctionSymbol.Public
-                        || (it as? DataFlowIR.FunctionSymbol.External)?.isExported == true
-            } +
-                    moduleDFG.symbolTable.classMap.values
-                            .flatMap { it.vtable + it.itable.values.flatten() }
-                            .filterIsInstance<DataFlowIR.FunctionSymbol.Declared>()
-                            .filter { moduleDFG.functions.containsKey(it) }
+            for (function in functionSymbols) {
+                if (function is DataFlowIR.FunctionSymbol.Public || (function as? DataFlowIR.FunctionSymbol.External)?.isExported == true)
+                    roots.add(function)
+            }
+            for (type in types) {
+                for (function in type.vtable) {
+                    if (function is DataFlowIR.FunctionSymbol.Declared && function in functionsWithBodies)
+                        roots.add(function)
+                }
+                for (methods in type.itable.values) {
+                    for (function in methods) {
+                        if (function is DataFlowIR.FunctionSymbol.Declared && function in functionsWithBodies)
+                            roots.add(function)
+                    }
+                }
+            }
+        }
+        for (function in functionSymbols) {
+            if (function.isStaticFieldInitializer || function.isEagerStaticInitializer)
+                roots.add(function)
+        }
+        for (function in functionSymbols) {
+            if (function.explicitlyExported)
+                roots.add(function)
         }
 
-        // TODO: Are globals initializers always called whether they are actually reachable from roots or not?
-        // TODO: With the changed semantics of global initializers this is no longer the case - rework.
-        val globalInitializers = moduleDFG.symbolTable.functionMap.values.filter { it.isStaticFieldInitializer }
-        val explicitlyExported = moduleDFG.symbolTable.functionMap.values.filter { it.explicitlyExported }
+        return roots
+    }
 
-        // Conservatively assume each associated object could be called.
-        // Note: for constructors there is additional parameter (<this>) and its type will be added
-        // to instantiating classes since all objects are final types.
-        val associatedObjectConstructors = mutableListOf<DataFlowIR.FunctionSymbol>()
-        // At this point all function references are lowered except those leaking to the native world.
-        // Conservatively assume them belonging of the root set.
-        val leakingThroughFunctionReferences = mutableListOf<DataFlowIR.FunctionSymbol>()
+    fun computeRootSet(context: NativeBackendContext, irModule: IrModuleFragment, moduleDFG: ModuleDFG): List<DataFlowIR.FunctionSymbol> {
+        val entryPoint = context.symbols.entryPoint?.owner?.let { moduleDFG.symbolTable.mapFunction(it) }
+        val roots = collectSymbolTableRoots(
+                entryPoint,
+                moduleDFG.symbolTable.functionMap.values,
+                moduleDFG.symbolTable.classMap.values,
+                moduleDFG.functions.keys,
+        )
+
         irModule.acceptChildrenVoid(object : IrVisitorVoid() {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
@@ -103,22 +124,26 @@ internal object DevirtualizationAnalysis {
             override fun visitClass(declaration: IrClass) {
                 declaration.acceptChildrenVoid(this)
 
+                // Conservatively assume each associated object could be called. Its final type will be
+                // added to instantiating classes through the constructor's additional <this> parameter.
                 context.getLayoutBuilder(declaration).associatedObjects.values.forEach {
                     assert(it.kind == ClassKind.OBJECT) { "An object expected but was ${it.dump()}" }
-                    associatedObjectConstructors += moduleDFG.symbolTable.mapFunction(context.getObjectClassInstanceFunction(it))
+                    roots.add(moduleDFG.symbolTable.mapFunction(context.getObjectClassInstanceFunction(it)))
                 }
             }
 
+            // At this point all function references are lowered except those leaking to the native world.
+            // Conservatively assume them belonging of the root set.
             override fun visitRawFunctionReference(expression: IrRawFunctionReference) {
                 expression.acceptChildrenVoid(this)
 
                 val function = expression.symbol.owner
                 require(function is IrSimpleFunction) { "All constructors should've been lowered: ${expression.render()}" }
-                leakingThroughFunctionReferences.add(moduleDFG.symbolTable.mapFunction(function))
+                roots.add(moduleDFG.symbolTable.mapFunction(function))
             }
         })
 
-        return (exported + globalInitializers + explicitlyExported + associatedObjectConstructors + leakingThroughFunctionReferences).distinct()
+        return roots.toList()
     }
 
     fun CustomBitSet.format(allTypes: Array<DataFlowIR.Type>): String {
@@ -127,7 +152,7 @@ internal object DevirtualizationAnalysis {
 
     private val VIRTUAL_TYPE_ID = 0 // Id of [DataFlowIR.Type.Virtual].
 
-    internal class DevirtualizationAnalysisImpl(val context: Context,
+    internal class DevirtualizationAnalysisImpl(val context: NativeBackendContext,
                                                 val irModule: IrModuleFragment,
                                                 val moduleDFG: ModuleDFG) {
 
@@ -250,8 +275,6 @@ internal object DevirtualizationAnalysis {
 
             is DataFlowIR.Node.ItableCall ->
                 itable[callSite.interfaceId]!![callSite.calleeItableIndex]
-
-            else -> error("Unreachable")
         }
 
         fun logPathToType(reversedEdges: IntArray, node: Node, type: Int) {
@@ -714,7 +737,7 @@ internal object DevirtualizationAnalysis {
          * A node is called "useful" if any of the nodes which we are trying to devirtualize is reachable from it.
          * In some cases the number of "useful" nodes is on an order of magnitude less than the total number of nodes.
          */
-        private fun collectUsefulNodes(reversedEdges: IntArray, nodesMap: Map<DataFlowIR.Node, Node>): CustomBitSet {
+        private fun collectUsefulNodes(reversedEdges: IntArray): CustomBitSet {
             val usefulNodes = CustomBitSet(constraintGraph.nodes.size)
 
             fun markReachableFrom(nodeId: Int) {
@@ -737,7 +760,6 @@ internal object DevirtualizationAnalysis {
                 if (!constraintGraph.functions.containsKey(function.symbol)) continue
                 function.body.forEachNonScopeNode { node ->
                     val virtualCall = node as? DataFlowIR.Node.VirtualCall ?: return@forEachNonScopeNode
-                    assert(nodesMap[virtualCall] != null) { "Node for virtual call $virtualCall has not been built" }
                     val receiverNode = constraintGraph.virtualCallSiteReceivers[virtualCall]?.root()
                             ?: error("virtualCallSiteReceivers were not built for virtual call $virtualCall")
 
@@ -759,9 +781,7 @@ internal object DevirtualizationAnalysis {
             val allTypes = typeHierarchy.allTypes
             val rootSet = computeRootSet(context, irModule, moduleDFG)
 
-            val nodesMap = mutableMapOf<DataFlowIR.Node, Node>()
-
-            val (instantiatingClasses, directEdges, reversedEdges) = buildConstraintGraph(nodesMap, functions, rootSet)
+            val (instantiatingClasses, directEdges, reversedEdges) = buildConstraintGraph(functions, rootSet)
 
             context.logMultiple {
                 +"FULL CONSTRAINT GRAPH"
@@ -808,7 +828,7 @@ internal object DevirtualizationAnalysis {
 
             propagateVirtualType(directEdges)
 
-            val usefulNodes = collectUsefulNodes(reversedEdges, nodesMap)
+            val usefulNodes = collectUsefulNodes(reversedEdges)
 
             if (entryPoint == null) {
                 // If a virtual function is called on a receiver coming from external world and
@@ -846,8 +866,11 @@ internal object DevirtualizationAnalysis {
             val badEdges = mutableListOf<Pair<Node, Node.CastEdge>>()
             for (node in topologicalOrder) {
                 node.directCastEdges
-                        ?.filter { it.node.priority < node.priority } // Contradicts topological order.
-                        ?.forEach { badEdges += node to it }
+                        ?.forEach {
+                            if (it.node.priority < node.priority){ // Contradicts topological order.
+                                badEdges += node to it
+                            }
+                        }
             }
             badEdges.sortBy { it.second.node.priority } // Heuristic.
 
@@ -868,15 +891,16 @@ internal object DevirtualizationAnalysis {
                         node.types.or(constraintGraph.nodes[it].types)
                     }
                     node.reversedCastEdges
-                            ?.filter { it.node.priority < node.priority } // Doesn't contradict topological order.
                             ?.forEach {
-                                node.types.orWithFilterHasChanged(it.node.types, it.suitableTypes)
+                                if (it.node.priority < node.priority) { // Doesn't contradict topological order.
+                                    node.types.orWithFilterHasChanged(it.node.types, it.suitableTypes)
+                                }
                             }
                 }
                 if (iterations >= maxNumberOfIterations) break
 
                 var end = true
-                for ((sourceNode, edge) in badEdges) {
+                for ([sourceNode, edge] in badEdges) {
                     val distNode = edge.node
                     if (distNode.types.orWithFilterHasChanged(sourceNode.types, edge.suitableTypes)) {
                         end = false
@@ -890,7 +914,7 @@ internal object DevirtualizationAnalysis {
             var front = IntArray(nodesCount)
             var prevFront = IntArray(nodesCount)
             var frontSize = 0
-            for ((sourceNode, edge) in badEdges) {
+            for ([sourceNode, edge] in badEdges) {
                 val distNode = edge.node
                 if (distNode.types.orWithFilterHasChanged(sourceNode.types, edge.suitableTypes) && !marked[distNode.id]) {
                     marked.set(distNode.id)
@@ -914,7 +938,7 @@ internal object DevirtualizationAnalysis {
                         if (marked[distNode.id])
                             distNode.types.or(node.types)
                         else {
-                            if (distNode.types.orWithFilterHasChanged(node.types) && !marked[distNode.id]) {
+                            if (distNode.types.orHasChanged(node.types) && !marked[distNode.id]) {
                                 marked.set(distNode.id)
                                 front[frontSize++] = distNode.id
                             }
@@ -950,7 +974,6 @@ internal object DevirtualizationAnalysis {
                 if (!constraintGraph.functions.containsKey(function.symbol)) continue
                 function.body.forEachNonScopeNode { node ->
                     val virtualCall = node as? DataFlowIR.Node.VirtualCall ?: return@forEachNonScopeNode
-                    assert(nodesMap[virtualCall] != null) { "Node for virtual call $virtualCall has not been built" }
                     val receiverNode = constraintGraph.virtualCallSiteReceivers[virtualCall]?.root()
                             ?: error("virtualCallSiteReceivers were not built for virtual call $virtualCall")
                     if (receiverNode.types[VIRTUAL_TYPE_ID]) {
@@ -998,7 +1021,7 @@ internal object DevirtualizationAnalysis {
 
             context.logMultiple {
                 +"Devirtualized from current module:"
-                result.forEach { (virtualCall, devirtualizedCallSite) ->
+                result.forEach { [virtualCall, devirtualizedCallSite] ->
                     if (virtualCall.irCallSite != null) {
                         +"DEVIRTUALIZED"
                         +"FUNCTION: ${devirtualizedCallSite.second}"
@@ -1010,7 +1033,7 @@ internal object DevirtualizationAnalysis {
                     }
                 }
                 +"Devirtualized from external modules:"
-                result.forEach { (virtualCall, devirtualizedCallSite) ->
+                result.forEach { [virtualCall, devirtualizedCallSite] ->
                     if (virtualCall.irCallSite == null) {
                         +"DEVIRTUALIZED"
                         +"FUNCTION: ${devirtualizedCallSite.second}"
@@ -1034,11 +1057,11 @@ internal object DevirtualizationAnalysis {
         // 2. build reversed edges array from the direct edges array.
         // This is to lower memory usage (all of these edges structures are more or less equal by size),
         // and by that we're only holding references to two out of three of them.
-        private fun buildConstraintGraph(nodesMap: MutableMap<DataFlowIR.Node, Node>,
-                                         functions: Map<DataFlowIR.FunctionSymbol, DataFlowIR.Function>,
-                                         rootSet: List<DataFlowIR.FunctionSymbol>
+        private fun buildConstraintGraph(
+                functions: Map<DataFlowIR.FunctionSymbol, DataFlowIR.Function>,
+                rootSet: List<DataFlowIR.FunctionSymbol>,
         ): ConstraintGraphBuildResult {
-            val precursor = buildConstraintGraphPrecursor(nodesMap, functions, rootSet)
+            val precursor = buildConstraintGraphPrecursor(functions, rootSet)
             return ConstraintGraphBuildResult(precursor.instantiatingClasses, precursor.directEdges,
                     buildReversedEdges(precursor.directEdges, precursor.reversedEdgesCount))
         }
@@ -1066,11 +1089,11 @@ internal object DevirtualizationAnalysis {
             return reversedEdges
         }
 
-        private fun buildConstraintGraphPrecursor(nodesMap: MutableMap<DataFlowIR.Node, Node>,
-                                                  functions: Map<DataFlowIR.FunctionSymbol, DataFlowIR.Function>,
-                                                  rootSet: List<DataFlowIR.FunctionSymbol>
+        private fun buildConstraintGraphPrecursor(
+                functions: Map<DataFlowIR.FunctionSymbol, DataFlowIR.Function>,
+                rootSet: List<DataFlowIR.FunctionSymbol>
         ): ConstraintGraphPrecursor {
-            val constraintGraphBuilder = ConstraintGraphBuilder(nodesMap, functions, rootSet, true)
+            val constraintGraphBuilder = ConstraintGraphBuilder(functions, rootSet, true)
             constraintGraphBuilder.build()
             val bagOfEdges = constraintGraphBuilder.bagOfEdges
             val directEdgesCount = constraintGraphBuilder.directEdgesCount
@@ -1079,6 +1102,11 @@ internal object DevirtualizationAnalysis {
             // numberOfNodes + 1 for convenience.
             directEdgesCount.reserve(numberOfNodes + 1)
             reversedEdgesCount.reserve(numberOfNodes + 1)
+            for (index in 0 ..< bagOfEdges.size) {
+                val edge = bagOfEdges.get(index)
+                directEdgesCount[edge.toInt()]++
+                reversedEdgesCount[(edge ushr 32).toInt()]++
+            }
             var edgesArraySize = numberOfNodes + 1
             for (v in 0 until numberOfNodes)
                 edgesArraySize += directEdgesCount[v]
@@ -1100,14 +1128,30 @@ internal object DevirtualizationAnalysis {
         private class ConstraintGraphVirtualCall(val caller: Function, val virtualCall: DataFlowIR.Node.VirtualCall,
                                                  val arguments: List<Node>, val returnsNode: Node)
 
-        private inner class ConstraintGraphBuilder(val functionNodesMap: MutableMap<DataFlowIR.Node, Node>,
-                                                   val functions: Map<DataFlowIR.FunctionSymbol, DataFlowIR.Function>,
-                                                   val rootSet: List<DataFlowIR.FunctionSymbol>,
-                                                   val useTypes: Boolean) {
+        // A virtual dispatch slot: all call sites with the same key (even from different function) resolve to
+        // the same set of possible callees (which depends only on the receiver's static type, the slot in the vtable
+        // and the set of instantiated classes), so they can share one fan-out to those callees.
+        private data class VirtualDispatchKey(val receiverTypeIndex: Int, val interfaceId: Int, val slot: Int) {
+            companion object {
+                fun create(node: DataFlowIR.Node.VirtualCall) = when (node) {
+                    is DataFlowIR.Node.VtableCall ->
+                        VirtualDispatchKey(node.receiverType.index, 0 /* Invalid value */, node.calleeVtableIndex)
 
+                    is DataFlowIR.Node.ItableCall ->
+                        VirtualDispatchKey(node.receiverType.index, node.interfaceId, node.calleeItableIndex)
+                }
+            }
+        }
+
+        private inner class ConstraintGraphBuilder(
+                val functions: Map<DataFlowIR.FunctionSymbol, DataFlowIR.Function>,
+                val rootSet: List<DataFlowIR.FunctionSymbol>,
+                val useTypes: Boolean,
+        ) {
+            private val functionNodesMap: MutableMap<DataFlowIR.Node, Node> = mutableMapOf()
+            private val variables = mutableMapOf<DataFlowIR.Node.Variable, Node>()
             private val typeHierarchy = moduleDFG.symbolTable.typeHierarchy
             private val allTypes = typeHierarchy.allTypes
-            private val variables = mutableMapOf<DataFlowIR.Node.Variable, Node>()
             private val typesVirtualCallSites = Array(allTypes.size) { mutableListOf<ConstraintGraphVirtualCall>() }
             private val suitableTypes = arrayOfNulls<CustomBitSet?>(allTypes.size)
             private val concreteClasses = arrayOfNulls<Node?>(allTypes.size)
@@ -1129,11 +1173,6 @@ internal object DevirtualizationAnalysis {
                 if (!localBagOfEdges.add(value)) return
 
                 bagOfEdges.add(value)
-
-                directEdgesCount.reserve(fromId + 1)
-                directEdgesCount[fromId]++
-                reversedEdgesCount.reserve(toId + 1)
-                reversedEdgesCount[toId]++
             }
 
             private fun concreteType(type: DataFlowIR.Type): Int {
@@ -1232,6 +1271,10 @@ internal object DevirtualizationAnalysis {
                         +"Returns: #${ids[function.body.returns]}"
                         +""
                     }
+
+                    // DFG nodes are function-local, so their mappings are dead once the function is processed.
+                    functionNodesMap.clear()
+                    variables.clear()
                 }
 
                 suitableTypes.forEach {
@@ -1285,6 +1328,34 @@ internal object DevirtualizationAnalysis {
                         doCall(virtualCall.caller, callee, virtualCall.arguments, callee.returnParameter.type),
                         virtualCall.returnsNode
                 )
+            }
+
+            private val virtualDispatchHubs = mutableMapOf<VirtualDispatchKey, Function>()
+
+            // Returns the hub for the given call site's virtual slot, building the fan-out
+            // to all possible callees on the first request.
+            private fun virtualDispatchHub(
+                    node: DataFlowIR.Node.VirtualCall
+            ) = virtualDispatchHubs.getOrPut(VirtualDispatchKey.create(node)) {
+                val callee = node.callee
+                Function(
+                        symbol = callee,
+                        parameters = Array(node.arguments.size) { ordinaryNode { "VirtualSlotParam#$it\$$callee" } },
+                        returns = ordinaryNode { "VirtualSlotReturns\$$callee" },
+                        throws = ordinaryNode { "VirtualSlotThrows\$$callee" },
+                ).also { hub ->
+                    val hubArguments = hub.parameters.asList()
+                    // Register the hub before expanding it: if the expansion instantiates a new class
+                    // (an external callee with a final return type), [checkSupertypes] brings this very
+                    // hub up to date through [processVirtualCall].
+                    typesVirtualCallSites[node.receiverType.index].add(
+                            ConstraintGraphVirtualCall(hub, node, hubArguments, hub.returns)
+                    )
+                    forEachBitInBoth(typeHierarchy.inheritorsOf(node.receiverType), instantiatingClasses) {
+                        val actualCallee = allTypes[it].calleeAt(node)
+                        addEdge(doCall(hub, actualCallee, hubArguments, actualCallee.returnParameter.type), hub.returns)
+                    }
+                }
             }
 
             private fun checkSupertypes(type: DataFlowIR.Type,
@@ -1466,12 +1537,13 @@ internal object DevirtualizationAnalysis {
                             }
 
                             val returnsNode = ordinaryNode { "VirtualCallReturns\$${function.symbol}" }
-                            if (receiverType != DataFlowIR.Type.Virtual)
-                                typesVirtualCallSites[receiverType.index].add(
-                                        ConstraintGraphVirtualCall(function, node, arguments, returnsNode))
-                            forEachBitInBoth(typeHierarchy.inheritorsOf(receiverType), instantiatingClasses) {
-                                val actualCallee = allTypes[it].calleeAt(node)
-                                addEdge(doCall(actualCallee, arguments, actualCallee.returnParameter.type), returnsNode)
+                            if (receiverType != DataFlowIR.Type.Virtual) {
+                                val hub = virtualDispatchHub(node)
+                                arguments.forEachIndexed { index, argument ->
+                                    addEdge(argument, hub.parameters[index])
+                                }
+                                addEdge(hub.returns, returnsNode)
+                                addEdge(hub.throws, function.throws)
                             }
                             if (entryPoint == null) {
                                 // Add cast to [Virtual] edge from receiver to returns, if return type is not final.
@@ -1587,7 +1659,7 @@ internal object DevirtualizationAnalysis {
 
     class DevirtualizedCallSite(val callee: DataFlowIR.FunctionSymbol, val possibleCallees: List<DevirtualizedCallee>)
 
-    fun run(context: Context, irModule: IrModuleFragment, moduleDFG: ModuleDFG) =
+    fun run(context: NativeBackendContext, irModule: IrModuleFragment, moduleDFG: ModuleDFG) =
             DevirtualizationAnalysisImpl(context, irModule, moduleDFG).analyze()
 
     fun devirtualize(irModule: IrModuleFragment, moduleDFG: ModuleDFG, generationState: NativeGenerationState,
@@ -1823,7 +1895,7 @@ internal object DevirtualizationAnalysis {
                             }
                             val branches = mutableListOf<IrBranchImpl>()
                             bestOrder!!.mapIndexedTo(branches) { index, target ->
-                                val (actualCallee, receiverTypes) = target
+                                (val actualCallee, val receiverTypes = possibleReceivers) = target
                                 val condition = when {
                                     optimize && index == possibleCallees.size - 1 -> {
                                         // Don't check the last type in optimize mode.

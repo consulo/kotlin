@@ -19,19 +19,15 @@ package androidx.compose.compiler.plugins.kotlin
 import androidx.compose.compiler.plugins.kotlin.analysis.FqNameMatcher
 import androidx.compose.compiler.plugins.kotlin.analysis.StabilityConfigParser
 import androidx.compose.compiler.plugins.kotlin.analysis.StabilityInferencer
-import androidx.compose.compiler.plugins.kotlin.k1.*
+import androidx.compose.compiler.plugins.kotlin.k2.ComposeErrors
 import androidx.compose.compiler.plugins.kotlin.k2.ComposeFirExtensionRegistrar
-import androidx.compose.compiler.plugins.kotlin.lower.ClassStabilityFieldSerializationPlugin
-import androidx.compose.compiler.plugins.kotlin.lower.hiddenfromobjc.AddHiddenFromObjCSerializationPlugin
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
+import org.jetbrains.kotlin.cli.report
 import org.jetbrains.kotlin.compiler.plugin.*
-import org.jetbrains.kotlin.config.*
-import org.jetbrains.kotlin.extensions.StorageComponentContainerContributor
-import org.jetbrains.kotlin.extensions.internal.TypeResolutionInterceptor
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.CompilerConfigurationKey
+import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
-import org.jetbrains.kotlin.resolve.diagnostics.DiagnosticSuppressor
-import org.jetbrains.kotlin.serialization.DescriptorSerializerPlugin
 import org.jetbrains.kotlin.utils.exceptions.rethrowIntellijPlatformExceptionIfNeeded
 import java.io.FileNotFoundException
 
@@ -54,6 +50,9 @@ object ComposeConfiguration {
         CompilerConfigurationKey<String>("Directory to save compose build metrics")
     val REPORTS_DESTINATION_KEY =
         CompilerConfigurationKey<String>("Directory to save compose build reports")
+    // TODO(b/485865131): This key must be deleted once `com.android.tools.compose.aa` no longer
+    //  relies on it.
+    @Suppress("unused")
     val INTRINSIC_REMEMBER_OPTIMIZATION_ENABLED_KEY =
         CompilerConfigurationKey<Boolean>("Enable optimization to treat remember as an intrinsic")
     val NON_SKIPPING_GROUP_OPTIMIZATION_ENABLED_KEY =
@@ -65,6 +64,9 @@ object ComposeConfiguration {
     )
     val DECOYS_ENABLED_KEY =
         CompilerConfigurationKey<Boolean>("Generate decoy methods in IR transform")
+    // TODO(b/485865131): This key must be deleted once `com.android.tools.compose.aa` no longer
+    //  relies on it.
+    @Suppress("unused")
     val STRONG_SKIPPING_ENABLED_KEY =
         CompilerConfigurationKey<Boolean>("Enable strong skipping mode")
     val STABILITY_CONFIG_PATH_KEY =
@@ -154,15 +156,6 @@ class ComposeCommandLineProcessor : CommandLineProcessor {
             required = false,
             allowMultipleOccurrences = true
         )
-        val INTRINSIC_REMEMBER_OPTIMIZATION_ENABLED_OPTION = CliOption(
-            "intrinsicRemember",
-            "<true|false>",
-            "Include source information in generated code. Deprecated. Use ${
-                useFeatureFlagInsteadMessage(FeatureFlag.IntrinsicRemember)
-            }",
-            required = false,
-            allowMultipleOccurrences = false
-        )
         val NON_SKIPPING_GROUP_OPTIMIZATION_ENABLED_OPTION = CliOption(
             optionName = "nonSkippingGroupOptimization",
             valueDescription = "<true|false>",
@@ -184,23 +177,6 @@ class ComposeCommandLineProcessor : CommandLineProcessor {
             "generateDecoys",
             "<true|false>",
             "Generate decoy methods in IR transform",
-            required = false,
-            allowMultipleOccurrences = false
-        )
-        val STRONG_SKIPPING_OPTION = CliOption(
-            "strongSkipping",
-            "<true|false>",
-            "Enable strong skipping mode. " +
-                    "Deprecated. ${useFeatureFlagInsteadMessage(FeatureFlag.StrongSkipping)}",
-            required = false,
-            allowMultipleOccurrences = false
-        )
-        val EXPERIMENTAL_STRONG_SKIPPING_OPTION = CliOption(
-            "experimentalStrongSkipping",
-            "<true|false>",
-            "Deprecated. ${
-                useFeatureFlagInsteadMessage(FeatureFlag.StrongSkipping)
-            }",
             required = false,
             allowMultipleOccurrences = false
         )
@@ -244,12 +220,9 @@ class ComposeCommandLineProcessor : CommandLineProcessor {
         SOURCE_INFORMATION_ENABLED_OPTION,
         METRICS_DESTINATION_OPTION,
         REPORTS_DESTINATION_OPTION,
-        INTRINSIC_REMEMBER_OPTIMIZATION_ENABLED_OPTION,
         NON_SKIPPING_GROUP_OPTIMIZATION_ENABLED_OPTION,
         SUPPRESS_KOTLIN_VERSION_CHECK_ENABLED_OPTION,
         DECOYS_ENABLED_OPTION,
-        EXPERIMENTAL_STRONG_SKIPPING_OPTION,
-        STRONG_SKIPPING_OPTION,
         STABLE_CONFIG_PATH_OPTION,
         TRACE_MARKERS_OPTION,
         FEATURE_FLAG_OPTION,
@@ -271,8 +244,8 @@ class ComposeCommandLineProcessor : CommandLineProcessor {
             value == "true"
         )
         GENERATE_FUNCTION_KEY_META_CLASSES_OPTION -> {
-            configuration.messageCollector.report(
-                CompilerMessageSeverity.WARNING,
+            configuration.report(
+                ComposeErrors.COMPOSE_CONFIGURATION_WARNING,
                 "${GENERATE_FUNCTION_KEY_META_CLASSES_OPTION.optionName} is deprecated. It was replaced by emitting annotations on " +
                         "functions instead. Use ${GENERATE_FUNCTION_KEY_META_ANNOTATION_OPTION.optionName} instead."
             )
@@ -299,17 +272,6 @@ class ComposeCommandLineProcessor : CommandLineProcessor {
             ComposeConfiguration.REPORTS_DESTINATION_KEY,
             value
         )
-        INTRINSIC_REMEMBER_OPTIMIZATION_ENABLED_OPTION -> {
-            oldOptionDeprecationWarning(
-                configuration,
-                INTRINSIC_REMEMBER_OPTIMIZATION_ENABLED_OPTION,
-                FeatureFlag.IntrinsicRemember
-            )
-            configuration.put(
-                ComposeConfiguration.INTRINSIC_REMEMBER_OPTIMIZATION_ENABLED_KEY,
-                value == "true"
-            )
-        }
         NON_SKIPPING_GROUP_OPTIMIZATION_ENABLED_OPTION -> {
             oldOptionDeprecationWarning(
                 configuration,
@@ -329,28 +291,6 @@ class ComposeCommandLineProcessor : CommandLineProcessor {
             ComposeConfiguration.DECOYS_ENABLED_KEY,
             value == "true"
         )
-        EXPERIMENTAL_STRONG_SKIPPING_OPTION -> {
-            oldOptionDeprecationWarning(
-                configuration,
-                EXPERIMENTAL_STRONG_SKIPPING_OPTION,
-                FeatureFlag.StrongSkipping
-            )
-            configuration.put(
-                ComposeConfiguration.STRONG_SKIPPING_ENABLED_KEY,
-                value == "true"
-            )
-        }
-        STRONG_SKIPPING_OPTION -> {
-            oldOptionDeprecationWarning(
-                configuration,
-                EXPERIMENTAL_STRONG_SKIPPING_OPTION,
-                FeatureFlag.StrongSkipping
-            )
-            configuration.put(
-                ComposeConfiguration.STRONG_SKIPPING_ENABLED_KEY,
-                value == "true"
-            )
-        }
         STABLE_CONFIG_PATH_OPTION -> configuration.appendList(
             ComposeConfiguration.STABILITY_CONFIG_PATH_KEY,
             value
@@ -415,8 +355,6 @@ class ComposeCommandLineProcessor : CommandLineProcessor {
  * @param default True if the feature is enabled by default or false if it is not.
  */
 enum class FeatureFlag(val featureName: String, val default: Boolean) {
-    StrongSkipping("StrongSkipping", default = true),
-    IntrinsicRemember("IntrinsicRemember", default = true),
     OptimizeNonSkippingGroups("OptimizeNonSkippingGroups", default = true),
     PausableComposition("PausableComposition", default = true),
     ;
@@ -426,7 +364,7 @@ enum class FeatureFlag(val featureName: String, val default: Boolean) {
 
     companion object {
         fun fromString(featureName: String): Pair<FeatureFlag?, Boolean> {
-            val (featureToSearch, enabled) = when {
+            val [featureToSearch, enabled] = when {
                 featureName.startsWith("+") -> featureName.substring(1) to true
                 featureName.startsWith("-") -> featureName.substring(1) to false
                 else -> featureName to true
@@ -476,7 +414,7 @@ class FeatureFlags(featureConfiguration: List<String> = emptyList()) {
 
     private fun processConfigurationList(featuresNames: List<String>) {
         for (featureName in featuresNames) {
-            val (feature, enabled) = FeatureFlag.fromString(featureName)
+            val [feature, enabled] = FeatureFlag.fromString(featureName)
             if (feature != null) {
                 if (enabled) enableFeature(feature) else disableFeature(feature)
             }
@@ -484,55 +422,52 @@ class FeatureFlags(featureConfiguration: List<String> = emptyList()) {
     }
 
     fun validateFeatureFlags(configuration: CompilerConfiguration) {
-        val msgCollector = configuration.get(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY)
-        if (msgCollector != null) {
-            val reported = mutableSetOf<FeatureFlag>()
-            fun report(feature: FeatureFlag, message: String) {
-                if (feature !in reported) {
-                    reported.add(feature)
-                    msgCollector.report(
-                        CompilerMessageSeverity.WARNING,
-                        message
-                    )
-                }
-            }
-
-            val configured = enabledFeatures + disabledFeatures
-            val oldAndNewSet = setForCompatibility.intersect(configured)
-            for (feature in oldAndNewSet) {
-                report(
-                    feature,
-                    "Feature ${featureFlagName()}=${feature.featureName} is using featureFlags " +
-                            "and is set using the deprecated option. It is recommended to only use " +
-                            "featureFlag. ${currentState(feature)}"
+        val reported = mutableSetOf<FeatureFlag>()
+        fun report(feature: FeatureFlag, message: String) {
+            if (feature !in reported) {
+                reported.add(feature)
+                configuration.report(
+                    ComposeErrors.COMPOSE_CONFIGURATION_WARNING,
+                    message
                 )
             }
-            for (feature in duplicate) {
-                if (feature !in reported) {
-                    report(
-                        feature,
-                        "Feature ${featureFlagName()}=${feature.featureName} was both enabled " +
-                                "and disabled. ${currentState(feature)}"
-                    )
-                }
+        }
+
+        val configured = enabledFeatures + disabledFeatures
+        val oldAndNewSet = setForCompatibility.intersect(configured)
+        for (feature in oldAndNewSet) {
+            report(
+                feature,
+                "Feature ${featureFlagName()}=${feature.featureName} is using featureFlags " +
+                        "and is set using the deprecated option. It is recommended to only use " +
+                        "featureFlag. ${currentState(feature)}"
+            )
+        }
+        for (feature in duplicate) {
+            if (feature !in reported) {
+                report(
+                    feature,
+                    "Feature ${featureFlagName()}=${feature.featureName} was both enabled " +
+                            "and disabled. ${currentState(feature)}"
+                )
             }
-            for (feature in disabledFeatures) {
-                if (!feature.default) {
-                    report(
-                        feature,
-                        "The feature ${featureFlagName()}=${feature.featureName} is disabled " +
-                                "by default and specifying this option explicitly is not necessary."
-                    )
-                }
+        }
+        for (feature in disabledFeatures) {
+            if (!feature.default) {
+                report(
+                    feature,
+                    "The feature ${featureFlagName()}=${feature.featureName} is disabled " +
+                            "by default and specifying this option explicitly is not necessary."
+                )
             }
-            for (feature in enabledFeatures) {
-                if (feature.default) {
-                    report(
-                        feature,
-                        "The feature ${featureFlagName()}=${feature.featureName} is enabled " +
-                                "by default and specifying this option explicitly is not necessary."
-                    )
-                }
+        }
+        for (feature in enabledFeatures) {
+            if (feature.default) {
+                report(
+                    feature,
+                    "The feature ${featureFlagName()}=${feature.featureName} is enabled " +
+                            "by default and specifying this option explicitly is not necessary."
+                )
             }
         }
     }
@@ -556,8 +491,8 @@ fun oldOptionDeprecationWarning(
     oldOption: AbstractCliOption,
     feature: FeatureFlag,
 ) {
-    configuration.messageCollector.report(
-        CompilerMessageSeverity.WARNING,
+    configuration.report(
+        ComposeErrors.COMPOSE_CONFIGURATION_WARNING,
         "${oldOption.optionName} is deprecated. ${useFeatureFlagInsteadMessage(feature)}"
     )
 }
@@ -566,10 +501,10 @@ fun validateFeatureFlag(
     configuration: CompilerConfiguration,
     value: String,
 ) {
-    val (feature, _) = FeatureFlag.fromString(value)
+    val [feature, _] = FeatureFlag.fromString(value)
     if (feature == null) {
-        configuration.messageCollector.report(
-            CompilerMessageSeverity.WARNING,
+        configuration.report(
+            ComposeErrors.COMPOSE_CONFIGURATION_WARNING,
             "${featureFlagName()} contains an unrecognized feature name: $value."
         )
     }
@@ -584,35 +519,22 @@ class ComposePluginRegistrar : CompilerPluginRegistrar() {
 
     override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
         if (checkCompilerConfiguration(configuration)) {
-            val usesK2 = configuration.languageVersionSettings.languageVersion.usesK2
-            val descriptorSerializerContext =
-                if (usesK2) null
-                else ComposeDescriptorSerializerContext()
-
             setupJvmConfiguration(configuration)
 
-            registerCommonExtensions(descriptorSerializerContext)
+            registerCommonExtensions()
 
             IrGenerationExtension.registerExtension(
-                createComposeIrExtension(
-                    configuration,
-                    descriptorSerializerContext
-                )
+                createComposeIrExtension(configuration,)
             )
-
-            if (!usesK2) {
-                registerNativeExtensions(descriptorSerializerContext!!)
-            }
         }
     }
 
     companion object {
         fun checkCompilerConfiguration(configuration: CompilerConfiguration): Boolean {
-            val msgCollector = configuration.messageCollector
             val suppressKotlinVersionCheck = configuration.get(ComposeConfiguration.SUPPRESS_KOTLIN_VERSION_COMPATIBILITY_CHECK)
             if (suppressKotlinVersionCheck != null) {
-                msgCollector.report(
-                    CompilerMessageSeverity.WARNING,
+                configuration.report(
+                    ComposeErrors.COMPOSE_CONFIGURATION_WARNING,
                     "suppressKotlinVersionCompatibilityCheck flag is deprecated for Compose compiler bundled with Kotlin releases."
                 )
             }
@@ -620,8 +542,8 @@ class ComposePluginRegistrar : CompilerPluginRegistrar() {
             val decoysEnabled =
                 configuration.get(ComposeConfiguration.DECOYS_ENABLED_KEY, false)
             if (decoysEnabled) {
-                msgCollector.report(
-                    CompilerMessageSeverity.ERROR,
+                configuration.report(
+                    ComposeErrors.COMPOSE_CONFIGURATION_ERROR,
                     "Decoys generation is no longer supported by the Compose compiler."
                 )
                 return false
@@ -640,47 +562,12 @@ class ComposePluginRegistrar : CompilerPluginRegistrar() {
             )
         }
 
-        fun ExtensionStorage.registerCommonExtensions(
-            composeDescriptorSerializerContext: ComposeDescriptorSerializerContext? = null,
-        ) {
-            StorageComponentContainerContributor.registerExtension(
-                ComposableCallChecker()
-            )
-            StorageComponentContainerContributor.registerExtension(
-                ComposableDeclarationChecker()
-            )
-            StorageComponentContainerContributor.registerExtension(
-                ComposableTargetChecker()
-            )
-            StorageComponentContainerContributor.registerExtension(
-                ComposableAnnotationChecker()
-            )
-            DiagnosticSuppressor.registerExtension(ComposeDiagnosticSuppressor())
-            @Suppress("OPT_IN_USAGE_ERROR")
-            TypeResolutionInterceptor.registerExtension(
-                ComposeTypeResolutionInterceptorExtension()
-            )
-            DescriptorSerializerPlugin.registerExtension(
-                ClassStabilityFieldSerializationPlugin(
-                    composeDescriptorSerializerContext?.classStabilityInferredCollection
-                )
-            )
+        fun ExtensionStorage.registerCommonExtensions() {
             FirExtensionRegistrar.registerExtension(ComposeFirExtensionRegistrar())
-        }
-
-        fun ExtensionStorage.registerNativeExtensions(
-            composeDescriptorSerializerContext: ComposeDescriptorSerializerContext,
-        ) {
-            DescriptorSerializerPlugin.registerExtension(
-                AddHiddenFromObjCSerializationPlugin(
-                    composeDescriptorSerializerContext.hideFromObjCDeclarationsSet
-                )
-            )
         }
 
         fun createComposeIrExtension(
             configuration: CompilerConfiguration,
-            descriptorSerializerContext: ComposeDescriptorSerializerContext? = null,
             moduleMetricsFactory: ((StabilityInferencer, FeatureFlags) -> ModuleMetrics)? = null,
         ): ComposeIrGenerationExtension {
             val liveLiteralsEnabled = configuration.getBoolean(
@@ -695,10 +582,6 @@ class ComposePluginRegistrar : CompilerPluginRegistrar() {
             val sourceInformationEnabled = configuration.getBoolean(
                 ComposeConfiguration.SOURCE_INFORMATION_ENABLED_KEY,
             )
-            val intrinsicRememberEnabled = configuration.get(
-                ComposeConfiguration.INTRINSIC_REMEMBER_OPTIMIZATION_ENABLED_KEY,
-                FeatureFlag.IntrinsicRemember.default
-            )
             val nonSkippingGroupOptimizationEnabled = configuration.get(
                 ComposeConfiguration.NON_SKIPPING_GROUP_OPTIMIZATION_ENABLED_KEY,
                 FeatureFlag.OptimizeNonSkippingGroups.default
@@ -711,13 +594,6 @@ class ComposePluginRegistrar : CompilerPluginRegistrar() {
                 ComposeConfiguration.REPORTS_DESTINATION_KEY,
                 ""
             ).ifBlank { null }
-
-            val useK2 = configuration.languageVersionSettings.languageVersion.usesK2
-
-            val strongSkippingEnabled = configuration.get(
-                ComposeConfiguration.STRONG_SKIPPING_ENABLED_KEY,
-                FeatureFlag.StrongSkipping.default
-            )
 
             val stabilityConfigPaths = configuration.getList(
                 ComposeConfiguration.STABILITY_CONFIG_PATH_KEY
@@ -744,8 +620,6 @@ class ComposePluginRegistrar : CompilerPluginRegistrar() {
 
             // Compatibility with older features configuration options
             // New features should not create a explicit option
-            featureFlags.setFeature(FeatureFlag.IntrinsicRemember, intrinsicRememberEnabled)
-            featureFlags.setFeature(FeatureFlag.StrongSkipping, strongSkippingEnabled)
             featureFlags.setFeature(
                 FeatureFlag.OptimizeNonSkippingGroups,
                 nonSkippingGroupOptimizationEnabled
@@ -757,15 +631,15 @@ class ComposePluginRegistrar : CompilerPluginRegistrar() {
                 val matchers = try {
                     StabilityConfigParser.fromFile(path).stableTypeMatchers
                 } catch (e: FileNotFoundException) {
-                    configuration.messageCollector.report(
-                        CompilerMessageSeverity.WARNING,
+                    configuration.report(
+                        ComposeErrors.COMPOSE_CONFIGURATION_WARNING,
                         "Stability configuration file not found at $path"
                     )
                     emptySet()
                 } catch (e: Exception) {
                     rethrowIntellijPlatformExceptionIfNeeded(e)
-                    configuration.messageCollector.report(
-                        CompilerMessageSeverity.ERROR,
+                    configuration.report(
+                        ComposeErrors.COMPOSE_CONFIGURATION_ERROR,
                         e.message ?: "Error parsing stability configuration at $path"
                     )
                     emptySet()
@@ -785,13 +659,10 @@ class ComposePluginRegistrar : CompilerPluginRegistrar() {
                 traceMarkersEnabled = traceMarkersEnabled,
                 metricsDestination = metricsDestination,
                 reportsDestination = reportsDestination,
-                useK2 = useK2,
                 stableTypeMatchers = stableTypeMatchers,
                 moduleMetricsFactory = moduleMetricsFactory,
-                descriptorSerializerContext = descriptorSerializerContext,
                 featureFlags = featureFlags,
                 skipIfRuntimeNotFound = skipIrLoweringIfRuntimeNotFound,
-                messageCollector = configuration.messageCollector,
                 targetRuntimeVersion = targetRuntimeVersion,
             )
         }

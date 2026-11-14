@@ -9,18 +9,19 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.plugins.ExtensionContainer
+import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.logging.kotlinInfo
-import org.jetbrains.kotlin.gradle.targets.js.MultiplePluginDeclarationDetector
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.JsPlatformDisambiguator
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmPlatformDisambiguator
 import org.jetbrains.kotlin.gradle.targets.web.HasPlatformDisambiguator
+import org.jetbrains.kotlin.gradle.targets.web.ObsoleteJsAndWasmToolingProvisioning
 import org.jetbrains.kotlin.gradle.tasks.registerTask
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
 
-internal abstract class SwcPlugin internal constructor() : Plugin<Project> {
+@InternalKotlinGradlePluginApi
+@ObsoleteJsAndWasmToolingProvisioning
+abstract class SwcPlugin internal constructor() : Plugin<Project> {
     override fun apply(project: Project) {
-        MultiplePluginDeclarationDetector.detect(project)
-
         project.plugins.apply(BasePlugin::class.java)
 
         val spec = project.extensions.createSwcEnvSpec()
@@ -57,7 +58,7 @@ internal abstract class SwcPlugin internal constructor() : Plugin<Project> {
         downloadBaseUrl.set("https://github.com/swc-project/swc/releases/download")
         allowInsecureProtocol.convention(false)
         installationDirectory.fileValue(gradleHome.resolve("swc"))
-        version.convention("1.15.3")
+        version.convention("1.16.2")
         command.convention("compile")
         platform.convention(
             project.providers.systemProperty("os.name")
@@ -69,6 +70,8 @@ internal abstract class SwcPlugin internal constructor() : Plugin<Project> {
         )
     }
 
+    @InternalKotlinGradlePluginApi
+    @ObsoleteJsAndWasmToolingProvisioning
     companion object : HasPlatformDisambiguator by WasmPlatformDisambiguator {
         const val TASKS_GROUP_NAME: String = "swc"
 

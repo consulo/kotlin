@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2022 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -14,17 +14,16 @@ import org.jetbrains.kotlin.backend.konan.llvm.ExceptionHandler
 import org.jetbrains.kotlin.backend.konan.llvm.Lifetime
 import org.jetbrains.kotlin.backend.konan.lower.getLoweredConstructorFunction
 import org.jetbrains.kotlin.backend.konan.lower.getObjectClassInstanceFunction
-import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.util.isOverridable
-import org.jetbrains.kotlin.resolve.DescriptorUtils
+import org.jetbrains.kotlin.ir.util.isTopLevel
 
 /**
  * Second phase of C Export: build bitcode bridges from C wrappers to Kotlin functions.
  */
 internal class CAdapterCodegen(
-    private val codegen: CodeGenerator,
-    override val generationState: NativeGenerationState,
+        private val codegen: CodeGenerator,
+        override val generationState: NativeGenerationState,
 ) : ContextUtils {
 
     fun buildAllAdaptersRecursively(elements: CAdapterExportedElements) {
@@ -41,21 +40,21 @@ internal class CAdapterCodegen(
     private fun buildCAdapter(exportedElement: ExportedElement): Unit = with(exportedElement) {
         when {
             isFunction -> {
-                val function = declaration as FunctionDescriptor
-                val irFunction = irSymbol.owner.let {
+                val originalFunction = irSymbol.owner as IrFunction
+                val irFunction = originalFunction.let {
                     it as? IrSimpleFunction ?: context.getLoweredConstructorFunction(it as IrConstructor)
                 }
-                cname = "_konan_function_${owner.nextFunctionIndex()}"
+                cname = "_konan_function_${generator.nextFunctionIndex()}"
                 val signature = LlvmFunctionSignature(irFunction, this@CAdapterCodegen)
                 val bridgeFunctionProto = signature.toProto(cname, null, LLVMLinkage.LLVMExternalLinkage)
                 // If function is virtual, we need to resolve receiver properly.
                 generateFunction(codegen, bridgeFunctionProto) {
-                    val callee = if (!DescriptorUtils.isTopLevelDeclaration(function) && irFunction.isOverridable) {
+                    val callee = if (!originalFunction.isTopLevel && irFunction.isOverridable) {
                         codegen.getVirtualFunctionTrampoline(irFunction)
                     } else {
                         // KT-45468: Alias insertion may not be handled by LLVM properly, in case callee is in the cache.
                         // Hence, insert not an alias but a wrapper, hoping it will be optimized out later.
-                        codegen.llvmFunction(irFunction)
+                        codegen.getLlvmFunctionFrom(irFunction)
                     }
 
                     val args = signature.parameterTypes.indices.map { param(it) }
@@ -65,7 +64,7 @@ internal class CAdapterCodegen(
             }
             isClass -> {
                 val irClass = irSymbol.owner as IrClass
-                cname = "_konan_function_${owner.nextFunctionIndex()}"
+                cname = "_konan_function_${generator.nextFunctionIndex()}"
                 // Produce type getter.
                 val getTypeFunction = kGetTypeFuncType.toProto(
                         "${cname}_type",
@@ -86,12 +85,12 @@ internal class CAdapterCodegen(
                     )
                     generateFunction(codegen, functionProto) {
                         val value = call(
-                            codegen.llvmFunction(context.getObjectClassInstanceFunction(irClass)),
-                            emptyList(),
-                            Lifetime.GLOBAL,
-                            ExceptionHandler.Caller,
-                            false,
-                            returnSlot
+                                codegen.getLlvmFunctionFrom(context.getObjectClassInstanceFunction(irClass)),
+                                emptyList(),
+                                Lifetime.GLOBAL,
+                                ExceptionHandler.Caller,
+                                false,
+                                returnSlot
                         )
                         ret(value)
                     }
@@ -99,7 +98,7 @@ internal class CAdapterCodegen(
             }
             isEnumEntry -> {
                 // Produce entry getter.
-                cname = "_konan_function_${owner.nextFunctionIndex()}"
+                cname = "_konan_function_${generator.nextFunctionIndex()}"
                 val functionProto = kGetObjectFuncType.toProto(
                         cname,
                         null,

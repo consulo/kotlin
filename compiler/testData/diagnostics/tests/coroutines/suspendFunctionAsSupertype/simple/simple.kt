@@ -1,6 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +SuspendFunctionAsSupertype
-// SKIP_TXT
+// RUN_PIPELINE_TILL: CODEGEN
 
 class C: suspend () -> Unit {
     override suspend fun invoke() {

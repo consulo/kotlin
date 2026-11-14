@@ -25,7 +25,7 @@ internal fun Context.renderKaContractEffectDeclaration(value: KaContractEffectDe
         when (value) {
             is KaContractCallsInPlaceContractEffectDeclaration -> {
                 appendProperty(value::valueParameterReference, ::renderKaContractParameterValue)
-                appendSimpleProperty(value::occurrencesRange, endWithNewLine)
+                appendSimpleProperty(value::invocationKind, endWithNewLine)
             }
             is KaContractConditionalContractEffectDeclaration -> {
                 appendProperty(value::effect, ::renderKaContractEffectDeclaration)
@@ -36,6 +36,9 @@ internal fun Context.renderKaContractEffectDeclaration(value: KaContractEffectDe
                 appendProperty(value::valueParameterReference, ::renderKaContractParameterValue, endWithNewLine)
             }
             is KaContractReturnsResultOfEffectDeclaration -> {
+                appendProperty(value::valueParameterReference, ::renderKaContractParameterValue, endWithNewLine)
+            }
+            is KaContractReturnsParameterEffectDeclaration -> {
                 appendProperty(value::valueParameterReference, ::renderKaContractParameterValue, endWithNewLine)
             }
             is KaContractReturnsContractEffectDeclaration -> {

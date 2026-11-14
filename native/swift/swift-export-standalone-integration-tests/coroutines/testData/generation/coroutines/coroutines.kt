@@ -1,7 +1,3 @@
-// IGNORE_NATIVE: targetFamily=IOS
-// IGNORE_NATIVE: targetFamily=TVOS
-// IGNORE_NATIVE: targetFamily=WATCHOS
-// IGNORE_NATIVE: target=macos_x64
 // KIND: STANDALONE
 // APPLE_ONLY_VALIDATION
 // MODULE: main
@@ -46,6 +42,8 @@ fun flowOfUnit(): Flow<Unit> = TODO()
 fun flowOfNullableUnit(): Flow<Unit?> = TODO()
 
 fun mutableStateFlowOfUnit(): MutableStateFlow<Unit> = TODO()
+
+suspend fun <T: Any> returnSuspendGeneric(): T = TODO()
 
 // FILE: coroutines_extra.kt
 

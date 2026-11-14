@@ -2,6 +2,8 @@ plugins {
     id("org.jetbrains.kotlin.multiplatform")
 }
 
+group = "MultiProject"
+
 repositories {
     mavenLocal()
     mavenCentral()
@@ -17,7 +19,7 @@ kotlin {
     }
 
     sourceSets {
-        val commonMain by getting {
+        val commonMain = getByName("commonMain") {
             dependencies {
                 implementation(project(":library"))
             }

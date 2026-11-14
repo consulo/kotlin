@@ -28,10 +28,13 @@ import org.jetbrains.kotlin.gradle.testing.PrettyPrint
 import org.jetbrains.kotlin.gradle.testing.ResolvedComponentWithArtifacts
 import org.jetbrains.kotlin.gradle.testing.prettyPrinted
 import org.jetbrains.kotlin.gradle.testing.resolveProjectDependencyComponentsWithArtifacts
+import org.jetbrains.kotlin.gradle.util.computeTransformedLibraryVersionChecksum
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import java.io.File
 import kotlin.test.*
 
+@MustRunOnChangesInGradle
 @MppGradlePluginTests
 class BuildScriptInjectionIT : KGPBaseTest() {
 
@@ -118,10 +121,7 @@ class BuildScriptInjectionIT : KGPBaseTest() {
             build(":consumer:assemble")
 
             assertEquals(
-                """
-                /consumeInCommon|consumeInCommon(Common){}[0]
-                
-                """.trimIndent(),
+                "public final fun consumeInCommon(common: Common): kotlin/Unit",
                 dumpKlibMetadataSignatures(
                     consumer.buildScriptReturn {
                         kotlinMultiplatform.metadata().compilations.getByName("commonMain").output.classesDirs.singleFile
@@ -131,9 +131,8 @@ class BuildScriptInjectionIT : KGPBaseTest() {
 
             assertEquals(
                 """
-                /consumeInCommon|consumeInCommon(Common){}[0]
-                /consumeInLinuxArm64Main|consumeInLinuxArm64Main(Common;LinuxArm64){}[0]
-                
+                public final fun consumeInCommon(common: Common): kotlin/Unit
+                public final fun consumeInLinuxArm64Main(common: Common, linuxArm64: LinuxArm64): kotlin/Unit
                 """.trimIndent(),
                 dumpKlibMetadataSignatures(
                     consumer.buildScriptReturn {
@@ -144,9 +143,6 @@ class BuildScriptInjectionIT : KGPBaseTest() {
         }
     }
 
-    @GradleTestVersions(
-        minVersion = TestVersions.Gradle.G_8_1,
-    )
     @GradleTest
     fun buildScriptReturnIsCCFriendly(version: GradleVersion) {
         // Sanity check that enabling CC produces CC serialization errors with inappropriately constructed providers in providerBuildScriptReturn
@@ -166,9 +162,7 @@ class BuildScriptInjectionIT : KGPBaseTest() {
         project("empty", version) {
             buildScriptReturn {
                 project.layout.projectDirectory.file("foo").asFile
-            }.buildAndReturn(
-                configurationCache = BuildOptions.ConfigurationCacheValue.ENABLED,
-            )
+            }.buildAndReturn()
         }
 
         // Make sure delayed task providers (e.g. mapped from a task) get queried at the correct time even in runs with CC
@@ -205,9 +199,7 @@ class BuildScriptInjectionIT : KGPBaseTest() {
 
             providerBuildScriptReturn {
                 mappedTaskOutputProvider()
-            }.buildAndReturn(
-                configurationCache = BuildOptions.ConfigurationCacheValue.ENABLED,
-            )
+            }.buildAndReturn()
         }
     }
 
@@ -563,7 +555,7 @@ class BuildScriptInjectionIT : KGPBaseTest() {
             }
             buildScriptInjection {
                 with(project.extensions.getByType(LibraryExtension::class.java)) {
-                    compileSdk = 23
+                    compileSdk = 36
                     namespace = "kotlin"
                 }
             }
@@ -611,16 +603,21 @@ class BuildScriptInjectionIT : KGPBaseTest() {
         version: GradleVersion,
     ) {
         // Bare template build script should not see KGP
-        project(bareTemplate, version) {
-            buildScriptInjection {
-                project.plugins.apply("org.jetbrains.kotlin.multiplatform")
+        // UnknownPluginException serialVersionUID has changed in Gradle 9.7 causing 'local class incompatible' error on older
+        // Gradle versions
+        if (version >= GradleVersion.version(TestVersions.Gradle.G_9_7)) {
+            project(bareTemplate, version) {
+                buildScriptInjection {
+                    project.plugins.apply("org.jetbrains.kotlin.multiplatform")
+                }
+                assertIsInstance<UnknownPluginException>(
+                    catchBuildFailures<UnknownPluginException>().buildAndReturn(
+                        "help",
+                    ).unwrap().single()
+                )
             }
-            assertIsInstance<UnknownPluginException>(
-                catchBuildFailures<UnknownPluginException>().buildAndReturn(
-                    "help",
-                ).unwrap().single()
-            )
         }
+
         // But if we inject KGP everything should work
         project(bareTemplate, version) {
             addKgpToBuildScriptCompilationClasspath()
@@ -667,6 +664,7 @@ class BuildScriptInjectionIT : KGPBaseTest() {
             addKgpToBuildScriptCompilationClasspath()
             addPublishedProjectToRepositories(publishedProject)
             buildScriptInjection {
+                project.computeTransformedLibraryVersionChecksum(enable = false)
                 project.applyMultiplatform {
                     linuxArm64()
                     linuxX64()

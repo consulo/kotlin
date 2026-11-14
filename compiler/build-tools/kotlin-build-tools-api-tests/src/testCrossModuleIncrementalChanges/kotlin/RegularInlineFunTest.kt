@@ -6,8 +6,13 @@
 package org.jetbrains.kotlin.buildtools.tests.compilation
 
 import org.jetbrains.kotlin.buildtools.tests.CompilerExecutionStrategyConfiguration
+import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertCompiledSources
+import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertNoCompiledSources
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.DefaultStrategyAgnosticCompilationTest
-import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.scenario
+import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.Scenario
+import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.jsScenario
+import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.jvmScenario
+import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.wasmScenario
 import org.jetbrains.kotlin.buildtools.tests.compilation.util.compile
 import org.jetbrains.kotlin.buildtools.tests.compilation.util.execute
 import org.jetbrains.kotlin.test.TestMetadata
@@ -19,7 +24,7 @@ class RegularInlineFunTest : BaseCompilationTest() {
     @DisplayName("When regular inline function changes, its call site is recompiled")
     @TestMetadata("ic-scenarios/regular-inline-fun/basic-change/lib")
     fun testBasicCase(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        scenario(strategyConfig) {
+        jvmScenario(strategyConfig) {
             val lib = module("ic-scenarios/regular-inline-fun/basic-change/lib")
             val app = module(
                 "ic-scenarios/regular-inline-fun/basic-change/app",
@@ -52,7 +57,7 @@ class RegularInlineFunTest : BaseCompilationTest() {
     @DisplayName("Recompilation of call site affected by an inline fun in a value class")
     @TestMetadata("ic-scenarios/inline-fun-in-value-class/lib")
     fun testJvmInlineValueClass(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        scenario(strategyConfig) {
+        jvmScenario(strategyConfig) {
             val lib = module("ic-scenarios/inline-fun-in-value-class/lib")
             val app = module(
                 "ic-scenarios/inline-fun-in-value-class/app",
@@ -78,5 +83,38 @@ class RegularInlineFunTest : BaseCompilationTest() {
             app.compile(expectedDirtySet = setOf("callSite.kt"))
             app.execute(mainClass = "CallSiteKt", exactOutput = "123_foo_bar")
         }
+    }
+
+    @DefaultStrategyAgnosticCompilationTest
+    @DisplayName("KT-89077: JS: changing an inline function body in a klib dependency must recompile its call site")
+    @TestMetadata("ic-scenarios/regular-inline-fun/basic-change/lib")
+    fun testJsInlineFunBodyChangeRecompilesCallSite(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        jsScenario(strategyConfig) {
+            checkInlineFunBodyChangeRecompilesCallSite()
+        }
+    }
+
+    @DefaultStrategyAgnosticCompilationTest
+    @DisplayName("KT-89077: Wasm: changing an inline function body in a klib dependency must recompile its call site")
+    @TestMetadata("ic-scenarios/regular-inline-fun/basic-change/lib")
+    fun testWasmInlineFunBodyChangeRecompilesCallSite(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        wasmScenario(strategyConfig) {
+            checkInlineFunBodyChangeRecompilesCallSite()
+        }
+    }
+
+    private fun Scenario<*, *>.checkInlineFunBodyChangeRecompilesCallSite() {
+        val lib = module("ic-scenarios/regular-inline-fun/basic-change/lib")
+        val app = module(
+            "ic-scenarios/regular-inline-fun/basic-change/app",
+            dependencies = listOf(lib),
+        )
+
+        lib.changeFile("com/example/ictest/inlineFun.kt") { it.replace("return item", "return \"bar\"") }
+
+        lib.compile {
+            assertCompiledSources("com/example/ictest/inlineFun.kt")
+        }
+        app.compile(expectedDirtySet = setOf("com/example/ictest/callSite.kt"))
     }
 }

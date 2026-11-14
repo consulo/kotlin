@@ -1,10 +1,10 @@
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/OptIn(markerClass = [kotlin.contracts.ExperimentalContracts::class])
       psi: KtAnnotationEntry
   ]
   callableId: /Result.isFailure
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: [
@@ -17,11 +17,11 @@ KaNamedFunctionSymbol:
             KaContractOwnerParameterValue:
               symbol:
                 KaNamedClassSymbol:
+                  anchorPsi: KtClass
                   annotations: []
                   classId: Result
                   classKind: CLASS
                   companionObject: null
-                  compilerVisibility: Public
                   contextReceivers: []
                   isActual: false
                   isData: false
@@ -30,10 +30,13 @@ KaNamedFunctionSymbol:
                   isFun: false
                   isInline: false
                   isInner: false
+                  isValue: false
                   location: TOP_LEVEL
                   modality: SEALED
                   name: Result
                   origin: SOURCE
+                  psi: KtClass
+                  realPsi: KtClass
                   superTypes: [
                     KaUsualClassType:
                       annotations: []
@@ -44,8 +47,8 @@ KaNamedFunctionSymbol:
                   visibility: PUBLIC
                   getContainingFileSymbol: KaFileSymbol(castForDispatchReceiver.kt)
                   getContainingModule: KaSourceModule "Sources of main"
-                  annotationApplicableTargets: null
-                  deprecationStatus: null
+                  applicableAnnotationTargets: null
+                  deprecation: null
                   importableFqName: Result
           type:
             KaUsualClassType:
@@ -57,6 +60,7 @@ KaNamedFunctionSymbol:
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -71,6 +75,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: isFailure
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -87,6 +93,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: Result
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: isFailure
   importableFqName: null

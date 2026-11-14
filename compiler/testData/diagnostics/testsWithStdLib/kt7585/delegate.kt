@@ -1,6 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// NI_EXPECTED_FILE
-// JAVAC_EXPECTED_FILE
+// RUN_PIPELINE_TILL: CODEGEN
 // FILE: Base.java
 
 public interface Base {}

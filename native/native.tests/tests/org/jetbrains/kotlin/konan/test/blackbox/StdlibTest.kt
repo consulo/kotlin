@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.konan.test.blackbox.support.group.PredefinedPaths.KO
 import org.jetbrains.kotlin.konan.test.blackbox.support.group.PredefinedTestCases
 import org.jetbrains.kotlin.konan.test.blackbox.support.group.UsePartialLinkage
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.GCScheduler
+import org.jetbrains.kotlin.testFederation.MustRunAlways
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
@@ -28,19 +29,28 @@ import org.jetbrains.kotlin.konan.test.blackbox.support.group.PredefinedTestCase
         name = "default",
         runnerType = TestRunnerType.DEFAULT,
         freeCompilerArgs = [
-            ENABLE_MPP, STDLIB_IS_A_FRIEND, ENABLE_X_STDLIB_API, ENABLE_X_ENCODING_API, ENABLE_RANGE_UNTIL,
+            DogfoodedExperimentalFeatures.ENABLE_CONTEXT_PARAMETERS,
+            DogfoodedExperimentalFeatures.ENABLE_EXPLICIT_BACKING_FIELDS,
+            DogfoodedExperimentalFeatures.ENABLE_NAME_BASED_DESTRUCTURING,
+            DogfoodedExperimentalFeatures.ENABLE_COLLECTION_LITERALS,
+            DogfoodedExperimentalFeatures.ENABLE_CONTEXT_SENSITIVE_RESOLUTION,
+            DogfoodedExperimentalFeatures.ENABLE_EXPLICIT_CONTEXT_ARGUMENTS,
+            DogfoodedExperimentalFeatures.REDUNDANT_CLI_WARNING_SUPPRESSION,
+            ENABLE_COMPANION_BLOCKS, ENABLE_MPP, STDLIB_IS_A_FRIEND, ENABLE_X_STDLIB_API, ENABLE_X_ENCODING_API,
             ENABLE_X_FOREIGN_API, ENABLE_X_NATIVE_API, ENABLE_OBSOLETE_NATIVE_API, ENABLE_NATIVE_RUNTIME_API,
             ENABLE_OBSOLETE_WORKERS_API, ENABLE_INTERNAL_FOR_KOTLIN_NATIVE, ENABLE_X_UUID_API, ENABLE_X_TIME,
-            "-Xcommon-sources=libraries/stdlib/common/test/jsCollectionFactories.kt",
-            "-Xcommon-sources=libraries/stdlib/common/test/testUtils.kt",
-            "-Xcommon-sources=libraries/stdlib/test/testUtils.kt",
-            "-Xcommon-sources=libraries/stdlib/test/text/StringEncodingTest.kt",
+            "-Xcommon-sources=../../libraries/stdlib/common/test/jsCollectionFactories.kt",
+            "-Xcommon-sources=../../libraries/stdlib/common/test/testUtils.kt",
+            "-Xcommon-sources=../../libraries/stdlib/test/testUtils.kt",
+            "-Xcommon-sources=../../libraries/stdlib/test/text/StringEncodingTest.kt",
         ],
         sourceLocations = [
-            "libraries/stdlib/test/**.kt",
-            "libraries/stdlib/common/test/**.kt",
-            "libraries/stdlib/native-wasm/test/**.kt",
-            "kotlin-native/runtime/test/**.kt"
+            // We shouldn't use hardcoded paths (the same applies to freeCompilerArgs)
+            // https://youtrack.jetbrains.com/issue/KT-85863/Kotlin-Native-rework-stdlib-test-infrastructure
+            "../../libraries/stdlib/test/**.kt",
+            "../../libraries/stdlib/common/test/**.kt",
+            "../../libraries/stdlib/native-wasm/test/**.kt",
+            "../../kotlin-native/runtime/test/**.kt"
         ],
         ignoredTests = [DISABLED_STDLIB_TEST]
     )
@@ -49,6 +59,7 @@ import org.jetbrains.kotlin.konan.test.blackbox.support.group.PredefinedTestCase
 // Stdlib tests rely on `-Xmulti-platform` thus don't work with one-stage mode.
 @EnforcedProperty(property = ClassLevelProperty.TEST_MODE, propertyValue = "TWO_STAGE_MULTI_MODULE")
 @UsePartialLinkage(UsePartialLinkage.Mode.ERROR)
+@MustRunAlways
 class StdlibTest : AbstractNativeBlackBoxTest() {
 
     @BeforeEach
@@ -63,6 +74,7 @@ class StdlibTest : AbstractNativeBlackBoxTest() {
 }
 
 private const val ENABLE_MPP = "-Xmulti-platform"
+private const val ENABLE_COMPANION_BLOCKS = "-Xcompanion-blocks"
 internal const val STDLIB_IS_A_FRIEND = "-friend-modules=$KOTLIN_NATIVE_DISTRIBUTION/klib/common/stdlib"
 private const val ENABLE_X_STDLIB_API = "-opt-in=kotlin.ExperimentalStdlibApi"
 private const val ENABLE_X_ENCODING_API = "-opt-in=kotlin.io.encoding.ExperimentalEncodingApi"
@@ -74,5 +86,18 @@ private const val ENABLE_OBSOLETE_NATIVE_API = "-opt-in=kotlin.native.ObsoleteNa
 private const val ENABLE_NATIVE_RUNTIME_API = "-opt-in=kotlin.native.runtime.NativeRuntimeApi"
 private const val ENABLE_OBSOLETE_WORKERS_API = "-opt-in=kotlin.native.concurrent.ObsoleteWorkersApi"
 private const val ENABLE_INTERNAL_FOR_KOTLIN_NATIVE = "-opt-in=kotlin.native.internal.InternalForKotlinNative"
-private const val ENABLE_RANGE_UNTIL = "-XXLanguage:+RangeUntilOperator" // keep until 1.8
 private const val DISABLED_STDLIB_TEST = "test.collections.CollectionTest.abstractCollectionToArray"
+
+/**
+ * Arguments here must be synchronized with `repo/kotlin-build-helpers/src/dogfoodedExperimentalFeatures.kt`.
+ */
+private object DogfoodedExperimentalFeatures {
+    const val ENABLE_CONTEXT_PARAMETERS = "-Xcontext-parameters"
+    const val ENABLE_EXPLICIT_BACKING_FIELDS = "-Xexplicit-backing-fields"
+    const val ENABLE_NAME_BASED_DESTRUCTURING = "-Xname-based-destructuring=complete"
+    const val ENABLE_COLLECTION_LITERALS = "-Xcollection-literals"
+    const val ENABLE_CONTEXT_SENSITIVE_RESOLUTION = "-Xcontext-sensitive-resolution"
+    const val ENABLE_EXPLICIT_CONTEXT_ARGUMENTS = "-Xexplicit-context-arguments"
+
+    const val REDUNDANT_CLI_WARNING_SUPPRESSION = "-Xwarning-level=REDUNDANT_CLI_ARG:disabled"
+}

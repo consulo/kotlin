@@ -253,7 +253,7 @@ class Converter(
             }
 
     fun hprofStringConstants(): List<HProfStringConstant> =
-            hprofIdToStringMutableMap.map { (id, string) -> HProfStringConstant(id, string) }
+            hprofIdToStringMutableMap.map { [id, string] -> HProfStringConstant(id, string) }
 
     fun type(id: Id): Type = item(id) as Type
 
@@ -575,12 +575,19 @@ class Converter(
                 hprofObjectArrayDump(objectId, hprofClassObjectId(type), byteArray, offset, count)
 
             else -> {
-                val (runtimeElementType, hprofElementType) =
+                val [runtimeElementType, hprofElementType] =
                         type.relativeName.primitiveArrayClassNameToElementTypePair()
+                // Omitted primitive payloads: count is present, byteArray is empty.
+                // Zero-fill so MAT can still compute shallowSize from the hprof dump.
+                val payload = if (byteArray.isEmpty() && count > 0) {
+                    ByteArray(count * size(runtimeElementType))
+                } else {
+                    byteArray
+                }
                 hprofPrimitiveArrayDump(
                         objectId,
                         hprofElementType,
-                        byteArray,
+                        payload,
                         offset,
                         count,
                         runtimeElementType

@@ -1,42 +1,25 @@
-import org.gradle.kotlin.dsl.support.serviceOf
 import org.jetbrains.kotlin.nativeDistribution.asNativeDistribution
 import org.jetbrains.kotlin.nativeDistribution.nativeDistribution
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
+    id("test-inputs-check")
 }
 
 description = "Embeddable JAR of Kotlin/Native compiler"
 group = "org.jetbrains.kotlin"
-
-repositories {
-    mavenCentral()
-}
 
 val kotlinNativeEmbedded = configurations.dependencyScope("kotlinNativeEmbedded")
 val kotlinNativeEmbeddedClasspath = configurations.resolvable("kotlinNativeEmbeddableClasspath") {
     extendsFrom(kotlinNativeEmbedded.get())
 }
 
-val kotlinNativeSources by configurations.creating {
+val kotlinNativeDocumentation = configurations.create("kotlinNativeDocumentation") {
     isCanBeConsumed = false
     isCanBeResolved = true
-
-    attributes {
-        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
-        attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.SOURCES))
-    }
-}
-
-val kotlinNativeJavadoc by configurations.creating {
-    isCanBeConsumed = false
-    isCanBeResolved = true
-
-    attributes {
-        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
-        attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.JAVADOC))
-    }
+    isTransitive = false
 }
 
 dependencies {
@@ -49,13 +32,14 @@ dependencies {
     kotlinNativeEmbedded(project(":native:cli-native"))
     kotlinNativeEmbedded(project(":kotlin-native:endorsedLibraries:kotlinx.cli", "jvmRuntimeElements"))
 
-    kotlinNativeSources(project(":kotlin-native:backend.native"))
-    kotlinNativeSources(project(":native:cli-native"))
-    kotlinNativeJavadoc(project(":kotlin-native:backend.native"))
-    kotlinNativeJavadoc(project(":native:cli-native"))
+    kotlinNativeDocumentation(project(":kotlin-native:backend.native"))
+    kotlinNativeDocumentation(project(":native:cli-native"))
 
-    testImplementation(libs.junit4)
-    testImplementation(kotlinTest("junit"))
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
+    testImplementation(kotlinStdlib())
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 val compiler = embeddableCompiler("kotlin-native-compiler-embeddable") {
@@ -71,16 +55,12 @@ val compiler = embeddableCompiler("kotlin-native-compiler-embeddable") {
 
 val runtimeJar = runtimeJar(compiler)
 
-val archiveZipper = serviceOf<ArchiveOperations>()::zipTree
-
 val sourcesJar = sourcesJar {
-    dependsOn(kotlinNativeSources)
-    from { kotlinNativeSources.map { archiveZipper(it) } }
+    addEmbeddedSources("kotlinNativeDocumentation")
 }
 
 val javadocJar = javadocJar {
-    dependsOn(kotlinNativeJavadoc)
-    from { kotlinNativeJavadoc.map { archiveZipper(it) } }
+    addEmbeddedJavadoc("kotlinNativeDocumentation")
 }
 
 publish {
@@ -115,7 +95,9 @@ open class ProjectTestArgumentProvider @Inject constructor(
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit4) {
+    testData(isolated, "testData")
+
+    testTask {
         /**
          * It's expected that test should be executed on CI, but currently this project under `kotlin.native.enabled`
          */
@@ -127,5 +109,6 @@ projectTests {
             nativeDistributionRoot.set(project.nativeDistribution.map { it.root })
             dependsOn(":kotlin-native:distRuntime")
         })
+        dependsOn(":kotlin-native:distInvalidateStaleCaches")
     }
 }

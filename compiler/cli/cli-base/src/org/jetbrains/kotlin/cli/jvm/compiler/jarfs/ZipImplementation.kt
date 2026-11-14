@@ -5,8 +5,9 @@
 
 package org.jetbrains.kotlin.cli.jvm.compiler.jarfs
 
+import java.lang.reflect.InvocationTargetException
+import java.nio.ByteBuffer
 import java.util.zip.Inflater
-
 
 class ZipEntryDescription(
     val relativePath: CharSequence,
@@ -43,14 +44,19 @@ internal fun LargeDynamicMappedBuffer.contentsToByteArray(
         when (zipEntryDescription.compressionKind) {
             ZipEntryDescription.CompressionKind.DEFLATE -> {
                 val inflater = Inflater(true)
-                // Note that starting from JDK 16 it is possible to call MappedByteBuffer.slice to get a "sub-buffer" and also
-                // use it directly with inflater.setInput, which would avoid copying of the data
-                // TODO: consider implementing (maybe JDK-specific) optimization that avoids unnecessary copying (see KT-69758)
-                inflater.setInput(getBytes(startPos, zipEntryDescription.compressedSize.toInt()))
+                val compressedSize = zipEntryDescription.compressedSize.toInt()
+                val setInput = setInflaterInputFromBuffer
+                if (setInput != null) {
+                    // JDK 11+: feed a slice of the mapped buffer directly, avoiding the allocation and the get() copy
+                    setInput(inflater, slicedBuffer(startPos, compressedSize))
+                } else {
+                    // JDK 8-10 fallback: copy the compressed bytes into a heap array first
+                    inflater.setInput(getBytes(startPos, compressedSize))
+                }
 
                 val result = ByteArray(zipEntryDescription.uncompressedSize.toInt())
 
-                inflater.inflate(result)
+                inflateToByteArray(inflater, result)
                 inflater.end()
 
                 result
@@ -62,7 +68,7 @@ internal fun LargeDynamicMappedBuffer.contentsToByteArray(
 
 internal fun LargeDynamicMappedBuffer.parseCentralDirectory(): List<ZipEntryDescription> {
 
-    val (entriesNumber, offsetOfCentralDirectory) = parseCentralDirectoryRecordsNumberAndOffset()
+    val [entriesNumber, offsetOfCentralDirectory] = parseCentralDirectoryRecordsNumberAndOffset()
 
     var currentStart = offsetOfCentralDirectory
 
@@ -154,6 +160,73 @@ private fun LargeDynamicMappedBuffer.parseCentralDirectoryRecordsNumberAndOffset
         else Pair(entriesNumber.toLong(), offsetOfCentralDirectory.toUInt().toLong())
     }
 
+/**
+ * `Inflater.setInput(ByteBuffer)` exists since JDK 11. When it is available, we can feed the inflater a slice of the
+ * memory-mapped buffer directly, avoiding both the allocation and the `ByteBuffer.get(...)` copy of the compressed data
+ * (see KT-69758).
+ *
+ * On older JDKs (8-10) the method is absent, this stays `null`, and we fall back to the copying path.
+ * TODO: Get rid of this property once this module is switched to JDK 11+ (KT-86803)
+ */
+private val setInflaterInputFromBuffer: ((Inflater, ByteBuffer) -> Unit)? =
+    try {
+        val method = Inflater::class.java.getMethod("setInput", ByteBuffer::class.java)
+        val setter: (Inflater, ByteBuffer) -> Unit = { inflater, buffer ->
+            try {
+                method.invoke(inflater, buffer)
+            } catch (e: InvocationTargetException) {
+                throw e.cause ?: e
+            }
+        }
+        setter
+    } catch (_: Throwable) {
+        null
+    }
+
+/**
+ * `Inflater.inflate(ByteBuffer)` exists since JDK 11. When it is available, we inflate into a direct buffer and copy the result out,
+ * instead of inflating into the heap array directly: the latter pins the array via `GetPrimitiveArrayCritical`, which blocks GC until
+ * the call is over, and under load leads to spurious `OutOfMemoryError`s on JDKs before 22 (KTI-3258).
+ *
+ * On older JDKs (8-10), we fall back to inflating into the array.
+ * TODO: Get rid of this property once this module is switched to JDK 11+ (KT-86803)
+ */
+private val inflateToBuffer: ((Inflater, ByteBuffer) -> Int)? =
+    try {
+        val method = Inflater::class.java.getMethod("inflate", ByteBuffer::class.java)
+        val inflate: (Inflater, ByteBuffer) -> Int = { inflater, buffer ->
+            try {
+                method.invoke(inflater, buffer) as Int
+            } catch (e: InvocationTargetException) {
+                throw e.cause ?: e
+            }
+        }
+        inflate
+    } catch (_: Throwable) {
+        null
+    }
+
+private const val DIRECT_BUFFER_SIZE = 1 shl 16
+
+private val directBuffer: ThreadLocal<ByteBuffer> = ThreadLocal()
+
+private fun inflateToByteArray(inflater: Inflater, result: ByteArray) {
+    val inflate = inflateToBuffer ?: run {
+        inflater.inflate(result)
+        return
+    }
+    val buffer = directBuffer.get() ?: ByteBuffer.allocateDirect(DIRECT_BUFFER_SIZE).also(directBuffer::set)
+    var offset = 0
+    while (offset < result.size) {
+        buffer.clear()
+        buffer.limit(minOf(DIRECT_BUFFER_SIZE, result.size - offset))
+        if (inflate(inflater, buffer) == 0) break
+        buffer.flip()
+        val count = buffer.remaining()
+        buffer.get(result, offset, count)
+        offset += count
+    }
+}
 
 private fun LargeDynamicMappedBuffer.Mapping.parseZip64CentralDirectoryRecordsNumberAndOffset(): Pair<Long, Long> {
     var endOfCentralDirectoryOffset = endOffset() - END_OF_CENTRAL_DIR_ZIP64_SIZE

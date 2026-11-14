@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// SKIP_TXT
+// RUN_PIPELINE_TILL: CODEGEN
 import kotlin.coroutines.*
 
 fun <T> foo(): Continuation<T> = null!!

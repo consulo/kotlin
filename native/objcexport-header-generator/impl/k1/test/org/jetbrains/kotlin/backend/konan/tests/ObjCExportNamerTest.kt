@@ -6,18 +6,22 @@
 package org.jetbrains.kotlin.backend.konan.tests
 
 import com.intellij.openapi.util.Disposer
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.backend.konan.descriptors.enumEntries
 import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExportNamer
 import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExportNamer.ClassOrProtocolName
 import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExportNamer.PropertyName
-import org.jetbrains.kotlin.backend.konan.testUtils.*
+import org.jetbrains.kotlin.backend.konan.testUtils.InlineSourceTestEnvironment
+import org.jetbrains.kotlin.backend.konan.testUtils.compileAndDeserializeSources
+import org.jetbrains.kotlin.backend.konan.testUtils.createObjCExportNamer
+import org.jetbrains.kotlin.backend.konan.testUtils.createObjCExportNamerConfiguration
+import org.jetbrains.kotlin.backend.konan.testUtils.findSingleFunction
+import org.jetbrains.kotlin.cli.common.disposeRootInWriteAction
 import org.jetbrains.kotlin.descriptors.findClassAcrossModuleDependencies
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.psi2ir.findSingleFunction
 import org.jetbrains.kotlin.resolve.scopes.findFirstVariable
-import org.jetbrains.kotlin.cli.common.disposeRootInWriteAction
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -38,8 +42,6 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     override val testDisposable = Disposer.newDisposable("${ObjCExportNamerTest::class.simpleName}.testDisposable")
 
-    override val kotlinCoreEnvironment = createKotlinCoreEnvironment(testDisposable)
-
     @TempDir
     override lateinit var testTempDir: File
 
@@ -50,7 +52,7 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     @Test
     fun `test - simple class`() {
-        val module = createModuleDescriptor("class Foo")
+        val module = compileAndDeserializeSources("class Foo")
         val clazz = module.findClassAcrossModuleDependencies(ClassId.fromString("Foo"))!!
         assertEquals(
             ClassOrProtocolName("Foo", "Foo"),
@@ -60,7 +62,7 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     @Test
     fun `test - simple class - with prefix`() {
-        val module = createModuleDescriptor("class Foo")
+        val module = compileAndDeserializeSources("class Foo")
         val clazz = module.findClassAcrossModuleDependencies(ClassId.fromString("Foo"))!!
         assertEquals(
             ClassOrProtocolName("Foo", "XFoo"),
@@ -70,7 +72,9 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     @Test
     fun `test - simple function`() {
-        val module = createModuleDescriptor("fun foo() = 42")
+        val module = compileAndDeserializeSources("fun foo() = 42")
+
+        @OptIn(K1Deprecation::class)
         val foo = module.getPackage(FqName.ROOT).memberScope.findSingleFunction(Name.identifier("foo"))
         assertEquals("foo()", createObjCExportNamer().getSwiftName(foo))
         assertEquals("foo", createObjCExportNamer().getSelector(foo))
@@ -78,7 +82,9 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     @Test
     fun `test - function with parameters`() {
-        val module = createModuleDescriptor("fun foo(a: Int, b: Int) = a + b")
+        val module = compileAndDeserializeSources("fun foo(a: Int, b: Int) = a + b")
+
+        @OptIn(K1Deprecation::class)
         val foo = module.getPackage(FqName.ROOT).memberScope.findSingleFunction(Name.identifier("foo"))
         assertEquals("foo(a:b:)", createObjCExportNamer().getSwiftName(foo))
         assertEquals("fooA:b:", createObjCExportNamer().getSelector(foo))
@@ -86,14 +92,14 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     @Test
     fun `test - simple property`() {
-        val module = createModuleDescriptor("val foo = 42")
+        val module = compileAndDeserializeSources("val foo = 42")
         val foo = module.getPackage(FqName.ROOT).memberScope.findFirstVariable("foo") { true }!!
         assertEquals(PropertyName("foo", "foo"), createObjCExportNamer().getPropertyName(foo))
     }
 
     @Test
     fun `test - simple property - with prefix`() {
-        val module = createModuleDescriptor("val foo = 42")
+        val module = compileAndDeserializeSources("val foo = 42")
         val foo = module.getPackage(FqName.ROOT).memberScope.findFirstVariable("foo") { true }!!
         assertEquals(
             PropertyName("foo", "foo"),
@@ -103,7 +109,7 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     @Test
     fun `test - function inside class`() {
-        val module = createModuleDescriptor(
+        val module = compileAndDeserializeSources(
             """
             package bar
             class Foo {
@@ -113,6 +119,8 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
         )
 
         val fooClass = module.findClassAcrossModuleDependencies(ClassId.fromString("bar/Foo"))!!
+
+        @OptIn(K1Deprecation::class)
         val someFunction = fooClass.unsubstitutedMemberScope.findSingleFunction(Name.identifier("someFunction"))
         assertEquals("someFunction(a:b:)", createObjCExportNamer().getSwiftName(someFunction))
         assertEquals("someFunctionA:b:", createObjCExportNamer().getSelector(someFunction))
@@ -120,8 +128,9 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     @Test
     fun `test - class with ObjCName annotation`() {
-        val module = createModuleDescriptor(
+        val module = compileAndDeserializeSources(
             """
+            @OptIn(kotlin.experimental.ExperimentalObjCName::class)
             @kotlin.native.ObjCName("ObjCFoo", "SwiftFoo")
             class Foo
         """.trimIndent()
@@ -136,7 +145,9 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     @Test
     fun `test - simple parameter`() {
-        val module = createModuleDescriptor("fun foo(a: Int)")
+        val module = compileAndDeserializeSources("fun foo(a: Int) {}")
+
+        @OptIn(K1Deprecation::class)
         val foo = module.getPackage(FqName.ROOT).memberScope.findSingleFunction(Name.identifier("foo"))
         val parameterA = foo.valueParameters.find { it.name == Name.identifier("a") }!!
         assertEquals("a", createObjCExportNamer().getParameterName(parameterA))
@@ -144,13 +155,17 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     @Test
     fun `test - parameter with ObjCName annotation`() {
-        val module = createModuleDescriptor(
+        val module = compileAndDeserializeSources(
             """
+            import kotlin.experimental.ExperimentalObjCName
             import kotlin.native.ObjCName
-            fun foo(@ObjCName("aObjC", "aSwift") a: Int)
+
+            @OptIn(ExperimentalObjCName::class)
+            fun foo(@ObjCName("aObjC", "aSwift") a: Int) {}
         """.trimIndent()
         )
 
+        @OptIn(K1Deprecation::class)
         val foo = module.getPackage(FqName.ROOT).memberScope.findSingleFunction(Name.identifier("foo"))
         val parameterA = foo.valueParameters.find { it.name == Name.identifier("a") }!!
         assertEquals("aObjC", createObjCExportNamer().getParameterName(parameterA))
@@ -158,7 +173,7 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     @Test
     fun `test - class mangling`() {
-        val module = createModuleDescriptor {
+        val module = compileAndDeserializeSources {
             source(
                 """
                 package a 
@@ -186,7 +201,7 @@ class ObjCExportNamerTest : InlineSourceTestEnvironment {
 
     @Test
     fun `test - simple enum`() {
-        val module = createModuleDescriptor(
+        val module = compileAndDeserializeSources(
             """
             enum class Foo {
                 A, B, C

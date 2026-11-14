@@ -1,6 +1,9 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("generated-sources")
+    id("require-explicit-types")
 }
 
 dependencies {
@@ -18,6 +21,16 @@ dependencies {
 
 sourceSets {
     "main" { projectDefault() }
+}
+
+kotlin {
+    compilerOptions.optIn.addAll(
+        listOf(
+            "org.jetbrains.kotlin.fir.symbols.SymbolInternals",
+            "org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess",
+            "org.jetbrains.kotlin.types.model.K2Only",
+        )
+    )
 }
 
 generatedSourcesTask(

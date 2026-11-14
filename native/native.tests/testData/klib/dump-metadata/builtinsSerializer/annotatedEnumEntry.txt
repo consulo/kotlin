@@ -1,5 +1,4 @@
 library {
-  // module name: <annotatedEnumEntry.kt>
 
   library fragment {
     // package name: test
@@ -41,6 +40,9 @@ library {
       Entry4,
 
       // has Enum.entries
+    }
+
+    package {
     }
   }
 }

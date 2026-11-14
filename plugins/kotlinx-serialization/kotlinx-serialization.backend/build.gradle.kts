@@ -1,6 +1,8 @@
 description = "Kotlin Serialization Compiler Plugin (Backend)"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
@@ -11,15 +13,20 @@ dependencies {
     compileOnly(project(":compiler:backend.jvm.codegen"))
     compileOnly(project(":compiler:backend.jvm.lower"))
     compileOnly(project(":compiler:ir.tree"))
-    compileOnly(project(":compiler:fir:fir2ir"))
-    compileOnly(project(":compiler:fir:tree"))
-    compileOnly(project(":compiler:fir:fir-deserialization"))
     compileOnly(project(":native:native.config"))
     compileOnly(project(":kotlin-util-klib-metadata"))
     compileOnly(project(":compiler:cli-base"))
 
+    // TODO(KT-90144): Access to 'Fir2IrLazyProperty'. Maybe replace with 'FirMetadataSource'?
+    compileOnly(project(":compiler:fir:fir2ir"))
+    compileOnly(project(":compiler:fir:tree"))
+    // TODO(KT-90146): Required to access various utility functions.
+    compileOnly(project(":compiler:fir:fir-deserialization"))
+
+    implementation(project(":compiler:backend.common.jvm"))
+    implementation(project(":core:descriptors"))
+    implementation(project(":core:language.targets.jvm"))
     implementation(project(":kotlinx-serialization-compiler-plugin.common"))
-    implementation(project(":kotlinx-serialization-compiler-plugin.k1"))
 
     compileOnly(intellijCore())
 }

@@ -6,16 +6,19 @@
 package org.jetbrains.kotlin.konan.test.klib
 
 import org.jetbrains.kotlin.config.LanguageVersion
+import org.jetbrains.kotlin.konan.test.blackbox.support.settings.provisionedXcodeCompilerArgs
 import org.jetbrains.kotlin.test.frontend.fir.getTransitivesAndFriends
 import org.jetbrains.kotlin.test.klib.CustomKlibCompiler
 import org.jetbrains.kotlin.test.klib.CustomKlibCompilerArtifacts
 import org.jetbrains.kotlin.test.klib.CustomKlibCompilerArtifacts.Companion.propertyNotFound
 import org.jetbrains.kotlin.test.klib.CustomKlibCompilerArtifacts.Companion.readProperty
+import org.jetbrains.kotlin.test.klib.getTransitivesAndFriendsWithoutReflectionPackageNameHelper
 import org.jetbrains.kotlin.test.model.TestModule
+import org.jetbrains.kotlin.test.services.CompilationStage
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.utils.mapToSetOrEmpty
+import org.jetbrains.kotlin.test.testInfraError
 import java.io.File
-import kotlin.test.fail
 
 
 /**
@@ -26,13 +29,17 @@ interface CustomNativeCompilerSettings {
     val version: String
     val compiler: CustomKlibCompiler
     val nativeHome: File
+    val provisionedXcodeArgs: List<String>
 }
 
 val CustomNativeCompilerSettings.defaultLanguageVersion: LanguageVersion
     get() = LanguageVersion.fromFullVersionString(version)
-        ?: fail("Cannot deduce the default LV from the compiler version: $version")
+        ?: testInfraError("Cannot deduce the default LV from the compiler version: $version")
 
-class CustomNativeCompilerSettingsImpl(lazyArtifacts: () -> CustomKlibCompilerArtifacts): CustomNativeCompilerSettings {
+class CustomNativeCompilerSettingsImpl(
+    override val provisionedXcodeArgs: List<String> = emptyList(),
+    lazyArtifacts: () -> CustomKlibCompilerArtifacts,
+) : CustomNativeCompilerSettings {
     private val artifacts: CustomKlibCompilerArtifacts by lazy(lazyArtifacts)
     override val version: String
         get() = artifacts.version
@@ -54,13 +61,15 @@ val customNativeCompilerSettings: CustomNativeCompilerSettings by lazy {
             compilerClassPathPropertyName = "kotlin.internal.native.test.compat.customCompilerClasspath",
             runtimeDependenciesPropertyName = null, // After OSIP-740, make it non-nullable to always provide stdlib
             versionPropertyName = "kotlin.internal.native.test.compat.customCompilerVersion",
-            compilerDistPropertyName= "kotlin.internal.native.test.compat.customCompilerDist",
+            compilerDistPropertyName = "kotlin.internal.native.test.compat.customCompilerDist",
         )
     }
 }
 
 val currentCustomNativeCompilerSettings: CustomNativeCompilerSettings by lazy {
-    CustomNativeCompilerSettingsImpl {
+    CustomNativeCompilerSettingsImpl(
+        provisionedXcodeArgs = provisionedXcodeCompilerArgs
+    ) {
         val propertyName = "kotlin.internal.native.test.nativeHome"
         readProperty(propertyName)?.let {
             val compilerDist = File(it)
@@ -77,11 +86,19 @@ val currentCustomNativeCompilerSettings: CustomNativeCompilerSettings by lazy {
 
 /**
  * Note: To be used only in [CustomNativeCompilerFirstStageFacade] and [NativeCompilerSecondStageFacade].
+ *
+ * The second stage never gets the KLIB of the `ReflectionPackageNameHelperModuleTransformer` helper module: it only lets a first-stage
+ * compiler older than 2.5 resolve `kotlin.internal.ReflectionPackageName`, which the current stdlib linked on the second stage already has
+ * (see [getTransitivesAndFriendsWithoutReflectionPackageNameHelper]).
  */
 fun TestModule.collectDependencies(
     testServices: TestServices,
+    compilationStage: CompilationStage,
 ): Pair<Set<String>, Set<String>> {
-    val (transitiveLibraries: List<File>, friendLibraries: List<File>) = getTransitivesAndFriends(module = this, testServices)
+    val [transitiveLibraries: List<File>, friendLibraries: List<File>] = when (compilationStage) {
+        CompilationStage.FIRST -> getTransitivesAndFriends(module = this, testServices)
+        CompilationStage.SECOND -> getTransitivesAndFriendsWithoutReflectionPackageNameHelper(testServices)
+    }
 
     val regularDependencies: Set<String> = buildSet {
         // After OSIP-740, add stdlib here as runtime dependency

@@ -5,16 +5,11 @@
 
 package org.jetbrains.kotlin.backend.common.linkage.partial
 
-import org.jetbrains.kotlin.builtins.FunctionInterfacePackageFragment
-import org.jetbrains.kotlin.descriptors.PackageFragmentDescriptor
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
+import org.jetbrains.kotlin.ir.IrBasedFunctionFactory.Companion.isFunctionInterfaceFile
 import org.jetbrains.kotlin.ir.UNDEFINED_COLUMN_NUMBER
 import org.jetbrains.kotlin.ir.UNDEFINED_LINE_NUMBER
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
-import org.jetbrains.kotlin.ir.declarations.IrDeclaration
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationWithName
-import org.jetbrains.kotlin.ir.declarations.IrExternalPackageFragment
-import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.util.getPackageFragment
 import org.jetbrains.kotlin.name.Name
 
@@ -47,7 +42,7 @@ object PartialLinkageSources {
                 onMissingDeclaration = MissingDeclarations,
                 onSyntheticBuiltInFunction = SyntheticBuiltInFunctions,
                 onIrBased = { Real(it.module.name) },
-                onLazyIrBased = { Real(it.containingDeclaration.name) },
+                onLazyIrBased = { Real(it.module.name) },
                 onError = { error("Can't determine module for $declaration, name=${(declaration as? IrDeclarationWithName)?.name}") }
             )
         }
@@ -71,8 +66,8 @@ object PartialLinkageSources {
             }
         }
 
-        class LazyIrBased(packageFragmentDescriptor: PackageFragmentDescriptor) : File {
-            override val module = Module.Real(packageFragmentDescriptor.containingDeclaration.name)
+        class LazyIrBased(packageFragment: IrPackageFragment) : File {
+            override val module = Module.Real(packageFragment.module.name)
             private val defaultLocation = module.defaultLocationWithoutPath()
 
             override fun equals(other: Any?) = (other as? LazyIrBased)?.module == module
@@ -107,25 +102,22 @@ object PartialLinkageSources {
         }
     }
 
-    @OptIn(ObsoleteDescriptorBasedAPI::class)
     private inline fun <R> determineFor(
         declaration: IrDeclaration,
         onMissingDeclaration: R,
         onSyntheticBuiltInFunction: R,
         onIrBased: (IrFile) -> R,
-        onLazyIrBased: (PackageFragmentDescriptor) -> R,
+        onLazyIrBased: (IrPackageFragment) -> R,
         onError: () -> Nothing,
     ): R {
         return if (declaration.origin == PartiallyLinkedDeclarationOrigin.MISSING_DECLARATION)
             onMissingDeclaration
         else {
             val packageFragment = declaration.getPackageFragment()
-            val packageFragmentDescriptor = with(packageFragment.symbol) { if (hasDescriptor) descriptor else null }
-
             when {
-                packageFragmentDescriptor is FunctionInterfacePackageFragment -> onSyntheticBuiltInFunction
+                packageFragment.isFunctionInterfaceFile -> onSyntheticBuiltInFunction
                 packageFragment is IrFile -> onIrBased(packageFragment)
-                packageFragment is IrExternalPackageFragment && packageFragmentDescriptor != null -> onLazyIrBased(packageFragmentDescriptor)
+                packageFragment is IrExternalPackageFragment -> onLazyIrBased(packageFragment)
                 else -> onError()
             }
         }

@@ -9,12 +9,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMember
+import com.intellij.psi.util.parentOfType
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.KtTestModule
 import org.jetbrains.kotlin.analysis.test.framework.services.expressionMarkerProvider
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator
-import org.jetbrains.kotlin.analysis.utils.printer.parentOfType
 import org.jetbrains.kotlin.asJava.renderClass
-import org.jetbrains.kotlin.asJava.toLightElements
+import org.jetbrains.kotlin.light.classes.symbol.base.service.getLightElements
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
@@ -39,7 +39,7 @@ abstract class AbstractSymbolLightClassesAnnotationEqualityTest(
 
         val annotationsFromFindAnnotation = mutableSetOf<PsiAnnotation>()
         val modifierList = actualLightDeclaration.modifierList!!
-        for ((qualifier, isExpected) in qualifiersToCheck) {
+        for ((val qualifier = qualifierName, val isExpected) in qualifiersToCheck) {
             val actual = modifierList.hasAnnotation(qualifier)
             testServices.assertions.assertEquals(expected = isExpected, actual = actual) {
                 "$qualifier isExpected: $isExpected, but $actual is found"
@@ -87,7 +87,9 @@ abstract class AbstractSymbolLightClassesAnnotationEqualityTest(
         val directives = module.testModule.directives
         val lightElementClassQualifier = directives.singleValue(Directives.PSI)
         val declaration = testServices.expressionMarkerProvider.getBottommostElementOfTypeAtCaret<KtDeclaration>(ktFiles.first())
-        val lightElements = declaration.toLightElements()
+        val lightElements = analyzeForTest(declaration) {
+            declaration.getLightElements()
+        }
         val actualLightDeclaration = lightElements.find { it::class.qualifiedName == lightElementClassQualifier }
             ?: error("$lightElementClassQualifier is not found in ${lightElements.map { it::class.qualifiedName }}")
 

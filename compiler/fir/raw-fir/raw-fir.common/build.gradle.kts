@@ -4,25 +4,41 @@
  */
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
+    id("java-test-fixtures")
     id("generated-sources")
+    id("require-explicit-types")
 }
 
 dependencies {
     api(project(":compiler:fir:tree"))
 
-    implementation(kotlinxCollectionsImmutable())
     implementation(project(":compiler:frontend.common-psi"))
     implementation(project(":compiler:psi:psi-api"))
     implementation(project(":compiler:psi:parser"))
 
     compileOnly(intellijCore())
     compileOnly(libs.guava)
+
+    testFixturesCompileOnly(intellijCore())
 }
 
 sourceSets {
     "main" { projectDefault() }
     "test" { none() }
+    "testFixtures" { projectDefault() }
+}
+
+kotlin {
+    compilerOptions.optIn.addAll(
+        listOf(
+            "org.jetbrains.kotlin.fir.symbols.SymbolInternals",
+            "org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess",
+            "org.jetbrains.kotlin.types.model.K2Only",
+        )
+    )
 }
 
 generatedDiagnosticContainersAndCheckerComponents()

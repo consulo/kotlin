@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.inheritorsProvider.AbstractSealedInheritorsTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.inheritorsProvider.AbstractSealedInheritorsTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirIdeNormalAnalysisSourceLikeModuleSealedInheritorsTestGenerated e
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -49,6 +47,18 @@ public class FirIdeNormalAnalysisSourceLikeModuleSealedInheritorsTestGenerated e
   @Test
   public void testAllFilesPresentInSealedInheritors() {
     KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/components/inheritorsProvider/sealedInheritors"), Pattern.compile("^(.+)\\.(kt|kts)$"), null, true);
+  }
+
+  @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassFromLibrary.kt")
+  public void testFullValueClassFromLibrary() {
+    run("fullValueClassFromLibrary.kt");
   }
 
   @Test

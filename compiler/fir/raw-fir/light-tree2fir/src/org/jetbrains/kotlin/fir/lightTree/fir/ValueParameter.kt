@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.fir.lightTree.fir
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget.*
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirModuleData
 import org.jetbrains.kotlin.fir.builder.*
 import org.jetbrains.kotlin.fir.copy
@@ -47,11 +46,11 @@ import org.jetbrains.kotlin.fir.types.builder.buildErrorTypeRef
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.Name
 
-class ValueParameter(
+class ValueParameter<Node : Any>(
     private val valueParameterSymbol: FirValueParameterSymbol,
     private val isVal: Boolean,
     private val isVar: Boolean,
-    private val modifiers: ModifierList,
+    private val modifiers: ModifierList<Node>,
     private val valueParameterAnnotations: List<FirAnnotationCall>,
     val returnTypeRef: FirTypeRef,
     val source: KtSourceElement,
@@ -166,27 +165,30 @@ class ValueParameter(
             }
             isLocal = context.inLocalContext
 
-            val defaultAccessorSource = propertySource?.fakeElement(KtFakeSourceElementKind.DefaultAccessor)
+            val defaultBackingFieldSource = propertySource?.fakeElement(KtFakeSourceElementKind.DefaultAccessor.BackingField)
             backingField = FirDefaultPropertyBackingField(
                 moduleData = moduleData,
                 origin = FirDeclarationOrigin.Source,
-                source = defaultAccessorSource,
+                source = defaultBackingFieldSource,
                 annotations = remappedAnnotations.filter {
                     it.useSiteTarget == FIELD || it.useSiteTarget == PROPERTY_DELEGATE_FIELD
                 }.toMutableList(),
-                returnTypeRef = returnTypeRef.copyWithNewSourceKind(KtFakeSourceElementKind.DefaultAccessor),
+                returnTypeRef = returnTypeRef.copyWithNewSourceKind(KtFakeSourceElementKind.DefaultAccessor.BackingField),
                 isVar = isVar,
                 propertySymbol = symbol,
                 status = status.copy(isLateInit = false),
-            )
+            ).also {
+                it.initContainingClassAttr(context)
+            }
 
             annotations += remappedAnnotations.filterConstructorPropertyRelevantAnnotations(this.isVar)
 
+            val defaultGetterSource = propertySource?.fakeElement(KtFakeSourceElementKind.DefaultAccessor.Getter)
             getter = FirDefaultPropertyGetter(
-                source = defaultAccessorSource,
+                source = defaultGetterSource,
                 moduleData = moduleData,
                 origin = FirDeclarationOrigin.Source,
-                propertyTypeRef = type.copyWithNewSourceKind(KtFakeSourceElementKind.DefaultAccessor),
+                propertyTypeRef = type.copyWithNewSourceKind(KtFakeSourceElementKind.DefaultAccessor.Getter),
                 visibility = status.visibility,
                 propertySymbol = symbol,
                 modality = status.modality,
@@ -196,11 +198,12 @@ class ValueParameter(
                 it.replaceAnnotations(remappedAnnotations.filterUseSiteTarget(PROPERTY_GETTER))
             }
 
+            val defaultSetterSource = propertySource?.fakeElement(KtFakeSourceElementKind.DefaultAccessor.Setter)
             setter = if (this.isVar) FirDefaultPropertySetter(
-                source = defaultAccessorSource,
+                source = defaultSetterSource,
                 moduleData = moduleData,
                 origin = FirDeclarationOrigin.Source,
-                propertyTypeRef = type.copyWithNewSourceKind(KtFakeSourceElementKind.DefaultAccessor),
+                propertyTypeRef = type.copyWithNewSourceKind(KtFakeSourceElementKind.DefaultAccessor.Setter),
                 visibility = status.visibility,
                 propertySymbol = symbol,
                 modality = status.modality,

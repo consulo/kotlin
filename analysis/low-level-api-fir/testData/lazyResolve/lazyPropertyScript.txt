@@ -1,7 +1,7 @@
 RAW_FIR:
 FILE: [ResolvedTo(RAW_FIR)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(RAW_FIR)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(RAW_FIR)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -27,7 +27,7 @@ FILE: [ResolvedTo(RAW_FIR)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public? final? [ResolvedTo(RAW_FIR)] val resolveMe: Stringby LAZY_EXPRESSION
+            public? final? [ResolvedTo(RAW_FIR)] val resolveMe: String by LAZY_EXPRESSION
                 public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Test] get(): <implicit> { LAZY_BLOCK }
 
         }
@@ -36,7 +36,7 @@ FILE: [ResolvedTo(RAW_FIR)] lazyPropertyScript.kts
 IMPORTS:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(RAW_FIR)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(RAW_FIR)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -62,7 +62,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public? final? [ResolvedTo(RAW_FIR)] val resolveMe: Stringby LAZY_EXPRESSION
+            public? final? [ResolvedTo(RAW_FIR)] val resolveMe: String by LAZY_EXPRESSION
                 public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Test] get(): <implicit> { LAZY_BLOCK }
 
         }
@@ -71,7 +71,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 COMPILER_REQUIRED_ANNOTATIONS:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(RAW_FIR)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(RAW_FIR)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -97,7 +97,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public? final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] val resolveMe: Stringby LAZY_EXPRESSION
+            public? final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] val resolveMe: String by LAZY_EXPRESSION
                 public? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] [ContainingClassKey=Test] get(): <implicit> { LAZY_BLOCK }
 
         }
@@ -106,7 +106,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 COMPANION_GENERATION:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(RAW_FIR)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(RAW_FIR)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -132,7 +132,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public? final? [ResolvedTo(COMPANION_GENERATION)] val resolveMe: Stringby LAZY_EXPRESSION
+            public? final? [ResolvedTo(COMPANION_GENERATION)] val resolveMe: String by LAZY_EXPRESSION
                 public? [ResolvedTo(COMPANION_GENERATION)] [ContainingClassKey=Test] get(): <implicit> { LAZY_BLOCK }
 
         }
@@ -141,7 +141,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 SUPER_TYPES:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(RAW_FIR)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(RAW_FIR)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -167,7 +167,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public? final? [ResolvedTo(SUPER_TYPES)] val resolveMe: Stringby LAZY_EXPRESSION
+            public? final? [ResolvedTo(SUPER_TYPES)] val resolveMe: String by LAZY_EXPRESSION
                 public? [ResolvedTo(SUPER_TYPES)] [ContainingClassKey=Test] get(): <implicit> { LAZY_BLOCK }
 
         }
@@ -176,7 +176,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 TYPES:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(RAW_FIR)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(RAW_FIR)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -202,7 +202,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public? final? [ResolvedTo(TYPES)] val resolveMe: R|kotlin/String|by LAZY_EXPRESSION
+            public? final? [ResolvedTo(TYPES)] val resolveMe: R|kotlin/String| by LAZY_EXPRESSION
                 public? [ResolvedTo(TYPES)] [ContainingClassKey=Test] get(): R|kotlin/String| { LAZY_BLOCK }
 
         }
@@ -211,7 +211,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 STATUS:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(RAW_FIR)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(RAW_FIR)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -237,7 +237,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public final [ResolvedTo(STATUS)] val resolveMe: R|kotlin/String|by LAZY_EXPRESSION
+            public final [ResolvedTo(STATUS)] val resolveMe: R|kotlin/String| by LAZY_EXPRESSION
                 public [ResolvedTo(STATUS)] [ContainingClassKey=Test] get(): R|kotlin/String| { LAZY_BLOCK }
 
         }
@@ -246,7 +246,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 EXPECT_ACTUAL_MATCHING:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(RAW_FIR)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(RAW_FIR)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(RAW_FIR)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -272,7 +272,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public final [ResolvedTo(EXPECT_ACTUAL_MATCHING)] val resolveMe: R|kotlin/String|by LAZY_EXPRESSION
+            public final [ResolvedTo(EXPECT_ACTUAL_MATCHING)] val resolveMe: R|kotlin/String| by LAZY_EXPRESSION
                 public [ResolvedTo(EXPECT_ACTUAL_MATCHING)] [ContainingClassKey=Test] get(): R|kotlin/String| { LAZY_BLOCK }
 
         }
@@ -281,7 +281,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 CONTRACTS:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(TYPES)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(TYPES)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -307,7 +307,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public final [ResolvedTo(CONTRACTS)] val resolveMe: R|kotlin/String|by LAZY_EXPRESSION
+            public final [ResolvedTo(CONTRACTS)] val resolveMe: R|kotlin/String| by LAZY_EXPRESSION
                 public [ResolvedTo(CONTRACTS)] [ContainingClassKey=Test] get(): R|kotlin/String| { LAZY_BLOCK }
 
         }
@@ -316,7 +316,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 IMPLICIT_TYPES_BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(TYPES)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(TYPES)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -342,7 +342,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public final [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] val resolveMe: R|kotlin/String|by LAZY_EXPRESSION
+            public final [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] val resolveMe: R|kotlin/String| by LAZY_EXPRESSION
                 public [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] [ContainingClassKey=Test] get(): R|kotlin/String| { LAZY_BLOCK }
 
         }
@@ -351,7 +351,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 CONSTANT_EVALUATION:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(TYPES)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(TYPES)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -377,7 +377,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public final [ResolvedTo(CONSTANT_EVALUATION)] val resolveMe: R|kotlin/String|by LAZY_EXPRESSION
+            public final [ResolvedTo(CONSTANT_EVALUATION)] val resolveMe: R|kotlin/String| by LAZY_EXPRESSION
                 public [ResolvedTo(CONSTANT_EVALUATION)] [ContainingClassKey=Test] get(): R|kotlin/String| { LAZY_BLOCK }
 
         }
@@ -386,7 +386,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 ANNOTATION_ARGUMENTS:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(TYPES)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(TYPES)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final? [ResolvedTo(RAW_FIR)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(RAW_FIR)] T> : R|kotlin/Any| {
@@ -412,7 +412,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public final [ResolvedTo(ANNOTATION_ARGUMENTS)] val resolveMe: R|kotlin/String|by LAZY_EXPRESSION
+            public final [ResolvedTo(ANNOTATION_ARGUMENTS)] val resolveMe: R|kotlin/String| by LAZY_EXPRESSION
                 public [ResolvedTo(ANNOTATION_ARGUMENTS)] [ContainingClassKey=Test] get(): R|kotlin/String| { LAZY_BLOCK }
 
         }
@@ -421,7 +421,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(TYPES)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(TYPES)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(TYPES)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final [ResolvedTo(STATUS)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(STATUS)] T> : R|kotlin/Any| {
@@ -432,22 +432,22 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
             public final [ResolvedTo(STATUS)] [IsFromPrimaryConstructor=true] val value: R|T| = R|<local>/value|
                 public [ResolvedTo(STATUS)] [ContainingClassKey=LazyDelegate] get(): R|T|
 
-            public final operator [ResolvedTo(CONTRACTS)] fun getValue([ResolvedTo(CONTRACTS)] thisRef: R|kotlin/Any?|, [ResolvedTo(CONTRACTS)] property: R|kotlin/reflect/KProperty<*>|): R|T| { LAZY_BLOCK }
+            public final operator [ResolvedTo(STATUS)] fun getValue([ResolvedTo(STATUS)] thisRef: R|kotlin/Any?|, [ResolvedTo(STATUS)] property: R|kotlin/reflect/KProperty<*>|): R|T| { LAZY_BLOCK }
 
         }
 
-        public final [ResolvedTo(CONTRACTS)] [ScriptTopLevelDeclaration=true] fun <[ResolvedTo(CONTRACTS)] T> lazy([ResolvedTo(CONTRACTS)] block: R|() -> T|): R|LazyDelegate<T>| { LAZY_BLOCK }
+        public final [ResolvedTo(STATUS)] [ScriptTopLevelDeclaration=true] fun <[ResolvedTo(STATUS)] T> lazy([ResolvedTo(STATUS)] block: R|() -> T|): R|LazyDelegate<T>| { LAZY_BLOCK }
 
         public? final? [ResolvedTo(RAW_FIR)] [ScriptTopLevelDeclaration=true] fun getAny(): Any? { LAZY_BLOCK }
 
-        public final [ResolvedTo(CONTRACTS)] [ScriptTopLevelDeclaration=true] fun <[ResolvedTo(CONTRACTS)] Q> materialize(): R|Q| { LAZY_BLOCK }
+        public final [ResolvedTo(STATUS)] [ScriptTopLevelDeclaration=true] fun <[ResolvedTo(STATUS)] Q> materialize(): R|Q| { LAZY_BLOCK }
 
         public final [ResolvedTo(STATUS)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class Test : R|kotlin/Any| {
             public [ResolvedTo(STATUS)] [ContainingClassKey=Test] constructor(): R|Test| {
                 LAZY_super<R|kotlin/Any|>
             }
 
-            public final [ResolvedTo(BODY_RESOLVE)] val resolveMe: R|kotlin/String|by R|/lazy|<R|kotlin/String|>(<L> = [ResolvedTo(BODY_RESOLVE)] [MatchingParameterFunctionTypeKey=() -> TypeVariable(T)] lazy@fun <anonymous>(): R|kotlin/String| <inline=NoInline>  {
+            public final [ResolvedTo(BODY_RESOLVE)] val resolveMe: R|kotlin/String| by R|/lazy|<R|kotlin/String|>(<L> = [ResolvedTo(BODY_RESOLVE)] [MatchingParameterFunctionTypeKey=() -> TypeVariable(T)] lazy@fun <anonymous>(): R|kotlin/String| <inline=NoInline>  {
                 ^ R|/materialize|<R|kotlin/String|>()
             }
             )
@@ -461,7 +461,7 @@ FILE: [ResolvedTo(IMPORTS)] lazyPropertyScript.kts
 FILE RAW TO BODY:
 FILE: [ResolvedTo(BODY_RESOLVE)] lazyPropertyScript.kts
     SCRIPT: [ResolvedTo(BODY_RESOLVE)] <script-lazyPropertyScript.kts>
-        [ResolvedTo(BODY_RESOLVE)] <script receiver parameter>: R|kotlin/script/templates/standard/ScriptTemplateWithArgs|
+        [ResolvedTo(BODY_RESOLVE)] <script receiver parameter>: R|kotlin/script/experimental/templates/ScriptWithArgs|
         [ResolvedTo(BODY_RESOLVE)] lval args: R|kotlin/Array<kotlin/String>|
 
         public final [ResolvedTo(BODY_RESOLVE)] [ContainingScriptKey=FirScriptSymbol <script-lazyPropertyScript.kts>, ScriptTopLevelDeclaration=true] class LazyDelegate<[ResolvedTo(BODY_RESOLVE)] T> : R|kotlin/Any| {
@@ -495,7 +495,7 @@ FILE: [ResolvedTo(BODY_RESOLVE)] lazyPropertyScript.kts
                 super<R|kotlin/Any|>()
             }
 
-            public final [ResolvedTo(BODY_RESOLVE)] val resolveMe: R|kotlin/String|by R|/lazy|<R|kotlin/String|>(<L> = [ResolvedTo(BODY_RESOLVE)] [MatchingParameterFunctionTypeKey=() -> TypeVariable(T)] lazy@fun <anonymous>(): R|kotlin/String| <inline=NoInline>  {
+            public final [ResolvedTo(BODY_RESOLVE)] val resolveMe: R|kotlin/String| by R|/lazy|<R|kotlin/String|>(<L> = [ResolvedTo(BODY_RESOLVE)] [MatchingParameterFunctionTypeKey=() -> TypeVariable(T)] lazy@fun <anonymous>(): R|kotlin/String| <inline=NoInline>  {
                 ^ R|/materialize|<R|kotlin/String|>()
             }
             )
@@ -504,4 +504,3 @@ FILE: [ResolvedTo(BODY_RESOLVE)] lazyPropertyScript.kts
                 }
 
         }
-

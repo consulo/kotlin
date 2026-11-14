@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.gradle
 
 import org.gradle.api.JavaVersion
-import org.gradle.api.logging.LogLevel
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.util.GradleVersion
@@ -14,12 +13,16 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.UsesKotlinJavaToolchain
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.replaceText
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import kotlin.io.path.appendText
 
 @DisplayName("Kotlin Java Toolchain support")
+@MustRunOnChangesInGradle
 class KotlinJavaToolchainTest : KGPBaseTest() {
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @GradleTest
     @DisplayName("Should use by default same jvm as Gradle daemon for jdkHome")
@@ -34,6 +37,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @GradleTest
     @DisplayName("Should use provided jdk location to compile Kotlin sources")
@@ -55,6 +59,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @GradleTest
     @DisplayName("KotlinCompile task should use build cache when using provided JDK")
@@ -87,6 +92,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Kotlin compile task should reuse build cache when toolchain is set and build is happening on different JDKs")
     @GradleTest
@@ -121,6 +127,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @GradleTest
     @DisplayName("Kotlin compile task should not use build cache on using different JDK versions")
@@ -151,6 +158,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simpleWithKapt")
     @JvmGradlePluginTests
     @DisplayName("Kapt task should use only process worker isolation when kotlin java toolchain is set")
     @GradleTest
@@ -174,6 +182,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simpleWithKapt")
     @JvmGradlePluginTests
     @DisplayName("Kapt task should use worker no-isolation mode when build is using Gradle JDK")
     @GradleTest
@@ -189,6 +198,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simpleWithKapt")
     @JvmGradlePluginTests
     @DisplayName("Kapt tasks with custom JDK should be cacheable")
     @GradleTest
@@ -225,6 +235,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simpleWithKapt")
     @JvmGradlePluginTests
     @DisplayName("Kapt tasks with default JDK and different isolation modes should be cacheable")
     @GradleTest
@@ -262,6 +273,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Should allow to set JDK version for tasks via Java toolchain")
     @GradleTest
@@ -277,6 +289,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Should allow to set Java toolchain via extension")
     @GradleTest
@@ -292,6 +305,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/mppJvmWithJava")
     @JvmGradlePluginTests
     @DisplayName("Toolchain should be correctly supported in multiplatform plugin jvm with 'withJava()' targets")
     @GradleTest
@@ -300,7 +314,6 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
             projectName = "mppJvmWithJava".fullProjectName,
             gradleVersion = gradleVersion
         ) {
-            if (!isWithJavaSupported) buildGradle.replaceText("withJava()", "")
             useToolchainToCompile(11)
 
             build("assemble") {
@@ -309,6 +322,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/mppJvmWithJava")
     @JvmGradlePluginTests
     @DisplayName("Toolchain should be correctly supported in multiplatform plugin jvm with 'withJava()' targets")
     @GradleTest
@@ -317,7 +331,6 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
             projectName = "mppJvmWithJava".fullProjectName,
             gradleVersion = gradleVersion
         ) {
-            if (!isWithJavaSupported) buildGradle.replaceText("withJava()", "")
             useToolchainToCompile(11)
 
             build("assemble") {
@@ -326,6 +339,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Should set 'jvmTarget' option if user does not specify it explicitly via jdk setter")
     @GradleTest
@@ -333,7 +347,6 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         project(
             projectName = "simple".fullProjectName,
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
         ) {
             useJdkToCompile(
                 jdk11Info.jdkPath,
@@ -355,6 +368,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Should not override user specified 'jvmTarget' option via jdk setter")
     @GradleTest
@@ -362,7 +376,6 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         project(
             projectName = "simple".fullProjectName,
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
         ) {
             setJvmTarget("17")
 
@@ -378,6 +391,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Should set 'jvmTarget' option if user does not specify it explicitly via toolchain setter")
     @GradleTest
@@ -385,7 +399,6 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         project(
             projectName = "simple".fullProjectName,
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
         ) {
             useToolchainToCompile(11)
 
@@ -396,6 +409,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Should not override user specified 'jvmTarget' option via toolchain setter")
     @GradleTest
@@ -403,7 +417,6 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         project(
             projectName = "simple".fullProjectName,
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
         ) {
             setJvmTarget("17")
             useToolchainToCompile(11)
@@ -423,6 +436,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/kotlinJavaProject")
     @JvmGradlePluginTests
     @DisplayName("Setting toolchain via java extension should also affect Kotlin compilations")
     @GradleTest
@@ -450,6 +464,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/kotlinJavaProject")
     @JvmGradlePluginTests
     @DisplayName("Setting toolchain via java extension should update jvm-target argument on eager task creation")
     @GradleTest
@@ -472,7 +487,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
                 """.trimIndent()
             )
 
-            build("build", buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG), forwardBuildOutput = true) {
+            build("build", forwardBuildOutput = true) {
                 val compilerArgs = output.lineSequence()
                     .filter { it.contains("Kotlin compiler args:") }
                     .first()
@@ -483,6 +498,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Build should not produce warnings when '-no-jdk' option is present")
     @GradleTest
@@ -515,6 +531,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/android")
     @AndroidGradlePluginTests
     @DisplayName("Toolchain should take into account kotlin options that are set via android extension")
     @GradleAndroidTest
@@ -535,6 +552,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Toolchain should not make an exception when build is running on JDK 17, but toolchain is set to JDK 1.8")
     @GradleTest
@@ -550,47 +568,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
-    @JvmGradlePluginTests
-    @DisplayName("JVM target shouldn't be changed when toolchain is not configured")
-    // Starting Gradle 8.0 toolchain is always configured by default
-    @GradleTestVersions(maxVersion = TestVersions.Gradle.G_7_6)
-    @GradleTest
-    internal fun shouldNotChangeJvmTargetWithNoToolchain(gradleVersion: GradleVersion) {
-        project(
-            projectName = "simple".fullProjectName,
-            gradleVersion = gradleVersion,
-            buildJdk = jdk11Info.javaHome
-        ) {
-            //language=properties
-            gradleProperties.append(
-                """
-                # suppress inspection "UnusedProperty"
-                kotlin.jvm.target.validation.mode = warning
-                """.trimIndent()
-            )
-
-            val defaultJvmTargetName = JvmTarget.DEFAULT.let {
-                "${it.declaringJavaClass.canonicalName}.${it.name}"
-            }
-
-            //language=Groovy
-            buildGradle.append(
-                """
-                tasks.named("compileKotlin") {
-                    doLast {
-                        def actualJvmTarget = compilerOptions.jvmTarget.orNull
-                        if (actualJvmTarget != $defaultJvmTargetName) {
-                            //noinspection GroovyAssignabilityCheck
-                            throw new GradleException("Expected `jvmTarget` value is 'JvmTarget.DEFAULT' but the actual value was ${'$'}actualJvmTarget")
-                        }
-                    }
-                }
-                """.trimIndent()
-            )
-            build("assemble")
-        }
-    }
-
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Kotlin toolchain should support configuration cache")
     @GradleTest
@@ -609,6 +587,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Should work with configuration cache when toolchain is not configured")
     @GradleTest
@@ -623,6 +602,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Toolchain simplified method with JDK version in extension is working")
     @GradleTest
@@ -658,6 +638,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/multiproject")
     @JvmGradlePluginTests
     @DisplayName("KT-55004: Should use non-default toolchain for parent project")
     @GradleTest
@@ -665,7 +646,6 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         project(
             projectName = "multiproject".fullProjectName,
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
         ) {
             subProject("lib").buildScriptInjection {
                 project.tasks.named("compileJava", JavaCompile::class.java).configure { task ->
@@ -687,6 +667,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/simple")
     @JvmGradlePluginTests
     @DisplayName("Toolchain should not override Jvm target configured in project level DSL")
     @GradleTest
@@ -694,7 +675,6 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         project(
             projectName = "simple".fullProjectName,
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
         ) {
             //language=properties
             gradleProperties.append(
@@ -720,6 +700,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-java-toolchain/android")
     @AndroidGradlePluginTests
     @DisplayName("Toolchain should not override Jvm target configured via kotlinOptions in android project")
     @GradleAndroidTest
@@ -732,7 +713,7 @@ class KotlinJavaToolchainTest : KGPBaseTest() {
             "android".fullProjectName,
             gradleVersion,
             buildOptions = defaultBuildOptions
-                .copy(androidVersion = agpVersion, logLevel = LogLevel.DEBUG),
+                .copy(androidVersion = agpVersion),
             buildJdk = providedJdk.location
         ) {
             buildGradle.appendText(

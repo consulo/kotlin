@@ -12,6 +12,9 @@ import org.jetbrains.kotlin.gradle.incapt.IncrementalBinaryIsolatingProcessor
 import org.jetbrains.kotlin.gradle.incapt.IncrementalIsolatingProcessor
 import org.jetbrains.kotlin.gradle.incapt.IncrementalProcessor
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerPlugins
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import java.io.File
 import kotlin.io.path.createDirectories
@@ -21,6 +24,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @DisplayName("Kapt incremental tests with aggregating apt")
+@MustRunOnChangesInGradle
+@MustRunOnChangesInCompilerPlugins
 class KaptIncrementalWithAggregatingApt : KaptIncrementalIT() {
     override val defaultBuildOptions = super.defaultBuildOptions.copy(
         incremental = true,
@@ -47,6 +52,7 @@ class KaptIncrementalWithAggregatingApt : KaptIncrementalIT() {
             test(this)
         }
 
+    @TestMetadata("kaptIncrementalCompilationProject")
     @DisplayName("On incremental changes")
     @GradleTest
     fun testIncrementalChanges(gradleVersion: GradleVersion) {
@@ -92,11 +98,16 @@ class KaptIncrementalWithAggregatingApt : KaptIncrementalIT() {
         }
     }
 
+    @TestMetadata("kaptIncrementalCompilationProject")
     @DisplayName("Incremental changes in JDK9+")
-    @JdkVersions(versions = [JavaVersion.VERSION_11])
+    @JdkVersions(versions = [JavaVersion.VERSION_17])
     @GradleWithJdkTest
     fun testIncrementalChangesWithJdk9(gradleVersion: GradleVersion, jdk: JdkVersions.ProvidedJdk) {
-        kaptProject(gradleVersion, buildJdk = jdk.location) {
+        kaptProject(
+            gradleVersion,
+            buildJdk = jdk.location,
+            buildOptions = defaultBuildOptions.suppressDeprecatedJdkWarningWithGradle814(gradleVersion, jdk)
+        ) {
             build("clean", "assemble")
 
             javaSourcesDir().resolve("bar/useB.kt").modify { current -> "$current\nfun otherFunction() {}" }
@@ -116,6 +127,7 @@ class KaptIncrementalWithAggregatingApt : KaptIncrementalIT() {
         }
     }
 
+    @TestMetadata("incrementalMultiproject")
     @DisplayName("Changes in classpath triggers incremental compilation")
     @GradleTest
     fun testClasspathChanges(gradleVersion: GradleVersion) {
@@ -179,6 +191,7 @@ class KaptIncrementalWithAggregatingApt : KaptIncrementalIT() {
         }
     }
 
+    @TestMetadata("kaptIncrementalCompilationProject")
     @DisplayName("Should clean previously generated files on incompatible classpath changes")
     @GradleTest
     fun testIncompatibleClasspathChanges(gradleVersion: GradleVersion) {
@@ -213,15 +226,17 @@ class KaptIncrementalWithAggregatingApt : KaptIncrementalIT() {
         }
     }
 
+    @TestMetadata("kaptIncrementalAggregatingProcessorProject")
     @DisplayName("Incremental aggregating changes")
-    @JdkVersions(versions = [JavaVersion.VERSION_1_8, JavaVersion.VERSION_11])
+    @JdkVersions(versions = [JavaVersion.VERSION_17])
     @GradleWithJdkTest
     fun testIncrementalAggregatingChanges(gradleVersion: GradleVersion, jdk: JdkVersions.ProvidedJdk) {
         doIncrementalAggregatingChanges(gradleVersion, jdk)
     }
 
+    @TestMetadata("kaptIncrementalAggregatingProcessorProject")
     @DisplayName("Incremental binary aggregating changes")
-    @JdkVersions(versions = [JavaVersion.VERSION_1_8, JavaVersion.VERSION_11, JavaVersion.VERSION_17, JavaVersion.VERSION_21])
+    @JdkVersions(versions = [JavaVersion.VERSION_17, JavaVersion.VERSION_21])
     @GradleWithJdkTest
     fun testIncrementalBinaryAggregatingChanges(gradleVersion: GradleVersion, jdk: JdkVersions.ProvidedJdk) {
         doIncrementalAggregatingChanges(
@@ -247,6 +262,7 @@ class KaptIncrementalWithAggregatingApt : KaptIncrementalIT() {
             "kaptIncrementalAggregatingProcessorProject",
             gradleVersion,
             buildJdk = jdk.location,
+            buildOptions = defaultBuildOptions.suppressDeprecatedJdkWarningWithGradle814(gradleVersion, jdk)
         ) {
             setupIncrementalAptProject(
                 "ISOLATING" to if (isBinary) IncrementalBinaryIsolatingProcessor::class.java else IncrementalIsolatingProcessor::class.java,

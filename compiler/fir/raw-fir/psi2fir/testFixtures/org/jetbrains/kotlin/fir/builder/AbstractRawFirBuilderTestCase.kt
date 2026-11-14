@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -8,11 +8,12 @@ package org.jetbrains.kotlin.fir.builder
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.psi.PsiFile
-import com.intellij.psi.tree.IElementType
 import com.intellij.util.PathUtil
-import org.jetbrains.kotlin.KtNodeTypes
+import org.jetbrains.kotlin.KtSourceElement
+import org.jetbrains.kotlin.KtSourceFile
 import org.jetbrains.kotlin.ObsoleteTestInfrastructure
 import org.jetbrains.kotlin.checkers.collectLanguageFeatureMap
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.contracts.FirContractDescription
@@ -20,10 +21,15 @@ import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameter
 import org.jetbrains.kotlin.fir.declarations.FirValueParameter
+import org.jetbrains.kotlin.fir.declarations.builder.FirFileBuilder
+import org.jetbrains.kotlin.fir.declarations.builder.FirReplSnippetBuilder
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
 import org.jetbrains.kotlin.fir.declarations.utils.isLocal
 import org.jetbrains.kotlin.fir.expressions.*
+import org.jetbrains.kotlin.fir.expressions.builder.FirBlockBuilder
 import org.jetbrains.kotlin.fir.expressions.impl.FirContractCallBlock
+import org.jetbrains.kotlin.fir.extensions.PluginServicesInitialization
+import org.jetbrains.kotlin.fir.extensions.extensionService
 import org.jetbrains.kotlin.fir.references.impl.FirStubReference
 import org.jetbrains.kotlin.fir.renderer.FirRenderer
 import org.jetbrains.kotlin.fir.session.FirSessionFactoryHelper
@@ -36,49 +42,56 @@ import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.fir.types.isExtensionFunctionAnnotationCall
 import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
-import org.jetbrains.kotlin.parsing.KotlinParserDefinition
 import org.jetbrains.kotlin.psi
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.KtNonPublicApi
 import org.jetbrains.kotlin.psi.KtPropertyDelegate
-import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.test.InTextDirectivesUtils
 import org.jetbrains.kotlin.test.TestDataAssertions
+import org.jetbrains.kotlin.test.services.JUnit5Assertions
 import org.jetbrains.kotlin.test.testFramework.KtParsingTestCase
-import org.jetbrains.kotlin.test.util.JUnit4Assertions
-import org.jetbrains.kotlin.test.util.KtTestUtil
 import org.jetbrains.kotlin.utils.addToStdlib.joinToWithBuffer
 import java.io.File
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.isAccessible
 
 @OptIn(ObsoleteTestInfrastructure::class)
-abstract class AbstractRawFirBuilderTestCase : KtParsingTestCase(
-    "",
-    "kt",
-    KotlinParserDefinition()
-) {
-    override fun getTestDataPath(): String = KtTestUtil.getHomeDirectory()
-
-    private fun createFile(filePath: String, fileType: IElementType): PsiFile {
-        val psiFactory = KtPsiFactory(myProject)
-        return when (fileType) {
-            KtNodeTypes.EXPRESSION_CODE_FRAGMENT ->
-                psiFactory.createExpressionCodeFragment(loadFile(filePath), null)
-            KtNodeTypes.BLOCK_CODE_FRAGMENT ->
-                psiFactory.createBlockCodeFragment(loadFile(filePath), null)
-            else ->
-                createPsiFile(FileUtil.getNameWithoutExtension(PathUtil.getFileName(filePath)), loadFile(filePath))
-        }
+abstract class AbstractRawFirBuilderTestCase : KtParsingTestCase("", "kt") {
+    private fun createFile(filePath: String): PsiFile {
+        val file = File(filePath)
+        return createPsiFile(FileUtil.getNameWithoutExtension(PathUtil.getFileName(filePath)), loadFile(file))
     }
 
-    protected open fun doRawFirTest(filePath: String) {
-        val file = createKtFile(filePath)
-        val firFile = file.toFirFile(BodyBuildingMode.NORMAL)
+    protected open fun runTest(filePath: String) {
+        val absolutePath = ForTestCompileRuntime.transformTestDataPath(filePath).path
+        val file = createKtFile(absolutePath)
+        val session = FirSessionFactoryHelper.createEmptySession(parseLanguageFeatures(file.text))
+        session.registerReplSnippetConfiguratorForReplFixture(filePath)
+        val firFile = file.toFirFile(session, BodyBuildingMode.NORMAL)
         val firFileDump = dumpFirFile(firFile)
-        val expectedPath = expectedPath(filePath, ".txt")
+        val expectedPath = expectedPath(absolutePath, ".txt")
         TestDataAssertions.assertEqualsToFile(File(expectedPath), firFileDump)
-        checkAnnotationOwners(filePath, firFile)
+        checkAnnotationOwners(absolutePath, firFile)
+    }
+
+    /**
+     * Raw FIR builders decide between a script and a REPL snippet through the registered [FirReplSnippetConfiguratorExtension]s,
+     * so a no-op one accepting every source is registered for `*.repl.kts` fixtures.
+     */
+    @OptIn(PluginServicesInitialization::class)
+    protected fun FirSession.registerReplSnippetConfiguratorForReplFixture(filePath: String) {
+        if (!filePath.endsWith(".repl.kts")) return
+        extensionService.registerExtensions(
+            FirReplSnippetConfiguratorExtension::class,
+            listOf(FirReplSnippetConfiguratorExtension.Factory { TestReplSnippetConfigurator(it) }),
+        )
+    }
+
+    private class TestReplSnippetConfigurator(session: FirSession) : FirReplSnippetConfiguratorExtension(session) {
+        override fun isReplSnippetsSource(sourceFile: KtSourceFile?, scriptSource: KtSourceElement): Boolean = true
+        override fun FirReplSnippetBuilder.configureContainingFile(fileBuilder: FirFileBuilder) {}
+        override fun FirReplSnippetBuilder.configure(sourceFile: KtSourceFile?, context: Context<*>) {}
+        override fun FirBlockBuilder.configureEvalBody(sourceFile: KtSourceFile?, scriptSource: KtSourceElement, context: Context<*>) {}
+        override fun MutableList<FirElement>.configure(sourceFile: KtSourceFile?, scriptSource: KtSourceElement, context: Context<*>) {}
     }
 
     protected fun expectedPath(originalPath: String, newExtension: String): String {
@@ -90,7 +103,7 @@ abstract class AbstractRawFirBuilderTestCase : KtParsingTestCase(
         val expectedFile = File(expectedPath)
         val annotations = firFile.collectAnnotations()
         if (annotations.isEmpty()) {
-            JUnit4Assertions.assertFileDoesntExist(expectedFile) {
+            JUnit5Assertions.assertFileDoesntExist(expectedFile) {
                 "No annotations found, but $expectedFile exists"
             }
 
@@ -99,7 +112,7 @@ abstract class AbstractRawFirBuilderTestCase : KtParsingTestCase(
 
         val actual = annotations.groupBy(AnnotationWithContext::annotation)
             .entries
-            .joinToString(separator = "\n\n") { (annotation, contexts) ->
+            .joinToString(separator = "\n\n") { [annotation, contexts] ->
                 buildString {
                     appendLine(annotation.render().trim())
                     append("owner -> ")
@@ -123,10 +136,9 @@ abstract class AbstractRawFirBuilderTestCase : KtParsingTestCase(
         TestDataAssertions.assertEqualsToFile(expectedFile, actual)
     }
 
-    @OptIn(KtNonPublicApi::class)
     protected open fun createKtFile(filePath: String): KtFile {
         myFileExt = FileUtilRt.getExtension(PathUtil.getFileName(filePath))
-        return (createFile(filePath, KtNodeTypes.KT_FILE) as KtFile).apply {
+        return (createFile(filePath) as KtFile).apply {
             myFile = this
         }
     }
@@ -136,8 +148,11 @@ abstract class AbstractRawFirBuilderTestCase : KtParsingTestCase(
         return renderer.renderElementAsString(firFile)
     }
 
-    protected fun KtFile.toFirFile(bodyBuildingMode: BodyBuildingMode = BodyBuildingMode.NORMAL): FirFile {
-        val session = FirSessionFactoryHelper.createEmptySession(parseLanguageFeatures(this.text))
+    protected fun KtFile.toFirFile(
+        bodyBuildingMode: BodyBuildingMode = BodyBuildingMode.NORMAL,
+        features: Map<LanguageFeature, LanguageFeature.State> = emptyMap(),
+    ): FirFile {
+        val session = FirSessionFactoryHelper.createEmptySession(parseLanguageFeatures(this.text) + features)
         return toFirFile(session, bodyBuildingMode)
     }
 

@@ -12,6 +12,9 @@ object BinaryenConfig {
         "--enable-reference-types",
         "--enable-exception-handling",
         "--enable-bulk-memory",  // For array initialization from data sections
+        "--enable-stack-switching",
+        "--enable-multivalue", // required for block with suspend instruction
+        "--enable-tail-call",
 
         // Other options
         "--enable-nontrapping-float-to-int",

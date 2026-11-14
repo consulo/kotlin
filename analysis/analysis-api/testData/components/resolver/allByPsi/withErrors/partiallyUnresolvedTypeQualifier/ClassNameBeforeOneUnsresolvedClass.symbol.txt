@@ -20,19 +20,35 @@ KtProperty(26,43): 'val prop: Foo.Bar'
   null
 
 KtTypeReference(36,43): 'Foo.Bar'
-  null
+  KaSimpleSymbolResolutionError:
+    candidateSymbols = []
+    diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'Bar'.>
 
 KtUserType(36,43): 'Foo.Bar'
-  null
+  KaSimpleSymbolResolutionError:
+    candidateSymbols = []
+    diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'Bar'.>
 
 KtUserType(36,39): 'Foo'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Foo
+    ]
 
 KtNameReferenceExpression(36,39): 'Foo'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Foo
+    ]
 
 KtNameReferenceExpression(40,43): 'Bar'
-  KaSymbolResolutionError:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionError:
     candidateSymbols = []
     diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'Bar'.>
 
@@ -49,19 +65,35 @@ KtProperty(67,89): 'val localProp: Foo.Bar'
   null
 
 KtTypeReference(82,89): 'Foo.Bar'
-  null
+  KaSimpleSymbolResolutionError:
+    candidateSymbols = []
+    diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'Bar'.>
 
 KtUserType(82,89): 'Foo.Bar'
-  null
+  KaSimpleSymbolResolutionError:
+    candidateSymbols = []
+    diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'Bar'.>
 
 KtUserType(82,85): 'Foo'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Foo
+    ]
 
 KtNameReferenceExpression(82,85): 'Foo'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Foo
+    ]
 
 KtNameReferenceExpression(86,89): 'Bar'
-  KaSymbolResolutionError:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionError:
     candidateSymbols = []
     diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'Bar'.>
 
@@ -81,10 +113,16 @@ KtParameter(106,125): 'action: (T) -> Unit'
   null
 
 KtTypeReference(114,125): '(T) -> Unit'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Function1
+    ]
 
 KtFunctionType(114,125): '(T) -> Unit'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Function1
+    ]
 
 KtParameterList(114,117): '(T)'
   null
@@ -93,22 +131,46 @@ KtParameter(115,116): 'T'
   null
 
 KtTypeReference(115,116): 'T'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtUserType(115,116): 'T'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtNameReferenceExpression(115,116): 'T'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtTypeReference(121,125): 'Unit'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Unit
+    ]
 
 KtUserType(121,125): 'Unit'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Unit
+    ]
 
 KtNameReferenceExpression(121,125): 'Unit'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Unit
+    ]
 
 KtBlockExpression(127,129): '{}'
   null
@@ -117,18 +179,21 @@ KtProperty(131,178): 'val prop = take {'
   null
 
 KtCallExpression(142,178): 'take {'
-  KaSymbolResolutionError:
+  KaSimpleSymbolResolutionError:
     candidateSymbols = [
       /take(action: (T) -> kotlin.Unit): kotlin.Unit
     ]
-    diagnostic = ERROR<ARGUMENT_TYPE_MISMATCH: Argument type mismatch: actual type is '(??? (Unresolved qualified name: Foo.Bar)) -> Unit', but '(uninferred T (of fun <T> take)) -> Unit' was expected.>
+    diagnostic = ERROR<EXPECTED_PARAMETER_TYPE_MISMATCH: Parameter type mismatch: actual type is '??? (Unresolved qualified name: Foo.Bar)', but 'uninferred T (of fun <T> take)' was expected.>
 
 KtNameReferenceExpression(142,146): 'take'
-  KaSymbolResolutionError:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionError:
     candidateSymbols = [
       /take(action: (T) -> kotlin.Unit): kotlin.Unit
     ]
-    diagnostic = ERROR<ARGUMENT_TYPE_MISMATCH: Argument type mismatch: actual type is '(??? (Unresolved qualified name: Foo.Bar)) -> Unit', but '(uninferred T (of fun <T> take)) -> Unit' was expected.>
+    diagnostic = ERROR<EXPECTED_PARAMETER_TYPE_MISMATCH: Parameter type mismatch: actual type is '??? (Unresolved qualified name: Foo.Bar)', but 'uninferred T (of fun <T> take)' was expected.>
 
 KtLambdaArgument(147,178): '{'
   null
@@ -146,19 +211,35 @@ KtParameter(153,173): 'lambdaParam: Foo.Bar'
   null
 
 KtTypeReference(166,173): 'Foo.Bar'
-  null
+  KaSimpleSymbolResolutionError:
+    candidateSymbols = []
+    diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'Bar'.>
 
 KtUserType(166,173): 'Foo.Bar'
-  null
+  KaSimpleSymbolResolutionError:
+    candidateSymbols = []
+    diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'Bar'.>
 
 KtUserType(166,169): 'Foo'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Foo
+    ]
 
 KtNameReferenceExpression(166,169): 'Foo'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Foo
+    ]
 
 KtNameReferenceExpression(170,173): 'Bar'
-  KaSymbolResolutionError:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionError:
     candidateSymbols = []
     diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'Bar'.>
 

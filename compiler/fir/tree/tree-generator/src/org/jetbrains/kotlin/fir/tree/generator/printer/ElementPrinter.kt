@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.generators.tree.printer.*
 private val elementsWithReplaceSource = setOf(
     FirTree.qualifiedAccessExpression,
     FirTree.delegatedConstructorCall,
+    FirTree.annotation,
 )
 
 internal class ElementPrinter(printer: ImportCollectingPrinter) : AbstractElementPrinter<Element, Field>(printer) {
@@ -41,7 +42,7 @@ internal class ElementPrinter(printer: ImportCollectingPrinter) : AbstractElemen
             ) {
                 println()
                 if (name == "source") {
-                    println("@", firImplementationDetailType.render())
+                    println(firImplementationDetailType.render())
                 }
                 replaceFunctionDeclaration(this, override, kind, overriddenType, forceNullable)
                 println()

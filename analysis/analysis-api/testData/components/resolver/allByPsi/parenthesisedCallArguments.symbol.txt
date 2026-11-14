@@ -17,13 +17,25 @@ KtParameter(8,14): 'x: Int'
   null
 
 KtTypeReference(11,14): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(11,14): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(11,14): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtBlockExpression(16,18): '{}'
   null
@@ -41,13 +53,25 @@ KtDeclarationModifierList(33,39): 'vararg'
   null
 
 KtTypeReference(43,46): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(43,46): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(43,46): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtBlockExpression(48,50): '{}'
   null
@@ -62,10 +86,16 @@ KtParameter(66,89): 'lambda: (x: Int) -> Int'
   null
 
 KtTypeReference(74,89): '(x: Int) -> Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Function1
+    ]
 
 KtFunctionType(74,89): '(x: Int) -> Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Function1
+    ]
 
 KtParameterList(74,82): '(x: Int)'
   null
@@ -74,22 +104,46 @@ KtParameter(75,81): 'x: Int'
   null
 
 KtTypeReference(78,81): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(78,81): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(78,81): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtTypeReference(86,89): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(86,89): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(86,89): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtBlockExpression(91,93): '{}'
   null
@@ -110,13 +164,25 @@ KtParameterList(128,130): '()'
   null
 
 KtTypeReference(132,135): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(132,135): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(132,135): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNamedFunction(139,164): 'fun fooSam(sam: MySam) {}'
   null
@@ -128,13 +194,25 @@ KtParameter(150,160): 'sam: MySam'
   null
 
 KtTypeReference(155,160): 'MySam'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MySam
+    ]
 
 KtUserType(155,160): 'MySam'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MySam
+    ]
 
 KtNameReferenceExpression(155,160): 'MySam'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MySam
+    ]
 
 KtBlockExpression(162,164): '{}'
   null
@@ -155,13 +233,16 @@ KtConstantExpression(195,196): '1'
   null
 
 KtCallExpression(202,208): 'foo(3)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
 
 KtNameReferenceExpression(202,205): 'foo'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
@@ -176,13 +257,16 @@ KtConstantExpression(206,207): '3'
   null
 
 KtCallExpression(213,223): 'foo(((5)))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
 
 KtNameReferenceExpression(213,216): 'foo'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
@@ -203,13 +287,16 @@ KtConstantExpression(219,220): '5'
   null
 
 KtCallExpression(228,242): 'foo(x = ((5)))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
 
 KtNameReferenceExpression(228,231): 'foo'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
@@ -224,7 +311,13 @@ KtValueArgumentName(232,233): 'x'
   null
 
 KtNameReferenceExpression(232,233): 'x'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      x: kotlin.Int
+    ]
 
 KtParenthesizedExpression(236,241): '((5))'
   null
@@ -236,13 +329,16 @@ KtConstantExpression(238,239): '5'
   null
 
 KtCallExpression(247,266): 'foo((((5 as Int))))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
 
 KtNameReferenceExpression(247,250): 'foo'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
@@ -269,25 +365,43 @@ KtConstantExpression(254,255): '5'
   null
 
 KtOperationReferenceExpression(256,258): 'as'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtTypeReference(259,262): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(259,262): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(259,262): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtCallExpression(271,294): 'foo(x = (((5 as Int))))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
 
 KtNameReferenceExpression(271,274): 'foo'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
@@ -302,7 +416,13 @@ KtValueArgumentName(275,276): 'x'
   null
 
 KtNameReferenceExpression(275,276): 'x'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      x: kotlin.Int
+    ]
 
 KtParenthesizedExpression(279,293): '(((5 as Int)))'
   null
@@ -320,25 +440,43 @@ KtConstantExpression(282,283): '5'
   null
 
 KtOperationReferenceExpression(284,286): 'as'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtTypeReference(287,290): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(287,290): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(287,290): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtCallExpression(300,368): 'foo((((when (((value))) {'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
 
 KtNameReferenceExpression(300,303): 'foo'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
@@ -368,7 +506,10 @@ KtParenthesizedExpression(314,321): '(value)'
   null
 
 KtNameReferenceExpression(315,320): 'value'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var value: kotlin.Int
     ]
@@ -392,13 +533,16 @@ KtConstantExpression(357,358): '2'
   null
 
 KtCallExpression(374,394): 'foo(((((++value)))))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
 
 KtNameReferenceExpression(374,377): 'foo'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /foo(x: kotlin.Int): kotlin.Unit
     ]
@@ -422,32 +566,41 @@ KtParenthesizedExpression(381,390): '(++value)'
   null
 
 KtPrefixExpression(382,389): '++value'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var value: kotlin.Int,
       kotlin/Int.inc(<dispatch receiver>: kotlin.Int): kotlin.Int
     ]
 
 KtOperationReferenceExpression(382,384): '++'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int.inc(<dispatch receiver>: kotlin.Int): kotlin.Int
     ]
 
 KtNameReferenceExpression(384,389): 'value'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var value: kotlin.Int
     ]
 
 KtCallExpression(400,426): 'fooVararg((5), (5 as Int))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /fooVararg(vararg x: kotlin.Int): kotlin.Unit
     ]
 
 KtNameReferenceExpression(400,409): 'fooVararg'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /fooVararg(vararg x: kotlin.Int): kotlin.Unit
     ]
@@ -477,25 +630,43 @@ KtConstantExpression(416,417): '5'
   null
 
 KtOperationReferenceExpression(418,420): 'as'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtTypeReference(421,424): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(421,424): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(421,424): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtCallExpression(431,458): 'fooVararg(*(intArrayOf(5)))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /fooVararg(vararg x: kotlin.Int): kotlin.Unit
     ]
 
 KtNameReferenceExpression(431,440): 'fooVararg'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /fooVararg(vararg x: kotlin.Int): kotlin.Unit
     ]
@@ -510,13 +681,16 @@ KtParenthesizedExpression(442,457): '(intArrayOf(5))'
   null
 
 KtCallExpression(443,456): 'intArrayOf(5)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/intArrayOf(vararg elements: kotlin.Int): kotlin.IntArray
     ]
 
 KtNameReferenceExpression(443,453): 'intArrayOf'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/intArrayOf(vararg elements: kotlin.Int): kotlin.IntArray
     ]
@@ -531,13 +705,16 @@ KtConstantExpression(454,455): '5'
   null
 
 KtCallExpression(463,493): 'fooVararg(x = (intArrayOf(5)))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /fooVararg(vararg x: kotlin.Int): kotlin.Unit
     ]
 
 KtNameReferenceExpression(463,472): 'fooVararg'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /fooVararg(vararg x: kotlin.Int): kotlin.Unit
     ]
@@ -552,19 +729,28 @@ KtValueArgumentName(473,474): 'x'
   null
 
 KtNameReferenceExpression(473,474): 'x'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      vararg x: kotlin.Int
+    ]
 
 KtParenthesizedExpression(477,492): '(intArrayOf(5))'
   null
 
 KtCallExpression(478,491): 'intArrayOf(5)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/intArrayOf(vararg elements: kotlin.Int): kotlin.IntArray
     ]
 
 KtNameReferenceExpression(478,488): 'intArrayOf'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/intArrayOf(vararg elements: kotlin.Int): kotlin.IntArray
     ]
@@ -579,13 +765,16 @@ KtConstantExpression(489,490): '5'
   null
 
 KtCallExpression(499,523): 'fooLambda((({ _ -> 5})))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /fooLambda(lambda: (@R|kotlin.ParameterName|(name = String(x))  kotlin.Int) -> kotlin.Int): kotlin.Unit
     ]
 
 KtNameReferenceExpression(499,508): 'fooLambda'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /fooLambda(lambda: (@R|kotlin.ParameterName|(name = String(x))  kotlin.Int) -> kotlin.Int): kotlin.Unit
     ]
@@ -621,13 +810,16 @@ KtConstantExpression(518,519): '5'
   null
 
 KtCallExpression(529,554): 'fooSam((((MySam { 5 }))))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /fooSam(sam: MySam): kotlin.Unit
     ]
 
 KtNameReferenceExpression(529,535): 'fooSam'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /fooSam(sam: MySam): kotlin.Unit
     ]
@@ -648,13 +840,16 @@ KtParenthesizedExpression(538,551): '(MySam { 5 })'
   null
 
 KtCallExpression(539,550): 'MySam { 5 }'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MySam(function: () -> kotlin.Int): MySam
     ]
 
 KtNameReferenceExpression(539,544): 'MySam'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MySam(function: () -> kotlin.Int): MySam
     ]

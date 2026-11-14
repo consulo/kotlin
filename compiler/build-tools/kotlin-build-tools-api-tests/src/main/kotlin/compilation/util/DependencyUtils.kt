@@ -5,12 +5,14 @@
 
 package org.jetbrains.kotlin.buildtools.tests.compilation.util
 
+import org.jetbrains.kotlin.buildtools.api.KotlinToolchains
 import org.jetbrains.kotlin.buildtools.api.SharedApiClassesClassLoader
 import java.io.File
 import java.net.URLClassLoader
+import java.nio.file.Paths
 import kotlin.io.path.toPath
 
-private const val COMPILER_CLASSPATH_PROPERTY = "kotlin.build-tools-api.test.compilerClasspath"
+const val COMPILER_CLASSPATH_PROPERTY = "kotlin.build-tools-api.test.compilerClasspath"
 
 fun initializeBtaClassloader(customParent: ClassLoader? = null): URLClassLoader {
     val classpath = System.getProperty(COMPILER_CLASSPATH_PROPERTY)
@@ -20,7 +22,6 @@ fun initializeBtaClassloader(customParent: ClassLoader? = null): URLClassLoader 
         classpath.split(File.pathSeparator)
             .map { File(it).toURI().toURL() }
 
-    println("Loading classes from classpath: $urls")
     return URLClassLoader(urls.toTypedArray(), customParent ?: SharedApiClassesClassLoader())
 }
 
@@ -28,3 +29,25 @@ val btaClassloader = initializeBtaClassloader()
 
 val currentKotlinStdlibLocation
     get() = btaClassloader.loadClass(KotlinVersion::class.qualifiedName).protectionDomain.codeSource.location.toURI().toPath()
+
+val currentKotlinJsStdlibKlibLocation
+    get() = Paths.get(System.getProperty("kotlin.build-tools-api.test.jsStdlibClasspath"))
+
+val currentKotlinWasmStdlibKlibLocation
+    get() = Paths.get(System.getProperty("kotlin.build-tools-api.test.wasmStdlibClasspath"))
+
+val currentKotlinWasmWasiStdlibKlibLocation
+    get() = Paths.get(System.getProperty("kotlin.build-tools-api.test.wasmWasiStdlibClasspath"))
+
+val currentKotlinMetadataStdlibKlibLocation
+    get() = Paths.get(System.getProperty("kotlin.build-tools-api.test.metadataStdlibClasspath"))
+
+fun KotlinToolchains.unwrap(): KotlinToolchains {
+    if (this::class.java.interfaces.any { (it.name == "org.jetbrains.kotlin.buildtools.api.internal.wrappers.KotlinToolchainsWrapper") }) {
+        val baseProperty =
+            this::class.java.interfaces.first { it.name == "org.jetbrains.kotlin.buildtools.api.internal.wrappers.KotlinToolchainsWrapper" }
+                .getDeclaredMethod("getBase").invoke(this)
+        return (baseProperty as KotlinToolchains).unwrap()
+    }
+    return this
+}

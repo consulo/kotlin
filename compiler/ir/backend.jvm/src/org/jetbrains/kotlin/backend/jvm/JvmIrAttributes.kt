@@ -67,3 +67,8 @@ var IrVariable.originalSnippetValueSymbol: IrSymbol? by irAttribute(copyByDefaul
 var IrCall.originalForReflectiveCall: IrCall? by irAttribute(copyByDefault = false)
 
 var IrMutableAnnotationContainer.isJavaLangDeprecatedOnlyAddedByCompiler: Boolean by irFlag(copyByDefault = true)
+
+// Marks an anonymous function used as an indy implementation method so codegen emits parameter assertions.
+var IrFunction.isIndyImplementationMethod: Boolean by irFlag(copyByDefault = false)
+
+var IrSimpleFunction.syntheticMethodForProperty: IrProperty? by irAttribute(true)

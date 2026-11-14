@@ -1,13 +1,15 @@
 description = "Kotlin NoArg Compiler Plugin (Backend)"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
 dependencies {
     api(project(":compiler:ir.backend.common"))
-    api(project(":core:descriptors"))
-    implementation(project(":compiler:frontend.java"))
+    implementation(project(":core:descriptors"))
+    implementation(project(":core:compiler.common.jvm"))
     compileOnly(project(":kotlin-noarg-compiler-plugin.common"))
     compileOnly(intellijCore())
     compileOnly(libs.intellij.asm)
@@ -20,6 +22,8 @@ sourceSets {
     "main" { projectDefault() }
     "test" { none() }
 }
+
+optInToK1Deprecation()
 
 runtimeJar()
 sourcesJar()

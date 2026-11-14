@@ -19,10 +19,11 @@ import org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiBase
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.KtTestModule
 import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.util.listMultimapOf
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.forEachDescendantOfType
-import org.jetbrains.kotlin.test.TestDataAssertions
 import org.jetbrains.kotlin.test.services.TestServices
+import kotlin.io.path.extension
 
 /**
  * The test visualizes the [FileStructure] structure in human-readable form
@@ -34,7 +35,7 @@ abstract class AbstractFileStructureTest : AbstractAnalysisApiBasedTest() {
         val elementsToStructureElementMap = allStructureElements.associateBy { it.declaration.psi }
         val elementToComments = elementsToStructureElementMap.entries.fold(
             initial = listMultimapOf<PsiElement, String>()
-        ) { map, (anchorElement, structureElement) ->
+        ) { map, [anchorElement, structureElement] ->
             val specialKey: PsiElement? = when (anchorElement) {
                 is KtClassOrObject -> anchorElement.body?.lBrace
                 is KtFunction -> anchorElement.bodyBlockExpression?.lBrace
@@ -68,11 +69,19 @@ abstract class AbstractFileStructureTest : AbstractAnalysisApiBasedTest() {
                     elementToComments[element].forEach(this@buildString::append)
                 }
 
-                override fun visitComment(comment: PsiComment) {}
+                override fun visitComment(comment: PsiComment) {
+                    // Block comments are reserved for structure element markers, so they are dropped and regenerated.
+                    // Other comments (e.g., test directives) are preserved as is.
+                    if (comment.tokenType == KtTokens.BLOCK_COMMENT) {
+                        return
+                    }
+
+                    super.visitComment(comment)
+                }
             })
         }
 
-        TestDataAssertions.assertEqualsToFile(testDataPath, text)
+        assertEqualsToTestOutputFile(text, extension = testDataPath.extension)
 
         if (anchorElements.isNotEmpty()) {
             error(

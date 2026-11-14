@@ -1,7 +1,5 @@
 // RUN_PIPELINE_TILL: FRONTEND
-// LANGUAGE: +ProhibitInnerClassesOfGenericClassExtendingThrowable
 // DIAGNOSTICS: -UNUSED_VARIABLE
-// JAVAC_EXPECTED_FILE
 
 class OuterGeneric<T> {
     inner <!INNER_CLASS_OF_GENERIC_THROWABLE_SUBCLASS!>class ErrorInnerExn<!> : Exception()

@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.SwiftImportManifestGenerator
@@ -24,7 +22,7 @@ class SwiftImportManifestGeneratorTest {
         )
 
         val expected = """
-            |// swift-tools-version: 5.9
+            |// swift-tools-version: 6.1
             |import PackageDescription
             |let package = Package(
             |  name: "TestPackage",
@@ -66,7 +64,7 @@ class SwiftImportManifestGeneratorTest {
         )
 
         val expected = """
-            |// swift-tools-version: 5.9
+            |// swift-tools-version: 6.1
             |import PackageDescription
             |let package = Package(
             |  name: "MultiPlatformPackage",
@@ -108,7 +106,7 @@ class SwiftImportManifestGeneratorTest {
         )
 
         val expected = """
-            |// swift-tools-version: 5.9
+            |// swift-tools-version: 6.1
             |import PackageDescription
             |let package = Package(
             |  name: "LinkedPackage",
@@ -148,7 +146,7 @@ class SwiftImportManifestGeneratorTest {
         )
 
         val expected = """
-            |// swift-tools-version: 5.9
+            |// swift-tools-version: 6.1
             |import PackageDescription
             |let package = Package(
             |  name: "EmptyDepsPackage",
@@ -194,7 +192,7 @@ class SwiftImportManifestGeneratorTest {
         )
 
         val expected = """
-            |// swift-tools-version: 5.9
+            |// swift-tools-version: 6.1
             |import PackageDescription
             |let package = Package(
             |  name: "TestPackage",
@@ -249,7 +247,7 @@ class SwiftImportManifestGeneratorTest {
         )
 
         val expected = """
-            |// swift-tools-version: 5.9
+            |// swift-tools-version: 6.1
             |import PackageDescription
             |let package = Package(
             |  name: "TestPackage",

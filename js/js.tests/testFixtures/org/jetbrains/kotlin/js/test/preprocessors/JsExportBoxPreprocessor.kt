@@ -11,14 +11,12 @@ import org.jetbrains.kotlin.test.services.TestServices
 
 
 /**
- * Makes `box()` exported during CLI invocation of the previous compiler, so it can be invoked by the test runner.
- * In the pure test pipeline the same is done in `JsIrLoweringFacade.compileIrToJs()` by passing `exportedDeclarations` param to `jsCompileKt.compileIr()`
+ * Marks the `box()` function as exported during CLI invocation of the previous compiler, so it can be invoked by the test runner.
  */
 class JsExportBoxPreprocessor(testServices: TestServices) : SourceFilePreprocessor(testServices) {
     private val topLevelBoxRegex = Regex("(^|\n|public\\s+)fun box\\(\\)")
-    private val topLevelBoxReplacement = "\n@JsExport fun box()"
 
     override fun process(file: TestFile, content: String): String {
-        return topLevelBoxRegex.replace(content, topLevelBoxReplacement)
+        return topLevelBoxRegex.replace(content) { "\n@JsExport " + it.value }
     }
 }

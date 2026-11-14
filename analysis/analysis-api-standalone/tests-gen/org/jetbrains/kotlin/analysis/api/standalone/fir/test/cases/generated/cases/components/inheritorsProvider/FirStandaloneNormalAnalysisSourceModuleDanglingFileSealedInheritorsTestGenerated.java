@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.standalone.fir.test.configurators.Analy
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.inheritorsProvider.AbstractDanglingFileSealedInheritorsTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.inheritorsProvider.AbstractDanglingFileSealedInheritorsTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirStandaloneNormalAnalysisSourceModuleDanglingFileSealedInheritors
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirStandaloneModeTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.Source,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Standalone,
@@ -49,6 +47,18 @@ public class FirStandaloneNormalAnalysisSourceModuleDanglingFileSealedInheritors
   @Test
   public void testAllFilesPresentInSealedInheritors() {
     KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/components/inheritorsProvider/sealedInheritors"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+  }
+
+  @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassFromLibrary.kt")
+  public void testFullValueClassFromLibrary() {
+    run("fullValueClassFromLibrary.kt");
   }
 
   @Test

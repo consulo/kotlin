@@ -8,17 +8,20 @@ package org.jetbrains.kotlin.kotlinp
 import kotlin.contracts.ExperimentalContracts
 import kotlin.metadata.*
 
-@OptIn(ExperimentalAnnotationsInMetadata::class)
 abstract class Kotlinp(protected val settings: Settings) {
     fun renderAnnotation(annotation: KmAnnotation, printer: Printer): Unit = with(printer) {
         append(annotation.className)
-        appendCollectionIfNotEmpty(annotation.arguments.entries, prefix = "(", postfix = ")") { (name, argument) ->
-            append(name, " = ")
-            renderAnnotationArgument(argument, printer)
+        if (settings.showAnnotationArguments) {
+            appendCollectionIfNotEmpty(annotation.arguments.entries, prefix = "(", postfix = ")") { [name, argument] ->
+                append(name, " = ")
+                renderAnnotationArgument(argument, printer)
+            }
         }
     }
 
     fun renderAnnotationArgument(argument: KmAnnotationArgument, printer: Printer): Unit = with(printer) {
+        if (!settings.showAnnotationArguments) return
+
         fun String.sanitize(quote: Char): String = buildString(length) {
             for (c in this@sanitize) {
                 when (c) {
@@ -54,7 +57,7 @@ abstract class Kotlinp(protected val settings: Settings) {
             is KmAnnotationArgument.EnumValue -> append(argument.enumClassName, '.', argument.enumEntryName)
             is KmAnnotationArgument.AnnotationValue -> argument.annotation.let { annotation ->
                 append(annotation.className)
-                appendCollection(annotation.arguments.entries, prefix = "(", postfix = ")") { (name, argument) ->
+                appendCollection(annotation.arguments.entries, prefix = "(", postfix = ")") { [name, argument] ->
                     append(name, " = ")
                     renderAnnotationArgument(argument, printer)
                 }
@@ -72,13 +75,13 @@ abstract class Kotlinp(protected val settings: Settings) {
                 append(useSiteTarget).append(":")
             }
             renderAnnotation(annotation, this)
-            if (onePerLine) appendLine() else append(" ")
+            if (!onePerLine || settings.annotationsInOneLine) append(" ") else appendLine()
         }
     }
 
     fun Printer.appendPluginCustomData(compilerPluginMetadata: MutableMap<String, ByteArray>) {
         if (!settings.isVerbose) return
-        compilerPluginMetadata.entries.forEach { (pluginId, metadata) ->
+        compilerPluginMetadata.entries.forEach { [pluginId, metadata] ->
             appendCommentedLine("has custom metadata for plugin $pluginId of size ${metadata.size} bytes")
         }
     }
@@ -102,7 +105,7 @@ abstract class Kotlinp(protected val settings: Settings) {
             clazz.isFunInterface to "fun",
         )
         append(CLASS_KIND_MAP[clazz.kind])
-        append(clazz.name)
+        appendName(clazz)
         appendTypeParameters(clazz.typeParameters)
         appendCollectionIfNotEmpty(clazz.supertypes, prefix = " : ") { appendType(it) }
         appendLine(" {")
@@ -121,7 +124,8 @@ abstract class Kotlinp(protected val settings: Settings) {
                 appendLine()
                 appendSignatures(enumEntry)
                 appendAnnotations(enumEntry.annotations)
-                appendLine(enumEntry.name, ",")
+                appendName(enumEntry)
+                appendLine(",")
             }
             clazz.sealedSubclasses.sortIfNeeded { it }.forEach {
                 appendLine()
@@ -150,7 +154,6 @@ abstract class Kotlinp(protected val settings: Settings) {
         container.typeAliases.sortIfNeeded { it.sortedBy(KmTypeAlias::name) }.forEach { renderTypeAlias(it, this) }
     }
 
-    @OptIn(ExperimentalMustUseStatus::class)
     fun renderConstructor(constructor: KmConstructor, printer: Printer): Unit = with(printer) {
         appendLine()
         appendVersionRequirements(constructor.versionRequirements)
@@ -159,7 +162,7 @@ abstract class Kotlinp(protected val settings: Settings) {
         appendPluginCustomData(constructor.compilerPluginMetadata)
         appendAnnotations(constructor.annotations)
         renderConstructorModifiers(constructor, printer)
-        append("constructor")
+        appendName(constructor)
         appendValueParameters(constructor.valueParameters)
         appendLine()
     }
@@ -172,7 +175,7 @@ abstract class Kotlinp(protected val settings: Settings) {
         )
     }
 
-    @OptIn(ExperimentalContextParameters::class, ExperimentalContracts::class, ExperimentalMustUseStatus::class)
+    @OptIn(ExperimentalContextParameters::class, ExperimentalContracts::class, ExperimentalCompanionExtensions::class)
     fun renderFunction(function: KmFunction, printer: Printer): Unit = with(printer) {
         appendLine()
         appendOrigin(function)
@@ -186,8 +189,8 @@ abstract class Kotlinp(protected val settings: Settings) {
         renderFunctionModifiers(function, printer)
         append("fun ")
         appendTypeParameters(function.typeParameters, postfix = " ")
-        appendReceiverParameterType(function.receiverParameterType)
-        append(function.name)
+        appendReceiverParameterType(function.receiverParameterType ?: function.companionExtensionReceiverType)
+        appendName(function)
         appendValueParameters(function.valueParameters)
         append(": ").appendType(function.returnType)
         appendLine()
@@ -199,6 +202,7 @@ abstract class Kotlinp(protected val settings: Settings) {
         }
     }
 
+    @OptIn(ExperimentalCompanionBlocks::class, ExperimentalCompanionExtensions::class)
     fun renderFunctionModifiers(function: KmFunction, printer: Printer): Unit = with(printer) {
         append(VISIBILITY_MAP[function.visibility])
         append(MODALITY_MAP[function.modality])
@@ -211,6 +215,8 @@ abstract class Kotlinp(protected val settings: Settings) {
             function.isExternal to "external",
             function.isSuspend to "suspend",
             function.isExpect to "expect",
+            function.isCompanionBlockMember to "static",
+            (function.companionExtensionReceiverType != null) to "companion",
             function.hasNonStableParameterNames to "/* non-stable parameter names */"
         )
     }
@@ -254,6 +260,10 @@ abstract class Kotlinp(protected val settings: Settings) {
 
             KmEffectType.RETURNS_RESULT_OF -> {
                 printer.append("returnsResultOf(").appendMeaningfulConstructorArgument(effect).append(")")
+            }
+
+            KmEffectType.RETURNS_PARAMETER -> {
+                printer.append("returnsParameter(").appendMeaningfulConstructorArgument(effect).append(")")
             }
         }
         effect.conclusion?.let {
@@ -313,7 +323,7 @@ abstract class Kotlinp(protected val settings: Settings) {
         appendLine("}")
     }
 
-    @OptIn(ExperimentalContextParameters::class, ExperimentalMustUseStatus::class)
+    @OptIn(ExperimentalContextParameters::class, ExperimentalCompanionExtensions::class)
     fun renderProperty(property: KmProperty, printer: Printer): Unit = with(printer) {
         appendLine()
         appendVersionRequirements(property.versionRequirements)
@@ -329,8 +339,8 @@ abstract class Kotlinp(protected val settings: Settings) {
         renderPropertyModifiers(property, printer)
         append(if (property.isVar) "var " else "val ")
         appendTypeParameters(property.typeParameters, postfix = " ")
-        appendReceiverParameterType(property.receiverParameterType)
-        append(property.name)
+        appendReceiverParameterType(property.receiverParameterType ?: property.companionExtensionReceiverType)
+        appendName(property)
         append(": ").appendType(property.returnType)
         if (property.hasConstant) {
             append(" /* = ").appendCompileTimeConstant(property).append(" */")
@@ -340,12 +350,13 @@ abstract class Kotlinp(protected val settings: Settings) {
             appendGetterSignatures(property)
             appendAnnotations(property.getter.annotations)
             renderPropertyAccessorModifiers(property.getter, printer)
-            appendLine("get")
+            appendGetterName(property)
+            appendLine()
             property.setter?.let { setter ->
                 appendSetterSignatures(property)
                 appendAnnotations(setter.annotations)
                 renderPropertyAccessorModifiers(setter, printer)
-                append("set")
+                appendSetterName(property)
                 property.setterParameter?.let {
                     appendValueParameters(listOf(it))
                 }
@@ -354,6 +365,7 @@ abstract class Kotlinp(protected val settings: Settings) {
         }
     }
 
+    @OptIn(ExperimentalCompanionExtensions::class, ExperimentalCompanionBlocks::class)
     fun renderPropertyModifiers(property: KmProperty, printer: Printer): Unit = with(printer) {
         append(VISIBILITY_MAP[property.visibility])
         append(MODALITY_MAP[property.modality])
@@ -363,7 +375,9 @@ abstract class Kotlinp(protected val settings: Settings) {
             property.isLateinit to "lateinit",
             property.isExternal to "external",
             property.isDelegated to "/* delegated */",
-            property.isExpect to "expect"
+            property.isExpect to "expect",
+            property.isCompanionBlockMember to "static",
+            (property.companionExtensionReceiverType != null) to "companion"
         )
     }
 
@@ -383,10 +397,15 @@ abstract class Kotlinp(protected val settings: Settings) {
         appendSignatures(typeAlias)
         appendPluginCustomData(typeAlias.compilerPluginMetadata)
         appendAnnotations(typeAlias.annotations)
-        append(VISIBILITY_MAP[typeAlias.visibility], "typealias ", typeAlias.name)
+        append(VISIBILITY_MAP[typeAlias.visibility], "typealias ")
+        appendName(typeAlias)
         appendTypeParameters(typeAlias.typeParameters)
-        append(" = ").appendType(typeAlias.underlyingType)
-        append(" /* = ").appendType(typeAlias.expandedType).append(" */")
+        if (settings.showTypeAbbreviations) {
+            append(" = ").appendType(typeAlias.underlyingType)
+            append(" /* = ").appendType(typeAlias.expandedType).append(" */")
+        } else {
+            append(" = ").appendType(typeAlias.expandedType)
+        }
         appendLine()
     }
 
@@ -434,7 +453,7 @@ abstract class Kotlinp(protected val settings: Settings) {
                 if (argument == KmTypeProjection.STAR) {
                     append("*")
                 } else {
-                    val (variance, argumentType) = argument
+                    (val variance, val argumentType = type) = argument
                     if (variance == null || argumentType == null)
                         throw IllegalArgumentException("Variance and type must be set for non-star type projection")
 
@@ -447,7 +466,7 @@ abstract class Kotlinp(protected val settings: Settings) {
 
             if (type.isNullable) append("?")
             if (type.isDefinitelyNonNull) append(" & Any")
-            if (abbreviatedType != null) append(" /* = ").appendType(abbreviatedType).append(" */")
+            if (abbreviatedType != null && settings.showTypeAbbreviations) append(" /* = ").appendType(abbreviatedType).append(" */")
 
             if (platformTypeUpperBound == "$this?") {
                 append("!")
@@ -486,7 +505,9 @@ abstract class Kotlinp(protected val settings: Settings) {
         val varargElementType = valueParameter.varargElementType
         if (varargElementType != null) {
             append("vararg ", valueParameter.name, ": ").appendType(varargElementType)
-            append(" /* ").appendType(valueParameter.type).append(" */")
+            if (settings.showVarargTypes) {
+                append(" /* ").appendType(valueParameter.type).append(" */")
+            }
         } else {
             append(valueParameter.name, ": ").appendType(valueParameter.type)
         }
@@ -529,7 +550,6 @@ abstract class Kotlinp(protected val settings: Settings) {
         }
     }
 
-    @OptIn(ExperimentalMustUseStatus::class)
     private fun Printer.appendReturnValueStatus(returnValueStatus: ReturnValueStatus) {
         val s = when (returnValueStatus) {
             ReturnValueStatus.UNSPECIFIED -> return
@@ -585,6 +605,15 @@ abstract class Kotlinp(protected val settings: Settings) {
     protected open fun sortConstructors(constructors: List<KmConstructor>): List<KmConstructor> = constructors
     protected open fun sortFunctions(functions: List<KmFunction>): List<KmFunction> = functions
     protected open fun sortProperties(properties: List<KmProperty>): List<KmProperty> = properties
+
+    protected open fun Printer.appendName(clazz: KmClass) = append(clazz.name)
+    protected open fun Printer.appendName(constructor: KmConstructor) = append("constructor")
+    protected open fun Printer.appendName(function: KmFunction) = append(function.name)
+    protected open fun Printer.appendName(property: KmProperty) = append(property.name)
+    protected open fun Printer.appendGetterName(property: KmProperty) = append("get")
+    protected open fun Printer.appendSetterName(property: KmProperty) = append("set")
+    protected open fun Printer.appendName(typeAlias: KmTypeAlias) = append(typeAlias.name)
+    protected open fun Printer.appendName(enumEntry: KmEnumEntry) = append(enumEntry.name)
 
     protected open fun Printer.appendSignatures(clazz: KmClass) = Unit
     protected open fun Printer.appendSignatures(constructor: KmConstructor) = Unit

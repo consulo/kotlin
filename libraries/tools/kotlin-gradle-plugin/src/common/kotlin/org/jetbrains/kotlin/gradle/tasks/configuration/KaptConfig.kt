@@ -21,6 +21,9 @@ import org.jetbrains.kotlin.gradle.internal.kapt.incremental.CLASS_STRUCTURE_ART
 import org.jetbrains.kotlin.gradle.internal.kapt.incremental.StructureTransformAction
 import org.jetbrains.kotlin.gradle.plugin.AbstractKotlinAndroidPluginWrapper
 import org.jetbrains.kotlin.gradle.plugin.KaptExtension
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.kotlinToolingDiagnosticsCollectorProvider
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.setupKotlinToolingDiagnosticsParameters
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.toolingDiagnosticsContext
 import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
 import org.jetbrains.kotlin.gradle.tasks.toCompilerPluginOptions
 import org.jetbrains.kotlin.gradle.utils.*
@@ -61,9 +64,6 @@ internal open class KaptConfig<TASK : KaptTask>(
         ext: KaptExtensionConfig,
     ) : this(project, ext) {
         configureTask { task ->
-            task.classpath.from(
-                kaptGenerateStubsTask.map { it.libraries }
-            )
             task.compiledSources
                 .from(
                     kaptGenerateStubsTask.flatMap { it.kotlinCompileDestinationDirectory },
@@ -96,7 +96,11 @@ internal open class KaptConfig<TASK : KaptTask>(
             // the configuration is not extended (via extendsFrom, which normally happens when one configuration is _added_ into another)
             // but is instead included as the (lazily) resolved files. This is needed because the class structure configuration doesn't have
             // the attributes that are potentially needed to resolve dependencies on MPP modules, and the classpath configuration does.
-            classStructureConfiguration.dependencies.add(project.dependencies.create(project.files(project.provider { taskProvider.get().classpath })))
+            classStructureConfiguration.dependencies.addLater(
+                taskProvider.map { task ->
+                    project.dependencies.create(project.files({ task.classpath }))
+                }
+            )
             classStructureConfiguration.incoming.artifactView { viewConfig ->
                 viewConfig.attributes.attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, CLASS_STRUCTURE_ARTIFACT_TYPE)
             }.files
@@ -169,6 +173,10 @@ private fun isAncestor(dir: File, file: File): Boolean {
 internal class KaptWithoutKotlincConfig : KaptConfig<KaptWithoutKotlincTask> {
 
     init {
+        // The task can be registered through KotlinJvmFactory without the Kotlin plugin, so KotlinToolingDiagnosticsSetupAction
+        // may not run. The service is registered here, outside the task configuration action, as that configures the task container.
+        val toolingDiagnosticsCollector = project.kotlinToolingDiagnosticsCollectorProvider
+        val toolingDiagnosticsContext = project.toolingDiagnosticsContext
         configureTask { task ->
             task.addJdkClassesToClasspath.set(
                 project.providers.provider {
@@ -176,14 +184,21 @@ internal class KaptWithoutKotlincConfig : KaptConfig<KaptWithoutKotlincTask> {
                 }
             )
             task.kaptJars.from(project.configurations.getByName(Kapt3GradleSubplugin.KAPT_WORKER_DEPENDENCIES_CONFIGURATION_NAME))
+            task.usesService(toolingDiagnosticsCollector)
+            task.setupKotlinToolingDiagnosticsParameters(toolingDiagnosticsCollector, toolingDiagnosticsContext)
             task.mapDiagnosticLocations = ext.mapDiagnosticLocations
+            task.stubGenerationScheme.convention(ext.stubGenerationScheme)
             if (ext is KaptExtension) {
                 task.annotationProcessorFqNames.set(providers.provider {
                     ext.processors.split(',').filter { it.isNotEmpty() }
                 })
             }
             task.disableClassloaderCacheForProcessors = project.disableClassloaderCacheForProcessors()
+            task.detectMemoryLeaks.convention(
+                providers.provider { KaptDetectMemoryLeaksMode.fromExtensionValue(ext.detectMemoryLeaks) }
+            )
             task.classLoadersCacheSize = KaptProperties.getClassloadersCacheSize(project).get()
+            task.isolateProcessorsFromBuildClasspath.set(KaptProperties.isIsolateProcessorsFromBuildClasspath(project))
             task.javacOptions.set(getJavaOptions(task.defaultJavaSourceCompatibility))
         }
     }
@@ -199,11 +214,11 @@ internal class KaptWithoutKotlincConfig : KaptConfig<KaptWithoutKotlincTask> {
                     val kaptDependency = "org.jetbrains.kotlin:kotlin-annotation-processing-gradle:${project.getKotlinPluginVersion()}"
                     listOf(
                         project.dependencies.create(kaptDependency),
-                        project.dependencies.kotlinDependency(
-                            "kotlin-stdlib",
-                            project.topLevelExtension.coreLibrariesVersion
-                        )
                     )
+                }.also {
+                    it.add(project.topLevelExtension.coreKotlinLibrariesVersion.map { version ->
+                        project.dependencies.kotlinDependency("kotlin-stdlib", version)
+                    })
                 })
             }
 

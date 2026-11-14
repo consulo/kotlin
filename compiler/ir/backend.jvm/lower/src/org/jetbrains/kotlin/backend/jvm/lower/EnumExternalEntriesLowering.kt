@@ -12,7 +12,6 @@ import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
 import org.jetbrains.kotlin.backend.jvm.ir.findEnumValuesFunction
 import org.jetbrains.kotlin.backend.jvm.ir.isEnumClassWhichRequiresExternalEntries
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.declarations.addField
 import org.jetbrains.kotlin.ir.builders.declarations.buildClass
@@ -62,9 +61,6 @@ import org.jetbrains.kotlin.name.SpecialNames
 internal class EnumExternalEntriesLowering(private val context: JvmBackendContext) :
     FileLoweringPass, IrElementTransformerVoidWithContext() {
     override fun lower(irFile: IrFile) {
-        if (!context.config.languageVersionSettings.supportsFeature(LanguageFeature.EnumEntries)) {
-            return
-        }
         irFile.transformChildrenVoid(this)
     }
 
@@ -109,7 +105,7 @@ internal class EnumExternalEntriesLowering(private val context: JvmBackendContex
         state = mappingState
         super.visitClassNew(declaration)
 
-        for ((enum, field) in mappingState.mappings) {
+        for ([enum, field] in mappingState.mappings) {
             val enumValues = enum.findEnumValuesFunction(context)
             field.initializer =
                 context.createIrBuilder(field.symbol).run {

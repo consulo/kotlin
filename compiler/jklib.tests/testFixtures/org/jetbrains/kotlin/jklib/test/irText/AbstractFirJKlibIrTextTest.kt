@@ -10,31 +10,25 @@ import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
 import org.jetbrains.kotlin.test.FirParser
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.BlackBoxCodegenSuppressor
-import org.jetbrains.kotlin.test.backend.handlers.NoFirCompilationErrorsHandler
+import org.jetbrains.kotlin.test.backend.handlers.IrPreprocessedInlineFunctionDumpHandler
+import org.jetbrains.kotlin.test.backend.handlers.IrTextDumpHandler
 import org.jetbrains.kotlin.test.builders.*
-import org.jetbrains.kotlin.test.configuration.additionalK2ConfigurationForIrTextTest
-import org.jetbrains.kotlin.test.configuration.setupDefaultDirectivesForIrTextTest
-import org.jetbrains.kotlin.test.configuration.setupIrTextDumpHandlers
+import org.jetbrains.kotlin.test.configuration.*
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
-import org.jetbrains.kotlin.test.directives.ConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.JvmEnvironmentConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.model.ArtifactKinds
 import org.jetbrains.kotlin.test.model.DependencyKind
 import org.jetbrains.kotlin.test.model.FrontendKinds
-import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerWithTargetBackendTest
-import org.jetbrains.kotlin.test.services.MetaTestConfigurator
-import org.jetbrains.kotlin.test.services.PhasedPipelineChecker
-import org.jetbrains.kotlin.test.services.TestPhase
-import org.jetbrains.kotlin.test.services.TestServices
+import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerJKlibTest
+import org.jetbrains.kotlin.test.services.*
 import org.jetbrains.kotlin.test.services.configuration.CommonEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.fir.FirSpecificParserSuppressor
-import org.jetbrains.kotlin.test.services.moduleStructure
 import org.jetbrains.kotlin.test.services.sourceProviders.AdditionalDiagnosticsSourceFilesProvider
 import org.jetbrains.kotlin.test.services.sourceProviders.CoroutineHelpersSourceFilesProvider
 import org.jetbrains.kotlin.utils.bind
 
-abstract class AbstractFirJKlibIrTextTest : AbstractKotlinCompilerWithTargetBackendTest(TargetBackend.JKLIB) {
+abstract class AbstractFirJKlibIrTextTest : AbstractKotlinCompilerJKlibTest() {
     override fun configure(builder: TestConfigurationBuilder): Unit = with(builder) {
         globalDefaults {
             frontend = FrontendKinds.FIR
@@ -47,6 +41,7 @@ abstract class AbstractFirJKlibIrTextTest : AbstractKotlinCompilerWithTargetBack
         useConfigurators(
             ::CommonEnvironmentConfigurator,
             ::JKlibSourceRootConfigurator,
+            ::JKlibEnvironmentConfigurator,
             ::JKlibJavaSourceConfigurator,
         )
 
@@ -55,15 +50,35 @@ abstract class AbstractFirJKlibIrTextTest : AbstractKotlinCompilerWithTargetBack
             ::CoroutineHelpersSourceFilesProvider,
         )
 
-        useMetaTestConfigurators(::FirSpecificParserSuppressor, ::WithStdlibSkipper, ::WithReflectSkipper)
+        useMetaTestConfigurators(::FirSpecificParserSuppressor, ::WithReflectSkipper)
 
         facadeStep(::FirCliJKlibFacade)
         firHandlersStep {
-            useHandlers(::NoFirCompilationErrorsHandler)
+            commonFirHandlersForCodegenTest()
         }
 
         facadeStep(::Fir2IrCliJKlibFacade)
-        irHandlersStep()
+        irHandlersStep {
+            commonIrHandlersForCodegenTest()
+            setupIrTextDumpHandlers()
+        }
+
+        facadeStep(::PreSerializationLoweringCliJKlibFacade)
+        loweredIrHandlersStep {
+            useHandlers(
+                { testServices, artifactKind ->
+                    IrTextDumpHandler(
+                        testServices = testServices,
+                        artifactKind = artifactKind,
+                        customExtension = "inlined.ir",
+                        directive = CodegenTestDirectives.DUMP_IR_AFTER_INLINE,
+                        directiveForIrDifference = CodegenTestDirectives.DUMP_IR_AFTER_INLINE_DIFFERENCE,
+                        showOffsets = true,
+                    )
+                },
+                ::IrPreprocessedInlineFunctionDumpHandler,
+            )
+        }
 
         facadeStep(::SerializationCliJKlibFacade)
         klibArtifactsHandlersStep()
@@ -71,26 +86,15 @@ abstract class AbstractFirJKlibIrTextTest : AbstractKotlinCompilerWithTargetBack
         setupDefaultDirectivesForIrTextTest()
         defaultDirectives {
             +CodegenTestDirectives.IGNORE_IR_EXPECT_FLAG
-        }
-        configureIrHandlersStep {
-            setupIrTextDumpHandlers()
+            +JvmEnvironmentConfigurationDirectives.NO_RUNTIME
         }
 
-        useAfterAnalysisCheckers(
+        useFailureSuppressors(
             ::BlackBoxCodegenSuppressor,
-            ::PhasedPipelineChecker.bind(TestPhase.BACKEND)
+            ::PhasedPipelineChecker.bind(TestPhase.CODEGEN)
         )
         enableMetaInfoHandler()
         additionalK2ConfigurationForIrTextTest(FirParser.LightTree)
-    }
-}
-
-class WithStdlibSkipper(testServices: TestServices) : MetaTestConfigurator(testServices) {
-    override val directiveContainers: List<DirectivesContainer>
-        get() = listOf(ConfigurationDirectives)
-
-    override fun shouldSkipTest(): Boolean {
-        return testServices.moduleStructure.allDirectives.contains(ConfigurationDirectives.WITH_STDLIB)
     }
 }
 
@@ -102,3 +106,4 @@ class WithReflectSkipper(testServices: TestServices) : MetaTestConfigurator(test
         return testServices.moduleStructure.allDirectives.contains(JvmEnvironmentConfigurationDirectives.WITH_REFLECT)
     }
 }
+

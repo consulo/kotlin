@@ -2,16 +2,17 @@
  * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.symbolProviders
 
 import com.intellij.psi.PsiElement
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.util.containers.addIfNotNull
+import org.jetbrains.kotlin.analysis.api.impl.base.util.withPsiEntry
 import org.jetbrains.kotlin.analysis.api.platform.declarations.createDeclarationProvider
 import org.jetbrains.kotlin.analysis.api.platform.packages.createPackageProvider
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
-import org.jetbrains.kotlin.analysis.api.utils.errors.withPsiEntry
 import org.jetbrains.kotlin.analysis.low.level.api.fir.projectStructure.LLFirModuleData
 import org.jetbrains.kotlin.analysis.low.level.api.fir.projectStructure.llFirModuleData
 import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirSession
@@ -37,6 +38,7 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.KtImplementationDetail
 import org.jetbrains.kotlin.psi.psiUtil.getTopmostParentOfType
 import org.jetbrains.kotlin.psi.stubs.impl.KotlinFunctionStubImpl
 import org.jetbrains.kotlin.psi.stubs.impl.KotlinPropertyStubImpl
@@ -44,7 +46,7 @@ import org.jetbrains.kotlin.serialization.deserialization.builtins.BuiltInSerial
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
 
-typealias DeserializedTypeAliasPostProcessor = (FirTypeAliasSymbol) -> Unit
+internal typealias DeserializedTypeAliasPostProcessor = (FirTypeAliasSymbol) -> Unit
 
 /**
  * [LLKotlinStubBasedLibrarySymbolProvider] deserializes FIR symbols from existing stubs, retrieving them by [ClassId]/[CallableId] from a
@@ -201,7 +203,7 @@ internal open class LLKotlinStubBasedLibrarySymbolProvider(
             StubBasedAnnotationDeserializer(session),
             kotlinScopeProvider,
             parentContext = parentContext,
-            containerSource = deserializedContainerSourceProvider.getClassContainerSource(classId),
+            containerSource = deserializedContainerSourceProvider.getClassContainerSource(classId, declaration),
             deserializeNestedClassLikeDeclaration = this::getNestedClassLikeDeclaration,
             initialOrigin = parentContext?.initialOrigin ?: getDeclarationOriginFor(declaration.containingKtFile)
         )

@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.uklibs.applyMultiplatform
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
@@ -23,6 +24,7 @@ import java.io.File
     enabledOnCI = [OS.MAC],
 )
 @NativeGradlePluginTests
+@MustRunOnChangesInGradle
 class ApplePrivacyManifestIT : KGPBaseTest() {
 
     override val defaultBuildOptions: BuildOptions
@@ -36,14 +38,13 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
     ) {
         testEmbedAndSignIntegration(
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.disableConfigurationCacheForGradle7(gradleVersion),
             target = { macosArm64() },
             temp = temp,
             appName = "My.app",
             frameworks = "Contents/Frameworks",
             frameworksFolderPath = "My.app/Contents/Frameworks",
             resourcesFolderPath = "My.app/Contents/Resources",
-            sdkName = "macosx",
+            platformName = "macosx",
             expectedPrivacyManifestPlacement = "My.app/Contents/Resources/KotlinMultiplatformPrivacyManifest.bundle/Contents/Resources/PrivacyInfo.xcprivacy",
             expectedInfoPlistPlacement = "My.app/Contents/Resources/KotlinMultiplatformPrivacyManifest.bundle/Contents/Info.plist",
             expectedInfoPlistContent = "info",
@@ -58,14 +59,13 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
     ) {
         testEmbedAndSignIntegration(
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.disableConfigurationCacheForGradle7(gradleVersion),
             target = { iosArm64() },
             temp = temp,
             appName = "My.app",
             frameworks = "Frameworks",
             frameworksFolderPath = "My.app/Frameworks",
             resourcesFolderPath = "My.app",
-            sdkName = "iphoneos",
+            platformName = "iphoneos",
             expectedPrivacyManifestPlacement = "My.app/KotlinMultiplatformPrivacyManifest.bundle/PrivacyInfo.xcprivacy",
             expectedInfoPlistPlacement = "My.app/KotlinMultiplatformPrivacyManifest.bundle/Info.plist",
             expectedInfoPlistContent = "info",
@@ -80,14 +80,13 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
     ) {
         testEmbedAndSignIntegration(
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.disableConfigurationCacheForGradle7(gradleVersion),
             target = { iosArm64() },
             temp = temp,
             appName = "My.app",
             frameworks = "Frameworks",
             frameworksFolderPath = "My.app/Frameworks",
             resourcesFolderPath = "My.app",
-            sdkName = "iphoneos",
+            platformName = "iphoneos",
             expectedPrivacyManifestPlacement = "My.app/KotlinMultiplatformPrivacyManifest.bundle/PrivacyInfo.xcprivacy",
             expectedInfoPlistPlacement = "My.app/KotlinMultiplatformPrivacyManifest.bundle/Info.plist",
             expectedInfoPlistContent = """
@@ -125,7 +124,7 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
             frameworks = "Frameworks",
             frameworksFolderPath = "My.app/Frameworks",
             resourcesFolderPath = "My.app",
-            sdkName = "iphoneos",
+            platformName = "iphoneos",
             expectedPrivacyManifestPlacement = "My.app/KotlinMultiplatformPrivacyManifest.bundle/PrivacyInfo.xcprivacy",
             expectedInfoPlistPlacement = "My.app/KotlinMultiplatformPrivacyManifest.bundle/Info.plist",
             expectedInfoPlistContent = "info",
@@ -152,7 +151,7 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
         temp: File,
         frameworksFolderPath: String,
         resourcesFolderPath: String,
-        sdkName: String,
+        platformName: String,
         expectedPrivacyManifestPlacement: String,
         expectedInfoPlistPlacement: String,
         expectedInfoPlistContent: String,
@@ -203,7 +202,7 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
                 "ENABLE_USER_SCRIPT_SANDBOXING" to "NO",
                 "CONFIGURATION" to "Debug",
                 "ARCHS" to "arm64",
-                "SDK_NAME" to sdkName,
+                "PLATFORM_NAME" to platformName,
                 "FRAMEWORKS_FOLDER_PATH" to frameworksFolderPath,
                 "UNLOCALIZED_RESOURCES_FOLDER_PATH" to resourcesFolderPath,
                 "TARGET_BUILD_DIR" to embedAndSignOutputs.canonicalPath,
@@ -223,7 +222,6 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
     fun `xcframework creation`(gradleVersion: GradleVersion) {
         buildAndTestProject(
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.disableConfigurationCacheForGradle7(gradleVersion),
             buildScript = {
                 project.applyMultiplatform {
                     val xcf = project.XCFramework()
@@ -231,15 +229,11 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
                         // Thin
                         iosArm64(),
 
-                        // Universal
+                        // Thin simulator
                         watchosSimulatorArm64(),
-                        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                        watchosX64(),
 
-                        // Universal macOS
+                        // Thin macOS
                         macosArm64(),
-                        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                        macosX64(),
                     ).forEach {
                         it.binaries.framework {
                             xcf.add(this)
@@ -264,12 +258,12 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
                 )
                 assertEquals(
                     "initial",
-                    projectDir.resolve("build/XCFrameworks/debug/empty.xcframework/watchos-arm64_x86_64-simulator/empty.framework/PrivacyInfo.xcprivacy")
+                    projectDir.resolve("build/XCFrameworks/debug/empty.xcframework/watchos-arm64-simulator/empty.framework/PrivacyInfo.xcprivacy")
                         .readText(),
                 )
                 assertEquals(
                     "initial",
-                    projectDir.resolve("build/XCFrameworks/debug/empty.xcframework/macos-arm64_x86_64/empty.framework/Resources/PrivacyInfo.xcprivacy")
+                    projectDir.resolve("build/XCFrameworks/debug/empty.xcframework/macos-arm64/empty.framework/Resources/PrivacyInfo.xcprivacy")
                         .readText(),
                 )
             },
@@ -287,17 +281,14 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
     fun `xcframework creation with CocoaPods`(gradleVersion: GradleVersion) {
         buildAndTestProject(
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.disableConfigurationCacheForGradle7(gradleVersion),
             buildScript = {
                 project.plugins.apply("org.jetbrains.kotlin.native.cocoapods")
                 project.applyMultiplatform {
                     // Thin
                     iosArm64()
 
-                    // Universal
+                    // Thin simulator
                     watchosSimulatorArm64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                    watchosX64()
 
                     // Thin macOS
                     macosArm64()
@@ -324,7 +315,7 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
                 )
                 assertEquals(
                     "initial",
-                    projectDir.resolve("build/cocoapods/publish/debug/empty.xcframework/watchos-arm64_x86_64-simulator/empty.framework/PrivacyInfo.xcprivacy")
+                    projectDir.resolve("build/cocoapods/publish/debug/empty.xcframework/watchos-arm64-simulator/empty.framework/PrivacyInfo.xcprivacy")
                         .readText(),
                 )
                 assertEquals(
@@ -347,7 +338,6 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
     fun `CocoaPods syncFramework integration`(gradleVersion: GradleVersion) {
         buildAndTestProject(
             gradleVersion = gradleVersion,
-            buildOptions = defaultBuildOptions.disableConfigurationCacheForGradle7(gradleVersion),
             buildScript = {
                 project.plugins.apply("org.jetbrains.kotlin.native.cocoapods")
                 project.applyMultiplatform {
@@ -356,8 +346,6 @@ class ApplePrivacyManifestIT : KGPBaseTest() {
 
                     // Universal
                     watchosSimulatorArm64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                    watchosX64()
 
                     with(cocoapods) {
                         version = "1.0"

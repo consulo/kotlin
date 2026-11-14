@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 // OPT_IN: kotlin.contracts.ExperimentalContracts
 

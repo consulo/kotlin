@@ -1,6 +1,6 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +InlineClasses
-// DIAGNOSTICS: -INLINE_CLASS_DEPRECATED
+// RUN_PIPELINE_TILL: CODEGEN
+
+@file:Suppress("INLINE_CLASS_DEPRECATED", <!ERROR_SUPPRESSION!>"INLINE_CLASS_DEPRECATED_ERROR"<!>)
 
 inline class Name(val name: String)
 inline class Password(val password: String)

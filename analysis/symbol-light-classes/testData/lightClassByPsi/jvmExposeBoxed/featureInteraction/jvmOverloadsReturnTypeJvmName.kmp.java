@@ -2,7 +2,7 @@ public final class Baz /* Baz*/ {
   public  Baz();//  .ctor()
 }
 
-@<error>()
+@kotlin.jvm.JvmInline()
 public final class IntWrapper /* IntWrapper*/ {
   private final int s;
 
@@ -17,9 +17,6 @@ public final class IntWrapper /* IntWrapper*/ {
 }
 
 public final class JvmOverloadsReturnTypeJvmNameKt /* JvmOverloadsReturnTypeJvmNameKt*/ {
-  @<error>()
-  @<error>()
-  @<error>()
   @kotlin.OptIn(markerClass = {kotlin.ExperimentalStdlibApi.class})
   public static final int topLevel(int, int);//  topLevel(int, int)
 }

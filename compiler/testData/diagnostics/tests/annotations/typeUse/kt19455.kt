@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +ProperCheckAnnotationsTargetInTypeUsePositions
+// RUN_PIPELINE_TILL: CODEGEN
 // ISSUE: KT-19455
 
 package test

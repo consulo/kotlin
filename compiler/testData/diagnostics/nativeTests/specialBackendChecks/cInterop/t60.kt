@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 import kotlinx.cinterop.*
 
@@ -8,6 +8,6 @@ class Vertex constructor(rawPtr: NativePtr) : CStructVar(rawPtr) {
     var r: Float = 0f
     var g: Float = 0f
     var b: Float = 0f
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION_ERROR")
     companion object : CStructVar.Type(40, 8)
 }

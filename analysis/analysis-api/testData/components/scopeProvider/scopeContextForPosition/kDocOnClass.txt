@@ -12,6 +12,8 @@ implicit values:
       type: test/MyClass<TypeParam>
     ownerSymbol = KaNamedClassSymbol:
       test/MyClass
+    label = MyClass
+
 
 scopes:
   TypeScope, index = 0
@@ -19,13 +21,17 @@ scopes:
     classifiers: 0
     callables: 5
       KaKotlinPropertySymbol:
+        anchorPsi: KtProperty
         annotations: []
         backingFieldSymbol: KaBackingFieldSymbol:
+          anchorPsi: KtProperty
           annotations: []
           callableId: null
-          compilerVisibility: Private
+          contextParameters: []
           contextReceivers: []
           isActual: false
+          isCompanion: false
+          isDelegated: false
           isExpect: false
           isExtension: false
           isExternal: false
@@ -36,23 +42,27 @@ scopes:
           name: field
           origin: PROPERTY_BACKING_FIELD
           owningProperty: KaKotlinPropertySymbol(test/MyClass.property)
+          psi: null
+          realPsi: null
           receiverParameter: null
           returnType: KaUsualClassType:
             annotations: []
             typeArguments: []
             type: kotlin/Int
+          typeParameters: []
           visibility: PRIVATE
         callableId: test/MyClass.property
-        compilerVisibility: Public
         contextParameters: []
         contextReceivers: []
         getter: KaPropertyGetterSymbol:
+          anchorPsi: KtProperty
           annotations: []
           callableId: null
-          compilerVisibility: Public
+          contextParameters: []
           contextReceivers: []
           hasStableParameterNames: true
           isActual: false
+          isCompanion: false
           isExpect: false
           isExtension: false
           isExternal: false
@@ -62,11 +72,14 @@ scopes:
           location: PROPERTY
           modality: FINAL
           origin: SOURCE
+          psi: null
+          realPsi: null
           receiverParameter: null
           returnType: KaUsualClassType:
             annotations: []
             typeArguments: []
             type: kotlin/Int
+          typeParameters: []
           valueParameters: []
           visibility: PUBLIC
         hasBackingField: true
@@ -74,12 +87,12 @@ scopes:
         hasSetter: false
         initializer: KaConstantInitializerValue(10)
         isActual: false
+        isCompanion: false
         isConst: false
-        isDelegatedProperty: false
+        isDelegated: false
         isExpect: false
         isExtension: false
         isExternal: false
-        isFromPrimaryConstructor: false
         isLateInit: false
         isOverride: false
         isStatic: false
@@ -88,6 +101,9 @@ scopes:
         modality: FINAL
         name: property
         origin: SOURCE
+        primaryConstructorParameter: null
+        psi: KtProperty
+        realPsi: KtProperty
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
@@ -97,15 +113,16 @@ scopes:
         typeParameters: []
         visibility: PUBLIC
       KaNamedFunctionSymbol:
+        anchorPsi: KtNamedFunction
         annotations: []
         callableId: test/MyClass.member
-        compilerVisibility: Public
         contextParameters: []
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
         isActual: false
         isBuiltinFunctionInvoke: false
+        isCompanion: false
         isExpect: false
         isExtension: false
         isExternal: false
@@ -120,6 +137,8 @@ scopes:
         modality: FINAL
         name: member
         origin: SOURCE
+        psi: KtNamedFunction
+        realPsi: KtNamedFunction
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
@@ -129,15 +148,16 @@ scopes:
         valueParameters: []
         visibility: PUBLIC
       KaNamedFunctionSymbol:
+        anchorPsi: KtNamedFunction
         annotations: []
         callableId: kotlin/Any.equals
-        compilerVisibility: Public
         contextParameters: []
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
         isActual: false
         isBuiltinFunctionInvoke: false
+        isCompanion: false
         isExpect: false
         isExtension: false
         isExternal: false
@@ -152,6 +172,8 @@ scopes:
         modality: OPEN
         name: equals
         origin: LIBRARY
+        psi: KtNamedFunction
+        realPsi: KtNamedFunction
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
@@ -160,15 +182,17 @@ scopes:
         typeParameters: []
         valueParameters: [
           KaValueParameterSymbol:
+            anchorPsi: KtParameter
             annotations: []
             callableId: null
-            compilerVisibility: Public
+            contextParameters: []
             contextReceivers: []
-            generatedPrimaryConstructorProperty: null
             hasDeclaredDefaultValue: false
             hasDefaultValue: false
             isActual: false
+            isCompanion: false
             isCrossinline: false
+            isDelegated: false
             isExpect: false
             isExtension: false
             isExternal: false
@@ -180,24 +204,29 @@ scopes:
             modality: FINAL
             name: other
             origin: LIBRARY
+            primaryConstructorProperty: null
+            psi: KtParameter
+            realPsi: KtParameter
             receiverParameter: null
             returnType: KaUsualClassType:
               annotations: []
               typeArguments: []
               type: kotlin/Any?
+            typeParameters: []
             visibility: PUBLIC
         ]
         visibility: PUBLIC
       KaNamedFunctionSymbol:
+        anchorPsi: KtNamedFunction
         annotations: []
         callableId: kotlin/Any.hashCode
-        compilerVisibility: Public
         contextParameters: []
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
         isActual: false
         isBuiltinFunctionInvoke: false
+        isCompanion: false
         isExpect: false
         isExtension: false
         isExternal: false
@@ -212,6 +241,8 @@ scopes:
         modality: OPEN
         name: hashCode
         origin: LIBRARY
+        psi: KtNamedFunction
+        realPsi: KtNamedFunction
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
@@ -221,15 +252,16 @@ scopes:
         valueParameters: []
         visibility: PUBLIC
       KaNamedFunctionSymbol:
+        anchorPsi: KtNamedFunction
         annotations: []
         callableId: kotlin/Any.toString
-        compilerVisibility: Public
         contextParameters: []
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
         isActual: false
         isBuiltinFunctionInvoke: false
+        isCompanion: false
         isExpect: false
         isExtension: false
         isExternal: false
@@ -244,6 +276,8 @@ scopes:
         modality: OPEN
         name: toString
         origin: LIBRARY
+        psi: KtNamedFunction
+        realPsi: KtNamedFunction
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
@@ -254,13 +288,15 @@ scopes:
         visibility: PUBLIC
     constructors: 1
       KaConstructorSymbol:
+        anchorPsi: KtPrimaryConstructor
         annotations: []
         callableId: null
-        compilerVisibility: Public
         containingClassId: test/MyClass
+        contextParameters: []
         contextReceivers: []
         hasStableParameterNames: true
         isActual: false
+        isCompanion: false
         isExpect: false
         isExtension: false
         isExternal: false
@@ -268,6 +304,8 @@ scopes:
         location: CLASS
         modality: FINAL
         origin: SOURCE
+        psi: KtPrimaryConstructor
+        realPsi: KtPrimaryConstructor
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
@@ -279,8 +317,8 @@ scopes:
           type: test/MyClass<TypeParam>
         typeParameters: [
           KaTypeParameterSymbol:
+            anchorPsi: KtTypeParameter
             annotations: []
-            compilerVisibility: Local
             isActual: false
             isExpect: false
             isExternal: false
@@ -289,21 +327,25 @@ scopes:
             modality: FINAL
             name: TypeParam
             origin: SOURCE
+            psi: KtTypeParameter
+            realPsi: KtTypeParameter
             upperBounds: []
             variance: INVARIANT
             visibility: LOCAL
         ]
         valueParameters: [
           KaValueParameterSymbol:
+            anchorPsi: KtParameter
             annotations: []
             callableId: null
-            compilerVisibility: Public
+            contextParameters: []
             contextReceivers: []
-            generatedPrimaryConstructorProperty: null
             hasDeclaredDefaultValue: false
             hasDefaultValue: false
             isActual: false
+            isCompanion: false
             isCrossinline: false
+            isDelegated: false
             isExpect: false
             isExtension: false
             isExternal: false
@@ -315,22 +357,28 @@ scopes:
             modality: FINAL
             name: param1
             origin: SOURCE
+            primaryConstructorProperty: null
+            psi: KtParameter
+            realPsi: KtParameter
             receiverParameter: null
             returnType: KaUsualClassType:
               annotations: []
               typeArguments: []
               type: test/Param1
+            typeParameters: []
             visibility: PUBLIC
           KaValueParameterSymbol:
+            anchorPsi: KtParameter
             annotations: []
             callableId: null
-            compilerVisibility: Public
+            contextParameters: []
             contextReceivers: []
-            generatedPrimaryConstructorProperty: null
             hasDeclaredDefaultValue: false
             hasDefaultValue: false
             isActual: false
+            isCompanion: false
             isCrossinline: false
+            isDelegated: false
             isExpect: false
             isExtension: false
             isExternal: false
@@ -342,11 +390,15 @@ scopes:
             modality: FINAL
             name: param2
             origin: SOURCE
+            primaryConstructorProperty: null
+            psi: KtParameter
+            realPsi: KtParameter
             receiverParameter: null
             returnType: KaUsualClassType:
               annotations: []
               typeArguments: []
               type: test/Param2
+            typeParameters: []
             visibility: PUBLIC
         ]
         visibility: PUBLIC
@@ -355,8 +407,8 @@ scopes:
     packages: 0
     classifiers: 1
       KaTypeParameterSymbol:
+        anchorPsi: KtTypeParameter
         annotations: []
-        compilerVisibility: Local
         isActual: false
         isExpect: false
         isExternal: false
@@ -365,6 +417,8 @@ scopes:
         modality: FINAL
         name: TypeParam
         origin: SOURCE
+        psi: KtTypeParameter
+        realPsi: KtTypeParameter
         upperBounds: []
         variance: INVARIANT
         visibility: LOCAL
@@ -381,11 +435,11 @@ scopes:
     packages: 0
     classifiers: 3
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: []
         classId: test/Param1
         classKind: CLASS
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -394,10 +448,13 @@ scopes:
         isFun: false
         isInline: false
         isInner: false
+        isValue: false
         location: TOP_LEVEL
         modality: FINAL
         name: Param1
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []
@@ -407,11 +464,11 @@ scopes:
         typeParameters: []
         visibility: PUBLIC
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: []
         classId: test/Param2
         classKind: CLASS
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -420,10 +477,13 @@ scopes:
         isFun: false
         isInline: false
         isInner: false
+        isValue: false
         location: TOP_LEVEL
         modality: FINAL
         name: Param2
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []
@@ -433,11 +493,11 @@ scopes:
         typeParameters: []
         visibility: PUBLIC
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: []
         classId: test/MyClass
         classKind: CLASS
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -446,10 +506,13 @@ scopes:
         isFun: false
         isInline: false
         isInner: false
+        isValue: false
         location: TOP_LEVEL
         modality: FINAL
         name: MyClass
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []
@@ -458,8 +521,8 @@ scopes:
         ]
         typeParameters: [
           KaTypeParameterSymbol:
+            anchorPsi: KtTypeParameter
             annotations: []
-            compilerVisibility: Local
             isActual: false
             isExpect: false
             isExternal: false
@@ -468,6 +531,8 @@ scopes:
             modality: FINAL
             name: TypeParam
             origin: SOURCE
+            psi: KtTypeParameter
+            realPsi: KtTypeParameter
             upperBounds: []
             variance: INVARIANT
             visibility: LOCAL

@@ -1,5 +1,4 @@
 // RUN_PIPELINE_TILL: FRONTEND
-// LANGUAGE: +DataObjects
 
 data object Override {
     <!DATA_OBJECT_CUSTOM_EQUALS_OR_HASH_CODE!>override<!> fun equals(other: Any?): Boolean {
@@ -40,6 +39,14 @@ open class Super {
 data object OverridenInSuper: Super() {
     <!DATA_OBJECT_CUSTOM_EQUALS_OR_HASH_CODE!>override<!> fun equals(other: Any?): Boolean {
         return super.equals(other)
+    }
+}
+
+data object TypeAliasOverride {
+    typealias NullableAny = Any?
+
+    <!DATA_OBJECT_CUSTOM_EQUALS_OR_HASH_CODE!>override<!> fun equals(other: NullableAny): Boolean {
+        return true
     }
 }
 

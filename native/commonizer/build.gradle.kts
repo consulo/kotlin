@@ -1,8 +1,10 @@
 import org.jetbrains.kotlin.gradle.utils.NativeCompilerDownloader
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
+    id("test-inputs-check")
 }
 
 description = "Kotlin KLIB Library Commonizer"
@@ -35,53 +37,50 @@ dependencies {
     compileOnly(intellijCore())
     compileOnly(libs.intellij.fastutil)
 
+    compileOnly(project(":core:descriptors"))
+    compileOnly(project(":core:deserialization.common"))
+
     // This dependency is necessary to keep the right dependency record inside of POM file:
     publishedCompile(project(":kotlin-compiler"))
 
     api(kotlinStdlib())
 
-    testImplementation(libs.junit4)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
     testImplementation(testFixtures(project(":compiler:tests-common")))
+    testImplementation(testFixtures(project(":kotlin-util-klib")))
     testImplementation(project(":kotlinx-metadata-klib")) { isTransitive = false }
     testImplementation(project(":kotlin-metadata")) { isTransitive = false }
     testImplementation(project(":native:kotlin-klib-commonizer-api"))
     testImplementation(project(":kotlin-tooling-core"))
     testImplementation(project(":native:native.config"))
+    testImplementation(project(":core:language.targets.jvm"))
     testImplementation(intellijCore())
+
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
-optInToK1Deprecation()
-
-val runCommonizer by tasks.registering(JavaExec::class) {
+val runCommonizer = tasks.register("runCommonizer", JavaExec::class) {
     classpath(configurations.compileOnly, sourceSets.main.get().runtimeClasspath)
-    mainClass.set("org.jetbrains.kotlin.commonizer.cli.CommonizerCLI")
+    mainClass = "org.jetbrains.kotlin.commonizer.cli.CommonizerCLI"
 }
 
 sourceSets {
-    "main" { projectDefault() }
-    "test" { projectDefault() }
+    main { projectDefault() }
+    test { projectDefault() }
 }
 
 projectTests {
-    testTask(parallel = true, jUnitMode = JUnitMode.JUnit4) {
-        workingDir = rootDir
+    testTask {
+        // Use the bootstrap K/N stdlib for compiling test code samples.
+        val nativeDistributionDownloader = NativeCompilerDownloader(project).also { it.downloadIfNeeded() }
+        val compilerDirectory = project.layout.dir(providers.provider { nativeDistributionDownloader.compilerDirectory })
+        addClasspathProperty("kotlin.internal.native.test.nativeHome") { from(compilerDirectory) }
     }
+    testData(project.isolated, "testData")
 }
 
 runtimeJar()
-sourcesJar { includeEmptyDirs = false; eachFile { exclude() } } // empty Jar, no public sources
-javadocJar { includeEmptyDirs = false; eachFile { exclude() } } // empty Jar, no public javadocs
-
-tasks.test.configure {
-    // Use the bootstrap K/N stdlib for compiling test code samples.
-    val nativeDistributionDownloader = NativeCompilerDownloader(project).also { it.downloadIfNeeded() }
-
-    jvmArgumentProviders += objects.newInstance<SystemPropertyClasspathProvider>().apply {
-        val compilerDirectory = project.layout.dir(
-            providers.provider { nativeDistributionDownloader.compilerDirectory }
-        )
-
-        classpath.from(compilerDirectory)
-        property.set("kotlin.internal.native.test.nativeHome")
-    }
-}
+emptySourcesJar()
+emptyJavadocJar()

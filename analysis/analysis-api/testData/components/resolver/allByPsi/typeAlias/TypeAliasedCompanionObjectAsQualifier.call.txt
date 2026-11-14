@@ -71,7 +71,7 @@ KtBlockExpression(161,253): '{'
   null
 
 KtDotQualifiedExpression(167,185): 'MyAlias.function()'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -94,7 +94,7 @@ KtNameReferenceExpression(167,174): 'MyAlias'
   null
 
 KtCallExpression(175,185): 'function()'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -114,7 +114,7 @@ KtCallExpression(175,185): 'function()'
       valueArgumentMapping = {}
 
 KtNameReferenceExpression(175,183): 'function'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -137,7 +137,7 @@ KtValueArgumentList(183,185): '()'
   null
 
 KtDotQualifiedExpression(190,206): 'MyAlias.property'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleVariableAccessCall:
       contextArguments = []
       dispatchReceiver = KaExplicitReceiverValue:
@@ -160,7 +160,7 @@ KtNameReferenceExpression(190,197): 'MyAlias'
   null
 
 KtNameReferenceExpression(198,206): 'property'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleVariableAccessCall:
       contextArguments = []
       dispatchReceiver = KaExplicitReceiverValue:
@@ -180,9 +180,8 @@ KtNameReferenceExpression(198,206): 'property'
       typeArgumentsMapping = {}
 
 KtCallableReferenceExpression(212,229): 'MyAlias::function'
-  KaCallResolutionSuccess:
-    call = KaSimpleFunctionCall:
-      contextArgumentMapping = {}
+  KaSimpleCallResolutionSuccess:
+    call = KaCallableReferenceCall:
       contextArguments = []
       dispatchReceiver = KaExplicitReceiverValue:
         expression = MyAlias
@@ -197,25 +196,37 @@ KtCallableReferenceExpression(212,229): 'MyAlias::function'
         contextParameters = []
         callableId = test/MyClass.Companion.function
       typeArgumentsMapping = {}
-      valueArgumentMapping = {}
 
 KtNameReferenceExpression(212,219): 'MyAlias'
   null
 
 KtNameReferenceExpression(221,229): 'function'
-  null
-
-KtCallableReferenceExpression(234,251): 'MyAlias::property'
-  KaCallResolutionSuccess:
-    call = KaSimpleVariableAccessCall:
+  KaSimpleCallResolutionSuccess:
+    call = KaCallableReferenceCall:
       contextArguments = []
       dispatchReceiver = KaExplicitReceiverValue:
         expression = MyAlias
         isSafeNavigation = false
         type = test.MyClass.Companion
       extensionReceiver = null
-      isContextSensitive = false
-      kind = Read
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = kotlin.Unit
+        symbol = test/MyClass.Companion.function(<dispatch receiver>: test.MyClass.Companion): kotlin.Unit
+        valueParameters = []
+        contextParameters = []
+        callableId = test/MyClass.Companion.function
+      typeArgumentsMapping = {}
+
+KtCallableReferenceExpression(234,251): 'MyAlias::property'
+  KaSimpleCallResolutionSuccess:
+    call = KaCallableReferenceCall:
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = MyAlias
+        isSafeNavigation = false
+        type = test.MyClass.Companion
+      extensionReceiver = null
       signature = KaVariableSignature:
         name = property
         receiverType = null
@@ -229,4 +240,19 @@ KtNameReferenceExpression(234,241): 'MyAlias'
   null
 
 KtNameReferenceExpression(243,251): 'property'
-  null
+  KaSimpleCallResolutionSuccess:
+    call = KaCallableReferenceCall:
+      contextArguments = []
+      dispatchReceiver = KaExplicitReceiverValue:
+        expression = MyAlias
+        isSafeNavigation = false
+        type = test.MyClass.Companion
+      extensionReceiver = null
+      signature = KaVariableSignature:
+        name = property
+        receiverType = null
+        returnType = kotlin.Int
+        symbol = val property: kotlin.Int
+        contextParameters = []
+        callableId = test/MyClass.Companion.property
+      typeArgumentsMapping = {}

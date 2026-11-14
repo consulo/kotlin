@@ -41,9 +41,9 @@ class JpsKotlinCompilerRunner {
 
     private var compilerSettings: CompilerSettings? = null
 
-    private inline fun withCompilerSettings(settings: CompilerSettings, fn: () -> Unit) {
+    private inline fun <T> withCompilerSettings(settings: CompilerSettings, fn: () -> T): T {
         val old = compilerSettings
-        try {
+        return try {
             compilerSettings = settings
             fn()
         } finally {
@@ -90,6 +90,7 @@ class JpsKotlinCompilerRunner {
         const val FAIL_ON_FALLBACK_PROPERTY = "test.kotlin.jps.compiler.runner.fail.on.fallback"
     }
 
+    @Deprecated("Should be removed after migration to BTA runner")
     fun classesFqNamesByFiles(
         environment: JpsCompilerEnvironment,
         files: Set<File>,
@@ -191,10 +192,17 @@ class JpsKotlinCompilerRunner {
             return null
         }
 
-        val (daemon, sessionId) = connection
+        (val daemon = compileService, val sessionId) = connection
         val res = fn(sessionId, daemon)
         // TODO: consider implementing connection retry, instead of fallback here
         return res.takeUnless { it is CompileService.CallResult.Dying }?.get()
+    }
+
+    internal fun argumentStringsWithAdditional(
+        compilerArgs: CommonCompilerArguments,
+        settings: CompilerSettings,
+    ): List<String> = withCompilerSettings(settings) {
+        withAdditionalCompilerArgs(compilerArgs).toList()
     }
 
     private fun withAdditionalCompilerArgs(compilerArgs: CommonCompilerArguments): Array<String> {

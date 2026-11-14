@@ -54,10 +54,13 @@ class FirAllModifierRenderer(private val staticPolicy: StaticPolicy) : FirModifi
             renderModifier("fun")
         }
 
+        if (memberDeclaration.status.isRichError) {
+            renderModifier("error")
+        }
+
         if (memberDeclaration.isInline) {
             renderModifier("inline")
         }
-        @OptIn(SuspiciousValueClassCheck::class)
         if (memberDeclaration is FirClass && memberDeclaration.isValue) {
             renderModifier("value")
         }

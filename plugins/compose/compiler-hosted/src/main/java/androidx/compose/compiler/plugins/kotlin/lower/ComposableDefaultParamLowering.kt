@@ -84,10 +84,11 @@ import org.jetbrains.kotlin.name.Name
  */
 class ComposableDefaultParamLowering(
     context: IrPluginContext,
+    irModule: IrModuleFragment,
     metrics: ModuleMetrics,
     stabilityInferencer: StabilityInferencer,
     featureFlags: FeatureFlags,
-) : AbstractComposeLowering(context, metrics, stabilityInferencer, featureFlags) {
+) : AbstractComposeLowering(context, irModule, metrics, stabilityInferencer, featureFlags) {
     private val originalToTransformed = mutableMapOf<IrSimpleFunction, IrSimpleFunction>()
 
     override fun lower(irModule: IrModuleFragment) {
@@ -228,7 +229,7 @@ class ComposableDefaultParamLowering(
         val wrapper = context.irFactory.createSimpleFunction(
             startOffset = source.startOffset,
             endOffset = source.endOffset,
-            origin = IrDeclarationOrigin.DEFINED,
+            origin = source.origin,
             name = Name.identifier("${source.name.asString()}\$default"),
             visibility = if (source.visibility.isPublicAPI) {
                 // public or protected
@@ -294,6 +295,7 @@ class ComposableDefaultParamLowering(
         }.apply {
             parent.addChild(this)
             createThisReceiverParameter()
+            superTypes = listOf(context.irBuiltIns.anyType)
         }
     }
 
@@ -348,8 +350,7 @@ class ComposableDefaultParamLowering(
                                     arguments[index++] = irGet(p)
                                 }
                             }
-                        },
-                        copy.returnType
+                        }
                     )
                 )
             }

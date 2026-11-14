@@ -17,7 +17,7 @@ open class Parent(val value: String) {
     open fun genericReturnTypeFunc(): List<Parent> = emptyList()
     open override operator fun equals(to: Any?) = false
     open operator fun contains(element: Int) = false
-//    open fun functionTypeFunc(arg: (Child) -> Parent): (Child) -> Parent = { TODO() }
+    open fun functionTypeFunc(arg: (Child) -> Parent): (Child) -> Parent = { TODO() }
 
     open val primitiveTypeVar: Int get() = 42
     open val objectVar: Parent get() = this
@@ -25,7 +25,10 @@ open class Parent(val value: String) {
     open val subtypeObjectVar: Parent get() = this
     open val subtypeOptionalPrimitiveVar: Int? get() = null
     open val subtypeOptionalObjectVar: Parent? get() = null
-//    open fun subtypeFunctionTypeFunc(arg: (Child) -> Parent): (Child) -> Parent = { TODO() }
+    open val valToVar: Int get() = 42
+    open val subtypeValToVar: Parent get() = this
+    open var varToVar: Int = 42
+    open fun subtypeFunctionTypeFunc(arg: (Child) -> Parent): (Child) -> Parent = { TODO() }
 
     open fun hopFunc() = Unit
     open fun finalOverrideFunc() = Unit
@@ -51,7 +54,7 @@ open class Child(value: Int) : Parent("$value") {
     override fun genericReturnTypeFunc(): List<Child> = emptyList()
     open override operator fun equals(to: Any?) = false
     override open operator fun contains(element: Int) = false
-//    override fun functionTypeFunc(arg: (Child) -> Parent): (Child) -> Parent = { TODO() }
+    override fun functionTypeFunc(arg: (Child) -> Parent): (Child) -> Parent = { TODO() }
 
     override val primitiveTypeVar: Int get() = 45
     override val objectVar: Parent get() = this
@@ -59,6 +62,11 @@ open class Child(value: Int) : Parent("$value") {
     override val subtypeObjectVar: Child get() = this
     override val subtypeOptionalPrimitiveVar: Int get() = 42
     override val subtypeOptionalObjectVar: Child get() = this
+    override var valToVar: Int = 43
+    override var subtypeValToVar: Child
+        get() = this
+        set(value) {}
+    override var varToVar: Int = 43
 //    override fun subtypeFunctionTypeFunc(arg: (Parent) -> Child): (Parent) -> Child = { TODO() }
 
     final override fun finalOverrideFunc() {}
@@ -97,6 +105,16 @@ abstract class AbstractDerived2 : OpenDerived1 {
 
     override abstract fun abstractFun1()
 }
+
+// Kotlin has no constructor overriding, so an initializer that merely takes the same parameter types as a
+// superclass one is an override in Swift only when its argument labels match, too.
+open class RenamedInitBase(val a: Int)
+
+// Renamed parameter: `init(b:)` is unrelated to `init(a:)`.
+class RenamedInitDerived(val b: Int) : RenamedInitBase(b)
+
+// Coincidentally matching parameter: `init(a:)` does override `init(a:)` and must say so.
+class SameInitDerived(a: Int) : RenamedInitBase(a)
 
 // MODULE: overrides_across_modules(overrides)
 // EXPORT_TO_SWIFT

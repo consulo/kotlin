@@ -6,16 +6,16 @@
 package org.jetbrains.kotlin.gradle.targets.js.nodejs
 
 import org.jetbrains.kotlin.gradle.targets.js.RequiredKotlinJsDependency
-import org.jetbrains.kotlin.gradle.targets.js.npm.NpmDependency
-import org.jetbrains.kotlin.gradle.targets.js.npm.NpmDependencyDeclaration
-import org.jetbrains.kotlin.gradle.targets.js.npm.RequiresNpmDependencies
-import org.jetbrains.kotlin.gradle.targets.js.npm.toDeclaration
+import org.jetbrains.kotlin.gradle.targets.js.npm.*
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 import java.io.Serializable
 
+@ObsoleteNpmDependencyModel
 class TasksRequirements : Serializable {
     private val _byTask = mutableMapOf<String, Set<RequiredKotlinJsDependency>>()
     private val byCompilation = mutableMapOf<String, MutableSet<NpmDependencyDeclaration>>()
 
+    @Deprecated("No longer used. Scheduled for removal in Kotlin 2.7.")
     val byTask: Map<String, Set<RequiredKotlinJsDependency>>
         get() = _byTask
 
@@ -23,10 +23,17 @@ class TasksRequirements : Serializable {
         byCompilation["$projectPath:$compilationName"]
             ?: setOf()
 
+    @Deprecated("Internal utility. Scheduled for removal in Kotlin 2.7.")
     fun addTaskRequirements(task: RequiresNpmDependencies) {
+        if (task !is RequiresNpmDependenciesTask) return
+        addTaskRequirements(task)
+    }
+
+    @Suppress("DEPRECATION")
+    internal fun addTaskRequirements(task: RequiresNpmDependenciesTask) {
         val requirements = task.requiredNpmDependencies
 
-        _byTask[task.getPath()] = requirements
+        _byTask[task.path] = requirements
 
         val requiredNpmDependencies = requirements
             .asSequence()
@@ -37,9 +44,9 @@ class TasksRequirements : Serializable {
         val projectPath = task.compilation.target.project.path
         val compilationPath = "$projectPath:${task.compilation.disambiguatedName}"
         if (compilationPath in byCompilation) {
-            byCompilation[compilationPath]!!.addAll(requiredNpmDependencies.map { it.toDeclaration() })
+            byCompilation[compilationPath]!!.addAll(requiredNpmDependencies.map { it.toNpmDependencyDeclaration() })
         } else {
-            byCompilation[compilationPath] = requiredNpmDependencies.map { it.toDeclaration() }.toMutableSet()
+            byCompilation[compilationPath] = requiredNpmDependencies.map { it.toNpmDependencyDeclaration() }.toMutableSet()
         }
     }
 }

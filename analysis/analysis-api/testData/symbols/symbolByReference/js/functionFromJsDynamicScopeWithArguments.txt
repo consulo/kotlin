@@ -1,13 +1,14 @@
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: null
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -22,6 +23,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: dynamicFunctionCall
   origin: JS_DYNAMIC
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaDynamicType:
     annotations: []
@@ -29,15 +32,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -49,15 +54,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: args
       origin: JS_DYNAMIC
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaDynamicType:
         annotations: []
         type: dynamic
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: null
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -68,6 +77,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: null
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: dynamicFunctionCall
   importableFqName: null

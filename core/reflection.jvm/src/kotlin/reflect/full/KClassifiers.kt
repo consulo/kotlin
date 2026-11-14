@@ -18,12 +18,14 @@
 
 package kotlin.reflect.full
 
+import java.lang.reflect.Type
 import kotlin.reflect.KClass
 import kotlin.reflect.KClassifier
 import kotlin.reflect.KType
-import kotlin.reflect.KTypeParameter
 import kotlin.reflect.KTypeProjection
 import kotlin.reflect.jvm.internal.KClassImpl
+import kotlin.reflect.jvm.internal.computeArrayClassifier
+import kotlin.reflect.jvm.internal.types.AbstractKType
 import kotlin.reflect.jvm.internal.types.SimpleKType
 import kotlin.reflect.jvm.internal.types.allTypeParameters
 import kotlin.reflect.jvm.internal.useK1Implementation
@@ -60,21 +62,26 @@ internal fun KClassifier.createTypeImpl(
     nullable: Boolean = false,
     annotations: List<Annotation> = emptyList(),
     mutableCollectionClass: KClass<*>? = null,
-): KType {
+    computeJavaType: Lazy<Type>? = null,
+): AbstractKType {
     if (useK1Implementation) {
         return createK1KType(arguments, nullable, mutableCollectionClass)
     }
 
+    val classifier =
+        if (this is KClass<*> && java.isArray && !java.componentType.isPrimitive) computeArrayClassifier(arguments) else this
+
     return SimpleKType(
-        this,
+        classifier,
         arguments,
         nullable,
-        annotations,
+        lazyOf(annotations),
         abbreviation = null,
         isDefinitelyNotNullType = false,
         isNothingType = false,
         isSuspendFunctionType = false,
         mutableCollectionClass,
+        computeJavaType,
     )
 }
 

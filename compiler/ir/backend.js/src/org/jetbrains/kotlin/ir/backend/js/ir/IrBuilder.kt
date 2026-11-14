@@ -42,7 +42,7 @@ object JsIrBuilder {
         ).apply {
             typeArguments?.let {
                 assert(typeArguments.size == this.typeArguments.size)
-                for ((i, t) in it.withIndex()) {
+                for ([i, t] in it.withIndex()) {
                     this.typeArguments[i] = t
                 }
             }
@@ -77,7 +77,7 @@ object JsIrBuilder {
         ).apply {
             typeArguments?.let {
                 assert(it.size == this.typeArguments.size)
-                for ((i, t) in it.withIndex()) {
+                for ([i, t] in it.withIndex()) {
                     this.typeArguments[i] = t
                 }
             }
@@ -106,14 +106,14 @@ object JsIrBuilder {
         ).apply {
             typeArguments?.let {
                 assert(it.size == this.typeArguments.size)
-                for ((i, t) in it.withIndex()) {
+                for ([i, t] in it.withIndex()) {
                     this.typeArguments[i] = t
                 }
             }
 
             constructorTypeArguments?.let {
                 assert(it.size == this.typeArguments.size)
-                for ((i, t) in it.withIndex()) {
+                for ([i, t] in it.withIndex()) {
                     this.typeArguments[i] = t
                 }
             }
@@ -142,14 +142,14 @@ object JsIrBuilder {
         ).apply {
             typeArguments?.let {
                 assert(it.size == this.typeArguments.size)
-                for ((i, t) in it.withIndex()) {
+                for ([i, t] in it.withIndex()) {
                     this.typeArguments[i] = t
                 }
             }
 
             constructorTypeArguments?.let {
                 assert(it.size == this.typeArguments.size)
-                for ((i, t) in it.withIndex()) {
+                for ([i, t] in it.withIndex()) {
                     this.typeArguments[i] = t
                 }
             }
@@ -285,6 +285,7 @@ object JsIrBuilder {
         thenBranchEndOffset: Int = thenBranch.endOffset,
         elseBranchStartOffset: Int = elseBranch?.startOffset ?: UNDEFINED_OFFSET,
         elseBranchEndOffset: Int = elseBranch?.endOffset ?: UNDEFINED_OFFSET,
+        origin: IrStatementOrigin? = JsStatementOrigins.SYNTHESIZED_STATEMENT
     ): IrWhen =
         buildIfElse(
             startOffset = UNDEFINED_OFFSET,
@@ -293,7 +294,7 @@ object JsIrBuilder {
             cond = cond,
             thenBranch = thenBranch,
             elseBranch = elseBranch,
-            origin = JsStatementOrigins.SYNTHESIZED_STATEMENT,
+            origin = origin,
             thenBranchStartOffset = thenBranchStartOffset,
             thenBranchEndOffset = thenBranchEndOffset,
             elseBranchStartOffset = elseBranchStartOffset,

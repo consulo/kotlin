@@ -3,12 +3,11 @@ public final class LambdaKt /* LambdaKt*/ {
   @org.jetbrains.annotations.NotNull()
   private static final @org.jetbrains.annotations.NotNull() kotlin.jvm.functions.Function0<@org.jetbrains.annotations.NotNull() TopLevelValueClass> lambda;
 
-  @<error>()
   @org.jetbrains.annotations.NotNull()
   public static final @org.jetbrains.annotations.NotNull() kotlin.jvm.functions.Function0<@org.jetbrains.annotations.NotNull() TopLevelValueClass> getLambda();//  getLambda()
 }
 
-@<error>()
+@kotlin.jvm.JvmInline()
 public final class TopLevelValueClass /* TopLevelValueClass*/ {
   @org.jetbrains.annotations.NotNull()
   private final @org.jetbrains.annotations.NotNull() java.lang.String s;

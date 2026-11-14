@@ -7,6 +7,8 @@ import org.jetbrains.kotlin.konan.target.allTargetsWithSanitizers
 import org.jetbrains.kotlin.konan.util.DependencyDirectories
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("native-dependencies-downloader")
     id("native-dependencies")
 }
@@ -22,14 +24,39 @@ nativeDependenciesDownloader {
 /**
  * Download all dependencies.
  */
-val update by tasks.registering {
+val update = tasks.register("update") {
     platformManager.allTargetsWithSanitizers.forEach {
         dependsOn(nativeDependencies.targetDependency(it))
     }
 }
 
 // TODO: This sort of task probably belongs to :kotlin-native
-val rmDotKonan by tasks.registering(Delete::class) {
+val rmDotKonan = tasks.register("rmDotKonan", Delete::class) {
     val dir = System.getenv("KONAN_DATA_DIR") ?: "${System.getProperty("user.home")}/.konan"
     delete(dir)
+}
+
+val llvmDevBinaryData = configurations.create("llvmDevBinaryData") {
+    isCanBeConsumed = true
+    isCanBeResolved = false
+}
+
+val hostXcode = configurations.create("hostXcode") {
+    isCanBeConsumed = true
+    isCanBeResolved = false
+}
+
+artifacts {
+    val llvmHome = nativeDependencies.hostPlatform.llvmHome!!
+    val llvmDir = file("${nativeDependencies.nativeDependenciesRoot}/$llvmHome")
+    add(llvmDevBinaryData.name, llvmDir) {
+        type = "directory"
+        builtBy(nativeDependencies.targetDependency())
+    }
+    nativeDependenciesDownloader.hostXcodeApp?.let { xcodeApp ->
+        add(hostXcode.name, xcodeApp) {
+            type = "directory"
+            builtBy(nativeDependencies.targetDependency())
+        }
+    }
 }

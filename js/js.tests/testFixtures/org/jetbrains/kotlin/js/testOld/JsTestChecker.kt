@@ -10,8 +10,9 @@ import org.jetbrains.kotlin.js.engine.ScriptEngine
 import org.jetbrains.kotlin.js.engine.ScriptEngineV8
 import org.jetbrains.kotlin.js.engine.loadFiles
 import org.jetbrains.kotlin.js.test.utils.KOTLIN_TEST_INTERNAL
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.test.utils.withSuffixAndExtension
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -26,7 +27,7 @@ private fun String.escapePath(): String {
 
 fun ScriptEngine.runTestFunction(
     testModuleName: String?,
-    testPackageName: String?,
+    testPackageName: FqName,
     testFunctionName: String,
     withModuleSystem: Boolean,
     testFunctionArgs: String = "",
@@ -37,14 +38,15 @@ fun ScriptEngine.runTestFunction(
     }
     var script = when {
         entryModulePath != null && entryModulePath.endsWith(ESM_EXTENSION) -> "globalThis".also {
-            eval("import('${entryModulePath.escapePath()}').then(module => Object.assign(globalThis, module)).catch(console.error)")
+            // language="JavaScript"
+            eval("import('${entryModulePath.escapePath()}').then(module => Object.assign(globalThis, module)).catch(e => console.error(e.stack))")
         }
         withModuleSystem -> "$KOTLIN_TEST_INTERNAL.require('" + testModuleName!! + "')"
         testModuleName === null -> "this"
         else -> "this['$testModuleName']"
     }
 
-    if (testPackageName !== null) {
+    if (!testPackageName.isRoot) {
         script += ".$testPackageName"
     }
 
@@ -57,20 +59,20 @@ object V8JsTestChecker {
     fun check(
         files: List<String>,
         testModuleName: String?,
-        testPackageName: String?,
+        testPackageName: FqName,
         testFunctionName: String,
         expectedResult: String,
         withModuleSystem: Boolean,
         entryModulePath: String? = null,
     ) {
         val actualResult = run(files, testModuleName, testPackageName, testFunctionName, "", withModuleSystem, entryModulePath)
-        Assert.assertEquals(expectedResult, actualResult.normalize())
+        Assertions.assertEquals(expectedResult, actualResult.normalize())
     }
 
     fun checkWithTestFunctionArgs(
         files: List<String>,
         testModuleName: String?,
-        testPackageName: String?,
+        testPackageName: FqName,
         testFunctionName: String,
         testFunctionArgs: String,
         expectedResult: String,
@@ -78,13 +80,13 @@ object V8JsTestChecker {
         entryModulePath: String? = null
     ) {
         val actualResult = run(files, testModuleName, testPackageName, testFunctionName, testFunctionArgs, withModuleSystem, entryModulePath)
-        Assert.assertEquals(expectedResult, actualResult.normalize())
+        Assertions.assertEquals(expectedResult, actualResult.normalize())
     }
 
     private fun run(
         files: List<String>,
         testModuleName: String?,
-        testPackageName: String?,
+        testPackageName: FqName,
         testFunctionName: String,
         testFunctionArgs: String,
         withModuleSystem: Boolean,
@@ -114,7 +116,7 @@ object V8JsTestChecker {
             }
         run(newFiles) {
             val actualResult = eval(GET_KOTLIN_OUTPUT)
-            Assert.assertEquals(expectedResult, actualResult.normalize())
+            Assertions.assertEquals(expectedResult, actualResult.normalize())
             ""
         }
     }

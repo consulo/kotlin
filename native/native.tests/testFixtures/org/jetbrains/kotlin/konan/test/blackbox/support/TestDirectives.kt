@@ -17,12 +17,11 @@ import org.jetbrains.kotlin.konan.test.blackbox.support.TestDirectives.PROGRAM_A
 import org.jetbrains.kotlin.konan.test.blackbox.support.TestDirectives.TEST_RUNNER
 import org.jetbrains.kotlin.konan.test.blackbox.support.runner.TestRunCheck
 import org.jetbrains.kotlin.konan.test.blackbox.support.runner.TestRunCheck.OutputDataFile
-import org.jetbrains.kotlin.konan.test.blackbox.support.util.ReplLLDBSessionSpec
+import org.jetbrains.kotlin.konan.test.blackbox.support.settings.Settings
 import org.jetbrains.kotlin.test.directives.model.*
 import org.jetbrains.kotlin.test.services.JUnit5Assertions.assertTrue
 import org.jetbrains.kotlin.test.services.JUnit5Assertions.fail
 import org.jetbrains.kotlin.test.services.impl.RegisteredDirectivesParser
-import org.junit.jupiter.api.Assertions
 import java.io.File
 import kotlin.time.Duration
 
@@ -49,7 +48,7 @@ object TestDirectives : SimpleDirectivesContainer() {
 
     val TEST_RUNNER by enumDirective<TestRunnerType>(
         description = """
-            Usage: // TEST_RUNNER: [DEFAULT, WORKER, NO_EXIT]
+            Usage: // TEST_RUNNER: [DEFAULT, NO_EXIT]
             Specify test runner type.
             Note that this directive makes sense only in combination with // KIND: REGULAR or // KIND: STANDALONE
         """.trimIndent()
@@ -71,6 +70,15 @@ object TestDirectives : SimpleDirectivesContainer() {
 
     val EXPORT_TO_SWIFT by directive(
         "Marks module for Swift Export",
+        applicability = DirectiveApplicability.Module,
+    )
+
+    val HIDE_FROM_SWIFT_EXPORT by directive(
+        """
+            Keeps the module out of the Swift Export input set, while it is still compiled to a klib and still acts as a
+            regular Kotlin dependency. Types the module declares are therefore unresolvable during Swift Export and
+            translate to error types.
+        """.trimIndent(),
         applicability = DirectiveApplicability.Module,
     )
 
@@ -219,7 +227,6 @@ enum class TestKind {
 
 enum class TestRunnerType {
     DEFAULT,
-    WORKER,
     NO_EXIT
 }
 
@@ -292,7 +299,15 @@ open class TestCompilerArgs(
     }
 }
 
-fun parseTestKind(registeredDirectives: RegisteredDirectives?): TestKind? {
+/**
+ * Gets the [TestKind] defined by possible [RegisteredDirectives].
+ * The default is determined by TEST_KIND global property, for ex. testrunner's annotation:
+ *      @EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE_NO_TR")
+ */
+fun Settings.testKind(registeredDirectives: RegisteredDirectives?): TestKind =
+    parseTestKind(registeredDirectives) ?: get<TestKind>()
+
+private fun parseTestKind(registeredDirectives: RegisteredDirectives?): TestKind? {
     if (registeredDirectives == null) return null
     if (KIND !in registeredDirectives)
         return null // The default is determined by TEST_KIND global property
@@ -318,17 +333,6 @@ internal fun parseEntryPoint(registeredDirectives: RegisteredDirectives): String
     assertTrue(entryPoint.isNotEmpty()) { "Invalid entry point in $ENTRY_POINT directive: $entryPoint" }
 
     return entryPoint
-}
-
-internal fun parseReplLLDBSpec(testDataFile: File): ReplLLDBSessionSpec {
-    val specFilePathWithoutExtension = testDataFile.absolutePath.removeSuffix(testDataFile.extension)
-    val specFileLocation = "${specFilePathWithoutExtension}txt"
-    val specFile = File(specFileLocation)
-    return try {
-        ReplLLDBSessionSpec.parse(specFile.readText())
-    } catch (e: Exception) {
-        Assertions.fail<Nothing>("${testDataFile.absolutePath}: Cannot parse LLDB session specification: " + e.message, e)
-    }
 }
 
 internal fun parseModule(parsedDirective: RegisteredDirectivesParser.ParsedDirective): TestModule.Exclusive {
@@ -385,8 +389,14 @@ internal fun parseExpectedExitCode(registeredDirectives: RegisteredDirectives): 
     }
 }
 
-internal fun parseOutputDataFile(baseDir: File, registeredDirectives: RegisteredDirectives): OutputDataFile? =
-    parseFileBasedDirective(baseDir, OUTPUT_DATA_FILE, registeredDirectives)?.let { OutputDataFile(file = it) }
+internal fun parseOutputDataFile(
+    baseDir: File,
+    registeredDirectives: RegisteredDirectives,
+    sanitizer: (String) -> String = { it },
+): OutputDataFile? =
+    parseFileBasedDirective(baseDir, OUTPUT_DATA_FILE, registeredDirectives)?.let {
+        OutputDataFile(file = it, sanitizer = sanitizer)
+    }
 
 internal fun parseInputDataFile(baseDir: File, registeredDirectives: RegisteredDirectives): File? =
     parseFileBasedDirective(baseDir, INPUT_DATA_FILE, registeredDirectives)
@@ -426,6 +436,9 @@ internal fun parseOutputRegex(registeredDirectives: RegisteredDirectives): TestR
 fun TestModule.shouldBeExportedToSwift(): Boolean = (this as? TestModule.Exclusive)?.shouldBeExportedToSwift() ?: false
 fun TestModule.Exclusive.shouldBeExportedToSwift(): Boolean =
     TestDirectives.EXPORT_TO_SWIFT in directives || TestDirectives.SWIFT_EXPORT_CONFIG in directives
+
+fun TestModule.hiddenFromSwiftExport(): Boolean = (this as? TestModule.Exclusive)?.hiddenFromSwiftExport() ?: false
+fun TestModule.Exclusive.hiddenFromSwiftExport(): Boolean = TestDirectives.HIDE_FROM_SWIFT_EXPORT in directives
 
 fun TestModule.Exclusive.swiftExportConfigMap(): Map<String, String> =
     directives[TestDirectives.SWIFT_EXPORT_CONFIG].toMap()

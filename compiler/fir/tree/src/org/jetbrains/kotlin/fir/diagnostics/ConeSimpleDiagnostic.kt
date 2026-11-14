@@ -82,11 +82,6 @@ class ConeRecursiveTypeParameterDuringErasureError(val typeParameterName: Name) 
         get() = "self-recursive type parameter $typeParameterName"
 }
 
-object ConeDestructuringDeclarationsOnTopLevel : ConeDiagnostic {
-    override val reason: String
-        get() = "Destructuring declarations are only allowed for local variables/values"
-}
-
 object ConeDanglingModifierOnTopLevel : ConeDiagnostic {
     override val reason: String
         get() = "Top level declaration expected"
@@ -123,6 +118,15 @@ object ConeContextParameterWithDefaultValue : ConeDiagnostic {
 
 class ConeCollectionLiteralAmbiguity(val candidatesWithOf: List<FirRegularClassSymbol>) : ConeDiagnostic {
     override val reason: String get() = "Ambiguous collection literal"
+}
+
+object ConeCannotResolveEqualityBoundType : ConeDiagnostic {
+    override val reason: String get() = "Cannot resolve argument of 'EqualityBound'"
+}
+
+object ConeSmartcastToTypeVariable : ConeDiagnostic {
+    override val reason: String
+        get() = "Type variable survived until DFA"
 }
 
 enum class DiagnosticKind {
@@ -174,6 +178,11 @@ enum class DiagnosticKind {
     EnumEntryAsType,
 
     UnderscoreWithoutRenamingInDestructuring,
+
+    NullableErrorComponentInUnionType,
+    NullableNestedUnionType,
+    NonErrorComponentInNestedUnionType,
+    NonErrorComponentWrongPositionInUnionType,
 
     Other,
 }

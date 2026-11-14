@@ -16,28 +16,32 @@ internal class SimpleKType(
     override val classifier: KClassifier,
     override val arguments: List<KTypeProjection>,
     override val isMarkedNullable: Boolean,
-    override val annotations: List<Annotation>,
+    override val lazyAnnotations: Lazy<List<Annotation>>,
     override val abbreviation: KType?,
     override val isDefinitelyNotNullType: Boolean,
     override val isNothingType: Boolean,
     override val isSuspendFunctionType: Boolean,
     override val mutableCollectionClass: KClass<*>?,
-    computeJavaType: (() -> Type)? = null,
+    computeJavaType: Lazy<Type>? = null,
 ) : AbstractKType(computeJavaType), KTypeBase {
-    override fun makeNullableAsSpecified(nullable: Boolean): AbstractKType = SimpleKType(
-        classifier.toWrapperClassIfNeeded(nullable), arguments, nullable, annotations, abbreviation, isDefinitelyNotNullType = false,
-        isNothingType, isSuspendFunctionType, mutableCollectionClass,
-    )
+    override fun makeNullableAsSpecified(nullable: Boolean): AbstractKType =
+        if (nullable == isMarkedNullable) this
+        else SimpleKType(
+            classifier.toWrapperClassIfNeeded(nullable), arguments, nullable, lazyAnnotations, abbreviation,
+            isDefinitelyNotNullType = isDefinitelyNotNullType && !nullable, isNothingType, isSuspendFunctionType, mutableCollectionClass,
+        )
 
     private fun KClassifier.toWrapperClassIfNeeded(nullable: Boolean): KClassifier {
         if (this !is KClass<*>) return this
         return if (nullable) javaObjectType.kotlin else javaPrimitiveType?.kotlin ?: this
     }
 
-    override fun makeDefinitelyNotNullAsSpecified(isDefinitelyNotNull: Boolean): AbstractKType = SimpleKType(
-        classifier, arguments, isMarkedNullable = isMarkedNullable && !isDefinitelyNotNull, annotations, abbreviation, isDefinitelyNotNull,
-        isNothingType, isSuspendFunctionType, mutableCollectionClass,
-    )
+    override fun makeDefinitelyNotNullAsSpecified(isDefinitelyNotNull: Boolean): AbstractKType =
+        if (isDefinitelyNotNull == isDefinitelyNotNullType) this
+        else SimpleKType(
+            classifier, arguments, isMarkedNullable = isMarkedNullable && !isDefinitelyNotNull, lazyAnnotations, abbreviation,
+            isDefinitelyNotNull, isNothingType, isSuspendFunctionType, mutableCollectionClass,
+        )
 
     override fun lowerBoundIfFlexible(): AbstractKType? = null
     override fun upperBoundIfFlexible(): AbstractKType? = null

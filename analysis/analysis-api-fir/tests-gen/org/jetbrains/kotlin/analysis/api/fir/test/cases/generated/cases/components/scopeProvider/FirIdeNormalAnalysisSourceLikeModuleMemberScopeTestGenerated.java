@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.scopeProvider.AbstractMemberScopeTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.scopeProvider.AbstractMemberScopeTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,7 +33,6 @@ public class FirIdeNormalAnalysisSourceLikeModuleMemberScopeTestGenerated extend
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -101,6 +99,24 @@ public class FirIdeNormalAnalysisSourceLikeModuleMemberScopeTestGenerated extend
   }
 
   @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassFromLibrary.kt")
+  public void testFullValueClassFromLibrary() {
+    run("fullValueClassFromLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueObject.kt")
+  public void testFullValueObject() {
+    run("fullValueObject.kt");
+  }
+
+  @Test
   @TestMetadata("innerClass.kt")
   public void testInnerClass() {
     run("innerClass.kt");
@@ -143,15 +159,39 @@ public class FirIdeNormalAnalysisSourceLikeModuleMemberScopeTestGenerated extend
   }
 
   @Test
+  @TestMetadata("jvmNameCommon.kt")
+  public void testJvmNameCommon() {
+    run("jvmNameCommon.kt");
+  }
+
+  @Test
+  @TestMetadata("jvmNameJvm.kt")
+  public void testJvmNameJvm() {
+    run("jvmNameJvm.kt");
+  }
+
+  @Test
   @TestMetadata("kotlin.Function2.kt")
   public void testKotlin_Function2() {
     run("kotlin.Function2.kt");
   }
 
   @Test
+  @TestMetadata("Metadata.kt")
+  public void testMetadata() {
+    run("Metadata.kt");
+  }
+
+  @Test
   @TestMetadata("MutableList.kt")
   public void testMutableList() {
     run("MutableList.kt");
+  }
+
+  @Test
+  @TestMetadata("regularClassWithValueSuperclass.kt")
+  public void testRegularClassWithValueSuperclass() {
+    run("regularClassWithValueSuperclass.kt");
   }
 
   @Test

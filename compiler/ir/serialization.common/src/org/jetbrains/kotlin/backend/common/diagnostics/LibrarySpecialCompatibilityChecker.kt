@@ -6,30 +6,32 @@
 package org.jetbrains.kotlin.backend.common.diagnostics
 
 import org.jetbrains.kotlin.backend.common.diagnostics.LibrarySpecialCompatibilityChecker.Companion.KLIB_JAR_MANIFEST_FILE
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-import org.jetbrains.kotlin.config.KlibAbiCompatibilityLevel
-import org.jetbrains.kotlin.config.KotlinCompilerVersion
-import org.jetbrains.kotlin.config.LanguageVersion
-import org.jetbrains.kotlin.config.MavenComparableVersion
+import org.jetbrains.kotlin.cli.report
+import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.library.*
+import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
+import org.jetbrains.kotlin.tooling.core.isDev
+import org.jetbrains.kotlin.tooling.core.isSnapshot
 import java.io.ByteArrayInputStream
+import java.nio.file.Path
 import java.util.jar.Manifest
-import org.jetbrains.kotlin.konan.file.File as KlibFile
+import kotlin.io.path.isRegularFile
+import kotlin.io.path.readBytes
 
 /** See KT-68322 for details. */
 abstract class LibrarySpecialCompatibilityChecker {
-    protected class Version(
+    class Version(
         private val comparableVersion: MavenComparableVersion,
         private val languageVersion: LanguageVersion,
+        private val toolingVersion: KotlinToolingVersion,
         private val rawVersion: String
     ) : Comparable<Version> {
         override fun compareTo(other: Version) = comparableVersion.compareTo(other.comparableVersion)
         override fun equals(other: Any?) = (other as? Version)?.comparableVersion == comparableVersion
         override fun hashCode() = comparableVersion.hashCode()
 
-        // TODO (KT-83853): Find a reliable way to detect dev compiler versions.
-        val isDevVersion: Boolean = "-dev-" in rawVersion || rawVersion.endsWith("-SNAPSHOT")
+        // A version is considered a "dev" version unless its classifier denotes one of the known release maturities.
+        val isDevVersion: Boolean = toolingVersion.isDev || toolingVersion.isSnapshot
 
         override fun toString() = rawVersion
         fun toComparableVersionString() = comparableVersion.toString()
@@ -50,7 +52,13 @@ abstract class LibrarySpecialCompatibilityChecker {
                 val languageVersion = LanguageVersion.fromFullVersionString(rawVersion)
                     ?: return null
 
-                return Version(comparableVersion, languageVersion, rawVersion)
+                val toolingVersion = try {
+                    KotlinToolingVersion(rawVersion)
+                } catch (_: IllegalArgumentException) {
+                    return null
+                }
+
+                return Version(comparableVersion, languageVersion, toolingVersion, rawVersion)
             }
         }
     }
@@ -62,9 +70,9 @@ abstract class LibrarySpecialCompatibilityChecker {
 
     fun check(
         libraries: Collection<KotlinLibrary>,
-        messageCollector: MessageCollector,
-        klibAbiCompatibilityLevel: KlibAbiCompatibilityLevel,
+        configuration: CompilerConfiguration,
     ) {
+        val klibAbiCompatibilityLevel = configuration.klibAbiCompatibilityLevel
         val compilerVersion = Version.parseVersion(getRawCompilerVersion()) ?: return
         val isLatestKlibAbiCompatibilityLevel = klibAbiCompatibilityLevel == KlibAbiCompatibilityLevel.LATEST_STABLE
 
@@ -103,7 +111,7 @@ abstract class LibrarySpecialCompatibilityChecker {
                 else -> continue
             }
 
-            messageCollector.report(CompilerMessageSeverity.ERROR, errorMessage)
+            configuration.report(SerializationErrors.KLIB_LOADING_ERROR, errorMessage)
         }
     }
 
@@ -165,14 +173,14 @@ private class JarManifestComponent(
         }
 
     object Kind : KlibComponent.Kind<JarManifestComponent, JarManifestComponentLayout> {
-        override fun createLayout(root: KlibFile) = JarManifestComponentLayout(root)
+        override fun createLayout(root: Path) = JarManifestComponentLayout(root)
 
         override fun createComponentIfDataInKlibIsAvailable(layoutReader: KlibLayoutReader<JarManifestComponentLayout>) =
-            if (layoutReader.readInPlaceOrFallback(false) { it.jarManifestFile.isFile }) JarManifestComponent(layoutReader) else null
+            if (layoutReader.readInPlaceOrFallback(false) { it.jarManifestFile.isRegularFile() }) JarManifestComponent(layoutReader) else null
     }
 }
 
-private class JarManifestComponentLayout(root: KlibFile) : KlibComponentLayout(root) {
-    val jarManifestFile: KlibFile
-        get() = root.child(KLIB_JAR_MANIFEST_FILE)
+private class JarManifestComponentLayout(root: Path) : KlibComponentLayout(root) {
+    val jarManifestFile: Path
+        get() = root.resolve(KLIB_JAR_MANIFEST_FILE)
 }

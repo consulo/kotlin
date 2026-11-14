@@ -145,7 +145,10 @@ class KotlinHeaderModeType : EnumType<HeaderMode>() {
  */
 @Serializable
 class ReturnValueCheckerModeType : EnumType<ReturnValueCheckerMode>() {
-    override val defaultValue: ReleaseDependent<ReturnValueCheckerMode?> = ReleaseDependent(ReturnValueCheckerMode.disabled)
+    override val defaultValue: ReleaseDependent<ReturnValueCheckerMode?> = ReleaseDependent(
+        ReturnValueCheckerMode.default,
+        KotlinReleaseVersion.v2_2_0 ..KotlinReleaseVersion.v2_4_20 to ReturnValueCheckerMode.disabled
+    )
 }
 
 /**
@@ -162,6 +165,18 @@ sealed class EnumType<T : WithStringRepresentation>(
 ) : KotlinArgumentValueType<T> {
     override fun stringRepresentation(value: T?): String? {
         return value?.stringRepresentation?.valueOrNullStringLiteral
+    }
+}
+
+/**
+ * A value which accepts a list of enums.
+ */
+@Serializable
+sealed class EnumListType<T : WithStringRepresentation> : KotlinArgumentValueType<List<T>> {
+    override val isNullable: ReleaseDependent<Boolean> = ReleaseDependent(false)
+    override fun stringRepresentation(value: List<T>?): String {
+        if (value == null) return "null"
+        return value.joinToString(separator = ", ", prefix = "arrayOf(", postfix = ")") { it.stringRepresentation.valueOrNullStringLiteral }
     }
 }
 
@@ -346,6 +361,106 @@ class NameBasedDestructuringModeType : EnumType<NameBasedDestructuringMode>(Rele
 @Serializable
 class VerifyIrModeType : EnumType<VerifyIrMode>(ReleaseDependent(true)) {
     override val defaultValue: ReleaseDependent<VerifyIrMode?> = ReleaseDependent(null)
+}
+
+/**
+ * A value which accepts [PartialLinkageMode] type.
+ */
+@ExperimentalArgumentApi
+@Serializable
+class PartialLinkageModeType : EnumType<PartialLinkageMode>(ReleaseDependent(true)) {
+    override val defaultValue: ReleaseDependent<PartialLinkageMode?> = ReleaseDependent(null)
+}
+
+/**
+ * A value which accepts [PartialLinkageLogLevel] type.
+ */
+@ExperimentalArgumentApi
+@Serializable
+class PartialLinkageLogLevelType : EnumType<PartialLinkageLogLevel>(ReleaseDependent(true)) {
+    override val defaultValue: ReleaseDependent<PartialLinkageLogLevel?> = ReleaseDependent(null)
+}
+
+/**
+ * A value which accepts [DuplicatedUniqueNameStrategy] type.
+ */
+@ExperimentalArgumentApi
+@Serializable
+class DuplicatedUniqueNameStrategyType : EnumType<DuplicatedUniqueNameStrategy>(ReleaseDependent(true)) {
+    override val defaultValue: ReleaseDependent<DuplicatedUniqueNameStrategy?> = ReleaseDependent(null)
+}
+
+/**
+ * A value which accepts [JsEcmaVersion] type.
+ */
+@ExperimentalArgumentApi
+@Serializable
+class JsEcmaVersionType : EnumType<JsEcmaVersion>(ReleaseDependent(true)) {
+    override val defaultValue: ReleaseDependent<JsEcmaVersion?> = ReleaseDependent(null)
+}
+
+
+/**
+ * A value which accepts [JsModuleKind] type.
+ */
+@ExperimentalArgumentApi
+@Serializable
+class JsModuleKindType : EnumType<JsModuleKind>(ReleaseDependent(true)) {
+    override val defaultValue: ReleaseDependent<JsModuleKind?> = ReleaseDependent(null)
+}
+
+/**
+ * A value which accepts [JsIrDiagnosticMode] type.
+ */
+@ExperimentalArgumentApi
+@Serializable
+class JsIrDiagnosticModeType : EnumType<JsIrDiagnosticMode>(ReleaseDependent(true)) {
+    override val defaultValue: ReleaseDependent<JsIrDiagnosticMode?> = ReleaseDependent(null)
+}
+
+/**
+ * A value which accepts [JsMainCallMode] type.
+ */
+@ExperimentalArgumentApi
+@Serializable
+class JsMainCallModeType : EnumType<JsMainCallMode>(ReleaseDependent(true)) {
+    override val defaultValue: ReleaseDependent<JsMainCallMode?> = ReleaseDependent(null)
+}
+
+/**
+ * A value which accepts [SourceMapEmbedSources] type.
+ */
+@ExperimentalArgumentApi
+@Serializable
+class SourceMapEmbedSourcesType : EnumType<SourceMapEmbedSources>(ReleaseDependent(true)) {
+    override val defaultValue: ReleaseDependent<SourceMapEmbedSources?> = ReleaseDependent(null)
+}
+
+/**
+ * A value which accepts [SourceMapNamesPolicy] type.
+ */
+@ExperimentalArgumentApi
+@Serializable
+class SourceMapNamesPolicyType : EnumType<SourceMapNamesPolicy>(ReleaseDependent(true)) {
+    override val defaultValue: ReleaseDependent<SourceMapNamesPolicy?> = ReleaseDependent(null)
+}
+
+/**
+ * A value which accepts [WasmTarget] type.
+ */
+@ExperimentalArgumentApi
+@Serializable
+class WasmTargetType : EnumType<WasmTarget>(ReleaseDependent(true)) {
+    override val defaultValue: ReleaseDependent<WasmTarget?> = ReleaseDependent(null)
+}
+
+/**
+ * A value which accepts [JsEcmaVersion] type.
+ */
+@ExperimentalArgumentApi
+@Serializable
+class MetadataTargetPlatformType : EnumListType<MetadataTargetPlatform>() {
+    override val defaultValue: ReleaseDependent<List<MetadataTargetPlatform>?> = ReleaseDependent(emptyList())
 }
 
 private val String?.valueOrNullStringLiteral: String

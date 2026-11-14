@@ -1,10 +1,12 @@
 KaSamConstructorSymbol:
+  anchorPsi: KtClass
   annotations: []
   callableId: one/MyInterface
-  compilerVisibility: Public
+  contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -12,6 +14,8 @@ KaSamConstructorSymbol:
   modality: FINAL
   name: MyInterface
   origin: SAM_CONSTRUCTOR
+  psi: KtClass
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -20,15 +24,17 @@ KaSamConstructorSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -40,6 +46,9 @@ KaSamConstructorSymbol:
       modality: FINAL
       name: function
       origin: SAM_CONSTRUCTOR
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaFunctionType:
         annotations: []
@@ -50,16 +59,18 @@ KaSamConstructorSymbol:
             type: kotlin/Unit
         ]
         type: () -> kotlin/Unit
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(samConstructorFromInterface.kt)
       getContainingJvmClassName: one.SamConstructorFromInterfaceKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(samConstructorFromInterface.kt)
   getContainingJvmClassName: one.SamConstructorFromInterfaceKt
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: one.MyInterface

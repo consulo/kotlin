@@ -44,7 +44,7 @@ import java.util.*
 
 fun IrElement.dumpSrc(useFir: Boolean = false): String {
     val sb = StringBuilder()
-    accept(IrSourcePrinterVisitor(sb, "%tab%", useFir), null)
+    accept(IrSourcePrinterVisitor(sb, "%tab%"), null)
     return sb
         .toString()
         // replace tabs at beginning of line with white space
@@ -68,7 +68,6 @@ class Scope(
 class IrSourcePrinterVisitor(
     out: Appendable,
     indentUnit: String = "  ",
-    private val useFir: Boolean = false,
 ) : IrVisitorVoid() {
     private val printer = Printer(out, indentUnit)
     private var currentScope: Scope = Scope()
@@ -452,7 +451,7 @@ class IrSourcePrinterVisitor(
         }
     }
 
-    private fun IrMemberAccessExpression<*>.printExplicitReceiver(
+    private fun IrExpression.printExplicitReceiver(
         suffix: String? = null,
         superQualifierSymbol: IrClassSymbol? = null,
     ) {
@@ -461,7 +460,7 @@ class IrSourcePrinterVisitor(
 
         when (this) {
             is IrFunctionAccessExpression, is IrFunctionReference -> {
-                val owner = symbol.owner
+                val owner = (this as IrMemberAccessExpression<*>).symbol.owner as IrFunction
                 val dispatchReceiver = owner.firstParameterOfKind(IrParameterKind.DispatchReceiver)
                 val extensionReceiver = owner.firstParameterOfKind(IrParameterKind.ExtensionReceiver)
                 dispatchReceiverArg = dispatchReceiver?.let { arguments[it.indexInParameters] }
@@ -470,6 +469,25 @@ class IrSourcePrinterVisitor(
             is IrPropertyReference -> {
                 dispatchReceiverArg = arguments.firstOrNull()
                 extensionReceiverArg = null
+            }
+            is IrRichFunctionReference -> {
+                val targetFunction = reflectionTargetSymbol ?: return
+                val boundMapping = targetFunction.owner.parameters.zip(boundValues)
+                dispatchReceiverArg = boundMapping.firstOrNull {
+                    it.first.kind == IrParameterKind.DispatchReceiver
+                }?.second
+                extensionReceiverArg = boundMapping.firstOrNull {
+                    it.first.kind == IrParameterKind.ExtensionReceiver
+                }?.second
+            }
+            is IrRichPropertyReference -> {
+                val boundMapping = getterFunction.parameters.zip(boundValues)
+                dispatchReceiverArg = boundMapping.firstOrNull {
+                    it.first.kind == IrParameterKind.DispatchReceiver
+                }?.second
+                extensionReceiverArg = boundMapping.firstOrNull {
+                    it.first.kind == IrParameterKind.ExtensionReceiver
+                }?.second
             }
             else -> {
                 error("Unknown expression type: ${dump()}")
@@ -535,7 +553,7 @@ class IrSourcePrinterVisitor(
                 // if we are using parameter names, we go on multiple lines
                 println()
                 indented {
-                    arguments.zip(paramNames).forEachIndexed { i, (arg, name) ->
+                    arguments.zip(paramNames).forEachIndexed { i, [arg, name] ->
                         print(name)
                         print(" = ")
                         arg.print()
@@ -544,7 +562,7 @@ class IrSourcePrinterVisitor(
                 }
                 println()
             } else {
-                arguments.zip(paramNames).forEachIndexed { i, (arg, name) ->
+                arguments.zip(paramNames).forEachIndexed { i, [arg, name] ->
                     if (useParameterNames) {
                         print(name)
                         print(" = ")
@@ -654,30 +672,33 @@ class IrSourcePrinterVisitor(
         println(")")
     }
 
+    override fun visitAnnotation(expression: IrAnnotation) {
+        val name = expression.classSymbol.owner.name
+        print("@")
+        print(name)
+
+        val printArgumentList = expression.arguments.any { it != null }
+        if (printArgumentList) {
+            expression.printArgumentList(
+                forceParameterNames = true,
+                forceSingleLine = true
+            )
+        }
+    }
+
     override fun visitConstructorCall(expression: IrConstructorCall) {
         val constructedClass = expression.symbol.owner.constructedClass
         val name = constructedClass.name
-        val isAnnotation = constructedClass.isAnnotationClass
-        if (isAnnotation) {
-            print("@")
-        }
         expression.dispatchReceiver?.let {
             it.print()
             print(".")
         }
         print(name)
 
-        val printArgumentList = if (isAnnotation) {
-            expression.arguments.any { it != null }
-        } else {
-            true
-        }
-        if (printArgumentList) {
-            expression.printArgumentList(
-                forceParameterNames = isAnnotation,
-                forceSingleLine = isAnnotation
-            )
-        }
+        expression.printArgumentList(
+            forceParameterNames = false,
+            forceSingleLine = false
+        )
     }
 
     override fun visitStringConcatenation(expression: IrStringConcatenation) {
@@ -817,8 +838,7 @@ class IrSourcePrinterVisitor(
         mutableMapOf<IrReturnTargetSymbol, IrFunctionAccessExpression>()
 
     private val IrFunction.isLambda: Boolean
-        get() = name.asString() == SpecialNames.ANONYMOUS_STRING ||
-                origin == IrDeclarationOrigin.ADAPTER_FOR_CALLABLE_REFERENCE
+        get() = name.asString() == SpecialNames.ANONYMOUS_STRING
 
     private val IrFunction.isDelegatedPropertySetter: Boolean
         get() = isSetter && origin == IrDeclarationOrigin.DELEGATED_PROPERTY_ACCESSOR
@@ -841,7 +861,7 @@ class IrSourcePrinterVisitor(
         // or a delegated property setter. The latter have a superfluous "return" in K1.
         val returnTarget = expression.returnTargetSymbol.owner
         if (returnTarget !is IrFunction ||
-            (!returnTarget.isLambda && (useFir || !returnTarget.isDelegatedPropertySetter)) ||
+            !returnTarget.isLambda ||
             !expression.isLastStatementIn(returnTarget)
         ) {
             val suffix = returnTargetToCall[returnTarget.symbol]?.let {
@@ -1056,29 +1076,10 @@ class IrSourcePrinterVisitor(
         }
         indented {
             declaration.getter?.scoped {
-                if (it.origin != IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR) {
-                    println()
-                    it.printAnnotations()
-                    println()
-                    println("get() {")
-                    indented {
-                        it.body?.accept(this, null)
-                    }
-                    println()
-                    println("}")
-                }
+                it.printPropertyAccessor()
             }
             declaration.setter?.scoped {
-                if (it.origin != IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR) {
-                    println()
-                    it.printAnnotations()
-                    println("set(value) {")
-                    indented {
-                        it.body?.accept(this, null)
-                    }
-                    println()
-                    println("}")
-                }
+                it.printPropertyAccessor()
             }
         }
     }
@@ -1334,6 +1335,35 @@ class IrSourcePrinterVisitor(
         }
     }
 
+    override fun visitRichFunctionReference(expression: IrRichFunctionReference) {
+        val function = expression.reflectionTargetSymbol?.owner ?: expression.invokeFunction
+
+        expression.printExplicitReceiver()
+        print("::")
+
+        val prop = (function as? IrSimpleFunction)?.correspondingPropertySymbol?.owner
+
+        if (prop != null) {
+            val propName = prop.name.asString()
+            print(propName)
+            if (function == prop.setter) {
+                print("::set")
+            } else if (function == prop.getter) {
+                print("::get")
+            }
+        } else {
+            print(function.name.asString())
+        }
+        print("<")
+        print(expression.overriddenFunctionSymbol.owner.parentClassOrNull?.fqNameWhenAvailable.toString())
+        print(">")
+        println(" {")
+        indented {
+            expression.invokeFunction.print()
+        }
+        println("}")
+    }
+
     override fun visitInstanceInitializerCall(expression: IrInstanceInitializerCall) {
         val constructedClass = expression.classSymbol.owner
         val name = constructedClass.name
@@ -1384,6 +1414,20 @@ class IrSourcePrinterVisitor(
         expression.printExplicitReceiver()
         print("::")
         print(property.name)
+    }
+
+    override fun visitRichPropertyReference(expression: IrRichPropertyReference) {
+        val propertyName = (expression.reflectionTargetSymbol?.owner as? IrDeclarationWithName)?.name
+            ?: expression.getterFunction.name
+        expression.printExplicitReceiver()
+        print("::")
+        print(propertyName)
+        println(" {")
+        indented {
+            expression.getterFunction.print()
+            expression.setterFunction?.print()
+        }
+        println("}")
     }
 
     override fun visitSpreadElement(spread: IrSpreadElement) {
@@ -1472,7 +1516,7 @@ class IrSourcePrinterVisitor(
             }
         }
 
-    private fun renderTypeAnnotations(annotations: List<IrConstructorCall>) =
+    private fun renderTypeAnnotations(annotations: List<IrAnnotation>) =
         if (annotations.isEmpty())
             ""
         else
@@ -1480,18 +1524,18 @@ class IrSourcePrinterVisitor(
                 "@[${renderAsAnnotation(it)}]"
             }
 
-    private fun renderAsAnnotation(irAnnotation: IrConstructorCall): String =
+    private fun renderAsAnnotation(irAnnotation: IrAnnotation): String =
         StringBuilder().also { it.renderAsAnnotation(irAnnotation) }.toString()
 
-    private fun StringBuilder.renderAsAnnotation(irAnnotation: IrConstructorCall) {
+    private fun StringBuilder.renderAsAnnotation(irAnnotation: IrAnnotation) {
         val annotationClassName = try {
-            irAnnotation.symbol.owner.parentAsClass.name.asString()
+            irAnnotation.classId.shortClassName.asString()
         } catch (e: Exception) {
             "<unbound>"
         }
         append(annotationClassName)
 
-        if (irAnnotation.arguments.isEmpty()) return
+        if (irAnnotation.argumentMapping.isEmpty()) return
 
         val valueParameterNames = irAnnotation.getValueParameterNamesForDebug()
         var first = true
@@ -1508,13 +1552,6 @@ class IrSourcePrinterVisitor(
         }
         append(")")
     }
-
-    @OptIn(ObsoleteDescriptorBasedAPI::class)
-    private fun IrTypeAliasSymbol.renderTypeAliasFqn(): String =
-        if (isBound)
-            StringBuilder().also { owner.renderDeclarationFqn(it) }.toString()
-        else
-            "<unbound $this: ${this.descriptor}>"
 
     private fun IrDeclaration.renderDeclarationFqn(sb: StringBuilder) {
         renderDeclarationParentFqn(sb)
@@ -1563,7 +1600,7 @@ class IrSourcePrinterVisitor(
     private fun StringBuilder.renderAsAnnotationArgument(irElement: IrElement?) {
         when (irElement) {
             null -> append("<null>")
-            is IrConstructorCall -> renderAsAnnotation(irElement)
+            is IrAnnotation -> renderAsAnnotation(irElement)
             is IrConst -> {
                 append('\'')
                 append(irElement.value.toString())
@@ -1586,8 +1623,6 @@ class IrSourcePrinterVisitor(
             origin == IrDeclarationOrigin.FOR_LOOP_ITERATOR -> "<iterator>"
             // $anonymous$parameter$x vs $unused$var$x
             origin == IrDeclarationOrigin.UNDERSCORE_PARAMETER -> "<unused var>"
-            !useFir && name.asString().endsWith("_elvis_lhs") -> "<elvis>"
-            !useFir && name.asString() == "\$this\$null" -> "<this>"
             else -> name.asString()
         }
 

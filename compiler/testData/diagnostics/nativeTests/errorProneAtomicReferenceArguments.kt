@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // ISSUE: KT-82375
 // FULL_JDK
 // DIAGNOSTICS: -ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE
@@ -6,7 +6,7 @@
 
 // FILE: FooValueClass.kt
 
-value class Foo(val value: UInt)
+<!INLINE_VALUE_CLASS_WITHOUT_EXPLICIT_INLINE_WARNING!>value<!> class Foo(val value: UInt)
 
 // FILE: K.kt
 

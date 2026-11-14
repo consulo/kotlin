@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
 import org.jetbrains.kotlin.backend.jvm.JvmSymbols
 import org.jetbrains.kotlin.backend.jvm.ir.*
+import org.jetbrains.kotlin.backend.jvm.isIndyImplementationMethod
 import org.jetbrains.kotlin.backend.jvm.lower.indy.*
 import org.jetbrains.kotlin.backend.jvm.unboxInlineClass
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
@@ -179,12 +180,12 @@ class IndyLambdaMetafactoryLowering(val backendContext: JvmBackendContext) : Fil
                 )
                 +irWhen(
                     backendContext.irBuiltIns.unitType,
-                    groupedByImplMethodName.entries.map { (implMethodName, infos) ->
+                    groupedByImplMethodName.entries.map { [implMethodName, infos] ->
                         irBranch(
                             irEquals(irGet(tmp), irString(implMethodName)),
                             irWhen(
                                 backendContext.irBuiltIns.unitType,
-                                infos.entries.map { (deserializedLambdaInfo, serializedMethodRefInfo) ->
+                                infos.entries.map { [deserializedLambdaInfo, serializedMethodRefInfo] ->
                                     irBranch(
                                         generateSerializedLambdaEquals(lambdaParameter, deserializedLambdaInfo),
                                         irReturn(generateCreateDeserializedMethodRef(lambdaParameter, serializedMethodRefInfo))
@@ -282,7 +283,7 @@ class IndyLambdaMetafactoryLowering(val backendContext: JvmBackendContext) : Fil
         info: SerializableMethodRefInfo
     ): IrExpression {
         val dynamicCall = irCall(info.dynamicCallSymbol)
-        for ((index, dynamicValueParameter) in info.dynamicCallSymbol.owner.parameters.withIndex()) {
+        for ([index, dynamicValueParameter] in info.dynamicCallSymbol.owner.parameters.withIndex()) {
             val capturedArg = irCall(backendContext.symbols.serializedLambda.getCapturedArg).also { call ->
                 call.arguments[0] = irGet(lambdaParameter)
                 call.arguments[1] = irInt(index)
@@ -321,6 +322,11 @@ class IndyLambdaMetafactoryLowering(val backendContext: JvmBackendContext) : Fil
         val samType = call.type as? IrSimpleType ?: fail("'samType' is expected to be a simple type")
 
         val implFunSymbol = call.invokeFunction.symbol
+
+        // Anonymous functions keep LOCAL_FUNCTION, so mark indy implementations for parameter assertions.
+        if (call.invokeFunction.origin == IrDeclarationOrigin.LOCAL_FUNCTION) {
+            call.invokeFunction.isIndyImplementationMethod = true
+        }
 
         val generatedParameters = LambdaMetafactoryArgumentsBuilder(backendContext, emptySet())
             .getLambdaMetafactoryArguments(
@@ -458,7 +464,7 @@ class IndyLambdaMetafactoryLowering(val backendContext: JvmBackendContext) : Fil
 
             var syntheticParameterIndex = 0
 
-            parameters = (targetFun.parameters zip targetRef.boundValues).map { (parameter, argument) ->
+            parameters = (targetFun.parameters zip targetRef.boundValues).map { [parameter, argument] ->
                 dynamicCallArguments.add(argument)
 
                 buildValueParameter(this) {
@@ -478,7 +484,7 @@ class IndyLambdaMetafactoryLowering(val backendContext: JvmBackendContext) : Fil
                         "dynamicCallArguments:\n" +
                         dynamicCallArguments
                             .withIndex()
-                            .joinToString(separator = "\n ", prefix = "[\n ", postfix = "\n]") { (index, irArg) ->
+                            .joinToString(separator = "\n ", prefix = "[\n ", postfix = "\n]") { [index, irArg] ->
                                 "#$index: ${irArg.dump()}"
                             }
             )

@@ -1,10 +1,10 @@
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/OptIn(markerClass = [kotlin.contracts.ExperimentalContracts::class])
       psi: KtAnnotationEntry
   ]
   callableId: /atMostOnceContract
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: [
@@ -13,15 +13,17 @@ KaNamedFunctionSymbol:
         KaContractExplicitParameterValue:
           symbol:
             KaValueParameterSymbol:
+              anchorPsi: KtParameter
               annotations: []
               callableId: null
-              compilerVisibility: Public
+              contextParameters: []
               contextReceivers: []
-              generatedPrimaryConstructorProperty: null
               hasDeclaredDefaultValue: false
               hasDefaultValue: false
               isActual: false
+              isCompanion: false
               isCrossinline: false
+              isDelegated: false
               isExpect: false
               isExtension: false
               isExternal: false
@@ -33,6 +35,9 @@ KaNamedFunctionSymbol:
               modality: FINAL
               name: block
               origin: SOURCE
+              primaryConstructorProperty: null
+              psi: KtParameter
+              realPsi: KtParameter
               receiverParameter: null
               returnType: KaFunctionType:
                 annotations: []
@@ -43,17 +48,19 @@ KaNamedFunctionSymbol:
                     type: kotlin/Unit
                 ]
                 type: () -> kotlin/Unit
+              typeParameters: []
               visibility: PUBLIC
               getContainingFileSymbol: KaFileSymbol(callsInPlaceAtMostOnceContract.kt)
               getContainingJvmClassName: CallsInPlaceAtMostOnceContractKt
               getContainingModule: KaSourceModule "Sources of main"
-              deprecationStatus: null
+              deprecation: null
               importableFqName: null
-      occurrencesRange: AT_MOST_ONCE
+      invocationKind: AT_MOST_ONCE
   ]
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -68,6 +75,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: atMostOnceContract
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -76,15 +85,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -96,6 +107,9 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: block
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaFunctionType:
         annotations: []
@@ -106,11 +120,12 @@ KaNamedFunctionSymbol:
             type: kotlin/Unit
         ]
         type: () -> kotlin/Unit
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(callsInPlaceAtMostOnceContract.kt)
       getContainingJvmClassName: CallsInPlaceAtMostOnceContractKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -118,6 +133,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: CallsInPlaceAtMostOnceContractKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: atMostOnceContract
   importableFqName: atMostOnceContract

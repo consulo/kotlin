@@ -12,11 +12,11 @@ import org.jetbrains.kotlin.platform.konan.NativePlatforms
 import org.jetbrains.kotlin.test.FirParser
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.BlackBoxCodegenSuppressor
-import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
-import org.jetbrains.kotlin.test.builders.TestConfigurationBuilderBase
-import org.jetbrains.kotlin.test.builders.firHandlersStep
+import org.jetbrains.kotlin.test.backend.ir.IrDiagnosticsHandler
+import org.jetbrains.kotlin.test.builders.*
 import org.jetbrains.kotlin.test.configuration.commonCodegenConfiguration
 import org.jetbrains.kotlin.test.configuration.commonFirHandlersForCodegenTest
+import org.jetbrains.kotlin.test.configuration.commonIrHandlersForCodegenTest
 import org.jetbrains.kotlin.test.directives.ConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.configureFirParser
@@ -24,7 +24,6 @@ import org.jetbrains.kotlin.test.directives.model.ValueDirective
 import org.jetbrains.kotlin.test.frontend.fir.handlers.*
 import org.jetbrains.kotlin.test.model.DependencyKind
 import org.jetbrains.kotlin.test.model.FrontendKinds
-import org.jetbrains.kotlin.test.services.LibraryProvider
 import org.jetbrains.kotlin.test.services.sourceProviders.AdditionalDiagnosticsSourceFilesProvider
 import org.jetbrains.kotlin.test.services.sourceProviders.CoroutineHelpersSourceFilesProvider
 import org.jetbrains.kotlin.utils.bind
@@ -32,9 +31,11 @@ import org.jetbrains.kotlin.utils.bind
 
 fun TestConfigurationBuilder.commonConfigurationForNativeFirstStageUpToSerialization(
     customIgnoreDirective: ValueDirective<TargetBackend>? = null,
+    includeBasicFirHandlers: Boolean = true,
+    includeDumpFirHandlers: Boolean = true
 ) {
     commonConfigurationForNativeCodegenTest(customIgnoreDirective = customIgnoreDirective)
-    setupStepsForNativeFirstStageUpToSerialization()
+    setupStepsForNativeFirstStageUpToSerialization(includeBasicFirHandlers, includeDumpFirHandlers)
 }
 
 /**
@@ -60,12 +61,11 @@ fun TestConfigurationBuilderBase<*, *>.commonConfigurationForNativeCodegenTest(
     }
     configureFirParser(firParser)
 
-    useAdditionalService(::LibraryProvider)
     useAdditionalSourceProviders(
         ::CoroutineHelpersSourceFilesProvider,
         ::AdditionalDiagnosticsSourceFilesProvider,
     )
-    useAfterAnalysisCheckers(
+    useFailureSuppressors(
         ::BlackBoxCodegenSuppressor.bind(customIgnoreDirective, null),
     )
 }
@@ -74,26 +74,35 @@ fun TestConfigurationBuilderBase<*, *>.commonConfigurationForNativeCodegenTest(
  * Sets up all first-stage steps from frontend till pre-serialization lowerings (included).
  * Also, sets up corresponding handlers steps for each facade step.
  */
-fun TestConfigurationBuilder.setupStepsForNativeFirstStageUpToSerialization(includeFirHandlers: Boolean = true) {
+fun TestConfigurationBuilder.setupStepsForNativeFirstStageUpToSerialization(
+    includeBasicFirHandlers: Boolean = true,
+    includeDumpFirHandlers: Boolean = true
+) {
     facadeStep(::FirCliNativeFacade)
     firHandlersStep {
         commonFirHandlersForCodegenTest()
-        if (includeFirHandlers) {
+        if (includeBasicFirHandlers) {
             useHandlers(
-                ::FirDumpHandler,
-                ::FirCfgDumpHandler,
                 ::FirCfgConsistencyHandler,
                 ::FirResolvedTypesVerifier,
                 ::FirDiagnosticsHandler,
             )
         }
+        if (includeDumpFirHandlers) {
+            useHandlers(
+                ::FirDumpHandler,
+                ::FirCfgDumpHandler,
+            )
+        }
     }
 
     facadeStep(::Fir2IrCliNativeFacade)
-// TODO(KT-85460): uncomment and fix failing tests
-//    irHandlersStep()
+    irHandlersStep {
+        commonIrHandlersForCodegenTest()
+    }
 
     facadeStep(::NativePreSerializationLoweringCliFacade)
-// TODO(KT-85460): uncomment and fix failing tests
-//    loweredIrHandlersStep()
+    loweredIrHandlersStep {
+        useHandlers(::IrDiagnosticsHandler)
+    }
 }

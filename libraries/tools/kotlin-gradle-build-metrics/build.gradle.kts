@@ -4,6 +4,8 @@ import plugins.signLibraryPublication
 description = "kotlin-gradle-statistics"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     `java-library`
     id("org.jetbrains.kotlin.jvm")
     `maven-publish`

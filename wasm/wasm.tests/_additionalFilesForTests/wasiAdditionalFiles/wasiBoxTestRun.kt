@@ -3,9 +3,11 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@kotlin.wasm.WasmExport
+// This `startTest` shares its export name with the grouped batches' result-collecting driver on purpose; the two never
+// end up in the same binary, see `wasmWasiGroupedTestsEntryPointSource`.
+
 fun runBoxTest(): Boolean {
-    val boxResult = box()
+    val boxResult: String = box()
     val isOk = boxResult == "OK"
     if (!isOk) {
         println("Wrong box result '${boxResult}'; Expected 'OK'")
@@ -24,8 +26,7 @@ fun startTest() {
         }
     } catch (e: Throwable) {
         println("Failed with exception!")
-        println(e.message)
-        println(e.printStackTrace())
+        println(e)
         wasiProcExit(1)
     }
 }

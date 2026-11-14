@@ -18,13 +18,14 @@ import org.jetbrains.kotlin.fir.diagnostics.ConeDiagnostic
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.resolve.FirResolvedSymbolOrigin
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.FirTypeProjection
 import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.fir.visitors.FirVisitor
 import org.jetbrains.kotlin.fir.visitors.transformInplace
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 
 @OptIn(FirIdeOnly::class, UnresolvedExpressionTypeAccess::class)
 internal class FirErrorResolvedQualifierImpl(
@@ -36,22 +37,18 @@ internal class FirErrorResolvedQualifierImpl(
     override var annotations: MutableOrEmptyList<FirAnnotation>,
     override val packageFqName: FqName,
     override val relativeClassFqName: FqName?,
-    override val symbol: FirClassLikeSymbol<*>?,
+    override val qualifierSymbol: FirClassLikeSymbol<*>?,
+    override var accessedObjectSymbol: FirRegularClassSymbol?,
     override var explicitParent: FirResolvedQualifier?,
-    override var isNullableLHSForCallableReference: Boolean,
-    override var resolvedLHSTypeForCallableReferenceOrNull: ConeKotlinType?,
+    override var isNullableLhsForCallableReference: Boolean,
+    override var resolvedLhsTypeForCallableReferenceOrNull: ConeKotlinType?,
     override var resolvedToCompanionObject: Boolean,
-    override var canBeValue: Boolean,
-    override val isFullyQualified: Boolean,
     override var nonFatalDiagnostics: MutableOrEmptyList<ConeDiagnostic>,
     override var resolvedSymbolOrigin: FirResolvedSymbolOrigin?,
+    override var originalNameForContextSensitiveResolution: Name?,
     override var typeArguments: MutableOrEmptyList<FirTypeProjection>,
     override val diagnostic: ConeDiagnostic,
 ) : FirErrorResolvedQualifier() {
-    override val classId: ClassId?
-        get() = relativeClassFqName?.let {
-    ClassId(packageFqName, it, isLocal = false)
-}
 
     override fun <R, D> acceptChildren(visitor: FirVisitor<R, D>, data: D) {
         annotations.forEach { it.accept(visitor, data) }
@@ -88,20 +85,20 @@ internal class FirErrorResolvedQualifierImpl(
         annotations = newAnnotations.toMutableOrEmpty()
     }
 
-    override fun replaceIsNullableLHSForCallableReference(newIsNullableLHSForCallableReference: Boolean) {
-        isNullableLHSForCallableReference = newIsNullableLHSForCallableReference
+    override fun replaceAccessedObjectSymbol(newAccessedObjectSymbol: FirRegularClassSymbol?) {
+        accessedObjectSymbol = newAccessedObjectSymbol
     }
 
-    override fun replaceResolvedLHSTypeForCallableReferenceOrNull(newResolvedLHSTypeForCallableReferenceOrNull: ConeKotlinType?) {
-        resolvedLHSTypeForCallableReferenceOrNull = newResolvedLHSTypeForCallableReferenceOrNull
+    override fun replaceIsNullableLhsForCallableReference(newIsNullableLhsForCallableReference: Boolean) {
+        isNullableLhsForCallableReference = newIsNullableLhsForCallableReference
+    }
+
+    override fun replaceResolvedLhsTypeForCallableReferenceOrNull(newResolvedLhsTypeForCallableReferenceOrNull: ConeKotlinType?) {
+        resolvedLhsTypeForCallableReferenceOrNull = newResolvedLhsTypeForCallableReferenceOrNull
     }
 
     override fun replaceResolvedToCompanionObject(newResolvedToCompanionObject: Boolean) {
         resolvedToCompanionObject = newResolvedToCompanionObject
-    }
-
-    override fun replaceCanBeValue(newCanBeValue: Boolean) {
-        canBeValue = newCanBeValue
     }
 
     override fun replaceNonFatalDiagnostics(newNonFatalDiagnostics: List<ConeDiagnostic>) {
@@ -110,6 +107,10 @@ internal class FirErrorResolvedQualifierImpl(
 
     override fun replaceResolvedSymbolOrigin(newResolvedSymbolOrigin: FirResolvedSymbolOrigin?) {
         resolvedSymbolOrigin = newResolvedSymbolOrigin
+    }
+
+    override fun replaceOriginalNameForContextSensitiveResolution(newOriginalNameForContextSensitiveResolution: Name?) {
+        originalNameForContextSensitiveResolution = newOriginalNameForContextSensitiveResolution
     }
 
     override fun replaceTypeArguments(newTypeArguments: List<FirTypeProjection>) {

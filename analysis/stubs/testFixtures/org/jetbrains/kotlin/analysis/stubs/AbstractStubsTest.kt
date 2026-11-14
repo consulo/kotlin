@@ -2,13 +2,15 @@
  * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.analysis.stubs
 
+import com.intellij.psi.stubs.StubElement
+import org.jetbrains.kotlin.analysis.internal.utils.IndentedTextBuilder
+import org.jetbrains.kotlin.analysis.internal.utils.buildIndentedText
 import org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiBasedTest
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.KtTestModule
-import org.jetbrains.kotlin.analysis.utils.printer.PrettyPrinter
-import org.jetbrains.kotlin.analysis.utils.printer.prettyPrint
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtImplementationDetail
 import org.jetbrains.kotlin.psi.stubs.KotlinStubElement
@@ -29,17 +31,17 @@ abstract class AbstractStubsTest : AbstractAnalysisApiBasedTest() {
         val files = mainModule.ktFiles
         val filesAndStubs = files.sortedBy(KtFile::getName).map { it to stubsTestEngine.compute(it) }
 
-        val actual = prettyPrint {
+        val actual = buildIndentedText(indentation = IndentedTextBuilder.TWO_SPACES) {
             if (filesAndStubs.isEmpty()) {
                 appendLine("NO FILES")
-                return@prettyPrint
+                return@buildIndentedText
             }
 
             val singleElement = filesAndStubs.singleOrNull()
             if (singleElement != null) {
                 printStub(singleElement.second)
             } else {
-                printCollection(filesAndStubs, separator = "\n\n") { element ->
+                appendCollection(filesAndStubs, separator = "\n\n") { element ->
                     appendLine("${element.first.name}:")
                     withIndent {
                         printStub(element.second)
@@ -50,23 +52,41 @@ abstract class AbstractStubsTest : AbstractAnalysisApiBasedTest() {
 
         testServices.assertions.assertEqualsToTestOutputFile(actual, extension = outputFileExtension)
 
-        for ((file, stub) in filesAndStubs) {
+        for ([file, stub] in filesAndStubs) {
             assertEquality(stub)
             stubsTestEngine.validate(testServices, file, stub)
         }
     }
 
-    @OptIn(KtImplementationDetail::class)
+    @Suppress("UnstableApiUsage")
     private fun assertEquality(fileStub: KotlinFileStubImpl) {
         val deepCopy = fileStub.deepCopy()
-        fileStub.stubList.zip(deepCopy.stubList).forEach { (stub1, stub2) ->
+        fileStub.stubList.zip(deepCopy.stubList).forEach { [stub1, stub2] ->
             stub1 as KotlinStubElement<*>
             stub2 as KotlinStubElement<*>
             assert(stub1.isEquivalentTo(stub2)) { "Stub is not equal to it's copy: $stub1" }
         }
+
+        assertSameStructure(fileStub, deepCopy)
+
+        // Otherwise, `StubTree` rebuilds the whole stub list of the copy
+        assert(deepCopy.stubList.isChildrenLayoutOptimal) { "The copy of the stub tree has a non-optimal children layout" }
     }
 
-    context(printer: PrettyPrinter)
+    private fun assertSameStructure(original: StubElement<*>, copy: StubElement<*>) {
+        val originalChildren = original.childrenStubs
+        val copyChildren = copy.childrenStubs
+        assert(originalChildren.size == copyChildren.size) {
+            "The copy of $original has ${copyChildren.size} children instead of ${originalChildren.size}"
+        }
+
+        for ([originalChild, copyChild] in originalChildren.zip(copyChildren)) {
+            assert(copyChild.parentStub === copy) { "The copy of $originalChild has a wrong parent" }
+            assertSameStructure(originalChild, copyChild)
+        }
+    }
+
+    context(printer: IndentedTextBuilder)
     private fun printStub(stub: KotlinFileStubImpl) {
         val stubRepresentation = stubsTestEngine.render(stub)
         printer.append(stubRepresentation)

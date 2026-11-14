@@ -1,12 +1,8 @@
-@file:OptIn(ExperimentalWasmDsl::class)
 
 package org.jetbrains.kotlin.gradle.unitTests.uklibs
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
-import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.invoke
-import org.gradle.kotlin.dsl.project
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -37,7 +33,7 @@ class UklibInterprojectResolutionTests {
     fun `interproject uklib resolution - transitive dependency through jvm library - resolves uklib variants in transitive dependency`() {
         val targets: KotlinMultiplatformExtension.() -> Unit = {
             iosArm64()
-            @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+            // fixme: KT-89587 Clean up tests after iosX64 target deprecation
             iosX64()
             jvm()
             js()
@@ -54,16 +50,14 @@ class UklibInterprojectResolutionTests {
             }
         ) {
             plugins.apply("java-library")
-            dependencies {
-                "api"(project(":producer"))
-            }
+            dependencies.add("api", project(":producer"))
         }.evaluate()
 
         val transitiveUklibConsumer = projectWithUklibs(root, "transitiveUklibConsumer") {
             kotlin {
                 targets()
                 dependencies {
-                    implementation(project(":directJavaConsumer"))
+                    implementation.add(project(":directJavaConsumer"))
                 }
             }
         }.evaluate()
@@ -252,7 +246,7 @@ class UklibInterprojectResolutionTests {
     fun `interproject uklib resolution - direct dependency a uklib producing component - with matching set of targets`() {
         val targets: KotlinMultiplatformExtension.() -> Unit = {
             iosArm64()
-            @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+            // fixme: KT-89587 Clean up tests after iosX64 target deprecation
             iosX64()
             jvm()
             js()
@@ -408,7 +402,7 @@ class UklibInterprojectResolutionTests {
             kotlin {
                 iosArm64()
                 iosSimulatorArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -480,7 +474,7 @@ class UklibInterprojectResolutionTests {
     fun `interproject uklib resolution - transitive dependency though a uklib producing component - with a subset of targets`() {
         val targets: KotlinMultiplatformExtension.() -> Unit = {
             iosArm64()
-            @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+            // fixme: KT-89587 Clean up tests after iosX64 target deprecation
             iosX64()
             jvm()
             js()
@@ -919,7 +913,7 @@ class UklibInterprojectResolutionTests {
             kotlin {
                 jvm()
                 dependencies {
-                    implementation(project(":producer"))
+                    implementation.add(project(":producer"))
                 }
             }
         }.evaluate()
@@ -946,7 +940,7 @@ class UklibInterprojectResolutionTests {
             kotlin {
                 jvm()
                 dependencies {
-                    implementation(project(":producer"))
+                    implementation.add(project(":producer"))
                 }
             }
         }.evaluate()
@@ -960,6 +954,7 @@ class UklibInterprojectResolutionTests {
         )
     }
 
+    @OptIn(ExperimentalWasmDsl::class)
     @Test
     fun `circular dependency between projects with associated compilation doesn't duplicate klibs in test compilations`() {
         val root = buildProject()
@@ -983,12 +978,12 @@ class UklibInterprojectResolutionTests {
         }
         a.kotlin {
             dependencies {
-                testImplementation(project.dependencies.project(":b"))
+                testImplementation.add(project(":b"))
             }
         }
         b.kotlin {
             dependencies {
-                api(project.dependencies.project(":a"))
+                api.add(project(":a"))
             }
         }
         a.evaluate()

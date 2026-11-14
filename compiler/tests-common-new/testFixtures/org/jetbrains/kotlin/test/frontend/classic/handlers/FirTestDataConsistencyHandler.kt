@@ -5,18 +5,21 @@
 
 package org.jetbrains.kotlin.test.frontend.classic.handlers
 
-import org.jetbrains.kotlin.test.WrappedException
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives.LATEST_LV_DIFFERENCE
+import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.LANGUAGE_FEATURE_TOGGLED
+import org.jetbrains.kotlin.test.directives.TestPhaseDirectives.RUN_PIPELINE_TILL
+import org.jetbrains.kotlin.test.directives.model.Directive
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.directives.model.RegisteredDirectives
 import org.jetbrains.kotlin.test.model.AfterAnalysisChecker
 import org.jetbrains.kotlin.test.model.TestFile
-import org.jetbrains.kotlin.test.runners.AbstractFirPsiDiagnosticsTestWithJvmIrBackend
-import org.jetbrains.kotlin.test.runners.AbstractFirPsiDiagnosticTest
-import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerTest
-import org.jetbrains.kotlin.test.services.*
+import org.jetbrains.kotlin.test.services.TestServices
+import org.jetbrains.kotlin.test.services.assertions
+import org.jetbrains.kotlin.test.services.moduleStructure
+import org.jetbrains.kotlin.test.services.sourceFileProvider
 import org.jetbrains.kotlin.test.utils.isLatestLVTestData
+import org.jetbrains.kotlin.test.utils.isLfDisabledTestData
 import org.jetbrains.kotlin.test.utils.originalTestDataFile
 import java.io.File
 
@@ -24,7 +27,7 @@ open class FirTestDataConsistencyHandler(testServices: TestServices) : AfterAnal
     override val directiveContainers: List<DirectivesContainer>
         get() = listOf(FirDiagnosticsDirectives)
 
-    override fun check(failedAssertions: List<WrappedException>) {
+    override fun check(thereWereFailures: Boolean) {
         val moduleStructure = testServices.moduleStructure
         val testData = moduleStructure.originalTestDataFiles.first()
         if (testData.extension == "kts") return
@@ -32,16 +35,43 @@ open class FirTestDataConsistencyHandler(testServices: TestServices) : AfterAnal
         if (LATEST_LV_DIFFERENCE in directives && testData.isLatestLVTestData) {
             checkFirAndLatestLVTestData(testData)
         }
+        if (LANGUAGE_FEATURE_TOGGLED in directives && testData.isLfDisabledTestData) {
+            checkFirAndDisabledLfTestData(testData)
+        }
     }
 
     private fun checkFirAndLatestLVTestData(latestLVTestData: File) {
         val firTestData = latestLVTestData.originalTestDataFile
-        checkTwoFiles(firTestData, latestLVTestData, "Original and Latest Stable LV testdata aren't identical. ")
+        checkTwoFiles(
+            firTestData, latestLVTestData, "Original and Latest Stable LV testdata aren't identical. ",
+            ignoredDirectives = listOf(RUN_PIPELINE_TILL),
+        )
     }
 
-    private fun checkTwoFiles(originalTestData: File, secondTestData: File, message: String) {
-        val secondPreprocessedTextData = secondTestData.preprocessSource()
-        val originalPreprocessedTextData = originalTestData.preprocessSource()
+    /**
+     * The test data with the LF disabled may fail at an earlier phase than the original one,
+     * so `RUN_PIPELINE_TILL` is allowed to differ between them.
+     */
+    private fun checkFirAndDisabledLfTestData(disabledLfTestData: File) {
+        val firTestData = disabledLfTestData.originalTestDataFile
+        checkTwoFiles(
+            firTestData, disabledLfTestData, "Original and Disabled LF testdata aren't identical. ",
+            ignoredDirectives = listOf(RUN_PIPELINE_TILL),
+        )
+    }
+
+    private fun checkTwoFiles(
+        originalTestData: File,
+        secondTestData: File,
+        message: String,
+        ignoredDirectives: List<Directive> = emptyList(),
+    ) {
+        fun String.withoutIgnoredDirectives(): String = lineSequence()
+            .filterNot { line -> ignoredDirectives.any { line.startsWith("// ${it.name}:") || line == "// ${it.name}" } }
+            .joinToString("\n")
+
+        val secondPreprocessedTextData = secondTestData.preprocessSource().withoutIgnoredDirectives()
+        val originalPreprocessedTextData = originalTestData.preprocessSource().withoutIgnoredDirectives()
         testServices.assertions.assertEquals(secondPreprocessedTextData, originalPreprocessedTextData) {
             message + "Please, add changes from ${originalTestData.name} to ${secondTestData.name}"
         }
@@ -56,17 +86,5 @@ open class FirTestDataConsistencyHandler(testServices: TestServices) : AfterAnal
             return content.replace("\r\n", "\n")
         }
         return content
-    }
-
-    private fun runFirTestAndGeneratedTestData(testData: File, firTestData: File) {
-        firTestData.writeText(testData.preprocessSource())
-        val test = correspondingFirTest()
-        test.initTestInfo(testServices.testInfo.copy(className = "${testServices.testInfo.className}_fir_anonymous"))
-        test.runTest(firTestData.absolutePath)
-    }
-
-    protected open fun correspondingFirTest(): AbstractKotlinCompilerTest {
-        return if ("Backend" in testServices.testInfo.className) object : AbstractFirPsiDiagnosticsTestWithJvmIrBackend() {}
-        else object : AbstractFirPsiDiagnosticTest() {}
     }
 }

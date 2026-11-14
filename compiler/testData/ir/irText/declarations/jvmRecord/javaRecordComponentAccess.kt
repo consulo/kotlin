@@ -1,6 +1,5 @@
-// TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: JVM
 // JDK_KIND: FULL_JDK_17
-// IGNORE_BACKEND: JKLIB
 // FILE: MyRec.java
 public record MyRec(String name) {}
 

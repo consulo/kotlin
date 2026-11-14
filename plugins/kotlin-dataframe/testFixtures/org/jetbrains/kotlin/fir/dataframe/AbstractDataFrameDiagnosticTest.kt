@@ -26,13 +26,22 @@ abstract class AbstractDataFrameDiagnosticTest : AbstractKotlinCompilerTest() {
             +FirDiagnosticsDirectives.EXPLICITLY_GENERATE_PLUGIN_FILES
             FirDiagnosticsDirectives.FIR_PARSER with FirParser.LightTree
             JvmEnvironmentConfigurationDirectives.JDK_KIND with TestJdkKind.FULL_JDK
+            +DataFrameDirectives.ENABLE_DATAFRAME
         }
 
         builder.useDirectives(DataFrameDirectives)
         builder.useConfigurators(
             ::DataFrameEnvironmentConfigurator
         )
-        builder.forTestsNotMatching("schemaInfo.kt|structuralCast.kt|selectDuringTyping.kt|dataSchemaVisibility.kt|localDataFrameReturnType.kt") {
+        builder.forTestsNotMatching(
+            listOf(
+                "schemaInfo.kt",
+                "structuralCast.kt",
+                "selectDuringTyping.kt",
+                "dataSchemaVisibility.kt",
+                "localDataFrameReturnType.kt",
+            ).joinToString("|"),
+        ) {
             enableLazyResolvePhaseChecking()
         }
         builder.useAdditionalSourceProviders(::TestUtilsSourceProvider)

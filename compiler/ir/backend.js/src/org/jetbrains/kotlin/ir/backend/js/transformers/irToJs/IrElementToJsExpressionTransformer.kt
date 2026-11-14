@@ -36,17 +36,13 @@ class IrElementToJsExpressionTransformer : BaseIrElementToJsNodeTransformer<JsEx
         }
     }
 
-    override fun visitComposite(expression: IrComposite, data: JsGenerationContext): JsExpression {
-        val size = expression.statements.size
-        if (size == 0) TODO("Empty IrComposite is not supported")
-
-        val first = expression.statements[0].accept(this, data)
-        if (size == 1) return first
-
-        return expression.statements.fold(first) { left, right ->
-            JsBinaryOperation(JsBinaryOperator.COMMA, left, right.accept(this, data))
-        }
-    }
+    override fun visitComposite(expression: IrComposite, data: JsGenerationContext) =
+        expression.statements
+            .asSequence()
+            .map { it.accept(this, data) }
+            .reduceOrNull { left, right ->
+                JsBinaryOperation(JsBinaryOperator.COMMA, left, right)
+            } ?: TODO("Empty IrComposite is not supported")
 
     override fun visitVararg(expression: IrVararg, context: JsGenerationContext): JsExpression {
         assert(expression.elements.none { it is IrSpreadElement })
@@ -91,7 +87,7 @@ class IrElementToJsExpressionTransformer : BaseIrElementToJsNodeTransformer<JsEx
         // TODO revisit
 
         val firstArgument = expression.arguments.firstOrNull()
-        val (head, tail) = if (firstArgument?.type?.isString() == true) {
+        val [head, tail] = if (firstArgument?.type?.isString() == true) {
             Pair(firstArgument.accept(this, context), expression.arguments.asSequence().drop(1))
         } else {
             Pair(JsStringLiteral(""), expression.arguments.asSequence())
@@ -169,7 +165,7 @@ class IrElementToJsExpressionTransformer : BaseIrElementToJsNodeTransformer<JsEx
         val field = expression.symbol.owner
         val ref = JsNameRef(context.getNameForValueDeclaration(field))
         val value = expression.value.accept(this, context)
-        return JsBinaryOperation(JsBinaryOperator.ASG, ref, value).withSource(expression, context)
+        return JsAssignmentOperation.Simple(ref, value).withSource(expression, context)
     }
 
     override fun visitDelegatingConstructorCall(expression: IrDelegatingConstructorCall, context: JsGenerationContext): JsExpression {
@@ -185,7 +181,7 @@ class IrElementToJsExpressionTransformer : BaseIrElementToJsNodeTransformer<JsEx
             assert(constructor.isPrimary) {
                 "Delegation to secondary inline constructors must be lowered into simple function calls"
             }
-            return JsBinaryOperation(JsBinaryOperator.ASG, thisRef, arguments.single()).withSource(expression, context)
+            return JsAssignmentOperation.Simple(thisRef, arguments.single()).withSource(expression, context)
         }
 
         return if (context.staticContext.backendContext.es6mode) {
@@ -311,7 +307,10 @@ class IrElementToJsExpressionTransformer : BaseIrElementToJsNodeTransformer<JsEx
             IrDynamicOperator.ANDAND -> binaryOperation(JsBinaryOperator.AND, expression, data)
             IrDynamicOperator.OROR -> binaryOperation(JsBinaryOperator.OR, expression, data)
 
-            IrDynamicOperator.EQ -> binaryOperation(JsBinaryOperator.ASG, expression, data)
+            IrDynamicOperator.EQ -> JsAssignmentOperation.Simple(
+                expression.left.accept(this, data) as JsAssignableExpression,
+                expression.right.accept(this, data)
+            )
             IrDynamicOperator.PLUSEQ -> binaryOperation(JsBinaryOperator.ASG_ADD, expression, data)
             IrDynamicOperator.MINUSEQ -> binaryOperation(JsBinaryOperator.ASG_SUB, expression, data)
             IrDynamicOperator.MULEQ -> binaryOperation(JsBinaryOperator.ASG_MUL, expression, data)

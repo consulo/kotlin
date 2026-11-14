@@ -72,8 +72,6 @@ fun ContainerProtocol.NestedProtocol.NestedClass.foo(): Unit { TODO() }
 fun SiblingProtocol.NestedClass.foo(): Unit { TODO() }
 fun ContainerProtocol.NestedProtocol.foo(): Unit { TODO() }
 
-// FIXME: See the commend above on ContainerProtocol.NestedClass
-
 class INHERITANCE_COUPLE : ContainerProtocol.NestedClass(), ContainerProtocol
 class INHERITANCE_SINGLE_PROTO : ContainerProtocol.NestedClass()
 
@@ -190,3 +188,45 @@ interface Foo {
 interface Bar: Foo {
     class Conflict
 }
+
+// FILE: special_names.kt
+
+interface Baz {
+    fun foo(result: Any)
+}
+
+
+// FILE: inherited_impl_marker.kt
+
+interface InterfaceA {
+    fun foo()
+}
+
+interface InterfaceB : InterfaceA {
+    fun bar()
+}
+
+abstract class ClassC : InterfaceB {
+    fun baz() = Unit
+}
+
+// FILE: extension_receiver.kt
+
+import conflictingTypealiases.Foo
+
+interface SomeInterface {
+    fun String.repeat(count: Int): List<String>
+    context(_: Baz, _: Foo)
+    fun String.repeatWithContext(count: Int): List<String>
+    var String.something: Int
+    context(_: Baz, _: Foo)
+    var String.somethingWithContext: Int
+}
+
+// FILE: invalid_chars.kt
+
+package org.jetbrains.kotlin.internal
+
+interface Foo
+
+interface `❤️s Kotlin`

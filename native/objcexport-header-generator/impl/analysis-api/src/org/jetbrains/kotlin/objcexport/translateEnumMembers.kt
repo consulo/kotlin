@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.objcexport
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaEnumEntrySymbol
+import org.jetbrains.kotlin.backend.konan.mangleIfStdMacro
 import org.jetbrains.kotlin.backend.konan.objcexport.*
 import org.jetbrains.kotlin.name.Name
 
@@ -26,8 +27,8 @@ private fun ObjCExportContext.getEnumEntries(symbol: KaClassSymbol): List<ObjCPr
     val staticMembers = with(analysisSession) { symbol.staticDeclaredMemberScope }.callables.toList()
     return staticMembers.filterIsInstance<KaEnumEntrySymbol>().map { entry ->
 
-        val entryName = getEnumEntryName(entry, false)
-        val swiftName = getEnumEntryName(entry, true)
+        val entryName = getEnumEntryName(entry, false, mangleObjCName = true)
+        val swiftName = getEnumEntryName(entry, true, mangleObjCName = true)
         ObjCProperty(
             name = entryName,
             comment = null,
@@ -75,27 +76,42 @@ private fun ObjCExportContext.getEnumEntriesProperty(symbol: KaClassSymbol): Obj
     )
 }
 
-internal fun ObjCExportContext.getNSEnumEntryName(symbol: KaEnumEntrySymbol, forSwift: Boolean): String {
+internal fun ObjCExportContext.getNSEnumEntryName(nsEnumTypeName: String, symbol: KaEnumEntrySymbol): String {
+    val name = getNSEnumEntryBaseName(symbol, forSwift = false)
+    return (nsEnumTypeName + name.replaceFirstChar(Char::uppercaseChar)).mangleIfStdMacro()
+}
+
+internal fun ObjCExportContext.getNSEnumEntrySwiftName(symbol: KaEnumEntrySymbol): String {
+    return getNSEnumEntryBaseName(symbol, forSwift = true)
+}
+
+private fun ObjCExportContext.getNSEnumEntryBaseName(symbol: KaEnumEntrySymbol, forSwift: Boolean): String {
     val objCEnumEntryNameAnnotation = symbol.resolveObjCEnumEntryNameAnnotation()
     val name = (if (forSwift) objCEnumEntryNameAnnotation?.swiftName?.ifEmpty { null } else null) ?: objCEnumEntryNameAnnotation?.objCName
-    return name?.ifEmpty { null } ?: getEnumEntryName(symbol, forSwift)
+    return name?.ifEmpty { null } ?: getEnumEntryName(symbol, forSwift, mangleObjCName = false)
 }
 
 /**
  * See K1 implementation as [org.jetbrains.kotlin.backend.konan.objcexport.ObjCExportNamerImpl.getEnumEntryName]
  */
-internal fun ObjCExportContext.getEnumEntryName(symbol: KaEnumEntrySymbol, forSwift: Boolean): String {
-
-    val name = getObjCPropertyName(symbol).run {
+internal fun ObjCExportContext.getEnumEntryName(symbol: KaEnumEntrySymbol, forSwift: Boolean, mangleObjCName: Boolean): String {
+    val name = getObjCPropertyName(symbol, mangleObjCName) {
+        it.split('_').mapIndexed { index, s ->
+            // This is the transformation block that'd run if the @ObjCName annotation was not present.
+            // If present, we'd use the user provided name as-is.
+            //
+            // FOO_BAR_BAZ -> fooBarBaz:
+            val lower = s.lowercase()
+            if (index == 0) lower else lower.replaceFirstChar(Char::uppercaseChar)
+        }.joinToString("").toIdentifier()
+    }.run {
         when {
+            // In case no @ObjCName annotation was present, both swiftName and objCName point to the resultant
+            // string from the transformation run above.
             forSwift -> this.swiftName
             else -> this.objCName
         }
-    }.split('_').mapIndexed { index, s ->
-        // FOO_BAR_BAZ -> fooBarBaz:
-        val lower = s.lowercase()
-        if (index == 0) lower else lower.replaceFirstChar(Char::uppercaseChar)
-    }.joinToString("").toIdentifier()
+    }
 
     return if (name in objCSpecialNames) name.handleSpecialNames("the")
     else if (name.isReservedPropertyName) name + "_"

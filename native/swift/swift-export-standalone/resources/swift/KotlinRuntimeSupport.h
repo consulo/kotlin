@@ -5,6 +5,11 @@ NS_ASSUME_NONNULL_BEGIN
 
 NSString * _Nullable __root____getExceptionMessage__TypesOfArguments__ExportedKotlinPackages_kotlin_Exception__(void * exception);
 
+// SwiftError reverse/forward error-bridging helpers
+void * SwiftError_create(void * box);
+void * _Nullable SwiftError_retainedThrowableRef(void * ref);
+void * _Nullable SwiftError_unwrapBoxOrNull(void * ref);
+
 // _KotlinBridgeable bridge functions for primitive types
 void * KotlinBridgeable_Int8_box(int8_t value);
 int8_t KotlinBridgeable_Int8_unbox(void * ref);
@@ -47,14 +52,16 @@ NSString * KotlinBridgeable_String_unbox(void * ref);
 void * KotlinBridgeable_Array_box(NSArray * value);
 NSArray * KotlinBridgeable_Array_unbox(void * ref);
 
-void * KotlinBridgeable_Set_box(void * value);
-void * KotlinBridgeable_Set_unbox(void * ref);
+void * KotlinBridgeable_Set_box(NSSet * value);
+NSSet * KotlinBridgeable_Set_unbox(void * ref);
 
-void * KotlinBridgeable_Dictionary_box(void * value);
-void * KotlinBridgeable_Dictionary_unbox(void * ref);
+void * KotlinBridgeable_Dictionary_box(NSDictionary * value);
+NSDictionary * KotlinBridgeable_Dictionary_unbox(void * ref);
 
 // _KotlinBridgeable type-tag dispatch for __createBridgeable
 int32_t KotlinBridgeable_getTypeTag(void * ref);
 void KotlinBridgeable_disposeRef(void * ref);
+
+void * Kotlin_SwiftExport_allocInstanceForSwiftSubclass(Class swiftSubclass);
 
 NS_ASSUME_NONNULL_END

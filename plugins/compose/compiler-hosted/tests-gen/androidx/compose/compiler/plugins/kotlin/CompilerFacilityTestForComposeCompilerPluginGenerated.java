@@ -46,6 +46,18 @@ public class CompilerFacilityTestForComposeCompilerPluginGenerated extends Abstr
   }
 
   @Test
+  @TestMetadata("composableInferredTargetConstraints.kt")
+  public void testComposableInferredTargetConstraints() {
+    run("composableInferredTargetConstraints.kt");
+  }
+
+  @Test
+  @TestMetadata("composableTypeRemappingOfExternalAccessors.kt")
+  public void testComposableTypeRemappingOfExternalAccessors() {
+    run("composableTypeRemappingOfExternalAccessors.kt");
+  }
+
+  @Test
   @TestMetadata("composeNavigationWithDataClass.kt")
   public void testComposeNavigationWithDataClass() {
     run("composeNavigationWithDataClass.kt");
@@ -118,6 +130,12 @@ public class CompilerFacilityTestForComposeCompilerPluginGenerated extends Abstr
   }
 
   @Test
+  @TestMetadata("invokeComposableLambdaLiteral.kt")
+  public void testInvokeComposableLambdaLiteral() {
+    run("invokeComposableLambdaLiteral.kt");
+  }
+
+  @Test
   @TestMetadata("javaSam.kt")
   public void testJavaSam() {
     run("javaSam.kt");
@@ -151,6 +169,12 @@ public class CompilerFacilityTestForComposeCompilerPluginGenerated extends Abstr
   @TestMetadata("propertyWithDelegateBackingField.kt")
   public void testPropertyWithDelegateBackingField() {
     run("propertyWithDelegateBackingField.kt");
+  }
+
+  @Test
+  @TestMetadata("repeatedComposableTarget.kt")
+  public void testRepeatedComposableTarget() {
+    run("repeatedComposableTarget.kt");
   }
 
   @Test

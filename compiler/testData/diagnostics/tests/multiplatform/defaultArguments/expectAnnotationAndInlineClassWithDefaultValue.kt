@@ -1,10 +1,12 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // WITH_STDLIB
+// LANGUAGE: -StrictEquals
+//  ^^^ KT-88389
 
 // MODULE: m1-common
 // FILE: common.kt
 expect annotation class Measurement(val iterations: Int = -1)
-expect value class Inline(val value: String = "")
+expect inline value class Inline(val value: String = "")
 
 
 // MODULE: m2-jvm()()(m1-common)

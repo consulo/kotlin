@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.descriptors.runtime.components
 
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
 import org.jetbrains.kotlin.descriptors.runtime.structure.classId
@@ -45,6 +46,7 @@ private val TYPES_ELIGIBLE_FOR_SIMPLE_VISIT = setOf<Class<*>>(
     Class::class.java, String::class.java
 )
 
+@K1Deprecation
 class ReflectKotlinClass private constructor(
     val klass: Class<*>,
     override val classHeader: KotlinClassHeader
@@ -95,13 +97,17 @@ private object ReflectClassStructure {
 
     private fun loadMethodAnnotations(klass: Class<*>, memberVisitor: KotlinJvmBinaryClass.MemberVisitor) {
         for (method in klass.declaredMethods) {
-            val visitor = memberVisitor.visitMethod(Name.identifier(method.name), SignatureSerializer.methodDesc(method)) ?: continue
+            val visitor = memberVisitor.visitMethod(
+                Name.identifier(method.name),
+                SignatureSerializer.methodDesc(method),
+                emptyList(),
+            ) ?: continue
 
             for (annotation in method.declaredAnnotations) {
                 processAnnotation(visitor, annotation)
             }
 
-            for ((parameterIndex, annotations) in method.parameterAnnotations.withIndex()) {
+            for ([parameterIndex, annotations] in method.parameterAnnotations.withIndex()) {
                 for (annotation in annotations) {
                     val annotationType = annotation.annotationClass.java
                     visitor.visitParameterAnnotation(parameterIndex, annotationType.classId, ReflectAnnotationSource(annotation))?.let {
@@ -116,7 +122,11 @@ private object ReflectClassStructure {
 
     private fun loadConstructorAnnotations(klass: Class<*>, memberVisitor: KotlinJvmBinaryClass.MemberVisitor) {
         for (constructor in klass.declaredConstructors) {
-            val visitor = memberVisitor.visitMethod(SpecialNames.INIT, SignatureSerializer.constructorDesc(constructor)) ?: continue
+            val visitor = memberVisitor.visitMethod(
+                SpecialNames.INIT,
+                SignatureSerializer.constructorDesc(constructor),
+                emptyList(),
+            ) ?: continue
 
             for (annotation in constructor.declaredAnnotations) {
                 processAnnotation(visitor, annotation)
@@ -132,7 +142,7 @@ private object ReflectClassStructure {
                 // although this is wrong and likely to change, see KT-6886
                 val shift = constructor.parameterTypes.size - parameterAnnotations.size
 
-                for ((parameterIndex, annotations) in parameterAnnotations.withIndex()) {
+                for ([parameterIndex, annotations] in parameterAnnotations.withIndex()) {
                     for (annotation in annotations) {
                         val annotationType = annotation.annotationClass.java
                         visitor.visitParameterAnnotation(

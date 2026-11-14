@@ -52,7 +52,7 @@ import kotlin.jvm.JvmStatic // Not needed on JVM, but needed when compiling othe
   }
 
   private val isLastToken: Boolean
-    get() = zzMarkedPos == zzBuffer.length
+    get() = zzMarkedPos == zzEndRead
 
   private fun countRepeating(c: Char): Int {
       var current = zzStartRead
@@ -60,6 +60,40 @@ import kotlin.jvm.JvmStatic // Not needed on JVM, but needed when compiling othe
           ++current
       }
       return current - zzStartRead
+  }
+
+  private enum class LinePos {
+      AFTER_NEWLINE,
+      AFTER_LEADING_ASTERISK,
+      IN_CONTENT,
+  }
+
+  private fun hasMatchingCloseFence(c: Char, length: Int): Boolean {
+      var pos = zzMarkedPos
+      var linePos = LinePos.IN_CONTENT
+      while (pos < zzEndRead) {
+          val ch = zzBuffer[pos]
+          if (ch == '\n') {
+              if (linePos != LinePos.IN_CONTENT) return false
+              linePos = LinePos.AFTER_NEWLINE
+              pos++
+          } else if (ch.isWhitespace()) {
+              pos++
+          } else if (linePos == LinePos.AFTER_NEWLINE && ch == '*') {
+              do { pos++ } while (pos < zzEndRead && zzBuffer[pos] == '*')
+              if (pos < zzEndRead && zzBuffer[pos] == '/') return false
+              linePos = LinePos.AFTER_LEADING_ASTERISK
+          } else if (ch == c) {
+              val fenceStart = pos
+              do { pos++ } while (pos < zzEndRead && zzBuffer[pos] == ch)
+              if (pos - fenceStart == length) return true
+              linePos = LinePos.IN_CONTENT
+          } else {
+              linePos = LinePos.IN_CONTENT
+              pos++
+          }
+      }
+      return false
   }
 %}
 
@@ -99,6 +133,7 @@ BACKTICK_CODE_FENCE_START = "``" {BACKTICK_STRING} [^`{LINE_BREAK_CHAR}]*
 TILDA_CODE_FENCE_START = "~~" {TILDA_STRING} [^{LINE_BREAK_CHAR}]*
 CODE_FENCE_START={BACKTICK_CODE_FENCE_START} | {TILDA_CODE_FENCE_START}
 CODE_FENCE_END={BACKTICK_STRING} | {TILDA_STRING}
+KDOC_END = "*"+ "/"
 
 %%
 
@@ -108,7 +143,19 @@ CODE_FENCE_END={BACKTICK_STRING} | {TILDA_STRING}
             return KDocTokens.START
 }
 
-"*"+ "/" {
+<CODE_SPAN_CONTENTS> {
+    {KDOC_END} {
+            return if (isLastToken) KDocTokens.END else KDocTokens.CODE_SPAN_TEXT
+    }
+}
+
+<INDENTED_CODE_BLOCK, CODE_BLOCK_CONTENTS_BEGINNING, CODE_BLOCK> {
+    {KDOC_END} {
+            return if (isLastToken) KDocTokens.END else KDocTokens.CODE_BLOCK_TEXT
+    }
+}
+
+{KDOC_END} {
             return if (isLastToken) KDocTokens.END else KDocTokens.TEXT
 }
 
@@ -180,6 +227,15 @@ CODE_FENCE_END={BACKTICK_STRING} | {TILDA_STRING}
             return KDocTokens.MARKDOWN_LINK
     }
 
+    {BACKTICK_STRING} {
+            codeFenceChar = zzBuffer[zzStartRead]
+            codeFenceLength = countRepeating(codeFenceChar)
+            if (hasMatchingCloseFence(codeFenceChar, codeFenceLength)) {
+                yybeginAndUpdate(CODE_SPAN_CONTENTS)
+            }
+            return KDocTokens.TEXT
+      }
+
     [^] {
             yybeginAndUpdate(CONTENTS)
             return KDocTokens.TEXT
@@ -200,8 +256,10 @@ CODE_FENCE_END={BACKTICK_STRING} | {TILDA_STRING}
     {BACKTICK_STRING} {
             codeFenceChar = zzBuffer[zzStartRead]
             codeFenceLength = countRepeating(codeFenceChar)
-            yybeginAndUpdate(CODE_SPAN_CONTENTS)
-            return KDocTokens.TEXT;
+            if (hasMatchingCloseFence(codeFenceChar, codeFenceLength)) {
+                yybeginAndUpdate(CODE_SPAN_CONTENTS)
+            }
+            return KDocTokens.TEXT
       }
 }
 
@@ -209,7 +267,7 @@ CODE_FENCE_END={BACKTICK_STRING} | {TILDA_STRING}
     {LINE_BREAK_CHAR} {
             yybeginAndUpdate(CODE_SPAN_LINE_BEGINNING)
             return SyntaxTokenTypes.WHITE_SPACE
-      }
+    }
 
     {BACKTICK_STRING} {
             val ch = zzBuffer[zzStartRead]
@@ -223,11 +281,11 @@ CODE_FENCE_END={BACKTICK_STRING} | {TILDA_STRING}
             } else {
                 return KDocTokens.CODE_SPAN_TEXT
             }
-      }
+    }
 
     [^] {
             return KDocTokens.CODE_SPAN_TEXT
-      }
+    }
 }
 
 <CODE_SPAN_LINE_BEGINNING> {

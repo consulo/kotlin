@@ -1,7 +1,6 @@
 declare namespace JS_TESTS {
     type Nullable<T> = T | null | undefined
     function KtSingleton<T>(): T & (abstract new() => any);
-
     namespace foo {
         function sum(x: number, y: number): Promise<number>;
         function varargInt(x: Int32Array): Promise<number>;
@@ -26,6 +25,8 @@ declare namespace JS_TESTS {
         function getHolderOfParentSuspendFun1(): foo.HolderOfParentSuspendFun1<string>;
         function acceptExportedChild(child: foo.ExportedChild): Promise<void>;
         function acceptHolderOfParentSuspendFun1(holder: foo.HolderOfParentSuspendFun1<string>): Promise<void>;
+        function acceptAbstractWithSuspend(x: foo.AbstractWithSuspend): Promise<string>;
+        function acceptAbstractWithSuspendAndDefaultArgument(x: foo.AbstractWithSuspendAndDefaultArgument, suffix: Nullable<string>): Promise<string>;
         class WithSuspendExtensionFunAndContext {
             constructor();
             suspendFun(ctx: number, _this_: number): Promise<number>;
@@ -68,6 +69,11 @@ declare namespace JS_TESTS {
                 readonly "foo.HolderOfSum": unique symbol;
             };
         }
+        namespace HolderOfSum {
+            namespace DefaultImpls {
+                function defaultSum($this: foo.HolderOfSum, x: number, y: number): Promise<number>;
+            }
+        }
         class Test implements foo.HolderOfSum {
             constructor();
             sum(x: number, y: number): Promise<number>;
@@ -82,6 +88,7 @@ declare namespace JS_TESTS {
             genericWithConstraint<T extends string>(x: T): Promise<T>;
             genericWithMultipleConstraints<T extends unknown/* kotlin.Comparable<T> */ & foo.SomeExternalInterface & Error>(x: T): Promise<T>;
             generic3<A, B, C, D, E>(a: A, b: B, c: C, d: D): Promise<Nullable<E>>;
+            defaultSum(x: number, y: number): Promise<number>;
             readonly __doNotUseOrImplementIt: foo.HolderOfSum["__doNotUseOrImplementIt"];
         }
         namespace Test {
@@ -95,6 +102,7 @@ declare namespace JS_TESTS {
             varargInt(x: Int32Array): Promise<number>;
             sumNullable(x: Nullable<number>, y: Nullable<number>): Promise<number>;
             generic3<A, B, C, D, E>(a: A, b: B, c: C, d: D): Promise<E>;
+            defaultSum(x: number, y: number): Promise<number>;
         }
         namespace TestChild {
             /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
@@ -102,15 +110,18 @@ declare namespace JS_TESTS {
                 const constructor: abstract new () => TestChild;
             }
         }
-        interface HolderOfParentSuspendFun1<T> {
+        interface HolderOfParentSuspendFun1<T> extends foo.IntermediateImplicitExportInterface {
             parentSuspendFun1(someValue?: string): Promise<T>;
             readonly __doNotUseOrImplementIt: {
                 readonly "foo.HolderOfParentSuspendFun1": unique symbol;
-            };
+            } & foo.IntermediateImplicitExportInterface["__doNotUseOrImplementIt"];
         }
-        class ExportedChild /* extends foo.NotExportedParent */ {
+        class ExportedChild /* extends foo.NotExportedParent */ implements foo.HolderOfParentSuspendFun1<string> {
             constructor();
             childSuspendFun(): Promise<string>;
+            parentSuspendFun1(someValue?: string): Promise<string>;
+            withDefaultImpl(): Promise<string>;
+            readonly __doNotUseOrImplementIt: foo.HolderOfParentSuspendFun1<any>["__doNotUseOrImplementIt"] & foo.IntermediateImplicitExportInterface["__doNotUseOrImplementIt"];
         }
         namespace ExportedChild {
             /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
@@ -118,5 +129,60 @@ declare namespace JS_TESTS {
                 const constructor: abstract new () => ExportedChild;
             }
         }
+        abstract class AbstractWithSuspend {
+            constructor();
+            abstract value(): Promise<string>;
+        }
+        namespace AbstractWithSuspend {
+            /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
+            namespace $metadata$ {
+                const constructor: abstract new () => AbstractWithSuspend;
+            }
+        }
+        class KotlinImplWithSuspend extends foo.AbstractWithSuspend.$metadata$.constructor {
+            constructor();
+            value(): Promise<string>;
+        }
+        namespace KotlinImplWithSuspend {
+            /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
+            namespace $metadata$ {
+                const constructor: abstract new () => KotlinImplWithSuspend;
+            }
+        }
+        abstract class AbstractWithSuspendAndDefaultArgument {
+            constructor();
+            abstract value(suffix?: string): Promise<string>;
+        }
+        namespace AbstractWithSuspendAndDefaultArgument {
+            /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
+            namespace $metadata$ {
+                const constructor: abstract new () => AbstractWithSuspendAndDefaultArgument;
+            }
+        }
+        class KotlinImplWithSuspendAndDefaultArg extends foo.AbstractWithSuspendAndDefaultArgument.$metadata$.constructor {
+            constructor();
+            value(suffix?: string): Promise<string>;
+        }
+        namespace KotlinImplWithSuspendAndDefaultArg {
+            /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
+            namespace $metadata$ {
+                const constructor: abstract new () => KotlinImplWithSuspendAndDefaultArg;
+            }
+        }
+    }
+    namespace foo {
+        interface IntermediateImplicitExportInterface {
+            withDefaultImpl(): Promise<string>;
+            readonly __doNotUseOrImplementIt: {
+                readonly "foo.IntermediateImplicitExportInterface": unique symbol;
+            };
+        }
+        namespace IntermediateImplicitExportInterface {
+            namespace DefaultImpls {
+                function withDefaultImpl($this: foo.IntermediateImplicitExportInterface): Promise<string>;
+            }
+        }
     }
 }
+
+

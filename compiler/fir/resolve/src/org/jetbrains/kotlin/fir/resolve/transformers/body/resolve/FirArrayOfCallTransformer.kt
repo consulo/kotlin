@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.fir.resolve.transformers.body.resolve
 
 import org.jetbrains.kotlin.KtFakeSourceElementKind
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.expressions.*
@@ -14,18 +13,27 @@ import org.jetbrains.kotlin.fir.expressions.builder.buildArgumentList
 import org.jetbrains.kotlin.fir.expressions.builder.buildCollectionLiteral
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
 import org.jetbrains.kotlin.fir.references.isError
-import org.jetbrains.kotlin.fir.resolve.isArrayOfCall
+import org.jetbrains.kotlin.fir.declarations.isArrayOfCall
 import org.jetbrains.kotlin.fir.types.resolvedType
-import org.jetbrains.kotlin.fir.visitors.FirDefaultTransformer
+import org.jetbrains.kotlin.fir.visitors.FirTransformer
+import org.jetbrains.kotlin.util.ArrayLiteralResolution
 
 /**
- * A transformer that converts resolved arrayOf() call to [FirCollectionLiteral].
+ * A transformer that recursively converts resolved `arrayOf()` call to [FirCollectionLiteral].
  *
- * Note that arrayOf() calls only in [FirAnnotation] or the default value of annotation constructor are transformed.
+ * Note that `arrayOf()` calls only in [FirAnnotation] or the default value of annotation constructor are transformed.
+ *
+ * We run the transformer on every call in hierarchy, sometimes from [FirExpressionsResolveTransformer],
+ * sometimes from [org.jetbrains.kotlin.fir.resolve.transformers.FirCallCompletionResultsWriterTransformer].
+ *
+ * NB: Used only with the (old) so-called array literal resolution.
+ * When [org.jetbrains.kotlin.config.LanguageFeature.CollectionLiteralsBasedAnnotationResolution] is enabled,
+ * the corresponding logic is applied on the [FirExpressionEvaluator] level.
  */
-class FirArrayOfCallTransformer : FirDefaultTransformer<FirSession>() {
+@ArrayLiteralResolution
+class FirArrayOfCallTransformer : FirTransformer<FirSession>() {
     private fun toArrayLiteral(functionCall: FirFunctionCall, session: FirSession): FirExpression? {
-        if (!functionCall.isArrayOfCall(session)) return null
+        if (!functionCall.isArrayOfCall()) return null
         if (functionCall.calleeReference !is FirResolvedNamedReference) return null
         val arrayLiteral = buildCollectionLiteral {
             source = functionCall.source
@@ -54,15 +62,13 @@ class FirArrayOfCallTransformer : FirDefaultTransformer<FirSession>() {
         }
     }
 
-    override fun transformFunctionCall(functionCall: FirFunctionCall, data: FirSession): FirStatement {
+    override fun transformFunctionCall(functionCall: FirFunctionCall, data: FirSession): FirExpression {
         functionCall.transformChildren(this, data)
         return toArrayLiteral(functionCall, data) ?: functionCall
     }
 
     override fun <E : FirElement> transformElement(element: E, data: FirSession): E {
         @Suppress("UNCHECKED_CAST")
-        return (element.transformChildren(this, data) as E)
+        return element.transformChildren(this, data) as E
     }
-
 }
-

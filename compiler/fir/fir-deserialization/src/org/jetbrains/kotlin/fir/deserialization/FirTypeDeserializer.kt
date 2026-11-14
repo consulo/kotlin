@@ -18,15 +18,14 @@ import org.jetbrains.kotlin.fir.diagnostics.DiagnosticKind
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeDynamicUnsupported
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.types.ConeClassifierLookupTag
-import org.jetbrains.kotlin.fir.symbols.ConeTypeParameterLookupTag
+import org.jetbrains.kotlin.fir.types.ConeTypeParameterLookupTag
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.ConeClassLikeLookupTagImpl
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirTypeParameterSymbol
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
-import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
-import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
+import org.jetbrains.kotlin.fir.types.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.ProtoBuf.Type
 import org.jetbrains.kotlin.metadata.deserialization.*
@@ -85,7 +84,7 @@ class FirTypeDeserializer(
                 result[proto.id] = symbol
             }
 
-            for ((index, proto) in typeParameterProtos.withIndex()) {
+            for ([index, proto] in typeParameterProtos.withIndex()) {
                 val builder = builders[index]
                 builder.apply {
                     proto.upperBounds(typeTable).mapTo(bounds) {
@@ -213,12 +212,12 @@ class FirTypeDeserializer(
     private fun rigidType(proto: ProtoBuf.Type, attributes: ConeAttributes): ConeRigidType? {
         val constructor = typeSymbol(proto) ?: return null
         if (constructor is ConeTypeParameterLookupTag) {
-            return ConeTypeParameterTypeImpl(constructor, isMarkedNullable = proto.nullable, attributes).let {
+            return ConeTypeParameterType(constructor, isMarkedNullable = proto.nullable, attributes).let {
                 if (Flags.DEFINITELY_NOT_NULL_TYPE.get(proto.flags))
                     ConeDefinitelyNotNullType.create(it, moduleData.session.typeContext, avoidComprehensiveCheck = true) ?: it
                 else
                     it
-            }
+            }.toUnionIfNecessary(proto)
         }
         if (constructor !is ConeClassLikeLookupTag) return null
 
@@ -250,10 +249,27 @@ class FirTypeDeserializer(
             else -> ConeClassLikeTypeImpl(constructor, arguments, isMarkedNullable = proto.nullable, attributes)
         }
 
-        val abbreviatedType = proto.abbreviatedType(typeTable)?.let { rigidType(it, attributes) }
-            ?: return classLikeType
+        val withAbbreviation = proto.abbreviatedType(typeTable)
+            ?.let { rigidType(it, attributes) }
+            ?.let { classLikeType.withAttributes(classLikeType.attributes.add(AbbreviatedTypeAttribute(it))) }
+            ?: classLikeType
 
-        return classLikeType.withAttributes(classLikeType.attributes.add(AbbreviatedTypeAttribute(abbreviatedType)))
+        return withAbbreviation.toUnionIfNecessary(proto)
+    }
+
+    private fun ConeRigidType.toUnionIfNecessary(proto: Type): ConeRigidType {
+        val richErrors = proto.richErrors(typeTable)
+        return if (richErrors.isNotEmpty()) {
+            @OptIn(DelicateUnionConstructor::class)
+            ConeUnionType(
+                primaryType = this,
+                richErrorTypes = richErrors.map { type(it) },
+                attributes = loadAnnotationsFromMetadata(moduleData.session, proto.unionTypeAnnotationList, nameResolver)
+                    .computeTypeAttributes(moduleData.session, shouldExpandTypeAliases = false)
+            )
+        } else {
+            this
+        }
     }
 
     private fun createSuspendFunctionTypeForBasicCase(

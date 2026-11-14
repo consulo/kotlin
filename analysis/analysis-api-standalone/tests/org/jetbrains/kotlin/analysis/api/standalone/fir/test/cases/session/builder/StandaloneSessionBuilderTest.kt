@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -8,34 +8,37 @@ package org.jetbrains.kotlin.analysis.api.standalone.fir.test.cases.session.buil
 
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiPrimitiveType
 import com.intellij.psi.PsiTypes
 import com.intellij.psi.impl.source.PsiClassReferenceType
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaNonPublicApi
-import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.components.resolveToCall
+import org.jetbrains.kotlin.analysis.api.components.resolveToSymbol
+import org.jetbrains.kotlin.analysis.api.diagnostics.diagnostics
+import org.jetbrains.kotlin.analysis.api.javaInterop.asPsiClass
+import org.jetbrains.kotlin.analysis.api.platform.modification.publishGlobalSourceOutOfBlockModificationEvent
 import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProvider
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaNotUnderContentRootModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
-import org.jetbrains.kotlin.analysis.api.resolution.KaSuccessCallInfo
-import org.jetbrains.kotlin.analysis.api.resolution.successfulFunctionCallOrNull
-import org.jetbrains.kotlin.analysis.api.resolution.symbol
-import org.jetbrains.kotlin.analysis.api.standalone.buildStandaloneAnalysisAPISession
-import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaLocalVariableSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
-import org.jetbrains.kotlin.analysis.api.types.KaClassType
+import org.jetbrains.kotlin.analysis.api.resolution.*
+import org.jetbrains.kotlin.analysis.api.session.analyze
 import org.jetbrains.kotlin.analysis.api.standalone.StandaloneAnalysisAPISession
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.StandaloneProjectFactory
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.StandaloneProjectFactory
+import org.jetbrains.kotlin.analysis.api.standalone.buildStandaloneAnalysisAPISession
 import org.jetbrains.kotlin.analysis.api.standalone.fir.test.AbstractStandaloneTest
-import org.jetbrains.kotlin.analysis.api.symbols.KaFunctionSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin
+import org.jetbrains.kotlin.analysis.api.symbols.*
+import org.jetbrains.kotlin.analysis.api.types.KaClassType
+import org.jetbrains.kotlin.analysis.api.types.KaStandardTypeClassIds
+import org.jetbrains.kotlin.analysis.api.types.classId
+import org.jetbrains.kotlin.analysis.api.types.fullyExpandedType
 import org.jetbrains.kotlin.analysis.project.structure.builder.buildKtLibraryModule
 import org.jetbrains.kotlin.analysis.project.structure.builder.buildKtSdkModule
 import org.jetbrains.kotlin.analysis.project.structure.builder.buildKtSourceModule
-import org.jetbrains.kotlin.analysis.utils.errors.requireIsInstance
-import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.light.classes.symbol.withMultiplatformLightClassSupport
@@ -49,15 +52,21 @@ import org.jetbrains.kotlin.platform.js.JsPlatforms
 import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.findDescendantOfType
+import org.jetbrains.kotlin.test.MockLibraryUtil
+import org.jetbrains.kotlin.test.testFramework.runWriteAction
+import org.jetbrains.kotlin.utils.addToStdlib.requireIsInstance
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
+import java.nio.file.Path
 import java.nio.file.Paths
+import kotlin.io.path.nameWithoutExtension
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(KaExperimentalApi::class)
 class StandaloneSessionBuilderTest : AbstractStandaloneTest() {
-    override val suiteName: String
-        get() = "sessionBuilder"
+    override val suiteName: Path
+        get() = Paths.get("sessionBuilder")
 
     @Test
     fun testJdkSessionBuilder() {
@@ -86,9 +95,9 @@ class StandaloneSessionBuilderTest : AbstractStandaloneTest() {
         val ktFile = session.modulesWithFiles.getValue(sourceModule).single() as KtFile
         analyze(ktFile) {
             val ktCallExpression = ktFile.findDescendantOfType<KtCallExpression>()!!
-            val ktCallInfo = ktCallExpression.resolveToCall()
-            Assertions.assertInstanceOf(KaSuccessCallInfo::class.java, ktCallInfo); ktCallInfo as KaSuccessCallInfo
-            val symbol = ktCallInfo.successfulFunctionCallOrNull()?.symbol
+            val attempt = ktCallExpression.tryResolveCall()
+            Assertions.assertInstanceOf(KaSimpleCallResolutionSuccess::class.java, attempt)
+            val symbol = attempt?.successful?.function?.symbol
             Assertions.assertInstanceOf(KaConstructorSymbol::class.java, symbol); symbol as KaConstructorSymbol
             Assertions.assertEquals(ClassId.topLevel(FqName("java.lang.Thread")), symbol.containingClassId)
         }
@@ -179,7 +188,7 @@ class StandaloneSessionBuilderTest : AbstractStandaloneTest() {
             )
             // expanded to `actual` `typealias`
             val expandedType = type.fullyExpandedType
-            Assertions.assertTrue(expandedType.isIntType)
+            Assertions.assertEquals(KaStandardTypeClassIds.INT, expandedType.classId)
         }
 
         // Test stdlib-common: @JvmInline in the common module
@@ -505,6 +514,53 @@ class StandaloneSessionBuilderTest : AbstractStandaloneTest() {
         }
     }
 
+    /**
+     * [org.jetbrains.kotlin.analysis.project.structure.impl.KotlinStandaloneProjectStructureProvider.getModule] creates a fresh
+     * [KaNotUnderContentRootModule] on each call for a file outside all registered content roots. These instances must be equal, otherwise
+     * [org.jetbrains.kotlin.analysis.low.level.api.fir.state.LLSimpleResolutionStrategyProvider] returns the wrong resolution strategy.
+     */
+    @Test
+    fun testFileNotUnderContentRoot() {
+        val root = "notUnderContentRoot"
+
+        val session = buildStandaloneAnalysisAPISession(disposable) {
+            buildKtModuleProvider {
+                platform = JvmPlatforms.defaultJvmPlatform
+                addModule(
+                    buildKtSourceModule {
+                        addSourceRoot(testDataPath(root).resolve("src"))
+                        platform = JvmPlatforms.defaultJvmPlatform
+                        moduleName = "main"
+                    }
+                )
+            }
+        }
+
+        val project = session.project
+        val outsidePath = testDataPath(root).resolve("outside").resolve("outside.kt").toAbsolutePath()
+        val outsideVirtualFile = session.coreApplicationEnvironment.localFileSystem.findFileByPath(outsidePath.toString())
+            ?: error("Cannot find a virtual file for $outsidePath")
+        val outsideFile = PsiManager.getInstance(project).findFile(outsideVirtualFile) as KtFile
+
+        val module1 = KotlinProjectStructureProvider.getModule(project, outsideFile, useSiteModule = null)
+        val module2 = KotlinProjectStructureProvider.getModule(project, outsideFile, useSiteModule = null)
+        requireIsInstance<KaNotUnderContentRootModule>(module1)
+        requireIsInstance<KaNotUnderContentRootModule>(module2)
+        assertEquals(module1, module2)
+        assertEquals(module1.hashCode(), module2.hashCode())
+
+        analyze(outsideFile) {
+            val function = outsideFile.findDescendantOfType<KtNamedFunction> { it.name == "outsideFunction" }!!
+            val functionSymbol = function.symbol
+            Assertions.assertEquals(KaSymbolOrigin.SOURCE, functionSymbol.origin)
+
+            val callExpression = outsideFile.findDescendantOfType<KtCallExpression>()!!
+            val call = callExpression.resolveToCall()?.successfulFunctionCallOrNull()
+                ?: error("Call inside a file outside content roots is unresolved")
+            Assertions.assertEquals(functionSymbol, call.symbol)
+        }
+    }
+
     @Test
     fun testConflictYetSpecificSourceRoot_java() {
         val root = "conflict"
@@ -594,52 +650,130 @@ class StandaloneSessionBuilderTest : AbstractStandaloneTest() {
     }
 
     @Test
-    fun testJvmLightClasses() = testLightClasses(JvmPlatforms.defaultJvmPlatform) { kotlinClass ->
-        val kotlinPsiClass = kotlinClass.toLightClass()
+    fun testJvmLightClasses() = testLightClasses(JvmPlatforms.defaultJvmPlatform) { mainModule ->
+        val kotlinPsiClass = mainModule.findKotlinClassAsPsi()
         require(kotlinPsiClass != null)
 
-        val kotlinPsiClassFromFacade = JavaPsiFacade
-            .getInstance(project)
-            .findClass("org.test.KotlinClass", GlobalSearchScope.projectScope(project))
-
+        val kotlinPsiClassFromFacade = findLightClass("org.test.KotlinClass")
         require(kotlinPsiClassFromFacade == kotlinPsiClass)
 
         checkKotlinPsiClass(kotlinPsiClass)
     }
 
     @Test
-    fun testCommonLightClasses() = testLightClasses(JvmPlatforms.defaultJvmPlatform) { kotlinClass ->
-        val kotlinPsiClass = kotlinClass.toLightClass()
+    fun testCommonLightClasses() = testLightClasses(JvmPlatforms.defaultJvmPlatform) { mainModule ->
+        val kotlinPsiClass = mainModule.findKotlinClassAsPsi()
         require(kotlinPsiClass != null)
 
-        val kotlinPsiClassFromFacade = JavaPsiFacade
-            .getInstance(project)
-            .findClass("org.test.KotlinClass", GlobalSearchScope.projectScope(project))
-
+        val kotlinPsiClassFromFacade = findLightClass("org.test.KotlinClass")
         require(kotlinPsiClassFromFacade == kotlinPsiClass)
 
         checkKotlinPsiClass(kotlinPsiClass)
     }
 
+    /**
+     * KT-89902: Kotlin classes from binary libraries must be found by [JavaPsiFacade], e.g., to resolve supertypes of light classes.
+     */
     @Test
-    fun testJavaScriptLightClasses() = testLightClasses(JsPlatforms.defaultJsPlatform) { kotlinClass ->
-        val unavailableKotlinClass = kotlinClass.toLightClass()
-        require(unavailableKotlinClass == null) // By default, light classes are not available for non-JVM platforms
+    fun testJvmLightClassesWithKotlinLibrarySupertypes() {
+        val root = testDataPath("lightClassesWithKotlinLibrarySupertypes")
+        val libraryRoots = listOf(ForTestCompileRuntime.runtimeJarForTests().toPath(), compileToJar(root.resolve("library")))
 
-        val unavailableKotlinClassFromFacade = JavaPsiFacade
-            .getInstance(project)
-            .findClass("org.test.KotlinClass", GlobalSearchScope.projectScope(project))
+        testLightClasses(JvmPlatforms.defaultJvmPlatform, root.resolve("main"), libraryRoots, withJdk = true) {
+            val itemList = findLightClass("org.test.ItemList")!!
+            assertEquals("kotlin.collections.AbstractList", itemList.superClass?.qualifiedName)
 
+            val librarySubclass = findLightClass("org.test.LibrarySubclass")!!
+            assertEquals("lib.LibraryClass", librarySubclass.superClass?.qualifiedName)
+            assertEquals(listOf("lib.LibraryInterface"), librarySubclass.interfaces.map { it.qualifiedName })
+        }
+    }
+
+    /**
+     * KT-89902: Kotlin classes from binary libraries must be found by [JavaPsiFacade], e.g., to resolve references to them in Java sources.
+     */
+    @Test
+    fun testJvmJavaReferencesToKotlinLibraryClasses() {
+        val root = testDataPath("lightClassesWithKotlinLibrarySupertypes")
+        val libraryRoots = listOf(ForTestCompileRuntime.runtimeJarForTests().toPath(), compileToJar(root.resolve("library")))
+
+        testLightClasses(JvmPlatforms.defaultJvmPlatform, root.resolve("main"), libraryRoots, withJdk = true) {
+            val javaClass = JavaPsiFacade.getInstance(project).findClass("org.test.JavaClass", GlobalSearchScope.projectScope(project))!!
+            val fieldTypes = javaClass.fields.map { (it.type as PsiClassReferenceType).resolve()?.qualifiedName }
+            assertEquals(listOf("kotlin.jvm.functions.Function1", "kotlin.collections.AbstractMap", "lib.LibraryClass"), fieldTypes)
+        }
+    }
+
+    /**
+     * KT-91146: Kotlin supertypes of Java classes from binary libraries must be kept, so that subtyping and inherited members work. Before
+     * KT-89902, [JavaPsiFacade] didn't find Kotlin library classes, and a supertype from the package of the Java class was then resolved by
+     * the fallback for unresolved Java types in `FirSignatureEnhancement` as a flexible type, which was dropped from the supertypes.
+     */
+    @Test
+    fun testJvmKotlinSupertypesOfJavaLibraryClasses() {
+        val root = testDataPath("kotlinSupertypesOfJavaLibraryClasses")
+        val libraryJar = MockLibraryUtil.compileJvmLibraryToJar(root.resolve("library").toString(), "library").toPath()
+
+        testLightClasses(JvmPlatforms.defaultJvmPlatform, root.resolve("main"), listOf(libraryJar), withJdk = true) {
+            val ktFile = modulesWithFiles.values.single().single() as KtFile
+            val diagnostics = analyze(ktFile) {
+                ktFile.diagnostics().map { "${it.factoryName}: ${it.defaultMessage}" }.toList()
+            }
+            assertEquals(emptyList(), diagnostics)
+        }
+    }
+
+    /**
+     * Java classes for Kotlin class files from binary libraries should be built from the class files alone, without loading the stubs or
+     * ASTs of the decompiled files. The stdlib facade `CollectionsKt` inherits its parts, so looking up a method in it involves them all.
+     */
+    @Test
+    fun testJvmClassesForKotlinLibraryClassFiles() {
+        val libraryRoots = listOf(ForTestCompileRuntime.runtimeJarForTests().toPath())
+
+        testLightClasses(JvmPlatforms.defaultJvmPlatform, libraryRoots = libraryRoots) {
+            val abstractList = findLibraryClass("kotlin.collections.AbstractList")!!
+
+            val collectionsKt = findLibraryClass("kotlin.collections.CollectionsKt")!!
+            assertTrue(collectionsKt.findMethodsByName("listOf", true).isNotEmpty())
+
+            val parts = generateSequence(collectionsKt.superClass) { it.superClass }.toList()
+            assertTrue(parts.isNotEmpty())
+            assertTrue(parts.all { "CollectionsKt__" in it.name!! }, parts.map { it.name }.toString())
+
+            val decompiledFiles = (listOf(abstractList, collectionsKt) + parts).map { findDecompiledFile(it) }
+            assertEquals(emptyList(), decompiledFiles.filter { it.isStubLoaded }.map { it.name })
+            assertEquals(emptyList(), decompiledFiles.filter { it.isContentsLoaded }.map { it.name })
+
+            // The navigation element of the class file is computed on demand
+            assertEquals(findDecompiledFile(abstractList), abstractList.containingFile.navigationElement)
+        }
+    }
+
+    @Test
+    fun testJavaScriptLightClasses() = testLightClasses(JsPlatforms.defaultJsPlatform) { mainModule ->
+        // By default, light classes are not available for non-JVM platforms
+        require(mainModule.findKotlinClassAsPsi() == null)
+
+        val unavailableKotlinClassFromFacade = findLightClass("org.test.KotlinClass")
         require(unavailableKotlinClassFromFacade == null)
+
+        runWriteAction {
+            /**
+             * This modification event is needed to invalidate caches in [org.jetbrains.kotlin.asJava.KotlinAsJavaSupport].
+             * Otherwise, the cached `null` result for the non-KMP call will be returned for [withMultiplatformLightClassSupport].
+             */
+            project.publishGlobalSourceOutOfBlockModificationEvent()
+        }
 
         @OptIn(KaNonPublicApi::class)
         withMultiplatformLightClassSupport(project) {
-            val kotlinPsiClass = kotlinClass.toLightClass()
+            // The symbol must be resolved in a fresh analysis session created after the modification event above;
+            // reusing a symbol from an earlier session would fail lifetime validation ('PSI has changed since creation').
+            val kotlinPsiClass = mainModule.findKotlinClassAsPsi()
             require(kotlinPsiClass != null)
 
-            val kotlinPsiClassFromFacade = JavaPsiFacade
-                .getInstance(project)
-                .findClass("org.test.KotlinClass", GlobalSearchScope.projectScope(project))
+            val kotlinPsiClassFromFacade = findLightClass("org.test.KotlinClass")
 
             // Inside withMultiplatformLightClassSupport, 'JavaPsiFacade' doesn't return Kotlin LC
             require(kotlinPsiClassFromFacade == null)
@@ -648,15 +782,62 @@ class StandaloneSessionBuilderTest : AbstractStandaloneTest() {
         }
     }
 
-    private fun testLightClasses(platform: TargetPlatform, block: StandaloneAnalysisAPISession.(KtClassOrObject) -> Unit) {
-        val root = "lightClasses"
+    private fun KaModule.findKotlinClassAsPsi(): PsiClass? = analyze(this) {
+        findClass(ClassId.fromString("org/test/KotlinClass"))!!.asPsiClass()
+    }
 
+    private fun StandaloneAnalysisAPISession.findLightClass(fqName: String): PsiClass? =
+        JavaPsiFacade.getInstance(project).findClass(fqName, GlobalSearchScope.projectScope(project))
+
+    private fun StandaloneAnalysisAPISession.findLibraryClass(fqName: String): PsiClass? =
+        JavaPsiFacade.getInstance(project).findClass(fqName, GlobalSearchScope.allScope(project))
+
+    private fun StandaloneAnalysisAPISession.findDecompiledFile(psiClass: PsiClass): KtFile =
+        PsiManager.getInstance(project).findFile(psiClass.containingFile.virtualFile) as KtFile
+
+    /**
+     * Whether the stub of the file is loaded. Unlike [KtFile.getStub], it doesn't build the stub.
+     */
+    @Suppress("UnstableApiUsage")
+    private val KtFile.isStubLoaded: Boolean
+        get() = derefStub() != null
+
+    private fun testLightClasses(
+        platform: TargetPlatform,
+        sourceRoot: Path = testDataPath("lightClasses"),
+        libraryRoots: List<Path> = emptyList(),
+        withJdk: Boolean = false,
+        block: StandaloneAnalysisAPISession.(KaModule) -> Unit,
+    ) {
         val session = buildStandaloneAnalysisAPISession(disposable) {
             buildKtModuleProvider {
                 this.platform = platform
+                val jdkModule = if (withJdk) {
+                    addModule(
+                        buildKtSdkModule {
+                            addBinaryRootsFromJdkHome(Paths.get(System.getProperty("java.home")), isJre = false)
+                            this.platform = platform
+                            libraryName = "JDK"
+                        }
+                    )
+                } else {
+                    null
+                }
+                val libraryModules = libraryRoots.map { libraryRoot ->
+                    addModule(
+                        buildKtLibraryModule {
+                            addBinaryRoot(libraryRoot)
+                            this.platform = platform
+                            libraryName = libraryRoot.nameWithoutExtension
+                        }
+                    )
+                }
                 addModule(
                     buildKtSourceModule {
-                        addSourceRoot(testDataPath(root))
+                        addSourceRoot(sourceRoot)
+                        for (dependency in listOfNotNull(jdkModule) + libraryModules) {
+                            addRegularDependency(dependency)
+                        }
                         this.platform = platform
                         moduleName = "main"
                     }
@@ -665,13 +846,7 @@ class StandaloneSessionBuilderTest : AbstractStandaloneTest() {
         }
 
         val mainModule = session.modulesWithFiles.keys.single()
-
-        val kotlinClass = analyze(mainModule) {
-            val symbol = findClass(ClassId.fromString("org/test/KotlinClass"))!!
-            symbol.psi as KtClassOrObject
-        }
-
-        session.block(kotlinClass)
+        session.block(mainModule)
     }
 
     private fun checkKotlinPsiClass(kotlinPsiClass: PsiClass) {

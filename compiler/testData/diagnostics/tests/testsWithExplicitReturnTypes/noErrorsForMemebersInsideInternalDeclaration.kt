@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// SKIP_TXT
+// RUN_PIPELINE_TILL: FRONTEND
 // ISSUE: KT-51758
 
 @PublishedApi
@@ -8,7 +7,7 @@ internal class SomeClass {
 
     public val somethingPublic = "456"
 
-    fun foo() = "789"
+    fun <!NO_EXPLICIT_RETURN_TYPE_IN_API_MODE!>foo<!>() = "789"
 }
 
 @PublishedApi
@@ -18,7 +17,7 @@ internal class Outer {
 
         public val somethingPublic = "456"
 
-        fun foo() = "789"
+        fun <!NO_EXPLICIT_RETURN_TYPE_IN_API_MODE!>foo<!>() = "789"
     }
 }
 

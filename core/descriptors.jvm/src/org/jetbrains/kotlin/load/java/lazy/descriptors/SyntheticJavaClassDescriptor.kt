@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.load.java.lazy.descriptors
 
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.AbstractClassDescriptor
@@ -25,6 +26,7 @@ import org.jetbrains.kotlin.types.TypeConstructor
 import org.jetbrains.kotlin.types.checker.KotlinTypeRefiner
 
 
+@K1Deprecation
 class SyntheticJavaClassDescriptor(
     private val outerContext: LazyJavaResolverContext,
     name: Name,
@@ -191,6 +193,8 @@ class SyntheticJavaClassDescriptor(
             get() = classKind == ClassKind.ENUM_CLASS
         override val isRecord: Boolean
             get() = this@SyntheticJavaClassDescriptor.isRecord
+        override val isValue: Boolean
+            get() = this@SyntheticJavaClassDescriptor.isValue
         override val isSealed: Boolean
             get() = modality == Modality.SEALED
         override val permittedTypes: Sequence<JavaClassifierType>

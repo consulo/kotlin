@@ -6,8 +6,8 @@
 package org.jetbrains.kotlin.fir.lightTree
 
 import com.intellij.lang.LighterASTNode
+import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.util.diff.FlyweightCapableTreeStructure
-import org.jetbrains.kotlin.KtIoFileSourceFile
 import org.jetbrains.kotlin.KtSourceFile
 import org.jetbrains.kotlin.KtSourceFileLinesMapping
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
@@ -16,29 +16,21 @@ import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.languageVersionSettings
 import org.jetbrains.kotlin.fir.lightTree.converter.LightTreeRawFirDeclarationBuilder
 import org.jetbrains.kotlin.fir.scopes.FirScopeProvider
+import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.parsing.KotlinLightParser
-import org.jetbrains.kotlin.readSourceFileWithMapping
-import java.io.File
-import java.nio.file.Path
 
 class LightTree2Fir(
-    val session: FirSession,
+    override val session: FirSession,
     private val scopeProvider: FirScopeProvider,
     private val diagnosticsReporter: DiagnosticReporter? = null,
-) {
-    fun buildFirFile(path: Path): FirFile {
-        return buildFirFile(path.toFile())
+) : AbstractTree2Fir() {
+    override fun buildFirFile(code: CharSequence, sourceFile: KtSourceFile, linesMapping: KtSourceFileLinesMapping): FirFile {
+        val errorListener = makeErrorListener(sourceFile)
+        val lightTree = KotlinLightParser.buildLightTree(code, sourceFile.isScript(), errorListener)
+        return buildFirFile(lightTree, sourceFile, linesMapping)
     }
 
-    fun buildFirFile(file: File): FirFile {
-        val sourceFile = KtIoFileSourceFile(file)
-        val (code, linesMapping) = file.inputStream().reader(Charsets.UTF_8).use {
-            it.readSourceFileWithMapping()
-        }
-        return buildFirFile(code, sourceFile, linesMapping)
-    }
-
-    fun buildFirFile(
+    private fun buildFirFile(
         lightTree: FlyweightCapableTreeStructure<LighterASTNode>,
         sourceFile: KtSourceFile,
         linesMapping: KtSourceFileLinesMapping,
@@ -47,14 +39,13 @@ class LightTree2Fir(
             .convertFile(lightTree.root, sourceFile, linesMapping)
     }
 
-    fun buildFirFile(code: CharSequence, sourceFile: KtSourceFile, linesMapping: KtSourceFileLinesMapping): FirFile {
-        val errorListener = makeErrorListener(sourceFile)
-        val lightTree = KotlinLightParser.buildLightTree(code, sourceFile, errorListener)
-        return buildFirFile(lightTree, sourceFile, linesMapping)
-    }
-
     private fun makeErrorListener(sourceFile: KtSourceFile): KotlinLightParser.LightTreeParsingErrorListener? {
         val diagnosticsReporter = diagnosticsReporter ?: return null
         return diagnosticsReporter.toKotlinParsingErrorListener(sourceFile, session.languageVersionSettings)
     }
 }
+
+/**
+ * Whether the file is parsed as a script: every source file but a `.kt` one is.
+ */
+fun KtSourceFile.isScript(): Boolean = FileUtilRt.getExtension(name) != KotlinFileType.EXTENSION

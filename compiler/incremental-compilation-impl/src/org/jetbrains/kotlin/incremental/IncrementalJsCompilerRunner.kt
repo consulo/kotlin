@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.cli.common.arguments.KotlinWasmCompilerArguments
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.js.K2JSCompiler
 import org.jetbrains.kotlin.cli.js.KotlinWasmCompiler
+import org.jetbrains.kotlin.cli.jvm.plugins.PluginsLoader
 import org.jetbrains.kotlin.config.IncrementalCompilation
 import org.jetbrains.kotlin.config.Services
 import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
@@ -43,7 +44,7 @@ fun makeJsIncrementally(
     reporter: ICReporter = DoNothingICReporter,
     scopeExpansion: CompileScopeExpansionMode = CompileScopeExpansionMode.NEVER,
     modulesApiHistory: ModulesApiHistory = EmptyModulesApiHistory,
-    providedChangedFiles: ChangedFiles? = null
+    providedChangedFiles: ChangedFiles? = null,
 ) {
     val allKotlinFiles = sourceRoots.asSequence().flatMap { it.walk() }
         .filter { it.isFile && it.extension.equals("kt", ignoreCase = true) }.toList()
@@ -54,11 +55,14 @@ fun makeJsIncrementally(
             cachesDir, buildReporter,
             buildHistoryFile = buildHistoryFile,
             modulesApiHistory = modulesApiHistory,
-            scopeExpansion = scopeExpansion
+            scopeExpansion = scopeExpansion,
         )
         compiler.compile(allKotlinFiles, args, messageCollector, providedChangedFiles ?: ChangedFiles.DeterminableFiles.ToBeComputed)
     }
 }
+
+private fun parseLibrariesArgument(libraries: String?): List<File> =
+    (libraries ?: "").split(File.pathSeparator).filter { it.isNotEmpty() }.map { File(it) }
 
 @Suppress("DEPRECATION")
 inline fun <R> withJsIC(args: CommonCompilerArguments, enabled: Boolean = true, fn: () -> R): R {
@@ -79,9 +83,11 @@ class IncrementalJsCompilerRunner(
     workingDir: File,
     reporter: BuildReporter<BuildTimeMetric, BuildPerformanceMetric>,
     buildHistoryFile: File?,
-    private val modulesApiHistory: ModulesApiHistory,
+    override val modulesApiHistory: ModulesApiHistory,
     private val scopeExpansion: CompileScopeExpansionMode = CompileScopeExpansionMode.NEVER,
     icFeatures: IncrementalCompilationFeatures = IncrementalCompilationFeatures.DEFAULT_CONFIGURATION,
+    pluginsLoader: PluginsLoader? = null,
+    override val lookupTrackerDelegate: LookupTracker = LookupTracker.DO_NOTHING,
 ) : IncrementalCompilerRunner<CommonJsAndWasmCompilerArguments, IncrementalJsCachesManager>(
     workingDir,
     "caches-js",
@@ -89,44 +95,48 @@ class IncrementalJsCompilerRunner(
     buildHistoryFile = buildHistoryFile,
     outputDirs = null,
     icFeatures = icFeatures,
+    pluginsLoader = pluginsLoader,
 ) {
     override val shouldTrackChangesInLookupCache
         get() = false
 
-    override val shouldStoreFullFqNamesInLookupCache
-        get() = icFeatures.withAbiSnapshot
+    override val shouldTrackLibrarySetChanges
+        get() = true
 
-    override fun createCacheManager(icContext: IncrementalCompilationContext, args: CommonJsAndWasmCompilerArguments) =
-        IncrementalJsCachesManager(icContext, KlibMetadataSerializerProtocol, cacheDirectory)
+    override val shouldStoreFullFqNamesInLookupCache
+        get() = false
+
+    override fun createCacheManager(icContext: IncrementalCompilationContext, args: CommonJsAndWasmCompilerArguments): IncrementalJsCachesManager {
+        return IncrementalJsCachesManager(icContext, KlibMetadataSerializerProtocol, cacheDirectory)
+    }
 
     override fun destinationDir(args: CommonJsAndWasmCompilerArguments): File {
         return File(args.outputDir!!)
     }
+
+    override fun classpathForLibrarySetSnapshot(args: CommonJsAndWasmCompilerArguments): List<File> =
+        parseLibrariesArgument(args.libraries)
 
     override fun calculateSourcesToCompile(
         caches: IncrementalJsCachesManager,
         changedFiles: ChangedFiles.DeterminableFiles.Known,
         args: CommonJsAndWasmCompilerArguments,
         messageCollector: MessageCollector,
-        classpathAbiSnapshots: Map<String, AbiSnapshot> //Ignore for now
     ): CompilationMode {
         if (buildHistoryFile == null) {
             error("The build is configured to use the build-history based IC approach, but doesn't specify the buildHistoryFile")
         }
-        if (!icFeatures.withAbiSnapshot && !buildHistoryFile.isFile) {
+        if (!buildHistoryFile.isFile) {
             return CompilationMode.Rebuild(BuildAttribute.NO_BUILD_HISTORY)
         }
-        val lastBuildInfo = BuildInfo.read(lastBuildInfoFile, messageCollector) ?: return CompilationMode.Rebuild(BuildAttribute.INVALID_LAST_BUILD_INFO)
+        val lastBuildInfo =
+            BuildInfo.read(lastBuildInfoFile, messageCollector) ?: return CompilationMode.Rebuild(BuildAttribute.INVALID_LAST_BUILD_INFO)
 
         val dirtyFiles = dirtyFilesProvider.getInitializedDirtyFiles(caches, changedFiles)
 
-        val libs = (args.libraries ?: "").split(File.pathSeparator).map { File(it) }
+        val libs = parseLibrariesArgument(args.libraries)
         //TODO(valtman) check for JS
-        val classpathChanges = getClasspathChanges(
-            libs, changedFiles, lastBuildInfo, modulesApiHistory, reporter,
-            mapOf(), false, caches.platformCache,
-            caches.lookupCache.lookupSymbols.map { if (it.scope.isBlank()) it.name else it.scope }.distinct()
-        )
+        val classpathChanges = getClasspathChanges(libs, changedFiles, lastBuildInfo, modulesApiHistory, reporter)
 
         when (classpathChanges) {
             is ChangesEither.Unknown -> {
@@ -175,22 +185,30 @@ class IncrementalJsCompilerRunner(
                     val nextRoundChecker = IncrementalNextRoundCheckerImpl(caches, dirtySources)
                     register(IncrementalNextRoundChecker::class.java, nextRoundChecker)
                 }
-                register(IncrementalDataProvider::class.java, IncrementalDataProviderFromCache(caches.platformCache))
+                register(IncrementalDataProvider::class.java, getIncrementalDataProvider(args, caches))
             }
 
-            register(IncrementalResultsConsumer::class.java, IncrementalResultsConsumerImpl())
+            register(
+                IncrementalResultsConsumer::class.java,
+                getIncrementalResultsConsumer(args)
+            )
         }
+
+    private fun getIncrementalResultsConsumer(args: CommonJsAndWasmCompilerArguments) =
+        if (args.multiPlatform) KmpIncrementalResultsConsumer() else IncrementalResultsConsumerImpl()
+
+    private fun getIncrementalDataProvider(args: CommonJsAndWasmCompilerArguments, caches: IncrementalJsCachesManager) =
+        if (args.multiPlatform) KmpIncrementalDataProviderFromCache(caches.platformCache) else IncrementalDataProviderFromCache(caches.platformCache)
 
     override fun updateCaches(
         services: Services,
         caches: IncrementalJsCachesManager,
         generatedFiles: List<GeneratedFile>,
-        changesCollector: ChangesCollector
+        changesCollector: ChangesCollector,
     ) {
         val incrementalResults = services[IncrementalResultsConsumer::class.java] as IncrementalResultsConsumerImpl
 
         val jsCache = caches.platformCache
-        jsCache.header = incrementalResults.headerMetadata
 
         jsCache.compareAndUpdate(incrementalResults, changesCollector)
         jsCache.clearCacheForRemovedClasses(changesCollector)
@@ -203,7 +221,7 @@ class IncrementalJsCompilerRunner(
         services: Services,
         messageCollector: MessageCollector,
         allSources: List<File>,
-        isIncremental: Boolean
+        isIncremental: Boolean,
     ): Pair<ExitCode, Collection<File>> {
         val freeArgsBackup = args.freeArgs
         var compiler: CLICompiler<*>? = null
@@ -228,8 +246,9 @@ class IncrementalJsCompilerRunner(
     override fun additionalDirtyFiles(
         caches: IncrementalJsCachesManager,
         generatedFiles: List<GeneratedFile>,
-        services: Services
-    ): Iterable<File> {
+        services: Services,
+        dirtySources: Set<File>,
+    ): List<File> {
         val additionalDirtyFiles: Set<File> =
             when (scopeExpansion) {
                 CompileScopeExpansionMode.ALWAYS ->
@@ -238,28 +257,30 @@ class IncrementalJsCompilerRunner(
                     emptySet()
             }
 
-        return additionalDirtyFiles + super.additionalDirtyFiles(caches, generatedFiles, services)
+        return additionalDirtyFiles.filter { it !in dirtySources }
     }
 
     inner class IncrementalNextRoundCheckerImpl(
         private val caches: IncrementalJsCachesManager,
-        private val sourcesToCompile: Set<File>
+        private val sourcesToCompile: Set<File>,
     ) : IncrementalNextRoundChecker {
         val newDirtySources = HashSet<File>()
 
-        private val emptyByteArray = ByteArray(0)
         private val translatedFiles = HashMap<File, TranslationResultValue>()
 
         override fun checkProtoChanges(sourceFile: File, packagePartMetadata: ByteArray) {
-            translatedFiles[sourceFile] = TranslationResultValue(packagePartMetadata, emptyByteArray, emptyByteArray)
+            translatedFiles[sourceFile] = TranslationResultValue(packagePartMetadata)
         }
 
         override fun shouldGoToNextRound(): Boolean {
             val changesCollector = ChangesCollector()
             // todo: split compare and update (or cache comparing)
             caches.platformCache.compare(translatedFiles, changesCollector)
-            val (dirtyLookupSymbols, dirtyClassFqNames) =
-                changesCollector.getChangedAndImpactedSymbols(listOf(caches.platformCache), reporter)
+            (val dirtyLookupSymbols, val dirtyClassFqNames = dirtyClassesFqNames) = changesCollector.getChangedAndImpactedSymbols(
+                listOf(
+                    caches.platformCache
+                ), reporter
+            )
             // todo unify with main cycle
             newDirtySources.addAll(mapLookupSymbolsToFiles(caches.lookupCache, dirtyLookupSymbols, reporter, excludes = sourcesToCompile))
             newDirtySources.addAll(

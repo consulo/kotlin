@@ -1,5 +1,6 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // MARK_DYNAMIC_CALLS
+// DUMP_CFG
 
 fun test(d: dynamic) {
     d == 1

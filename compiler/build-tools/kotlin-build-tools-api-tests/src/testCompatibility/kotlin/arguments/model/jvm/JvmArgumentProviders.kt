@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.buildtools.tests.arguments.model.jvm
 
+import org.jetbrains.kotlin.buildtools.api.RemovedCompilerArgument
 import org.jetbrains.kotlin.buildtools.api.arguments.ExperimentalCompilerArgument
 import org.jetbrains.kotlin.buildtools.api.arguments.Jsr305
 import org.jetbrains.kotlin.buildtools.api.arguments.Jsr305.Mode
@@ -34,43 +35,68 @@ import org.jetbrains.kotlin.buildtools.api.arguments.JvmCompilerArguments.Compan
 import org.jetbrains.kotlin.buildtools.api.arguments.NullabilityAnnotation
 import org.jetbrains.kotlin.buildtools.api.arguments.ProfileCompilerCommand
 import org.jetbrains.kotlin.buildtools.api.arguments.enums.*
+import org.jetbrains.kotlin.buildtools.tests.CompilerExecutionStrategyConfiguration
+import org.jetbrains.kotlin.buildtools.tests.compilation.model.BtaV2StrategyAgnosticCompilationTestArgumentProvider
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.BtaVersionsCompilationTestArgumentProvider
 import org.junit.jupiter.api.Named
 import org.junit.jupiter.api.Named.named
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.ArgumentsProvider
+import org.junit.jupiter.params.support.ParameterDeclarations
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.stream.Stream
 
 internal class AllJvmCompilerArgumentsWithBtaVersionsArgumentProvider : ArgumentsProvider {
-    override fun provideArguments(context: ExtensionContext): Stream<out Arguments> {
+    override fun provideArguments(parameters: ParameterDeclarations, context: ExtensionContext): Stream<out Arguments> {
         return namedArgumentConfiguration().map { Arguments.of(it) }.stream()
     }
 }
 
 internal class InvalidArgumentValueJvmCompilerArgumentsWithBtaVersionsArgumentProvider : ArgumentsProvider {
-    override fun provideArguments(context: ExtensionContext): Stream<out Arguments> {
+    override fun provideArguments(parameters: ParameterDeclarations, context: ExtensionContext): Stream<out Arguments> {
         return namedArgumentConfiguration { it.runsInvalidArgumentValueTest }.map { Arguments.of(it) }.stream()
     }
 }
 
 internal class InvalidRawValueJvmCompilerArgumentsWithBtaVersionsArgumentProvider : ArgumentsProvider {
-    override fun provideArguments(context: ExtensionContext): Stream<out Arguments> {
+    override fun provideArguments(parameters: ParameterDeclarations, context: ExtensionContext): Stream<out Arguments> {
         return namedArgumentConfiguration { it.runsInvalidRawValueTest }.map { Arguments.of(it) }.stream()
     }
 }
 
 internal class NullableJvmCompilerArgumentsWithBtaVersionsArgumentProvider : ArgumentsProvider {
-    override fun provideArguments(context: ExtensionContext): Stream<out Arguments> {
+    override fun provideArguments(parameters: ParameterDeclarations, context: ExtensionContext): Stream<out Arguments> {
         return namedArgumentConfiguration { it.runsNullableTest }.map { Arguments.of(it) }.stream()
     }
 }
 
+internal class InvalidRawValueJvmCompilerArgumentsBtaV2StrategyAgnosticArgumentProvider : ArgumentsProvider {
+    override fun provideArguments(parameters: ParameterDeclarations, context: ExtensionContext): Stream<out Arguments> {
+        return namedInvalidRawValueBtaV2ArgumentConfigurations().map { Arguments.of(it) }.stream()
+    }
+}
+
+private fun namedInvalidRawValueBtaV2ArgumentConfigurations(): List<Named<Pair<JvmArgumentConfiguration<*>, CompilerExecutionStrategyConfiguration>>> {
+    val btaV2Strategies = BtaV2StrategyAgnosticCompilationTestArgumentProvider.namedStrategyArguments()
+    val compilerArguments = jvmCompilerArguments
+        .filter { it.runsInvalidRawValueTest }
+        .map { named("[${it.argumentName}]", it) }
+
+    return btaV2Strategies.flatMap { namedStrategy ->
+        compilerArguments.map { namedArgDescriptor ->
+            named(
+                namedStrategy.name + namedArgDescriptor.name,
+                JvmArgumentConfiguration(namedStrategy.payload.first, namedArgDescriptor.payload) to namedStrategy.payload
+            )
+        }
+    }
+}
+
 private fun namedArgumentConfiguration(argumentPredicate: (JvmArgumentTestDescriptor<*>) -> Boolean = { true }): List<Named<JvmArgumentConfiguration<*>>> {
-    val btaVersions = BtaVersionsCompilationTestArgumentProvider.namedStrategyArguments()
+    val btaVersions = BtaVersionsCompilationTestArgumentProvider.namedToolchainProviders()
     val compilerArguments = jvmCompilerArguments.filter { argumentPredicate(it) }.map { named("[${it.argumentName}]", it) }
 
     return btaVersions.flatMap { namedKotlinToolchains ->
@@ -79,7 +105,7 @@ private fun namedArgumentConfiguration(argumentPredicate: (JvmArgumentTestDescri
 
             named(
                 namedKotlinToolchains.name + namedArgumentDescriptor.name,
-                JvmArgumentConfiguration(namedKotlinToolchains.payload, namedArgumentDescriptor.payload)
+                JvmArgumentConfiguration(namedKotlinToolchains.payload(), namedArgumentDescriptor.payload)
             )
         }
     }
@@ -87,12 +113,13 @@ private fun namedArgumentConfiguration(argumentPredicate: (JvmArgumentTestDescri
 
 private val testBaseDir: Path = Paths.get("").toAbsolutePath()
 
-@OptIn(ExperimentalCompilerArgument::class)
+@OptIn(ExperimentalCompilerArgument::class, RemovedCompilerArgument::class)
 private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
     JvmArgumentTestDescriptor(
         argumentName = "Xabi-stability",
         argument = X_ABI_STABILITY,
         argumentValues = AbiStabilityMode.entries.toList(),
+        argumentRawValues = AbiStabilityMode.entries.map { it.stringValue },
         invalidRawValues = listOf("non-existent-value"),
         runsNullableTest = true,
         valueString = { value -> value?.stringValue },
@@ -101,7 +128,8 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
     JvmArgumentTestDescriptor(
         argumentName = "Xadd-modules",
         argument = X_ADD_MODULES,
-        argumentValues = listOf(listOf("module1", "module2", "module3")),
+        argumentValues = listOf(listOf("module1", "module2", "module3"), listOf("module,comma")),
+        argumentRawValues = listOf(listOf("module1", "module2", "module3").joinToString(",")),
         valueString = { value -> value?.joinToString(",") },
         expectedArgumentStringsFor = { value -> listOf("-Xadd-modules=$value") },
     ),
@@ -109,6 +137,7 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
         argumentName = "Xassertions",
         argument = X_ASSERTIONS,
         argumentValues = AssertionsMode.entries.toList(),
+        argumentRawValues = AssertionsMode.entries.map { it.stringValue },
         invalidRawValues = listOf("non-existent-value"),
         runsNullableTest = true,
         valueString = { value -> value?.stringValue },
@@ -124,6 +153,13 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
                 testBaseDir.resolve("path/to/classes"),
             )
         ),
+        argumentRawValues = listOf(
+            listOf(
+                testBaseDir.resolve("path/to/lib1.jar"),
+                testBaseDir.resolve("path/to/lib2.jar"),
+                testBaseDir.resolve("path/to/classes"),
+            ).joinToString(File.pathSeparator) { it.toFile().absolutePath }
+        ),
         invalidArgumentValues = listOf(listOf(testBaseDir.resolve("path/with${File.pathSeparator}separator"))),
         runsNullableTest = true,
         valueString = { value -> value?.joinToString(File.pathSeparator) { it.toFile().absolutePath } },
@@ -133,6 +169,7 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
         argumentName = "jdk-home",
         argument = JDK_HOME,
         argumentValues = listOf(testBaseDir.resolve("path/to/jdk")),
+        argumentRawValues = listOf(testBaseDir.resolve("path/to/jdk").toFile().absolutePath),
         runsNullableTest = true,
         valueString = { value -> value?.toFile()?.absolutePath },
         expectedArgumentStringsFor = { value -> listOf("-jdk-home", value) },
@@ -141,6 +178,7 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
         argumentName = "jvm-default",
         argument = JVM_DEFAULT,
         argumentValues = JvmDefaultMode.entries.toList(),
+        argumentRawValues = JvmDefaultMode.entries.map { it.stringValue },
         invalidRawValues = listOf("non-existent-value"),
         runsNullableTest = true,
         valueString = { value -> value?.stringValue },
@@ -149,7 +187,8 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
     JvmArgumentTestDescriptor(
         argumentName = "script-templates",
         argument = SCRIPT_TEMPLATES,
-        argumentValues = listOf(listOf("org.example.Template1", "org.example.Template2")),
+        argumentValues = listOf(listOf("org.example.Template1", "org.example.Template2"), listOf("org.example.Template,Comma")),
+        argumentRawValues = listOf(listOf("org.example.Template1", "org.example.Template2").joinToString(",")),
         valueString = { value -> value?.joinToString(",") },
         expectedArgumentStringsFor = { value -> listOf("-script-templates", value) },
     ),
@@ -161,7 +200,14 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
                 testBaseDir.resolve("path/to/friend1"),
                 testBaseDir.resolve("path/to/friend2"),
                 testBaseDir.resolve("path/to/friend3"),
-            )
+            ),
+        ),
+        argumentRawValues = listOf(
+            listOf(
+                testBaseDir.resolve("path/to/friend1"),
+                testBaseDir.resolve("path/to/friend2"),
+                testBaseDir.resolve("path/to/friend3"),
+            ).joinToString(","),
         ),
         invalidArgumentValues = listOf(listOf(testBaseDir.resolve("path/with,comma"))),
         valueString = { value -> value?.joinToString(",") { it.toFile().absolutePath } },
@@ -170,7 +216,9 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
     JvmArgumentTestDescriptor(
         argumentName = "Xjdk-release",
         argument = X_JDK_RELEASE,
-        argumentValues = JdkRelease.entries.toList(),
+        //TODO(KT-89774): Remove filtering with 2.5.0-Beta2
+        argumentValues = JdkRelease.entries.filterNot { it == JDK_28 }.toList(),
+        argumentRawValues = JdkRelease.entries.filterNot { it == JDK_28 }.map { it.stringValue },
         invalidRawValues = listOf("non-existent-value"),
         runsNullableTest = true,
         valueString = { value -> value?.stringValue },
@@ -186,7 +234,15 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
                 testBaseDir.resolve("path/to/module3"),
             )
         ),
+        argumentRawValues = listOf(
+            listOf(
+                testBaseDir.resolve("path/to/module1"),
+                testBaseDir.resolve("path/to/module2"),
+                testBaseDir.resolve("path/to/module3"),
+            ).joinToString(File.pathSeparator) { it.toFile().absolutePath }
+        ),
         invalidArgumentValues = listOf(listOf(testBaseDir.resolve("path/with${File.pathSeparator}separator"))),
+        runsNullableTest = true,
         valueString = { value -> value?.joinToString(File.pathSeparator) { it.toFile().absolutePath } },
         expectedArgumentStringsFor = { value -> listOf("-Xmodule-path=$value") },
     ),
@@ -194,6 +250,7 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
         argumentName = "Xstring-concat",
         argument = X_STRING_CONCAT,
         argumentValues = StringConcatMode.entries.toList(),
+        argumentRawValues = StringConcatMode.entries.map { it.stringValue },
         invalidRawValues = listOf("non-existent-value"),
         runsNullableTest = true,
         valueString = { value -> value?.stringValue },
@@ -203,7 +260,9 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
         argumentName = "Xlambdas",
         argument = X_LAMBDAS,
         argumentValues = LambdasMode.entries.toList(),
+        argumentRawValues = LambdasMode.entries.map { it.stringValue },
         invalidRawValues = listOf("non-existent-value"),
+        runsNullableTest = true,
         valueString = { value -> value?.stringValue },
         expectedArgumentStringsFor = { value -> listOf("-Xlambdas=$value") },
     ),
@@ -211,6 +270,7 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
         argumentName = "Xwhen-expressions",
         argument = X_WHEN_EXPRESSIONS,
         argumentValues = WhenExpressionsMode.entries.toList(),
+        argumentRawValues = WhenExpressionsMode.entries.map { it.stringValue },
         invalidRawValues = listOf("non-existent-value"),
         runsNullableTest = true,
         valueString = { value -> value?.stringValue },
@@ -220,6 +280,7 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
         argumentName = "Xsam-conversions",
         argument = X_SAM_CONVERSIONS,
         argumentValues = SamConversionsMode.entries.toList(),
+        argumentRawValues = SamConversionsMode.entries.map { it.stringValue },
         invalidRawValues = listOf("non-existent-value"),
         runsNullableTest = true,
         valueString = { value -> value?.stringValue },
@@ -229,6 +290,7 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
         argumentName = "Xjspecify-annotations",
         argument = X_JSPECIFY_ANNOTATIONS,
         argumentValues = JspecifyAnnotationsMode.entries.toList(),
+        argumentRawValues = JspecifyAnnotationsMode.entries.map { it.stringValue },
         invalidRawValues = listOf("non-existent-value"),
         runsNullableTest = true,
         valueString = { value -> value?.stringValue },
@@ -238,6 +300,7 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
         argumentName = "Xsupport-compatqual-checker-framework-annotations",
         argument = X_SUPPORT_COMPATQUAL_CHECKER_FRAMEWORK_ANNOTATIONS,
         argumentValues = CompatqualAnnotationsMode.entries.toList(),
+        argumentRawValues = CompatqualAnnotationsMode.entries.map { it.stringValue },
         invalidRawValues = listOf("non-existent-value"),
         runsNullableTest = true,
         valueString = { value -> value?.stringValue },
@@ -253,7 +316,16 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
                 testBaseDir.resolve("path/to/lib3.klib"),
             )
         ),
+        argumentRawValues = listOf(
+            listOf(
+                testBaseDir.resolve("path/to/lib1.klib"),
+                testBaseDir.resolve("path/to/lib2.klib"),
+                testBaseDir.resolve("path/to/lib3.klib"),
+            ).joinToString(File.pathSeparator) { it.toFile().absolutePath }
+        ),
         invalidArgumentValues = listOf(listOf(testBaseDir.resolve("path/with${File.pathSeparator}separator"))),
+        runsNullableTest = true,
+        skipBtaV1 = true,
         valueString = { value -> value?.joinToString(File.pathSeparator) { it.toFile().absolutePath } },
         expectedArgumentStringsFor = { value -> listOf("-Xklib=$value") },
     ),
@@ -265,7 +337,14 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
                 testBaseDir.resolve("path/to/java/src1"),
                 testBaseDir.resolve("path/to/java/src2"),
                 testBaseDir.resolve("path/to/java/src3"),
-            )
+            ),
+        ),
+        argumentRawValues = listOf(
+            listOf(
+                testBaseDir.resolve("path/to/java/src1"),
+                testBaseDir.resolve("path/to/java/src2"),
+                testBaseDir.resolve("path/to/java/src3"),
+            ).joinToString(",") { it.toFile().absolutePath }
         ),
         invalidArgumentValues = listOf(listOf(testBaseDir.resolve("path/with,comma"))),
         valueString = { value -> value?.joinToString(",") { it.toFile().absolutePath } },
@@ -274,7 +353,8 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
     JvmArgumentTestDescriptor(
         argumentName = "Xignored-annotations-for-bridges",
         argument = X_IGNORED_ANNOTATIONS_FOR_BRIDGES,
-        argumentValues = listOf(listOf("com.example.MyAnnotation", "*")),
+        argumentValues = listOf(listOf("com.example.MyAnnotation", "*"), listOf("com.example.My,Annotation")),
+        argumentRawValues = listOf(listOf("com.example.MyAnnotation", "*").joinToString(",")),
         skipBtaV1 = true,
         valueString = { value -> value?.joinToString(",") },
         expectedArgumentStringsFor = { value -> listOf("-Xignored-annotations-for-bridges=$value") },
@@ -282,7 +362,15 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
     JvmArgumentTestDescriptor(
         argumentName = "Xscript-resolver-environment",
         argument = X_SCRIPT_RESOLVER_ENVIRONMENT,
-        argumentValues = listOf(listOf("key1=value1", "key2=value2")),
+        argumentValues = listOf(
+            listOf("key1=value1", "key2=value2"),
+            listOf("optional="),
+            listOf("key=value,comma"),
+        ),
+        argumentRawValues = listOf(
+            listOf("key1=value1", "key2=value2").joinToString(","),
+            "optional=",
+        ),
         valueString = { value -> value?.joinToString(",") },
         expectedArgumentStringsFor = { value -> listOf("-Xscript-resolver-environment=$value") },
     ),
@@ -295,6 +383,24 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
                 Jsr305.UnderMigration(Mode.WARN),
                 Jsr305.SpecificAnnotation("com.example.Nullable", Mode.IGNORE),
             )
+        ),
+        argumentRawValues = listOf(
+            listOf(
+                Jsr305.Global(Mode.STRICT),
+                Jsr305.UnderMigration(Mode.WARN),
+                Jsr305.SpecificAnnotation("com.example.Nullable", Mode.IGNORE),
+            ).joinToString(",") { item ->
+                when (item) {
+                    is Jsr305.Global -> item.mode.stringValue
+                    is Jsr305.UnderMigration -> "under-migration:${item.mode.stringValue}"
+                    is Jsr305.SpecificAnnotation -> "${item.annotationFqName}:${item.mode.stringValue}"
+                }
+            }
+        ),
+        invalidRawValues = listOf(
+            "stict",
+            "@javax.annotation.Nullable:strct",
+            "foo:bar:baz",
         ),
         valueString = { value ->
             value?.joinToString(",") { item ->
@@ -316,6 +422,17 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
                 NullabilityAnnotation("javax.annotation.Nonnull", NullabilityAnnotation.Mode.WARN),
             )
         ),
+        argumentRawValues = listOf(
+            listOf(
+                NullabilityAnnotation("javax.annotation.Nullable", NullabilityAnnotation.Mode.STRICT),
+                NullabilityAnnotation("javax.annotation.Nonnull", NullabilityAnnotation.Mode.WARN),
+            ).joinToString(",") { "${it.annotationFqName}:${it.mode.stringValue}" }
+        ),
+        invalidRawValues = listOf(
+            "@javax.annotation.Nullable:bogus",
+            "@javax.annotation.Nullable=ignore",
+            "@javax.annotation.Nullable"
+        ),
         valueString = { value -> value?.joinToString(",") { "${it.annotationFqName}:${it.mode.stringValue}" } },
         expectedArgumentStringsFor = { value -> listOf("-Xnullability-annotations=$value") },
     ),
@@ -329,6 +446,15 @@ private val jvmCompilerArguments: List<JvmArgumentTestDescriptor<*>> = listOf(
                 outputDir = testBaseDir.resolve("/path/to/snapshots")
             )
         ),
+        argumentRawValues = listOf(
+            ProfileCompilerCommand(
+                profilerPath = testBaseDir.resolve("path/to/libasyncProfiler.so"),
+                command = "event=cpu,interval=1ms,threads,start",
+                outputDir = testBaseDir.resolve("/path/to/snapshots")
+            ).let { it.profilerPath.toFile().absolutePath + File.pathSeparator + it.command + File.pathSeparator + it.outputDir.toFile().absolutePath }
+        ),
+        invalidRawValues = listOf("path/to/libasyncProfiler.so"),
+        runsNullableTest = true,
         valueString = { value ->
             value?.let { value.profilerPath.toFile().absolutePath + File.pathSeparator + value.command + File.pathSeparator + value.outputDir.toFile().absolutePath }
         },

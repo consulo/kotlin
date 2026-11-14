@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -49,16 +49,17 @@ private fun isLazyStatement(fir: FirStatement): Boolean {
     return fir is FirLazyExpression || fir is FirLazyBlock
 }
 
-private val SPECIAL_BODY_CALLABLE_SOURCE_KINDS = setOf(
-    KtFakeSourceElementKind.DefaultAccessor,
-    KtFakeSourceElementKind.ImplicitConstructor,
-    KtFakeSourceElementKind.PropertyFromParameter,
-    KtFakeSourceElementKind.DataClassGeneratedMembers,
-    KtFakeSourceElementKind.EnumGeneratedDeclaration,
-)
-
 @OptIn(SuspiciousFakeSourceCheck::class)
 internal fun isCallableWithSpecialBody(fir: FirCallableDeclaration): Boolean {
-    val source = fir.source as? KtFakePsiSourceElement ?: return false
-    return source.kind in SPECIAL_BODY_CALLABLE_SOURCE_KINDS
+    val sourceKind = (fir.source as? KtFakePsiSourceElement)?.kind ?: return false
+    return when (sourceKind) {
+        is KtFakeSourceElementKind.EnumGeneratedDeclaration,
+        is KtFakeSourceElementKind.DefaultAccessor,
+        KtFakeSourceElementKind.ImplicitConstructor,
+        KtFakeSourceElementKind.PropertyFromParameter,
+        is KtFakeSourceElementKind.DataClassGeneratedMembers
+            -> true
+
+        else -> false
+    }
 }

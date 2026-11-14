@@ -1,11 +1,11 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 description = "ABI generation for Kotlin/JVM"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
+    id("test-inputs-check")
 }
 
 sourceSets {
@@ -17,10 +17,10 @@ sourceSets {
     "testFixtures" { projectDefault() }
 }
 
-val embedded by configurations
+val embedded = configurations.embedded.get()
 embedded.isTransitive = false
-configurations.getByName("compileOnly").extendsFrom(embedded)
-configurations.getByName("testApi").extendsFrom(embedded)
+configurations.compileOnly.get().extendsFrom(embedded)
+configurations.testApi.get().extendsFrom(embedded)
 
 dependencies {
     // Should come before dependency on proguarded compiler because StringUtil methods are deleted from it
@@ -32,9 +32,9 @@ dependencies {
     compileOnly(project(":compiler:cli"))
     compileOnly(project(":compiler:backend"))
     compileOnly(project(":compiler:backend.jvm"))
-    compileOnly(project(":compiler:frontend"))
-    compileOnly(project(":compiler:frontend.java"))
     compileOnly(project(":compiler:plugin-api"))
+    compileOnly(project(":core:descriptors"))
+    compileOnly(project(":compiler:backend.common.jvm"))
 
     // Include kotlin.metadata for metadata stripping.
     // Note that kotlin-metadata-jvm already includes kotlin-metadata, core:metadata, core:metadata.jvm,
@@ -45,9 +45,11 @@ dependencies {
     compileOnly(intellijCore())
     compileOnly(libs.intellij.asm)
 
-    testFixturesApi(libs.junit4)
     testFixturesApi(testFixtures(project(":compiler:tests-common")))
     testFixturesApi(testFixtures(project(":compiler:incremental-compilation-impl")))
+
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }
 
 optInToExperimentalCompilerApi()
@@ -65,14 +67,18 @@ sourcesJar()
 javadocJar()
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit4) {
-        workingDir = rootDir
-        dependsOn(":dist")
+    testTask(
+        maxHeapSize = testMaxHeapSizeLarge,
+    ) {
+        addClasspathProperty("kotlin.jvm.abi.jar.path") {
+            from(tasks.jar.map { it.archiveFile.get() })
+        }
     }
 
     testGenerator("org.jetbrains.kotlin.jvm.abi.TestGeneratorKt")
 
+    testData(isolated, "testData")
+
     withJvmStdlibAndReflect()
 }
 
-testsJar()

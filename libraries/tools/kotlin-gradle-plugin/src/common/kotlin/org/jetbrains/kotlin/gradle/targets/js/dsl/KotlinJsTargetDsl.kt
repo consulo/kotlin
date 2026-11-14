@@ -9,11 +9,11 @@ import org.gradle.api.Action
 import org.gradle.api.GradleException
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.provider.Property
+import org.jetbrains.kotlin.gradle.ExperimentalJsTestDsl
 import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.HasConfigurableKotlinCompilerOptions
 import org.jetbrains.kotlin.gradle.dsl.KotlinJsCompilerOptions
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
-import org.jetbrains.kotlin.gradle.plugin.KotlinTargetWithTests.Companion.DEFAULT_TEST_RUN_NAME
 import org.jetbrains.kotlin.gradle.plugin.mpp.HasBinaries
 import org.jetbrains.kotlin.gradle.targets.js.KotlinJsPlatformTestRun
 import org.jetbrains.kotlin.gradle.targets.js.KotlinJsReportAggregatingTestRun
@@ -258,17 +258,6 @@ interface KotlinJsTargetDsl :
     override val compilations: NamedDomainObjectContainer<KotlinJsIrCompilation>
 
     override val binaries: KotlinJsBinaryContainer
-
-    //region Deprecated Properties
-    @Deprecated(
-        message = "produceExecutable() was changed on binaries.executable(). Scheduled for removal in Kotlin 2.3.",
-        replaceWith = ReplaceWith("binaries.executable()"),
-        level = DeprecationLevel.ERROR
-    )
-    fun produceExecutable() {
-        throw GradleException("Please change produceExecutable() on binaries.executable()")
-    }
-    //endregion
 }
 
 /**
@@ -370,6 +359,18 @@ interface KotlinJsSubTargetDsl {
  * **Note:** This interface is not intended for implementation by build script or plugin authors.
  */
 interface KotlinJsBrowserDsl : KotlinJsSubTargetDsl {
+
+    /**
+     * Browser test runner configuration.
+     */
+    @ExperimentalJsTestDsl
+    val test: KotlinJsBrowserTestDsl
+
+    /**
+     * Configure the browser test runner.
+     */
+    @ExperimentalJsTestDsl
+    fun test(body: Action<KotlinJsBrowserTestDsl>)
 
     /**
      * Configures the default Webpack configuration for the browser execution environment.

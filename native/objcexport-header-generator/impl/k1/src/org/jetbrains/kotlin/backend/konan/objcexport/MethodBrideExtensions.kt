@@ -5,16 +5,19 @@
 
 package org.jetbrains.kotlin.backend.konan.objcexport
 
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.backend.konan.InternalKotlinNativeApi
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.descriptors.ParameterDescriptor
 import org.jetbrains.kotlin.descriptors.konan.allParameters
+import org.jetbrains.kotlin.utils.addToStdlib.skipNext
 
 
 @InternalKotlinNativeApi
 fun MethodBridge.valueParametersAssociated(
     descriptor: FunctionDescriptor,
 ): List<Pair<MethodBridgeValueParameter, ParameterDescriptor?>> {
+    @OptIn(K1Deprecation::class)
     val kotlinParameters = descriptor.allParameters.iterator()
     val skipFirstKotlinParameter = when (this.receiver) {
         MethodBridgeReceiver.Static -> false
@@ -25,7 +28,7 @@ fun MethodBridge.valueParametersAssociated(
          * Skip logic is bound to [this.valueParameters] array construction
          * at [org.jetbrains.kotlin.backend.konan.objcexport.ObjCExportMapper.bridgeMethodImpl]
          */
-        kotlinParameters.next()
+        kotlinParameters.skipNext()
     }
 
     return this.valueParameters.map {

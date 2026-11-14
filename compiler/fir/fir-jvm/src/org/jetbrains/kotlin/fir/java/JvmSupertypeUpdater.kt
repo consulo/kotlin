@@ -6,16 +6,19 @@
 package org.jetbrains.kotlin.fir.java
 
 import org.jetbrains.kotlin.KtFakeSourceElementKind
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.ClassKind
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.isData
+import org.jetbrains.kotlin.fir.declarations.utils.isValue
 import org.jetbrains.kotlin.fir.expressions.FirDelegatedConstructorCall
 import org.jetbrains.kotlin.fir.expressions.FirStatement
 import org.jetbrains.kotlin.fir.expressions.impl.FirLazyDelegatedConstructorCall
+import org.jetbrains.kotlin.fir.isMetadataCompilation
 import org.jetbrains.kotlin.fir.java.JvmSupertypeUpdater.DelegatedConstructorCallTransformer.Companion.recordType
+import org.jetbrains.kotlin.fir.languageVersionSettings
 import org.jetbrains.kotlin.fir.references.builder.buildResolvedNamedReference
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
@@ -35,9 +38,15 @@ class JvmSupertypeUpdater(private val session: FirSession) : PlatformSupertypeUp
     private val jvmRecordUpdater = DelegatedConstructorCallTransformer(session)
 
     override fun updateSupertypesIfNeeded(firClass: FirClass, scopeSession: ScopeSession) {
-        if (firClass !is FirRegularClass || !firClass.isData ||
-            !firClass.hasAnnotationUltraSafe(JvmStandardClassIds.Annotations.JvmRecord)
+        if (firClass !is FirRegularClass) return
+        if (!firClass.hasAnnotationUltraSafe(JvmStandardClassIds.Annotations.JvmRecord)) return
+        if (!(firClass.isData || (firClass.isValue &&
+                    !firClass.hasAnnotationSafe(StandardClassIds.Annotations.JvmInline, session) &&
+                    session.languageVersionSettings.supportsFeature(LanguageFeature.FullValueClasses))
+                    )
         ) return
+        // java.lang.Record is inaccessible for the Common platform; in pre-17 JDKs we still add the supertype to report relevant errors
+        if (session.isMetadataCompilation && recordType.lookupTag.toRegularClassSymbol(session) == null) return
         var anyFound = false
         var hasExplicitSuperClass = false
         val newSuperTypeRefs = firClass.superTypeRefs.mapTo(mutableListOf()) {
@@ -89,7 +98,7 @@ class JvmSupertypeUpdater(private val session: FirSession) : PlatformSupertypeUp
             return constructor.transformDelegatedConstructor(this, data)
         }
 
-        override fun transformErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor, data: ScopeSession) =
+        override fun transformErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor, data: ScopeSession): FirStatement =
             transformConstructor(errorPrimaryConstructor, data)
 
         override fun transformDelegatedConstructorCall(

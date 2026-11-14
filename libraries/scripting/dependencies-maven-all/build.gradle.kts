@@ -7,17 +7,19 @@ description = "Shaded Maven dependencies resolver"
 
 val jarBaseName = the<BasePluginExtension>().archivesName
 
-val embedded by configurations
+val embedded = configurations.embedded.get()
 
 embedded.apply {
     exclude("org.slf4j", "slf4j-api")
 }
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
-val proguardLibraryJars by configurations.creating {
+val proguardLibraryJars = configurations.create("proguardLibraryJars") {
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
         attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
@@ -32,15 +34,18 @@ dependencies {
 
     embedded(libs.guava) { isTransitive = false }
     embedded(libs.guava.failureaccess) { isTransitive = false }
-    embedded("org.apache.maven.resolver:maven-resolver-connector-basic:1.9.22")
-    embedded("org.apache.maven.resolver:maven-resolver-transport-file:1.9.22")
-    embedded("org.apache.maven.resolver:maven-resolver-transport-wagon:1.9.22")
-    embedded("org.apache.maven.resolver:maven-resolver-impl:1.9.22")
-    embedded("org.apache.maven:maven-core:3.8.8")
-    embedded("org.apache.maven.wagon:wagon-http:3.5.3")
+    embedded("org.apache.maven.resolver:maven-resolver-connector-basic:1.9.27")
+    embedded("org.apache.maven.resolver:maven-resolver-transport-file:1.9.27")
+    embedded("org.apache.maven.resolver:maven-resolver-transport-http:1.9.27")
+    embedded("org.apache.maven.resolver:maven-resolver-impl:1.9.27")
+    embedded("org.apache.maven:maven-core:3.9.16")
     embedded(libs.apache.commons.io)
 
-    testImplementation(libs.junit4)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
+
     testRuntimeOnly("org.slf4j:slf4j-nop:1.7.36")
     testImplementation(project(":kotlin-scripting-dependencies-maven-all"))
 
@@ -56,9 +61,12 @@ sourceSets {
 
 publish()
 
-noDefaultJar()
 sourcesJar()
 javadocJar()
+
+tasks.test {
+    useJUnitPlatform()
+}
 
 val mavenPackagesToRelocate = listOf(
     "org.eclipse",
@@ -70,7 +78,7 @@ val mavenPackagesToRelocate = listOf(
     "org.sonatype"
 )
 
-val relocatedJar by task<ShadowJar> {
+val relocatedJar = tasks.register<ShadowJar>("relocatedJar") {
     configurations = listOf(embedded)
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
     destinationDirectory.set(layout.buildDirectory.dir("libs"))
@@ -85,7 +93,7 @@ val relocatedJar by task<ShadowJar> {
     }
 }
 
-val normalizeComponentsXmlEndings by tasks.registering {
+val normalizeComponentsXmlEndings = tasks.register("normalizeComponentsXmlEndings") {
     dependsOn(relocatedJar)
     val outputFile = layout.buildDirectory.file("$name/${ComponentsXmlResourceTransformer.COMPONENTS_XML_PATH}")
     val relocatedJarFile = relocatedJar.map { it.singleOutputFile(layout) }
@@ -103,7 +111,7 @@ val normalizeComponentsXmlEndings by tasks.registering {
     }
 }
 
-val normalizedJar by task<Jar> {
+val normalizedJar = tasks.register<Jar>("normalizeJar") {
     dependsOn(relocatedJar)
     dependsOn(normalizeComponentsXmlEndings)
 
@@ -122,7 +130,7 @@ val normalizedJar by task<Jar> {
     }
 }
 
-val proguard by task<CacheableProguardTask> {
+val proguard = tasks.register<CacheableProguardTask>("proguard") {
     dependsOn(normalizedJar)
     configuration("dependencies-maven.pro")
 
@@ -156,7 +164,7 @@ val proguard by task<CacheableProguardTask> {
     )
 }
 
-val resultJar by task<Jar> {
+val resultJar = tasks.register<Jar>("resultJar") {
     val pack = if (kotlinBuildProperties.proguard) proguard else normalizedJar
     dependsOn(pack)
     setupPublicJar(jarBaseName)

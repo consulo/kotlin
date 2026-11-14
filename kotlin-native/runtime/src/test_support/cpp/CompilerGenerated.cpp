@@ -41,7 +41,7 @@ kotlin::test_support::TypeInfoHolder theObjCObjectWrapperTypeInfoHolder{
 kotlin::test_support::TypeInfoHolder theOpaqueFunctionTypeInfoHolder{kotlin::test_support::TypeInfoHolder::ObjectBuilder<EmptyPayload>()};
 kotlin::test_support::TypeInfoHolder theShortArrayTypeInfoHolder{kotlin::test_support::TypeInfoHolder::ArrayBuilder<KShort>()};
 kotlin::test_support::TypeInfoHolder theStringTypeInfoHolder{
-        kotlin::test_support::TypeInfoHolder::ArrayBuilder<KChar>().addFlag(TF_IMMUTABLE)};
+        kotlin::test_support::TypeInfoHolder::ArrayBuilder<KChar>()};
 kotlin::test_support::TypeInfoHolder theThrowableTypeInfoHolder{kotlin::test_support::TypeInfoHolder::ObjectBuilder<EmptyPayload>()};
 kotlin::test_support::TypeInfoHolder theUnitTypeInfoHolder{kotlin::test_support::TypeInfoHolder::ObjectBuilder<EmptyPayload>()};
 kotlin::test_support::TypeInfoHolder theCleanerImplTypeInfoHolder{kotlin::test_support::TypeInfoHolder::ObjectBuilder<EmptyPayload>()};
@@ -66,6 +66,7 @@ extern const int32_t Kotlin_disableMmap = 1;
 #else
 extern const int32_t Kotlin_disableMmap = 0;
 #endif
+extern const int32_t Kotlin_runtimeLogsEnabled = 0;
 extern const int32_t Kotlin_runtimeLogs[static_cast<size_t>(kotlin::logging::Tag::kEnumSize)] = {0};
 extern const int32_t Kotlin_concurrentWeakSweep = 1;
 #if KONAN_WINDOWS
@@ -195,7 +196,7 @@ void RUNTIME_NORETURN ThrowIllegalStateExceptionWithMessage(KConstRef message) {
     throw std::runtime_error("Not implemented for tests");
 }
 
-void RUNTIME_NORETURN ThrowFileFailedToInitializeException(KRef reason) {
+void RUNTIME_NORETURN StaticInitializationFailure(KRef reason, const TypeInfo* typeInfo) {
     throw std::runtime_error("Not implemented for tests");
 }
 
@@ -366,4 +367,3 @@ void Kotlin_internal_executeAndRelease(kotlin::mm::RawExternalRCRef* cleanerActi
 }
 
 } // extern "C"
-

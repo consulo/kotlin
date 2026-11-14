@@ -5,7 +5,7 @@ MainKt.class:
     PACKAGE_DIRECTIVE
     IMPORT_LIST
     PROPERTY[fqName=bar, hasBackingField=false, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=false, isTopLevel=true, isVar=false, name=bar]
-      origin: Facade(className=MainKt, jvmClassName=null)
+      origin: Facade(className=MainKt, jvmClassName=null, classFileMajorVersion=<current_major_version>)
       MODIFIER_LIST[public]
         CONTEXT_PARAMETER_LIST
           VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=_]
@@ -16,6 +16,7 @@ MainKt.class:
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=MyAnnotation]
+                        isClassRef: true
             TYPE_REFERENCE
               MODIFIER_LIST[]
                 ANNOTATION_ENTRY[hasValueArguments=false, shortName=MyAnnotation]
@@ -24,8 +25,10 @@ MainKt.class:
                     TYPE_REFERENCE
                       USER_TYPE
                         REFERENCE_EXPRESSION[referencedName=MyAnnotation]
+                          isClassRef: true
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=ParameterizedInterface]
+                  isClassRef: true
                 TYPE_ARGUMENT_LIST
                   TYPE_PROJECTION[projectionKind=NONE]
                     TYPE_REFERENCE
@@ -36,20 +39,23 @@ MainKt.class:
                             TYPE_REFERENCE
                               USER_TYPE
                                 REFERENCE_EXPRESSION[referencedName=MyAnnotation]
+                                  isClassRef: true
                       USER_TYPE
                         USER_TYPE
                           REFERENCE_EXPRESSION[referencedName=kotlin]
                         REFERENCE_EXPRESSION[referencedName=String]
+                          isClassRef: true
       TYPE_REFERENCE
         USER_TYPE
           USER_TYPE
             REFERENCE_EXPRESSION[referencedName=kotlin]
           REFERENCE_EXPRESSION[referencedName=String]
+            isClassRef: true
       PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=true, isGetter=true, mayHaveContract=false]
         MODIFIER_LIST[public final]
         VALUE_PARAMETER_LIST
-    FUN[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
-      origin: Facade(className=MainKt, jvmClassName=null)
+    FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
+      origin: Facade(className=MainKt, jvmClassName=null, classFileMajorVersion=<current_major_version>)
       MODIFIER_LIST[public]
         CONTEXT_PARAMETER_LIST
           VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=_]
@@ -60,6 +66,7 @@ MainKt.class:
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=MyAnnotation]
+                        isClassRef: true
             TYPE_REFERENCE
               MODIFIER_LIST[]
                 ANNOTATION_ENTRY[hasValueArguments=false, shortName=MyAnnotation]
@@ -68,8 +75,10 @@ MainKt.class:
                     TYPE_REFERENCE
                       USER_TYPE
                         REFERENCE_EXPRESSION[referencedName=MyAnnotation]
+                          isClassRef: true
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=ParameterizedInterface]
+                  isClassRef: true
                 TYPE_ARGUMENT_LIST
                   TYPE_PROJECTION[projectionKind=NONE]
                     TYPE_REFERENCE
@@ -80,25 +89,29 @@ MainKt.class:
                             TYPE_REFERENCE
                               USER_TYPE
                                 REFERENCE_EXPRESSION[referencedName=MyAnnotation]
+                                  isClassRef: true
                       USER_TYPE
                         USER_TYPE
                           REFERENCE_EXPRESSION[referencedName=kotlin]
                         REFERENCE_EXPRESSION[referencedName=String]
+                          isClassRef: true
       VALUE_PARAMETER_LIST
       TYPE_REFERENCE
         USER_TYPE
           USER_TYPE
             REFERENCE_EXPRESSION[referencedName=kotlin]
           REFERENCE_EXPRESSION[referencedName=Unit]
+            isClassRef: true
 
 
 MyAnnotation.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/MyAnnotation, fqName=MyAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=MyAnnotation, superNames=[Annotation]]
+    CLASS[classId=/MyAnnotation, fqName=MyAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=MyAnnotation, superNames=[Annotation]]
+      classFileMajorVersion: <current_major_version>
       MODIFIER_LIST[public final annotation]
-        ANNOTATION_ENTRY[hasValueArguments=false, shortName=Target]
+        ANNOTATION_ENTRY[hasValueArguments=true, shortName=Target]
           valueArguments: [ allowedTargets -> [AnnotationTarget.TYPE, AnnotationTarget.VALUE_PARAMETER] ]
           CONSTRUCTOR_CALLEE
             TYPE_REFERENCE
@@ -108,6 +121,26 @@ MyAnnotation.class:
                     REFERENCE_EXPRESSION[referencedName=kotlin]
                   REFERENCE_EXPRESSION[referencedName=annotation]
                 REFERENCE_EXPRESSION[referencedName=Target]
+                  isClassRef: true
+          VALUE_ARGUMENT_LIST
+            VALUE_ARGUMENT[isSpread=false]
+              VALUE_ARGUMENT_NAME
+                REFERENCE_EXPRESSION[referencedName=allowedTargets]
+              COLLECTION_LITERAL_EXPRESSION[innerExpressionCount=2]
+                DOT_QUALIFIED_EXPRESSION
+                  DOT_QUALIFIED_EXPRESSION
+                    DOT_QUALIFIED_EXPRESSION
+                      REFERENCE_EXPRESSION[referencedName=kotlin]
+                      REFERENCE_EXPRESSION[referencedName=annotation]
+                    REFERENCE_EXPRESSION[referencedName=AnnotationTarget]
+                  REFERENCE_EXPRESSION[referencedName=TYPE]
+                DOT_QUALIFIED_EXPRESSION
+                  DOT_QUALIFIED_EXPRESSION
+                    DOT_QUALIFIED_EXPRESSION
+                      REFERENCE_EXPRESSION[referencedName=kotlin]
+                      REFERENCE_EXPRESSION[referencedName=annotation]
+                    REFERENCE_EXPRESSION[referencedName=AnnotationTarget]
+                  REFERENCE_EXPRESSION[referencedName=VALUE_PARAMETER]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=MyAnnotation]
         MODIFIER_LIST[public]
         VALUE_PARAMETER_LIST
@@ -118,6 +151,7 @@ MyAnnotation.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Annotation]
+                isClassRef: true
       CLASS_BODY
 
 
@@ -125,7 +159,8 @@ ParameterizedInterface.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/ParameterizedInterface, fqName=ParameterizedInterface, isClsStubCompiledToJvmDefaultImplementation=true, isInterface=true, isLocal=false, isTopLevel=true, name=ParameterizedInterface, superNames=[]]
+    CLASS[classId=/ParameterizedInterface, fqName=ParameterizedInterface, isClsStubCompiledToJvmDefaultImplementation=true, isInterface=true, isTopLevel=true, name=ParameterizedInterface, superNames=[]]
+      classFileMajorVersion: <current_major_version>
       MODIFIER_LIST[public]
       TYPE_PARAMETER_LIST
         TYPE_PARAMETER[fqName=null, name=T]

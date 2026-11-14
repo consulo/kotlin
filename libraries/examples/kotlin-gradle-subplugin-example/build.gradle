@@ -1,16 +1,14 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import plugins.KotlinBuildPublishingPlugin
+import gradle.GradleApiKt
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("java-gradle-plugin")
     id("org.jetbrains.kotlin.jvm")
     id("com.gradle.plugin-publish")
     id("maven-publish")
-}
-
-repositories {
-    mavenLocal()
-    mavenCentral()
 }
 
 dependencies {
@@ -23,7 +21,12 @@ dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:$btaBootstrapVersion")
     compileOnly("org.jetbrains.kotlin:kotlin-stdlib:$btaBootstrapVersion")
 
-    compileOnly gradleApi()
+    GradleApiKt.addKgpGradleApiDependency(dependencies, "compileOnly")
+}
+
+plugins.withType(JavaGradlePluginPlugin).configureEach {
+    // Removing Gradle api default dependency added by 'java-gradle-plugin'
+    configurations["compileOnlyApi"].dependencies.remove(dependencies.gradleApi())
 }
 
 GradleCommonKt.configureCommonPublicationSettingsForGradle(project, false, false)

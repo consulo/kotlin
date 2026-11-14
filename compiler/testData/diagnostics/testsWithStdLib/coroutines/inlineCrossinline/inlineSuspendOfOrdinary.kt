@@ -1,6 +1,5 @@
 // RUN_PIPELINE_TILL: FRONTEND
 // DIAGNOSTICS: -UNUSED_VARIABLE -UNUSED_PARAMETER
-// SKIP_TXT
 // WITH_COROUTINES
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*
@@ -21,7 +20,7 @@ suspend inline fun test(c: () -> Unit) {
         }
     }
     val l = { <!NON_LOCAL_RETURN_NOT_ALLOWED!>c<!>() }
-    <!USAGE_IS_NOT_INLINABLE!>c<!>.startCoroutine(EmptyContinuation)
+    c.<!NONE_APPLICABLE!>startCoroutine<!>(EmptyContinuation)
 }
 
 suspend fun calculate() = "OK"

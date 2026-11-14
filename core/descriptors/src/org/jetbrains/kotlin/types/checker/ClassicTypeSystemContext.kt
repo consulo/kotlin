@@ -338,19 +338,9 @@ interface ClassicTypeSystemContext : TypeSystemInferenceExtensionContext, TypeSy
         return org.jetbrains.kotlin.types.checker.captureFromArguments(type, status)
     }
 
-    override fun TypeConstructorMarker.isAnyConstructor(): Boolean {
+    override fun TypeConstructorMarker.isClassWithId(classId: ClassId): Boolean {
         require(this is TypeConstructor, this::errorMessage)
-        return KotlinBuiltIns.isTypeConstructorForGivenClass(this, FqNames.any)
-    }
-
-    override fun TypeConstructorMarker.isNothingConstructor(): Boolean {
-        require(this is TypeConstructor, this::errorMessage)
-        return KotlinBuiltIns.isTypeConstructorForGivenClass(this, FqNames.nothing)
-    }
-
-    override fun TypeConstructorMarker.isArrayConstructor(): Boolean {
-        require(this is TypeConstructor, this::errorMessage)
-        return KotlinBuiltIns.isTypeConstructorForGivenClass(this, FqNames.array)
+        return KotlinBuiltIns.isTypeConstructorForGivenClass(this, classId.asSingleFqName().toUnsafe())
     }
 
     override fun KotlinTypeMarker.asTypeArgument(): TypeArgumentMarker {
@@ -640,6 +630,14 @@ interface ClassicTypeSystemContext : TypeSystemInferenceExtensionContext, TypeSy
         errorSupportedOnlyInTypeInference()
     }
 
+    override fun createCapturedTypeForSelfReferentialSupertypes(
+        typeVariable: TypeVariableTypeConstructorMarker,
+        supertypes: List<KotlinTypeMarker>,
+        status: CaptureStatus,
+    ): CapturedTypeMarker {
+        errorSupportedOnlyInTypeInference()
+    }
+
     override fun createStubTypeForBuilderInference(typeVariable: TypeVariableMarker): StubTypeMarker {
         errorSupportedOnlyInTypeInference()
     }
@@ -775,11 +773,6 @@ interface ClassicTypeSystemContext : TypeSystemInferenceExtensionContext, TypeSy
         return (declarationDescriptor as? ClassDescriptor)?.valueClassRepresentation is InlineClassRepresentation
     }
 
-    override fun TypeConstructorMarker.isMultiFieldValueClass(): Boolean {
-        require(this is TypeConstructor, this::errorMessage)
-        return (declarationDescriptor as? ClassDescriptor)?.valueClassRepresentation is MultiFieldValueClassRepresentation
-    }
-
     override fun TypeConstructorMarker.getValueClassProperties(): List<Pair<Name, SimpleTypeMarker>>? {
         require(this is TypeConstructor, this::errorMessage)
         return (declarationDescriptor as? ClassDescriptor)?.valueClassRepresentation?.underlyingPropertyNamesToTypes
@@ -795,13 +788,13 @@ interface ClassicTypeSystemContext : TypeSystemInferenceExtensionContext, TypeSy
         return representativeUpperBound
     }
 
-    override fun KotlinTypeMarker.getUnsubstitutedUnderlyingType(): KotlinTypeMarker? {
+    override fun KotlinTypeMarker.getUnsubstitutedUnderlyingTypeInJvm(): KotlinTypeMarker? {
         require(this is KotlinType, this::errorMessage)
         return unsubstitutedUnderlyingType()
     }
 
     override fun typeSubstitutorForUnderlyingType(map: Map<TypeConstructorMarker, KotlinTypeMarker>): TypeSubstitutorMarker =
-        map.map { (parameter, argument) ->
+        map.map { [parameter, argument] ->
             (parameter as TypeConstructor) to (argument as KotlinType).asTypeProjection()
         }.toMap().let { TypeSubstitutor.create(it) }
 
@@ -907,10 +900,6 @@ interface ClassicTypeSystemContext : TypeSystemInferenceExtensionContext, TypeSy
         return (baseType.memberScope as? SubstitutingScope)?.substitutor
     }
 
-    override fun usePreciseSimplificationToFlexibleLowerConstraint(): Boolean = false
-
-    override fun simplifyFlexibleUpperConstraintWithDnnBoundToNullable(): Boolean = true
-
     override fun substitutionSupertypePolicy(type: RigidTypeMarker): TypeCheckerState.SupertypesPolicy {
         require(type is SimpleType, type::errorMessage)
         val substitutor = TypeConstructorSubstitution.create(type).buildSubstitutor()
@@ -934,14 +923,6 @@ interface ClassicTypeSystemContext : TypeSystemInferenceExtensionContext, TypeSy
 
     override fun supportsImprovedVarianceInCst(): Boolean {
         return false
-    }
-}
-
-fun TypeVariance.convertVariance(): Variance {
-    return when (this) {
-        TypeVariance.INV -> Variance.INVARIANT
-        TypeVariance.IN -> Variance.IN_VARIANCE
-        TypeVariance.OUT -> Variance.OUT_VARIANCE
     }
 }
 

@@ -1,9 +1,9 @@
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: null
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Local
   contextReceivers: []
   isActual: false
   isData: false
@@ -12,10 +12,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: CLASS
   modality: FINAL
   name: Generated
   origin: PLUGIN
+  psi: null
+  realPsi: null
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -26,6 +29,6 @@ KaNamedClassSymbol:
   visibility: LOCAL
   getContainingFileSymbol: KaFileSymbol(generatedNestedClassInLocalClass.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: null

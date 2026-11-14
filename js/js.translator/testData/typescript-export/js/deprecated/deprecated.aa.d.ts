@@ -1,12 +1,13 @@
 declare namespace JS_TESTS {
     type Nullable<T> = T | null | undefined
     function KtSingleton<T>(): T & (abstract new() => any);
-
     namespace foo {
         /** @deprecated message 2 */
         const bar: string;
+        const hiddenProperty: string;
         /** @deprecated message 1 */
         function funktion(): void;
+        function hiddenFunction(): void;
         /** @deprecated message 3 */
         class TestClass {
             constructor();
@@ -15,6 +16,15 @@ declare namespace JS_TESTS {
             /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
             namespace $metadata$ {
                 const constructor: abstract new () => TestClass;
+            }
+        }
+        class HiddenClass {
+            constructor();
+        }
+        namespace HiddenClass {
+            /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
+            namespace $metadata$ {
+                const constructor: abstract new () => HiddenClass;
             }
         }
         class AnotherClass {
@@ -118,3 +128,5 @@ declare namespace JS_TESTS {
         }
     }
 }
+
+

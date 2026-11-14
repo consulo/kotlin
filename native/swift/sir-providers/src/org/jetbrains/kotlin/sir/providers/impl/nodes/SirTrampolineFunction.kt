@@ -9,8 +9,9 @@ import org.jetbrains.kotlin.sir.*
 import org.jetbrains.kotlin.sir.util.allParameters
 import org.jetbrains.kotlin.sir.util.name
 import org.jetbrains.kotlin.sir.util.swiftFqName
+import org.jetbrains.kotlin.sir.util.swiftIdentifier
 
-public class SirTrampolineFunction(
+public open class SirTrampolineFunction(
     public val source: SirFunction,
 ) : SirFunction() {
     override lateinit var parent: SirDeclarationParent
@@ -48,25 +49,33 @@ public class SirTrampolineFunction(
     override val bridges: List<SirBridge> = emptyList()
 
     override var body: SirFunctionBody?
-        get() = when {
-            attributes.any { it is SirAttribute.Available && it.isUnusable } -> null
-            source.parameters.any { it.isVariadic } -> source.body
-            else -> buildTrampolineToSource()
-        }
+        get() = buildTrampolineToSource(source)
         set(_) = Unit
+}
 
-    private fun buildTrampolineToSource(): SirFunctionBody = SirFunctionBody(
-        listOf(
-            buildString {
+internal fun SirDeclaration.buildTrampolineToSource(
+    source: SirFunction,
+    additionalStatements: MutableList<String>.() -> Unit = {},
+): SirFunctionBody? {
+    if (attributes.any { it is SirAttribute.Available && it.isUnusable }) return null
+    val statements = buildList {
+        additionalStatements()
+        if (source.parameters.any { it.isVariadic }) {
+            addAll(source.body?.statements ?: return null)
+        } else {
+            add(buildString {
+                append("return ")
                 if (source.errorType != SirType.never) append("try ")
                 if (source.isAsync) append("await ")
                 append(source.swiftFqName)
                 append("(")
-                append(allParameters.joinToString { it.forward ?: error("unreachable") })
+                append(source.allParameters.joinToString { it.forward ?: error("unreachable") })
                 append(")")
-            }
-        )
-    )
+            })
+        }
+    }
+    return SirFunctionBody(statements)
 }
 
-private val SirParameter.forward: String? get() = this.name?.let { name -> this.argumentName?.let { "$it: $name" } ?: name }
+private val SirParameter.forward: String?
+    get() = this.name?.let { name -> this.argumentName?.let { "${it.swiftIdentifier}: ${name.swiftIdentifier}" } ?: name.swiftIdentifier }

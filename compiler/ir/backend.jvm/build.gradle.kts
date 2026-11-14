@@ -1,4 +1,6 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
@@ -6,7 +8,13 @@ dependencies {
     api(project(":compiler:backend"))
     api(project(":compiler:ir.tree"))
     api(project(":compiler:ir.backend.common"))
-    api(project(":compiler:backend.common.jvm"))
+    implementation(project(":compiler:backend.common.jvm"))
+    implementation(project(":compiler:frontend.common-psi"))
+    implementation(project(":compiler:serialization.common"))
+    implementation(project(":compiler:psi:psi-frontend-utils"))
+    implementation(project(":core:descriptors"))
+    implementation(project(":core:descriptors.jvm"))
+    implementation(project(":core:error.handling"))
     compileOnly(intellijCore())
     compileOnly(libs.intellij.asm)
 }

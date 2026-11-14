@@ -26,13 +26,25 @@ KtTypeAlias(102,124): 'typealias Other = Some'
   null
 
 KtTypeReference(120,124): 'Some'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Some
+    ]
 
 KtUserType(120,124): 'Some'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Some
+    ]
 
 KtNameReferenceExpression(120,124): 'Some'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Some
+    ]
 
 KtNamedFunction(126,189): 'fun foo(o: Other) = when (o) {'
   null
@@ -44,19 +56,34 @@ KtParameter(134,142): 'o: Other'
   null
 
 KtTypeReference(137,142): 'Other'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Other
+    ]
 
 KtUserType(137,142): 'Other'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Other
+    ]
 
 KtNameReferenceExpression(137,142): 'Other'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Other
+    ]
 
 KtWhenExpression(146,189): 'when (o) {'
   null
 
 KtNameReferenceExpression(152,153): 'o'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       o: {Other=} Some
     ]
@@ -68,7 +95,10 @@ KtWhenConditionWithExpression(161,166): 'FIRST'
   null
 
 KtNameReferenceExpression(161,166): 'FIRST'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: Used
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /Some.FIRST
     ]
@@ -83,7 +113,10 @@ KtWhenConditionWithExpression(176,182): 'SECOND'
   null
 
 KtNameReferenceExpression(176,182): 'SECOND'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: Used
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /Some.SECOND
     ]

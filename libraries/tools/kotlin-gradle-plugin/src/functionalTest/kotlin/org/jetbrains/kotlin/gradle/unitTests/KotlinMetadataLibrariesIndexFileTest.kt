@@ -3,10 +3,9 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
+import org.jetbrains.kotlin.gradle.plugin.mpp.KmpModuleIdentifier
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinMetadataLibrariesIndexFile
 import org.jetbrains.kotlin.gradle.plugin.mpp.TransformedMetadataLibraryRecord
 import org.junit.jupiter.api.io.TempDir
@@ -46,11 +45,86 @@ class KotlinMetadataLibrariesIndexFileTest {
         }
     }
 
+    @Test
+    fun `test - different KmpModuleIdentifier types`() {
+        val index = KotlinMetadataLibrariesIndexFile(temporaryFolder.resolve("index").also { it.createNewFile() })
+        val records = listOf(
+            TransformedMetadataLibraryRecord(
+                moduleId = KmpModuleIdentifier(
+                    groupAndName = KmpModuleIdentifier.GradleGroupAndName("group1", "name1"),
+                    componentId = KmpModuleIdentifier.ModuleComponentId("version1", "classifier1")
+                ),
+                file = "file1.jar",
+                sourceSetName = "sourceSet1"
+            ),
+            TransformedMetadataLibraryRecord(
+                moduleId = KmpModuleIdentifier(
+                    groupAndName = KmpModuleIdentifier.GradleGroupAndName("group2", "name2"),
+                    componentId = KmpModuleIdentifier.ModuleComponentId("version2", "classifier2")
+                ),
+                file = "file2.jar",
+                sourceSetName = "sourceSet2"
+            ),
+            TransformedMetadataLibraryRecord(
+                moduleId = KmpModuleIdentifier(
+                    groupAndName = null,
+                    componentId = KmpModuleIdentifier.ProjectComponentId(projectPath = ":lib", buildPath = ":")
+                ),
+                file = "file3.jar",
+                sourceSetName = null
+            )
+        )
+        index.write(records)
+        assertEquals(records, index.read())
+    }
+
+    @Test
+    fun `test - written file layout`() {
+        val index = KotlinMetadataLibrariesIndexFile(temporaryFolder.resolve("index"))
+        val record = TransformedMetadataLibraryRecord(
+            moduleId = KmpModuleIdentifier(
+                groupAndName = KmpModuleIdentifier.GradleGroupAndName("group", "name"),
+                componentId = KmpModuleIdentifier.ProjectComponentId(projectPath = ":lib", buildPath = ":")
+            ),
+            file = "lib.klib",
+            sourceSetName = null
+        )
+        //language=JSON
+        val written = """
+            [
+                {
+                    "moduleId": {
+                        "groupAndName": {
+                            "group": "group",
+                            "name": "name"
+                        },
+                        "componentId": {
+                            "type": "project",
+                            "projectPath": ":lib",
+                            "buildPath": ":"
+                        }
+                    },
+                    "file": "lib.klib",
+                    "sourceSetName": null
+                }
+            ]
+        """.trimIndent()
+
+        index.write(listOf(record))
+
+        assertEquals(written, temporaryFolder.resolve("index").readText())
+        assertEquals(listOf(record), index.read())
+    }
+
+
     private fun testWriteRead(files: Iterable<File>) {
         val index = KotlinMetadataLibrariesIndexFile(temporaryFolder.resolve("index").also { it.createNewFile() })
         val records = files.map {
             TransformedMetadataLibraryRecord(
-                moduleId = "a",
+                moduleId = KmpModuleIdentifier(
+                    groupAndName = KmpModuleIdentifier.GradleGroupAndName("a", "b"),
+                    componentId = KmpModuleIdentifier.ModuleComponentId("c", "d")
+                ),
                 file = it.absolutePath,
                 sourceSetName = it.name
             )

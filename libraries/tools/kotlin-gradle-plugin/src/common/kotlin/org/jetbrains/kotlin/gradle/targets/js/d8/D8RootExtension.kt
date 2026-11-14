@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.gradle.utils.property
         "D8EnvSpec",
         "org.jetbrains.kotlin.gradle.targets.wasm.d8.D8EnvSpec"
     ),
-    level = DeprecationLevel.WARNING
+    level = DeprecationLevel.ERROR
 )
 @OptIn(ExperimentalWasmDsl::class)
 open class D8RootExtension(
@@ -49,7 +49,7 @@ open class D8RootExtension(
      * The same as in [D8EnvSpec.version]
      */
     override val versionProperty: org.gradle.api.provider.Property<String> = project.objects.property<String>()
-        .convention("14.2.82")
+        .convention("15.0.45")
 
     /**
      * Specify the edition of the D8.

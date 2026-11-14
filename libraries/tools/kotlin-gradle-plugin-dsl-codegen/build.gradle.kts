@@ -1,19 +1,17 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("org.jetbrains.kotlin.jvm")
-    id("project-tests-convention")
 }
 
 dependencies {
     api(gradleApi())
     api(project(":kotlin-gradle-plugin-api"))
     api(project(":native:kotlin-native-utils"))
-    implementation(projectTests(":generators")) {
-        // because of hacky projectTests this transitive dependency does not work well
-        // also it may bring a lot of unrelated dependencies
-        isTransitive = false
-    }
+    implementation(testFixtures(project(":generators")))
     implementation(project(":core:util.runtime"))
-    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
     testImplementation(testFixtures(project(":compiler:tests-common")))
     testImplementation(kotlin("test"))
 }
@@ -58,8 +56,7 @@ fun JavaForkOptions.setKGPSourceRootPaths() {
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit4, parallel = true) {
-        useJUnit() // use JUnit4 as the `:generators` tests use JUnit 4, and we reuse the logic.
+    testTask {
         setKGPSourceRootPaths()
     }
 }

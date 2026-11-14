@@ -24,7 +24,17 @@ annotation class FirCacheInternals
  * @see FirCachesFactory
  */
 abstract class FirCache<in K : Any, out V, in CONTEXT> {
+    /**
+     * Gets the value from the cache for the given [key] and [context].
+     * The value is computed in case it wasn't done before.
+     */
     abstract fun getValue(key: K, context: CONTEXT): V
+
+    /**
+     * Gets the value from the cache for the given [key] if it was computed before.
+     *
+     * @return the cached value or `null` if it wasn't computed before
+     */
     abstract fun getValueIfComputed(key: K): V?
 
     /**
@@ -32,6 +42,9 @@ abstract class FirCache<in K : Any, out V, in CONTEXT> {
      */
     @FirCacheInternals
     abstract val cachedValues: Collection<V>
+
+    @FirCacheInternals
+    abstract fun clear()
 }
 
 @Suppress("NOTHING_TO_INLINE")
@@ -48,4 +61,20 @@ abstract class FirLazyValue<out V> {
 
 operator fun <V> FirLazyValue<V>.getValue(thisRef: Any?, property: KProperty<*>): V {
     return getValue()
+}
+
+/**
+ * A lazily computed single value which uses a [CONTEXT] supplied at access time to compute the value [V].
+ *
+ * Unlike [FirLazyValue], whose computation is captured at construction time, [FirLazyValueWithContext] receives its [CONTEXT] transiently
+ * via [getValue], so the context does not have to be retained until the value's computation, nor after. This is useful when the context
+ * should not be kept indefinitely.
+ *
+ * Just like [FirCache]:
+ *
+ * - The [CONTEXT] is only used for the *first* computation of the value and ignored on subsequent accesses.
+ * - The value might be computed more than once when accessed concurrently, but all threads will always observe the same value.
+ */
+abstract class FirLazyValueWithContext<out V, in CONTEXT> {
+    abstract fun getValue(context: CONTEXT): V
 }

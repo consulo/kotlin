@@ -9,12 +9,13 @@ repositories {
 
 kotlin {
     js {
+        generateTypeScriptDefinitions()
         nodejs()
         binaries.executable()
     }
 
     sourceSets {
-        val jsTest by getting {
+        val jsTest = getByName("jsTest") {
             dependencies {
                 implementation(kotlin("test"))
             }

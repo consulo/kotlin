@@ -121,6 +121,11 @@ object SourceElementPositioningStrategies {
         PositioningStrategies.INLINE_OR_VALUE_MODIFIER
     )
 
+    val VALUE_MODIFIER = SourceElementPositioningStrategy(
+        LightTreePositioningStrategies.VALUE_MODIFIER,
+        PositioningStrategies.VALUE_MODIFIER
+    )
+
     val INNER_MODIFIER = SourceElementPositioningStrategy(
         LightTreePositioningStrategies.INNER_MODIFIER,
         PositioningStrategies.INNER_MODIFIER
@@ -156,6 +161,11 @@ object SourceElementPositioningStrategies {
         PositioningStrategies.OPERATOR
     )
 
+    val REFERENCE_OR_OPERATOR = SourceElementPositioningStrategy(
+        LightTreePositioningStrategies.REFERENCE_OR_OPERATOR,
+        PositioningStrategies.REFERENCE_OR_OPERATOR
+    )
+
     val PARAMETER_DEFAULT_VALUE = SourceElementPositioningStrategy(
         LightTreePositioningStrategies.PARAMETER_DEFAULT_VALUE,
         PositioningStrategies.PARAMETER_DEFAULT_VALUE
@@ -174,11 +184,6 @@ object SourceElementPositioningStrategies {
     val NAME_OF_NAMED_ARGUMENT = SourceElementPositioningStrategy(
         LightTreePositioningStrategies.NAME_OF_NAMED_ARGUMENT,
         PositioningStrategies.NAME_OF_NAMED_ARGUMENT
-    )
-
-    val VALUE_ARGUMENTS = SourceElementPositioningStrategy(
-        LightTreePositioningStrategies.VALUE_ARGUMENTS,
-        PositioningStrategies.VALUE_ARGUMENTS
     )
 
     val VALUE_ARGUMENTS_LIST = SourceElementPositioningStrategy(

@@ -1,7 +1,6 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER
 // WITH_STDLIB
-// SKIP_TXT
 
 class A<T>
 class B<T>(val x: MutableList<T>) : MutableList<T> by x

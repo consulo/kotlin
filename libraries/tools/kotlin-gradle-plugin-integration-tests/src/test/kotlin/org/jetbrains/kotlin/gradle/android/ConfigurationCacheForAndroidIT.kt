@@ -8,29 +8,28 @@ package org.jetbrains.kotlin.gradle.android
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.AbstractConfigurationCacheIT
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 
 @DisplayName("Configuration cache in Android project")
 @AndroidGradlePluginTests
+@MustRunOnChangesInGradle
 class ConfigurationCacheForAndroidIT : AbstractConfigurationCacheIT() {
 
-    fun buildOptions(gradleVersion: GradleVersion) = if (gradleVersion.version < TestVersions.Gradle.MAX_SUPPORTED) {
-        defaultBuildOptions.disableIsolatedProjects()
-    } else {
-        defaultBuildOptions
-    }
-
+    @TestMetadata("kapt/android-dagger")
     @DisplayName("works in android plus kapt project")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testAndroidKaptProject(
         gradleVersion: GradleVersion,
         agpVersion: String,
         jdkVersion: JdkVersions.ProvidedJdk,
     ) {
         project(
-            "kapt2/android-dagger",
+            "kapt/android-dagger",
             gradleVersion,
-            buildOptions = buildOptions(gradleVersion).copy(androidVersion = agpVersion),
+            buildOptions = defaultBuildOptions.copy(androidVersion = agpVersion),
             buildJdk = jdkVersion.location
         ) {
             gradleProperties.append("\nkapt.incremental.apt=false")
@@ -44,6 +43,35 @@ class ConfigurationCacheForAndroidIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @DisplayName("works in android plus com.android.legacy-kapt project on AGP 9 new DSL")
+    @GradleAndroidTest
+    @AndroidTestVersions(minVersion = TestVersions.AGP.AGP_90)
+    fun testAndroidLegacyKaptProject(
+        gradleVersion: GradleVersion,
+        agpVersion: String,
+        jdkVersion: JdkVersions.ProvidedJdk,
+    ) {
+        project(
+            "empty",
+            gradleVersion,
+            buildOptions = defaultBuildOptions.copy(
+                androidVersion = agpVersion,
+                enableLegacyAgpDsl = false,
+            ),
+            buildJdk = jdkVersion.location,
+        ) {
+            setUpLegacyKaptDaggerProject()
+            gradleProperties.append("\nkapt.incremental.apt=false")
+            testConfigurationCacheOf(
+                ":kaptGenerateStubsDebugKotlin",
+                ":kaptDebugKotlin",
+                ":compileDebugKotlin",
+                suppressAgpWarnings = true,
+            )
+        }
+    }
+
+    @TestMetadata("AndroidProject")
     @DisplayName("works in android project")
     @GradleAndroidTest
     fun testKotlinAndroidProject(
@@ -54,7 +82,7 @@ class ConfigurationCacheForAndroidIT : AbstractConfigurationCacheIT() {
         project(
             "AndroidProject",
             gradleVersion,
-            buildOptions = buildOptions(gradleVersion).copy(androidVersion = agpVersion),
+            buildOptions = defaultBuildOptions.copy(androidVersion = agpVersion),
             buildJdk = jdkVersion.location
         ) {
             testConfigurationCacheOf(
@@ -65,6 +93,7 @@ class ConfigurationCacheForAndroidIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("AndroidIncrementalMultiModule")
     @DisplayName("works with android tests")
     @GradleAndroidTest
     fun testKotlinAndroidProjectTests(
@@ -75,7 +104,7 @@ class ConfigurationCacheForAndroidIT : AbstractConfigurationCacheIT() {
         project(
             "AndroidIncrementalMultiModule",
             gradleVersion,
-            buildOptions = buildOptions(gradleVersion).copy(androidVersion = agpVersion),
+            buildOptions = defaultBuildOptions.copy(androidVersion = agpVersion),
             buildJdk = jdkVersion.location
         ) {
             testConfigurationCacheOf(

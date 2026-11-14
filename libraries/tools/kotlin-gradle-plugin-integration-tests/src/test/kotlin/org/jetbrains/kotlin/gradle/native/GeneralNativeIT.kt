@@ -22,6 +22,8 @@ import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.presetName
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInNative
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.OS
@@ -34,6 +36,7 @@ import kotlin.test.assertTrue
 @OsCondition(enabledOnCI = [OS.LINUX, OS.MAC, OS.WINDOWS])
 @DisplayName("Tests for general K/N builds")
 @NativeGradlePluginTests
+@MustRunOnChangesInGradle
 class GeneralNativeIT : KGPBaseTest() {
 
     private val nativeHostTargetName = MPPNativeTargets.current
@@ -59,7 +62,7 @@ class GeneralNativeIT : KGPBaseTest() {
                 file.appendText(
                     """
                     run {
-                        val serviceProvider = gradle.sharedServices.registrations.getByName("service").getService()
+                        val serviceProvider = gradle.sharedServices.registrations.findByName("service")!!.getService()
                         tasks.getByPath("compileKotlinLinux").doFirst {
                             val service = serviceProvider.get()
                             val countDownLatch = service.parameters.javaClass.getMethod("getLatch").invoke(service.parameters) as CountDownLatch
@@ -80,6 +83,7 @@ class GeneralNativeIT : KGPBaseTest() {
         }
     }
 
+    @MustRunOnChangesInNative
     @DisplayName("Can produce native libraries")
     @GradleTest
     @TestMetadata("native-binaries/libraries")
@@ -265,6 +269,7 @@ class GeneralNativeIT : KGPBaseTest() {
         )
     }
 
+    @MustRunOnChangesInNative
     @DisplayName("Checks generating lldbinit file")
     @GradleTest
     @TestMetadata("native-binaries/frameworks")
@@ -337,12 +342,6 @@ class GeneralNativeIT : KGPBaseTest() {
         nativeProject(
             "native-binaries/executables",
             gradleVersion,
-            /**
-             * Enable CC since 8.0 for KT-69918:
-             * - Before 8.0 Gradle doesn't deserialize CC during the first execution and the issue is not visible
-             * - Before 7.4.2 there is a CC serialization failure because Gradle can't serialize ComponentResult
-             */
-            buildOptions = defaultBuildOptions.disableConfigurationCacheForGradle7(gradleVersion),
         ) {
             val binaries = listOf(
                 "debugExecutable" to "native-binary",
@@ -645,7 +644,7 @@ class GeneralNativeIT : KGPBaseTest() {
                 assertFileExists(
                     testReport,
                     "Test report file $testReport does not exist, current files in directory:\n" +
-                            (testReportDir.listDirectoryEntries().joinToString(", ") ?: "empty")
+                            testReportDir.listDirectoryEntries().joinToString(", ")
                 )
                 val stacktrace = JDOMUtil.load(testReport)
                     .getChildren("testcase")
@@ -715,6 +714,65 @@ class GeneralNativeIT : KGPBaseTest() {
         }
     }
 
+    @DisplayName("Does not leak native stderr output into Gradle log (KT-69896)")
+    @GradleTest
+    @TestMetadata("native-tests")
+    @OsCondition(
+        supportedOn = [OS.LINUX, OS.MAC, OS.WINDOWS],
+        enabledOnCI = [OS.LINUX, OS.MAC], // File descriptors not released fast enough before JUnit @TempDir cleanup on Windows
+    )
+    fun testNativeStderrOutputStaysInTestLog(gradleVersion: GradleVersion) {
+        nativeProject("native-tests", gradleVersion) {
+            val marker = "KT_69896_MARKER"
+            projectPath.resolve("src/commonTest/kotlin/test.kt")
+                .appendText(
+                    """
+
+                    @Test
+                    fun stderrOutputShouldStayInTestReport() {
+                        repeat(200) { i ->
+                            IllegalStateException("$marker-${'$'}i").printStackTrace()
+                        }
+                    }
+                    """.trimIndent()
+                )
+
+            build(
+                "hostTest",
+                // Use QUIET log level so that only our test-reporting path can surface the marker.
+                // This ensures assertOutputDoesNotContain(marker) tests our TC message handling,
+                // not Gradle's default logging infrastructure.
+                buildOptions = defaultBuildOptions.copy(
+                    logLevel = LogLevel.QUIET,
+                    // The native-tests project has iOS targets that emit DisabledNativeTargetTaskWarning
+                    // on Linux. With warningMode=Fail (CI default), these diagnostics abort the build
+                    // before tests run. Keep warningMode=Fail but prevent severity escalation.
+                    ignoreWarningModeSeverityOverride = true,
+                ),
+            ) {
+                assertTasksExecuted(":hostTest")
+                assertOutputDoesNotContain(marker)
+            }
+
+            val hostTestReports = projectPath.resolve("build/test-results/hostTest")
+                .listDirectoryEntries("*.xml")
+            assertTrue(hostTestReports.isNotEmpty(), "No hostTest XML reports found")
+
+            val targetCaseName = "stderrOutputShouldStayInTestReport"
+            val markerInReport = hostTestReports.any { report ->
+                val reportElement = JDOMUtil.load(report)
+                val targetCase = reportElement.getChildren("testcase")
+                    .firstOrNull { it.getAttributeValue("name")?.startsWith(targetCaseName) == true }
+                    ?: return@any false
+
+                val testCaseSystemOut = targetCase.getChild("system-out")?.text.orEmpty()
+                val suiteSystemOut = reportElement.getChild("system-out")?.text.orEmpty()
+                testCaseSystemOut.contains(marker) || suiteSystemOut.contains(marker)
+            }
+            assertTrue(markerInReport, "Expected marker '$marker' in hostTest system-out output")
+        }
+    }
+
     @DisplayName("Checks that build fails if a test executable crashes")
     @GradleTest
     @TestMetadata("native-tests")
@@ -728,6 +786,7 @@ class GeneralNativeIT : KGPBaseTest() {
         }
     }
 
+    @MustRunOnChangesInNative
     @DisplayName("Checks builds with cinterop tool")
     @GradleTest
     @TestMetadata("native-cinterop")
@@ -834,6 +893,7 @@ class GeneralNativeIT : KGPBaseTest() {
         }
     }
 
+    @MustRunOnChangesInNative
     @DisplayName("Checks native arguments with the spaces in it")
     @TestMetadata("new-mpp-lib-and-app/sample-lib")
     @GradleTest
@@ -872,7 +932,7 @@ class GeneralNativeIT : KGPBaseTest() {
 
     @DisplayName("Checks binary options dsl")
     @GradleTest
-    @TestMetadata("native-binaries")
+    @TestMetadata("native-binaries/executables")
     fun testBinaryOptionsDSL(gradleVersion: GradleVersion) {
         nativeProject("native-binaries/executables", gradleVersion) {
             buildGradleKts.appendText(
@@ -892,7 +952,7 @@ class GeneralNativeIT : KGPBaseTest() {
 
     @DisplayName("Checks binary options property")
     @GradleTest
-    @TestMetadata("native-binaries")
+    @TestMetadata("native-binaries/executables")
     fun testBinaryOptionsProperty(gradleVersion: GradleVersion) {
         nativeProject("native-binaries/executables", gradleVersion) {
             build(
@@ -908,7 +968,7 @@ class GeneralNativeIT : KGPBaseTest() {
 
     @DisplayName("Checks binary options priority")
     @GradleTest
-    @TestMetadata("native-binaries")
+    @TestMetadata("native-binaries/executables")
     fun testBinaryOptionsPriority(gradleVersion: GradleVersion) {
         nativeProject("native-binaries/executables", gradleVersion) {
             buildGradleKts.appendText(
@@ -969,6 +1029,12 @@ class GeneralNativeIT : KGPBaseTest() {
     fun shouldAllowToOverrideDownloadUrl(gradleVersion: GradleVersion, @TempDir customKonanDir: Path) {
         nativeProject(
             "native-parallel", gradleVersion,
+            buildOptions = defaultBuildOptions.copy(
+                nativeOptions = defaultBuildOptions.nativeOptions.copy(
+                    distributionDownloadFromMaven = false // please remove this test, when this flag is removed
+                ),
+                konanDataDir = customKonanDir.toAbsolutePath()
+            ),
             dependencyManagement = DependencyManagement.DisabledDependencyManagement
         ) {
             gradleProperties.appendText(
@@ -979,16 +1045,14 @@ class GeneralNativeIT : KGPBaseTest() {
             )
 
             gradleProperties.replaceText("cacheRedirectorEnabled=true", "cacheRedirectorEnabled=false")
+            // Force loading build dependencies through cache redirector to avoid Maven central throttling/429 error
+            settingsGradleKts.readText()
+                .replace("mavenCentral()", "maven(url = \"https://cache-redirector.jetbrains.com/repo.maven.apache.org/maven2\")")
+                .replace("google()", "maven(url = \"https://cache-redirector.jetbrains.com/maven.google.com\")")
+                .replace("gradlePluginPortal()", "maven(url = \"https://cache-redirector.jetbrains.com/plugins.gradle.org/m2\")")
+                .let { settingsGradleKts.writeText(it) }
 
-            buildAndFail(
-                "build",
-                buildOptions = defaultBuildOptions.copy(
-                    nativeOptions = defaultBuildOptions.nativeOptions.copy(
-                        distributionDownloadFromMaven = false // please remove this test, when this flag is removed
-                    ),
-                    konanDataDir = customKonanDir.toAbsolutePath()
-                )
-            ) {
+            buildAndFail("build") {
                 assertOutputContains("Could not HEAD 'https://non-existent.net")
             }
         }
@@ -997,7 +1061,7 @@ class GeneralNativeIT : KGPBaseTest() {
     // KT-52303
     @DisplayName("Checks that changing build dir applied to binaries")
     @GradleTest
-    @TestMetadata("native-binaries")
+    @TestMetadata("native-binaries/executables")
     fun testBuildDirChangeAppliedToBinaries(gradleVersion: GradleVersion) {
         nativeProject("native-binaries/executables", gradleVersion) {
             buildGradleKts.appendText(
@@ -1053,7 +1117,7 @@ class GeneralNativeIT : KGPBaseTest() {
 
     @DisplayName("Test compiler arguments for K/Native Tasks")
     @GradleTest
-    @TestMetadata("native-binaries")
+    @TestMetadata("native-libraries")
     fun testCompilerArgumentsLogLevel(gradleVersion: GradleVersion) {
         nativeProject("native-libraries", gradleVersion) {
             val updatedBuildOptions = buildOptions.copy(
@@ -1077,7 +1141,6 @@ class GeneralNativeIT : KGPBaseTest() {
     }
 
     @DisplayName("KT-72705: native compile task should not use project's version as an input property")
-    @TestMetadata("emptyKts")
     @OsCondition(enabledOnCI = [OS.MAC])
     @GradleTest
     fun testKotlinNativeCompileTaskDontUseProjectVersionAsAnInput(gradleVersion: GradleVersion) {

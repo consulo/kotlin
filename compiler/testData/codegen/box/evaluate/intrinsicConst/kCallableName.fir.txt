@@ -3,15 +3,15 @@ FILE: kCallableName.kt
         ^id this@R|/id|
     }
     public final class A : R|kotlin/Any| {
-        public [ContainingClassKey=A] constructor([CorrespondingProperty=/A.OK] OK: R|kotlin/Int|, [CorrespondingProperty=/A.somePropertyWithLongName] somePropertyWithLongName: R|kotlin/String|): R|A| {
+        public constructor(OK: R|kotlin/Int|, somePropertyWithLongName: R|kotlin/String|): R|A| {
             super<R|kotlin/Any|>()
         }
 
-        public final [IsFromPrimaryConstructor=true] val OK: R|kotlin/Int| = R|<local>/OK|
-            public [ContainingClassKey=A] get(): R|kotlin/Int|
+        public final val OK: R|kotlin/Int| = R|<local>/OK|
+            public get(): R|kotlin/Int|
 
-        public final [IsFromPrimaryConstructor=true] val somePropertyWithLongName: R|kotlin/String| = R|<local>/somePropertyWithLongName|
-            public [ContainingClassKey=A] get(): R|kotlin/String|
+        public final val somePropertyWithLongName: R|kotlin/String| = R|<local>/somePropertyWithLongName|
+            public get(): R|kotlin/String|
 
         public final fun foo(): R|kotlin/Unit| {
         }
@@ -26,6 +26,10 @@ FILE: kCallableName.kt
     public final val topLevelProp: R|kotlin/Int| = Int(1)
         public get(): R|kotlin/Int|
     public final fun R|kotlin/Int|.baz(): R|kotlin/Unit| {
+    }
+    public abstract fun interface FunInterface : R|kotlin/Any| {
+        public abstract fun foo(): R|kotlin/Unit|
+
     }
     public final const [EvaluatedValue=String(OK)] val propertyName1: R|kotlin/String| = Q|A|::R|/A.OK|.R|SubstitutionOverride<kotlin/reflect/KProperty1.name: R|kotlin/String|>|
         public get(): R|kotlin/String|
@@ -44,6 +48,8 @@ FILE: kCallableName.kt
     public final const [EvaluatedValue=String(topLevelProp)] val topLevelPropName: R|kotlin/String| = ::R|/topLevelProp|.R|SubstitutionOverride<kotlin/reflect/KProperty0.name: R|kotlin/String|>|
         public get(): R|kotlin/String|
     public final const [EvaluatedValue=String(OK!)] val nameInComplexExpression: R|kotlin/String| = Q|A|::R|/A.OK|.R|SubstitutionOverride<kotlin/reflect/KProperty1.name: R|kotlin/String|>|.R|kotlin/String.plus|(String(!))
+        public get(): R|kotlin/String|
+    public final const [EvaluatedValue=String(FunInterface)] val funInterfaceName: R|kotlin/String| = ::R|/FunInterface|.R|SubstitutionOverride<kotlin/reflect/KFunction1.name: R|kotlin/String|>|
         public get(): R|kotlin/String|
     public final fun box(): R|kotlin/String| {
         when () {
@@ -91,6 +97,12 @@ FILE: kCallableName.kt
         when () {
             !=(R|/nameInComplexExpression|.R|/id|<R|kotlin/String|>(), String(OK!)) ->  {
                 ^box String(Fail nameInComplexExpression)
+            }
+        }
+
+        when () {
+            !=(R|/funInterfaceName|.R|/id|<R|kotlin/String|>(), String(FunInterface)) ->  {
+                ^box String(Fail FunInterface)
             }
         }
 

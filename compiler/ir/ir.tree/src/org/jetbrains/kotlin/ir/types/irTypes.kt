@@ -63,7 +63,7 @@ fun IrType.addAnnotations(newAnnotations: List<IrAnnotation>): IrType =
             this
     }
 
-fun IrType.removeAnnotations(predicate: (IrConstructorCall) -> Boolean): IrType =
+fun IrType.removeAnnotations(predicate: (IrAnnotation) -> Boolean): IrType =
     when (this) {
         is IrSimpleType ->
             toBuilder().apply {
@@ -168,6 +168,14 @@ private fun makeKotlinType(
     }
     return classifier.descriptor.defaultType.replace(newArguments = kotlinTypeArguments).makeNullableAsSpecified(hasQuestionMark)
 }
+
+val IrClassSymbol.defaultTypeWithoutArguments: IrSimpleType
+    get() = IrSimpleTypeImpl(
+        classifier = this,
+        nullability = SimpleTypeNullability.DEFINITELY_NOT_NULL,
+        arguments = emptyList(),
+        annotations = emptyList(),
+    )
 
 val IrClassifierSymbol.defaultType: IrSimpleType
     get() = when (this) {

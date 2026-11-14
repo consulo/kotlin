@@ -86,6 +86,16 @@ internal object ClasspathSnapshotShrinker {
                     }
                     packageMemberNames.any { it in lookupNamesInScope }
                 }
+                is PackageInfoClassSnapshot -> {
+                    // Anything looked up in the package may be affected by its package-level annotations.
+                    // Additionally, PackageInfoImpact retains it transitively whenever a class of the package is retained.
+                    lookupSymbols.getLookupNamesInScope(clazz.classId.packageFqName).isNotEmpty()
+                }
+                is ModuleInfoClassSnapshot -> {
+                    // Anything looked up in a package of the module may be affected by its descriptor (e.g., a dropped `exports`).
+                    // Additionally, ModuleInfoImpact retains it transitively whenever a class of the module is retained.
+                    clazz.packages.any { lookupSymbols.getLookupNamesInScope(it).isNotEmpty() }
+                }
             }
         }
         return referencedClasses
@@ -101,6 +111,8 @@ internal object ClasspathSnapshotShrinker {
         allClasses: List<AccessibleClassSnapshot>,
         referencedClasses: List<AccessibleClassSnapshot>
     ): List<AccessibleClassSnapshot> {
+        if (referencedClasses.isEmpty()) return emptyList()
+
         val referencedClassIds = referencedClasses.map { it.classId }
         val impactingClassesResolver = AllImpacts.getReverseResolver(allClasses)
         val transitivelyReferencedClassIds: Set<ClassId> = /* Must be a Set for the presence check below */
@@ -152,12 +164,17 @@ internal fun ClasspathSnapshot.removeDuplicateAndInaccessibleClasses(): List<Acc
  * Returns all [ClassSnapshot]s in this [ClasspathSnapshot].
  *
  * If there are duplicate classes on the classpath, retain only the first one to match the compiler's behavior.
+ *
+ * Module descriptors are an exception: every modular entry stores its [ModuleInfoClassSnapshot] under the same `module-info.class` path,
+ * but the descriptors of different modules are not duplicates of each other, so they are keyed by the module name instead (two entries
+ * declaring the same module are still deduplicated, the first one wins).
  */
 private fun ClasspathSnapshot.getNonDuplicateClassSnapshots(): List<ClassSnapshot> {
     val classSnapshots = LinkedHashMap<String, ClassSnapshot>(classpathEntrySnapshots.sumOf { it.classSnapshots.size })
     for (classpathEntrySnapshot in classpathEntrySnapshots) {
-        for ((unixStyleRelativePath, classSnapshot) in classpathEntrySnapshot.classSnapshots) {
-            classSnapshots.putIfAbsent(unixStyleRelativePath, classSnapshot)
+        for ([unixStyleRelativePath, classSnapshot] in classpathEntrySnapshot.classSnapshots) {
+            val key = if (classSnapshot is ModuleInfoClassSnapshot) "${classSnapshot.classId}" else unixStyleRelativePath
+            classSnapshots.putIfAbsent(key, classSnapshot)
         }
     }
     return classSnapshots.values.toList()
@@ -208,7 +225,7 @@ private fun chooseShrinkMode(
         }
         is ToBeComputedByIncrementalCompiler -> {
             val addedLookupSymbols = lookupStorage.addedLookupSymbols
-            val (currentSnapshot, shrunkSnapshotAgainstPreviousLookups) = lazyClasspathSnapshot
+            val [currentSnapshot, shrunkSnapshotAgainstPreviousLookups] = lazyClasspathSnapshot
                 .getLazyClasspathState(lookupStorage, LazySnapshotLoadingMetrics.AssertThatDataIsAlreadyComputed)
             if (addedLookupSymbols.isEmpty()) {
                 ShrinkMode.UnchangedLookupsChangedClasspath(currentSnapshot, shrunkSnapshotAgainstPreviousLookups)
@@ -246,7 +263,7 @@ internal fun shrinkAndSaveClasspathSnapshot(
     val shrinkMode = chooseShrinkMode(compilationWasIncremental, classpathChanges, lazyClasspathSnapshot, lookupStorage)
 
     // Shrink current classpath against current lookups
-    val (currentClasspath: List<AccessibleClassSnapshot>?, shrunkCurrentClasspath: List<AccessibleClassSnapshot>?) = when (shrinkMode) {
+    val [currentClasspath: List<AccessibleClassSnapshot>?, shrunkCurrentClasspath: List<AccessibleClassSnapshot>?] = when (shrinkMode) {
         is ShrinkMode.UnchangedLookupsUnchangedClasspath -> {
             // There are no changes in the lookups and classpath, so there will be no changes in the shrunk classpath snapshot compared to
             // the previous run. Return null here as we don't need to compute this.
@@ -303,6 +320,8 @@ internal fun shrinkAndSaveClasspathSnapshot(
             else -> ", retained ${shrunkCurrentClasspath!!.size} / ${currentClasspath!!.size} classes"
         }
     }
+
+    if (!reporter.isEnabled) return
 
     reporter.addMetric(SHRINK_AND_SAVE_CLASSPATH_SNAPSHOT_EXECUTION_COUNT, 1)
     reporter.addMetric(

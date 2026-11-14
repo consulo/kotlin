@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +EnumEntries
+// RUN_PIPELINE_TILL: CODEGEN
 // WITH_STDLIB
 
 enum class Some {}

@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.cli.common.arguments
 
+import org.jetbrains.kotlin.cli.CliDiagnostics
 import org.jetbrains.kotlin.load.java.*
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.isSubpackageOf
@@ -69,7 +70,7 @@ class JavaTypeEnhancementStateParser(
             return null
         }
 
-        val (name, state) = parseAnnotationWithReportLevel(item, NULLABILITY_ANNOTATIONS_COMPILER_OPTION) ?: return null
+        val [name, state] = parseAnnotationWithReportLevel(item, NULLABILITY_ANNOTATIONS_COMPILER_OPTION) ?: return null
 
         return name to state
     }
@@ -81,7 +82,7 @@ class JavaTypeEnhancementStateParser(
         val annotationsWithReportLevels = mutableMapOf<FqName, ReportLevel>()
 
         for (item in nullabilityAnnotations) {
-            val (name, state) = parseNullabilityAnnotationReportLevels(item) ?: continue
+            val [name, state] = parseNullabilityAnnotationReportLevels(item) ?: continue
             val current = annotationsWithReportLevels[name]
             if (current == null) {
                 annotationsWithReportLevels[name] = state
@@ -128,7 +129,7 @@ class JavaTypeEnhancementStateParser(
         args?.forEach { item ->
             when {
                 item.startsWith("@") -> {
-                    val (name, state) = parseAnnotationWithReportLevel(item, compilerOption) ?: return@forEach
+                    val [name, state] = parseAnnotationWithReportLevel(item, compilerOption) ?: return@forEach
                     val current = userDefined[name]
                     if (current == null) {
                         userDefined[name] = state
@@ -147,7 +148,8 @@ class JavaTypeEnhancementStateParser(
                     }
                 }
                 item == "enable" -> {
-                    reporter.reportWarning(
+                    reporter.report(
+                        CliDiagnostics.COMPILER_ARGUMENTS_WARNING,
                         "Option 'enable' for -Xjsr305 flag is deprecated. Please use 'strict' instead"
                     )
                     if (global != null) return@forEach
@@ -184,7 +186,7 @@ class JavaTypeEnhancementStateParser(
     }
 
     private fun parseAnnotationWithReportLevel(item: String, sourceCompilerOption: String): Pair<FqName, ReportLevel>? {
-        val (name, rawState) = item.substring(1).split(":").takeIf { it.size == 2 } ?: run {
+        val [name, rawState] = item.substring(1).split(":").takeIf { it.size == 2 } ?: run {
             reportUnrecognizedReportLevel(item, sourceCompilerOption)
             return null
         }

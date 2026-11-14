@@ -19,13 +19,13 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageSources.File as PLFile
 
 fun createPartialLinkageSupportForLowerings(
-    partialLinkageConfig: PartialLinkageConfig,
-    builtIns: IrBuiltIns,
     diagnosticReporter: IrDiagnosticReporter,
-): PartialLinkageSupportForLowerings = PartialLinkageSupportForLoweringsImpl(builtIns, PartialLinkageLogger(diagnosticReporter, partialLinkageConfig.logLevel))
+    issueSink: PartialLinkageIssueSink? = null,
+): PartialLinkageSupportForLowerings = PartialLinkageSupportForLoweringsImpl(
+    PartialLinkageLogger(diagnosticReporter, issueSink)
+)
 
 internal class PartialLinkageSupportForLoweringsImpl(
-    private val builtIns: IrBuiltIns,
     private val logger: PartialLinkageLogger
 ) : PartialLinkageSupportForLowerings {
     override val isEnabled get() = true
@@ -34,20 +34,7 @@ internal class PartialLinkageSupportForLoweringsImpl(
     var linkageIssuesRendered = 0
         private set
 
-    /**
-     * To track the amount of logged linkage issues.
-     * Note that the following condition is always true: [linkageIssuesLogged] <= [linkageIssuesRendered].
-     */
-    var linkageIssuesLogged = 0
-        private set
-
-    /**
-     * To track the amount of generated `throw` expressions.
-     * Note that the following condition is always true: [throwExpressionsGenerated] <= [linkageIssuesRendered].
-     */
-    var throwExpressionsGenerated = 0
-        private set
-
+    context(irBuiltIns: IrBuiltIns)
     override fun throwLinkageError(
         partialLinkageCase: PartialLinkageCase,
         element: IrElement,
@@ -56,17 +43,15 @@ internal class PartialLinkageSupportForLoweringsImpl(
     ): IrCall {
         val errorMessage = renderAndLogLinkageError(partialLinkageCase, element, file, significance)
 
-        throwExpressionsGenerated++ // Track each generated `throw` expression.
-
         return IrCallImpl(
             startOffset = element.startOffset,
             endOffset = element.endOffset,
-            type = builtIns.nothingType,
-            symbol = builtIns.linkageErrorSymbol,
+            type = irBuiltIns.nothingType,
+            symbol = irBuiltIns.linkageErrorSymbol,
             typeArgumentsCount = 0,
             origin = IrStatementOrigin.PARTIAL_LINKAGE_RUNTIME_ERROR
         ).apply {
-            arguments[0] = IrConstImpl.string(startOffset, endOffset, builtIns.stringType, errorMessage)
+            arguments[0] = IrConstImpl.string(startOffset, endOffset, irBuiltIns.stringType, errorMessage)
         }
     }
 
@@ -79,7 +64,6 @@ internal class PartialLinkageSupportForLoweringsImpl(
         val errorMessage = renderLinkageError(partialLinkageCase)
         val locationInSourceCode = file.computeLocationForOffset(element.startOffsetOfFirstDenotableIrElement())
 
-        linkageIssuesLogged++ // Track each logged linkage issue.
         logger.log(errorMessage, locationInSourceCode, significance)
 
         return errorMessage

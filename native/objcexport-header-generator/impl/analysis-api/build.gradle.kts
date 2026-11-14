@@ -1,6 +1,11 @@
+import org.jetbrains.kotlin.testFederation.testFederation
+
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
+    id("java-test-fixtures")
+    id("test-inputs-check")
 }
 
 kotlin {
@@ -15,28 +20,35 @@ dependencies {
     api(project(":native:objcexport-header-generator"))
 
     implementation(project(":core:compiler.common.native"))
+    implementation(project(":compiler:frontend.common"))
     implementation(project(":kotlin-util-klib"))
     implementation(project(":kotlin-util-klib-metadata"))
     implementation(project(":libraries:tools:analysis-api-based-klib-reader"))
     implementation(project(":native:analysis-api-based-export-common"))
 
     testRuntimeOnly(libs.junit.platform.launcher)
-    testImplementation(testFixtures(project(":compiler:tests-common")))
-    testImplementation(projectTests(":native:objcexport-header-generator"))
-    testImplementation(project(":native:analysis-api-based-test-utils"))
+    testFixturesApi(testFixtures(project(":compiler:tests-common")))
+    testFixturesApi(testFixtures(project(":native:objcexport-header-generator")))
+    testFixturesApi(project(":native:analysis-api-based-test-utils"))
     testImplementation(project(":analysis:analysis-api-standalone"))
+    testRuntimeOnly(project(":analysis:analysis-api-standalone:analysis-api-standalone-fir"))
 }
 
 sourceSets {
     "main" { projectDefault() }
     "test" { projectDefault() }
+    "testFixtures" { projectDefault() }
 }
-
-testsJar()
 
 projectTests {
     objCExportHeaderGeneratorTestTask(
         "test",
         allowUnsafe = true, // KT-85212
-    )
+    ) {
+        // Ideally, it should be marked as affected by AnalysisApi instead.
+        // But this would be cumbersome and the tests are very fast, so let's keep things simple:
+        testFederation {
+            smokeTests { includeAll() }
+        }
+    }
 }

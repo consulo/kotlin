@@ -7,6 +7,8 @@ package org.jetbrains.kotlin.fir.resolve.inference
 
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.fir.FirElement
+import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.SessionHolder
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.languageVersionSettings
 import org.jetbrains.kotlin.fir.resolve.ResolutionMode
@@ -22,7 +24,9 @@ import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.BodyResolveCon
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.hasContextParameters
 import org.jetbrains.kotlin.fir.types.*
-import org.jetbrains.kotlin.fir.visitors.FirDefaultTransformer
+import org.jetbrains.kotlin.fir.useArrayLiteralResolution
+import org.jetbrains.kotlin.fir.resolve.transformers.FirAbstractResolveTransformer
+import org.jetbrains.kotlin.fir.resolve.transformers.FirAbstractResolveTransformerSubclassing
 import org.jetbrains.kotlin.resolve.calls.inference.addSubtypeConstraintIfCompatible
 import org.jetbrains.kotlin.resolve.calls.inference.components.ConstraintSystemCompletionContext
 import org.jetbrains.kotlin.resolve.calls.inference.components.ConstraintSystemCompletionMode
@@ -39,7 +43,8 @@ import org.jetbrains.kotlin.utils.addToStdlib.runIf
 class FirPCLAInferenceSession(
     private val outerCandidate: Candidate,
     private val inferenceComponents: InferenceComponents,
-) : FirInferenceSession() {
+) : FirInferenceSession(), SessionHolder {
+    override val session: FirSession get() = inferenceComponents.session
 
     var currentCommonSystem: NewConstraintSystemImpl = prepareSharedBaseSystem(outerCandidate.system, inferenceComponents)
         private set
@@ -271,13 +276,11 @@ class FirPCLAInferenceSession(
         }
 
         val callSite = callInfo.callSite
-        // Annotation calls should be completed independently since that can't somehow affect PCLA
-        if (callSite is FirAnnotationCall) return true
+        if (callSite is FirAnnotationCall && useArrayLiteralResolution()) return true
         if (callSite is FirCollectionLiteral) {
             // It's not actually entirely correct thing to do in pre-CollectionLiterals resolve of array literals.
             // Some usages of collection literals inside PCLA lambdas may still lead to compiler failures there.
-            return !inferenceComponents.session.languageVersionSettings.supportsFeature(LanguageFeature.CollectionLiterals)
-                    || bodyResolveContext.isInsideAnnotationContext
+            return useArrayLiteralResolution()
         }
 
         if (callSite !is FirResolvable && callSite !is FirVariableAssignment) return false
@@ -355,7 +358,8 @@ class FirPCLAInferenceSession(
     }
 }
 
-class FirTypeVariablesAfterPCLATransformer(private val substitutor: ConeSubstitutor) : FirDefaultTransformer<Nothing?>() {
+@OptIn(FirAbstractResolveTransformerSubclassing::class)
+class FirTypeVariablesAfterPCLATransformer(private val substitutor: ConeSubstitutor) : FirAbstractResolveTransformer<Nothing?>() {
 
     override fun <E : FirElement> transformElement(element: E, data: Nothing?): E {
         // All resolvable nodes should be implemented separately to cover substitution of receivers in the candidate

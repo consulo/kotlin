@@ -5,8 +5,11 @@ import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget.*
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
+    id("test-inputs-check")
 }
 
 kotlin {
@@ -15,10 +18,10 @@ kotlin {
     }
 }
 
-val embedded by configurations.getting {
+val embedded = configurations.embedded.get().apply {
     isTransitive = false
-    configurations.getByName("compileOnly").extendsFrom(this)
-    configurations.getByName("testImplementation").extendsFrom(this)
+    configurations.compileOnly.get().extendsFrom(this)
+    configurations.testImplementation.get().extendsFrom(this)
 }
 
 dependencies {
@@ -27,8 +30,7 @@ dependencies {
     embedded(libs.protobuf.java)
     embedded(libs.protobuf.kotlin)
     val coreDepsVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation.get()
-    testImplementation(libs.junit4)
-    testRuntimeOnly(kotlin("test-junit", coreDepsVersion))
+    testRuntimeOnly(kotlin("test-junit5", coreDepsVersion))
     testImplementation(kotlin("test", coreDepsVersion))
     testImplementation(kotlin("stdlib", coreDepsVersion))
     testImplementation(kotlin("reflect", coreDepsVersion))
@@ -51,6 +53,10 @@ runtimeJar(tasks.register<ShadowJar>("embeddable")) {
     from(mainSourceSet.output)
     exclude("**/*.proto")
     relocate("com.google.protobuf", "org.jetbrains.kotlin.gradle.idea.proto.com.google.protobuf")
+}
+
+projectTests {
+    testTask()
 }
 
 /* Setup configuration for binary compatibility tests */
@@ -84,7 +90,7 @@ run {
         protoc(libs.protoc) {
             artifact {
                 type = "exe"
-                classifier = when (HostManager.host) {
+                classifier = when (HostManager.hostOrNull) {
                     MACOS_ARM64 -> "osx-aarch_64"
                     MACOS_X64 -> "osx-x86_64"
                     MINGW_X64 -> "windows-x86_64"
@@ -147,7 +153,7 @@ run {
 
 /* Setup backwards compatibility tests */
 run {
-    val compatibilityTestClasspath by configurations.creating {
+    val compatibilityTestClasspath = configurations.create("compatibilityTestClasspath") {
         isCanBeResolved = true
         isCanBeConsumed = false
         attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
@@ -160,10 +166,8 @@ run {
 
     tasks.test {
         val capturedCompatibilityTestClasspath: FileCollection = compatibilityTestClasspath
-        dependsOn(capturedCompatibilityTestClasspath)
-        inputs.files(capturedCompatibilityTestClasspath)
-        doFirst {
-            systemProperty("compatibilityTestClasspath", capturedCompatibilityTestClasspath.files.joinToString(";") { it.absolutePath })
+        addClasspathProperty("compatibilityTestClasspath"){
+            from(capturedCompatibilityTestClasspath)
         }
     }
 }

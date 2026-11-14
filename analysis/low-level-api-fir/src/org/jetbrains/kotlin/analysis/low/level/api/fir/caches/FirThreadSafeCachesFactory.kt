@@ -14,7 +14,9 @@ import org.jetbrains.kotlin.fir.caches.FirCache
 import org.jetbrains.kotlin.fir.caches.FirCacheInternals
 import org.jetbrains.kotlin.fir.caches.FirCachesFactory
 import org.jetbrains.kotlin.fir.caches.FirLazyValue
+import org.jetbrains.kotlin.fir.caches.FirLazyValueWithContext
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 
@@ -81,6 +83,9 @@ internal class FirThreadSafeCachesFactory(private val project: Project) : FirCac
     override fun <V> createLazyValue(createValue: () -> V): FirLazyValue<V> =
         FirThreadSafeValue(createValue)
 
+    override fun <V, CONTEXT> createLazyValueWithContext(createValue: (CONTEXT) -> V): FirLazyValueWithContext<V, CONTEXT> =
+        FirThreadSafeValueWithContext(createValue)
+
     override fun <V> createPossiblySoftLazyValue(createValue: () -> V): FirLazyValue<V> =
         LLFirSoftLazyValue(project, createValue)
 }
@@ -102,4 +107,9 @@ private class FirCaffeineCache<K : Any, V, CONTEXT>(
     @FirCacheInternals
     override val cachedValues: Collection<V>
         get() = cache.asMap().values.mapNotNull { it.nullValueToNull() }
+
+    @FirCacheInternals
+    override fun clear() {
+        cache.invalidateAll()
+    }
 }

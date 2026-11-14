@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.fir.FirSessionComponent
 import org.jetbrains.kotlin.fir.NoMutableState
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.getAnnotationStringParameter
+import org.jetbrains.kotlin.fir.analysis.checkers.getContainingFile
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors
 import org.jetbrains.kotlin.fir.declarations.hasAnnotation
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
@@ -42,7 +43,7 @@ internal fun checkJsModuleUsage(
             calleeContainingFile?.symbol?.getAnnotationStringParameter(JsStandardClassIds.Annotations.JsModule, calleeSession) != null
 
     val callToNonModule = calleeRoot.hasAnnotation(JsStandardClassIds.Annotations.JsNonModule, calleeSession) ||
-            calleeContainingFile?.symbol?.hasAnnotation(JsStandardClassIds.Annotations.JsNonModule, calleeSession) == true
+            calleeContainingFile?.symbol.hasAnnotation(JsStandardClassIds.Annotations.JsNonModule, calleeSession)
 
     when (moduleKind) {
         ModuleKind.UMD -> {

@@ -1,28 +1,26 @@
-import org.jetbrains.kotlin.testFederation.TemporaryTestFederationApi
-import org.jetbrains.kotlin.testFederation.isSmokeTest
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
 dependencies {
-    testImplementation(project(":compiler:tests-common-new", "testsJarConfig"))
+    testImplementation(testFixtures(project(":compiler:tests-common-new")))
     testRuntimeOnly(testFixtures(project(":compiler:tests-common-new")))
-    testImplementation(project(":compiler:fir:fir2ir", "testsJarConfig"))
-    testRuntimeOnly(testFixtures(project(":compiler:fir:fir2ir")))
+    testImplementation(project(":compiler:tests-common-new", "testsJarConfig"))
+    testImplementation(testFixtures(project(":compiler:jvm.tests")))
+    testImplementation(project(":compiler:jvm.tests", "testsJarConfig"))
 
-    testImplementation(libs.junit4)
+    testImplementation(libs.junit.platform.suite)
     testImplementation(kotlinStdlib())
     testImplementation(project(":libraries:tools:abi-comparator"))
 
     testImplementation(platform(libs.junit.bom))
-    testImplementation(libs.junit.platform.suite)
     testRuntimeOnly(libs.junit.jupiter.engine)
-    testRuntimeOnly(libs.junit.vintage.engine)
 
-    testImplementation(intellijCore())
 }
 
 sourceSets {
@@ -35,7 +33,6 @@ projectTests {
     testData(project(":compiler").isolated, "testData/klib")
 
     withJvmStdlibAndReflect()
-    withScriptRuntime()
     withScriptingPlugin()
     withAnnotations()
     withMockJdkRuntime()
@@ -55,23 +52,29 @@ projectTests {
     ) {
         testTask(
             taskName = "codegenTarget${targetInTestClass}Jvm${jvm}Test",
-            jUnitMode = JUnitMode.JUnit5,
-            maxMetaspaceSizeMb = 1024,
+            javaLauncher = jdk,
+            maxHeapSize = 6.GiB,
+            maxMetaspaceSize = 1.GiB,
             skipInLocalBuild = false,
             defineJDKEnvVariables = listOf(jdk, JdkMajorVersion.JDK_11_0)
         ) {
             val testName = "JvmTarget${targetInTestClass}OnJvm${jvm}"
             filter.includeTestsMatching("org.jetbrains.kotlin.codegen.jdk.$testName")
-            javaLauncher.set(project.getToolchainLauncherFor(jdk))
 
-            /* No smoke tests are defined here, yet, and the 'CustomJvmTargetOnJvmBaseTest' is defined to fail if no tests are executed */
-            @OptIn(TemporaryTestFederationApi::class)
-            isSmokeTest = false
+            testFederation {
+                // No smoke tests are defined here, yet, and 'CustomJvmTargetOnJvmBaseTest' is defined to fail if no tests are executed
+                smokeTests { skip() }
+                contractTests { skip() }
+            }
 
             systemProperty("kotlin.test.default.jvm.target", "${if (target <= 8) "1." else ""}$target")
             if (jdk.majorVersion >= 17 && kotlinBuildProperties.isTeamcityBuild.get()) {
-                // Reduce parallelism on JDK 17+ to allow test tasks to have more memory to avoid OOM (KTI-2491), likely caused by KT-69758.
+                // Reduce parallelism on JDK 17+ to allow test tasks to have more memory to avoid OOM (KTI-2491, KTI-3258).
                 systemProperty("junit.jupiter.execution.parallel.config.fixed.threshold", 4)
+            }
+            if (jdk.majorVersion < 25) {
+                // Workaround https://bugs.openjdk.org/browse/JDK-8192647 to avoid OOM (KTI-2491, KTI-3258).
+                jvmArgs("-XX:+UnlockDiagnosticVMOptions", "-XX:GCLockerRetryAllocationCount=100")
             }
             body()
             doFirst {
@@ -80,15 +83,6 @@ projectTests {
             group = "verification"
         }
     }
-
-    //JDK 8
-    // This is default one and is executed in default build configuration
-    codegenTestTask(target = 8, jdk = JdkMajorVersion.JDK_1_8)
-
-    //JDK 11
-    codegenTestTask(target = 8, jdk = JdkMajorVersion.JDK_11_0)
-
-    codegenTestTask(target = 11, jdk = JdkMajorVersion.JDK_11_0)
 
     //JDK 17
     codegenTestTask(target = 8, jdk = JdkMajorVersion.JDK_17_0)

@@ -5,154 +5,164 @@
 
 package org.jetbrains.kotlin.konan.test.converters
 
+import org.jetbrains.kotlin.backend.common.IrBuiltInsForLinker
 import org.jetbrains.kotlin.backend.common.IrModuleDependencies
 import org.jetbrains.kotlin.backend.common.IrModuleInfo
-import org.jetbrains.kotlin.backend.common.linkage.partial.createPartialLinkageSupportForLinker
-import org.jetbrains.kotlin.backend.common.serialization.DescriptorByIdSignatureFinderImpl
+import org.jetbrains.kotlin.backend.common.LoadedNativeKlibs
 import org.jetbrains.kotlin.backend.common.serialization.DeserializationStrategy
-import org.jetbrains.kotlin.backend.common.serialization.IrModuleDeserializer
+import org.jetbrains.kotlin.backend.common.serialization.kotlinLibrary
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureDescriptor
-import org.jetbrains.kotlin.backend.common.serialization.sortDependencies
-import org.jetbrains.kotlin.backend.konan.KonanStubGeneratorExtensions
 import org.jetbrains.kotlin.backend.konan.serialization.CInteropModuleDeserializerFactory
 import org.jetbrains.kotlin.backend.konan.serialization.KonanIrLinker
 import org.jetbrains.kotlin.backend.konan.serialization.KonanManglerDesc
+import org.jetbrains.kotlin.backend.konan.serialization.loadNativeKlibs
+import org.jetbrains.kotlin.builtins.DefaultBuiltIns
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.cli.common.diagnosticsCollector
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
+import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
+import org.jetbrains.kotlin.ir.InternalSymbolFinderAPI
 import org.jetbrains.kotlin.ir.KtDiagnosticReporterWithImplicitIrBasedContext
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
-import org.jetbrains.kotlin.ir.descriptors.IrDescriptorBasedFunctionFactory
 import org.jetbrains.kotlin.ir.objcinterop.IrObjCOverridabilityCondition
 import org.jetbrains.kotlin.ir.util.ExternalDependenciesGenerator
 import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.konan.config.konanIncludedLibraries
 import org.jetbrains.kotlin.library.KotlinLibrary
-import org.jetbrains.kotlin.library.isNativeStdlib
-import org.jetbrains.kotlin.library.metadata.impl.isForwardDeclarationModule
+import org.jetbrains.kotlin.library.metadata.*
 import org.jetbrains.kotlin.library.uniqueName
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.native.pipeline.NativeLoadedIrArtifact
-import org.jetbrains.kotlin.psi2ir.descriptors.IrBuiltInsOverDescriptors
-import org.jetbrains.kotlin.psi2ir.generators.DeclarationStubGeneratorImpl
-import org.jetbrains.kotlin.psi2ir.generators.TypeTranslatorImpl
+import org.jetbrains.kotlin.platform.konan.NativePlatforms
+import org.jetbrains.kotlin.storage.LockBasedStorageManager
+import org.jetbrains.kotlin.test.backend.ir.DeserializedFromKlibBackendInput
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
-import org.jetbrains.kotlin.test.backend.ir.IrBackendInput.DeserializedFromKlibBackendInput
-import org.jetbrains.kotlin.test.frontend.classic.ModuleDescriptorProvider
-import org.jetbrains.kotlin.test.frontend.classic.moduleDescriptorProvider
 import org.jetbrains.kotlin.test.model.*
-import org.jetbrains.kotlin.test.services.*
-import org.jetbrains.kotlin.test.services.configuration.getDependencies
-import org.jetbrains.kotlin.test.services.configuration.klibEnvironmentConfigurator
+import org.jetbrains.kotlin.test.services.TestServices
+import org.jetbrains.kotlin.test.services.compilerConfigurationProvider
+import org.jetbrains.kotlin.test.services.configuration.nativeEnvironmentConfigurator
+import org.jetbrains.kotlin.util.profile
+import java.io.File
 
 class NativeDeserializerFacade(
     testServices: TestServices,
-    private val partialLinkageLogLevel: PartialLinkageLogLevel = PartialLinkageLogLevel.ERROR, // Use the ERROR log level by default to fail any tests where PL detected any incompatibilities.
 ) : DeserializerFacade<BinaryArtifacts.KLib, IrBackendInput>(testServices, ArtifactKinds.KLib, BackendKinds.IrBackend) {
-
-    override val additionalServices: List<ServiceRegistrationData>
-        get() = listOf(service(::LibraryProvider), service(::ModuleDescriptorProvider))
-
-    override fun shouldTransform(module: TestModule): Boolean {
-        return testServices.defaultsProvider.backendKind == outputKind
-    }
-
     override fun transform(
         module: TestModule,
         inputArtifact: BinaryArtifacts.KLib,
     ): DeserializedFromKlibBackendInput<NativeLoadedIrArtifact> {
         val configuration = testServices.compilerConfigurationProvider.getCompilerConfiguration(module)
 
-        val moduleInfo = loadIrFromKlib(module, configuration)
+        val includes: List<String> = configuration.konanIncludedLibraries
+        val includedPath: String? = includes.singleOrNull()?.let { File(it).canonicalPath }
+
+        val mainLibraryPath: String = inputArtifact.outputFile.canonicalPath
+        check(mainLibraryPath == includedPath) {
+            "The 'main' library ${inputArtifact.outputFile} should be the single library in the list of included libraries: [${includes.joinToString()}]"
+        }
+
+        val loadedKlibs = loadNativeKlibs(configuration, testServices.nativeEnvironmentConfigurator.getNativeTarget(module))
+        val moduleDescriptors = createModuleDescriptors(loadedKlibs)
+        val moduleInfo = createIrModuleFragments(configuration, loadedKlibs, moduleDescriptors)
 
         return DeserializedFromKlibBackendInput(NativeLoadedIrArtifact(moduleInfo, configuration), klib = inputArtifact.outputFile)
     }
 
-    private fun loadIrFromKlib(module: TestModule, configuration: CompilerConfiguration): IrModuleInfo {
-        val messageCollector = configuration.messageCollector
-        val symbolTable = SymbolTable(IdSignatureDescriptor(KonanManglerDesc), IrFactoryImpl)
-
-        val moduleDescriptor = testServices.moduleDescriptorProvider.getModuleDescriptor(module)
-        val mainModuleLib = testServices.libraryProvider.getCompiledLibraryByDescriptor(moduleDescriptor)
-        val friendLibraries = getDependencies(module, testServices, DependencyRelation.FriendDependency)
-            .map { testServices.libraryProvider.getCompiledLibraryByDescriptor(it) }
-        val friendModules = mapOf(mainModuleLib.uniqueName to friendLibraries.map { it.uniqueName })
-
-        return getIrModuleInfoForKlib(
-            moduleDescriptor,
-            sortDependencies(testServices.klibEnvironmentConfigurator.getAllDependenciesMappingFor(module, testServices)) + mainModuleLib,
-            friendModules,
-            configuration,
-            symbolTable,
-            messageCollector,
-        ) { if (it == mainModuleLib) moduleDescriptor else testServices.libraryProvider.getDescriptorByCompiledLibrary(it) }
+    private fun createDescriptor(moduleName: Name, moduleOrigin: KlibModuleOrigin, builtIns: KotlinBuiltIns): ModuleDescriptorImpl {
+        return ModuleDescriptorImpl(
+            moduleName,
+            LockBasedStorageManager.NO_LOCKS,
+            builtIns,
+            capabilities = mapOf(KlibModuleOrigin.CAPABILITY to moduleOrigin),
+            platform = NativePlatforms.unspecifiedNativePlatform
+        )
     }
 
-    @OptIn(ObsoleteDescriptorBasedAPI::class)
-    private inline fun getIrModuleInfoForKlib(
-        moduleDescriptor: ModuleDescriptor,
-        sortedDependencies: Collection<KotlinLibrary>,
-        friendModules: Map<String, List<String>>,
+    private fun createModuleDescriptors(loadedKlibs: LoadedNativeKlibs): List<ModuleDescriptorImpl> {
+        val moduleDescriptors = mutableListOf<ModuleDescriptorImpl>()
+
+        val builtIns = DefaultBuiltIns(loadBuiltInsFromCurrentClassLoader = false)
+        val friendModuleDescriptors = mutableSetOf<ModuleDescriptorImpl>()
+        val includedLibraryDescriptors = mutableSetOf<ModuleDescriptorImpl>()
+        // Build module descriptors.
+        // Note: stdlib goes the first in `LoadedNativeKlibs.all`!
+        loadedKlibs.all.forEach { library ->
+            profile("Loading ${library.path}") {
+                val moduleDescriptor = createDescriptor(
+                    Name.special("<${library.uniqueName}>"),
+                    DeserializedKlibModuleOrigin(library),
+                    builtIns,
+                )
+                moduleDescriptors.add(moduleDescriptor)
+
+                if (loadedKlibs.friends.any { it.path == library.path })
+                    friendModuleDescriptors.add(moduleDescriptor)
+                if (loadedKlibs.included.any { it.path == library.path })
+                    includedLibraryDescriptors.add(moduleDescriptor)
+            }
+        }
+        val forwardDeclarationsModule = createDescriptor(
+            FORWARD_DECLARATIONS_MODULE_NAME,
+            SyntheticModulesOrigin,
+            builtIns,
+        )
+        forwardDeclarationsModule.setDependencies(forwardDeclarationsModule)
+
+        // Set inter-dependencies between module descriptors, add forwarding declarations module.
+        val allDependencies = moduleDescriptors + forwardDeclarationsModule
+        for (module in includedLibraryDescriptors) {
+            // Yes, just to all of them.
+            module.setDependencies(allDependencies, friendModuleDescriptors)
+        }
+
+        return moduleDescriptors
+    }
+
+    private fun createIrModuleFragments(
         configuration: CompilerConfiguration,
-        symbolTable: SymbolTable,
-        messageCollector: MessageCollector,
-        mapping: (KotlinLibrary) -> ModuleDescriptor,
+        loadedKlibs: LoadedNativeKlibs,
+        moduleDescriptors: List<ModuleDescriptorImpl>,
     ): IrModuleInfo {
-        val mainModuleLib = sortedDependencies.last()
-        val typeTranslator = TypeTranslatorImpl(symbolTable, configuration.languageVersionSettings, moduleDescriptor)
-        val irBuiltIns = IrBuiltInsOverDescriptors(moduleDescriptor.builtIns, typeTranslator, symbolTable)
+        val libraryToModuleDescriptor: Map<KotlinLibrary, ModuleDescriptorImpl> =
+            moduleDescriptors.associateBy { (it.klibModuleOrigin as DeserializedKlibModuleOrigin).library }
+
+        val mainLibrary = loadedKlibs.included.single()
+
+        val friendsMap = mapOf(mainLibrary to loadedKlibs.friends)
+
         val irDiagnosticReporter = KtDiagnosticReporterWithImplicitIrBasedContext(
             configuration.diagnosticsCollector,
             configuration.languageVersionSettings,
         )
 
-        val forwardDeclarationsModuleDescriptor = moduleDescriptor.allDependencyModules.firstOrNull { it.isForwardDeclarationModule }
-        val stubGenerator = DeclarationStubGeneratorImpl(
-            moduleDescriptor, symbolTable,
-            irBuiltIns,
-            DescriptorByIdSignatureFinderImpl(moduleDescriptor, KonanManglerDesc),
-            KonanStubGeneratorExtensions
-        )
+        val symbolTable = SymbolTable(IdSignatureDescriptor(KonanManglerDesc), IrFactoryImpl)
 
         val irLinker = KonanIrLinker(
-            currentModule = moduleDescriptor,
-            messageCollector = messageCollector,
-            builtIns = irBuiltIns,
+            configuration = configuration,
             symbolTable = symbolTable,
-            friendModules = friendModules,
-            forwardModuleDescriptor = forwardDeclarationsModuleDescriptor,
-            stubGenerator = stubGenerator,
+            friendModules = friendsMap,
             cInteropModuleDeserializerFactory = CInteropModuleDeserializerFactoryMock,
-            exportedDependencies = emptyList(),
-            partialLinkageSupport = createPartialLinkageSupportForLinker(
-                partialLinkageConfig = PartialLinkageConfig(partialLinkageLogLevel),
-                builtIns = irBuiltIns,
-                diagnosticReporter = irDiagnosticReporter,
-            ),
-            libraryBeingCached = null,
-            externalOverridabilityConditions = listOf(IrObjCOverridabilityCondition)
+            irDiagnosticReporter = irDiagnosticReporter,
+            librariesBeingCached = emptyMap(),
+            externalOverridabilityConditions = listOf(IrObjCOverridabilityCondition),
         )
 
-        val moduleDependencies: IrModuleDependencies = deserializeDependencies(sortedDependencies, irLinker, mainModuleLib, mapping)
+        val moduleDependencies: IrModuleDependencies = deserializeIrModuleFragments(loadedKlibs.all, irLinker, mainLibrary, libraryToModuleDescriptor::getValue)
 
-        // TODO: If tests fail due to fictitious synthetic functions, consider passing an instance of
-        //  BuiltInFictitiousFunctionIrClassFactory here.
-        irBuiltIns.functionFactory = IrDescriptorBasedFunctionFactory(
-            irBuiltIns,
-            symbolTable,
-            typeTranslator,
-            getPackageFragment = null,
-            true
-        )
+        @OptIn(InternalSymbolFinderAPI::class)
+        val irBuiltIns = IrBuiltInsForLinker(irLinker, configuration.languageVersionSettings)
 
-        irLinker.init(null)
         ExternalDependenciesGenerator(symbolTable, listOf(irLinker)).generateUnboundSymbolsAsDependencies()
-        irLinker.postProcess(inOrAfterLinkageStep = true)
+        irLinker.postProcess(irBuiltIns, inOrAfterLinkageStep = true)
+
+        val sortedModuleDependencies = irLinker.moduleDependencyTracker.reverseTopoOrder(moduleDependencies)
 
         return IrModuleInfo(
-            module = moduleDependencies.included!!,
-            dependencies = moduleDependencies,
+            module = sortedModuleDependencies.allDependencies.single { it.kotlinLibrary == mainLibrary },
+            dependencies = sortedModuleDependencies,
             bultins = irBuiltIns,
             symbolTable = symbolTable,
             deserializer = irLinker,
@@ -160,47 +170,31 @@ class NativeDeserializerFacade(
     }
 
     /**
-     * Note: [deserializeDependencies] returns the list of the deserialized [IrModuleFragment]s that has the same
-     * order of libraries as in [sortedDependencies].
+     * Note: [deserializeIrModuleFragments] returns the list of the deserialized [IrModuleFragment]s that has the same
+     * order of libraries as in [libraries].
      */
-    private inline fun deserializeDependencies(
-        sortedDependencies: Collection<KotlinLibrary>,
+    private inline fun deserializeIrModuleFragments(
+        libraries: Collection<KotlinLibrary>,
         irLinker: KonanIrLinker,
         mainModuleLib: KotlinLibrary?,
         mapping: (KotlinLibrary) -> ModuleDescriptor,
-    ): IrModuleDependencies {
-        val all: MutableList<IrModuleFragment> = mutableListOf()
-        var stdlib: IrModuleFragment? = null
-        var included: IrModuleFragment? = null
-
-        sortedDependencies.forEach { klib: KotlinLibrary ->
+    ): IrModuleDependencies = IrModuleDependencies(
+        libraries.map { klib: KotlinLibrary ->
             val descriptor: ModuleDescriptor = mapping(klib)
-            val module: IrModuleFragment = if (klib != mainModuleLib)
-                irLinker.deserializeIrModuleHeader(descriptor, klib, { DeserializationStrategy.EXPLICITLY_EXPORTED })
-            else
-                irLinker.deserializeIrModuleHeader(descriptor, klib, { DeserializationStrategy.ALL }, descriptor.name.asString())
+            val deserializationStrategy =
+                if (klib != mainModuleLib) DeserializationStrategy.EXPLICITLY_EXPORTED else DeserializationStrategy.ALL
 
-            all += module
-            when {
-                klib.isNativeStdlib -> stdlib = module
-                klib == mainModuleLib -> included = module
-            }
+            irLinker.createAndRegisterModuleDeserializer(descriptor, klib, deserializationStrategy).moduleFragment
         }
-
-        return IrModuleDependencies(
-            all = all,
-            stdlib = stdlib,
-            included = included,
-        )
-    }
+    )
 }
 
-object CInteropModuleDeserializerFactoryMock : CInteropModuleDeserializerFactory {
+object CInteropModuleDeserializerFactoryMock : CInteropModuleDeserializerFactory<Nothing> {
     override fun createIrModuleDeserializer(
-        moduleDescriptor: ModuleDescriptor,
+        moduleFragment: IrModuleFragment,
         klib: KotlinLibrary,
-        moduleDependencies: Collection<IrModuleDeserializer>,
-    ): IrModuleDeserializer {
+        linker: KonanIrLinker,
+    ): Nothing {
         TODO("TODO (KT-85312): Implement IR deserialization for C-interop libraries in tests")
     }
 }

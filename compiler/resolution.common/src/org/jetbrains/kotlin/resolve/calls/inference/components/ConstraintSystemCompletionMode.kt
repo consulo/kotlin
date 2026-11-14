@@ -6,22 +6,26 @@
 package org.jetbrains.kotlin.resolve.calls.inference.components
 
 enum class ConstraintSystemCompletionMode(
+    // Enabled for FULL and PCLA_POSTPONED_CALL
     val allPostponedAtomsShouldBeAnalyzed: Boolean,
-    // Actually, it's related to all ConeFunctionTypeRelatedPostponedResolvedAtom including callable references
-    val allLambdasShouldBeAnalyzed: Boolean = allPostponedAtomsShouldBeAnalyzed,
+    // Enabled for FULL and UNTIL_FIRST_LAMBDA
     val shouldForkPointConstraintsBeResolved: Boolean,
+    // FULL-only
     val fixNotInferredTypeVariablesToErrorType: Boolean,
+    // PARTIAL-only
+    val preventFixingTypeVariablesRelatedToReturnType: Boolean,
 ) {
     FULL(
         allPostponedAtomsShouldBeAnalyzed = true,
         shouldForkPointConstraintsBeResolved = true,
         fixNotInferredTypeVariablesToErrorType = true,
+        preventFixingTypeVariablesRelatedToReturnType = false,
     ),
     PCLA_POSTPONED_CALL(
-        allPostponedAtomsShouldBeAnalyzed = false,
-        allLambdasShouldBeAnalyzed = true,
+        allPostponedAtomsShouldBeAnalyzed = true,
         shouldForkPointConstraintsBeResolved = false,
         fixNotInferredTypeVariablesToErrorType = false,
+        preventFixingTypeVariablesRelatedToReturnType = false,
     ),
 
     /**
@@ -36,28 +40,23 @@ enum class ConstraintSystemCompletionMode(
      */
     PARTIAL(
         allPostponedAtomsShouldBeAnalyzed = false,
-        allLambdasShouldBeAnalyzed = false,
         shouldForkPointConstraintsBeResolved = false,
         fixNotInferredTypeVariablesToErrorType = false,
+        preventFixingTypeVariablesRelatedToReturnType = true,
     ),
 
-    @ExclusiveForOverloadResolutionByLambdaReturnType
+    @ExclusiveForOverloadResolutionByLambdaReturnType // Becomes unused in K2 since ELA
     UNTIL_FIRST_LAMBDA(
         allPostponedAtomsShouldBeAnalyzed = false,
-        allLambdasShouldBeAnalyzed = false,
         /* See testData/diagnostics/tests/inference/inferenceForkRegressionSimple.kt */
         shouldForkPointConstraintsBeResolved = true,
         // We shouldn't do it here because of input type semi-fixing
         fixNotInferredTypeVariablesToErrorType = false,
+        preventFixingTypeVariablesRelatedToReturnType = false,
     );
 
     @OptIn(ExclusiveForOverloadResolutionByLambdaReturnType::class)
     fun isUntilFirstLambda(): Boolean = this == UNTIL_FIRST_LAMBDA
-
-    init {
-        // allPostponedAtomsShouldBeAnalyzed => allLambdasShouldBeAnalyzed
-        assert(!allPostponedAtomsShouldBeAnalyzed || allLambdasShouldBeAnalyzed)
-    }
 
     @RequiresOptIn(
         "This mode should be used only for OverloadResolutionByLambdaReturnTypeResolver. " +

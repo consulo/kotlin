@@ -21,6 +21,7 @@ import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiJavaModule
 import com.intellij.psi.PsiManager
+import com.intellij.psi.PsiModifier
 import com.intellij.psi.impl.light.LightJavaModule
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.cli.CliDiagnostics
@@ -28,16 +29,22 @@ import org.jetbrains.kotlin.cli.common.config.ContentRoot
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.MessageUtil
 import org.jetbrains.kotlin.cli.jvm.config.JavaSourceRoot
+import org.jetbrains.kotlin.cli.jvm.modules.ModuleInfoClassSelection
 import org.jetbrains.kotlin.cli.jvm.config.JvmClasspathRootBase
 import org.jetbrains.kotlin.cli.jvm.config.JvmContentRootBase
 import org.jetbrains.kotlin.cli.jvm.config.JvmModulePathRoot
 import org.jetbrains.kotlin.cli.jvm.index.JavaRoot
 import org.jetbrains.kotlin.cli.jvm.modules.CliJavaModuleFinder
 import org.jetbrains.kotlin.cli.jvm.modules.JavaModuleGraph
+import org.jetbrains.kotlin.cli.jvm.modules.readJavaModuleInfo
 import org.jetbrains.kotlin.cli.report
 import org.jetbrains.kotlin.cli.reportLog
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.diagnostics.KtSourcelessDiagnosticFactory
+import org.jetbrains.kotlin.load.java.JavaClassFinder
+import org.jetbrains.kotlin.load.java.structure.impl.JavaAnnotationImpl
+import org.jetbrains.kotlin.load.java.structure.impl.convert
+import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementSourceFactory
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.isValidJavaFqName
 import org.jetbrains.kotlin.resolve.jvm.KotlinCliJavaFileManager
@@ -156,26 +163,48 @@ class ClasspathRootsResolver(
         return moduleInfoFile to psiJavaModule
     }
 
+    private fun createJavaModuleInfo(psiJavaModule: PsiJavaModule) = JavaModuleInfo(
+        psiJavaModule.name,
+        psiJavaModule.requires.mapNotNull { statement ->
+            statement.moduleName?.let { moduleName ->
+                JavaModuleInfo.Requires(moduleName, statement.hasModifierProperty(PsiModifier.TRANSITIVE))
+            }
+        },
+        psiJavaModule.exports.mapNotNull { statement ->
+            statement.packageName?.let { packageName ->
+                JavaModuleInfo.Exports(FqName(packageName), statement.moduleNames)
+            }
+        },
+        psiJavaModule.annotations.convert {
+            JavaAnnotationImpl(JavaElementSourceFactory.getInstance(psiJavaModule.project).createPsiSource(it))
+        }
+    )
+
     private fun modularSourceRoot(root: VirtualFile, hasOutputDirectoryInClasspath: Boolean): JavaModule.Explicit? {
-        val (moduleInfoFile, psiJavaModule) = findSourceModuleInfo(root) ?: return null
+        val [moduleInfoFile, psiJavaModule] = findSourceModuleInfo(root) ?: return null
         val sourceRoot = JavaModule.Root(root, isBinary = false)
         val roots =
             if (hasOutputDirectoryInClasspath)
                 listOf(sourceRoot, JavaModule.Root(outputDirectory!!, isBinary = true))
             else listOf(sourceRoot)
-        return JavaModule.Explicit(JavaModuleInfo.create(psiJavaModule), roots, moduleInfoFile)
+        return JavaModule.Explicit(createJavaModuleInfo(psiJavaModule), roots, moduleInfoFile)
     }
 
     private fun modularBinaryRoot(root: VirtualFile): JavaModule? {
         val isJar = root.fileSystem.protocol == StandardFileSystems.JAR_PROTOCOL
         val manifest = lazy(NONE) { readManifestAttributes(root) }
 
-        val moduleInfoFile =
-            root.findChild(PsiJavaModule.MODULE_INFO_CLS_FILE)
-                ?: if (isJar) tryLoadVersionSpecificModuleInfo(root, manifest) else null
+        val moduleInfoFile = ModuleInfoClassSelection.select(
+            rootModuleInfo = root.findChild(PsiJavaModule.MODULE_INFO_CLS_FILE),
+            isJar = isJar,
+            isMultiRelease = { ModuleInfoClassSelection.isMultiReleaseJar(manifest.value) },
+            versionedModuleInfos = { findVersionSpecificModuleInfos(root) },
+        )
 
         if (moduleInfoFile != null) {
-            val moduleInfo = JavaModuleInfo.read(moduleInfoFile, javaFileManager, searchScope) ?: return null
+            val moduleInfo = readJavaModuleInfo(moduleInfoFile) {
+                javaFileManager.findClass(JavaClassFinder.Request(it), searchScope)
+            } ?: return null
             return JavaModule.Explicit(moduleInfo, listOf(JavaModule.Root(root, isBinary = true)), moduleInfoFile)
         }
 
@@ -200,21 +229,12 @@ class ClasspathRootsResolver(
         return null
     }
 
-    private fun tryLoadVersionSpecificModuleInfo(root: VirtualFile, manifest: Lazy<Attributes?>): VirtualFile? {
-        val versionsDir = root.findChild("META-INF")?.findChild("versions") ?: return null
-
-        val isMultiReleaseJar = manifest.value?.getValue(IS_MULTI_RELEASE)?.equals("true", ignoreCase = true)
-        if (isMultiReleaseJar != true) return null
-
-        val versions = versionsDir.children.filter {
-            val version = it.name.toIntOrNull()
-            version != null && version >= 9
-        }.sortedBy { it.name.toInt() }
-        for (version in versions) {
-            val file = version.findChild(PsiJavaModule.MODULE_INFO_CLS_FILE)
-            if (file != null) return file
-        }
-        return null
+    /** The `module-info.class` files under `META-INF/versions/<n>/`, keyed by `<n>` (see [ModuleInfoClassSelection.select]). */
+    private fun findVersionSpecificModuleInfos(root: VirtualFile): Map<String, VirtualFile> {
+        val versionsDir = root.findChild("META-INF")?.findChild("versions") ?: return emptyMap()
+        return versionsDir.children.mapNotNull { versionDir ->
+            versionDir.findChild(PsiJavaModule.MODULE_INFO_CLS_FILE)?.let { versionDir.name to it }
+        }.toMap()
     }
 
     private fun readManifestAttributes(jarRoot: VirtualFile): Attributes? {
@@ -271,7 +291,14 @@ class ClasspathRootsResolver(
         }
 
         val allDependencies = javaModuleGraph.getAllDependencies(rootModules)
-        if (allDependencies.any { moduleName -> javaModuleFinder.findModule(moduleName) is JavaModule.Automatic }) {
+        // Compatibility, see KT-66622: the implicitly added stdlib used to come together with the automatic module
+        // `kotlin.script.runtime`, which (as any automatic module) made all observable automatic modules part of the graph.
+        // The script runtime is not added implicitly anymore, so this behavior is emulated for the implicitly added stdlib.
+        // TODO(KT-66622): remove this compatibility code after the real fix
+        val implicitAutomaticModulesCompatibility = KOTLIN_STDLIB_MODULE_NAME in additionalModules
+        if (implicitAutomaticModulesCompatibility ||
+            allDependencies.any { moduleName -> javaModuleFinder.findModule(moduleName) is JavaModule.Automatic }
+        ) {
             // According to java.lang.module javadoc, if at least one automatic module is added to the module graph,
             // all observable automatic modules should be added.
             // There are no automatic modules in the JDK, so we select all automatic modules out of user modules
@@ -322,6 +349,5 @@ class ClasspathRootsResolver(
 
     private companion object {
         const val AUTOMATIC_MODULE_NAME = "Automatic-Module-Name"
-        const val IS_MULTI_RELEASE = "Multi-Release"
     }
 }

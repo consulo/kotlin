@@ -6,10 +6,14 @@
 package org.jetbrains.kotlin.swiftexport.standalone.builders
 
 import org.jetbrains.kotlin.analysis.api.KaSession
-import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.klib.reader.getAllDeclarations
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaLibraryModule
+import org.jetbrains.kotlin.analysis.api.session.analyze
+import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KaClassLikeSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaDeclarationSymbol
+import org.jetbrains.kotlin.io.propertyList
+import org.jetbrains.kotlin.library.loader.KlibLoader
 import org.jetbrains.kotlin.sir.*
 import org.jetbrains.kotlin.sir.builder.buildModule
 import org.jetbrains.kotlin.sir.providers.SirSession
@@ -21,7 +25,9 @@ import org.jetbrains.kotlin.sir.providers.trampolineDeclarations
 import org.jetbrains.kotlin.sir.util.addChild
 import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftExportConfig
 import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftModuleConfig
+import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftModuleExportMode
 import org.jetbrains.kotlin.swiftexport.standalone.session.StandaloneSirSession
+import kotlin.collections.List
 
 internal fun buildSirSession(
     mainModuleName: String,
@@ -36,34 +42,58 @@ internal fun buildSirSession(
     unsupportedTypeStrategy = config.unsupportedTypeStrategy.toInternalType(),
     moduleForPackageEnums = buildModule { name = config.moduleForPackagesName },
     unsupportedDeclarationReporter = moduleConfig.unsupportedDeclarationReporter,
-    moduleProvider = SirOneToOneModuleProvider(kaModules.platformLibraries),
+    moduleProvider = SirOneToOneModuleProvider(
+        platformLibs = kaModules.platformLibraries,
+        cinteropReexportLibs = kaModules.cinteropReexportLibraries.associateWith { it.reexportedObjCModuleNames() },
+    ),
     targetPackageFqName = moduleConfig.targetPackageFqName,
     referencedTypeHandler = referenceHandler,
     enableCoroutinesSupport = config.enableCoroutinesSupport,
+    hiddenModules = kaModules.hiddenModules,
 )
+
+/**
+ * The ObjC module names a cinterop reexport klib provides, read from its manifest `modules` property
+ * (a single cinterop klib may bundle several Clang modules). Empty when the klib declares no ObjC
+ * modules to import — e.g. a header-based cinterop klib, which the reexport strategy cannot serve.
+ */
+internal fun KaLibraryModule.reexportedObjCModuleNames(): List<String> {
+    val klibPath = binaryRoots.firstOrNull() ?: return emptyList()
+    val library = KlibLoader { libraryPaths(klibPath.toString()) }.load().librariesStdlibFirst.singleOrNull()
+        ?: return emptyList()
+    return library.manifestProperties.propertyList("modules", escapeInQuotes = true)
+}
 
 /**
  * Translates the given [module] to a [SirModule].
  * The result is stored as a side effect in [this.sirSession]'s [org.jetbrains.kotlin.sir.providers.SirModuleProvider].
  * [scopeToDeclarations] allows filtering declarations during translation.
+ * Declarations are processed in package order, as the klib does not guarantee a stable package iteration order.
  */
 context(sir: SirSession)
 internal fun translateModule(
     module: KaLibraryModule,
     moduleToDeclarations: context(KaSession) (KaLibraryModule) -> Sequence<KaDeclarationSymbol> = { it.getAllDeclarations() },
 ): SirModule = analyze(sir.useSiteModule) {
-    extractAllTransitively(moduleToDeclarations(module))
+    extractAllTransitively(moduleToDeclarations(module).sortedBy { it.packageFqNameForOrdering })
         .toList()
-        .forEach { (oldParent, children) ->
+        .forEach { [oldParent, children] ->
             children
                 .mapNotNull { declaration -> (declaration.parent as? SirMutableDeclarationContainer)?.let { it to declaration } }
-                .forEach { (newParent, declaration) ->
+                .forEach { [newParent, declaration] ->
                     (oldParent as? SirMutableDeclarationContainer)?.apply { declarations.remove(declaration) }
                     newParent.addChild { declaration }
                 }
         }
     return@analyze module.sirModule()
 }
+
+private val KaDeclarationSymbol.packageFqNameForOrdering: String
+    get() = when (this) {
+        is KaClassLikeSymbol -> classId?.packageFqName
+        is KaCallableSymbol -> callableId?.packageName
+        else -> null
+    }?.asString().orEmpty()
 
 context(sir: SirSession)
 private fun extractAllTransitively(
@@ -73,7 +103,7 @@ private fun extractAllTransitively(
         .flatMap { listOf(it) + it.trampolineDeclarations() }
         .groupBy { it.parent }.toList()
 ) {
-    it.flatMap { (_, children) ->
+    it.flatMap { [_, children] ->
         children
             .filterIsInstance<SirDeclarationContainer>()
             .map { it to it.declarations }
@@ -81,3 +111,8 @@ private fun extractAllTransitively(
 }.flatten()
 
 internal typealias KaModules = org.jetbrains.kotlin.analysis.api.klib.reader.KaModules<SwiftModuleConfig>
+
+internal val KaModules.hiddenModules
+    get() = inputsToModules
+        .filter { it.key.config.exportMode == SwiftModuleExportMode.Excluded }
+        .map { it.value }

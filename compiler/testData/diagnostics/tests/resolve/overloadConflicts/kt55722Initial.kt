@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // FIR_DUMP
-// SKIP_TXT
 
 interface MyConsumer<T> {
     fun consume(x: T) {}

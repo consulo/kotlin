@@ -1,4 +1,5 @@
 @_implementationOnly import KotlinRuntimeSupportBridge
+import Foundation
 import KotlinRuntime
 
 public struct KotlinError: Error & CustomStringConvertible {
@@ -14,12 +15,52 @@ public struct KotlinError: Error & CustomStringConvertible {
     }
 }
 
-public protocol _KotlinBridgeable {
-    init(__externalRCRefUnsafe: UnsafeMutableRawPointer!, options: KotlinBaseConstructionOptions)
-    func __externalRCRef() -> UnsafeMutableRawPointer!
+package func kotlinThrowableRCRef(for error: any Error) -> UnsafeMutableRawPointer {
+    if let kotlinBase = error as? KotlinRuntime.KotlinBase, let throwableRef = SwiftError_retainedThrowableRef(kotlinBase.__externalRCRef()) {
+        return throwableRef
+    }
+
+    if let kotlinError = error as? KotlinError,
+       let throwableRef = SwiftError_retainedThrowableRef(kotlinError.wrapped.__externalRCRef()) {
+        return throwableRef
+    }
+    let errorObject = error as AnyObject
+    return SwiftError_create(Unmanaged.passUnretained(errorObject).toOpaque())
 }
 
-public class _KotlinExistential<Wrapped>: KotlinBase {
+package func raiseKotlinError(_ outError: UnsafeMutableRawPointer?) throws {
+    guard let outError = outError else { return }
+    if let boxedError = SwiftError_unwrapBoxOrNull(outError) {
+        let swiftError = Unmanaged<AnyObject>.fromOpaque(boxedError).takeUnretainedValue() as! any Error
+        KotlinBridgeable_disposeRef(outError)
+        throw swiftError
+    }
+    let wrapper = KotlinRuntime.KotlinBase.__createClassWrapper(externalRCRef: outError)
+    throw (wrapper as? any Error) ?? KotlinError(wrapped: wrapper)
+}
+
+package func swiftError(fromKotlinThrowable wrapper: KotlinRuntime.KotlinBase) -> any Error {
+    if let boxedError = SwiftError_unwrapBoxOrNull(wrapper.__externalRCRef()) {
+        return Unmanaged<AnyObject>.fromOpaque(boxedError).takeUnretainedValue() as! any Error
+    }
+    return (wrapper as? any Error) ?? KotlinError(wrapped: wrapper)
+}
+
+public protocol SealedType {
+    associatedtype T
+    var value: T { get }
+}
+
+public protocol _KotlinBridgeable {
+    init(__externalRCRefUnsafe: UnsafeMutableRawPointer, options: KotlinBaseConstructionOptions)
+    func __externalRCRef() -> UnsafeMutableRawPointer
+}
+
+public class _KotlinExistentialPenBox: KotlinBase {
+
+}
+
+public class _KotlinExistential<Wrapped>: _KotlinExistentialPenBox {
 
 }
 
@@ -29,100 +70,100 @@ extension KotlinBase : _KotlinBridgeable {
 // MARK: - _KotlinBridgeable conformances for primitive types
 
 extension Swift.Int8: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_Int8_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_Int8_box(self)
     }
 }
 
 extension Swift.Int16: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_Int16_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_Int16_box(self)
     }
 }
 
 extension Swift.Int32: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_Int32_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_Int32_box(self)
     }
 }
 
 extension Swift.Int64: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_Int64_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_Int64_box(self)
     }
 }
 
 extension Swift.UInt8: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_UInt8_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_UInt8_box(self)
     }
 }
 
 extension Swift.UInt16: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_UInt16_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_UInt16_box(self)
     }
 }
 
 extension Swift.UInt32: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_UInt32_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_UInt32_box(self)
     }
 }
 
 extension Swift.UInt64: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_UInt64_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_UInt64_box(self)
     }
 }
 
 extension Swift.Bool: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_Bool_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_Bool_box(self)
     }
 }
 
 extension Swift.Float: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_Float_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_Float_box(self)
     }
 }
 
 extension Swift.Double: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_Double_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_Double_box(self)
     }
 }
@@ -130,10 +171,10 @@ extension Swift.Double: KotlinRuntimeSupport._KotlinBridgeable {
 // MARK: - _KotlinBridgeable conformance for String
 
 extension Swift.String: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_String_unbox(ref)
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_String_box(self)
     }
 }
@@ -141,60 +182,67 @@ extension Swift.String: KotlinRuntimeSupport._KotlinBridgeable {
 // MARK: - _KotlinBridgeable conformances for collection types
 
 extension Swift.Array: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
         self = KotlinBridgeable_Array_unbox(ref) as! [Element]
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
         return KotlinBridgeable_Array_box(self)
     }
 }
 
 extension Swift.Set: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
-        self = Unmanaged<NSSet>.fromOpaque(KotlinBridgeable_Set_unbox(ref)).takeUnretainedValue() as! Set<Element>
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+        self = KotlinBridgeable_Set_unbox(ref) as! Set<Element>
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
-        return KotlinBridgeable_Set_box(Unmanaged.passUnretained(self as NSSet).toOpaque())
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
+        return KotlinBridgeable_Set_box(self)
     }
 }
 
 extension Swift.Dictionary: KotlinRuntimeSupport._KotlinBridgeable {
-    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer!, options: KotlinRuntime.KotlinBaseConstructionOptions) {
-        self = Unmanaged<NSDictionary>.fromOpaque(KotlinBridgeable_Dictionary_unbox(ref)).takeUnretainedValue() as! [Key: Value]
+    public init(__externalRCRefUnsafe ref: UnsafeMutableRawPointer, options: KotlinRuntime.KotlinBaseConstructionOptions) {
+        self = KotlinBridgeable_Dictionary_unbox(ref) as! [Key: Value]
     }
-    public func __externalRCRef() -> UnsafeMutableRawPointer! {
-        return KotlinBridgeable_Dictionary_box(Unmanaged.passUnretained(self as NSDictionary).toOpaque())
+    public func __externalRCRef() -> UnsafeMutableRawPointer {
+        return KotlinBridgeable_Dictionary_box(self)
     }
 }
 
 // MARK: - __createBridgeable: unwraps bridgeable types from externalRCRef
 
+package func _kotlinAllocInstanceForSwiftSubclass(_ metaobject: Swift.AnyClass) -> Swift.UnsafeMutableRawPointer {
+    return Kotlin_SwiftExport_allocInstanceForSwiftSubclass(metaobject)
+}
+
 extension KotlinBase {
-    public static func __createBridgeable(externalRCRef ref: UnsafeMutableRawPointer!) -> any _KotlinBridgeable {
+    package static func __createBridgeable<T>(externalRCRef ref: UnsafeMutableRawPointer, conformsTo type: T.Type) -> any _KotlinBridgeable {
+        __createBridgeable(externalRCRef: ref, conformsTo: { wrapperClass in wrapperClass is T })
+    }
+
+    package static func __createBridgeable(externalRCRef ref: UnsafeMutableRawPointer, conformsTo: ((AnyClass?) -> Bool)? = nil) -> any _KotlinBridgeable {
         let tag = KotlinBridgeable_getTypeTag(ref)
         switch tag {
-        case 1:  let v = KotlinBridgeable_String_unbox(ref);  KotlinBridgeable_disposeRef(ref); return v
-        case 2:  let v = KotlinBridgeable_Int8_unbox(ref);    KotlinBridgeable_disposeRef(ref); return v
-        case 3:  let v = KotlinBridgeable_Int16_unbox(ref);   KotlinBridgeable_disposeRef(ref); return v
-        case 4:  let v = KotlinBridgeable_Int32_unbox(ref);   KotlinBridgeable_disposeRef(ref); return v
-        case 5:  let v = KotlinBridgeable_Int64_unbox(ref);   KotlinBridgeable_disposeRef(ref); return v
-        case 6:  let v = KotlinBridgeable_UInt8_unbox(ref);   KotlinBridgeable_disposeRef(ref); return v
-        case 7:  let v = KotlinBridgeable_UInt16_unbox(ref);  KotlinBridgeable_disposeRef(ref); return v
-        case 8:  let v = KotlinBridgeable_UInt32_unbox(ref);  KotlinBridgeable_disposeRef(ref); return v
-        case 9:  let v = KotlinBridgeable_UInt64_unbox(ref);  KotlinBridgeable_disposeRef(ref); return v
-        case 10: let v = KotlinBridgeable_Bool_unbox(ref);    KotlinBridgeable_disposeRef(ref); return v
-        case 11: let v = KotlinBridgeable_Float_unbox(ref);   KotlinBridgeable_disposeRef(ref); return v
-        case 12: let v = KotlinBridgeable_Double_unbox(ref);  KotlinBridgeable_disposeRef(ref); return v
-        case 13: let v: [Any] = KotlinBridgeable_Array_unbox(ref) as! [Any]; KotlinBridgeable_disposeRef(ref); return v
-        case 14:
-            let v = Unmanaged<NSSet>.fromOpaque(KotlinBridgeable_Set_unbox(ref)).takeUnretainedValue() as! Set<AnyHashable>
-            KotlinBridgeable_disposeRef(ref); return v
-        case 15:
-            let v = Unmanaged<NSDictionary>.fromOpaque(KotlinBridgeable_Dictionary_unbox(ref)).takeUnretainedValue() as! [AnyHashable: Any]
-            KotlinBridgeable_disposeRef(ref); return v
-        default:
-            return __createProtocolWrapper(externalRCRef: ref) as! any _KotlinBridgeable
+        case 1:  let v = KotlinBridgeable_String_unbox(ref);                             KotlinBridgeable_disposeRef(ref); return v
+        case 2:  let v = KotlinBridgeable_Int8_unbox(ref);                               KotlinBridgeable_disposeRef(ref); return v
+        case 3:  let v = KotlinBridgeable_Int16_unbox(ref);                              KotlinBridgeable_disposeRef(ref); return v
+        case 4:  let v = KotlinBridgeable_Int32_unbox(ref);                              KotlinBridgeable_disposeRef(ref); return v
+        case 5:  let v = KotlinBridgeable_Int64_unbox(ref);                              KotlinBridgeable_disposeRef(ref); return v
+        case 6:  let v = KotlinBridgeable_UInt8_unbox(ref);                              KotlinBridgeable_disposeRef(ref); return v
+        case 7:  let v = KotlinBridgeable_UInt16_unbox(ref);                             KotlinBridgeable_disposeRef(ref); return v
+        case 8:  let v = KotlinBridgeable_UInt32_unbox(ref);                             KotlinBridgeable_disposeRef(ref); return v
+        case 9:  let v = KotlinBridgeable_UInt64_unbox(ref);                             KotlinBridgeable_disposeRef(ref); return v
+        case 10: let v = KotlinBridgeable_Bool_unbox(ref);                               KotlinBridgeable_disposeRef(ref); return v
+        case 11: let v = KotlinBridgeable_Float_unbox(ref);                              KotlinBridgeable_disposeRef(ref); return v
+        case 12: let v = KotlinBridgeable_Double_unbox(ref);                             KotlinBridgeable_disposeRef(ref); return v
+        case 13: let v: [Any] = KotlinBridgeable_Array_unbox(ref) as! [Any];             KotlinBridgeable_disposeRef(ref); return v
+        case 14: let v = KotlinBridgeable_Set_unbox(ref) as! Set<AnyHashable>;           KotlinBridgeable_disposeRef(ref); return v
+        case 15: let v = KotlinBridgeable_Dictionary_unbox(ref) as! [AnyHashable: Any];  KotlinBridgeable_disposeRef(ref); return v
+        default: return __createProtocolWrapper(externalRCRef: ref, conformsTo: conformsTo)
         }
+    }
+
+    package static func __createProtocolWrapper<T>(externalRCRef ref: UnsafeMutableRawPointer, conformsTo type: T.Type) -> KotlinBase {
+        return __createProtocolWrapper(externalRCRef: ref, conformsTo: { wrapperClass in wrapperClass is T })
     }
 }
 
@@ -213,3 +261,12 @@ extension NSObject {
         return openAndWrap(markerType)
     }
 }
+
+// MARK: - Link anchor
+
+/// Anchor that keeps this compilation unit in the linked image. Without it this module gets stripped.
+/// Declared `package` so the symbol stays external: an internal one is hidden in a Release build
+/// (Debug gets `-enable-testing`), and SwiftPM's `ld -r` merge then makes it local, so the Kotlin
+/// binary's reference to it does not link (KT-90738).
+@_cdecl("KotlinRuntimeSupport_linkAnchor")
+package func _kotlinRuntimeSupportLinkAnchor() {}

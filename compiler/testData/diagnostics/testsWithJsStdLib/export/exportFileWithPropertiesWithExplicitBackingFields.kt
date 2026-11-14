@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // OPT_IN: kotlin.js.ExperimentalJsExport
 // LANGUAGE: +ExplicitBackingFields
 @file:JsExport
@@ -6,7 +6,7 @@
 interface I
 
 @JsExport.Ignore
-value class V(val x: Int) : I  {
+<!INLINE_VALUE_CLASS_WITHOUT_EXPLICIT_INLINE_WARNING!>value<!> class V(val x: Int) : I  {
     constructor() : this(42) {}
 }
 

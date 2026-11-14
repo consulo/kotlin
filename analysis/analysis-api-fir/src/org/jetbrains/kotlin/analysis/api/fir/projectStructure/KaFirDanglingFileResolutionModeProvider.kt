@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -20,14 +20,13 @@ import com.intellij.util.containers.addIfNotNull
 import com.intellij.util.diff.DiffTree
 import com.intellij.util.diff.DiffTreeChangeBuilder
 import com.intellij.util.diff.ShallowNodeComparator
+import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.analysis.api.platform.modification.KaElementModificationType
 import org.jetbrains.kotlin.analysis.api.platform.modification.KaSourceModificationLocality
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResolutionMode
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResolutionModeProvider
 import org.jetbrains.kotlin.analysis.api.projectStructure.copyOrigin
-import org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirInternals
 import org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.LLFirDeclarationModificationService
-import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtImplementationDetail
@@ -35,7 +34,7 @@ import org.jetbrains.kotlin.psi.psiUtil.nextLeaf
 import org.jetbrains.kotlin.psi.psiUtil.prevLeaf
 import org.jetbrains.kotlin.psi.psiUtil.textRangeWithoutComments
 import org.jetbrains.kotlin.psi.stubs.*
-import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
+import org.jetbrains.kotlin.psi.stubs.elements.KtTokenSets
 
 /**
  * Calculates [KaDanglingFileResolutionMode] for the given [KtFile] based purely on its content.
@@ -53,7 +52,6 @@ import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
  * Otherwise, returns [KaDanglingFileResolutionMode.IGNORE_SELF].
  */
 internal class KaFirDanglingFileResolutionModeProvider : KaDanglingFileResolutionModeProvider {
-    @OptIn(KtImplementationDetail::class)
     override fun calculateMode(file: KtFile): KaDanglingFileResolutionMode {
         return file.getOrComputeMode {
             computeModeNonCached(file)
@@ -94,7 +92,7 @@ internal class KaFirDanglingFileResolutionModeProvider : KaDanglingFileResolutio
          *
          * That's why we need to run the PSI-based diff in some specific cases.
          */
-        val foundOutOfBlockByPsiCheck = originalToCopyStubs.any { (originalStub, copyStub) ->
+        val foundOutOfBlockByPsiCheck = originalToCopyStubs.any { [originalStub, copyStub] ->
             if (originalStub.shouldRunPsiCheck()) {
                 calculateModePsiBased(originalStub.psi, copyStub.psi) == KaDanglingFileResolutionMode.PREFER_SELF
             } else {
@@ -119,7 +117,7 @@ internal class KaFirDanglingFileResolutionModeProvider : KaDanglingFileResolutio
         val stubList: MutableList<StubElement<*>?> = mutableListOf(stub)
         val result: MutableList<KotlinStubElement<*>> = mutableListOf()
         while (stubList.isNotEmpty()) {
-            val stub = stubList.pop() as? KotlinStubElement<*> ?: continue
+            val stub = stubList.removeLast() as? KotlinStubElement<*> ?: continue
             stub.childrenStubs.filterTo(stubList) { stub.shouldAddChild(it) }
             result.addIfNotNull(stub)
         }
@@ -131,16 +129,19 @@ internal class KaFirDanglingFileResolutionModeProvider : KaDanglingFileResolutio
      *
      * @see getFlatTopLevelStubList
      */
-    private fun StubElement<*>.shouldAddChild(child: StubElement<*>): Boolean {
-        return when (this) {
-            // Ignore everything in accessors, this will be handled by the PSI check
-            is KotlinPropertyAccessorStub -> false
+    @OptIn(KtImplementationDetail::class)
+    private fun StubElement<*>.shouldAddChild(child: StubElement<*>): Boolean = when (this) {
+        // Ignore everything in accessors, this will be handled by the PSI check
+        is KotlinPropertyAccessorStub -> false
+        is KotlinCallableStubBase<*> ->
             // Ignore nested classes / callables in callable stubs
-            is KotlinCallableStubBase<*> -> child !is KotlinCallableStubBase<*> && child !is KotlinClassifierStub
-            // Ignore everything in class initializers
-            is KotlinPlaceHolderStub<*> if elementType == KtStubElementTypes.CLASS_INITIALIZER -> false
-            else -> true
-        }
+            child !is KotlinCallableStubBase<*> && child !is KotlinClassifierStub &&
+                    // Ignore expressions since they hold initializers/body expressions
+                    child.elementType !in KtTokenSets.STUBBED_EXPRESSIONS
+
+        // Ignore everything in class initializers
+        is KotlinPlaceHolderStub<*> if elementType == KtNodeTypes.CLASS_INITIALIZER -> false
+        else -> true
     }
 
     @OptIn(KtImplementationDetail::class)
@@ -150,7 +151,7 @@ internal class KaFirDanglingFileResolutionModeProvider : KaDanglingFileResolutio
         // Functions with expression body (i.e. fun foo() = expr), different initializers might affect the return type
         is KotlinFunctionStub if !hasNoExpressionBody -> true
         // Class init blocks, most changes inside them are considered OOBM
-        is KotlinPlaceHolderStub<*> -> elementType == KtStubElementTypes.CLASS_INITIALIZER
+        is KotlinPlaceHolderStub<*> -> elementType == KtNodeTypes.CLASS_INITIALIZER
         // Property accessors, the code insight accessors might affect backing field instantiation
         is KotlinPropertyAccessorStub -> true
         else -> false
@@ -160,7 +161,6 @@ internal class KaFirDanglingFileResolutionModeProvider : KaDanglingFileResolutio
      * Performs an AST based diff between [originalPsi] and [copyPsi] and returns the resulting [KaDanglingFileResolutionMode].
      * Done by reusing [LLFirDeclarationModificationService] which handles PSI tree change events in the IDE.
      */
-    @OptIn(LLFirInternals::class)
     private fun calculateModePsiBased(originalPsi: KtElement, copyPsi: KtElement): KaDanglingFileResolutionMode {
         val originalNode = ASTStructure(originalPsi.node)
         val copyNode = ASTStructure(copyPsi.node)
@@ -220,7 +220,6 @@ internal class KaFirDanglingFileResolutionModeProvider : KaDanglingFileResolutio
     /**
      * Handles modification events from [DiffTree] and passes them to [modificationService] to detect out-of-block modifications.
      */
-    @OptIn(LLFirInternals::class)
     private class Consumer(private val modificationService: LLFirDeclarationModificationService) : DiffTreeChangeBuilder<ASTNode, ASTNode> {
         var mode: KaDanglingFileResolutionMode = KaDanglingFileResolutionMode.IGNORE_SELF
 
@@ -279,7 +278,6 @@ internal class KaFirDanglingFileResolutionModeProvider : KaDanglingFileResolutio
             }
         }
 
-        @OptIn(LLFirInternals::class)
         private fun calculateChangeType(element: PsiElement, modificationType: KaElementModificationType): KaSourceModificationLocality {
             return modificationService.detectLocality(element, modificationType)
         }

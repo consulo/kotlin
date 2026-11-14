@@ -1,43 +1,59 @@
 /*
- * Copyright 2010-2016 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.serialization.builtins
 
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.builtins.jvm.JvmBuiltInsSignatures
-import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
-import org.jetbrains.kotlin.descriptors.resolveClassByFqName
-import org.jetbrains.kotlin.incremental.components.NoLookupLocation
-import org.jetbrains.kotlin.load.kotlin.computeJvmDescriptor
+import org.jetbrains.kotlin.cli.common.allowNoSourceFiles
+import org.jetbrains.kotlin.cli.common.moduleChunk
+import org.jetbrains.kotlin.cli.common.modules.ModuleBuilder
+import org.jetbrains.kotlin.cli.common.modules.ModuleChunk
+import org.jetbrains.kotlin.cli.pipeline.ConfigurationPipelineArtifact
+import org.jetbrains.kotlin.cli.pipeline.jvm.JvmFrontendPipelinePhase
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.fir.declarations.utils.effectiveVisibility
+import org.jetbrains.kotlin.fir.isSubstitutionOrIntersectionOverride
+import org.jetbrains.kotlin.fir.resolve.isRealOwnerOf
+import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
+import org.jetbrains.kotlin.fir.scopes.getDeclaredConstructors
+import org.jetbrains.kotlin.fir.scopes.getFunctions
+import org.jetbrains.kotlin.fir.scopes.jvm.computeJvmDescriptor
+import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.resolve.descriptorUtil.isEffectivelyPublicApi
-import org.jetbrains.kotlin.resolve.jvm.JvmClassName
-import org.jetbrains.kotlin.resolve.lazy.JvmResolveUtil
 import org.jetbrains.kotlin.test.ConfigurationKind
-import org.jetbrains.kotlin.test.KotlinTestWithEnvironment
+import org.jetbrains.kotlin.test.KotlinTestUtils
 import org.jetbrains.kotlin.test.TestJdkKind
+import org.jetbrains.kotlin.test.util.KtTestUtil
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.fail
 
-class AdditionalBuiltInsMembersSignatureListsTest : KotlinTestWithEnvironment() {
-    override fun createEnvironment(): KotlinCoreEnvironment {
-        return createEnvironmentWithJdk(ConfigurationKind.JDK_ONLY, TestJdkKind.FULL_JDK_21)
+@OptIn(SymbolInternals::class)
+class AdditionalBuiltInsMembersSignatureListsTest {
+    private val testRootDisposable: Disposable = Disposer.newDisposable()
+
+    @AfterEach
+    fun tearDown() {
+        Disposer.dispose(testRootDisposable)
     }
 
+    @Test
     fun testAllListedSignaturesExistInJdk() {
-        @Suppress("DEPRECATION_ERROR")
-        val module = JvmResolveUtil.analyze(environment).moduleDescriptor as ModuleDescriptorImpl
+        val pipelineArtifact = JvmFrontendPipelinePhase.executePhase(
+            ConfigurationPipelineArtifact(createCompilerConfiguration(), testRootDisposable)
+        ) ?: fail("Failed to execute ${JvmFrontendPipelinePhase.name}")
+
+        val moduleOutput = pipelineArtifact.frontendOutput.outputs.single()
+        val session = moduleOutput.session
+        val scopeSession = moduleOutput.scopeSession
 
         val hiddenSignatures =
             JvmBuiltInsSignatures.HIDDEN_METHOD_SIGNATURES +
@@ -49,13 +65,18 @@ class AdditionalBuiltInsMembersSignatureListsTest : KotlinTestWithEnvironment() 
         val groupedByInternalName = hiddenSignatures.groupBy({ it.split(".")[0] }) { it.split(".")[1] }
 
         groupedByInternalName.entries.forEach { it ->
-            val (internalName, jvmDescriptors) = it
-            val classDescriptor =
-                module.resolveClassByFqName(
-                    JvmClassName.byInternalName(internalName).fqNameForClassNameWithoutDollars, NoLookupLocation.FROM_TEST
-                )!!
+            val [internalName, jvmDescriptors] = it
 
-            val scope = classDescriptor.unsubstitutedMemberScope
+            val classSymbol = session.symbolProvider.getClassLikeSymbolByClassId(internalName.toTopLevelClassId())
+                as? FirRegularClassSymbol
+                ?: fail("Expected class with internal name $internalName to be resolved")
+
+            val classScope = classSymbol.fir.unsubstitutedScope(
+                session,
+                scopeSession,
+                withForcedTypeCalculator = false,
+                memberRequiredPhase = null,
+            )
 
             val signaturesFromLaterJdkReleases = SIGNATURES_FROM_LATER_JDK_RELEASES[internalName] ?: emptySet()
 
@@ -63,18 +84,31 @@ class AdditionalBuiltInsMembersSignatureListsTest : KotlinTestWithEnvironment() 
                 if (jvmDescriptor in signaturesFromLaterJdkReleases) continue
 
                 val stringName = jvmDescriptor.split("(")[0]
-                val functions =
-                    if (stringName == "<init>")
-                        classDescriptor.constructors
-                    else
-                        scope.getContributedFunctions(Name.identifier(stringName), NoLookupLocation.FROM_TEST)
+                val functions = if (stringName == "<init>") {
+                    classScope.getDeclaredConstructors()
+                } else {
+                    classScope.getFunctions(Name.identifier(stringName)).filter {
+                        !it.isSubstitutionOrIntersectionOverride && classSymbol.toLookupTag().isRealOwnerOf(it)
+                    }
+                }
 
-                functions.singleOrNull {
-                    it.isEffectivelyPublicApi && it.computeJvmDescriptor() == jvmDescriptor
-                } ?: fail("Expected single function with signature $jvmDescriptor in $internalName")
+                val matchingFunction = functions.singleOrNull {
+                    it.effectiveVisibility.publicApi && it.fir.computeJvmDescriptor() == jvmDescriptor
+                }
+                if (matchingFunction == null) fail("Expected single function with signature $jvmDescriptor in $internalName")
             }
         }
     }
+
+    private fun createCompilerConfiguration(): CompilerConfiguration {
+        return KotlinTestUtils.newConfiguration(ConfigurationKind.JDK_ONLY, TestJdkKind.FULL_JDK_21, KtTestUtil.getAnnotationsJar())
+            .apply {
+                allowNoSourceFiles = true
+                moduleChunk = ModuleChunk(listOf(ModuleBuilder("test-module", ".", "java-production")))
+            }
+    }
+
+    private fun String.toTopLevelClassId(): ClassId = ClassId.topLevel(FqName(replace('/', '.')))
 
     /**
      * This property can be used to exclude particular signatures

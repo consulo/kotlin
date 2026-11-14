@@ -12,15 +12,15 @@ repositories {
 
 kotlin {
     val nativePlatform = when {
-        HostManager.hostIsMac -> macosX64("nativePlatform")
+        HostManager.hostIsMac -> macosArm64("nativePlatform")
         HostManager.hostIsLinux -> linuxX64("nativePlatform")
         HostManager.hostIsMingw -> mingwX64("nativePlatform")
         else -> throw IllegalStateException("Unsupported host")
     }
 
-    val commonMain by sourceSets.getting
-    val nativePlatformMain by sourceSets.getting
-    val nativeMain by sourceSets.creating
+    val commonMain = sourceSets.getByName("commonMain")
+    val nativePlatformMain = sourceSets.getByName("nativePlatformMain")
+    val nativeMain = sourceSets.create("nativeMain")
 
     nativeMain.dependsOn(commonMain)
     nativePlatformMain.dependsOn(nativeMain)

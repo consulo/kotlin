@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.buildtools.api.jvm
 
 import org.jetbrains.kotlin.buildtools.api.BaseIncrementalCompilationConfiguration
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
+import org.jetbrains.kotlin.buildtools.api.KotlinReleaseVersion
 import org.jetbrains.kotlin.buildtools.api.SourcesChanges
 import org.jetbrains.kotlin.buildtools.api.arguments.ExperimentalCompilerArgument
 import org.jetbrains.kotlin.buildtools.api.internal.BaseOption
@@ -48,7 +49,7 @@ constructor(
     public val workingDirectory: Path,
     public val sourcesChanges: SourcesChanges,
     public val dependenciesSnapshotFiles: List<Path>,
-    @Deprecated("This property is no longer required and will be removed in a future release.")
+    @Deprecated("This property is no longer required and will be removed in a future release.", level = DeprecationLevel.ERROR)
     public val shrunkClasspathSnapshot: Path,
     @Deprecated("Use `get` directly instead or a `Builder` instance to set options. This property will be removed in a future release.", level = DeprecationLevel.ERROR)
     public open val options: JvmSnapshotBasedIncrementalCompilationOptions,
@@ -61,18 +62,18 @@ constructor(
      */
     private object DUMMY_OPTIONS : JvmSnapshotBasedIncrementalCompilationOptions {
         override fun <V> get(key: JvmSnapshotBasedIncrementalCompilationOptions.Option<V>): V {
-            error("Not implemented. Do not use `JvmSnapshotBasedIncrementalCompilationConfiguration.options` - it's deprecated.")
+            error("Not implemented. Do not use `JvmSnapshotBasedIncrementalCompilationConfiguration.options` - it's deprecated. Use JvmSnapshotBasedIncrementalCompilationConfiguration.get to read option values")
         }
 
         override fun <V> set(
             key: JvmSnapshotBasedIncrementalCompilationOptions.Option<V>,
             value: V,
         ) {
-            error("Not implemented. Do not use `JvmSnapshotBasedIncrementalCompilationConfiguration.options` - it's deprecated.")
+            error("Not implemented. Do not use `JvmSnapshotBasedIncrementalCompilationConfiguration.options` - it's deprecated. Use JvmSnapshotBasedIncrementalCompilationConfiguration.Builder.set to set option values")
         }
 
         override fun <V> get(key: BaseIncrementalCompilationConfiguration.Option<V>): V {
-            error("Not implemented. Do not use `JvmSnapshotBasedIncrementalCompilationConfiguration.options` - it's deprecated.")
+            error("Not implemented. Do not use `JvmSnapshotBasedIncrementalCompilationConfiguration.options` - it's deprecated. Use JvmSnapshotBasedIncrementalCompilationConfiguration.get to read option values")
         }
     }
 
@@ -132,11 +133,11 @@ constructor(
 
         /**
          * The path to the shrunk classpath snapshot file from a previous compilation.
-         * @deprecated The property is no longer required. Will be promoted to an error in KT-83937.
+         * @deprecated The property is no longer required. Will be removed in KT-88357.
          *
          * @since 2.3.20
          */
-        @Deprecated("This property is no longer required and will be removed in a future release.")
+        @Deprecated("This property is no longer required and will be removed in a future release.", level = DeprecationLevel.ERROR)
         public val shrunkClasspathSnapshot: Path
 
         /**
@@ -178,7 +179,10 @@ constructor(
      * @see get
      * @see set
      */
-    public class Option<V> internal constructor(id: String) : BaseOption<V>(id)
+    public class Option<V> internal constructor(
+        id: String,
+        public val availableSinceVersion: KotlinReleaseVersion,
+    ) : BaseOption<V>(id)
 
     /**
      * Get the value for option specified by [key] if it was previously [set] or if it has a default value.
@@ -217,7 +221,7 @@ constructor(
             )
         )
         @JvmField
-        public val ROOT_PROJECT_DIR: Option<Path?> = Option("ROOT_PROJECT_DIR")
+        public val ROOT_PROJECT_DIR: Option<Path?> = Option("ROOT_PROJECT_DIR", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * The build directory, used for computing relative paths for output files in the incremental compilation caches.
@@ -232,13 +236,13 @@ constructor(
             )
         )
         @JvmField
-        public val MODULE_BUILD_DIR: Option<Path?> = Option("MODULE_BUILD_DIR")
+        public val MODULE_BUILD_DIR: Option<Path?> = Option("MODULE_BUILD_DIR", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * Controls whether incremental compilation will analyze Java files precisely for better changes detection.
          */
         @JvmField
-        public val PRECISE_JAVA_TRACKING: Option<Boolean> = Option("PRECISE_JAVA_TRACKING")
+        public val PRECISE_JAVA_TRACKING: Option<Boolean> = Option("PRECISE_JAVA_TRACKING", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * Controls whether incremental compilation should perform file-by-file backup of previously compiled files
@@ -252,7 +256,7 @@ constructor(
             )
         )
         @JvmField
-        public val BACKUP_CLASSES: Option<Boolean> = Option("BACKUP_CLASSES")
+        public val BACKUP_CLASSES: Option<Boolean> = Option("BACKUP_CLASSES", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * Controls whether caches should remain in memory
@@ -266,7 +270,7 @@ constructor(
             )
         )
         @JvmField
-        public val KEEP_IC_CACHES_IN_MEMORY: Option<Boolean> = Option("KEEP_IC_CACHES_IN_MEMORY")
+        public val KEEP_IC_CACHES_IN_MEMORY: Option<Boolean> = Option("KEEP_IC_CACHES_IN_MEMORY", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * Controls whether the non-incremental mode of the incremental compiler is forced.
@@ -281,7 +285,7 @@ constructor(
             )
         )
         @JvmField
-        public val FORCE_RECOMPILATION: Option<Boolean> = Option("FORCE_RECOMPILATION")
+        public val FORCE_RECOMPILATION: Option<Boolean> = Option("FORCE_RECOMPILATION", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * The directories that the compiler will clean in the case of fallback to non-incremental compilation.
@@ -299,7 +303,7 @@ constructor(
             )
         )
         @JvmField
-        public val OUTPUT_DIRS: Option<Set<Path>?> = Option("OUTPUT_DIRS")
+        public val OUTPUT_DIRS: Option<Set<Path>?> = Option("OUTPUT_DIRS", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * Controls whether classpath snapshots comparing should be avoided.
@@ -307,7 +311,7 @@ constructor(
          * Can be used as an optimization if the check is already performed by the API consumer.
          */
         @JvmField
-        public val ASSURED_NO_CLASSPATH_SNAPSHOT_CHANGES: Option<Boolean> = Option("ASSURED_NO_CLASSPATH_SNAPSHOT_CHANGES")
+        public val ASSURED_NO_CLASSPATH_SNAPSHOT_CHANGES: Option<Boolean> = Option("ASSURED_NO_CLASSPATH_SNAPSHOT_CHANGES", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * Controls whether the *experimental* incremental runner based on Kotlin compiler FIR is used.
@@ -315,44 +319,21 @@ constructor(
          */
         @JvmField
         @ExperimentalCompilerArgument
-        public val USE_FIR_RUNNER: Option<Boolean> = Option("USE_FIR_RUNNER")
+        @Deprecated("The FIR runner is deprecated and will be removed in Kotlin 2.5.0.", level = DeprecationLevel.ERROR)
+        public val USE_FIR_RUNNER: Option<Boolean> = Option("USE_FIR_RUNNER", KotlinReleaseVersion(2, 3, 0))
 
         /**
-         * By default, with the K2 compiler and KMP, we recompile the whole module if any common sources are recompiled.
-         * Keeping this option disabled provides consistent builds at the cost of compilation speed. (See KT-62686 for the underlying issue.)
-         * Enabling this option brings back pre-K2 behavior and may potentially introduce incorrect incremental builds.
+         * When this option is enabled and a round of incremental compilation fails with compilation errors, the round is repeated once
+         * with a widened set of dirty source files before the errors are reported.
+         * This recovers from errors caused by unchanged sources that were not recompiled although they depend on the changes,
+         * for example, see KT-89857. At most one such round is performed per build.
+         *
+         * @since 2.5.20
          */
-        @Deprecated(
-            "Use `BaseIncrementalCompilationConfiguration.UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM` instead.",
-            ReplaceWith(
-                "BaseIncrementalCompilationConfiguration.UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM",
-                "org.jetbrains.kotlin.buildtools.api.BaseIncrementalCompilationConfiguration"
-            )
-        )
         @JvmField
         @ExperimentalCompilerArgument
-        public val UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM: Option<Boolean> =
-            Option("UNSAFE_INCREMENTAL_COMPILATION_FOR_MULTIPLATFORM")
-
-        /**
-         * When this option is enabled, the incremental compilation scope is always expanded monotonously (see explanation below).
-         *
-         * For example, when recompilation of file `a.kt` introduces changes that require the recompilation of file `b.kt`, the new
-         * file `b.kt` is _added_ to the compilation scope, and both files `a.kt` and `b.kt` are recompiled in the next step.
-         *
-         * When this option is disabled, only the files that weren't compiled previously are recompiled,
-         * so only `b.kt` from the example above would be recompiled in the second step.
-         */
-        @Deprecated(
-            "Use `BaseIncrementalCompilationConfiguration.MONOTONOUS_INCREMENTAL_COMPILE_SET_EXPANSION` instead.",
-            ReplaceWith(
-                "BaseIncrementalCompilationConfiguration.MONOTONOUS_INCREMENTAL_COMPILE_SET_EXPANSION",
-                "org.jetbrains.kotlin.buildtools.api.BaseIncrementalCompilationConfiguration"
-            )
-        )
-        @JvmField
-        @ExperimentalCompilerArgument
-        public val MONOTONOUS_INCREMENTAL_COMPILE_SET_EXPANSION: Option<Boolean> = Option("MONOTONOUS_INCREMENTAL_COMPILE_SET_EXPANSION")
+        public val ENABLE_ERROR_RECOVERY_ROUND: Option<Boolean> =
+            Option("ENABLE_ERROR_RECOVERY_ROUND", KotlinReleaseVersion(2, 5, 20))
     }
 }
 
@@ -468,6 +449,7 @@ public interface JvmSnapshotBasedIncrementalCompilationOptions : BaseIncremental
          */
         @JvmField
         @ExperimentalCompilerArgument
+        @Deprecated("The FIR runner is deprecated and will be removed in Kotlin 2.5.0.", level = DeprecationLevel.ERROR)
         public val USE_FIR_RUNNER: Option<Boolean> = Option("USE_FIR_RUNNER")
 
         /**

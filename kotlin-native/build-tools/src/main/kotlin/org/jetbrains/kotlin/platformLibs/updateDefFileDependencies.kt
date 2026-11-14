@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.platformLibs
 
+import kotlinBuildProperties
 import org.gradle.api.DefaultTask
 import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
@@ -14,8 +15,10 @@ import org.gradle.api.provider.Property
 import org.gradle.api.tasks.*
 import org.gradle.process.ExecOperations
 import org.gradle.work.DisableCachingByDefault
+import org.jetbrains.kotlin.isWholeXcodeProvisioningEnabled
 import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.jetbrains.kotlin.konan.target.unsupportedTargetNames
 import org.jetbrains.kotlin.konan.util.visibleName
 import org.jetbrains.kotlin.nativeDistribution.nativeDistribution
 import java.io.ByteArrayOutputStream
@@ -30,9 +33,10 @@ fun Project.familyDefFiles(family: Family) = fileTree("src/platform/${family.vis
         .filter { it.name.endsWith(".def") }
 
 fun Project.registerUpdateDefFileDependenciesForAppleFamiliesTasks(aggregateTask: TaskProvider<*>): Map<Family, TaskProvider<*>> {
-    val shouldUpdate = project.getBooleanProperty(updateDefFileDependenciesFlag) ?: false
+    val shouldUpdate = project.kotlinBuildProperties.booleanProperty(updateDefFileDependenciesFlag, false).get()
 
-    val updateDefFilesTaskPerFamily = KonanTarget.predefinedTargets.values.filter { it.family.isAppleFamily }.groupBy { it.family }.mapValues {
+    val targets = KonanTarget.predefinedTargets.values.filter { it.name !in unsupportedTargetNames }
+    val updateDefFilesTaskPerFamily = targets.filter { it.family.isAppleFamily }.groupBy { it.family }.mapValues {
         registerUpdateDefFileDependenciesTask(
                 family = it.key,
                 targets = it.value,
@@ -98,6 +102,10 @@ private open class UpdateDefFileDependenciesTask @Inject constructor(
     @get:Input
     val targetNames: ListProperty<String> = project.objects.listProperty(String::class.java)
 
+    @get:Input
+    val useProvisionedXcode: Property<Boolean> = project.objects.property(Boolean::class.java)
+            .convention(project.isWholeXcodeProvisioningEnabled())
+
     @get:PathSensitive(PathSensitivity.RELATIVE)
     @get:InputFile
     val runKonan: Property<File> = project.objects.property(File::class.java)
@@ -130,7 +138,14 @@ private open class UpdateDefFileDependenciesTask @Inject constructor(
         val initialDefFiles = mutableMapOf<File, String>()
         defFiles.forEach { initialDefFiles[it] = it.readText() }
         execOperations.exec {
-            commandLine(runKonan.get(), "defFileDependencies", *targetNames.get().flatMap { listOf("-target", it) }.toTypedArray(), *defFiles.map { it.path }.toTypedArray())
+            val propertyOverrides = if (useProvisionedXcode.get()) listOf("-Xoverride-konan-properties", "useProvisionedXcode=true") else emptyList()
+            commandLine(
+                    runKonan.get(),
+                    "defFileDependencies",
+                    *targetNames.get().flatMap { listOf("-target", it) }.toTypedArray(),
+                    *propertyOverrides.toTypedArray(),
+                    *defFiles.map { it.path }.toTypedArray(),
+            )
         }
         val changedDefFiles = mutableListOf<File>()
         defFiles.forEach {
@@ -162,11 +177,4 @@ private open class UpdateDefFileDependenciesTask @Inject constructor(
         return diff.toString()
     }
 
-}
-
-
-private fun Project.getBooleanProperty(name: String): Boolean? = this.findProperty(name)?.let {
-    val v = it.toString()
-    if (v.isBlank()) true
-    else v.toBoolean()
 }

@@ -11,17 +11,20 @@ import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.internal.hash.FileHasher
 import org.jetbrains.kotlin.gradle.internal.ProcessedFilesCache
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 import java.io.File
 
 /**
  * Cache for storing already created [GradleNodeModule]s
  */
+@ObsoleteNpmDependencyModel
 abstract class AbstractNodeModulesCache : AutoCloseable, BuildService<AbstractNodeModulesCache.Parameters> {
     interface Parameters : BuildServiceParameters {
         val rootProjectDir: DirectoryProperty
         val cacheDir: DirectoryProperty
     }
 
+    @ObsoleteNpmDependencyModel
     companion object {
         const val STATE_FILE_NAME = ".visited"
     }
@@ -44,17 +47,17 @@ abstract class AbstractNodeModulesCache : AutoCloseable, BuildService<AbstractNo
     fun get(
         name: String,
         version: String,
-        file: File
+        file: File,
     ): GradleNodeModule? = cache.getOrCompute(file) {
         buildImportedPackage(name, version, file)
-    }?.let {
-        GradleNodeModule(it)
+    }?.let { dir ->
+        GradleNodeModule(dir.parentFile.name, dir.name, dir)
     }
 
     abstract fun buildImportedPackage(
         name: String,
         version: String,
-        file: File
+        file: File,
     ): File?
 
     @Synchronized
@@ -63,12 +66,14 @@ abstract class AbstractNodeModulesCache : AutoCloseable, BuildService<AbstractNo
     }
 }
 
+@Deprecated("Internal KGP utility. Scheduled for removal in Kotlin 2.7")
 fun makeNodeModule(
     container: File,
     packageJson: PackageJson,
-    files: (File) -> Unit
+    files: (File) -> Unit,
 ): File {
-    val dir = importedPackageDir(container, packageJson.name, packageJson.version)
+    /** imported package directory */
+    val dir = importedPackageDirWithinCache(container, packageJson.name, packageJson.version)
 
     if (dir.exists()) dir.deleteRecursively()
 
@@ -90,7 +95,9 @@ fun makeNodeModule(
     return dir
 }
 
+@Deprecated("Internal KGP utility. Scheduled for removal in Kotlin 2.7")
 fun importedPackageDir(container: File, name: String, version: String): File =
-    container.resolve(name).resolve(version)
+    importedPackageDirWithinCache(container, name, version)
 
+@Deprecated("Internal KGP utility. Scheduled for removal in Kotlin 2.7")
 fun GradleNodeModule(dir: File) = GradleNodeModule(dir.parentFile.name, dir.name, dir)

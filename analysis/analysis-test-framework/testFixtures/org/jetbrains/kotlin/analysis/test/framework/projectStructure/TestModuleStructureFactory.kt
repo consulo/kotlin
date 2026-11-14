@@ -9,9 +9,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.GlobalSearchScope
-import org.jetbrains.kotlin.analysis.api.impl.base.util.LibraryUtils
+import org.jetbrains.kotlin.analysis.api.fir.utils.LibraryUtils
 import org.jetbrains.kotlin.analysis.api.projectStructure.*
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.StandaloneProjectFactory
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.StandaloneProjectFactory
 import org.jetbrains.kotlin.analysis.test.framework.AnalysisApiTestDirectives
 import org.jetbrains.kotlin.analysis.test.framework.hasFallbackDependencies
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.TestModuleStructureFactory.addLibraryDependencies
@@ -82,14 +82,11 @@ object TestModuleStructureFactory {
             val contextModuleName = testModule.directives.singleOrZeroValue(AnalysisApiTestDirectives.CONTEXT_MODULE)
             val contextModule = contextModuleName?.let(existingModules::getValue)
 
-            val analysisContextModuleName = testModule.directives.singleOrZeroValue(AnalysisApiTestDirectives.ANALYSIS_CONTEXT_MODULE)
-            val analysisContextModule = analysisContextModuleName?.let(existingModules::getValue)
-
             val dependencyBinaryRoots = testModule.getDependencyBinaryRoots(existingModules)
 
             val ktTestModule = testServices
                 .getKtModuleFactoryForTestModule(testModule)
-                .createModule(testModule, analysisContextModule ?: contextModule, dependencyBinaryRoots, testServices, project)
+                .createModule(testModule, contextModule, dependencyBinaryRoots, testServices, project)
 
             existingModules[testModule.name] = ktTestModule
             result.add(ktTestModule)
@@ -172,7 +169,7 @@ object TestModuleStructureFactory {
                 ?: JvmEnvironmentConfigurator.getJdkClasspathRoot(jdkKind)?.toPath()
                 ?: Paths.get(System.getProperty("java.home"))
 
-            val (jdkRoots, libraryRoots) = classpathRoots.partition { jdkHome != null && it.startsWith(jdkHome) }
+            val [jdkRoots, libraryRoots] = classpathRoots.partition { jdkHome != null && it.startsWith(jdkHome) }
 
             val targetPlatform = testModule.targetPlatform(testServices)
             if (targetPlatform.isJvm() && (jdkRoots.isNotEmpty() || jdkHome != null)) {
@@ -258,7 +255,7 @@ object TestModuleStructureFactory {
         testServices: TestServices,
         project: Project,
     ): List<PsiFile> {
-        return testModule.files.map { testFile ->
+        return testModule.files.mapNotNull { testFile ->
             when {
                 testFile.isKtFile -> {
                     val fileText = testServices.sourceFileProvider.getContentOfSourceFile(testFile)
@@ -273,6 +270,8 @@ object TestModuleStructureFactory {
                     PsiManager.getInstance(project).findFile(virtualFile)
                         ?: error("PsiFile file not found for $filePath")
                 }
+
+                AnalysisApiTestDirectives.IGNORE_UNKNOWN_FILES in testModule.directives -> null
 
                 else -> error("Unexpected file ${testFile.name}")
             }

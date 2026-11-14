@@ -1,7 +1,6 @@
-// TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: JVM
 
 // WITH_STDLIB
-// LANGUAGE: +InstantiationOfAnnotationClasses
 
 import kotlin.reflect.KClass
 import kotlin.test.assertEquals

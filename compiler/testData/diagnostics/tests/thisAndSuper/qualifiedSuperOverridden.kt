@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +QualifiedSupertypeMayBeExtendedByOtherSupertype
+// RUN_PIPELINE_TILL: CODEGEN
 interface IBase {
     fun foo() {}
     fun bar() {}

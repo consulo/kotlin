@@ -2,20 +2,18 @@
  * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.analysis.decompiled.light.classes.origin
 
 import com.intellij.lang.jvm.JvmModifier
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.util.IntellijInternalApi
 import com.intellij.psi.*
 import org.jetbrains.kotlin.analysis.decompiler.psi.file.KtClsFile
-import org.jetbrains.kotlin.analysis.decompiler.psi.text.getAllModifierLists
-import org.jetbrains.kotlin.analysis.decompiler.psi.text.getQualifiedName
-import org.jetbrains.kotlin.asJava.LightClassUtil
 import org.jetbrains.kotlin.asJava.elements.psiType
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.constant.StringValue
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.load.java.propertyNameByGetMethodName
 import org.jetbrains.kotlin.load.java.propertyNamesBySetMethodName
@@ -23,9 +21,12 @@ import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.hasSuspendModifier
+import org.jetbrains.kotlin.psi.psiUtil.isCompanion
+import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
 import org.jetbrains.kotlin.psi.stubs.impl.KotlinAnnotationEntryStubImpl
 import org.jetbrains.kotlin.utils.SmartList
 import org.jetbrains.kotlin.utils.addIfNotNull
+import org.jetbrains.kotlin.utils.addToStdlib.forEachZipped
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
@@ -61,18 +62,41 @@ class KotlinDeclarationInCompiledFileSearcher {
 
         if (member is PsiMethod && member.isConstructor) {
             val classOrObject = container.safeAs<KtClassOrObject>()?.takeIf { it.name == memberName }
-            return classOrObject?.allConstructors?.firstOrNull { doParametersMatch(member, it) } ?: classOrObject?.primaryConstructor
-            ?: classOrObject
+            return classOrObject?.allConstructors?.firstOrNull { doParametersMatch(member, it) }
+                ?: classOrObject?.primaryConstructor
+                ?: classOrObject
         }
 
-        val (regularDeclarations, companionDeclarations) = if (container is KtClass && member.hasModifierProperty(PsiModifier.STATIC)) {
+        // A compiled annotation class declares its properties as parameters of its primary constructor
+        val foldedProperties = (container as? KtClassOrObject)?.primaryConstructorParameters?.filter(KtParameter::hasValOrVar).orEmpty()
+        val regularDeclarations = foldedProperties + container.declarations
+
+        @OptIn(KtExperimentalApi::class)
+        val staticDeclarations: List<KtDeclaration> = if (container is KtClass && member.hasModifierProperty(PsiModifier.STATIC)) {
             // Compiled code cannot have more than one companion object, so we can pick the first one
-            container.declarations to container.companionObjects.firstOrNull()?.declarations.orEmpty()
+            val companionDeclarations = container.companionObjects.firstOrNull()?.declarations.orEmpty()
+
+            // Companion-object members and members of `companion { ... }` blocks (KEEP-0449) both
+            // materialize as static members of the enclosing class.
+            val companionBlocks = container.companionBlocks
+            when {
+                companionBlocks.isEmpty() -> companionDeclarations
+                companionDeclarations.isEmpty() && companionBlocks.size == 1 -> companionBlocks[0].declarations
+                else -> buildList {
+                    addAll(companionDeclarations)
+                    companionBlocks.forEach { addAll(it.declarations) }
+                }
+            }
         } else {
-            container.declarations to emptyList()
+            emptyList()
         }
 
-        val declarations = regularDeclarations + companionDeclarations
+        val declarations = if (staticDeclarations.isEmpty()) {
+            regularDeclarations
+        } else {
+            regularDeclarations + staticDeclarations
+        }
+
         return when (member) {
             is PsiMethod -> {
                 val names = SmartList(memberName)
@@ -111,11 +135,14 @@ class KotlinDeclarationInCompiledFileSearcher {
 
                 val declarations = when {
                     container is KtFile || container is KtObjectDeclaration -> declarations
-                    member.hasModifier(JvmModifier.STATIC) ->
+                    member.hasModifier(JvmModifier.STATIC) -> buildList {
                         // Enum entries and companion objects are materialized in the containing class as fields
-                        regularDeclarations.filter { it is KtEnumEntry || it is KtObjectDeclaration && it.isCompanion() } +
-                                // Fields for properties from companion objects are materialized in the containing class
-                                companionDeclarations.filterIsInstance<KtProperty>()
+                        regularDeclarations.filterTo(this) { it is KtEnumEntry || it is KtObjectDeclaration && it.isCompanion() }
+
+                        // Properties from companion objects and `companion { ... }` blocks become
+                        // static fields of the enclosing class
+                        staticDeclarations.filterIsInstanceTo<KtProperty, _>(this)
+                    }
 
                     else -> declarations
                 }
@@ -136,8 +163,7 @@ class KotlinDeclarationInCompiledFileSearcher {
 
                     // To simplify the logic around the mangling name creation (especially for JvmField case),
                     // it is enough to just check the mangling fact
-                    @OptIn(IntellijInternalApi::class)
-                    return memberName == name || LightClassUtil.isMangled(memberName, name)
+                    return memberName == name || isMangled(memberName, name)
                 })
             }
             else -> declarations.singleOrNull { it.name == memberName }
@@ -155,25 +181,55 @@ class KotlinDeclarationInCompiledFileSearcher {
         val declarationName = getJvmName(declaration)
         return when (declaration) {
             is KtNamedFunction -> {
-                declarationName in names && functionMatcher(declaration)
+                matchesAny(declarationName, names, declaration) && functionMatcher(declaration)
             }
             is KtProperty -> {
                 val getterName = getJvmName(declaration.getter)
                 val setterName = getJvmName(declaration.setter)
                 if (setter != null) {
                     val accessorName = (if (setter) setterName else getterName) ?: declarationName
-                    accessorName in names && propertyMatcher(declaration, setter)
+                    matchesAny(accessorName, names, declaration) && propertyMatcher(declaration, setter)
                 } else {
                     val containingClass = member.containingClass
-                    getterName in names && propertyMatcher(declaration, false) ||
-                            setterName in names && propertyMatcher(declaration, true) ||
-                            getterName == null && setterName == null && declarationName in names &&
-                            (containingClass?.isRecord == true || containingClass?.isAnnotationType == true) &&
+                    matchesAny(getterName, names, declaration) && propertyMatcher(declaration, false) ||
+                            matchesAny(setterName, names, declaration) && propertyMatcher(declaration, true) ||
+                            getterName == null && setterName == null && (containingClass?.isRecord == true) &&
+                            matchesAny(declarationName, names, declaration) &&
                             propertyMatcher(declaration, false)
                 }
             }
+
+            // The accessor of an annotation property takes no arguments and its name is unique within the annotation,
+            // so there is nothing to match beyond the name itself
+            is KtParameter -> setter != true &&
+                    member.containingClass?.isAnnotationType == true &&
+                    matchesAny(declarationName, names, declaration)
+
             else -> false
         }
+    }
+
+    /**
+     * Like `name in names`, but additionally accepts mangled forms (`<name>$<suffix>`) when
+     * [declaration] is the kind whose JVM name is mangled by visibility — `internal` members and
+     * `private` top-level members in multifile facades. This intentionally excludes synthetic
+     * methods that share the `<base>$<suffix>` shape but encode something else (e.g.
+     * `<enclosingFun>$<localFun>` synthetics for local functions), which must not be matched
+     * against an unrelated source declaration with the same prefix.
+     */
+    private fun matchesAny(name: String?, names: SmartList<String>, declaration: KtDeclaration): Boolean {
+        if (name == null) return false
+        if (name in names) return true
+        if (!declaration.hasVisibilityMangledJvmName()) return false
+        return names.any { isMangled(it, name) }
+    }
+
+    private fun KtDeclaration.hasVisibilityMangledJvmName(): Boolean {
+        val modifierList = modifierList ?: return false
+        return modifierList.hasModifier(KtTokens.INTERNAL_KEYWORD) ||
+                // `private` top-level members in a multifile facade are mangled with the
+                // per-file part class name; nested `private` declarations are not mangled.
+                modifierList.hasModifier(KtTokens.PRIVATE_KEYWORD) && parent is KtFile
     }
 
     private fun getJvmName(declaration: KtDeclaration?): String? {
@@ -200,7 +256,13 @@ class KotlinDeclarationInCompiledFileSearcher {
             contextParameterList.contextParameters.forEach { to.add(it.typeReference!!) }
         }
 
-        receiverTypeReference?.let { to.add(it) }
+        // KEEP-0449 companion extensions hide their receiver from the JVM signature, mirroring
+        // `SymbolLightParameterForReceiver.create`. Companion-block members never have a receiver,
+        // so the guard is a no-op for that bucket.
+        @OptIn(KtExperimentalApi::class)
+        if (!isCompanion) {
+            receiverTypeReference?.let { to.add(it) }
+        }
     }
 
     private fun doPropertyMatch(member: PsiMethod, property: KtProperty, setter: Boolean): Boolean {
@@ -219,7 +281,7 @@ class KotlinDeclarationInCompiledFileSearcher {
 
         if (ktTypes.size != psiTypes.size) return false
         val isInsideAnnotation = member.containingClass?.isAnnotationType == true
-        ktTypes.zip(psiTypes).forEach { (ktType, psiType) ->
+        ktTypes.zip(psiTypes).forEach { [ktType, psiType] ->
             if (!areTypesTheSame(ktType, psiType, false, isInsideAnnotation)) return false
         }
         return true
@@ -230,7 +292,10 @@ class KotlinDeclarationInCompiledFileSearcher {
             contextParameterList.contextParameters.forEach { to.add(it.name!!) }
         }
 
-        receiverTypeReference?.let { to.add($$"$this$" + this@extractContextParameterNames.name) }
+        @OptIn(KtExperimentalApi::class)
+        if (!isCompanion) {
+            receiverTypeReference?.let { to.add($$"$this$" + this@extractContextParameterNames.name) }
+        }
     }
 
     private fun doPropertyMatchByName(member: PsiMethod, property: KtProperty, setter: Boolean): Boolean {
@@ -245,7 +310,7 @@ class KotlinDeclarationInCompiledFileSearcher {
         member.parameterList.parameters.forEach { psiNames.add(it.name) }
 
         if (names.size != psiNames.size) return false
-        names.zip(psiNames).forEach { (ktName, psiName) ->
+        names.zip(psiNames).forEach { [ktName, psiName] ->
             if (ktName != psiName) return false
         }
         return true
@@ -270,7 +335,7 @@ class KotlinDeclarationInCompiledFileSearcher {
 
     private fun doTypeParametersMatchByName(member: PsiMethod, callableDeclaration: KtCallableDeclaration): Boolean {
         if (member.typeParameters.size != callableDeclaration.typeParameters.size) return false
-        member.typeParameters.zip(callableDeclaration.typeParameters) { psiTypeParam, ktTypeParameter ->
+        member.typeParameters.forEachZipped(callableDeclaration.typeParameters) { psiTypeParam, ktTypeParameter ->
             if (psiTypeParam.name.toString() != ktTypeParameter.name) {
                 return false
             }
@@ -330,7 +395,7 @@ class KotlinDeclarationInCompiledFileSearcher {
         if (parametersCount != initial.size) return false
 
         val memberValues = memberParameterList.parameters.map(fromPsiMapper)
-        initial.zip(memberValues).forEach { (fromKt, fromPsi) ->
+        initial.zip(memberValues).forEach { [fromKt, fromPsi] ->
             if (!matcher(fromKt, fromPsi)) return false
         }
         return true
@@ -349,7 +414,7 @@ class KotlinDeclarationInCompiledFileSearcher {
     private fun doTypeParameters(member: PsiMethod, ktNamedFunction: KtFunction): Boolean {
         if (member.typeParameters.size != ktNamedFunction.typeParameters.size) return false
         val boundsByName = ktNamedFunction.typeConstraints.groupBy { it.subjectTypeParameterName?.getReferencedName() }
-        member.typeParameters.zip(ktNamedFunction.typeParameters) { psiTypeParam, ktTypeParameter ->
+        member.typeParameters.forEachZipped(ktNamedFunction.typeParameters) { psiTypeParam, ktTypeParameter ->
             if (psiTypeParam.name.toString() != ktTypeParameter.name) return false
             val psiBounds = mutableListOf<KtTypeReference>()
             psiBounds.addIfNotNull(ktTypeParameter.extendsBound)
@@ -358,7 +423,7 @@ class KotlinDeclarationInCompiledFileSearcher {
             }
             val expectedBounds = psiTypeParam.extendsListTypes
             if (psiBounds.size != expectedBounds.size) return false
-            expectedBounds.zip(psiBounds) { expectedBound, candidateBound ->
+            expectedBounds.forEachZipped(psiBounds) { expectedBound, candidateBound ->
                 if (!areTypesTheSame(candidateBound, expectedBound, false)) {
                     return false
                 }
@@ -377,7 +442,7 @@ class KotlinDeclarationInCompiledFileSearcher {
         insideAnnotation: Boolean = false,
     ): Boolean {
         val qualifiedName =
-            getQualifiedName(ktTypeRef.typeElement, ktTypeRef.getAllModifierLists().any { it.hasSuspendModifier() }) ?: return false
+            getQualifiedName(ktTypeRef.typeElement, ktTypeRef.allModifierLists.any { it.hasSuspendModifier() }) ?: return false
         return if (psiType is PsiArrayType && psiType.componentType !is PsiPrimitiveType) {
             qualifiedName == StandardNames.FqNames.array.asString() ||
                     varArgs && areTypesTheSame(ktTypeRef, psiType.componentType, varArgs = false, insideAnnotation = insideAnnotation)
@@ -402,8 +467,39 @@ class KotlinDeclarationInCompiledFileSearcher {
         return false
     }
 
+    private fun isMangled(wrapperName: String, prefix: String): Boolean {
+        //see KT-54803 for other mangling strategies
+        // A memory optimization for `wrapperName.startsWith("$prefix$")`, see KT-63486
+        return wrapperName.length > prefix.length
+                && wrapperName[prefix.length] == '$'
+                && wrapperName.startsWith(prefix)
+    }
+
     companion object {
         fun getInstance(): KotlinDeclarationInCompiledFileSearcher =
             ApplicationManager.getApplication().getService(KotlinDeclarationInCompiledFileSearcher::class.java)
     }
+}
+
+private fun getQualifiedName(typeElement: KtTypeElement?, isSuspend: Boolean): String? {
+    val referencedName = when (typeElement) {
+        is KtUserType -> getQualifiedName(typeElement)
+        is KtFunctionType -> {
+            var parametersCount = typeElement.parameters.size
+            typeElement.receiverTypeReference?.let { parametersCount++ }
+            if (isSuspend) {
+                StandardNames.getSuspendFunctionClassId(parametersCount).asFqNameString()
+            } else {
+                StandardNames.getFunctionClassId(parametersCount).asFqNameString()
+            }
+        }
+        is KtNullableType -> getQualifiedName(typeElement.unwrapNullability(), isSuspend)
+        else -> null
+    }
+    return referencedName
+}
+
+private fun getQualifiedName(userType: KtUserType): String? {
+    val qualifier = userType.qualifier ?: return userType.referencedName
+    return getQualifiedName(qualifier) + "." + userType.referencedName
 }

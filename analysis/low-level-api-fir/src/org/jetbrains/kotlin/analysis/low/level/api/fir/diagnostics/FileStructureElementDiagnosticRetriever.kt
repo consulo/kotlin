@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -12,7 +12,6 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.api.DiagnosticCheckerFilt
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostics.fir.PersistenceContextCollector
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostics.fir.PersistentCheckerContextFactory
 import org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.declarationsToIgnore
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.forEachDeclaration
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContextForProvider
 import org.jetbrains.kotlin.fir.analysis.collectors.DiagnosticCollectorComponents
@@ -53,24 +52,19 @@ internal sealed class FileStructureElementDiagnosticRetriever(
 
     abstract fun createVisitor(context: CheckerContextForProvider, components: DiagnosticCollectorComponents): LLFirDiagnosticVisitor
 
-    /**
-     * Declarations-containers may analyze its members, so we have to resole them explicitly as
-     * not all of them are pre-resolved during [declaration] resolution.
-     * For instance, functions and classes are not a part of the container body resolution.
-     */
     private fun forceBodyResolve() {
         ProgressManager.checkCanceled()
 
         declaration.lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
 
-        val declarationContainer = when (declaration) {
-            is FirFile -> declaration.declarations.singleOrNull() as? FirScript ?: declaration
-            is FirScript, is FirRegularClass -> declaration
-            else -> return
-        }
+        // Generated members have no source, so they get no dedicated structure element to resolve them. They are not a part of the container
+        // body resolution either, as they cannot contribute to the container control flow graph. So the container has to resolve them itself.
+        when (declaration) {
+            is FirScript -> for (parameter in declaration.parameters) {
+                parameter.lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
+            }
 
-        declarationContainer.forEachDeclaration {
-            it.lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
+            else -> {}
         }
     }
 }

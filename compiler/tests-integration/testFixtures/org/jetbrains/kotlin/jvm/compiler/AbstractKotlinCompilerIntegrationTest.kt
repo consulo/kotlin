@@ -21,22 +21,20 @@ import org.jetbrains.kotlin.test.TestCaseWithTmpdir
 import org.jetbrains.kotlin.test.TestDataAssertions
 import org.jetbrains.kotlin.test.compileJavaFiles
 import org.jetbrains.kotlin.test.services.StandardLibrariesPathProviderForKotlinProject
+import org.jetbrains.kotlin.test.testFramework.KtUsefulTestCase.getTestName
 import org.jetbrains.kotlin.utils.PathUtil
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.assertNull
 import java.io.File
 import java.util.jar.JarOutputStream
 import java.util.jar.Manifest
 import java.util.regex.Pattern
-import kotlin.collections.plus
 
 abstract class AbstractKotlinCompilerIntegrationTest : TestCaseWithTmpdir() {
     protected abstract val testDataPath: String
 
     protected val testDataDirectory: File
-        get() = File(testDataPath, getTestName(true))
-
-    protected fun getTestDataFileWithExtension(extension: String): File {
-        return File(testDataDirectory, "${getTestName(true)}.$extension")
-    }
+        get() = File(testDataPath, getTestName(testInfo))
 
     /**
      * Compiles all sources (.java and .kt) under the directory named [libraryName] to [destination].
@@ -85,7 +83,7 @@ abstract class AbstractKotlinCompilerIntegrationTest : TestCaseWithTmpdir() {
                     ZipUtil.addDirToZipRecursively(jar, destination, outputDir, "", null, null)
                 }
             } else {
-                assertNull("Manifest is ignored if destination is not a .jar file", manifest)
+                assertNull(manifest) { "Manifest is ignored if destination is not a .jar file" }
             }
         } finally {
             if (cleanupAfterCompilation) {
@@ -168,6 +166,7 @@ abstract class AbstractKotlinCompilerIntegrationTest : TestCaseWithTmpdir() {
         additionalOptions: List<String> = emptyList(),
         expectedFileName: String? = "output.txt",
         additionalSources: List<String> = emptyList(),
+        stackSize: Long? = null,
         sanitizeCompilerOutput: (String) -> String = { it },
     ): Pair<String, ExitCode> {
         val args = mutableListOf<String>()
@@ -180,7 +179,7 @@ abstract class AbstractKotlinCompilerIntegrationTest : TestCaseWithTmpdir() {
         if (compiler is K2JSCompiler) {
             args.add(K2JSCompilerArguments::libraries.cliArgument)
             args.add((classpath + PathUtil.kotlinPathsForCompiler.jsStdLibKlibPath).joinToString(File.pathSeparator))
-            args.add(K2JSCompilerArguments::irProduceKlibDir.cliArgument)
+            args.add(K2JSCompilerArguments::nopack.cliArgument)
             args.add(K2JSCompilerArguments::outputDir.cliArgument)
             args.add(output.path)
             args.add(K2JSCompilerArguments::moduleName.cliArgument)
@@ -198,11 +197,38 @@ abstract class AbstractKotlinCompilerIntegrationTest : TestCaseWithTmpdir() {
 
         args.addAll(additionalOptions)
 
-        val result = AbstractCliTest.executeCompilerGrabOutput(compiler, args)
+        val result = executeCompiler(compiler, args, stackSize)
         if (expectedFileName != null) {
             TestDataAssertions.assertEqualsToFile(File(testDataDirectory, expectedFileName), sanitizeCompilerOutput(normalizeOutput(result)))
         }
         return result
+    }
+
+    /**
+     * Runs the compiler on a thread with an explicit [stackSize] when one is given, so that a test can pin how much
+     * stack the whole pipeline gets instead of depending on the JVM default, which differs per platform (1 MB on
+     * x86_64, 2 MB on aarch64). Any [Throwable] from that thread is rethrown on the caller's thread.
+     */
+    private fun executeCompiler(
+        compiler: CLICompiler<*>,
+        args: List<String>,
+        stackSize: Long?,
+    ): Pair<String, ExitCode> {
+        if (stackSize == null) return AbstractCliTest.executeCompilerGrabOutput(compiler, args)
+
+        var result: Pair<String, ExitCode>? = null
+        var thrown: Throwable? = null
+        val thread = Thread(null, {
+            try {
+                result = AbstractCliTest.executeCompilerGrabOutput(compiler, args)
+            } catch (t: Throwable) {
+                thrown = t
+            }
+        }, "compiler-with-$stackSize-bytes-of-stack", stackSize)
+        thread.start()
+        thread.join()
+        thrown?.let { throw it }
+        return result ?: error("The compiler thread produced neither a result nor a failure")
     }
 
     companion object {

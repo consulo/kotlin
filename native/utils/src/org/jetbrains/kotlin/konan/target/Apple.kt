@@ -17,9 +17,10 @@
 package org.jetbrains.kotlin.konan.target
 
 import org.jetbrains.kotlin.konan.properties.KonanPropertiesLoader
-import org.jetbrains.kotlin.konan.properties.Properties
 import org.jetbrains.kotlin.konan.util.InternalServer
 import org.jetbrains.kotlin.konan.util.ProgressCallback
+import java.util.Properties
+import java.io.File
 
 class AppleConfigurablesImpl(
     target: KonanTarget,
@@ -28,63 +29,59 @@ class AppleConfigurablesImpl(
     progressCallback: ProgressCallback,
 ) : AppleConfigurables, KonanPropertiesLoader(target, properties, dependenciesDir, progressCallback = progressCallback) {
 
-    private val sdkDependency = this.targetSysRoot!!
-    private val toolchainDependency = this.targetToolchain!!
-    private val xcodeAddonDependency = this.additionalToolsDir!!
-
-    override val absoluteTargetSysRoot: String get() = when (val provider = xcodePartsProvider) {
-        is XcodePartsProvider.Local -> {
+    override val absoluteTargetSysRoot: String
+        get() {
             // In the case of Mac Catalyst, we use sysroot from macOS.
             val platformName = if (targetTriple.isMacabi) "MacOSX" else platformName()
-            provider.xcode.pathToPlatformSdk(platformName)
+            return xcode.pathToPlatformSdk(platformName)
         }
-        XcodePartsProvider.InternalServer -> absolute(sdkDependency)
+
+    override val absoluteTargetToolchain: String get() = xcode.toolchain
+
+    override val absoluteAdditionalToolsDir: String get() = xcode.additionalTools
+
+    // Opt-in (set at build time via -Xoverride-konan-properties=useProvisionedXcode=true): resolve the Apple
+    // toolchain/sysroot from a whole Xcode provisioned under $dependenciesRoot/xcode_<version>_<build>.
+    private val useProvisionedXcode: Boolean
+        get() = properties.getProperty("useProvisionedXcode") == "true"
+
+    val xcode: Xcode by lazy {
+        if (useProvisionedXcode) provisionedXcode()
+        else currentXcodeCheckingVersion()
     }
 
-    override val absoluteTargetToolchain: String get() = when (val provider = xcodePartsProvider) {
-        is XcodePartsProvider.Local -> provider.xcode.toolchain
-        XcodePartsProvider.InternalServer -> "${absolute(toolchainDependency)}/usr"
+    // The whole Xcode selected by useProvisionedXcode: a [CurrentXcode] rooted at the provisioned Xcode.app under
+    // $dependenciesRoot/xcode_<version>_<build> (via DEVELOPER_DIR), so its toolchain/SDKs are queried from that
+    // specific Xcode rather than the system selection.
+    private fun provisionedXcode(): Xcode {
+        val version = properties.getProperty("xcodeVersion")
+            ?: error("useProvisionedXcode is set but 'xcodeVersion' is missing from konan.properties")
+        val build = properties.getProperty("xcodeBuild")
+            ?: error("useProvisionedXcode is set but 'xcodeBuild' is missing from konan.properties")
+        val root = dependenciesRoot
+            ?: error("useProvisionedXcode is set but the dependencies root is not configured")
+        val xcodeApp = File(root).resolve("xcode_${version}_${build}")
+        // If the build side has already snapshotted the provisioned Xcode into Xcode.xcodeOverride (done inside a
+        // Gradle ValueSource, so configuration-cache-safe), reuse it rather than resolving the toolchain/SDKs live
+        // via xcrun — which at configuration time would break the configuration cache. In the compiler process the
+        // override is unset, so we resolve the provisioned Xcode directly (xcrun at execution time is fine).
+        return Xcode.xcodeOverride ?: InstalledXcode(developerDir = xcodeApp.resolve("Contents/Developer").path)
     }
 
-    override val absoluteAdditionalToolsDir: String get() = when (val provider = xcodePartsProvider) {
-        is XcodePartsProvider.Local -> provider.xcode.additionalTools
-        XcodePartsProvider.InternalServer -> absolute(additionalToolsDir)
-    }
-
-    override val dependencies
-        get() = super.dependencies +
-                if (InternalServer.isAvailable) listOf(
-                    sdkDependency,
-                    toolchainDependency,
-                    xcodeAddonDependency
-                ) else emptyList()
-
-    private val xcodePartsProvider by lazy {
-        if (InternalServer.isAvailable) {
-            XcodePartsProvider.InternalServer
-        } else {
-            val xcode = Xcode.findCurrent()
-
-            if (properties.getProperty("ignoreXcodeVersionCheck") != "true") {
-                properties.getProperty("minimalXcodeVersion")?.let(XcodeVersion::parse)?.let { minimalXcodeVersion ->
-                    val currentXcodeVersion = xcode.version
-                    checkXcodeVersion(minimalXcodeVersion, currentXcodeVersion)
-                }
+    private fun currentXcodeCheckingVersion(): Xcode {
+        val xcode = Xcode.findCurrent()
+        if (properties.getProperty("ignoreXcodeVersionCheck") != "true") {
+            properties.getProperty("minimalXcodeVersion")?.let(XcodeVersion::parse)?.let { minimalXcodeVersion ->
+                checkXcodeVersion(minimalXcodeVersion, xcode.version)
             }
-
-            XcodePartsProvider.Local(xcode)
         }
+        return xcode
     }
 
     private fun checkXcodeVersion(minimalVersion: XcodeVersion, currentVersion: XcodeVersion) {
         if (currentVersion < minimalVersion) {
             error("Unsupported Xcode version $currentVersion, minimal supported version is $minimalVersion.")
         }
-    }
-
-    private sealed class XcodePartsProvider {
-        class Local(val xcode: Xcode) : XcodePartsProvider()
-        object InternalServer : XcodePartsProvider()
     }
 }
 

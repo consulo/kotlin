@@ -1,6 +1,7 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
     id("java-test-fixtures")
 }
 
@@ -32,7 +33,7 @@ sourceSets {
 configureKotlinCompileTasksGradleCompatibility()
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5)
+    testTask()
 }
 
 publish()

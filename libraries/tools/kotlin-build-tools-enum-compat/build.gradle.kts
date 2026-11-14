@@ -1,6 +1,8 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("org.jetbrains.kotlin.jvm")
 }
 

@@ -12,18 +12,14 @@ import org.jetbrains.kotlin.backend.konan.descriptors.arraysWithFixedSizeItems
 import org.jetbrains.kotlin.backend.konan.llvm.isVoidAsReturnType
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrBuiltIns
-import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.IrBlock
-import org.jetbrains.kotlin.ir.expressions.IrComposite
-import org.jetbrains.kotlin.ir.expressions.IrConst
-import org.jetbrains.kotlin.ir.expressions.IrConstantValue
 import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.getConstArgument
 import org.jetbrains.kotlin.ir.util.isSubtypeOfClass
 import org.jetbrains.kotlin.name.NativeRuntimeNames
 
@@ -50,23 +46,6 @@ internal val IrClass.isArrayWithFixedSizeItems: Boolean
     get() = this.fqNameForIrSerialization.asString() in arraysWithFixedSizeItems
 
 fun IrClass.isAbstract() = this.modality == Modality.SEALED || this.modality == Modality.ABSTRACT
-
-private fun IrStatement.isConst(): Boolean = when (this) {
-    is IrConst, is IrConstantValue -> true
-    is IrBlock -> {
-        if (statements.isEmpty())
-            true
-        else {
-            // This might happen after the local declarations lowering where local declarations are replaced with an empty composite.
-            statements.take(statements.size - 1).all { it is IrComposite && it.statements.isEmpty() }
-                    && statements.last().isConst()
-        }
-    }
-    else -> false
-}
-
-internal val IrField.hasNonConstInitializer: Boolean
-    get() = initializer?.expression?.isConst() == false
 
 private enum class TypeKind {
     ABSENT,
@@ -181,7 +160,7 @@ private val Cast: BridgeDirectionBuilder = { index, from, to ->
     if (from == null || to == null) {
         BridgeDirection.NONE
     } else {
-        val (superClass, subType) =
+        val [superClass, subType] =
                 if (index == ParameterIndex.RETURN_INDEX)
                     Pair(to.classOrFail, from) // <from> as <to>
                 else Pair(from.classOrFail, to) // <to> as <from>
@@ -201,8 +180,8 @@ private val bridgeDirectionBuilders = arrayOf(
 )
 
 private fun IrFunction.bridgeDirectionToAt(overriddenFunction: IrFunction, index: ParameterIndex, policy: BridgesPolicy): BridgeDirection {
-    val (fromErasedType, fromKind) = typeWithKindAt(index)
-    val (toErasedType, toKind) = overriddenFunction.typeWithKindAt(index)
+    (val fromErasedType = erasedType, val fromKind = kind) = typeWithKindAt(index)
+    (val toErasedType = erasedType, val toKind = kind) = overriddenFunction.typeWithKindAt(index)
     val bridgeDirectionsBuilder = bridgeDirectionBuilders[fromKind.ordinal][toKind.ordinal]
             ?: error("Invalid combination of (fromKind, toKind): ($fromKind, $toKind)\n" +
                     "from = ${render()}\nto = ${overriddenFunction.render()}")
@@ -274,9 +253,11 @@ fun IrFunctionSymbol.isComparisonFunction(map: Map<IrClassifierSymbol, IrSimpleF
         this in map.values
 
 fun IrFunction.externalSymbolOrThrow(): String? {
-    annotations.findAnnotation(RuntimeNames.symbolNameAnnotation)?.let { return it.getAnnotationStringValue() }
+    annotations.findAnnotation(RuntimeNames.importedBridge)?.let { return it.getConstArgument<String>("bridgeName")!! }
 
-    annotations.findAnnotation(KonanFqNames.gcUnsafeCall)?.let { return it.getAnnotationStringValue("callee") }
+    annotations.findAnnotation(RuntimeNames.symbolNameAnnotation)?.let { return it.getConstArgument<String>("name") }
+
+    annotations.findAnnotation(KonanFqNames.gcUnsafeCall)?.let { return it.getConstArgument<String>("callee")!! }
 
     if (annotations.hasAnnotation(KonanFqNames.objCMethod)) return null
 
@@ -284,7 +265,7 @@ fun IrFunction.externalSymbolOrThrow(): String? {
 
     if (this.isCFunctionOrGlobalAccessor()) return null
 
-    throw Error("external function ${this.longName} must have @TypedIntrinsic, @SymbolName, @GCUnsafeCall or @ObjCMethod annotation")
+    throw Error("external function ${this.longName} must have @TypedIntrinsic, @SymbolName, @GCUnsafeCall, @ImportedBridge or @ObjCMethod annotation")
 }
 
 private val IrFunction.longName: String

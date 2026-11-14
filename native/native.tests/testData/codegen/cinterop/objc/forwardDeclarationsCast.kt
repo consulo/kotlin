@@ -1,3 +1,5 @@
+// KT-86026 TODO: Rework testdata to move functions/globals definitions from .def/.h into separate source files
+
 // TARGET_BACKEND: NATIVE
 // `import objcnames` somehow works only with NATIVE_STANDALONE test directive
 // NATIVE_STANDALONE

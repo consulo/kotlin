@@ -11,11 +11,11 @@ scopes:
     packages: 0
     classifiers: 2
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: []
         classId: test/Base.NestedFromClass
         classKind: CLASS
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -24,10 +24,13 @@ scopes:
         isFun: false
         isInline: false
         isInner: false
+        isValue: false
         location: CLASS
         modality: FINAL
         name: NestedFromClass
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []
@@ -37,11 +40,11 @@ scopes:
         typeParameters: []
         visibility: PUBLIC
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: []
         classId: test/Base.InnerFromClass
         classKind: CLASS
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -50,10 +53,13 @@ scopes:
         isFun: false
         isInline: false
         isInner: true
+        isValue: false
         location: CLASS
         modality: FINAL
         name: InnerFromClass
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []
@@ -75,11 +81,11 @@ scopes:
     packages: 0
     classifiers: 3
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: []
         classId: test/BaseInterface
         classKind: INTERFACE
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -88,10 +94,13 @@ scopes:
         isFun: false
         isInline: false
         isInner: false
+        isValue: false
         location: TOP_LEVEL
         modality: ABSTRACT
         name: BaseInterface
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []
@@ -101,11 +110,11 @@ scopes:
         typeParameters: []
         visibility: PUBLIC
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: []
         classId: test/Base
         classKind: CLASS
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -114,10 +123,13 @@ scopes:
         isFun: false
         isInline: false
         isInner: false
+        isValue: false
         location: TOP_LEVEL
         modality: OPEN
         name: Base
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []
@@ -127,11 +139,11 @@ scopes:
         typeParameters: []
         visibility: PUBLIC
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: []
         classId: test/Child
         classKind: CLASS
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -140,10 +152,13 @@ scopes:
         isFun: false
         isInline: false
         isInner: false
+        isValue: false
         location: TOP_LEVEL
         modality: FINAL
         name: Child
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []

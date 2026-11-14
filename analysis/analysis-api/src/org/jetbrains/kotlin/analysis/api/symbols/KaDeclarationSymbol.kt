@@ -5,12 +5,9 @@
 
 package org.jetbrains.kotlin.analysis.api.symbols
 
-import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KaAnnotatedSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.markers.KaTypeParameterOwnerSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
-import org.jetbrains.kotlin.descriptors.Visibility
 
 /**
  * Represents a source-representable declaration such as a class, function, or property.
@@ -52,11 +49,6 @@ public sealed interface KaDeclarationSymbol : KaSymbol, KaAnnotatedSymbol {
      * see [KaUseSiteVisibilityChecker.isVisible][org.jetbrains.kotlin.analysis.api.components.KaUseSiteVisibilityChecker.isVisible].
      */
     public val visibility: KaSymbolVisibility
-        @OptIn(KaExperimentalApi::class)
-        get() = compilerVisibility.asKaSymbolVisibility
-
-    @KaExperimentalApi
-    public val compilerVisibility: Visibility
 
     /**
      * Whether the declaration is an `actual` declaration in a multiplatform project.
@@ -118,8 +110,3 @@ public sealed interface KaDeclarationSymbol : KaSymbol, KaAnnotatedSymbol {
 
     override fun createPointer(): KaSymbolPointer<KaDeclarationSymbol>
 }
-
-@KaExperimentalApi
-public val KaDeclarationSymbol.typeParameters: List<KaTypeParameterSymbol>
-    @OptIn(KaImplementationDetail::class)
-    get() = if (this is KaTypeParameterOwnerSymbol) typeParameters else emptyList()

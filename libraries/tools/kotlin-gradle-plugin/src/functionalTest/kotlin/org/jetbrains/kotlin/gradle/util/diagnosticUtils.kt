@@ -82,15 +82,19 @@ internal fun Project.checkDiagnostics(
             }
     }
 
-    val sanitizedTest = actualRenderedText.replace(File.separator, "/")
+    val sanitizedTest = actualRenderedText.replace(rootDir.absolutePath, "<absolute_project_path>")
+        .replace(File.separator, "/")
 
     TestDataAssertions.assertEqualsToFile(expectedDiagnostics, sanitizedTest)
 }
 
 // An (KTI-1928) issue prevents us from using a snapshot version of Kotlin Native during testing. This results in a diagnostic warning.
 // Diagnostic warnings concern outdated Kotlin Native versions should be ignored in test environments.
-internal val defaultFilteredDiagnostics =
-    listOf(KotlinToolingDiagnostics.OldNativeVersionDiagnostic, KotlinToolingDiagnostics.DisabledNativeTargetTaskWarning)
+internal val defaultFilteredDiagnostics = listOf(
+    KotlinToolingDiagnostics.OldNativeVersionDiagnostic,
+    KotlinToolingDiagnostics.DisabledNativeTargetTaskWarning,
+    KotlinToolingDiagnostics.NonKmpAgpIsDeprecated, // triggered by AGP 9+ in runtime
+)
 
 internal fun Project.assertNoDiagnostics(filterDiagnosticIds: List<ToolingDiagnosticFactory> = defaultFilteredDiagnostics) {
     val actualDiagnostics =
@@ -198,7 +202,7 @@ internal abstract class TestsProblemsReporter : ProblemsReporter {
         options: ToolingDiagnosticRenderingOptions,
     ) {
         val renderedDiagnostic = diagnostic.renderReportedDiagnostic(logger, options) ?: return
-        if (renderedDiagnostic.severity == ToolingDiagnostic.Severity.FATAL) {
+        if (renderedDiagnostic.severity == KotlinToolingDiagnosticsSeverity.FATAL) {
             throw diagnostic.createAnExceptionForFatalDiagnostic(options)
         }
     }

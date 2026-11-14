@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.descriptors.EffectiveVisibility
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibility
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirImplementationDetail
 import org.jetbrains.kotlin.fir.FirModuleData
 import org.jetbrains.kotlin.fir.MutableOrEmptyList
@@ -134,6 +133,7 @@ class FirDefaultPropertyGetter(
         effectiveVisibility: EffectiveVisibility? = null,
         isInline: Boolean = false,
         isOverride: Boolean = false,
+        isStatic: Boolean = false,
         symbol: FirPropertyAccessorSymbol = FirPropertyAccessorSymbol(),
         resolvePhase: FirResolvePhase = FirResolvePhase.RAW_FIR,
         attributes: FirDeclarationAttributes = FirDeclarationAttributes()
@@ -143,7 +143,7 @@ class FirDefaultPropertyGetter(
         origin,
         propertyTypeRef,
         propertySymbol,
-        status = createStatus(visibility, modality, effectiveVisibility, isInline, isOverride),
+        status = createStatus(visibility, modality, effectiveVisibility, isInline, isOverride, isStatic),
         symbol = symbol,
         resolvePhase = resolvePhase,
         attributes = attributes,
@@ -174,7 +174,8 @@ class FirDefaultPropertySetter(
     valueParameters = mutableListOf(
         buildDefaultSetterValueParameter builder@{
             this@builder.resolvePhase = resolvePhase
-            this@builder.source = (parameterSource ?: source)?.fakeElement(KtFakeSourceElementKind.DefaultAccessor)
+            this@builder.source =
+                (parameterSource ?: source)?.fakeElement(KtFakeSourceElementKind.DefaultAccessor.Setter.ValueParameter)
             this@builder.containingDeclarationSymbol = propertyAccessorSymbol
             this@builder.moduleData = moduleData
             this@builder.origin = origin
@@ -201,6 +202,7 @@ class FirDefaultPropertySetter(
         effectiveVisibility: EffectiveVisibility? = null,
         isInline: Boolean = false,
         isOverride: Boolean = false,
+        isStatic: Boolean = false,
         propertyAccessorSymbol: FirPropertyAccessorSymbol = FirPropertyAccessorSymbol(),
         parameterSource: KtSourceElement? = null,
         parameterAnnotations: List<FirAnnotation> = emptyList(),
@@ -212,7 +214,7 @@ class FirDefaultPropertySetter(
         origin,
         propertyTypeRef,
         propertySymbol,
-        status = createStatus(visibility, modality, effectiveVisibility, isInline, isOverride),
+        status = createStatus(visibility, modality, effectiveVisibility, isInline, isOverride, isStatic),
         propertyAccessorSymbol,
         parameterSource,
         parameterAnnotations,
@@ -227,10 +229,12 @@ private fun createStatus(
     effectiveVisibility: EffectiveVisibility?,
     isInline: Boolean,
     isOverride: Boolean,
+    isStatic: Boolean,
 ): FirDeclarationStatusImpl = when (effectiveVisibility) {
     null -> FirDeclarationStatusImpl(visibility, modality)
     else -> FirResolvedDeclarationStatusImpl(visibility, modality ?: Modality.FINAL, effectiveVisibility)
 }.apply {
     this.isInline = isInline
     this.isOverride = isOverride
+    this.isStatic = isStatic
 }

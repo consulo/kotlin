@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -7,30 +7,17 @@ package org.jetbrains.kotlin.ir.backend.js.jsexport
 
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.languageVersionSettings
-import org.jetbrains.kotlin.ir.backend.js.utils.*
-import org.jetbrains.kotlin.ir.backend.js.JsLoweredDeclarationOrigin
 import org.jetbrains.kotlin.ir.backend.js.lower.isEs6ConstructorReplacement
-import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.JsAstUtils
-import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.defineProperty
-import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.jsAssignment
-import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.prototypeOf
-import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.jsElementAccess
-import org.jetbrains.kotlin.ir.backend.js.utils.Namer
-import org.jetbrains.kotlin.ir.backend.js.utils.emptyScope
-import org.jetbrains.kotlin.ir.backend.js.utils.getJsNameOrKotlinName
+import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.*
+import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.util.companionObject
 import org.jetbrains.kotlin.ir.util.irError
-import org.jetbrains.kotlin.ir.util.isEffectivelyExternal
-import org.jetbrains.kotlin.ir.util.isObject
 import org.jetbrains.kotlin.js.backend.ast.*
 import org.jetbrains.kotlin.js.common.makeValidES5Identifier
 import org.jetbrains.kotlin.utils.filterIsInstanceAnd
 
-class ExportModelToJsStatements(
-    private val staticContext: JsStaticContext,
-    private val es6mode: Boolean,
-) {
+class ExportModelToJsStatements(private val staticContext: JsStaticContext) {
     private val allowImplementingInterfaces = staticContext.backendContext.configuration.languageVersionSettings.supportsFeature(
         LanguageFeature.JsExportInterfacesInImplementableWay
     )
@@ -58,7 +45,7 @@ class ExportModelToJsStatements(
                 val namespaceVariableName = JsName(declaration.name, true)
                 val namespaceRef = jsElementAccess(declaration.name, namespace)
                 val namespaceDeclaration = JsVars(
-                    JsVars.Variant.Var,
+                    staticContext.varVariant(isMutable = false),
                     JsVars.JsVar(
                         namespaceVariableName,
                         JsAstUtils.or(
@@ -109,13 +96,13 @@ class ExportModelToJsStatements(
                             JsExport(name.makeRef(), JsName(declaration.name, false))
                         }
 
-                        listOf(JsVars(JsVars.Variant.Var, property), exportStatement)
+                        listOf(JsVars(staticContext.varVariant(isMutable = false), property), exportStatement)
                     }
                     declaration.isDefaultImplementation -> {
                         val property = declaration.generateTopLevelGetters()
                         val propertyName = property.name ?: error("Name is expected to bet set")
                         listOf(
-                            JsVars(JsVars.Variant.Var, property),
+                            JsVars(staticContext.varVariant(isMutable = false), property),
                             jsAssignment(jsElementAccess(declaration.name, namespace), propertyName.makeRef()).makeStmt()
                         )
                     }
@@ -138,40 +125,49 @@ class ExportModelToJsStatements(
 
             is ExportedObject -> {
                 require(namespace != null || esModules) { "Only namespaced properties are allowed" }
-                val (name, objectClassInitialization) = declaration.getNameAndInitialization()
-                val newNameSpace = jsElementAccess(Namer.PROTOTYPE_NAME, name.makeRef())
-                val staticsExport =
-                    declaration.nestedClasses.flatMap { generateDeclarationExport(it, newNameSpace, esModules, declaration.ir) }
 
-                val objectExport = when {
-                    es6mode || namespace == null -> generateDeclarationExport(
-                        ExportedProperty(
-                            declaration.name,
-                            isStatic = parentClass?.isObject != true,
-                            irGetter = declaration.irGetter,
-                        ).apply { attributes.addAll(declaration.attributes) },
-                        namespace,
-                        esModules,
-                        parentClass
-                    )
-                    else -> listOf(
-                        defineProperty(
+                when (namespace) {
+                    null ->
+                        generateDeclarationExport(
+                            ExportedRegularClass(
+                                declaration.name,
+                                nestedClasses = declaration.nestedClasses,
+                                members = declaration.members + ExportedFunction(
+                                    "getInstance",
+                                    isStatic = true,
+                                    declaration.irGetter!!,
+                                ),
+                                ir = declaration.ir,
+                            ).apply { attributes.addAll(declaration.attributes) },
                             namespace,
-                            declaration.name,
-                            staticContext.getNameForStaticDeclaration(
-                                declaration.irGetter
-                                    ?: irError("Expect to have an object getter in its export model") {
-                                        withIrEntry("declaration.ir", declaration.ir)
-                                    }
-                            ).makeRef(),
-                            null,
-                            staticContext,
-                            enumerable = true
-                        ).makeStmt()
-                    )
-                }
+                            esModules,
+                            parentClass
+                        )
 
-                listOfNotNull(objectClassInitialization.takeIf { staticsExport.isNotEmpty() }) + objectExport + staticsExport
+                    else -> {
+                        val [name, objectClassInitialization] = declaration.getNameAndInitialization()
+                        val newNameSpace = jsElementAccess(Namer.PROTOTYPE_NAME, name.makeRef())
+                        val staticsExport =
+                            declaration.nestedClasses.flatMap { generateDeclarationExport(it, newNameSpace, esModules, declaration.ir) }
+
+                        listOfNotNull(
+                            objectClassInitialization.takeIf { staticsExport.isNotEmpty() },
+                            defineProperty(
+                                namespace,
+                                declaration.name,
+                                staticContext.getNameForStaticDeclaration(
+                                    declaration.irGetter
+                                        ?: irError("Expect to have an object getter in its export model") {
+                                            withIrEntry("declaration.ir", declaration.ir)
+                                        }
+                                ).makeRef(),
+                                null,
+                                staticContext,
+                                enumerable = true
+                            ).makeStmt(),
+                        ) + staticsExport
+                    }
+                }
             }
 
             is ExportedRegularClass -> {
@@ -184,14 +180,14 @@ class ExportModelToJsStatements(
                     return emptyList()
                 }
 
-                val (name, classInitialization) = declaration.getNameAndInitialization()
+                val [name, classInitialization] = declaration.getNameAndInitialization()
                 val newNameSpace = when {
                     namespace != null -> jsElementAccess(declaration.name, namespace)
                     esModules -> name.makeRef()
                     else -> prototypeOf(name.makeRef(), staticContext)
                 }
                 val klassExport = when {
-                    namespace != null -> jsAssignment(newNameSpace, name.makeRef()).makeStmt()
+                    namespace != null && newNameSpace is JsAssignableExpression -> jsAssignment(newNameSpace, name.makeRef()).makeStmt()
                     esModules -> {
                         if (declaration.attributes.contains(ExportedAttribute.DefaultExport)) {
                             JsExport(JsExport.Subject.Default(name.makeRef()))
@@ -224,13 +220,7 @@ class ExportModelToJsStatements(
         return JsVars.JsVar(
             JsName(sanitizedName, true),
             JsObjectLiteral(false).apply {
-                getter?.let {
-                    val fieldName = when (irGetter.origin) {
-                        JsLoweredDeclarationOrigin.OBJECT_GET_INSTANCE_FUNCTION -> "getInstance"
-                        else -> "get"
-                    }
-                    propertyInitializers += JsPropertyInitializer.KeyValue(JsStringLiteral(fieldName), it.makeRef())
-                }
+                getter?.let { propertyInitializers += JsPropertyInitializer.KeyValue(JsStringLiteral("get"), it.makeRef()) }
                 setter?.let { propertyInitializers += JsPropertyInitializer.KeyValue(JsStringLiteral("set"), it.makeRef()) }
             }
         )
@@ -245,7 +235,7 @@ class ExportModelToJsStatements(
 
         val blockStatements = mutableListOf<JsStatement>(
             JsVars(
-                JsVars.Variant.Var,
+                staticContext.varVariant(isMutable = false),
                 JsVars.JsVar(bindConstructor, innerClassRef.bindToThis(innerClassRef))
             )
         )
@@ -276,7 +266,7 @@ class ExportModelToJsStatements(
         }
 
         blockStatements.add(JsReturn(bindConstructor.makeRef()))
-        val innerClassGetter = JsFunction(emptyScope, JsBlock(*blockStatements.toTypedArray()), "inner class '$name' getter")
+        val innerClassGetter = JsFunction(emptyScope, JsBlock(blockStatements), "inner class '$name' getter")
 
         return defineProperty(
             prototypeOf(outerClassRef, staticContext),
@@ -287,7 +277,7 @@ class ExportModelToJsStatements(
         ).makeStmt()
     }
 
-    private fun ExportedClass.getNameAndInitialization(): Pair<JsName, JsStatement?> {
+    private fun ExportedClass.getNameAndInitialization(): Pair<JsName, JsVars?> {
         val classRef = when {
             !allowImplementingInterfaces && this is ExportedRegularClass && isInterface -> JsObjectLiteral()
             else -> ir.getClassRef(staticContext)
@@ -296,7 +286,7 @@ class ExportModelToJsStatements(
             is JsNameRef -> classRef.name!! to null
             else -> {
                 val stableName = JsName(makeValidES5Identifier(name), true)
-                stableName to JsVars(JsVars.Variant.Var, JsVars.JsVar(stableName, classRef))
+                stableName to JsVars(staticContext.varVariant(isMutable = false), JsVars.JsVar(stableName, classRef))
             }
         }
     }

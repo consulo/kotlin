@@ -8,7 +8,7 @@
 package kotlin.wasm.internal
 
 import kotlin.coroutines.*
-import kotlin.internal.DoNotInlineOnFirstStage
+import kotlin.internal.InlineOnly
 import kotlin.internal.UsedFromCompilerGeneratedCode
 
 @PublishedApi
@@ -17,32 +17,18 @@ import kotlin.internal.UsedFromCompilerGeneratedCode
 internal fun <T> getContinuation(): Continuation<T> =
     implementedAsIntrinsic
 
-@PublishedApi
 @Suppress("UNCHECKED_CAST")
 @UsedFromCompilerGeneratedCode
 internal suspend fun <T> returnIfSuspended(argument: Any?): T =
     argument as T
 
 @PublishedApi
-internal fun <T> interceptContinuationIfNeeded(
-    context: CoroutineContext,
-    continuation: Continuation<T>
-): Continuation<T> = context[ContinuationInterceptor]?.interceptContinuation(continuation) ?: continuation
-
-@PublishedApi
-@DoNotInlineOnFirstStage
 @UsedFromCompilerGeneratedCode
-internal inline suspend fun getCoroutineContext(): CoroutineContext = getContinuation<Any?>().context
+internal suspend inline fun getCoroutineContext(): CoroutineContext = getContinuation<Any?>().context
 
-@PublishedApi
-@DoNotInlineOnFirstStage
-@UsedFromCompilerGeneratedCode
-internal inline suspend fun <T> suspendCoroutineUninterceptedOrReturn(block: (Continuation<T>) -> Any?): T =
-    returnIfSuspended<T>(block(getContinuation<T>()))
-
+// TODO: remove after bootstrap
 @Suppress("UNUSED_PARAMETER")
 @ExcludedFromCodegen
-@PublishedApi
 @UsedFromCompilerGeneratedCode
 internal fun <T> startCoroutineUninterceptedOrReturnIntrinsic0(
     f: (suspend () -> T),
@@ -53,7 +39,6 @@ internal fun <T> startCoroutineUninterceptedOrReturnIntrinsic0(
 
 @Suppress("UNUSED_PARAMETER")
 @ExcludedFromCodegen
-@PublishedApi
 @UsedFromCompilerGeneratedCode
 internal fun <R, T> startCoroutineUninterceptedOrReturnIntrinsic1(
     f: (suspend R.() -> T),
@@ -65,7 +50,6 @@ internal fun <R, T> startCoroutineUninterceptedOrReturnIntrinsic1(
 
 @Suppress("UNUSED_PARAMETER")
 @ExcludedFromCodegen
-@PublishedApi
 @UsedFromCompilerGeneratedCode
 internal fun <R, P, T> startCoroutineUninterceptedOrReturnIntrinsic2(
     f: (suspend R.(P) -> T),
@@ -76,9 +60,23 @@ internal fun <R, P, T> startCoroutineUninterceptedOrReturnIntrinsic2(
     implementedAsIntrinsic
 }
 
-@PublishedApi
 @SinceKotlin("1.3")
 @UsedFromCompilerGeneratedCode
 internal val EmptyContinuation: Continuation<Any?> = Continuation(EmptyCoroutineContext) { result ->
     val _ = result.getOrThrow()
+}
+
+// For State Machine:   (cont as? CoroutineImpl)?.intercepted() ?: cont
+// For Stack Switching: (cont as? CoroutineImplStackSwitching<*, *>)?.intercepted() ?: cont
+@Suppress("UNUSED_PARAMETER")
+@ExcludedFromCodegen
+@UsedFromCompilerGeneratedCode
+internal fun <T> interceptedIntrinsic(cont: Continuation<T>): Continuation<T> =
+    implementedAsIntrinsic
+
+@InlineOnly
+@PublishedApi
+@UsedFromCompilerGeneratedCode
+internal suspend inline fun <T> suspendCoroutineUninterceptedOrReturn(block: (Continuation<T>) -> Any?): T {
+    return suspendOrReturn<T>(block(getContinuation<T>()))
 }

@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl
 
 import org.gradle.api.plugins.BasePlugin
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.artifacts.klibOutputDirectory
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.topLevelExtension
@@ -16,6 +17,7 @@ import org.jetbrains.kotlin.gradle.plugin.SubpluginEnvironment
 import org.jetbrains.kotlin.gradle.plugin.addToAssemble
 import org.jetbrains.kotlin.gradle.plugin.launchInStage
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinMetadataCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.crossCompilationSharedData
 import org.jetbrains.kotlin.gradle.plugin.statistics.KotlinCrossCompilationMetrics
 import org.jetbrains.kotlin.gradle.targets.native.toolchain.chooseKotlinNativeProvider
@@ -27,11 +29,11 @@ import org.jetbrains.kotlin.gradle.tasks.registerTask
  * Will register (and configure) the corresponding [KotlinNativeCompile] task for a given
  * [AbstractKotlinNativeCompilation] (which includes shared native metadata and 'platform compilations')
  */
+@OptIn(ExperimentalKotlinGradlePluginApi::class)
 internal val KotlinCreateNativeCompileTasksSideEffect = KotlinCompilationSideEffect<AbstractKotlinNativeCompilation> { compilation ->
     val project = compilation.project
     val extension = project.topLevelExtension
     val compilationInfo = KotlinCompilationInfo(compilation)
-    val isMetadataCompilation = compilationInfo.compilation is KotlinMetadataCompilation<*>
     val crossCompilationSharedData = compilation.crossCompilationSharedData
 
     val kotlinNativeCompile = project.registerTask<KotlinNativeCompile>(
@@ -46,17 +48,18 @@ internal val KotlinCreateNativeCompileTasksSideEffect = KotlinCompilationSideEff
             compilation.crossCompilationOnCurrentHostSupported
         }
 
-        task.onlyIf("Cross compilation should be supported on host") {
+        task.onlyIf("Compilation of target '${compilationInfo.targetDisambiguationClassifier}' is supported on this host") {
             enabledOnCurrentHost.get()
         }
 
-        task.onlyIf("Cross compilation should be possible with project dependencies") {
+        task.onlyIf("Cross-compilation of target '${compilationInfo.targetDisambiguationClassifier}' with project dependencies is supported on this host") {
             crossCompilationSharedData.dataForAllDependencies.all { it.crossCompilationSupported }
         }
 
         task.crossCompilationMetadata.setFrom(crossCompilationSharedData.files)
         task.destinationDirectory.set(project.klibOutputDirectory(compilationInfo).dir("klib"))
         task.runViaBuildToolsApi.value(false).disallowChanges() // K/N is not yet supported
+        task.generateCompilerRefIndex.value(false).disallowChanges() // CRI requires BTA, which is not supported for K/N
 
         task.explicitApiMode.value(
             project.providers.provider {
@@ -67,6 +70,17 @@ internal val KotlinCreateNativeCompileTasksSideEffect = KotlinCompilationSideEff
                 } else {
                     ExplicitApiMode.Disabled
                 }
+            }
+        ).finalizeValueOnRead()
+        task.returnValueCheckerMode.convention(
+            // The return value checker mode applies to both production and test sources by default.
+            // The test-specific mode is used only when it was explicitly configured.
+            // Shared/intermediate native metadata compilations (e.g. 'nativeMain') are production code, not tests,
+            // so they must use the production mode like 'isMain' compilations do.
+            if (compilationInfo.isMain || compilationInfo.compilation is KotlinMetadataCompilation<*>) {
+                extension.returnValueCheckerMode
+            } else {
+                extension.returnValueCheckerModeForTests.orElse(extension.returnValueCheckerMode)
             }
         ).finalizeValueOnRead()
         task.kotlinNativeProvider.set(
@@ -81,8 +95,6 @@ internal val KotlinCreateNativeCompileTasksSideEffect = KotlinCompilationSideEff
         task.kotlinCompilerArgumentsLogLevel
             .value(project.kotlinPropertiesProvider.kotlinCompilerArgumentsLogLevel)
             .finalizeValueOnRead()
-        // for metadata tasks we should always provide unpackaged klib
-        task.produceUnpackagedKlib.set(isMetadataCompilation || project.kotlinPropertiesProvider.useNonPackedKlibs)
         task.separateKmpCompilation.convention(project.kotlinPropertiesProvider.separateKmpCompilation)
     }
 

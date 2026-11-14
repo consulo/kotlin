@@ -18,10 +18,11 @@ import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
 import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.resolve.FirResolvedSymbolOrigin
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.FirTypeProjection
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 
 @FirBuilderDsl
 interface FirAbstractResolvedQualifierBuilder {
@@ -31,16 +32,15 @@ interface FirAbstractResolvedQualifierBuilder {
     abstract val annotations: MutableList<FirAnnotation>
     abstract var packageFqName: FqName
     abstract var relativeClassFqName: FqName?
-    abstract var classId: ClassId?
-    abstract var symbol: FirClassLikeSymbol<*>?
+    abstract var qualifierSymbol: FirClassLikeSymbol<*>?
+    abstract var accessedObjectSymbol: FirRegularClassSymbol?
     abstract var explicitParent: FirResolvedQualifier?
-    abstract var isNullableLHSForCallableReference: Boolean
-    abstract var resolvedLHSTypeForCallableReferenceOrNull: ConeKotlinType?
+    abstract var isNullableLhsForCallableReference: Boolean
+    abstract var resolvedLhsTypeForCallableReferenceOrNull: ConeKotlinType?
     abstract var resolvedToCompanionObject: Boolean
-    abstract var canBeValue: Boolean
-    abstract var isFullyQualified: Boolean
     abstract val nonFatalDiagnostics: MutableList<ConeDiagnostic>
     abstract var resolvedSymbolOrigin: FirResolvedSymbolOrigin?
+    abstract var originalNameForContextSensitiveResolution: Name?
     abstract val typeArguments: MutableList<FirTypeProjection>
 
     fun build(): FirResolvedQualifier

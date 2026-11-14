@@ -6,13 +6,18 @@
 package org.jetbrains.kotlin.psi;
 
 import com.intellij.lang.ASTNode;
-import com.intellij.psi.*;
+import com.intellij.psi.ContributedReferenceHost;
+import com.intellij.psi.LiteralTextEscaper;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiLanguageInjectionHost;
 import com.intellij.psi.tree.TokenSet;
-import com.intellij.util.IncorrectOperationException;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.KtStubBasedElementTypes;
+import org.jetbrains.kotlin.KtNodeTypes;
 import org.jetbrains.kotlin.lexer.KtTokens;
+import org.jetbrains.kotlin.psi.psiUtil.KtPsiUtilKt;
+import org.jetbrains.kotlin.psi.psiUtil.KtStringTemplateExpressionManipulatorKt;
 import org.jetbrains.kotlin.psi.stubs.KotlinPlaceHolderStub;
 
 /**
@@ -24,21 +29,19 @@ import org.jetbrains.kotlin.psi.stubs.KotlinPlaceHolderStub;
  * //             ^_____________^
  * }</pre>
  */
-public class KtStringTemplateExpression extends KtElementImplStub<KotlinPlaceHolderStub<KtStringTemplateExpression>>
-        implements KtExpression, PsiLanguageInjectionHost, ContributedReferenceHost {
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
+public class KtStringTemplateExpression extends KtExpressionImplStub<KotlinPlaceHolderStub<KtStringTemplateExpression>>
+        implements PsiLanguageInjectionHost, ContributedReferenceHost {
     private static final TokenSet CLOSE_QUOTE_TOKEN_SET = TokenSet.create(KtTokens.CLOSING_QUOTE);
 
+    @KtImplementationDetail
     public KtStringTemplateExpression(@NotNull ASTNode node) {
         super(node);
     }
 
+    @KtImplementationDetail
     public KtStringTemplateExpression(@NotNull KotlinPlaceHolderStub<KtStringTemplateExpression> stub) {
-        super(stub, KtStubBasedElementTypes.STRING_TEMPLATE);
-    }
-
-    @Override
-    public PsiElement replace(@NotNull PsiElement newElement) throws IncorrectOperationException {
-        return KtExpressionImpl.Companion.replaceExpression(this, newElement, true, super::replace);
+        super(stub, KtNodeTypes.STRING_TEMPLATE);
     }
 
     @Override
@@ -47,10 +50,10 @@ public class KtStringTemplateExpression extends KtElementImplStub<KotlinPlaceHol
     }
 
     private static final TokenSet STRING_ENTRIES_TYPES = TokenSet.create(
-            KtStubBasedElementTypes.LONG_STRING_TEMPLATE_ENTRY,
-            KtStubBasedElementTypes.SHORT_STRING_TEMPLATE_ENTRY,
-            KtStubBasedElementTypes.LITERAL_STRING_TEMPLATE_ENTRY,
-            KtStubBasedElementTypes.ESCAPE_STRING_TEMPLATE_ENTRY
+            KtNodeTypes.LONG_STRING_TEMPLATE_ENTRY,
+            KtNodeTypes.SHORT_STRING_TEMPLATE_ENTRY,
+            KtNodeTypes.LITERAL_STRING_TEMPLATE_ENTRY,
+            KtNodeTypes.ESCAPE_STRING_TEMPLATE_ENTRY
     );
 
     /**
@@ -59,11 +62,14 @@ public class KtStringTemplateExpression extends KtElementImplStub<KotlinPlaceHol
      * @see KtStringInterpolationPrefix
      */
     @Nullable
-    @SuppressWarnings("deprecation") // KT-78356
     public KtStringInterpolationPrefix getInterpolationPrefix() {
-        return getStubOrPsiChild(KtStubBasedElementTypes.STRING_INTERPOLATION_PREFIX);
+        return getStubOrPsiChild(KtNodeTypes.STRING_INTERPOLATION_PREFIX, KtStringInterpolationPrefix.class);
     }
 
+    /**
+     * Returns the segments that make up this string: literal text, escape sequences, and interpolated expressions, in source order. Empty
+     * for an empty string {@code ""}.
+     */
     @NotNull
     public KtStringTemplateEntry[] getEntries() {
         return getStubOrPsiChildren(STRING_ENTRIES_TYPES, KtStringTemplateEntry.EMPTY_ARRAY);
@@ -76,9 +82,14 @@ public class KtStringTemplateExpression extends KtElementImplStub<KotlinPlaceHol
 
     @Override
     public PsiLanguageInjectionHost updateText(@NotNull String text) {
+        KtPsiMutationService mutationService = KtPsiMutationService.getInstanceOrNull();
+        if (mutationService != null) return mutationService.updateStringTemplateText(this, text);
+
         KtExpression newExpression = new KtPsiFactory(getProject()).createExpressionIfPossible(text);
         if (newExpression instanceof KtStringTemplateExpression) return (KtStringTemplateExpression) replace(newExpression);
-        return ElementManipulators.handleContentChange(this, text);
+
+        // Environments without the service don't register the manipulator either, so reuse its logic directly
+        return KtStringTemplateExpressionManipulatorKt.replaceStringTemplateContent(this, KtPsiUtilKt.getContentRange(this), text);
     }
 
     @NotNull
@@ -87,6 +98,10 @@ public class KtStringTemplateExpression extends KtElementImplStub<KotlinPlaceHol
         return new KotlinStringLiteralTextEscaper(this);
     }
 
+    /**
+     * Returns {@code true} if this string contains at least one interpolated expression ({@code $name} or {@code ${...}}), as opposed to a
+     * plain string literal.
+     */
     public boolean hasInterpolation() {
         for (PsiElement child : getChildren()) {
             if (child instanceof KtSimpleNameStringTemplateEntry || child instanceof KtBlockStringTemplateEntry) {

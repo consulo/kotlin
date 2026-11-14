@@ -121,11 +121,11 @@ open class FirInferenceLogger : InferenceLogger(), FirSessionComponent {
     private val initialConstraintToKnownElement = mutableMapOf<InitialConstraint, ConstraintElement>()
     private val variableConstraintToKnownElement = mutableMapOf<Pair<TypeVariableMarker, Constraint>, ConstraintElement>()
 
-    private fun cachedElementFor(constraint: InitialConstraint) =
+    private fun cachedElementFor(constraint: InitialConstraint): ConstraintElement =
         initialConstraintToKnownElement[constraint]
             ?: error("This constraint has not yet been logged: $constraint")
 
-    private fun cachedElementFor(variable: TypeVariableMarker, constraint: Constraint) =
+    private fun cachedElementFor(variable: TypeVariableMarker, constraint: Constraint): ConstraintElement =
         variableConstraintToKnownElement[variable to constraint]
             ?: error("This constraint has not yet been logged: $variable with $constraint")
 
@@ -191,7 +191,7 @@ open class FirInferenceLogger : InferenceLogger(), FirSessionComponent {
     private fun FixationLogRecord.isSimilarTo(record: FixationLogRecord): Boolean {
         if (record.chosen !== chosen) return false
         if (record.map.size != map.size) return false
-        for ((variable, info) in record.map) {
+        for ([variable, info] in record.map) {
             if (!info.isSimilarTo(map[variable])) return false
         }
         return true
@@ -258,6 +258,22 @@ open class FirInferenceLogger : InferenceLogger(), FirSessionComponent {
             }
         }
     }
+
+    private inner class SnapshotImpl : Snapshot() {
+        private val savedTopLevelElementsCount = topLevelElements.size
+        private val savedCurrentBlockItemElementsCount = currentBlockItemElements.size
+
+        override fun rollback() {
+            while (topLevelElements.size > savedTopLevelElementsCount) {
+                topLevelElements.removeLast()
+            }
+            while (currentBlockItemElements.size > savedCurrentBlockItemElementsCount) {
+                currentBlockItemElements.removeLast()
+            }
+        }
+    }
+
+    override fun getSnapshot(): Snapshot = SnapshotImpl()
 
     companion object {
         @JvmStatic

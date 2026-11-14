@@ -1,5 +1,5 @@
-// LANGUAGE: +CompanionBlocksAndExtensions
-// IGNORE_BACKEND: ANDROID
+// LANGUAGE: +CompanionBlocks +CompanionExtensions
+// DUMP_KLIB_ABI: DEFAULT
 // WITH_STDLIB
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue

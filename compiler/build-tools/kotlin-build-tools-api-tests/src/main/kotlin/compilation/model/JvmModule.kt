@@ -10,10 +10,10 @@ import org.jetbrains.kotlin.buildtools.api.BaseIncrementalCompilationConfigurati
 import org.jetbrains.kotlin.buildtools.api.BaseIncrementalCompilationConfiguration.Companion.MODULE_BUILD_DIR
 import org.jetbrains.kotlin.buildtools.api.BaseIncrementalCompilationConfiguration.Companion.ROOT_PROJECT_DIR
 import org.jetbrains.kotlin.buildtools.api.arguments.JvmCompilerArguments.Companion.CLASSPATH
+import org.jetbrains.kotlin.buildtools.api.arguments.JvmCompilerArguments.Companion.JDK_HOME
 import org.jetbrains.kotlin.buildtools.api.arguments.JvmCompilerArguments.Companion.MODULE_NAME
 import org.jetbrains.kotlin.buildtools.api.arguments.JvmCompilerArguments.Companion.NO_REFLECT
 import org.jetbrains.kotlin.buildtools.api.arguments.JvmCompilerArguments.Companion.NO_STDLIB
-import org.jetbrains.kotlin.buildtools.api.jvm.AccessibleClassSnapshot
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmPlatformToolchain.Companion.jvm
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmSnapshotBasedIncrementalCompilationConfiguration
 import org.jetbrains.kotlin.buildtools.api.jvm.classpathSnapshottingOperation
@@ -23,15 +23,36 @@ import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmClasspathSnapshotti
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmCompilationOperation
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.snapshotBasedIcConfiguration
 import java.io.File
+import java.io.StringWriter
+import java.nio.charset.StandardCharsets
 import java.nio.file.Path
+import java.nio.file.Paths
+import java.util.Locale
+import javax.tools.Diagnostic
+import javax.tools.DiagnosticCollector
+import javax.tools.JavaFileObject
+import javax.tools.ToolProvider
 import kotlin.io.path.createParentDirectories
+import kotlin.io.path.exists
+import kotlin.io.path.extension
+import kotlin.io.path.name
 import kotlin.io.path.pathString
+import kotlin.io.path.readText
 import kotlin.io.path.walk
+import kotlin.reflect.KClass
+
+data class JvmModuleCacheKey(
+    val moduleClass: KClass<*>,
+    val moduleName: String,
+    val dependencies: List<DependencyScenarioDslCacheKey>,
+    val compilationArguments: (JvmCompilationOperation.Builder) -> Unit,
+    val compileJavaSources: Boolean,
+) : DependencyScenarioDslCacheKey
 
 class JvmModule(
     private val kotlinToolchain: KotlinToolchains,
     val buildSession: KotlinToolchains.BuildSession,
-    project: Project,
+    project: JvmProject,
     moduleName: String,
     moduleDirectory: Path,
     dependencies: List<Dependency>,
@@ -39,7 +60,8 @@ class JvmModule(
     private val snapshotConfig: SnapshotConfig,
     moduleCompilationConfigAction: (JvmCompilationOperation.Builder) -> Unit = {},
     private val stdlibLocation: List<Path>,
-) : AbstractModule(
+    val compileJavaSources: Boolean = false,
+) : AbstractModule<JvmCompilationOperation, JvmCompilationOperation.Builder, JvmSnapshotBasedIncrementalCompilationConfiguration.Builder>(
     project,
     moduleName,
     moduleDirectory,
@@ -47,6 +69,14 @@ class JvmModule(
     defaultStrategyConfig,
     moduleCompilationConfigAction,
 ) {
+    override val scenarioDslCacheKey: DependencyScenarioDslCacheKey =
+        JvmModuleCacheKey(
+            this::class,
+            moduleName,
+            dependencies.map { it.scenarioDslCacheKey },
+            moduleCompilationConfigAction,
+            compileJavaSources,
+        )
 
 
     /**
@@ -66,6 +96,7 @@ class JvmModule(
     ): CompilationResult {
         val allowedExtensions = setOf("kt", "kts", "java", "greet")
 
+        var configuredJdkHome: Path? = null
         val compilationOperation = kotlinToolchain.jvm.jvmCompilationOperation(
             sourcesDirectory.walk()
                 .filter { path -> path.pathString.run { allowedExtensions.any { endsWith(".$it") } } }
@@ -77,6 +108,7 @@ class JvmModule(
             this.compilerArguments[NO_REFLECT] = true
             this.compilerArguments[NO_STDLIB] = true
             this.compilerArguments[CLASSPATH] = compileClasspath
+            configuredJdkHome = compilerArguments[JDK_HOME]
             when (compilerArguments[MODULE_NAME]) {
                 null -> compilerArguments[MODULE_NAME] = moduleName
                 EXPLICIT_NULL_MODULE_NAME_MARKER -> compilerArguments[MODULE_NAME] = null
@@ -84,11 +116,90 @@ class JvmModule(
             }
         }
 
-        return compilationOperation.let {
+        val kotlinCompilationResult = compilationOperation.let {
             compilationAction(it)
-            buildSession.executeOperation(it, strategyConfig, kotlinLogger)
+            val result = buildSession.executeOperation(it, strategyConfig, kotlinLogger)
+            if (compileJavaSources && result == CompilationResult.COMPILATION_SUCCESS) {
+                val javaFiles = sourcesDirectory.walk().filter { file -> file.extension == "java" }.map { file -> file.toFile() }.toList()
+                if (javaFiles.isNotEmpty() && !compileJavaSourcesWithJavac(javaFiles, kotlinLogger)) {
+                    return@let CompilationResult.COMPILATION_ERROR
+                }
+            }
+            result
+        }
+
+        if (kotlinCompilationResult == CompilationResult.COMPILATION_SUCCESS) {
+            compileModuleInfoWithJavac(configuredJdkHome, kotlinLogger)
+        }
+        return kotlinCompilationResult
+    }
+
+    private fun compileJavaSourcesWithJavac(javaFiles: List<File>, kotlinLogger: TestKotlinLogger): Boolean {
+        val compiler = ToolProvider.getSystemJavaCompiler()
+            ?: error("System Java compiler not found. Ensure running on a JDK.")
+        val diagnosticCollector = DiagnosticCollector<JavaFileObject>()
+        val classpathEntries = (compileClasspath.plusElement(outputDirectory)).joinToString(File.pathSeparator) { path -> path.pathString }
+        val options = listOf("-d", outputDirectory.pathString, "-cp", classpathEntries, "-encoding", "UTF-8")
+
+        val compilerOutput = StringWriter()
+        val success = compiler.getStandardFileManager(diagnosticCollector, Locale.ENGLISH, StandardCharsets.UTF_8).use { fileManager ->
+            val compilationUnits = fileManager.getJavaFileObjectsFromFiles(javaFiles)
+            compiler.getTask(compilerOutput, fileManager, diagnosticCollector, options, null, compilationUnits).call()
+                ?: error("The Java compiler returned no result for the module '$moduleName'")
+        }
+
+        for (diagnostic in diagnosticCollector.diagnostics) {
+            val message = diagnostic.render()
+            when (diagnostic.kind) {
+                Diagnostic.Kind.ERROR -> kotlinLogger.error(message)
+                Diagnostic.Kind.WARNING, Diagnostic.Kind.MANDATORY_WARNING -> kotlinLogger.warn(message)
+                else -> kotlinLogger.info(message)
+            }
+        }
+        val uncategorizedOutput = compilerOutput.toString()
+        if (uncategorizedOutput.isNotBlank()) {
+            kotlinLogger.info("javac: $uncategorizedOutput")
+        }
+        if (!success) {
+            kotlinLogger.error("Java compilation of the module '$moduleName' failed, see the javac diagnostics above")
+        }
+        return success
+    }
+
+    /**
+     * Compiles this module's `module-info.java` (if present) and only it into [outputDirectory] with the `javac` from the given JDK.
+     *
+     * Separated from [compileJavaSourcesWithJavac] because it's using a different JDK and JPMS specific arguments.
+     */
+    private fun compileModuleInfoWithJavac(configuredJdkHome: Path?, kotlinLogger: TestKotlinLogger) {
+        val moduleInfoFile = sourcesDirectory.walk().firstOrNull { it.name == "module-info.java" } ?: return
+        val jdkHome = configuredJdkHome ?: Paths.get(System.getProperty("java.home"))
+        val jpmsModuleName = parseJavaModuleName(moduleInfoFile)
+            ?: error("Could not determine the JPMS module name declared in '$moduleInfoFile'")
+        val javac = sequenceOf("bin/javac", "bin/javac.exe").map { jdkHome.resolve(it) }.firstOrNull { it.exists() }
+            ?: error("Could not find 'javac' under JDK home '$jdkHome'")
+
+        val command = buildList {
+            add(javac.pathString)
+            add("-d"); add(outputDirectory.pathString)
+            if (compileClasspath.isNotEmpty()) {
+                add("--module-path"); add(compileClasspath.joinToString(File.pathSeparator) { it.pathString })
+            }
+            add("--patch-module"); add("$jpmsModuleName=${outputDirectory.pathString}")
+            add(moduleInfoFile.pathString)
+        }
+        val process = ProcessBuilder(command).redirectErrorStream(true).start()
+        val javacOutput = process.inputStream.bufferedReader().use { it.readText() }
+        if (process.waitFor() == 0) {
+            if (javacOutput.isNotBlank()) kotlinLogger.info(javacOutput)
+        } else {
+            error("javac failed to compile '$moduleInfoFile' (module-info.class not produced):\n$javacOutput")
         }
     }
+
+    // Matches `[open] module <qualified.name> {`. Test-data descriptors have no comments, so a simple scan is enough.
+    private fun parseJavaModuleName(moduleInfoFile: Path): String? =
+        Regex("""(?:^|\s)(?:open\s+)?module\s+([A-Za-z0-9_.]+)""").find(moduleInfoFile.readText())?.groupValues?.get(1)
 
     private fun generateClasspathSnapshot(dependency: Dependency): Path {
         val snapshotOperation = kotlinToolchain.jvm.classpathSnapshottingOperation(
@@ -97,15 +208,11 @@ class JvmModule(
             this[JvmClasspathSnapshottingOperation.GRANULARITY] = snapshotConfig.granularity
             this[PARSE_INLINED_LOCAL_CLASSES] = snapshotConfig.useInlineLambdaSnapshotting
         }
-        val snapshotResult = buildSession.executeOperation(snapshotOperation)
-        val hash = snapshotResult.classSnapshots.values
-            .filterIsInstance<AccessibleClassSnapshot>()
-            .withIndex()
-            .sumOf { (index, snapshot) -> index * 31 + snapshot.classAbiHash }
+        val snapshot = buildSession.executeOperation(snapshotOperation)
         // see details in docs for `CachedClasspathSnapshotSerializer` for details why we can't use a fixed name
-        val snapshotFile = icWorkingDir.resolve("dep-$hash.snapshot")
+        val snapshotFile = icWorkingDir.resolve("dep-${snapshot.hashCode()}.snapshot")
         snapshotFile.createParentDirectories()
-        snapshotResult.saveSnapshot(snapshotFile.toFile())
+        snapshot.saveSnapshot(snapshotFile.toFile())
         return snapshotFile
     }
 
@@ -117,7 +224,7 @@ class JvmModule(
         compilationConfigAction: (JvmCompilationOperation.Builder) -> Unit,
         compilationAction: (JvmCompilationOperation) -> Unit,
         icOptionsConfigAction: (JvmSnapshotBasedIncrementalCompilationConfiguration.Builder) -> Unit,
-        assertions: context(Module) CompilationOutcome.() -> Unit,
+        assertions: context(ModuleContext) CompilationOutcome.() -> Unit,
     ): CompilationResult {
         return compile(strategyConfig, forceOutput, { compilationOperation ->
             val snapshots = dependencies.map {
@@ -157,6 +264,11 @@ class JvmModule(
     }
 
     private companion object {
+        private fun Diagnostic<out JavaFileObject>.render(): String {
+            val position = source?.let { source -> "${source.name}:$lineNumber:$columnNumber: " } ?: ""
+            return "javac: $position${getMessage(Locale.ENGLISH)}"
+        }
+
         val javaExe: File
             get() {
                 val javaHome = System.getProperty("java.home")

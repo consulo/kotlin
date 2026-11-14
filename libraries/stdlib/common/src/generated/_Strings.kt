@@ -27,7 +27,7 @@ public expect fun CharSequence.elementAt(index: Int): Char
 /**
  * Returns a character at the given [index] or the result of calling the [defaultValue] function if the [index] is out of bounds of this char sequence.
  * 
- * @sample samples.collections.Collections.Elements.elementAtOrElse
+ * @sample samples.text.Strings.elementAtOrElse
  */
 @kotlin.internal.InlineOnly
 public inline fun CharSequence.elementAtOrElse(index: Int, defaultValue: (Int) -> Char): Char {
@@ -40,7 +40,7 @@ public inline fun CharSequence.elementAtOrElse(index: Int, defaultValue: (Int) -
 /**
  * Returns a character at the given [index] or `null` if the [index] is out of bounds of this char sequence.
  * 
- * @sample samples.collections.Collections.Elements.elementAtOrNull
+ * @sample samples.text.Strings.elementAtOrNull
  */
 @kotlin.internal.InlineOnly
 public inline fun CharSequence.elementAtOrNull(index: Int): Char? {
@@ -50,7 +50,7 @@ public inline fun CharSequence.elementAtOrNull(index: Int): Char? {
 /**
  * Returns the first character matching the given [predicate], or `null` if no such character was found.
  * 
- * @sample samples.collections.Collections.Elements.find
+ * @sample samples.text.Strings.find
  */
 @kotlin.internal.InlineOnly
 public inline fun CharSequence.find(predicate: (Char) -> Boolean): Char? {
@@ -71,6 +71,8 @@ public inline fun CharSequence.findLast(predicate: (Char) -> Boolean): Char? {
  * Returns the first character.
  * 
  * @throws NoSuchElementException if the char sequence is empty.
+ * 
+ * @sample samples.text.Strings.first
  */
 public fun CharSequence.first(): Char {
     if (isEmpty())
@@ -81,6 +83,8 @@ public fun CharSequence.first(): Char {
 /**
  * Returns the first character matching the given [predicate].
  * @throws [NoSuchElementException] if no such character is found.
+ * 
+ * @sample samples.text.Strings.first
  */
 public inline fun CharSequence.first(predicate: (Char) -> Boolean): Char {
     for (element in this) if (predicate(element)) return element
@@ -156,6 +160,8 @@ public fun CharSequence.getOrNull(index: Int): Char? {
 
 /**
  * Returns index of the first character matching the given [predicate], or -1 if the char sequence does not contain such character.
+ * 
+ * @sample samples.text.Strings.indexOfFirst
  */
 public inline fun CharSequence.indexOfFirst(predicate: (Char) -> Boolean): Int {
     for (index in indices) {
@@ -168,6 +174,8 @@ public inline fun CharSequence.indexOfFirst(predicate: (Char) -> Boolean): Int {
 
 /**
  * Returns index of the last character matching the given [predicate], or -1 if the char sequence does not contain such character.
+ * 
+ * @sample samples.text.Strings.indexOfLast
  */
 public inline fun CharSequence.indexOfLast(predicate: (Char) -> Boolean): Int {
     for (index in indices.reversed()) {
@@ -495,7 +503,7 @@ public inline fun String.filterNot(predicate: (Char) -> Boolean): String {
 /**
  * Appends all characters not matching the given [predicate] to the given [destination].
  * 
- * @sample samples.collections.Collections.Filtering.filterTo
+ * @sample samples.text.Strings.filterNotTo
  */
 @IgnorableReturnValue
 public inline fun <C : Appendable> CharSequence.filterNotTo(destination: C, predicate: (Char) -> Boolean): C {
@@ -506,7 +514,7 @@ public inline fun <C : Appendable> CharSequence.filterNotTo(destination: C, pred
 /**
  * Appends all characters matching the given [predicate] to the given [destination].
  * 
- * @sample samples.collections.Collections.Filtering.filterTo
+ * @sample samples.text.Strings.filterTo
  */
 @IgnorableReturnValue
 public inline fun <C : Appendable> CharSequence.filterTo(destination: C, predicate: (Char) -> Boolean): C {

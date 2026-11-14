@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.objcexport.analysisApiUtils
 
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.components.KaDeprecationLevel
 import org.jetbrains.kotlin.analysis.api.export.utilities.getSuperClassSymbolNotAny
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassKind.*
@@ -15,7 +16,6 @@ import org.jetbrains.kotlin.backend.konan.KonanFqNames
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.resolve.DataClassResolver
-import org.jetbrains.kotlin.resolve.deprecation.DeprecationLevelValue
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
@@ -38,6 +38,8 @@ internal fun KaSession.isVisibleInObjC(symbol: KaCallableSymbol): Boolean {
     if (isHiddenFromObjCByAnnotation(symbol)) return false
     if (isSealedClassConstructor(symbol)) return false
     if (isComponentNMethod(symbol) && !symbol.directlyOverriddenSymbols.any()) return false
+    @OptIn(KaExperimentalApi::class)
+    if (symbol.isCompanion) return false
     return true
 }
 
@@ -143,14 +145,14 @@ private fun KaSession.isHiddenFromObjCByDeprecation(callable: KaCallableSymbol):
     Note: ObjCExport generally expect overrides of exposed methods to be exposed.
     So don't hide a "deprecated hidden" method which overrides non-hidden one:
      */
-    if (callable.deprecationStatus?.deprecationLevel == DeprecationLevelValue.HIDDEN &&
+    if (callable.deprecation?.level == KaDeprecationLevel.HIDDEN &&
         callable.directlyOverriddenSymbols.all { overridden -> isHiddenFromObjCByDeprecation(overridden) }
     ) {
         return true
     }
 
     val containingClassSymbol = callable.containingDeclaration as? KaClassSymbol
-    if (containingClassSymbol?.deprecationStatus?.deprecationLevel == DeprecationLevelValue.HIDDEN) {
+    if (containingClassSymbol?.deprecation?.level == KaDeprecationLevel.HIDDEN) {
         return true
     }
 
@@ -159,7 +161,7 @@ private fun KaSession.isHiddenFromObjCByDeprecation(callable: KaCallableSymbol):
 
 @OptIn(KaExperimentalApi::class)
 private fun KaSession.isHiddenFromObjCByDeprecation(symbol: KaClassSymbol): Boolean {
-    if (symbol.deprecationStatus?.deprecationLevel == DeprecationLevelValue.HIDDEN) return true
+    if (symbol.deprecation?.level == KaDeprecationLevel.HIDDEN) return true
 
     // Note: ObjCExport requires super class of exposed class to be exposed.
     // So hide a class if its super class is hidden:

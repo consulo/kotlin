@@ -9,6 +9,7 @@ import org.gradle.api.artifacts.transform.*
 import org.gradle.api.file.FileSystemLocation
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Classpath
+import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
 import org.jetbrains.org.objectweb.asm.ClassReader
 import org.jetbrains.org.objectweb.asm.ClassWriter
@@ -24,6 +25,7 @@ abstract class StructureTransformAction : TransformAction<TransformParameters.No
 
     @get:InputArtifact
     @get:Classpath
+    @get:NormalizeLineEndings
     abstract val inputArtifact: Provider<FileSystemLocation>
 
     override fun transform(outputs: TransformOutputs) {
@@ -46,6 +48,7 @@ abstract class StructureTransformLegacyAction : TransformAction<TransformParamet
 
     @get:InputArtifact
     @get:Classpath
+    @get:NormalizeLineEndings
     abstract val inputArtifact: File
 
     override fun transform(outputs: TransformOutputs) {
@@ -126,8 +129,12 @@ private fun analyzeInputStream(input: InputStream, internalName: String, entryDa
 class ClasspathEntryData : Serializable {
 
     object ClasspathEntrySerializer {
+        // `output.bin` only ever holds a single `ClasspathEntryData` whose custom `readObject` reads primitives. Restrict
+        // deserialization to that class to prevent gadget-chain attacks via a tampered structure file (KT-88432).
+        private val ALLOWED_CLASSES = setOf(ClasspathEntryData::class.java.name)
+
         fun loadFrom(file: File): ClasspathEntryData {
-            ObjectInputStream(BufferedInputStream(file.inputStream())).use {
+            FilteringObjectInputStream(BufferedInputStream(file.inputStream()), ALLOWED_CLASSES).use {
                 return it.readObject() as ClasspathEntryData
             }
         }

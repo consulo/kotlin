@@ -157,7 +157,13 @@ class BlockDecomposerTransformer(
     }
 
     private fun makeTempVar(type: IrType, init: IrExpression? = null) =
-        JsIrBuilder.buildVar(type, function, initializer = init, isVar = true)
+        JsIrBuilder.buildVar(
+            type,
+            function,
+            initializer = init,
+            isVar = true,
+            origin = IrDeclarationOrigin.IR_TEMPORARY_VARIABLE,
+        )
 
     private fun makeLoopLabel() = "\$l\$${tmpVarCounter++}"
 
@@ -411,7 +417,7 @@ class BlockDecomposerTransformer(
             }
 
             if (compositeCount == 0) {
-                val branches = results.memoryOptimizedMap { (cond, res, orig) ->
+                val branches = results.memoryOptimizedMap { [cond, res, orig] ->
                     when {
                         isElseBranch(orig) -> IrElseBranchImpl(orig.startOffset, orig.endOffset, cond, res)
                         else /* IrBranch */ -> IrBranchImpl(orig.startOffset, orig.endOffset, cond, res)
@@ -423,13 +429,14 @@ class BlockDecomposerTransformer(
             val block = IrBlockImpl(expression.startOffset, expression.endOffset, unitType, expression.origin)
 
             // TODO: consider decomposing only when it is really required
-            results.foldIndexed(block) { i, appendBlock, (cond, res, orig) ->
+            var appendBlock: IrBlockImpl = block
+            results.forEachIndexed { i, [cond, res, orig] ->
                 val condStatements = destructureComposite(cond)
                 val condValue = condStatements.last() as IrExpression
 
                 appendBlock.statements += condStatements.run { subList(0, lastIndex) }
 
-                JsIrBuilder.buildBlock(unitType).also {
+                appendBlock = JsIrBuilder.buildBlock(unitType).also {
                     val elseBlock = it.takeIf { results.lastIndex != i }
                     val additionalStatements = when {
                         isElseBranch(orig) -> (res as? IrBlock)?.statements ?: listOf(res)
@@ -534,7 +541,7 @@ class BlockDecomposerTransformer(
             var compositesLeft = compositeCount
             val arguments = mutableListOf<IrExpression?>()
 
-            for ((index, arg) in oldArguments.withIndex()) {
+            for ([index, arg] in oldArguments.withIndex()) {
                 val value = if (arg is IrComposite) {
                     compositesLeft--
                     newStatements += arg.statements.run { subList(0, lastIndex) }
@@ -548,7 +555,7 @@ class BlockDecomposerTransformer(
                     value.isPure(anyVariable = false, symbols = context.symbols) -> value
                     else -> {
                         // TODO: do not wrap if value is pure (const, variable, etc)
-                        val (newArg, tempVar) = mapArgument(value)
+                        val [newArg, tempVar] = mapArgument(value)
                         newStatements += tempVar
                         newArg
                     }
@@ -614,7 +621,7 @@ class BlockDecomposerTransformer(
                 newStatements
             )
 
-            val arguments = expression.elements.withIndex().map { (i, v) ->
+            val arguments = expression.elements.withIndex().map { [i, v] ->
                 val expr = argumentsExpressions[i]!!
                 (v as? IrSpreadElement)?.run { IrSpreadElementImpl(startOffset, endOffset, expr) } ?: expr
             }
@@ -803,7 +810,7 @@ class BlockDecomposerTransformer(
             if (hasComposites) {
                 val irVar = makeTempVar(expression.type)
 
-                val newBranches = decomposedResults.memoryOptimizedMap { (branch, condition, result) ->
+                val newBranches = decomposedResults.memoryOptimizedMap { [branch, condition, result] ->
                     val newResult = wrap(result, irVar)
                     when {
                         isElseBranch(branch) -> IrElseBranchImpl(branch.startOffset, branch.endOffset, condition, newResult)
@@ -817,7 +824,7 @@ class BlockDecomposerTransformer(
 
                 return JsIrBuilder.buildComposite(expression.type, listOf(irVar, newWhen, JsIrBuilder.buildGetValue(irVar.symbol)))
             } else {
-                val newBranches = decomposedResults.memoryOptimizedMap { (branch, condition, result) ->
+                val newBranches = decomposedResults.memoryOptimizedMap { [branch, condition, result] ->
                     when {
                         isElseBranch(branch) -> IrElseBranchImpl(branch.startOffset, branch.endOffset, condition, result)
                         else /* IrBranch  */ -> IrBranchImpl(branch.startOffset, branch.endOffset, condition, result)

@@ -1,27 +1,36 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.light.classes.symbol.annotations
 
 import com.intellij.psi.*
-import org.jetbrains.kotlin.analysis.api.resolution.singleConstructorCallOrNull
+import org.jetbrains.kotlin.analysis.api.evaluation.evaluateAsAnnotationValue
+import org.jetbrains.kotlin.analysis.api.resolution.constructor
+import org.jetbrains.kotlin.analysis.api.resolution.single
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
+import org.jetbrains.kotlin.analysis.api.resolution.tryResolveCall
+import org.jetbrains.kotlin.analysis.api.session.useSiteModule
 import org.jetbrains.kotlin.asJava.classes.cannotModify
 import org.jetbrains.kotlin.asJava.classes.lazyPub
 import org.jetbrains.kotlin.asJava.elements.KtLightElement
 import org.jetbrains.kotlin.asJava.elements.KtLightElementBase
-import org.jetbrains.kotlin.light.classes.symbol.analyzeForLightClasses
 import org.jetbrains.kotlin.light.classes.symbol.codeReferences.SymbolLightPsiJavaCodeReferenceElementWithNoReference
 import org.jetbrains.kotlin.light.classes.symbol.codeReferences.SymbolLightPsiJavaCodeReferenceElementWithReference
-import org.jetbrains.kotlin.light.classes.symbol.toAnnotationMemberValue
+import org.jetbrains.kotlin.light.classes.symbol.utils.analyzeForLightClasses
+import org.jetbrains.kotlin.light.classes.symbol.utils.toAnnotationMemberValue
 import org.jetbrains.kotlin.psi.*
 
 internal abstract class SymbolLightAbstractAnnotation(parent: PsiElement) :
     KtLightElementBase(parent), PsiAnnotation, KtLightElement<KtCallElement, PsiAnnotation> {
 
     override fun getOwner() = parent as? PsiAnnotationOwner
+
+    /**
+     * A light class annotation always has a qualified name, as an unresolved annotation cannot be represented in a light class.
+     */
+    abstract override fun getQualifiedName(): String
 
     private val KtExpression.nameReference: KtNameReferenceExpression?
         get() = when (this) {
@@ -73,8 +82,9 @@ internal abstract class SymbolLightAbstractAnnotation(parent: PsiElement) :
         if (useDefault) {
             val callElement = kotlinOrigin ?: return null
             return analyzeForLightClasses(callElement) {
-                val valueParameter = callElement.resolveToCall()
-                    ?.singleConstructorCallOrNull()
+                val valueParameter = callElement.tryResolveCall()
+                    ?.single
+                    ?.constructor
                     ?.symbol
                     ?.valueParameters
                     ?.find { it.name.identifierOrNullIfSpecial == attributeName }
@@ -82,7 +92,7 @@ internal abstract class SymbolLightAbstractAnnotation(parent: PsiElement) :
                 when (val psi = valueParameter?.psi) {
                     is KtParameter -> {
                         psi.defaultValue?.let { defaultValue ->
-                            val annotationValue = defaultValue.evaluateAsAnnotationValue()?.toLightClassAnnotationValue()
+                            val annotationValue = defaultValue.evaluateAsAnnotationValue()?.toLightClassAnnotationValue(useSiteModule)
                             annotationValue?.toAnnotationMemberValue(parameterList)
                         }
                     }

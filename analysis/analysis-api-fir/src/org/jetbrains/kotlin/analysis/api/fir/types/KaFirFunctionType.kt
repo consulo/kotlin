@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -10,25 +10,24 @@ import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationList
 import org.jetbrains.kotlin.analysis.api.base.KaContextReceiver
+import org.jetbrains.kotlin.analysis.api.fir.KaFirContextReceiver
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
 import org.jetbrains.kotlin.analysis.api.fir.KaSymbolByFirBuilder
 import org.jetbrains.kotlin.analysis.api.fir.annotations.KaFirAnnotationListForType
+import org.jetbrains.kotlin.analysis.api.fir.resolution.KaFirFunctionValueParameter
 import org.jetbrains.kotlin.analysis.api.fir.types.qualifiers.UsualClassTypeQualifierBuilder
 import org.jetbrains.kotlin.analysis.api.fir.utils.buildAbbreviatedType
 import org.jetbrains.kotlin.analysis.api.fir.utils.createPointer
-import org.jetbrains.kotlin.analysis.api.impl.base.KaBaseContextReceiver
-import org.jetbrains.kotlin.analysis.api.impl.base.resolution.KaBaseFunctionValueParameter
 import org.jetbrains.kotlin.analysis.api.lifetime.KaLifetimeToken
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassLikeSymbol
 import org.jetbrains.kotlin.analysis.api.types.*
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
-import org.jetbrains.kotlin.analysis.utils.errors.requireIsInstance
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.resolve.transformers.ensureResolvedTypeDeclaration
 import org.jetbrains.kotlin.fir.types.*
-import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.utils.addToStdlib.requireIsInstance
 
 internal class KaFirFunctionType(
     override val coneType: ConeClassLikeTypeImpl,
@@ -56,13 +55,6 @@ internal class KaFirFunctionType(
             KaFirAnnotationListForType.create(coneType, builder)
         }
 
-    @Deprecated(
-        "Use `isMarkedNullable`, `isNullable` or `hasFlexibleNullability` instead. See KDocs for the migration guide",
-        replaceWith = ReplaceWith("this.isMarkedNullable")
-    )
-    @Suppress("Deprecation")
-    override val nullability: KaTypeNullability get() = withValidityAssertion { KaTypeNullability.create(coneType.isMarkedNullable) }
-
     override val abbreviation: KaUsualClassType?
         get() = withValidityAssertion {
             builder.buildAbbreviatedType(coneType)
@@ -76,17 +68,21 @@ internal class KaFirFunctionType(
     @Deprecated("Use `parameters.size` instead. See KT-80545", replaceWith = ReplaceWith("parameters.size"))
     override val arity: Int get() = withValidityAssertion { parameterTypes.size }
 
+    override val contextParameterTypes: List<KaType>
+        get() = withValidityAssertion {
+            coneType.contextParameterTypes(builder.rootSession).map { it.buildKtType() }
+        }
+
+    @Deprecated("Context receivers in function types are deprecated. Use `contextParameterTypes` instead.")
     @KaExperimentalApi
     override val contextReceivers: List<KaContextReceiver>
         get() = withValidityAssertion {
-            coneType.contextParameterTypes(builder.rootSession)
-                .map {
-                    // Context receivers in function types may not have labels, hence the `null` label.
-                    KaBaseContextReceiver(it.buildKtType(), label = null, token)
-                }
+            // Context receivers in function types may not have labels, hence the `null` label.
+            contextParameterTypes.map { KaFirContextReceiver(it, label = null, token) }
         }
 
-    override val hasContextReceivers: Boolean get() = withValidityAssertion { contextReceivers.isNotEmpty() }
+    @Deprecated("Use `hasContextParameters` instead.", ReplaceWith("hasContextParameters"))
+    override val hasContextReceivers: Boolean get() = withValidityAssertion { contextParameterTypes.isNotEmpty() }
 
     override val receiverType: KaType?
         get() = withValidityAssertion {
@@ -109,7 +105,7 @@ internal class KaFirFunctionType(
                 // as parameter names can be explicitly provided via @ParameterName annotations.
                 parameterConeType.ensureResolvedTypeDeclaration(builder.rootSession, FirResolvePhase.ANNOTATION_ARGUMENTS)
                 val name = parameterConeType?.valueParameterName(builder.rootSession)
-                KaBaseFunctionValueParameter(name, parameterType)
+                KaFirFunctionValueParameter(name, parameterType)
 
             }
         }

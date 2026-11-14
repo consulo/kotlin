@@ -3,9 +3,9 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=InPlaceLambdaKt]]
   partSimpleName: "InPlaceLambdaKt"
   PACKAGE_DIRECTIVE
   IMPORT_LIST
-  FUN[fqName=bar, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=bar]
+  FUNCTION[fqName=bar, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=bar]
     contract: [ effect:CallsInPlace(param(0), AT_MOST_ONCE) ]
-    origin: Facade(className=InPlaceLambdaKt, jvmClassName=null)
+    origin: Facade(className=InPlaceLambdaKt, jvmClassName=null, classFileMajorVersion=<current_major_version>)
     MODIFIER_LIST[public]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=x]
@@ -17,14 +17,16 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=InPlaceLambdaKt]]
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=Unit]
+                  isClassRef: true
     TYPE_REFERENCE
       USER_TYPE
         USER_TYPE
           REFERENCE_EXPRESSION[referencedName=kotlin]
         REFERENCE_EXPRESSION[referencedName=Unit]
-  FUN[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=foo]
+          isClassRef: true
+  FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=foo]
     contract: [ effect:CallsInPlace(param(0), AT_LEAST_ONCE) ]
-    origin: Facade(className=InPlaceLambdaKt, jvmClassName=null)
+    origin: Facade(className=InPlaceLambdaKt, jvmClassName=null, classFileMajorVersion=<current_major_version>)
     MODIFIER_LIST[public]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=x]
@@ -36,8 +38,10 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=InPlaceLambdaKt]]
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=Unit]
+                  isClassRef: true
     TYPE_REFERENCE
       USER_TYPE
         USER_TYPE
           REFERENCE_EXPRESSION[referencedName=kotlin]
         REFERENCE_EXPRESSION[referencedName=Unit]
+          isClassRef: true

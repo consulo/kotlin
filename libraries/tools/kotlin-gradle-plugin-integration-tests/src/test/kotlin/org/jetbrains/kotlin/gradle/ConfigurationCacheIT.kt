@@ -5,19 +5,30 @@
 
 package org.jetbrains.kotlin.gradle
 
+import org.gradle.api.Task
 import org.gradle.api.logging.LogLevel
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.report.BuildReportType
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.replaceText
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.assertAll
 import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 
 @DisplayName("Configuration cache")
+@MustRunOnChangesInGradle
 class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
+    @TestMetadata("kotlinProject")
     @DisplayName("works in simple Kotlin project")
     @GradleTest
     @JvmGradlePluginTests
@@ -27,6 +38,7 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @JvmGradlePluginTests
     @DisplayName("works with publishing")
     @GradleTest
@@ -62,6 +74,7 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("new-mpp-lib-and-app/sample-lib")
     @MppGradlePluginTests
     @DisplayName("works with MPP publishing")
     @GradleTest
@@ -123,9 +136,6 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
 
     @NativeGradlePluginTests
     @DisplayName("Configuration cache works with Kotlin Native bundle and its dependencies downloading")
-    @GradleTestVersions(
-        additionalVersions = [TestVersions.Gradle.G_8_6],
-    )
     @OsCondition(
         supportedOn = [OS.LINUX, OS.MAC], // disabled on Windows because of tmp dir problem KT-62761
         enabledOnCI = [OS.LINUX, OS.MAC],
@@ -156,6 +166,7 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("native-simple-project")
     @DisplayName("KT-66452: There are no false-positive Configuration Cache failures with native tasks")
     @NativeGradlePluginTests
     @GradleTest
@@ -188,6 +199,7 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("cinterop-with-header")
     @DisplayName("KT-66452: There are no false-positive Configuration Cache failures with cinterop")
     @NativeGradlePluginTests
     @GradleTest
@@ -214,10 +226,8 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("composite-build-with-precompiled-script-plugins")
     @MppGradlePluginTests
-    @GradleTestVersions(
-        minVersion = TestVersions.Gradle.G_8_0 // configuration cache and precompiled script plugins fails on earlier versions
-    )
     @GradleTest
     fun `test composite build with precompiled script plugins and multiplatform`(gradleVersion: GradleVersion) {
         val buildOptions = if (gradleVersion < GradleVersion.version(TestVersions.Gradle.MAX_SUPPORTED)) {
@@ -241,6 +251,7 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("kaptIncrementalCompilationProject")
     @OtherGradlePluginTests
     @DisplayName("with project using incremental kapt")
     @GradleTest
@@ -263,16 +274,12 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("instantExecution")
     @JvmGradlePluginTests
     @DisplayName("with instance execution")
     @GradleTest
     fun testInstantExecution(gradleVersion: GradleVersion) {
-        project(
-            "instantExecution",
-            gradleVersion,
-            // we can remove this line, when the min version of Gradle be at least 8.1
-            dependencyManagement = DependencyManagement.DisabledDependencyManagement
-        ) {
+        project("instantExecution", gradleVersion) {
             testConfigurationCacheOf(
                 "assemble",
                 executedTaskNames = listOf(":lib-project:compileKotlin")
@@ -280,6 +287,7 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("instantExecutionWithBuildSrc")
     @JvmGradlePluginTests
     @DisplayName("KT-43605: instant execution with buildSrc")
     @GradleTest
@@ -292,6 +300,7 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("instantExecutionWithIncludedBuildPlugin")
     @JvmGradlePluginTests
     @DisplayName("instant execution works with included build plugin")
     @GradleTest
@@ -304,12 +313,12 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("mppJvmWithJava")
     @MppGradlePluginTests
     @DisplayName("works in MPP with Java project")
     @GradleTest
     fun testJvmWithJavaConfigurationCache(gradleVersion: GradleVersion) {
         project("mppJvmWithJava", gradleVersion) {
-            if (!isWithJavaSupported) buildGradle.replaceText("withJava()", "")
             build("jvmWithJavaJar")
             build("jvmWithJavaJar") {
                 assertOutputContains("Reusing configuration cache.")
@@ -317,11 +326,9 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @JvmGradlePluginTests
     @DisplayName("with build report")
-    @GradleTestVersions(
-        additionalVersions = [TestVersions.Gradle.G_8_0],
-    )
     @GradleTest
     fun testBuildReportSmokeTestForConfigurationCache(gradleVersion: GradleVersion) {
         project(
@@ -339,6 +346,7 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @JvmGradlePluginTests
     @DisplayName("with build scan report")
     @GradleTest
@@ -355,6 +363,7 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    @TestMetadata("native-simple-project")
     @DisplayName("with native dependencies downloader")
     @NativeGradlePluginTests
     @GradleTest
@@ -378,6 +387,71 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
         }
     }
 
+    // FIXME: Actually objects SHOULD be the same even after deserialisation
+    //  https://github.com/gradle/gradle/issues/38577
+    @GradleTest
+    @OtherGradlePluginTests
+    @GradleTestVersions(minVersion = TestVersions.Gradle.MAX_SUPPORTED)
+    fun gradleConfigurationCacheDuplicatesTaskStateObjects(version: GradleVersion) {
+        project("empty", version, buildOptions = defaultBuildOptions.disableIsolatedProjects()) {
+            class Foo
+            abstract class Bs : BuildService<BuildServiceParameters.None> {
+                val state = ConcurrentHashMap<Task, Foo>()
+            }
+
+            buildScriptInjection {
+                val foo = Foo()
+                val bs = project.gradle.sharedServices.registerIfAbsent("bs", Bs::class.java) {}
+                project.tasks.register("one") {
+                    it.doLast { task ->
+                        bs.get().state[task] = foo
+                    }
+                }
+                project.tasks.register("two") {
+                    it.doLast { task ->
+                        bs.get().state[task] = foo
+                    }
+                }
+                project.tasks.register("all") {
+                    it.dependsOn("one", "two")
+                }
+            }
+
+            val provider = providerBuildScriptReturn {
+                val bs = project.gradle.sharedServices.registerIfAbsent("bs", Bs::class.java) {}
+                project.tasks.named("all").flatMap {
+                    it.outputs.files.elements
+                }.map {
+                    bs.get().state.map {
+                        it.key.name to it.value.hashCode()
+                    }.toMap()
+                }
+            }
+
+            assertAll(
+                {
+                    val hashesWithCc = provider.buildAndReturn(
+                        ":all",
+                    )
+                    assertNotNull(hashesWithCc["one"])
+                    assertNotEquals(hashesWithCc["one"], hashesWithCc["two"])
+                },
+                {
+                    val hashesWithCc = provider.buildAndReturn(
+                        ":all",
+                        deriveBuildOptions = {
+                            buildOptions.copy(
+                                configurationCache = BuildOptions.ConfigurationCacheValue.DISABLED,
+                                isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED,
+                            )
+                        },
+                    )
+                    assertNotNull(hashesWithCc["one"])
+                    assertEquals(hashesWithCc["one"], hashesWithCc["two"])
+                },
+            )
+        }
+    }
 }
 
 /** @return true when the patch was applied */
@@ -409,18 +483,10 @@ abstract class AbstractConfigurationCacheIT : KGPBaseTest() {
     }
 
     protected fun buildOptionsToAvoidKT66423(gradleVersion: GradleVersion, konanTempDir: Path) =
-        if (gradleVersion >= GradleVersion.version(TestVersions.Gradle.G_8_6)) {
-            defaultBuildOptions.copy(
-                konanDataDir = konanDir,
-                nativeOptions = super.defaultBuildOptions.nativeOptions.copy(
-                    version = System.getProperty("kotlinNativeVersion")
-                )
-            )
-        } else defaultBuildOptions.copy(
-            konanDataDir = konanTempDir,
+        defaultBuildOptions.copy(
+            konanDataDir = konanDir,
             nativeOptions = super.defaultBuildOptions.nativeOptions.copy(
-                // set the KGP's default Kotlin Native version, because in CI we don't have K/N versions in maven repo for each build
-                version = null
+                version = System.getProperty("kotlinNativeVersion")
             )
         )
 }

@@ -1,6 +1,7 @@
 import KotlinRuntime
 import KotlinRuntimeSupport
 @_implementationOnly import KotlinCoroutineSupportBridge
+import Synchronization
 
 /// A Bridge type for Job-like class in Kotlin
 ///
@@ -10,37 +11,88 @@ import KotlinRuntimeSupport
 /// The value of this type should never outlive the task it wraps.
 @objc(KotlinTask)
 package final class KotlinTask: KotlinRuntime.KotlinBase {
-    public convenience init(_ currentTask: UnsafeCurrentTask) {
-        self.init { shouldCancel in
-            defer { if shouldCancel { currentTask.cancel() } }
-            return currentTask.isCancelled
-        }
-    }
 
-    private init(
-        cancellationCallback: @escaping (Swift.Bool) -> Swift.Bool
-    ) {
+    private let task = Mutex<UnsafeCurrentTask?>(nil)
+
+    fileprivate init(_ currentTask: UnsafeCurrentTask) {
         let __kt = __root___SwiftJob_init_allocate()
         super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge)
-        __root___SwiftJob_init_initialize(__kt, {
-            let originalBlock = cancellationCallback
-            return { arg0 in return originalBlock(arg0) }
-        }())
+        let cancellationCallback: () -> Void = setTask(currentTask)
+        __root___SwiftJob_init_initialize(__kt, Unmanaged.passRetained(cancellationCallback as AnyObject).toOpaque())
     }
 
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options)
     }
 
-    public func cancelExternally() -> Swift.Void {
-        return __root___SwiftJob_cancelExternally(self.__externalRCRef())
+    private func setTask(_ task: UnsafeCurrentTask) -> (() -> Void) {
+        self.task.withLock {
+            guard $0 == nil else { fatalError("KotlinTask has already been initialized with a Task") }
+            $0 = task
+        }
+        return { [weak self] in self?.task.withLock { task in task?.cancel() } }
     }
 
-    public func setCallback(_ callback: @escaping @convention(block) (Bool) -> Bool) {
-        __root___SwiftJob_setCallback(self.__externalRCRef(), callback)
+    fileprivate func setTask(_ task: UnsafeCurrentTask) {
+        let cancellationCallback: () -> Void = setTask(task)
+        __root___SwiftJob_setCallback(self.__externalRCRef(), Unmanaged.passRetained(cancellationCallback as AnyObject).toOpaque())
+    }
+
+    fileprivate func clear() {
+        task.withLock { $0 = nil }
+    }
+
+    fileprivate func cancelExternally() -> Swift.Void {
+        return __root___SwiftJob_cancelExternally(self.__externalRCRef())
+    }
+}
+
+package func withKotlinContinuation<T>(
+    _ fn: (@escaping (T) -> Void, @escaping (Error?) -> Void, KotlinTask) -> Void
+) async throws -> T {
+    try await withUnsafeCurrentTask { currentTask in
+        let cancellation = KotlinTask(currentTask!)
+        defer { cancellation.clear() }
+        return try await withTaskCancellationHandler {
+            return try await withUnsafeThrowingContinuation { nativeContinuation in
+                let continuation: (T) -> Void = { nativeContinuation.resume(returning: $0) }
+                let exception: (Error?) -> Void = { error in
+                    nativeContinuation.resume(throwing: error ?? CancellationError())
+                }
+                fn(continuation, exception, cancellation)
+            }
+        } onCancel: {
+            cancellation.cancelExternally()
+        }
+    }
+}
+
+package func withKotlinTask<T>(
+    _ continuation: @escaping (T) -> Void,
+    _ exception: @escaping (Error?) -> Void,
+    _ cancellation: KotlinTask,
+    _ operation: @escaping () async throws -> T
+) {
+    Task {
+        await withUnsafeCurrentTask { currentTask in
+            cancellation.setTask(currentTask!)
+            defer { cancellation.clear() }
+            await withTaskCancellationHandler {
+                do {
+                    let result = try await operation()
+                    continuation(result)
+                } catch let error as CancellationError {
+                    exception(nil)
+                } catch {
+                    exception(error)
+                }
+            } onCancel: {
+                cancellation.cancelExternally()
+            }
+        }
     }
 }
 
@@ -50,21 +102,36 @@ public protocol KotlinTypedFlow<Element> {
     associatedtype Element
 
     var _flow: any KotlinFlow { get }
+    var _conformsTo: ((AnyClass?) -> Bool) { get }
 }
 
 extension KotlinTypedFlow {
     public var wrapped: any KotlinFlow { _flow }
 
     public func asAsyncSequence() -> KotlinFlowSequence<Element> {
-        KotlinFlowSequence(_flow)
+        KotlinFlowSequence(_flow, _conformsTo)
     }
 }
 
 public struct _KotlinTypedFlowImpl<Element>: KotlinTypedFlow {
     public let _flow: any KotlinFlow
+    public let _conformsTo: ((AnyClass?) -> Bool)
 
-    public init(_ flow: any KotlinFlow) {
+    private init(_ flow: any KotlinFlow, _ conformsTo: @escaping ((AnyClass?) -> Bool)) {
         self._flow = flow
+        self._conformsTo = conformsTo
+    }
+
+    public static func create<ElementType>(
+        _ flow: any KotlinFlow,
+        _ type: ElementType.Type
+    ) -> any KotlinTypedFlow<Element> {
+        switch flow {
+        case let flow as KotlinSharedFlow:
+            _KotlinTypedSharedFlowImpl<Element>.create(flow, type)
+        default:
+            _KotlinTypedFlowImpl<Element>(flow, { wrapperClass in wrapperClass is ElementType })
+        }
     }
 }
 
@@ -77,14 +144,37 @@ public protocol KotlinTypedSharedFlow<Element>: KotlinTypedFlow { }
 extension KotlinTypedSharedFlow {
     public var wrapped: any KotlinSharedFlow { _flow as! (any KotlinSharedFlow) }
 
-    public var replayCache: [Element] { wrapped.replayCache as! [Element] }
+    public var replayCache: [Element] {
+        let replayCache = _kotlin_swift_SharedFlow_replayCache_get(_flow.__externalRCRef())
+        return replayCache.map {
+            $0.pointerValue.flatMap {
+                KotlinRuntime.KotlinBase.__createBridgeable(externalRCRef: $0, conformsTo: _conformsTo)
+            } as! Element
+        }
+    }
 }
 
 public struct _KotlinTypedSharedFlowImpl<Element>: KotlinTypedSharedFlow {
     public let _flow: any KotlinFlow
+    public let _conformsTo: ((AnyClass?) -> Bool)
 
-    public init(_ flow: any KotlinSharedFlow) {
+    private init(_ flow: any KotlinSharedFlow, _ conformsTo: @escaping ((AnyClass?) -> Bool)) {
         self._flow = flow
+        self._conformsTo = conformsTo
+    }
+
+    public static func create<ElementType>(
+        _ flow: any KotlinSharedFlow,
+        _ type: ElementType.Type
+    ) -> any KotlinTypedSharedFlow<Element> {
+        switch flow {
+        case let flow as KotlinStateFlow:
+            _KotlinTypedStateFlowImpl<Element>.create(flow, type)
+        case let flow as KotlinMutableSharedFlow:
+            _KotlinTypedMutableSharedFlowImpl<Element>.create(flow, type)
+        default:
+            _KotlinTypedSharedFlowImpl<Element>(flow, { wrapperClass in wrapperClass is ElementType })
+        }
     }
 }
 
@@ -119,9 +209,23 @@ extension KotlinTypedMutableSharedFlow {
 
 public struct _KotlinTypedMutableSharedFlowImpl<Element>: KotlinTypedMutableSharedFlow {
     public let _flow: any KotlinFlow
+    public let _conformsTo: ((AnyClass?) -> Bool)
 
-    public init(_ flow: any KotlinMutableSharedFlow) {
+    private init(_ flow: any KotlinMutableSharedFlow, _ conformsTo: @escaping ((AnyClass?) -> Bool)) {
         self._flow = flow
+        self._conformsTo = conformsTo
+    }
+
+    public static func create<ElementType>(
+        _ flow: any KotlinMutableSharedFlow,
+        _ type: ElementType.Type
+    ) -> any KotlinTypedMutableSharedFlow<Element> {
+        switch flow {
+        case let flow as KotlinMutableStateFlow:
+            _KotlinTypedMutableStateFlowImpl<Element>.create(flow, type)
+        default:
+            _KotlinTypedMutableSharedFlowImpl<Element>(flow, { wrapperClass in wrapperClass is ElementType })
+        }
     }
 }
 
@@ -134,14 +238,33 @@ public protocol KotlinTypedStateFlow<Element>: KotlinTypedSharedFlow { }
 extension KotlinTypedStateFlow {
     public var wrapped: any KotlinStateFlow { _flow as! (any KotlinStateFlow) }
 
-    public var value: Element { wrapped.value as! Element }
+    public var value: Element {
+        let value = _kotlin_swift_StateFlow_value_get(_flow.__externalRCRef())
+        return value.flatMap {
+            KotlinRuntime.KotlinBase.__createBridgeable(externalRCRef: $0, conformsTo: _conformsTo)
+        } as! Element
+    }
 }
 
 public struct _KotlinTypedStateFlowImpl<Element>: KotlinTypedStateFlow {
     public let _flow: any KotlinFlow
+    public let _conformsTo: ((AnyClass?) -> Bool)
 
-    public init(_ flow: any KotlinStateFlow) {
+    private init(_ flow: any KotlinStateFlow, _ conformsTo: @escaping ((AnyClass?) -> Bool)) {
         self._flow = flow
+        self._conformsTo = conformsTo
+    }
+
+    public static func create<ElementType>(
+        _ flow: any KotlinStateFlow,
+        _ type: ElementType.Type
+    ) -> any KotlinTypedStateFlow<Element> {
+        switch flow {
+        case let flow as KotlinMutableStateFlow:
+            _KotlinTypedMutableStateFlowImpl<Element>.create(flow, type)
+        default:
+            _KotlinTypedStateFlowImpl<Element>(flow, { wrapperClass in wrapperClass is ElementType })
+        }
     }
 }
 
@@ -156,7 +279,12 @@ extension KotlinTypedMutableStateFlow {
     public var wrapped: any KotlinMutableStateFlow { _flow as! (any KotlinMutableStateFlow) }
 
     public var value: Element {
-        get { wrapped.value as! Element }
+        get {
+            let value = _kotlin_swift_StateFlow_value_get(_flow.__externalRCRef())
+            return value.flatMap {
+                KotlinRuntime.KotlinBase.__createBridgeable(externalRCRef: $0, conformsTo: _conformsTo)
+            } as! Element
+        }
         nonmutating set { wrapped.value = newValue as! (any KotlinRuntimeSupport._KotlinBridgeable)? }
     }
 
@@ -170,18 +298,29 @@ extension KotlinTypedMutableStateFlow {
 
 public struct _KotlinTypedMutableStateFlowImpl<Element>: KotlinTypedMutableStateFlow {
     public let _flow: any KotlinFlow
+    public let _conformsTo: ((AnyClass?) -> Bool)
 
-    public init(_ flow: any KotlinMutableStateFlow) {
+    private init(_ flow: any KotlinMutableStateFlow, _ conformsTo: @escaping ((AnyClass?) -> Bool)) {
         self._flow = flow
+        self._conformsTo = conformsTo
+    }
+
+    public static func create<ElementType>(
+        _ flow: any KotlinMutableStateFlow,
+        _ type: ElementType.Type
+    ) -> any KotlinTypedMutableStateFlow<Element> {
+        _KotlinTypedMutableStateFlowImpl<Element>(flow, { wrapperClass in wrapperClass is ElementType })
     }
 }
 
 /// An async sequence type for kotlinx.coroutines.flow.Flow
 public struct KotlinFlowSequence<Element>: AsyncSequence {
     private let flow: any KotlinFlow
+    private let conformsTo: ((AnyClass?) -> Bool)
 
-    fileprivate init(_ flow: any KotlinFlow) {
+    fileprivate init(_ flow: any KotlinFlow, _ conformsTo: @escaping ((AnyClass?) -> Bool)) {
         self.flow = flow
+        self.conformsTo = conformsTo
     }
 
     public final class Iterator: AsyncIteratorProtocol {
@@ -189,8 +328,8 @@ public struct KotlinFlowSequence<Element>: AsyncSequence {
 
         private let iterator: KotlinFlowIterator<Element>
 
-        fileprivate init(_ flow: some KotlinFlow) {
-            iterator = KotlinFlowIterator(flow)
+        fileprivate init(_ flow: some KotlinFlow, _ conformsTo: @escaping ((AnyClass?) -> Bool)) {
+            iterator = KotlinFlowIterator(flow, conformsTo)
         }
 
         deinit {
@@ -203,7 +342,7 @@ public struct KotlinFlowSequence<Element>: AsyncSequence {
     }
 
     public func makeAsyncIterator() -> Iterator {
-        Iterator(flow)
+        Iterator(flow, conformsTo)
     }
 }
 
@@ -215,62 +354,80 @@ public struct KotlinFlowSequence<Element>: AsyncSequence {
 internal final class KotlinFlowIterator<Element>: KotlinRuntime.KotlinBase, AsyncIteratorProtocol {
     public typealias Failure = any Error
 
-    fileprivate init(_ flow: some KotlinFlow) {
+    private let conformsTo: ((AnyClass?) -> Bool)
+
+    fileprivate init(_ flow: some KotlinFlow, _ conformsTo: @escaping ((AnyClass?) -> Bool)) {
+        self.conformsTo = conformsTo
         let __kt = _kotlin_swift_SwiftFlowIterator_init_allocate()
         super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge)
         _kotlin_swift_SwiftFlowIterator_init_initialize(__kt, flow.__externalRCRef())
     }
 
-    package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
-        options: KotlinRuntime.KotlinBaseConstructionOptions
-    ) {
-        super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options)
-    }
-
     public func next() async throws -> Element? {
-        try await {
-            try Task.checkCancellation()
-            var cancellation: KotlinCoroutineSupport.KotlinTask! = nil
-            return try await withTaskCancellationHandler {
-                try await withUnsafeThrowingContinuation { (nativeContinuation: UnsafeContinuation<Element?, any Error>) in
-                    withUnsafeCurrentTask { currentTask in
-                        let continuation: (Swift.Optional<Element>) -> Swift.Void = { nativeContinuation.resume(returning: $0) }
-                        let exception: (Swift.Optional<KotlinRuntime.KotlinBase>) -> Swift.Void = { error in
-                            nativeContinuation.resume(throwing: error.map { KotlinError(wrapped: $0) } ?? CancellationError())
-                        }
-                        cancellation = KotlinCoroutineSupport.KotlinTask(currentTask!)
-
-                        let _: () = _kotlin_swift_SwiftFlowIterator_next(self.__externalRCRef(), { arg0, arg1 in
-                                return {
-                                    if arg0 {
-                                        let element = arg1.flatMap(KotlinRuntime.KotlinBase.__createBridgeable(externalRCRef:)) as! Element
-                                        continuation(.some(element))
-                                    } else {
-                                        continuation(.none)
-                                    }
-                                    return 0
-                                }()
-                        }, { arg0 in
-                                return {
-                                    exception(arg0.flatMap(KotlinRuntime.KotlinBase.__createClassWrapper(externalRCRef:)));
-                                    return 0
-                                }()
-                        }, cancellation.__externalRCRef())
-                    }
+        let conformsTo = self.conformsTo
+        let result: Element? = try await withKotlinContinuation { continuation, exception, cancellation in
+            let _continuation: (Bool, UnsafeMutableRawPointer?) -> Void = { arg0, arg1 in
+                if arg0 {
+                    let element = arg1.flatMap {
+                        KotlinRuntime.KotlinBase.__createBridgeable(externalRCRef: $0, conformsTo: conformsTo)
+                    } as! Element
+                    continuation(.some(element))
+                } else {
+                    continuation(.none)
                 }
-            } onCancel: {
-                cancellation?.cancelExternally()
             }
-        }()
+            let _exception: (UnsafeMutableRawPointer?) -> Void = { arg0 in
+                exception(arg0.map { KotlinRuntimeSupport.swiftError(fromKotlinThrowable: KotlinRuntime.KotlinBase.__createClassWrapper(externalRCRef: $0)) })
+            }
+            let _: () = _kotlin_swift_SwiftFlowIterator_next(
+                self.__externalRCRef(),
+                Unmanaged.passRetained(_continuation as AnyObject).toOpaque(),
+                Unmanaged.passRetained(_exception as AnyObject).toOpaque(),
+                cancellation.__externalRCRef()
+            )
+        }
+        return result
     }
 }
 
 /// This function provides source compatibility with KMP-NativeCoroutines during the migration to Swift Export.
 /// It should be replaced with a call to `asAsyncSequence()` once you have fully migrated to Swift Export.
 @available(*, deprecated, message: "Use `asAsyncSequence()` from Swift Export")
-public func asyncSequence<T>(
-    for flow: any KotlinTypedFlow<T>
-) -> KotlinFlowSequence<T> {
+public func asyncSequence<Element>(
+    for flow: any KotlinTypedFlow<Element>
+) -> KotlinFlowSequence<Element> {
     return flow.asAsyncSequence()
+}
+
+// MARK: - Reverse bridges
+
+/// Hand-written counterparts of the generated functional type callee bridges, reaching the Swift closures
+/// handed to Kotlin by this module.
+
+@_cdecl("_kotlin_swift_invokeCancellationCallback")
+package func _kotlin_swift_invokeCancellationCallback(_ pointerToClosure: UnsafeMutableRawPointer) {
+    let closure = Unmanaged<AnyObject>.fromOpaque(pointerToClosure)
+        .takeUnretainedValue() as! () -> Void
+    closure()
+}
+
+@_cdecl("_kotlin_swift_invokeFlowContinuation")
+package func _kotlin_swift_invokeFlowContinuation(
+    _ pointerToClosure: UnsafeMutableRawPointer,
+    _ hasValue: Bool,
+    _ value: UnsafeMutableRawPointer?
+) {
+    let closure = Unmanaged<AnyObject>.fromOpaque(pointerToClosure)
+        .takeUnretainedValue() as! (Bool, UnsafeMutableRawPointer?) -> Void
+    closure(hasValue, value)
+}
+
+@_cdecl("_kotlin_swift_invokeFlowException")
+package func _kotlin_swift_invokeFlowException(
+    _ pointerToClosure: UnsafeMutableRawPointer,
+    _ error: UnsafeMutableRawPointer?
+) {
+    let closure = Unmanaged<AnyObject>.fromOpaque(pointerToClosure)
+        .takeUnretainedValue() as! (UnsafeMutableRawPointer?) -> Void
+    closure(error)
 }

@@ -7,14 +7,20 @@ package org.jetbrains.sir.lightclasses
 
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.builtins.StandardNames
+import org.jetbrains.kotlin.sir.SirDeclaration
 import org.jetbrains.kotlin.sir.SirEnum
 import org.jetbrains.kotlin.sir.SirFunction
+import org.jetbrains.kotlin.sir.SirProtocol
+import org.jetbrains.kotlin.sir.SirVariable
 import org.jetbrains.kotlin.sir.providers.SirDeclarationProvider
 import org.jetbrains.kotlin.sir.providers.SirSession
 import org.jetbrains.kotlin.sir.providers.SirTranslationResult
 import org.jetbrains.kotlin.sir.providers.getSirParent
 import org.jetbrains.kotlin.sir.providers.source.KotlinSource
+import org.jetbrains.kotlin.sir.providers.utils.deprecatedAnnotation
 import org.jetbrains.kotlin.sir.providers.withSessions
+import org.jetbrains.kotlin.sir.util.isUnavailable
+import org.jetbrains.kotlin.sir.util.swiftIdentifier
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.sir.lightclasses.nodes.*
 import org.jetbrains.sir.lightclasses.utils.SirOperatorTranslationStrategy
@@ -41,9 +47,12 @@ public class SirDeclarationFromKtSymbolProvider(
                             declaration = protocol,
                             bridgedImplementation = SirBridgedProtocolImplementationFromKtSymbol(protocol),
                             markerDeclaration = protocol.existentialMarker,
+                            implementationMarkerDeclaration = protocol.implementationMarker,
+                            penBoxMarkerConformance = protocol.penBoxMarkerConformance,
                             existentialExtension = protocol.existentialExtension,
                             auxExtension = protocol.auxExtension,
                             samConverter = protocol.samConverter,
+                            sealedType = protocol.sealedType,
                         )
                     }
                     KaClassKind.ENUM_CLASS -> {
@@ -53,7 +62,12 @@ public class SirDeclarationFromKtSymbolProvider(
                         createSirClassFromKtSymbol(
                             ktSymbol = ktSymbol,
                             sirSession = sirSession,
-                        ).let(SirTranslationResult::RegularClass)
+                        ).let {
+                            SirTranslationResult.RegularClass(
+                                declaration = it,
+                                sealedType = it.sealedType
+                            )
+                        }
                     }
                 }
             }
@@ -72,18 +86,27 @@ public class SirDeclarationFromKtSymbolProvider(
                     } ?: SirFunctionFromKtSymbol(
                         ktSymbol = ktSymbol,
                         sirSession = sirSession,
-                    ).let(SirTranslationResult::RegularFunction)
+                    ).takeUnlessUnavailableInProtocol()?.takeUnlessNSObjectConflict()
+                        ?.let(SirTranslationResult::RegularFunction)
+                    ?: SirTranslationResult.Untranslatable(KotlinSource(ktSymbol))
             }
             is KaEnumEntrySymbol -> {
                 SirTranslationResult.EnumCase(createSirEnumCaseFromKtSymbol(ktSymbol, sirSession))
             }
             is KaVariableSymbol -> {
                 if (ktSymbol is KaPropertySymbol && (ktSymbol.isExtension || ktSymbol.contextParameters.isNotEmpty())) {
-                    ktSymbol.getter?.toSirFunction(ktSymbol)?.let {
-                        SirTranslationResult.ExtensionProperty(it, ktSymbol.setter?.toSirFunction(ktSymbol))
+                    ktSymbol.getter?.let {
+                        SirGetterFunctionFromKtSymbol(ktSymbol, it, sirSession)
+                    }?.takeUnlessUnavailableInProtocol()?.takeUnlessNSObjectConflict()?.let { getter ->
+                        val setter = ktSymbol.setter?.takeUnless { it.deprecatedAnnotation?.level == DeprecationLevel.HIDDEN }
+                            ?.let { SirSetterFunctionFromKtSymbol(ktSymbol, it, sirSession, getter) }
+                            ?.takeUnlessUnavailableInProtocol()?.takeUnlessNSObjectConflict()
+                        getter.setter = setter
+                        SirTranslationResult.ExtensionProperty(getter, setter)
                     } ?: SirTranslationResult.Untranslatable(KotlinSource(ktSymbol))
                 } else {
-                    ktSymbol.toSirVariable()?.let(SirTranslationResult::RegularProperty)
+                    ktSymbol.toSirVariable()?.takeUnlessUnavailableInProtocol()?.takeUnlessNSObjectConflict()
+                        ?.let(SirTranslationResult::RegularProperty)
                         ?: SirTranslationResult.Untranslatable(KotlinSource(ktSymbol))
                 }
             }
@@ -95,12 +118,6 @@ public class SirDeclarationFromKtSymbolProvider(
             }
             else -> TODO("encountered unknown symbol type - $ktSymbol. Error system should be reworked KT-65980")
         }
-
-    private fun KaPropertyAccessorSymbol.toSirFunction(ktPropertySymbol: KaPropertySymbol): SirFunction = SirFunctionFromKtPropertySymbol(
-        ktPropertySymbol = ktPropertySymbol,
-        ktSymbol = this,
-        sirSession = sirSession,
-    )
 
     private fun KaVariableSymbol.toSirVariable(): SirAbstractVariableFromKtSymbol? =
         if (this is KaPropertySymbol
@@ -114,4 +131,29 @@ public class SirDeclarationFromKtSymbolProvider(
                 sirSession = sirSession,
             )
         }
+
+    private fun <T : SirDeclaration> T.takeUnlessUnavailableInProtocol(): T? =
+        takeUnless { it.parent is SirProtocol && it.isUnavailable }
+
+    private val nsObjectReservedProperties = setOf(
+        "debugDescription", "description", "hash", "hashValue", "superclass",
+    )
+    private val nsObjectReservedFunctions = setOf(
+        "copy()", "doesNotRecognizeSelector(_:)", "finalize()", "forwardingTarget(for:)", "hash(into:)", "method(for:)", "mutableCopy()",
+        "release()",
+    )
+
+    private fun <T : SirDeclaration> T.takeUnlessNSObjectConflict(): T? = when (this) {
+        is SirFromKtSymbol<*> if ktSymbol.isTopLevel -> this
+        is SirVariable -> this.takeUnless { name in nsObjectReservedProperties }
+        is SirFunction -> {
+            // Being lazy here, just checking the basic signature instead of the complete one
+            val parameters = listOfNotNull(contextParameter, extensionReceiverParameter) + parameters
+            val signature = parameters.joinToString(prefix = "${name.swiftIdentifier.trim('`')}(", postfix = ")", separator = "") {
+                "${it.argumentName?.swiftIdentifier?.trim('`') ?: "_"}:"
+            }
+            this.takeUnless { signature in nsObjectReservedFunctions }
+        }
+        else -> this
+    }
 }

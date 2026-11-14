@@ -9,17 +9,21 @@ import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.OS
 import kotlin.test.fail
 
 @OsCondition(supportedOn = [OS.MAC], enabledOnCI = [OS.MAC])
 @DisplayName("Tests for Apple Silicon builds")
+@MustRunOnChangesInGradle
 @NativeGradlePluginTests
 class AppleSiliconIT : KGPBaseTest() {
 
     private val host = HostManager.host
 
+    @TestMetadata("appleSilicon")
     @DisplayName("Tests compilation")
     @GradleTest
     fun shouldCompiledSuccessfully(gradleVersion: GradleVersion) {
@@ -30,25 +34,21 @@ class AppleSiliconIT : KGPBaseTest() {
                     ":compileKotlinIosSimulatorArm64",
                     ":compileKotlinIosX64",
                     ":compileKotlinMacosArm64",
-                    ":compileKotlinMacosX64",
                     ":compileKotlinTvosArm64",
                     ":compileKotlinTvosSimulatorArm64",
-                    ":compileKotlinTvosX64",
-                    ":compileKotlinWatchosArm32",
                     ":compileKotlinWatchosArm64",
+                    ":compileKotlinWatchosDeviceArm64",
                     ":compileKotlinWatchosSimulatorArm64",
-                    ":compileKotlinWatchosX64",
                     ":compileKotlinJvm",
                     ":jvmJar",
                     ":linkDebugExecutableMacosArm64",
-                    ":linkDebugExecutableMacosX64",
                     ":linkReleaseExecutableMacosArm64",
-                    ":linkReleaseExecutableMacosX64",
                 )
             }
         }
     }
 
+    @TestMetadata("appleSilicon")
     @DisplayName("Tests execution")
     @GradleTest
     fun shouldExecuteTestsSuccessfully(gradleVersion: GradleVersion) {
@@ -65,10 +65,7 @@ class AppleSiliconIT : KGPBaseTest() {
                 ).map { "Executed Code from: $it" }
 
                 val x64TestOutputs = listOf(
-                    "commonMain/iosMain/iosX64Main",
-                    "commonMain/macosMain/macosX64Main",
-                    "commonMain/tvosMain/tvosX64Main",
-                    "commonMain/watchosMain/watchosX64Main"
+                    "commonMain/iosMain/iosX64Main"
                 ).map { "Executed Code from: $it" }
 
                 when (host) {
@@ -80,15 +77,6 @@ class AppleSiliconIT : KGPBaseTest() {
                             assertOutputDoesNotContain(s)
                         }
 
-                    }
-
-                    KonanTarget.MACOS_X64 -> {
-                        for (s in x64TestOutputs) {
-                            assertOutputContains(s)
-                        }
-                        for (s in armTestOutputs) {
-                            assertOutputDoesNotContain(s)
-                        }
                     }
 
                     else -> fail("Unexpected host $host")
@@ -103,20 +91,12 @@ class AppleSiliconIT : KGPBaseTest() {
 
                 val x64Tests = listOf(
                     ":iosX64Test",
-                    ":macosX64Test",
-                    ":tvosX64Test",
-                    ":watchosX64Test",
                 )
 
                 when (host) {
                     KonanTarget.MACOS_ARM64 -> {
                         assertTasksExecuted(armTests)
                         assertTasksSkipped(*x64Tests.toTypedArray())
-                    }
-
-                    KonanTarget.MACOS_X64 -> {
-                        assertTasksExecuted(x64Tests)
-                        assertTasksSkipped(*armTests.toTypedArray())
                     }
 
                     else -> fail("Unexpected host $host")

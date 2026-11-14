@@ -8,10 +8,13 @@ package org.jetbrains.kotlin.psi;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.IElementType;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.KtNodeTypes;
+import org.jetbrains.kotlin.psi.stubs.KotlinPlaceHolderStub;
 import org.jetbrains.kotlin.resolution.KtResolvableCall;
+import org.jetbrains.kotlin.utils.KotlinExceptionWithAttachments;
 
 import java.util.Arrays;
 
@@ -24,9 +27,17 @@ import java.util.Arrays;
  * //      ^___^
  * }</pre>
  */
-public class KtBinaryExpression extends KtExpressionImpl implements KtOperationExpression, KtResolvableCall {
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
+public class KtBinaryExpression extends KtExpressionImplStub<KotlinPlaceHolderStub<KtBinaryExpression>>
+        implements KtOperationExpression, KtResolvableCall {
+    @KtImplementationDetail
     public KtBinaryExpression(@NotNull ASTNode node) {
         super(node);
+    }
+
+    @KtImplementationDetail
+    public KtBinaryExpression(@NotNull KotlinPlaceHolderStub<KtBinaryExpression> stub) {
+        super(stub, KtNodeTypes.BINARY_EXPRESSION);
     }
 
     @Override
@@ -34,9 +45,16 @@ public class KtBinaryExpression extends KtExpressionImpl implements KtOperationE
         return visitor.visitBinaryExpression(this, data);
     }
 
+    /** Returns the left operand, or {@code null} if it is absent in incomplete code. */
     @Nullable @IfNotParsed
     public KtExpression getLeft() {
-        ASTNode node = getOperationReference().getNode().getTreePrev();
+        KtOperationReferenceExpression operationReference = getOperationReference();
+        KtExpression stubBasedOperand = operationReference.getStubBasedOperandBefore$org_jetbrains_kotlin_psi_api();
+        if (stubBasedOperand != null) {
+            return stubBasedOperand;
+        }
+
+        ASTNode node = operationReference.getNode().getTreePrev();
         while (node != null) {
             PsiElement psi = node.getPsi();
             if (psi instanceof KtExpression) {
@@ -48,9 +66,16 @@ public class KtBinaryExpression extends KtExpressionImpl implements KtOperationE
         return null;
     }
 
+    /** Returns the right operand, or {@code null} if it is absent in incomplete code. */
     @Nullable @IfNotParsed
     public KtExpression getRight() {
-        ASTNode node = getOperationReference().getNode().getTreeNext();
+        KtOperationReferenceExpression operationReference = getOperationReference();
+        KtExpression stubBasedOperand = operationReference.getStubBasedOperandAfter$org_jetbrains_kotlin_psi_api();
+        if (stubBasedOperand != null) {
+            return stubBasedOperand;
+        }
+
+        ASTNode node = operationReference.getNode().getTreeNext();
         while (node != null) {
             PsiElement psi = node.getPsi();
             if (psi instanceof KtExpression) {
@@ -65,17 +90,44 @@ public class KtBinaryExpression extends KtExpressionImpl implements KtOperationE
     @Override
     @NotNull
     public KtOperationReferenceExpression getOperationReference() {
-        PsiElement operationReference = findChildByType(KtNodeTypes.OPERATION_REFERENCE);
+        KtOperationReferenceExpression operationReference = getOperationReferenceOrNull();
         if (operationReference == null) {
-            throw new NullPointerException("No operation reference for binary expression: " + Arrays.toString(getChildren()));
+            KotlinExceptionWithAttachments exception = new KotlinExceptionWithAttachments(
+                    "No operation reference for binary expression: " + Arrays.toString(getChildren()));
+            exception.withPsiAttachment("expression.kt", this);
+            throw exception;
         }
 
-        return (KtOperationReferenceExpression) operationReference;
+        return operationReference;
     }
 
+    /**
+     * Returns the element type of the operator token, or {@code null} if the operation reference is absent in incomplete or inconsistent PSI.
+     *
+     * <p>Unlike {@link #getOperationToken()}, this method does not throw when the operation token is absent.</p>
+     */
+    @KtPsiInconsistencyHandling
+    @Nullable
+    public IElementType getOperationTokenOrNull() {
+        KtOperationReferenceExpression type = getOperationReferenceOrNull();
+        return type != null ? type.getReferencedNameElementType() : null;
+    }
+
+    @Nullable
+    private KtOperationReferenceExpression getOperationReferenceOrNull() {
+        return getStubOrPsiChild(KtNodeTypes.OPERATION_REFERENCE, KtOperationReferenceExpression.class);
+    }
+
+    /** Returns the element type of the operator token (for example, {@code PLUS} for {@code +}). */
     @NotNull
     public IElementType getOperationToken() {
-        return getOperationReference().getReferencedNameElementType();
+        IElementType tokenOrNull = getOperationTokenOrNull();
+        if (tokenOrNull == null) {
+            KotlinExceptionWithAttachments exception = new KotlinExceptionWithAttachments(
+                    "No operation token for binary expression: " + Arrays.toString(getChildren()));
+            exception.withPsiAttachment("expression.kt", this);
+            throw exception;
+        }
+        return tokenOrNull;
     }
 }
-

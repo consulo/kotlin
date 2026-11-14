@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.scopeProvider.AbstractFileScopeTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.scopeProvider.AbstractFileScopeTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirIdeNormalAnalysisSourceLikeModuleFileScopeTestGenerated extends 
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -61,5 +59,11 @@ public class FirIdeNormalAnalysisSourceLikeModuleFileScopeTestGenerated extends 
   @TestMetadata("simpleFileScope.kt")
   public void testSimpleFileScope() {
     run("simpleFileScope.kt");
+  }
+
+  @Test
+  @TestMetadata("topLevelDestructuringDeclarations.kt")
+  public void testTopLevelDestructuringDeclarations() {
+    run("topLevelDestructuringDeclarations.kt");
   }
 }

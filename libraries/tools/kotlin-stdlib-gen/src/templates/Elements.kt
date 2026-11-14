@@ -43,6 +43,7 @@ object Elements : TemplateGroupBase() {
         operator(true)
 
         doc { "Returns `true` if [element] is found in the ${f.collection}." }
+        sample("${f.sampleClass}.contains")
         typeParam("@kotlin.internal.OnlyInputTypes T")
         val isDeprecated = f == ArraysOfPrimitives && primitive!!.isFloatingPoint()
         if (isDeprecated) {
@@ -233,6 +234,10 @@ object Elements : TemplateGroupBase() {
             inlineOnly()
             body { "return storage.indexOfFirst { predicate(it.to${primitive!!.name}()) }" }
         }
+
+        specialFor(CharSequences) {
+            sample("${f.sampleClass}.indexOfFirst")
+        }
     }
 
     val f_indexOfLast = fn("indexOfLast(predicate: (T) -> Boolean)") {
@@ -282,6 +287,10 @@ object Elements : TemplateGroupBase() {
         specialFor(ArraysOfUnsigned) {
             inlineOnly()
             body { "return storage.indexOfLast { predicate(it.to${primitive!!.name}()) }" }
+        }
+
+        specialFor(CharSequences) {
+            sample("${f.sampleClass}.indexOfLast")
         }
     }
 
@@ -400,6 +409,9 @@ object Elements : TemplateGroupBase() {
                 """
             }
         }
+        specialFor(CharSequences) {
+            sample("samples.text.Strings.elementAtOrElse")
+        }
     }
 
     val f_getOrElse = fn("getOrElse(index: Int, defaultValue: (Int) -> T)") {
@@ -467,6 +479,9 @@ object Elements : TemplateGroupBase() {
             inlineOnly()
             body { "return this.getOrNull(index)" }
         }
+        specialFor(CharSequences) {
+            sample("samples.text.Strings.elementAtOrNull")
+        }
     }
 
     val f_getOrNull = fn("getOrNull(index: Int)") {
@@ -493,6 +508,7 @@ object Elements : TemplateGroupBase() {
         }
         doc { "Returns the first ${f.element}." }
         throws("NoSuchElementException", "if the ${f.collection} is empty.")
+        sample("${f.sampleClass}.first")
         returns("T")
         body {
             """
@@ -593,6 +609,7 @@ object Elements : TemplateGroupBase() {
 
         doc { """Returns the first ${f.element} matching the given [predicate].
         @throws [NoSuchElementException] if no such ${f.element} is found.""" }
+        sample("${f.sampleClass}.first")
         returns("T")
 
         body {
@@ -627,6 +644,9 @@ object Elements : TemplateGroupBase() {
         inline(Inline.Only)
         doc { "Returns the first ${f.element} matching the given [predicate], or `null` if no such ${f.element} was found." }
         sample("samples.collections.Collections.Elements.find")
+        specialFor(CharSequences) {
+            sample("samples.text.Strings.find")
+        }
         returns("T?")
         body { "return firstOrNull(predicate)"}
     }
@@ -1017,7 +1037,7 @@ object Elements : TemplateGroupBase() {
             """
             Returns a random ${f.element} from this ${f.collection}.
 
-            @throws ${if (f == RangesOfPrimitives) "IllegalArgumentException" else "NoSuchElementException"} if this ${f.collection} is empty.
+            @throws NoSuchElementException if this ${f.collection} is empty.
             """
         }
         body {
@@ -1050,7 +1070,7 @@ object Elements : TemplateGroupBase() {
             """
             Returns a random ${f.element} from this ${f.collection} using the specified source of randomness.
 
-            @throws ${if (f == RangesOfPrimitives) "IllegalArgumentException" else "NoSuchElementException"} if this ${f.collection} is empty.
+            @throws NoSuchElementException if this ${f.collection} is empty.
             """
         }
         body {

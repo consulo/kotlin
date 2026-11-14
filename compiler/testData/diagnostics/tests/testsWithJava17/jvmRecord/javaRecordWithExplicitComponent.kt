@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // API_VERSION: 1.5
-// LANGUAGE: +JvmRecordSupport
 // SCOPE_DUMP: MyRecord:x
 
 // FILE: MyRecord.java

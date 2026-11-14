@@ -6,13 +6,12 @@
 package org.jetbrains.kotlin.test.services.configuration
 
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.konan.config.konanFriendLibraries
 import org.jetbrains.kotlin.konan.config.konanHome
-import org.jetbrains.kotlin.konan.config.konanLibraries
 import org.jetbrains.kotlin.konan.config.konanNoDefaultLibs
 import org.jetbrains.kotlin.konan.config.konanNoStdlib
+import org.jetbrains.kotlin.konan.config.konanTarget
 import org.jetbrains.kotlin.konan.library.KlibNativeDistributionLibraryProvider
-import org.jetbrains.kotlin.konan.library.isFromKotlinNativeDistribution
+import org.jetbrains.kotlin.konan.library.isImplicitlyLoadedFromKotlinNativeDistribution
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.library.Klib
@@ -44,19 +43,11 @@ abstract class NativeEnvironmentConfigurator(
          * that are capable of locating and properly loading libraries, this function returns just the list of raw library paths.
          *
          * That could be not enough in certain cases. For example, in the case of loading the libraries from the Kotlin/Native distribution,
-         * which all need to be marked with [Klib.isFromKotlinNativeDistribution] flag that is checked by the Kotlin/Native backend later.
+         * which all need to be marked with [Klib.isImplicitlyLoadedFromKotlinNativeDistribution] flag that is checked
+         * by the Kotlin/Native backend later.
          */
         fun getRuntimePathsForModule(module: TestModule, testServices: TestServices): List<String> {
             return testServices.nativeEnvironmentConfigurator.getRuntimeLibraryProviders(module).flatMap { it.getLibraryPaths() }
-        }
-
-        /**
-         * Determines if the module is main.
-         * Note: During test initialization, `useAdditionalSourceProviders()` step, a TestModuleStructure under construction is not yet registered
-         * into TestServices, so an explicit `testModuleStructure` param is used instead of `testServices.moduleStructure`.
-         */
-        fun isMainModule(module: TestModule, testModuleStructure: TestModuleStructure): Boolean {
-            return module.isLeafModule(testModuleStructure)
         }
     }
 
@@ -119,22 +110,18 @@ abstract class NativeEnvironmentConfigurator(
         customNativeHome?.let {
             configuration.konanHome = it.absolutePath
 
-            // TODO KT-84799: remove the line after dropping forward testing against 2.3 compiler
+            // TODO KT-84799: remove the line after dropping forward and backward testing against 2.3 compiler
             System.setProperty("kotlin.native.home", it.absolutePath)
-        }
-
-        val dependencies = module.regularDependencies.map { getKlibArtifactDir(testServices, it.dependencyModule.name).absolutePath }
-        val friends = module.friendDependencies.map { getKlibArtifactDir(testServices, it.dependencyModule.name).absolutePath }
-
-        val runtimeDependencies = getRuntimeLibraryProviders(module).flatMap { provider ->
-            // Ignore `KlibNativeDistributionLibraryProvider`, because it is anyway applied in loadNativeKlibs().
-            if (provider is KlibNativeDistributionLibraryProvider) emptyList() else provider.getLibraryPaths()
         }
 
         configuration.konanNoStdlib = ConfigurationDirectives.WITH_STDLIB !in module.directives
         configuration.konanNoDefaultLibs = NativeEnvironmentConfigurationDirectives.WITH_PLATFORM_LIBS !in module.directives
-        configuration.konanLibraries = runtimeDependencies + dependencies + friends
-        configuration.konanFriendLibraries = friends
+
+        // If `host target` is enforced in testrunner, so dependent native libraries(atomicfu, cinterop, etc) will have a target equal to host.
+        // Should konanTarget be set to not host, Klib Loader would reject such libraries and test would fail due to unresolved symbols.
+        if (!testServices.testInfo.enforcedHostTarget) {
+            configuration.konanTarget = getNativeTarget(module).name
+        }
     }
 }
 

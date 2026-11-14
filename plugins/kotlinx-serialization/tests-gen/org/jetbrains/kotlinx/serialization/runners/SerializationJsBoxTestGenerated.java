@@ -64,6 +64,12 @@ public class SerializationJsBoxTestGenerated extends AbstractSerializationJsBoxT
   }
 
   @Test
+  @TestMetadata("companionBlocks.kt")
+  public void testCompanionBlocks() {
+    run("companionBlocks.kt");
+  }
+
+  @Test
   @TestMetadata("constValInSerialName.kt")
   public void testConstValInSerialName() {
     run("constValInSerialName.kt");
@@ -103,6 +109,12 @@ public class SerializationJsBoxTestGenerated extends AbstractSerializationJsBoxT
   @TestMetadata("delegatedProperty.kt")
   public void testDelegatedProperty() {
     run("delegatedProperty.kt");
+  }
+
+  @Test
+  @TestMetadata("encodeDefaultArrayContentEquals.kt")
+  public void testEncodeDefaultArrayContentEquals() {
+    run("encodeDefaultArrayContentEquals.kt");
   }
 
   @Test
@@ -148,6 +160,24 @@ public class SerializationJsBoxTestGenerated extends AbstractSerializationJsBoxT
   }
 
   @Test
+  @TestMetadata("externalSerializerWithConcreteSupertype.kt")
+  public void testExternalSerializerWithConcreteSupertype() {
+    run("externalSerializerWithConcreteSupertype.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassInPolymorphicHierarchy.kt")
+  public void testFullValueClassInPolymorphicHierarchy() {
+    run("fullValueClassInPolymorphicHierarchy.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassWithSuperclassDefaults.kt")
+  public void testFullValueClassWithSuperclassDefaults() {
+    run("fullValueClassWithSuperclassDefaults.kt");
+  }
+
+  @Test
   @TestMetadata("generatedClassifiersViaLibraryDependency.kt")
   public void testGeneratedClassifiersViaLibraryDependency() {
     run("generatedClassifiersViaLibraryDependency.kt");
@@ -166,9 +196,21 @@ public class SerializationJsBoxTestGenerated extends AbstractSerializationJsBoxT
   }
 
   @Test
+  @TestMetadata("genericWithClassUpperBoundMultiModule.kt")
+  public void testGenericWithClassUpperBoundMultiModule() {
+    run("genericWithClassUpperBoundMultiModule.kt");
+  }
+
+  @Test
   @TestMetadata("generics.kt")
   public void testGenerics() {
     run("generics.kt");
+  }
+
+  @Test
+  @TestMetadata("genericsExtended.kt")
+  public void testGenericsExtended() {
+    run("genericsExtended.kt");
   }
 
   @Test
@@ -238,9 +280,27 @@ public class SerializationJsBoxTestGenerated extends AbstractSerializationJsBoxT
   }
 
   @Test
+  @TestMetadata("JavaEnums.kt")
+  public void testJavaEnums() {
+    run("JavaEnums.kt");
+  }
+
+  @Test
   @TestMetadata("KeepGeneratedSerializer.kt")
   public void testKeepGeneratedSerializer() {
     run("KeepGeneratedSerializer.kt");
+  }
+
+  @Test
+  @TestMetadata("kt88571.kt")
+  public void testKt88571() {
+    run("kt88571.kt");
+  }
+
+  @Test
+  @TestMetadata("kt88571SerializerFunction.kt")
+  public void testKt88571SerializerFunction() {
+    run("kt88571SerializerFunction.kt");
   }
 
   @Test
@@ -265,12 +325,6 @@ public class SerializationJsBoxTestGenerated extends AbstractSerializationJsBoxT
   @TestMetadata("mppInheritance.kt")
   public void testMppInheritance() {
     run("mppInheritance.kt");
-  }
-
-  @Test
-  @TestMetadata("multiFieldValueClasses.kt")
-  public void testMultiFieldValueClasses() {
-    run("multiFieldValueClasses.kt");
   }
 
   @Test
@@ -307,6 +361,12 @@ public class SerializationJsBoxTestGenerated extends AbstractSerializationJsBoxT
   @TestMetadata("namedCompanions.kt")
   public void testNamedCompanions() {
     run("namedCompanions.kt");
+  }
+
+  @Test
+  @TestMetadata("pinnedBugSerializationGh2241.kt")
+  public void testPinnedBugSerializationGh2241() {
+    run("pinnedBugSerializationGh2241.kt");
   }
 
   @Test

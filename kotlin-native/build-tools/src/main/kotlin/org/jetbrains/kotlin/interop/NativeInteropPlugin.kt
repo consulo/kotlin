@@ -102,7 +102,7 @@ open class NativeInteropPlugin : Plugin<Project> {
 
         target.dependencies {
             "api"(project(":kotlin-native:Interop:Runtime"))
-            "testImplementation"(project(":kotlin-native:Interop:StubGeneratorConsistencyCheck", "tests-jar"))
+            "testImplementation"(testFixtures(project(":kotlin-native:Interop:StubGeneratorConsistencyCheck")))
         }
 
         val genTask = target.tasks.register<KonanJvmInteropTask>("genInteropStubs") {
@@ -241,6 +241,7 @@ open class NativeInteropPlugin : Plugin<Project> {
                         include("**/*.dylib", "**/*.so", "**/*.dll")
                     }
                 }))
+                suppressions.add("DEPRECATION_ERROR") // CVariable.Type deprecation; can be removed after the bootstrap update
             }
         } else {
             target.dependencies {

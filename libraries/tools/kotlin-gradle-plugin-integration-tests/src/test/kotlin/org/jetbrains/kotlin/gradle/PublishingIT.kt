@@ -16,11 +16,14 @@ import org.jetbrains.kotlin.gradle.util.parsePom
 import org.jetbrains.kotlin.gradle.internal.KOTLIN_MODULE_GROUP
 import org.jetbrains.kotlin.gradle.testing.prettyPrinted
 import org.jetbrains.kotlin.gradle.uklibs.*
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import kotlin.test.assertEquals
 
 @DisplayName("Artifacts publication")
 @JvmGradlePluginTests
+@MustRunOnChangesInGradle
 class PublishingIT : KGPBaseTest() {
 
     @DisplayName("Test api dependencies publish as compile and implementation as runtime; unspecified versions and dependency constraints publish in dependencyManagement section")
@@ -170,6 +173,7 @@ class PublishingIT : KGPBaseTest() {
         val local = project("empty", gradleVersion) {
             buildScriptInjection {
                 project.version = "1.2.3"
+                project.group = pomRewriterRootName
                 project.plugins.apply("maven-publish")
                 project.applyMultiplatform {
                     jvm()
@@ -310,6 +314,7 @@ class PublishingIT : KGPBaseTest() {
         )
     }
 
+    @TestMetadata("base-kotlin-jvm-library")
     @GradleTest
     fun testAdhocSoftwareComponentInKotlinJvm(gradleVersion: GradleVersion) = testAdhocSoftwareComponent(
         gradleVersion = gradleVersion,
@@ -327,6 +332,7 @@ class PublishingIT : KGPBaseTest() {
         configureConsumerProject = {}
     )
 
+    @TestMetadata("base-kotlin-multiplatform-library")
     @GradleTest
     fun testAdhocSoftwareComponentInKotlinMultiplatform(gradleVersion: GradleVersion) = testAdhocSoftwareComponent(
         gradleVersion = gradleVersion,

@@ -40,6 +40,12 @@ public class KaptToolIntegrationTestGenerated extends AbstractKaptToolIntegratio
   }
 
   @Test
+  @TestMetadata("classpathChanges")
+  public void testClasspathChanges() {
+    runTest("plugins/kapt/kapt-cli/testData/integration/classpathChanges/");
+  }
+
+  @Test
   @TestMetadata("compileModeUnsupported")
   public void testCompileModeUnsupported() {
     runTest("plugins/kapt/kapt-cli/testData/integration/compileModeUnsupported/");
@@ -88,6 +94,36 @@ public class KaptToolIntegrationTestGenerated extends AbstractKaptToolIntegratio
   }
 
   @Test
+  @TestMetadata("detectMemoryLeaks")
+  public void testDetectMemoryLeaks() {
+    runTest("plugins/kapt/kapt-cli/testData/integration/detectMemoryLeaks/");
+  }
+
+  @Test
+  @TestMetadata("headerMode")
+  public void testHeaderMode() {
+    runTest("plugins/kapt/kapt-cli/testData/integration/headerMode/");
+  }
+
+  @Test
+  @TestMetadata("includeCompileClasspath")
+  public void testIncludeCompileClasspath() {
+    runTest("plugins/kapt/kapt-cli/testData/integration/includeCompileClasspath/");
+  }
+
+  @Test
+  @TestMetadata("incrementalData")
+  public void testIncrementalData() {
+    runTest("plugins/kapt/kapt-cli/testData/integration/incrementalData/");
+  }
+
+  @Test
+  @TestMetadata("infoAsWarnings")
+  public void testInfoAsWarnings() {
+    runTest("plugins/kapt/kapt-cli/testData/integration/infoAsWarnings/");
+  }
+
+  @Test
   @TestMetadata("kotlinFileGeneration")
   public void testKotlinFileGeneration() {
     runTest("plugins/kapt/kapt-cli/testData/integration/kotlinFileGeneration/");
@@ -124,6 +160,18 @@ public class KaptToolIntegrationTestGenerated extends AbstractKaptToolIntegratio
   }
 
   @Test
+  @TestMetadata("parallelStubWrites")
+  public void testParallelStubWrites() {
+    runTest("plugins/kapt/kapt-cli/testData/integration/parallelStubWrites/");
+  }
+
+  @Test
+  @TestMetadata("processIncrementally")
+  public void testProcessIncrementally() {
+    runTest("plugins/kapt/kapt-cli/testData/integration/processIncrementally/");
+  }
+
+  @Test
   @TestMetadata("separateStubAptCompilation")
   public void testSeparateStubAptCompilation() {
     runTest("plugins/kapt/kapt-cli/testData/integration/separateStubAptCompilation/");
@@ -133,6 +181,12 @@ public class KaptToolIntegrationTestGenerated extends AbstractKaptToolIntegratio
   @TestMetadata("simple")
   public void testSimple() {
     runTest("plugins/kapt/kapt-cli/testData/integration/simple/");
+  }
+
+  @Test
+  @TestMetadata("stubWriterThreadsJtree")
+  public void testStubWriterThreadsJtree() {
+    runTest("plugins/kapt/kapt-cli/testData/integration/stubWriterThreadsJtree/");
   }
 
   @Test

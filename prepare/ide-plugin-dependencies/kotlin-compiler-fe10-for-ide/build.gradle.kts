@@ -1,12 +1,15 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
-val fe10CompilerModules: Array<String> by rootProject.extra
+val fe10CompilerModules: Array<String> = CompilerModules.fe10CompilerModules
 
 val excludedCompilerModules = listOf(
-    ":compiler:javac-wrapper",
-    ":compiler:incremental-compilation-impl"
+    ":compiler:incremental-compilation-impl",
+    ":core:deserialization",
+    ":core:descriptors.jvm",
 )
 
 val extraCompilerModules = listOf(

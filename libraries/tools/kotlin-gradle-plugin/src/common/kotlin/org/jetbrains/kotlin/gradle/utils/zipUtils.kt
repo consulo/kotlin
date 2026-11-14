@@ -5,10 +5,12 @@
 
 package org.jetbrains.kotlin.gradle.utils
 
+import org.jetbrains.kotlin.gradle.internal.ensureParentDirsCreated
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
+import kotlin.streams.asSequence
 
 internal fun copyZipFilePartially(sourceZipFile: File, destinationZipFile: File, path: String) {
     requireValidZipDirectoryPath(path)
@@ -20,7 +22,7 @@ internal fun ZipFile.copyPartially(destinationZipFile: File, path: String) {
     val entries = listDescendants(path).toList()
     if (entries.isEmpty()) return
 
-    ZipOutputStream(destinationZipFile.outputStream()).use { destinationZipOutputStream ->
+    ZipOutputStream(destinationZipFile.outputStream().buffered()).use { destinationZipOutputStream ->
         entries.forEach { sourceEntry ->
             val destinationEntry = ZipEntry(sourceEntry.name.substringAfter(path))
 

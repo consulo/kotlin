@@ -3,6 +3,7 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+import java.io.StringReader
 import java.util.Properties
 import org.gradle.api.internal.GradleInternal
 
@@ -26,20 +27,11 @@ private object Config {
     const val PROJECT_KOTLIN_REPO = "bootstrapKotlinRepo"
 }
 
-internal abstract class PropertiesValueSource : ValueSource<Properties, PropertiesValueSource.Parameters> {
-    interface Parameters : ValueSourceParameters {
-        val fileName: Property<String>
-        val rootDir: Property<File>
-    }
-
-    override fun obtain(): Properties? {
-        val localPropertiesFile = parameters.rootDir.get().resolve(parameters.fileName.get())
-        return if (localPropertiesFile.exists()) {
-            localPropertiesFile.bufferedReader().use {
-                Properties().apply { load(it) }
-            }
-        } else {
-            null
+private fun loadPropertiesFile(file: File): Provider<Properties> {
+    val regularFile = rootSettings.layout.settingsDirectory.file(file.absolutePath)
+    return providers.fileContents(regularFile).asText.map { content ->
+        Properties().apply {
+            StringReader(content).use { load(it) }
         }
     }
 }
@@ -56,11 +48,14 @@ private fun getRootSettings(
     // leading to the error that the root settings object is not yet available.
     // For such cases, we fall back to the included build settings object and later manual mapping for kotlinRootDir.
     val gradleInternal = (gradle as GradleInternal)
+
+    val isIncludedBuild = settings.rootProject.name in setOf(
+        "gradle-settings-conventions",
+        "gradle-build-conventions",
+        "kotlin-build-helpers",
+    )
     return when {
-        gradleInternal.isRootBuild ||
-                setOf("gradle-settings-conventions", "gradle-build-conventions").contains(settings.rootProject.name) -> {
-            settings
-        }
+        gradleInternal.isRootBuild || isIncludedBuild -> settings
         else -> {
             val gradleParent = gradle.parent ?: error("Could not get includedBuild parent build for ${settings.rootDir}!")
             getRootSettings(gradleParent.settings, gradleParent)
@@ -86,24 +81,14 @@ private val kotlinRootDir: File = when (rootSettings.rootProject.name) {
     "benchmarksAnalyzer" -> rootSettings.rootDir.parentFile.parentFile.parentFile
     "gradle-settings-conventions" -> rootSettings.rootDir.parentFile.parentFile
     "gradle-build-conventions" -> rootSettings.rootDir.parentFile.parentFile
+    "kotlin-build-helpers" -> rootSettings.rootDir.parentFile.parentFile
     "performance" -> rootSettings.rootDir.parentFile.parentFile
     "ui" -> rootSettings.rootDir.parentFile.parentFile.parentFile.parentFile
     else -> rootSettings.rootDir
 }
 
-private val localProperties = providers.of(PropertiesValueSource::class.java) {
-    parameters {
-        fileName.set("local.properties")
-        rootDir.set(kotlinRootDir)
-    }
-}
-
-private val rootGradleProperties = providers.of(PropertiesValueSource::class.java) {
-    parameters {
-        fileName.set("gradle.properties")
-        rootDir.set(kotlinRootDir)
-    }
-}
+private val localProperties = loadPropertiesFile(kotlinRootDir.resolve("local.properties"))
+private val rootGradleProperties = loadPropertiesFile(kotlinRootDir.resolve("gradle.properties"))
 
 private fun loadLocalOrGradleProperty(
     propertyName: String
@@ -144,16 +129,18 @@ private fun RepositoryHandler.addBootstrapRepo(
         forRepositories(
             *(listOf(bootstrapRepo) + additionalBootstrapRepos)
                 .map {
-                    maven { url = uri(it) }
+                    maven {
+                        name = "Kotlin Bootstrap Repository"
+                        url = uri(it)
+                    }
                 }
                 .toTypedArray()
         )
         filter {
-            // kotlin-build-gradle-plugin and non-bootstrap versions
-            // should be excluded from strict content filtering
+            // non-bootstrap versions should be excluded from strict content filtering
             includeVersionByRegex(
                 "org\\.jetbrains\\.kotlin",
-                "^(?!kotlin-build-gradle-plugin).*$",
+                ".*",
                 bootstrapVersion.toRegex().pattern
             )
 
@@ -190,12 +177,11 @@ private fun Settings.applyBootstrapConfiguration(
         }
     }
 
-    val additionalRepos = getAdditionalBootstrapRepos(bootstrapRepo)
+    val additionalRepos: List<String> = getAdditionalBootstrapRepos(bootstrapRepo)
+    dependencyResolutionManagement.repositories.addBootstrapRepo(bootstrapRepo, bootstrapVersion, additionalRepos)
     gradle.beforeProject {
         bootstrapKotlinVersion = bootstrapVersion
         bootstrapKotlinRepo = bootstrapRepo
-
-        repositories.addBootstrapRepo(bootstrapRepo, bootstrapVersion, additionalRepos)
 
         fun Configuration.substituteProjectsWithBootstrap(substituteReason: String) {
             if (path == ":kotlin-stdlib") {
@@ -230,10 +216,13 @@ private fun Settings.applyBootstrapConfiguration(
             if (name == "kotlinCompilerClasspath") {
                 val compilerClasspathSubstituteReason = "Override Kotlin compiler classpath with bootstrap"
                 dependencies.add(
-                    project.dependencies.enforcedPlatform("org.jetbrains.kotlin:kotlin-bom:$bootstrapVersion")
+                    project.dependencies.create("org.jetbrains.kotlin:kotlin-compiler-embeddable:$bootstrapVersion")
                 )
                 dependencies.add(
-                    project.dependencies.create("org.jetbrains.kotlin:kotlin-compiler-embeddable:$bootstrapVersion")
+                    project.dependencies.create("org.jetbrains.kotlin:kotlin-build-tools-compat:$bootstrapVersion")
+                )
+                dependencies.add(
+                    project.dependencies.create("org.jetbrains.kotlin:kotlin-build-tools-impl:$bootstrapVersion")
                 )
                 dependencyConstraints.add(
                     project.dependencies.constraints.create("org.jetbrains.kotlin:kotlin-compiler-embeddable") {
@@ -308,6 +297,12 @@ private fun Settings.applyBootstrapConfiguration(
                     resolutionStrategy.dependencySubstitution {
                         substitute(module("org.jetbrains.kotlin:kotlin-build-tools-cri-impl"))
                             .using(project(":dependencies:bootstrap:kotlin-build-tools-cri-impl-bootstrap"))
+                            .because(buildToolsAPIClasspathSubstituteReason)
+                    }
+                } else if (path == ":js:typescript-export-standalone-embeddable") {
+                    resolutionStrategy.dependencySubstitution {
+                        substitute(module("org.jetbrains.kotlin:typescript-export-standalone-embeddable"))
+                            .using(project(":dependencies:bootstrap:typescript-export-standalone-embeddable-bootstrap"))
                             .because(buildToolsAPIClasspathSubstituteReason)
                     }
                 } else if (path == ":kotlin-compiler-runner") {

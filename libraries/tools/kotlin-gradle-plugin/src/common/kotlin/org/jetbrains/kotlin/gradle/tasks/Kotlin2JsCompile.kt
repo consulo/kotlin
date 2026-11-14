@@ -35,10 +35,10 @@ import org.jetbrains.kotlin.gradle.logging.kotlinDebug
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.ContributeCompilerArgumentsContext
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext.Companion.create
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.reportUnsupportedKotlinArchiveLibraries
 import org.jetbrains.kotlin.gradle.report.BuildReportMode
 import org.jetbrains.kotlin.gradle.targets.js.internal.LibraryFilterCachingService
 import org.jetbrains.kotlin.gradle.targets.js.internal.UsesLibraryFilterCachingService
-import org.jetbrains.kotlin.gradle.targets.js.ir.WASM_BACKEND
 import org.jetbrains.kotlin.gradle.tasks.internal.KotlinJsOptionsCompat
 import org.jetbrains.kotlin.gradle.utils.chainedDisallowChanges
 import org.jetbrains.kotlin.gradle.utils.getFile
@@ -100,8 +100,6 @@ abstract class Kotlin2JsCompile @Inject constructor(
     val outputFileProperty: Property<File>
         get() = _outputFileProperty
 
-    override val produceUnpackagedKlib: Property<Boolean> = objectFactory.property(Boolean::class.java).value(true).chainedDisallowChanges()
-
     override val klibOutput: Provider<File>
         get() = destinationDirectory.asFile
 
@@ -132,12 +130,8 @@ abstract class Kotlin2JsCompile @Inject constructor(
     @get:Nested
     override val multiplatformStructure: K2MultiplatformStructure = objectFactory.newInstance()
 
-    @Suppress("DeprecatedCallableAddReplaceWith")
-    @Deprecated("KTIJ-25227: Necessary override for IDEs < 2023.2", level = DeprecationLevel.ERROR)
-    override fun setupCompilerArgs(args: K2JSCompilerArguments, defaultsOnly: Boolean, ignoreClasspathResolutionErrors: Boolean) {
-        @Suppress("DEPRECATION_ERROR")
-        super.setupCompilerArgs(args, defaultsOnly, ignoreClasspathResolutionErrors)
-    }
+    @get:Internal
+    internal abstract val getIsWasmPlatform: Property<Boolean>
 
     /**
      * In some cases, test compilations may have both main compilation outputs as directory and klib.
@@ -176,6 +170,7 @@ abstract class Kotlin2JsCompile @Inject constructor(
             }
 
             explicitApiMode.orNull?.run { args.explicitApi = toCompilerValue() }
+            returnValueCheckerMode.orNull?.run { args.returnValueChecker = toCompilerValue() }
 
             // Overriding freeArgs from compilerOptions with enhanced one + additional one set on execution phase
             // containing additional arguments based on the js compilation configuration
@@ -197,6 +192,7 @@ abstract class Kotlin2JsCompile @Inject constructor(
 
             args.libraries = runSafe {
                 libraries
+                    .apply { reportUnsupportedKotlinArchiveLibraries(this@Kotlin2JsCompile) }
                     .filter { libraryFilter(it) }
                     .filterMainCompilationKlibArtifact()
                     .map { it.absolutePath }
@@ -207,8 +203,8 @@ abstract class Kotlin2JsCompile @Inject constructor(
         }
 
         sources { args ->
-            if (!args.sourceMapPrefix.isNullOrEmpty()) {
-                args.sourceMapBaseDirs = sourceMapBaseDir.get().asFile.absolutePath
+            if (args.sourceMap && (!args.sourceMapPrefix.isNullOrEmpty() || sourceMapBaseDir.isPresent)) {
+                args.sourceMapBaseDirs = sourceMapBaseDir.orElse(projectDirectory).getFile().absolutePath
             }
 
             if (multiPlatformEnabled.get()) {
@@ -243,10 +239,10 @@ abstract class Kotlin2JsCompile @Inject constructor(
         .from(friendPaths)
         .filter { libraryFilter(it) }
 
+    private val projectDirectory: Directory = project.layout.projectDirectory
+
     @get:Internal
-    internal val sourceMapBaseDir: Property<Directory> = objectFactory
-        .directoryProperty()
-        .value(project.layout.projectDirectory)
+    internal abstract val sourceMapBaseDir: DirectoryProperty
 
     private val File.asLibraryFilterCacheKey: LibraryFilterCachingService.LibraryFilterCacheKey
         get() = LibraryFilterCachingService.LibraryFilterCacheKey(
@@ -274,6 +270,7 @@ abstract class Kotlin2JsCompile @Inject constructor(
     }
 
     @get:Classpath
+    @get:NormalizeLineEndings
     @get:Incremental
     internal val packedLibraries by lazy {
         libraries.filter { !it.isDirectory }
@@ -294,7 +291,7 @@ abstract class Kotlin2JsCompile @Inject constructor(
 
     protected open fun contributeAdditionalCompilerArguments(context: ContributeCompilerArgumentsContext<K2JSCompilerArguments>) {
         context.primitive { args ->
-            args.irProduceKlibDir = true
+            args.nopack = true
         }
     }
 
@@ -318,6 +315,7 @@ abstract class Kotlin2JsCompile @Inject constructor(
         logger.debug("Calling compiler")
 
         val dependencies = libraries
+            .apply { reportUnsupportedKotlinArchiveLibraries(this@Kotlin2JsCompile) }
             .filter { libraryFilter(it) }
             .filterMainCompilationKlibArtifact()
             .map { it.normalize().absolutePath }
@@ -359,11 +357,12 @@ abstract class Kotlin2JsCompile @Inject constructor(
             outputFiles = allOutputFiles(),
             reportingSettings = reportingSettings(),
             incrementalCompilationEnvironment = icEnv,
-            compilerArgumentsLogLevel = kotlinCompilerArgumentsLogLevel.get()
+            compilerArgumentsLogLevel = kotlinCompilerArgumentsLogLevel.get(),
+            toolingDiagnosticsContext = toolingDiagnosticsContext,
+            toolingDiagnosticsCollector = toolingDiagnosticsCollector,
         )
         processArgsBeforeCompile(args)
-        @Suppress("DEPRECATION")
-        if (args.wasm || args.freeArgs.contains(WASM_BACKEND)) {
+        if (getIsWasmPlatform.getOrElse(false)) {
             val wasmArgs = copyK2JSCompilerArguments(args, KotlinWasmCompilerArguments())
             compilerRunner.runWasmCompilerAsync(
                 wasmArgs,

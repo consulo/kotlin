@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.serialization.deserialization.descriptors
 
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.*
@@ -15,10 +16,7 @@ import org.jetbrains.kotlin.protobuf.MessageLite
 import org.jetbrains.kotlin.storage.StorageManager
 import org.jetbrains.kotlin.types.*
 
-interface DescriptorWithContainerSource : MemberDescriptor {
-    val containerSource: DeserializedContainerSource?
-}
-
+@K1Deprecation
 interface DeserializedMemberDescriptor : DeserializedDescriptor, MemberDescriptor, DescriptorWithContainerSource {
     val proto: MessageLite
 
@@ -36,8 +34,12 @@ interface DeserializedMemberDescriptor : DeserializedDescriptor, MemberDescripto
     override val containerSource: DeserializedContainerSource?
 }
 
-interface DeserializedCallableMemberDescriptor : DeserializedMemberDescriptor, CallableMemberDescriptor
+@K1Deprecation
+interface DeserializedCallableMemberDescriptor : DeserializedMemberDescriptor, CallableMemberDescriptor {
+    val companionExtensionClass: ClassDescriptor?
+}
 
+@K1Deprecation
 class DeserializedSimpleFunctionDescriptor(
     containingDeclaration: DeclarationDescriptor,
     original: SimpleFunctionDescriptor?,
@@ -56,6 +58,8 @@ class DeserializedSimpleFunctionDescriptor(
         source ?: SourceElement.NO_SOURCE
     ) {
 
+    override var companionExtensionClass: ClassDescriptor? = null
+
     override fun createSubstitutedCopy(
         newOwner: DeclarationDescriptor,
         original: FunctionDescriptor?,
@@ -69,10 +73,12 @@ class DeserializedSimpleFunctionDescriptor(
             proto, nameResolver, typeTable, versionRequirementTable, containerSource, source
         ).also {
             it.setHasStableParameterNames(hasStableParameterNames())
+            it.companionExtensionClass = companionExtensionClass
         }
     }
 }
 
+@K1Deprecation
 class DeserializedPropertyDescriptor(
         containingDeclaration: DeclarationDescriptor,
         original: PropertyDescriptor?,
@@ -96,6 +102,8 @@ class DeserializedPropertyDescriptor(
     containingDeclaration, original, annotations, modality, visibility, isVar, name, kind, SourceElement.NO_SOURCE,
     isLateInit, isConst, isExpect, false, isExternal, isDelegated
 ) {
+    override var companionExtensionClass: ClassDescriptor? = null
+
     override fun createSubstitutedCopy(
             newOwner: DeclarationDescriptor,
             newModality: Modality,
@@ -108,12 +116,15 @@ class DeserializedPropertyDescriptor(
         return DeserializedPropertyDescriptor(
             newOwner, original, annotations, newModality, newVisibility, isVar, newName, kind, isLateInit, isConst, isExternal,
             isDelegated, isExpect, proto, nameResolver, typeTable, versionRequirementTable, containerSource
-        )
+        ).also {
+            it.companionExtensionClass = companionExtensionClass
+        }
     }
 
     override fun isExternal() = Flags.IS_EXTERNAL_PROPERTY.get(proto.flags)
 }
 
+@K1Deprecation
 class DeserializedClassConstructorDescriptor(
     containingDeclaration: ClassDescriptor,
     original: ConstructorDescriptor?,
@@ -152,8 +163,11 @@ class DeserializedClassConstructorDescriptor(
     override fun isTailrec(): Boolean = false
 
     override fun isSuspend(): Boolean = false
+
+    override val companionExtensionClass: ClassDescriptor? get() = null
 }
 
+@K1Deprecation
 class DeserializedTypeAliasDescriptor(
     storageManager: StorageManager,
     containingDeclaration: DeclarationDescriptor,

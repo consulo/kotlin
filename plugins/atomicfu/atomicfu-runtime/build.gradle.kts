@@ -1,24 +1,27 @@
+import org.gradle.kotlin.dsl.support.serviceOf
 import plugins.configureDefaultPublishing
 import plugins.configureKotlinPomAttributes
 
 description = "Runtime library for the Atomicfu compiler plugin"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("multiplatform")
     `maven-publish`
-    id("nodejs-cache-redirector-configuration")
+    id("nodejs-configuration")
 }
 
 group = "org.jetbrains.kotlin"
 
-repositories {
-    mavenCentral()
-}
+val buildFeatures = serviceOf<BuildFeatures>()
 
 kotlin {
     js {
-        browser()
-        nodejs()
+        if (!buildFeatures.isolatedProjects.active.get()) {
+            browser()
+            nodejs()
+        }
     }
 
     sourceSets {
@@ -30,14 +33,9 @@ kotlin {
     }
 }
 
-dependencies {
-    implicitDependenciesOnJdkVariantsOfBootstrapStdlib(project)
-}
-
-val emptyJavadocJar by tasks.registering(Jar::class) {
+val emptyJavadocJar = tasks.register("emptyJavadocJar", Jar::class) {
     archiveClassifier.set("javadoc")
 }
-
 publishing {
     publications {
         create<MavenPublication>("maven") {
@@ -50,5 +48,4 @@ publishing {
         }
     }
 }
-
 configureDefaultPublishing()

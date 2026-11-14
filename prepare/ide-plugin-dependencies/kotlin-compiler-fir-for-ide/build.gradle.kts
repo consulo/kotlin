@@ -1,7 +1,16 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
-val firCompilerCoreModules: Array<String> by rootProject.extra
+val firCommonCompilerModules: Array<String> = CompilerModules.firCommonCompilerModules
+val jvmCompilerModules: Array<String> = CompilerModules.jvmCompilerModules
 
-publishJarsForIde(firCompilerCoreModules.asList())
+val additionalK1Modules = listOf(
+    ":core:descriptors.jvm",
+)
+
+val projects = firCommonCompilerModules.asList() + jvmCompilerModules + additionalK1Modules
+
+publishJarsForIde(projects)

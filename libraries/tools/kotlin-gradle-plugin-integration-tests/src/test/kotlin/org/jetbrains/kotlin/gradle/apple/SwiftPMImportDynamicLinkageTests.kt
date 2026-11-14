@@ -15,6 +15,8 @@ import org.jetbrains.kotlin.gradle.testing.prettyPrinted
 import org.jetbrains.kotlin.gradle.uklibs.applyMultiplatform
 import org.jetbrains.kotlin.gradle.util.assertProcessRunResult
 import org.jetbrains.kotlin.gradle.util.runProcess
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.condition.OS
 import java.nio.file.Path
 import kotlin.io.path.createDirectories
@@ -29,6 +31,11 @@ import kotlin.test.assertTrue
     enabledOnCI = [OS.MAC],
 )
 @SwiftPMImportGradlePluginTests
+@MustRunOnChangesInGradle
+@GradleTestVersions(
+    // KT-90453: These tests mostly don't have Gradle-specific behavior
+    minVersion = TestVersions.Gradle.MAX_SUPPORTED
+)
 class SwiftPMImportDynamicLinkageTests : KGPBaseTest() {
 
     /**
@@ -37,6 +44,7 @@ class SwiftPMImportDynamicLinkageTests : KGPBaseTest() {
      * In this test whether or not duplication will happen depends on alphabetic ordering of Shared and FrameworkTarget because both get
      * autolinked and autolinking seems to add instructions happen alphabetically.
      */
+    @TestMetadata("emptyxcode")
     @GradleTest
     fun `dynamic linkage with SwiftPM import - duplicates static binary during application linkage`(version: GradleVersion) {
         project("emptyxcode", version) {
@@ -96,7 +104,7 @@ class SwiftPMImportDynamicLinkageTests : KGPBaseTest() {
 
             packageDependency.resolve("Package.swift").writeText(
                 """
-                    // swift-tools-version: 5.9
+                    // swift-tools-version: 6.1
                     import PackageDescription
 
                     let package = Package(
@@ -220,6 +228,7 @@ class SwiftPMImportDynamicLinkageTests : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("emptyxcode")
     @GradleTest
     fun `dynamic linkage with SwiftPM import - exposes sources-based transitive SwiftPM dependencies through Kotlin dynamic library`(version: GradleVersion) {
         project("emptyxcode", version) {
@@ -335,6 +344,69 @@ class SwiftPMImportDynamicLinkageTests : KGPBaseTest() {
                 ),
             )
             checkApplicationRun(projectPath, appPath)
+        }
+    }
+
+    @GradleTest
+    fun `KT-85502 - macOS executable are runnable`(version: GradleVersion) {
+        project("empty", version) {
+            val packageDependency = projectPath.resolve("PackageDependency").also { it.createDirectories() }.toFile()
+            runProcess(listOf("/usr/bin/swift", "package", "init", "--type", "library"), packageDependency)
+            val swiftClassName = "LocalHelper"
+
+            packageDependency.resolve("Sources/PackageDependency/PackageDependency.swift").writeText(
+                """
+                    import Foundation
+                    @objc public class ${swiftClassName}: NSObject {
+                        @objc public static func greeting(_ arg: String) {
+                            print("Hello from \(arg)")
+                        }
+                    }
+                """.trimIndent()
+            )
+
+            plugins {
+                kotlin("multiplatform")
+            }
+            buildScriptInjection {
+                project.applyMultiplatform {
+                    macosArm64 {
+                        binaries {
+                            executable {
+                                entryPoint = "main"
+                            }
+                        }
+                    }
+                    sourceSets.commonMain.get().compileSource(
+                        """
+                            import kotlinx.cinterop.ExperimentalForeignApi
+                            import swiftPMImport.empty.${swiftClassName}
+                            
+                            @OptIn(ExperimentalForeignApi::class)
+                            fun main() {
+                                ${swiftClassName}.greeting("Kotlin")
+                            }
+                        """.trimIndent()
+                    )
+                    swiftPMDependencies {
+                        localSwiftPackage(
+                            directory = project.layout.projectDirectory.dir("PackageDependency"),
+                            products = listOf("PackageDependency")
+                        )
+                    }
+                }
+            }
+
+            build("runDebugExecutableMacosArm64") {
+                assertOutputContains("Hello from Kotlin")
+            }
+
+            // Check that executable is also self-sufficient and runs without dyld env hacks
+            val executablePath = projectPath.resolve("build/bin/macosArm64/debugExecutable/empty.kexe")
+            runProcess(listOf(executablePath.pathString), projectPath.toFile()).assertProcessRunResult {
+                assertTrue(isSuccessful)
+                assertEquals("Hello from Kotlin\n", output)
+            }
         }
     }
 

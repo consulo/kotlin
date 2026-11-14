@@ -18,16 +18,26 @@ package org.jetbrains.kotlin.psi
 
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.LiteralTextEscaper
-import it.unimi.dsi.fastutil.ints.IntArrayList
 import org.jetbrains.kotlin.psi.psiUtil.getContentRange
 import org.jetbrains.kotlin.psi.psiUtil.isSingleQuoted
 import kotlin.math.min
 
+/**
+ * A [LiteralTextEscaper] for Kotlin string literals, enabling language injection into them.
+ *
+ * It decodes the raw literal text of a [KtStringTemplateExpression] into the string value it denotes (resolving escape sequences) and
+ * maintains a mapping between offsets in the decoded value and offsets in the host PSI, so that an injected language can be edited and its
+ * ranges translated back to the original source.
+ */
 class KotlinStringLiteralTextEscaper(host: KtStringTemplateExpression) : LiteralTextEscaper<KtStringTemplateExpression>(host) {
     private var sourceOffsets: IntArray? = null
 
     override fun decode(rangeInsideHost: TextRange, outChars: StringBuilder): Boolean {
-        val sourceOffsetsList = IntArrayList()
+        // Each decoded character contributes exactly one offset, and decoding never lengthens the text,
+        // so `rangeInsideHost.length + 1` (the extra slot is for the final offset) is an upper bound.
+        val offsets = IntArray(rangeInsideHost.length + 1)
+        var decodedOffset = 0
+
         var sourceOffset = 0
 
         for (child in myHost.entries) {
@@ -43,14 +53,14 @@ class KotlinStringLiteralTextEscaper(host: KtStringTemplateExpression) : Literal
                     if (!rangeInsideHost.contains(childRange)) {
                         //don't allow injection if its range starts or ends inside escaped sequence
                         //but still process offsets for the already decoded part
-                        sourceOffsetsList.add(sourceOffset)
-                        sourceOffsets = sourceOffsetsList.toIntArray()
+                        offsets[decodedOffset++] = sourceOffset
+                        sourceOffsets = offsets.copyOf(decodedOffset)
                         return false
                     }
                     val unescaped = child.unescapedValue
                     outChars.append(unescaped)
                     repeat(unescaped.length) {
-                        sourceOffsetsList.add(sourceOffset)
+                        offsets[decodedOffset++] = sourceOffset
                     }
                     sourceOffset += child.getTextLength()
                 }
@@ -58,13 +68,13 @@ class KotlinStringLiteralTextEscaper(host: KtStringTemplateExpression) : Literal
                     val textRange = rangeInsideHost.intersection(childRange)!!.shiftRight(-childRange.startOffset)
                     outChars.append(child.text, textRange.startOffset, textRange.endOffset)
                     repeat(textRange.length) {
-                        sourceOffsetsList.add(sourceOffset++)
+                        offsets[decodedOffset++] = sourceOffset++
                     }
                 }
             }
         }
-        sourceOffsetsList.add(sourceOffset)
-        sourceOffsets = sourceOffsetsList.toIntArray()
+        offsets[decodedOffset++] = sourceOffset
+        sourceOffsets = offsets.copyOf(decodedOffset)
         return true
     }
 

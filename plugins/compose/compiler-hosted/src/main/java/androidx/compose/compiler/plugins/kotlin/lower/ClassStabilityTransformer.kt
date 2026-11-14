@@ -20,13 +20,11 @@ import androidx.compose.compiler.plugins.kotlin.ComposeClassIds
 import androidx.compose.compiler.plugins.kotlin.FeatureFlags
 import androidx.compose.compiler.plugins.kotlin.ModuleMetrics
 import androidx.compose.compiler.plugins.kotlin.analysis.*
+import androidx.compose.compiler.plugins.kotlin.k2.ComposeErrors
 import org.jetbrains.kotlin.backend.common.ClassLoweringPass
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
-import org.jetbrains.kotlin.backend.jvm.ir.isInlineClassType
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
+import org.jetbrains.kotlin.ir.IrDiagnosticReporter
 import org.jetbrains.kotlin.ir.IrImplementationDetail
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
@@ -40,7 +38,6 @@ import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.platform.jvm.isJvm
-import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 
 enum class StabilityBits(val bits: Int) {
     UNSTABLE(0b100),
@@ -54,31 +51,30 @@ enum class StabilityBits(val bits: Int) {
  * annotation on it, as well as putting a static final int of the stability to be used at runtime.
  */
 class ClassStabilityTransformer(
-    private val useK2: Boolean,
     context: IrPluginContext,
+    irModule: IrModuleFragment,
     metrics: ModuleMetrics,
     stabilityInferencer: StabilityInferencer,
-    private val classStabilityInferredCollection: ClassStabilityInferredCollection? = null,
     featureFlags: FeatureFlags,
-    private val messageCollector: MessageCollector,
-) : AbstractComposeLowering(context, metrics, stabilityInferencer, featureFlags),
+    private val reporter: IrDiagnosticReporter,
+) : AbstractComposeLowering(context, irModule, metrics, stabilityInferencer, featureFlags),
     ClassLoweringPass,
     ModuleLoweringPass {
 
     private val StabilityInferredClass = getTopLevelClass(ComposeClassIds.StabilityInferred)
     private val UNSTABLE = StabilityBits.UNSTABLE.bitsForSlot(0)
     private val STABLE = StabilityBits.STABLE.bitsForSlot(0)
-    private val unstableClassesWarning: MutableSet<ClassDescriptor>? = if (!context.platform.isJvm()) mutableSetOf() else null
+    private val unstableClassesWarning: MutableSet<IrClass>? = if (!context.platform.isJvm()) mutableSetOf() else null
 
 
     override fun lower(irModule: IrModuleFragment) {
         irModule.transformChildrenVoid(this)
 
         if (!context.platform.isJvm() && !unstableClassesWarning.isNullOrEmpty()) {
-            val classIds = unstableClassesWarning.mapTo(mutableSetOf()) { it.fqNameSafe.toString() }
+            val classIds = unstableClassesWarning.mapTo(mutableSetOf()) { it.fqNameForIrSerialization.asString() }
             val classesConcatenated = classIds.sorted().joinToString("\n")
-            messageCollector.report(
-                CompilerMessageSeverity.WARNING,
+            reporter.report(
+                ComposeErrors.COMPOSE_CONFIGURATION_WARNING,
                 "Some of the dependencies were build using an older version of the Compose compiler plugin, " +
                         "which may cause additional (or endless) recompositions on non-JVM targets. " +
                         "To prevent that consider updating dependency libraries to versions built with a newer Compose compiler. " +
@@ -167,10 +163,10 @@ class ClassStabilityTransformer(
             else
                 stability.irStableExpression(
                     resolve = { irConst(STABLE) },
-                    reportUnknownStability = { unstableClassesWarning?.add(it.descriptor) }) ?: irConst(UNSTABLE)
+                    reportUnknownStability = { unstableClassesWarning?.add(it) }) ?: irConst(UNSTABLE)
         } else {
             stableExpr =
-                stability.irStableExpression(reportUnknownStability = { unstableClassesWarning?.add(it.descriptor) }) ?: irConst(UNSTABLE)
+                stability.irStableExpression(reportUnknownStability = { unstableClassesWarning?.add(it) }) ?: irConst(UNSTABLE)
             if (stability.knownStable()) {
                 parameterMask = 0b1
             }
@@ -192,14 +188,13 @@ class ClassStabilityTransformer(
             it.arguments[0] = irConst(parameterMask)
         }
 
-        if (useK2 && cls.hasFirDeclaration()) {
+        if (cls.hasFirDeclaration()) {
             context.metadataDeclarationRegistrar.addMetadataVisibleAnnotationsToElement(
                 cls,
                 annotation,
             )
         } else {
             cls.annotations += annotation
-            classStabilityInferredCollection?.addClass(cls, parameterMask)
         }
 
         if (cls.visibility.isPublicAPI || cls.visibility == DescriptorVisibilities.INTERNAL) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -66,7 +66,7 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
                 TYPE_REF_FIRST
         private val COLON_COMMA_LBRACE_RBRACE_TYPE_REF_FIRST_SET =
             syntaxElementTypeSetOf(KtTokens.COLON, KtTokens.COMMA, KtTokens.LBRACE, KtTokens.RBRACE) + TYPE_REF_FIRST
-        private val RECEIVER_TYPE_TERMINATORS = syntaxElementTypeSetOf(KtTokens.DOT, KtTokens.SAFE_ACCESS)
+        private val RECEIVER_TYPE_TERMINATORS = syntaxElementTypeSetOf(KtTokens.DOT, KtTokens.SAFE_ACCESS, KtTokens.ERROR_SAFE_ACCESS)
 
         private val MODIFIER_WITHOUT_FUN = KtTokens.MODIFIERS - KtTokens.FUN_MODIFIER
         private val VALUE_PARAMETER_FIRST =
@@ -97,7 +97,8 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
         private val COMMA_COLON_GT_SET = syntaxElementTypeSetOf(KtTokens.COMMA, KtTokens.COLON, KtTokens.GT)
         private val IDENTIFIER_RBRACKET_LBRACKET_SET = syntaxElementTypeSetOf(KtTokens.IDENTIFIER, KtTokens.RBRACKET, KtTokens.LBRACKET)
         private val LBRACE_RBRACE_SET = syntaxElementTypeSetOf(KtTokens.LBRACE, KtTokens.RBRACE)
-        private val COMMA_SEMICOLON_RBRACE_SET = syntaxElementTypeSetOf(KtTokens.COMMA, KtTokens.SEMICOLON, KtTokens.RBRACE)
+        private val NO_MODIFIERS_BEFORE_FOR_ENUM_ENTRY =
+            syntaxElementTypeSetOf(KtTokens.COMMA, KtTokens.SEMICOLON, KtTokens.RBRACE, KtTokens.LPAR, KtTokens.LBRACE)
         private val VALUE_ARGS_RECOVERY_SET =
             syntaxElementTypeSetOf(KtTokens.LBRACE, KtTokens.SEMICOLON, KtTokens.RPAR, KtTokens.EOL_OR_SEMICOLON, KtTokens.RBRACE)
         private val PROPERTY_NAME_FOLLOW_SET = syntaxElementTypeSetOf(
@@ -227,7 +228,7 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
         private val LAST_DOT_AFTER_RECEIVER_LPAR_PATTERN_SET = syntaxElementTypeSetOf(KtTokens.QUEST, KtTokens.LPAR, KtTokens.RPAR)
 
         private val LAST_DOT_AFTER_RECEIVER_NOT_LPAR_PATTERN_SET =
-            syntaxElementTypeSetOf(KtTokens.LT, KtTokens.DOT, KtTokens.SAFE_ACCESS, KtTokens.QUEST)
+            syntaxElementTypeSetOf(KtTokens.LT, KtTokens.DOT, KtTokens.SAFE_ACCESS, KtTokens.QUEST, KtTokens.ERROR_SAFE_ACCESS, KtTokens.OR)
 
         private val ACCESSOR_BODY_EXPECTED_RECOVERY_SET by lazy(LazyThreadSafetyMode.PUBLICATION) {
             ACCESSOR_FIRST_OR_PROPERTY_END + syntaxElementTypeSetOf(KtTokens.LBRACE, KtTokens.LPAR, KtTokens.EQ)
@@ -327,7 +328,7 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
         }
 
         checkUnclosedBlockComment()
-        fileMarker.done(KtNodeTypes.KT_FILE)
+        fileMarker.done(KtNodeTypes.FILE)
     }
 
     private fun checkUnclosedBlockComment() {
@@ -354,7 +355,7 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
 
     fun parseExpressionCodeFragment() {
         val marker = mark()
-        expressionParsing.parseExpression()
+        expressionParsing.parseBlockLevelExpression()
 
         checkForUnexpectedSymbols()
 
@@ -406,7 +407,7 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
         scriptMarker.done(KtNodeTypes.SCRIPT)
         scriptMarker.setCustomEdgeTokenBinders(PRECEDING_ALL_BINDER, TRAILING_ALL_BINDER)
 
-        fileMarker.done(KtNodeTypes.KT_FILE)
+        fileMarker.done(KtNodeTypes.FILE)
     }
 
     private fun checkForUnexpectedSymbols() {
@@ -666,7 +667,7 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
             KtTokens.CLASS_KEYWORD_ID,
             KtTokens.INTERFACE_KEYWORD_ID,
                 -> return parseClass(
-                detector.isEnumDetected, true
+                detector.isEnumDetected, true, declarationParsingMode
             )
             KtTokens.FUN_MODIFIER_ID -> return parseFunction()
             KtTokens.VAL_KEYWORD_ID,
@@ -676,11 +677,11 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
             KtTokens.LBRACKET_ID if lookahead(1) in KtTokens.VAL_VAR -> return parseProperty(declarationParsingMode)
             KtTokens.TYPE_ALIAS_KEYWORD_ID -> return parseTypeAlias()
             KtTokens.OBJECT_KEYWORD_ID -> {
-                parseObject(nameParsingModeForObject, true)
+                parseObject(nameParsingModeForObject, true, declarationParsingMode)
                 return KtNodeTypes.OBJECT_DECLARATION
             }
             KtTokens.IDENTIFIER_ID -> if (detector.isEnumDetected && declarationParsingMode.canBeEnumUsedAsSoftKeyword) {
-                return parseClass(enumClass = true, expectKindKeyword = false)
+                return parseClass(enumClass = true, expectKindKeyword = false, declarationParsingMode)
             }
         }
 
@@ -1188,6 +1189,7 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
         optionalBody: Boolean,
         enumClass: Boolean,
         expectKindKeyword: Boolean,
+        declarationParsingMode: DeclarationParsingMode,
     ): SyntaxElementType {
         if (expectKindKeyword) {
             if (isObject) {
@@ -1219,10 +1221,19 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
 
         val beforeConstructorModifiers = mark()
         val primaryConstructorMarker = mark()
+        val statementWithNewlineBeforeConstructorModifiers =
+            declarationParsingMode != DeclarationParsingMode.MEMBER_OR_TOPLEVEL && builder.newlineBeforeCurrentToken()
         val hasConstructorModifiers = parseModifierList(emptySyntaxElementTypeSet())
 
-        // Some modifiers found, but no parentheses following: class has already ended, and we are looking at something else
-        if (hasConstructorModifiers && !atSetWithRemap(LPAR_LBRACE_COLON_CONSTRUCTOR_KEYWORD_SET)) {
+        // Some modifiers found, but no parentheses following: class has already ended, and we are looking at something else.
+        // The same applies to local and script top-level classes if the modifiers start on a new line and aren't followed by
+        // the `constructor` keyword because they likely belong to the next statement, e.g.
+        //    class A
+        //    error("")
+        if (hasConstructorModifiers &&
+            (!atSetWithRemap(LPAR_LBRACE_COLON_CONSTRUCTOR_KEYWORD_SET) ||
+                    statementWithNewlineBeforeConstructorModifiers && !atWithRemap(KtTokens.CONSTRUCTOR_KEYWORD))
+        ) {
             beforeConstructorModifiers.rollbackTo()
             return if (isObject) KtNodeTypes.OBJECT_DECLARATION else KtNodeTypes.CLASS
         }
@@ -1277,12 +1288,18 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
         return if (isObject) KtNodeTypes.OBJECT_DECLARATION else KtNodeTypes.CLASS
     }
 
-    private fun parseClass(enumClass: Boolean, expectKindKeyword: Boolean): SyntaxElementType {
-        return parseClassOrObject(isObject = false, NameParsingMode.REQUIRED, true, enumClass, expectKindKeyword)
+    private fun parseClass(
+        enumClass: Boolean,
+        expectKindKeyword: Boolean,
+        declarationParsingMode: DeclarationParsingMode,
+    ): SyntaxElementType {
+        return parseClassOrObject(isObject = false, NameParsingMode.REQUIRED, true, enumClass, expectKindKeyword, declarationParsingMode)
     }
 
-    fun parseObject(nameParsingMode: NameParsingMode, optionalBody: Boolean) {
-        parseClassOrObject(isObject = true, nameParsingMode, optionalBody, enumClass = false, expectKindKeyword = true)
+    fun parseObject(nameParsingMode: NameParsingMode, optionalBody: Boolean, declarationParsingMode: DeclarationParsingMode) {
+        parseClassOrObject(
+            isObject = true, nameParsingMode, optionalBody, enumClass = false, expectKindKeyword = true, declarationParsingMode
+        )
     }
 
     /*
@@ -1348,7 +1365,7 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
     private fun parseEnumEntry(): ParseEnumEntryResult {
         val entry = mark()
 
-        parseModifierList(COMMA_SEMICOLON_RBRACE_SET)
+        parseModifierList(NO_MODIFIERS_BEFORE_FOR_ENUM_ENTRY)
 
         if (!atSetWithRemap(SOFT_KEYWORDS_AT_MEMBER_START) && atWithRemap(KtTokens.IDENTIFIER)) {
             advance() // IDENTIFIER
@@ -1692,7 +1709,8 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
 
         beforeName.drop()
 
-        if (mode.accessorsAllowed) {
+        // Destructuring declarations have no accessors or backing fields, so the following tokens are left to the caller
+        if (mode.accessorsAllowed && !multiDeclaration) {
             // It's only needed for non-local properties, because in local ones:
             // "val a = 1; b" must not be an infix call of b on "val ...;"
 
@@ -2057,7 +2075,7 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
 
         if (!receiverPresent) return false
 
-        createTruncatedBuilder(lastDot).parseTypeRefWithoutIntersections()
+        createTruncatedBuilder(lastDot).parseTypeRefWithoutIntersectionsOrUnions()
 
         if (atSetWithRemap(RECEIVER_TYPE_TERMINATORS)) {
             advance() // expectation
@@ -2346,8 +2364,8 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
         mark.done(KtNodeTypes.TYPE_PARAMETER)
     }
 
-    fun parseTypeRefWithoutIntersections() {
-        parseTypeRef(emptySyntaxElementTypeSet(), allowSimpleIntersectionTypes = false)
+    fun parseTypeRefWithoutIntersectionsOrUnions() {
+        parseTypeRef(emptySyntaxElementTypeSet(), allowSimpleIntersectionTypes = false, allowUnionTypes = false)
     }
 
     /*
@@ -2367,11 +2385,11 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
      *   ;
      */
     fun parseTypeRef(extraRecoverySet: SyntaxElementTypeSet = emptySyntaxElementTypeSet()) {
-        parseTypeRef(extraRecoverySet, allowSimpleIntersectionTypes = true)
+        parseTypeRef(extraRecoverySet, allowSimpleIntersectionTypes = true, allowUnionTypes = true)
     }
 
-    private fun parseTypeRef(extraRecoverySet: SyntaxElementTypeSet, allowSimpleIntersectionTypes: Boolean) {
-        val typeRefMarker = parseTypeRefContents(extraRecoverySet, allowSimpleIntersectionTypes)
+    private fun parseTypeRef(extraRecoverySet: SyntaxElementTypeSet, allowSimpleIntersectionTypes: Boolean, allowUnionTypes: Boolean) {
+        val typeRefMarker = parseTypeRefContents(extraRecoverySet, allowSimpleIntersectionTypes, allowUnionTypes)
         typeRefMarker.done(KtNodeTypes.TYPE_REFERENCE)
     }
 
@@ -2380,8 +2398,9 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
     private fun parseTypeRefContents(
         extraRecoverySet: SyntaxElementTypeSet,
         allowSimpleIntersectionTypes: Boolean,
+        allowUnionTypes: Boolean,
     ): SyntaxTreeBuilder.Marker {
-        val typeRefMarker = mark()
+        var typeRefMarker = mark()
 
         parseTypeModifierList()
 
@@ -2418,7 +2437,8 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
                 advance() // LPAR
                 parseTypeRefContents(
                     emptySyntaxElementTypeSet(),  /* allowSimpleIntersectionTypes */
-                    true
+                    allowSimpleIntersectionTypes = true,
+                    allowUnionTypes = true,
                 ).drop() // parenthesized types, no reference element around it is needed
 
                 if (at(KtTokens.RPAR) && lookahead(1) !== KtTokens.ARROW) {
@@ -2458,13 +2478,31 @@ internal class KotlinParsing private constructor(builder: SemanticWhitespaceAwar
             leftTypeRef.done(KtNodeTypes.TYPE_REFERENCE)
 
             advance() // &
-            parseTypeRef(extraRecoverySet, allowSimpleIntersectionTypes = true)
+            parseTypeRef(extraRecoverySet, allowSimpleIntersectionTypes = true, allowUnionTypes = false)
 
             intersectionType.done(KtNodeTypes.INTERSECTION_TYPE)
             wasIntersection = true
         }
 
-        if (typeBeforeDot && at(KtTokens.DOT) && !wasIntersection && !wasFunctionTypeParsed) {
+        var wasUnion = false
+        if (allowUnionTypes && at(KtTokens.OR)) {
+            val firstTypeRef = typeRefMarker
+
+            typeRefMarker = typeRefMarker.precede()
+            val unionType = firstTypeRef.precede()
+
+            firstTypeRef.done(KtNodeTypes.TYPE_REFERENCE)
+
+            while (at(KtTokens.OR)) {
+                advance() // |
+                parseTypeRef(extraRecoverySet, allowSimpleIntersectionTypes = true, allowUnionTypes = false)
+            }
+
+            unionType.done(KtNodeTypes.UNION_TYPE)
+            wasUnion = true
+        }
+
+        if (typeBeforeDot && at(KtTokens.DOT) && !wasIntersection && !wasUnion && !wasFunctionTypeParsed) {
             // This is a receiver for a function type
             //  A.(B) -> C
             //   ^

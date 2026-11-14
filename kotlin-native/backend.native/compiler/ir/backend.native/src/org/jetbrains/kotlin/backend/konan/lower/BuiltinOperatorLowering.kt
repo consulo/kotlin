@@ -10,12 +10,12 @@ import org.jetbrains.kotlin.utils.atMostOne
 import org.jetbrains.kotlin.backend.common.lower.IrBuildingTransformer
 import org.jetbrains.kotlin.backend.common.lower.at
 import org.jetbrains.kotlin.backend.common.lower.irNot
+import org.jetbrains.kotlin.backend.common.phaser.PhasePrerequisites
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.isSingleFieldValueClass
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltinOperatorDescriptor
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -32,8 +32,8 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 /**
  * This lowering pass lowers some calls to [IrBuiltinOperatorDescriptor]s.
  */
-internal class BuiltinOperatorLowering(val context: Context) : FileLoweringPass, IrBuildingTransformer(context) {
-
+@PhasePrerequisites(NativeDefaultParameterInjector::class, NativeSingleAbstractMethodLowering::class, NativeEnumWhenLowering::class)
+internal class BuiltinOperatorLowering(val context: NativeLoweringContext) : FileLoweringPass, IrBuildingTransformer(context) {
     private val irBuiltins = context.irBuiltIns
     private val symbols = context.symbols
 
@@ -53,8 +53,8 @@ internal class BuiltinOperatorLowering(val context: Context) : FileLoweringPass,
 
             irBuiltins.noWhenBranchMatchedExceptionSymbol -> IrCallImpl.fromSymbolOwner(
                     expression.startOffset, expression.endOffset,
-                    context.symbols.throwNoWhenBranchMatchedException.owner.returnType,
-                    context.symbols.throwNoWhenBranchMatchedException)
+                    symbols.throwNoWhenBranchMatchedException.owner.returnType,
+                    symbols.throwNoWhenBranchMatchedException)
 
             irBuiltins.linkageErrorSymbol -> with(symbols.throwIrLinkageError) { irCall(expression, this, newReturnType = owner.returnType) }
 
@@ -105,7 +105,7 @@ internal class BuiltinOperatorLowering(val context: Context) : FileLoweringPass,
 
             if (expression.symbol == irBuiltins.eqeqSymbol) {
                 lhs.type.getInlinedClassNative()?.let {
-                    if (it == rhs.type.getInlinedClassNative() && inlinedClassHasDefaultEquals(it)) {
+                    if (it == rhs.type.getInlinedClassNative() && hasDefaultEqualsDownToRepresentation(lhs.type)) {
                         return genInlineClassEquals(expression.symbol, rhs, lhs)
                     }
                 }
@@ -115,8 +115,16 @@ internal class BuiltinOperatorLowering(val context: Context) : FileLoweringPass,
         }
     }
 
+    private fun hasDefaultEqualsDownToRepresentation(type: IrType): Boolean {
+        type.unwrapToPrimitiveOrReference(
+                eachInlinedClass = { inlinedClass, _ -> if (!inlinedClassHasDefaultEquals(inlinedClass)) return false },
+                ifPrimitive = { _, _ -> return true },
+                ifReference = { return true }
+        )
+    }
+
     private fun inlinedClassHasDefaultEquals(irClass: IrClass): Boolean {
-        if (!irClass.isSingleFieldValueClass) {
+        if (!irClass.isValue) {
             // Implicitly-inlined class, e.g. primitive one.
             return true
         }
@@ -124,7 +132,8 @@ internal class BuiltinOperatorLowering(val context: Context) : FileLoweringPass,
         val equals = irClass.simpleFunctions()
                 .single { it.name.asString() == "equals" && it.parameters.size == 2 && it.overrides(anyEquals) }
 
-        return equals.origin == IrDeclarationOrigin.GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER
+        return equals.origin == IrDeclarationOrigin.GENERATED_INLINE_CLASS_MEMBER ||
+                equals.origin == IrDeclarationOrigin.GENERATED_FULL_VALUE_CLASS_MEMBER
     }
 
     fun IrBuilderWithScope.genInlineClassEquals(

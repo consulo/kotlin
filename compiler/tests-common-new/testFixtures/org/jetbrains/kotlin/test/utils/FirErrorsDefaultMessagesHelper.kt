@@ -5,29 +5,44 @@
 
 package org.jetbrains.kotlin.test.utils
 
+import org.jetbrains.kotlin.backend.common.actualizer.IrActualizationErrors
+import org.jetbrains.kotlin.backend.jvm.JvmBackendErrors
+import org.jetbrains.kotlin.cli.CliDiagnostics
 import org.jetbrains.kotlin.diagnostics.*
-import org.jetbrains.kotlin.diagnostics.rendering.BaseSourcelessDiagnosticRendererFactory
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors
-import org.junit.Assert
+import org.jetbrains.kotlin.fir.analysis.diagnostics.native.FirNativeErrors
+import org.jetbrains.kotlin.ir.backend.js.checkers.JsKlibErrors
+import org.jetbrains.kotlin.ir.inline.diagnostics.IrInlinerErrors
+import org.jetbrains.kotlin.test.checkTestInfrastructure
 import kotlin.reflect.KProperty
 import kotlin.reflect.full.memberProperties
 
 fun verifyDiagnostics(vararg diagnosticContainers: KtDiagnosticsContainer) {
+    verifyDiagnostics(diagnosticGroup("default", diagnosticContainers.toList()))
+}
+
+fun verifyDiagnostics(vararg diagnosticContainersWithGroup: KtDiagnosticsContainerWithGroup) {
     val errors = mutableListOf<String>()
-    val existingDiagnosticFactories = mutableMapOf<String, AbstractKtDiagnosticFactory>()
-    for (container in diagnosticContainers) {
-        container.getRendererFactory().MAP.verifyMessages(container, errors, existingDiagnosticFactories)
+    for ((_ = group, diagnosticContainers) in diagnosticContainersWithGroup) {
+        val existingDiagnosticFactories = mutableMapOf<String, AbstractKtDiagnosticFactory>()
+        for (container in diagnosticContainers) {
+            container.getRendererFactory().MAP.verifyMessages(container, errors, existingDiagnosticFactories)
+        }
     }
-    if (errors.isNotEmpty()) {
-        Assert.fail(
-            errors.joinToString(
-                "\n\n",
-                postfix = "\n\nSee https://youtrack.jetbrains.com/articles/KT-A-610 for the style guide.\n\n"
-            )
+    checkTestInfrastructure(errors.isEmpty()) {
+        errors.joinToString(
+            "\n\n",
+            postfix = "\n\nSee https://youtrack.jetbrains.com/articles/KT-A-610 for the style guide.\n\n"
         )
     }
+}
+
+class KtDiagnosticsContainerWithGroup(val group: String, val diagnosticContainers: List<KtDiagnosticsContainer>)
+
+fun diagnosticGroup(group: String, diagnosticContainers: List<KtDiagnosticsContainer>): KtDiagnosticsContainerWithGroup {
+    return KtDiagnosticsContainerWithGroup(group, diagnosticContainers)
 }
 
 private fun KtDiagnosticFactoryToRendererMap.verifyMessages(
@@ -55,9 +70,15 @@ private val lastCharRegex = """[.}\d]""".toRegex()
 
 private val lastCharExclusions = listOf(
     FirErrors.DATA_CLASS_COPY_VISIBILITY_WILL_BE_CHANGED.name,
+    FirJsErrors.DATA_CLASS_COPY_JS_EXPORTABILITY_WILL_BE_CHANGED.name,
     FirErrors.ERROR_SUPPRESSION.name,
     FirErrors.NOT_A_MULTIPLATFORM_COMPILATION.name,
-    FirErrors.CONTEXT_CLASS_OR_CONSTRUCTOR.name,
+    IrInlinerErrors.IR_PRIVATE_CALLABLE_REFERENCED_BY_NON_PRIVATE_INLINE_FUNCTION_CASCADING.name,
+    IrInlinerErrors.IR_PRIVATE_TYPE_USED_IN_NON_PRIVATE_INLINE_FUNCTION_CASCADING.name,
+    "PUBLIC_ATOMICS_ARE_FORBIDDEN",
+    "PUBLISHED_API_ATOMICS_ARE_FORBIDDEN",
+    "ATOMIC_PROPERTIES_SHOULD_BE_VAL",
+    "POWER_ASSERT_CAPABLE_OVERLOAD_MISSING",
 )
 
 private val uselessInIdExclusions = listOf(
@@ -70,6 +91,20 @@ private val uselessInIdExclusions = listOf(
     FirErrors.USELESS_CALL_ON_NOT_NULL.name,
     FirJvmErrors.USELESS_JVM_EXPOSE_BOXED.name,
     FirJsErrors.JS_NO_RUNTIME_USELESS_ON_EXTERNAL_INTERFACE.name,
+    "EXTERNAL_SERIALIZER_USELESS",
+    "KEEP_SERIALIZER_ANNOTATION_USELESS",
+)
+
+private val duplicateIdExclusions = listOf(
+    JvmBackendErrors.INLINE_CALL_CYCLE.name,
+    IrActualizationErrors.ACTUAL_ANNOTATIONS_NOT_MATCH_EXPECT.name,
+    JsKlibErrors.EXPORTING_JS_NAME_CLASH.name,
+    CliDiagnostics.KOTLIN_PACKAGE_USAGE.name,
+    FirNativeErrors.INAPPLICABLE_EAGER_INITIALIZATION.warningFactory.name,
+    FirNativeErrors.INAPPLICABLE_EAGER_INITIALIZATION.errorFactory.name,
+    // Declared in both FirJsErrors and FirWasmErrors with platform-specific messages.
+    FirJsErrors.JS_MODULE_PROHIBITED_ON_VAR_IN_MODULE_FILE.warningFactory.name,
+    FirJsErrors.JS_MODULE_PROHIBITED_ON_VAR_IN_MODULE_FILE.errorFactory.name,
 )
 
 fun KtDiagnosticFactoryToRendererMap.verifyMessageForFactory(
@@ -84,25 +119,13 @@ fun KtDiagnosticFactoryToRendererMap.verifyMessageForFactory(
         }
 
         val existingDiagnosticFactory = existingDiagnosticFactories[factory.name]
-        if (existingDiagnosticFactory != null) {
+        if (existingDiagnosticFactory != null && factory.name !in duplicateIdExclusions) {
             add("The diagnostic ${factory.name} is declared both in ${existingDiagnosticFactory.rendererFactory::class.simpleName} and ${factory.rendererFactory::class.simpleName}")
         } else {
             existingDiagnosticFactories[factory.name] = factory
         }
 
         val message = renderer.message
-
-        if (factory is KtSourcelessDiagnosticFactory) {
-            if (message != BaseSourcelessDiagnosticRendererFactory.MESSAGE_PLACEHOLDER) {
-                add(
-                    """
-                    ${KtSourcelessDiagnosticFactory::class.simpleName} currently supports only `${BaseSourcelessDiagnosticRendererFactory.MESSAGE_PLACEHOLDER}` placeholder which implies passing particular messages directly to a reporter.
-                    The current value of ${property.name} is `${message}`.
-                    """.trimIndent()
-                )
-            }
-            return@buildList
-        }
 
         val parameterCount = when (renderer) {
             is KtDiagnosticWithParameters4Renderer<*, *, *, *> -> 4
@@ -151,10 +174,12 @@ fun MutableList<String>.checkRules(name: String, message: String, parameterCount
         """\b(?:we|us|you(?!\s+have))\b""".toRegex(RegexOption.IGNORE_CASE),
         "uses 'we', 'us' or 'you'.",
         setOf(
-            FirErrors.CONTEXT_RECEIVERS_DEPRECATED.name,
             FirErrors.NO_TYPE_ARGUMENTS_ON_RHS.name,
             "PARCELABLE_TYPE_NOT_SUPPORTED",
             FirErrors.ROOT_IDE_PACKAGE_DEPRECATED.name,
+            "PUBLIC_ATOMICS_ARE_FORBIDDEN",
+            "PUBLISHED_API_ATOMICS_ARE_FORBIDDEN",
+            "ATOMIC_PROPERTIES_SHOULD_BE_VAL",
         )
     )
     checkRule(
@@ -163,9 +188,11 @@ fun MutableList<String>.checkRules(name: String, message: String, parameterCount
         """\bplease\b""".toRegex(RegexOption.IGNORE_CASE),
         "uses overly polite tone",
         setOf(
-            FirErrors.CONTEXT_RECEIVERS_DEPRECATED.name,
             FirErrors.ERROR_SUPPRESSION.name,
             FirErrors.ROOT_IDE_PACKAGE_DEPRECATED.name,
+            "REQUIRED_KOTLIN_TOO_HIGH",
+            "PROVIDED_RUNTIME_TOO_LOW",
+            FirErrors.SMARTCAST_TO_TYPE_VARIABLE.name,
         )
     )
 

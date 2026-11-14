@@ -1,4 +1,5 @@
 // RETURN_VALUE_CHECKER_MODE: CHECKER
+// LANGUAGE: +AllowReturnsResultOfContract
 
 @file:OptIn(ExperimentalContracts::class)
 
@@ -11,4 +12,11 @@ fun <T> returnsResultOfContract(block: () -> T): T {
         returnsResultOf(block)
     }
     return block()
+}
+
+fun <T> returnsParameterContract(value: T): T {
+    contract {
+        returnsParameter(value)
+    }
+    return value
 }

@@ -6,23 +6,26 @@
 package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageCase
+import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageIssueSignificance
 import org.jetbrains.kotlin.backend.common.linkage.partial.reflectionTargetLinkageError
 import org.jetbrains.kotlin.backend.common.lower.AbstractFunctionReferenceLowering
-import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
-import org.jetbrains.kotlin.backend.common.customNameInReflection
-import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageIssueSignificance
-import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.common.lower.addBoundValueAtOverride
+import org.jetbrains.kotlin.backend.konan.NativeBackendContext
 import org.jetbrains.kotlin.backend.konan.NativeGenerationState
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
 import org.jetbrains.kotlin.backend.konan.llvm.computeFullName
-import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.builders.*
-import org.jetbrains.kotlin.ir.builders.declarations.addFunction
+import org.jetbrains.kotlin.ir.customNameInReflection
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.IrConstantValue
+import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrRichFunctionReference
+import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.irFlag
 import org.jetbrains.kotlin.ir.types.*
-import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.fields
+import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
+import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageSources.File as PLFile
@@ -32,7 +35,7 @@ import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageSources
 // distinguish between extension receiver and first argument. So we just store it in attribute of invoke function
 var IrFunction.isRestrictedSuspensionInvokeMethod by irFlag<IrFunction>(copyByDefault = true)
 
-internal class NativeFunctionReferenceLowering(val generationState: NativeGenerationState) : AbstractFunctionReferenceLowering<Context>(generationState.context) {
+internal class NativeFunctionReferenceLowering(val generationState: NativeGenerationState) : AbstractFunctionReferenceLowering<NativeBackendContext>(generationState.context) {
     companion object {
         private val DECLARATION_ORIGIN_FUNCTION_REFERENCE_IMPL = IrDeclarationOriginImpl("FUNCTION_REFERENCE_IMPL")
 
@@ -99,42 +102,16 @@ internal class NativeFunctionReferenceLowering(val generationState: NativeGenera
 
     override fun generateExtraMethods(functionReferenceClass: IrClass, reference: IrRichFunctionReference) {
         if (reference.reflectionTargetSymbol == null) return
-        fun addOverrideInner(name: String, value: IrBuilderWithScope.(IrFunction) -> IrExpression) {
-            val overridden = functionReferenceClass.superTypes.mapNotNull { superType ->
-                superType.getClass()
-                        ?.declarations
-                        ?.filterIsInstance<IrSimpleFunction>()
-                        ?.singleOrNull { it.name.asString() == name }
-                        ?.symbol
-            }
-            require(overridden.isNotEmpty())
-            val function = functionReferenceClass.addFunction {
-                startOffset = SYNTHETIC_OFFSET
-                endOffset = SYNTHETIC_OFFSET
-                this.name = Name.identifier(name)
-                modality = Modality.FINAL
-                returnType = overridden[0].owner.returnType
-            }
-            function.parameters += function.createDispatchReceiverParameterWithClassParent()
-            function.overriddenSymbols += overridden
-            function.body = context.createIrBuilder(function.symbol, SYNTHETIC_OFFSET, SYNTHETIC_OFFSET).irBlockBody {
-                +irReturn(value(function))
-            }
-        }
 
         val fields = functionReferenceClass.fields.toList()
-        when (fields.size) {
-            0 -> {}
-            1 -> addOverrideInner("computeReceiver") { f ->
-                irGetField(irGet(f.dispatchReceiverParameter!!), fields[0])
-            }
-            else -> TODO("Code generation for references with several bound receivers is not supported yet")
-        }
+        if (fields.isEmpty()) return
+
+        context.addBoundValueAtOverride(functionReferenceClass, fields)
     }
 
     private fun IrBuilderWithScope.irKFunctionDescription(functionReference: IrRichFunctionReference, description: KFunctionDescription, reflectionTargetLinkageError: PartialLinkageCase?): IrConstantValue {
         if (reflectionTargetLinkageError != null) {
-            val errorMessage = generationState.context.partialLinkageSupport.renderAndLogLinkageError(
+            val errorMessage = generationState.partialLinkageSupport.renderAndLogLinkageError(
                     reflectionTargetLinkageError,
                     functionReference,
                     PLFile.determineFileFor(functionReference.invokeFunction),
@@ -154,6 +131,7 @@ internal class NativeFunctionReferenceLowering(val generationState: NativeGenera
                     mapOf(
                             "flags" to irConstantPrimitive(irInt(description.getFlags())),
                             "arity" to irConstantPrimitive(irInt(description.getArity())),
+                            "boundValueCount" to irConstantPrimitive(irInt(description.getBoundValueCount())),
                             "fqName" to irConstantPrimitive(irString(description.getFqName())),
                             "name" to irConstantPrimitive(irString(description.getName())),
                             "returnType" to kTypeGenerator.irKType(description.returnType()),
@@ -192,6 +170,10 @@ internal class NativeFunctionReferenceLowering(val generationState: NativeGenera
 
         fun getArity(): Int {
             return functionReference.invokeFunction.parameters.size - functionReference.boundValues.size + if (functionReference.invokeFunction.isSuspend) 1 else 0
+        }
+
+        fun getBoundValueCount(): Int {
+            return functionReference.boundValues.size
         }
 
         fun returnType(): IrType {

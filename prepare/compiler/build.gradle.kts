@@ -3,11 +3,14 @@
 import org.gradle.internal.jvm.Jvm
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.attributes.KlibPackaging
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
 import java.util.regex.Pattern.quote
 
 description = "Kotlin Compiler"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     // HACK: java plugin makes idea import dependencies on this project as source (with empty sources however),
     // this prevents reindexing of kotlin-compiler.jar after build on every change in compiler modules
     `java-library`
@@ -16,67 +19,75 @@ plugins {
 }
 
 
-val fatJarContents by configurations.creating {
+val fatJarContents = configurations.create("fatJarContents") {
     isCanBeResolved = true
     isCanBeConsumed = false
     attributes {
         attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
     }
 }
-val fatJarContentsStripMetadata by configurations.creating
-val fatJarContentsStripServices by configurations.creating
-val fatJarContentsStripVersions by configurations.creating
+val compilerSources = configurations.create("compilerSources") {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+    attributes {
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
+        attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType.SOURCES))
+        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+    }
+}
+val fatJarContentsStripMetadata = configurations.create("fatJarContentsStripMetadata")
+val fatJarContentsStripServices = configurations.create("fatJarContentsStripServices")
+val fatJarContentsStripVersions = configurations.create("fatJarContentsStripVersions")
 
-val compilerVersion by configurations.creating
+val compilerVersion = configurations.create("compilerVersion")
 
-val builtinsMetadata by configurations.creating
+val builtinsMetadata = configurations.create("builtinsMetadata")
 
-val api by configurations
-val proguardLibraries by configurations.creating {
+val api = configurations.api.get()
+val proguardLibraries = configurations.create("proguardLibraries") {
     extendsFrom(api)
 }
 
 // Libraries to copy to the lib directory
-val libraries by configurations.creating {
+val libraries = configurations.create("libraries") {
     exclude("org.jetbrains.kotlin", "kotlin-stdlib-common")
 }
 
-val librariesStripVersion by configurations.creating
+val librariesStripVersion = configurations.create("librariesStripVersion")
 
 // for sbom only
-val librariesKotlinTest by configurations.creating
+val librariesKotlinTest = configurations.create("librariesKotlinTest")
 
 // Compiler plugins should be copied without `kotlin-` prefix
-val compilerPlugins by configurations.creating {
+val compilerPlugins = configurations.create("compilerPlugins") {
     exclude("org.jetbrains.kotlin", "kotlin-stdlib-common")
 
     isCanBeConsumed = false
     isCanBeResolved = true
 }
-val compilerPluginsCompat by configurations.creating {
+val compilerPluginsCompat = configurations.create("compilerPluginsCompat") {
     exclude("org.jetbrains.kotlin", "kotlin-stdlib-common")
 
     isCanBeConsumed = false
     isCanBeResolved = true
 }
 
-val sources by configurations.creating {
+val sources = configurations.create("sources") {
     exclude("org.jetbrains.kotlin", "kotlin-stdlib-common")
     isTransitive = false
 }
 
 // contents of dist/maven directory
-val distMavenContents by configurations.creating {
+val distMavenContents = configurations.create("distMavenContents") {
     isTransitive = false
 }
 // contents of dist/common directory
-val distCommonContents by configurations.creating
-val distStdlibMinimalForTests by configurations.creating
-val buildNumber by configurations.creating
+val distCommonContents = configurations.create("distCommonContents")
+val distStdlibMinimalForTests = configurations.create("distStdlibMinimalForTests")
+val buildNumber = configurations.create("buildNumber")
 
 val compilerBaseName = name
-
-val compilerModules: Array<String> by rootProject.extra
 
 val distLibraryProjects = listOfNotNull(
     ":kotlin-annotation-processing-cli",
@@ -105,6 +116,7 @@ val distLibraryProjects = listOfNotNull(
 
 val distCompilerPluginProjects = listOf(
     ":kotlin-allopen-compiler-plugin",
+    ":kotlin-atomicfu-compiler-plugin",
     ":plugins:parcelize:parcelize-compiler",
     ":plugins:parcelize:parcelize-runtime",
     ":kotlin-noarg-compiler-plugin",
@@ -134,7 +146,6 @@ configurations.all {
 
 dependencies {
     api(kotlinStdlib("jdk8"))
-    api(project(":kotlin-script-runtime"))
     api(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
     api(libs.kotlinx.coroutines.core)
     api(project(":compiler:build-tools:kotlin-build-tools-api"))
@@ -143,10 +154,12 @@ dependencies {
 
     compilerVersion(project(":compiler:compiler.version"))
     proguardLibraries(project(":compiler:compiler.version"))
-    compilerModules
-        .filter { it != ":compiler:compiler.version" } // Version will be added directly to the final jar excluding proguard and relocation
+    CompilerModules.compilerModules
         .forEach {
-            fatJarContents(project(it)) { isTransitive = false }
+            compilerSources(project(it)) { isTransitive = false }
+            if (it != ":compiler:compiler.version") { // Version will be added directly to the final jar excluding proguard and relocation
+                fatJarContents(project(it)) { isTransitive = false }
+            }
         }
 
     libraries(kotlinStdlib("jdk8"))
@@ -154,6 +167,7 @@ dependencies {
     libraries(kotlinStdlib(classifier = "distJsJar"))
     libraries(kotlinStdlib(classifier = "distJsKlib"))
     libraries(kotlinStdlib(classifier = "distWasmJsKlib"))
+    libraries(kotlinStdlib(classifier = "distWasmWasiKlib"))
 
     librariesStripVersion(libs.kotlinx.coroutines.core) { isTransitive = false }
 
@@ -195,12 +209,12 @@ dependencies {
     buildNumber(project(":prepare:build.version", configuration = "buildVersion"))
 
     fatJarContents(commonDependency("javax.inject"))
-    fatJarContents(commonDependency("org.jline", "jline"))
     fatJarContents(commonDependency("org.fusesource.jansi", "jansi"))
     fatJarContents(protobufFull())
     fatJarContents(commonDependency("com.google.code.findbugs", "jsr305"))
     fatJarContents(libs.vavr)
     fatJarContents(commonDependency("org.jetbrains.kotlinx:kotlinx-collections-immutable-jvm")) { isTransitive = false }
+    fatJarContents(project(":kotlin-tooling-core")) { isTransitive = false }
 
     fatJarContents(intellijCore())
     fatJarContents(commonDependency("org.jetbrains.intellij.deps.jna:jna")) { isTransitive = false }
@@ -210,6 +224,7 @@ dependencies {
     fatJarContents(libs.intellij.asm) { isTransitive = false }
     fatJarContents(libs.guava) { isTransitive = false }
     fatJarContents(libs.guava.failureaccess) { isTransitive = false }
+    fatJarContents(libs.opentelemetry.api) { isTransitive = false }
     //Gson is needed for kotlin-build-statistics. Build statistics could be enabled for JPS and Gradle builds. Gson will come from inteliij or KGP.
     proguardLibraries(commonDependency("com.google.code.gson:gson")) { isTransitive = false }
 
@@ -235,6 +250,11 @@ val librariesKotlinTestFiles = files(
                 isTransitive = false
                 @OptIn(ExperimentalKotlinGradlePluginApi::class)
                 attributes.attribute(KlibPackaging.ATTRIBUTE, objects.named(KlibPackaging.PACKED))
+                if (suffix == "js" && classifier == null) {
+                    // Second attribute is needed to disambiguate regular variant from `kotlinNpmRuntimeDependenciesJs`.
+                    // See KT-89427 for details
+                    attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(KotlinUsages.KOTLIN_RUNTIME))
+                }
             }
         }
     }
@@ -255,7 +275,7 @@ val distSbomTask = configureSbom(
     )
 )
 
-val packCompiler by task<Jar> {
+val packCompiler = tasks.register<Jar>("packCompiler") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     destinationDirectory.set(layout.buildDirectory.dir("libs"))
     archiveClassifier.set("before-proguard")
@@ -297,7 +317,7 @@ val packCompiler by task<Jar> {
     }
 }
 
-val proguard by task<CacheableProguardTask> {
+val proguard = tasks.register<CacheableProguardTask>("proguard") {
     dependsOn(packCompiler)
 
     javaLauncher.set(project.getToolchainLauncherFor(JdkMajorVersion.JDK_1_8))
@@ -311,10 +331,10 @@ val proguard by task<CacheableProguardTask> {
             !org/apache/log4j/net/SMTP*,
             !org/apache/log4j/or/jms/MessageRenderer*,
             !org/jdom/xpath/Jaxen*,
-            !org/jline/builtins/ssh/**,
             !org/mozilla/javascript/xml/impl/xmlbeans/**,
             !net/sf/cglib/**,
             !META-INF/maven**,
+            !META-INF/versions/**,
             **.class,**.properties,**.kt,**.kotlin_*,**.jnilib,**.so,**.dll,**.txt,**.caps,
             custom-formatters.js,
             META-INF/services/**,META-INF/native/**,META-INF/extensions/**,META-INF/MANIFEST.MF,
@@ -351,7 +371,7 @@ val proguard by task<CacheableProguardTask> {
 }
 
 val pack: TaskProvider<out DefaultTask> = if (kotlinBuildProperties.proguard) proguard else packCompiler
-val distDir: String by rootProject.extra
+val distDir = "$rootDir/dist"
 
 val jar = runtimeJar {
     dependsOn(pack)
@@ -365,18 +385,19 @@ val jar = runtimeJar {
         compilerVersion.map(::zipTree)
     }
 
+    // ProGuard does not preserve the META-INF/versions/9 multi-release layout, it rewrites classes to paths derived from their FQ name.
+    // To fix it, we exclude VarHandleWrapperImpl.class from injars (see above) and add it here to the correct location manually.
+    from(packCompiler.map { zipTree(it.archiveFile.get().asFile) }) {
+        include("META-INF/versions/9/com/intellij/concurrency/VarHandleWrapperImpl.class")
+    }
+
     manifest.attributes["Class-Path"] = compilerManifestClassPath
     manifest.attributes["Main-Class"] = "org.jetbrains.kotlin.cli.jvm.K2JVMCompiler"
+    manifest.attributes["Multi-Release"] = "true"
 }
 
 sourcesJar {
-    from {
-        compilerModules.map {
-            project(it).mainSourceSet.allSource
-        }
-    }
-
-    dependsOn(":compiler:fir:checkers:generateCheckersComponents", ":compiler:ir.tree:generateTree")
+    addEmbeddedSources("compilerSources")
 }
 
 javadocJar()

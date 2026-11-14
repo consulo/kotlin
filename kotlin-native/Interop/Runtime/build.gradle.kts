@@ -12,12 +12,14 @@ import org.jetbrains.kotlin.konan.target.TargetWithSanitizer
 import org.jetbrains.kotlin.tools.ToolExecutionTask
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("org.jetbrains.kotlin.jvm")
     id("native")
     id("native-dependencies")
 }
 
-val library = solib("callbacks")
+val library = solib("kotlinx", "cinterop", "jvmcallbacks")
 
 native {
     val isWindows = PlatformInfo.isWindows()
@@ -45,7 +47,7 @@ native {
         tool(*hostPlatform.clangForJni.clangCXX("").toTypedArray())
         flags("-shared",
               "-o",ruleOut(), *ruleInAll(),
-              "-L${project(":kotlin-native:libclangext").layout.buildDirectory.get().asFile}",
+              "-L${project(":kotlin-native:libclangext").isolated.projectDirectory.dir("build").asFile}",
               "${nativeDependencies.libffiPath}/lib/libffi.$lib",
               "-lclangext")
 
@@ -71,11 +73,11 @@ dependencies {
     implementation(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
 }
 
-val prepareSharedSourcesForJvm by tasks.registering(Sync::class) {
+val prepareSharedSourcesForJvm = tasks.register("prepareSharedSourcesForJvm", Sync::class) {
     from("src/main/kotlin")
     into(project.layout.buildDirectory.dir("src/main/kotlin"))
 }
-val prepareKotlinIdeaImport by tasks.registering {
+val prepareKotlinIdeaImport = tasks.register("prepareKotlinIdeaImport") {
     dependsOn(prepareSharedSourcesForJvm)
 }
 
@@ -100,7 +102,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>>().con
     }
 }
 
-val cppApiElements by configurations.creating {
+val cppApiElements = configurations.create("cppApiElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     attributes {
@@ -109,7 +111,7 @@ val cppApiElements by configurations.creating {
     }
 }
 
-val cppLinkElements by configurations.creating {
+val cppLinkElements = configurations.create("cppLinkElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     attributes {
@@ -119,7 +121,7 @@ val cppLinkElements by configurations.creating {
     }
 }
 
-val cppRuntimeElements by configurations.creating {
+val cppRuntimeElements = configurations.create("cppRuntimeElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     attributes {

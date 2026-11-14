@@ -5,34 +5,48 @@
 
 package org.jetbrains.kotlin.konan.test.klib
 
+import com.intellij.openapi.util.text.StringUtil.convertLineSeparators
+import org.jetbrains.kotlin.backend.common.signatureIndex
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.common.arguments.K2NativeCompilerArguments
 import org.jetbrains.kotlin.cli.common.arguments.cliArgument
 import org.jetbrains.kotlin.konan.library.KLIB_INTEROP_IR_PROVIDER_IDENTIFIER
+import org.jetbrains.kotlin.konan.library.KlibNativeDistributionLibraryProvider
 import org.jetbrains.kotlin.konan.test.blackbox.AbstractNativeSimpleTest
 import org.jetbrains.kotlin.konan.test.blackbox.buildDir
 import org.jetbrains.kotlin.konan.test.blackbox.support.LoggedData
+import org.jetbrains.kotlin.konan.test.blackbox.support.TestCase
+import org.jetbrains.kotlin.konan.test.blackbox.support.TestCompilerArgs
 import org.jetbrains.kotlin.konan.test.blackbox.support.compilation.CompilationToolException
+import org.jetbrains.kotlin.konan.test.blackbox.support.compilation.ExecutableCompilation
+import org.jetbrains.kotlin.konan.test.blackbox.support.compilation.ObjCFrameworkCompilation
+import org.jetbrains.kotlin.konan.test.blackbox.support.compilation.TestCompilationArtifact
 import org.jetbrains.kotlin.konan.test.blackbox.support.compilation.TestCompilationArtifact.KLIB
 import org.jetbrains.kotlin.konan.test.blackbox.support.compilation.TestCompilationResult
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.KotlinNativeHome
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.KotlinNativeTargets
 import org.jetbrains.kotlin.library.KLIB_PROPERTY_DEPENDS
 import org.jetbrains.kotlin.library.KLIB_PROPERTY_IR_PROVIDER
+import org.jetbrains.kotlin.library.components.metadata
+import org.jetbrains.kotlin.library.isNativeStdlib
+import org.jetbrains.kotlin.library.loader.KlibLoader
+import org.jetbrains.kotlin.library.metadata.isCInteropLibrary
+import org.jetbrains.kotlin.library.metadata.parsePackageFragment
+import org.jetbrains.kotlin.library.packageFqName
 import org.jetbrains.kotlin.test.services.JUnit5Assertions
 import org.jetbrains.kotlin.test.utils.patchManifestAsMap
 import org.jetbrains.kotlin.test.utils.patchManifestToBumpAbiVersion
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
-import org.junit.jupiter.api.Assertions.fail
+import org.jetbrains.kotlin.testFederation.HostDependent
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import java.io.File
-import kotlin.collections.set
-import kotlin.text.contains
+import kotlin.io.path.absolutePathString
+import kotlin.reflect.KProperty1
 
 @Tag("klib")
+@HostDependent
 class KlibCliSanityTest : AbstractNativeSimpleTest() {
     @Test
     fun `Compiler consumes unpacked KLIBs passed by absolute paths via CLI arguments`() {
@@ -103,8 +117,8 @@ class KlibCliSanityTest : AbstractNativeSimpleTest() {
             "non-existent-klib.klib",
             "non-existent-dir/non-existent-klib",
             "non-existent-dir/non-existent-klib.klib",
-            modules.modules[0].sourceFile.parentFile.resolve("non-existent-klib").absolutePath,
-            modules.modules[0].sourceFile.parentFile.resolve("non-existent-klib.klib").absolutePath,
+            (modules.modules[0] as RegularKlibTestSourceModule).sourceFile.parent.resolve("non-existent-klib").absolutePathString(),
+            (modules.modules[0] as RegularKlibTestSourceModule).sourceFile.parent.resolve("non-existent-klib.klib").absolutePathString(),
         ).forEach { libraryPath ->
             modules.compileToKlibsViaCli(
                 extraCliArgs = listOf(
@@ -118,15 +132,6 @@ class KlibCliSanityTest : AbstractNativeSimpleTest() {
                 extraCliArgs = listOf(
                     CLI_PARAM_LIBRARIES, libraryPath,
                     CLI_PARAM_FRIENDS, libraryPath,
-                )
-            ) { _, successKlib ->
-                successKlib.assertLibraryNotFound(libraryPath)
-            }
-
-            modules.compileToKlibsViaCli(
-                extraCliArgs = listOf(
-                    CLI_PARAM_LIBRARIES, libraryPath,
-                    CLI_ARG_INCLUDES(libraryPath),
                 )
             ) { _, successKlib ->
                 successKlib.assertLibraryNotFound(libraryPath)
@@ -276,7 +281,7 @@ class KlibCliSanityTest : AbstractNativeSimpleTest() {
             fail { "Normally unreachable code" }
         } catch (cte: CompilationToolException) {
             val libraryPath = buildDir.resolve("klib-files.unpacked.transformed/lib1").path
-            if (!cte.reason.contains("KLIB loader: Incompatible ABI version 3.4.0 in library: $libraryPath"))
+            if (!cte.reason.contains("KLIB loader: Incompatible ABI version 3.5.0 in library: $libraryPath"))
                 throw cte
         }
     }
@@ -313,6 +318,197 @@ class KlibCliSanityTest : AbstractNativeSimpleTest() {
     }
 
     @Test
+    fun `Included libs are forbidden on 1st phase`() {
+        var aPath: String? = null
+        newSourceModules { addRegularModule("a") }.compileToKlibsViaCli { _, successKlib ->
+            aPath = successKlib.resultingArtifact.klibFile.absolutePath
+        }
+        requireNotNull(aPath)
+
+        try {
+            newSourceModules { addRegularModule("b") }.compileToKlibsViaCli(
+                extraCliArgs = listOf(K2NativeCompilerArguments::includes.cliArgument(aPath))
+            )
+            fail { "Normally unreachable code" }
+        } catch (cte: CompilationToolException) {
+            if (!cte.reason.contains("-Xinclude CLI argument is not supported when producing library"))
+                throw cte
+        }
+    }
+
+    @Test
+    fun `Exported libs are forbidden on 1st phase`() {
+        var aPath: String? = null
+        newSourceModules { addRegularModule("a") }.compileToKlibsViaCli { _, successKlib ->
+            aPath = successKlib.resultingArtifact.klibFile.absolutePath
+        }
+        requireNotNull(aPath)
+
+        try {
+            newSourceModules { addRegularModule("b") }.compileToKlibsViaCli(
+                extraCliArgs = listOf(K2NativeCompilerArguments::exportedLibraries.cliArgument(aPath))
+            )
+            fail { "Normally unreachable code" }
+        } catch (cte: CompilationToolException) {
+            if (!cte.reason.contains("-Xexport-library CLI argument is only supported when producing frameworks or native libraries"))
+                throw cte
+        }
+    }
+
+    @Test
+    fun `Compiler rejects libraries from the distribution and C-interop libraries as included libs`() {
+        doTestCompilerRejectsLibrariesFromDistributionAndCInteropLibraries(testedCliParameter = K2NativeCompilerArguments::includes) { cliArgs ->
+            val executableFile = buildDir.resolve("kexe.kexe").also { it.delete() }
+            val compilation = ExecutableCompilation(
+                settings = testRunSettings,
+                freeCompilerArgs = TestCompilerArgs(cliArgs),
+                sourceModules = emptyList(),
+                extras = TestCase.NoTestRunnerExtras(entryPoint = "r.main"),
+                dependencies = emptySet(),
+                expectedArtifact = TestCompilationArtifact.Executable(executableFile),
+            )
+            compilation.result
+        }
+    }
+
+    @Test
+    fun `Compiler rejects libraries from the distribution and C-interop libraries as exported libs`() {
+        // Frameworks can be built only on Apple.
+        assumeTrue(testRunSettings.get<KotlinNativeTargets>().hostTarget.family.isAppleFamily)
+        doTestCompilerRejectsLibrariesFromDistributionAndCInteropLibraries(testedCliParameter = K2NativeCompilerArguments::exportedLibraries) { cliArgs ->
+            val frameworkDir = buildDir.resolve("frameworkDir").also { it.deleteRecursively() }
+            val compilation = ObjCFrameworkCompilation(
+                settings = testRunSettings,
+                freeCompilerArgs = TestCompilerArgs(cliArgs),
+                sourceModules = emptyList(),
+                dependencies = emptySet(),
+                expectedArtifact = TestCompilationArtifact.ObjCFramework(frameworkDir, "myFramework"),
+            )
+            compilation.result
+        }
+    }
+
+    private fun doTestCompilerRejectsLibrariesFromDistributionAndCInteropLibraries(
+        testedCliParameter: KProperty1<K2NativeCompilerArguments, Array<String>>,
+        run2StageCompilation: (cliArgs: List<String>) -> TestCompilationResult<*>,
+    ) {
+        val librariesDir = testRunSettings.get<KotlinNativeHome>().librariesDir
+        val target = testRunSettings.get<KotlinNativeTargets>().testTarget
+
+        val stdlibPath: String = librariesDir.resolve("common/stdlib").absolutePath
+        val posixPath: String = librariesDir.resolve("platform/${target.name}/org.jetbrains.kotlin.native.platform.posix").absolutePath
+
+        var regularLibPath: String? = null
+        var cinteropLibPath: String? = null
+
+        newSourceModules {
+            addRegularModule("r") { sourceFileAddend("fun main() = Unit") }
+            addCInteropModule("c")
+        }.compileToKlibsViaCli { module, successKlib ->
+            when (module.name) {
+                "r" -> regularLibPath = successKlib.resultingArtifact.klibFile.absolutePath
+                "c" -> cinteropLibPath = successKlib.resultingArtifact.klibFile.absolutePath
+            }
+        }
+
+        checkNotNull(regularLibPath)
+        checkNotNull(cinteropLibPath)
+
+        // try it with different combinations of "-no..." flags:
+        listOf(
+            emptyList(),
+            listOf("-nostdlib"),
+            listOf("-no-default-libs"),
+            listOf("-nostdlib", "-no-default-libs"),
+        ).forEach { extraNoSmthFlags ->
+            val compilerOutput = run2StageCompilation(
+                buildList {
+                    this += extraNoSmthFlags
+                    this += listOf("-l", stdlibPath)
+                    this += listOf("-l", posixPath)
+                    this += listOf("-l", regularLibPath)
+                    this += listOf("-l", cinteropLibPath)
+                    this += testedCliParameter.cliArgument(stdlibPath)
+                    this += testedCliParameter.cliArgument(posixPath)
+                    this += testedCliParameter.cliArgument(regularLibPath)
+                    this += testedCliParameter.cliArgument(cinteropLibPath)
+                }
+            )
+
+            compilerOutput.assertProblematicIncludedOrExportedLibs(
+                cliParameter = testedCliParameter,
+                stdlibPath, posixPath, cinteropLibPath
+            )
+        }
+    }
+
+    @Test
+    fun `Compiler reports cyclic dependency between KLIBs on 2nd phase`() {
+        val moduleNameToKlibPath: MutableMap</* name of test module */ String, /* original path of KLIB */ String> = linkedMapOf()
+
+        /*
+         * a <-- b <-- c
+         */
+        newSourceModules {
+            addRegularModule("a")
+            addRegularModule("b") { dependsOn("a") }
+            addRegularModule("c") { dependsOn("b") }
+        }.compileToKlibsViaCli { module, successKlib ->
+            moduleNameToKlibPath[module.name] = successKlib.resultingArtifact.klibFile.path
+        }
+        assertEquals(3, moduleNameToKlibPath.size)
+
+        /*
+         * Now adding one more edge between a and c:
+         * +-- a <-- b <-- c <--+
+         * |                    |
+         * +--------------------+
+         */
+        newSourceModules {
+            addRegularModule("a") {
+                sourceFileAddend("fun a2() = c.c(0)\nfun main() = Unit")
+            }
+        }.compileToKlibsViaCli(
+            extraCliArgs = listOf(CLI_PARAM_LIBRARIES, moduleNameToKlibPath.getValue("c"))
+        ) { module, successKlib ->
+            assertEquals("a", module.name)
+            moduleNameToKlibPath["a"] = successKlib.resultingArtifact.klibFile.path
+        }
+        assertEquals(3, moduleNameToKlibPath.size)
+
+        val compilationResult = ExecutableCompilation(
+            settings = testRunSettings,
+            freeCompilerArgs = TestCompilerArgs(
+                buildList {
+                    for (klibPath in moduleNameToKlibPath.values) this += listOf(CLI_PARAM_LIBRARIES, klibPath)
+                    this += K2NativeCompilerArguments::includes.cliArgument(moduleNameToKlibPath.getValue("a"))
+                }
+            ),
+            sourceModules = emptyList(),
+            extras = TestCase.NoTestRunnerExtras(entryPoint = "a.main"),
+            dependencies = emptySet(),
+            expectedArtifact = TestCompilationArtifact.Executable(buildDir.resolve("kexe.kexe")),
+        ).result
+
+        val compilationToolCall = (compilationResult as TestCompilationResult.CompilationToolFailure).loggedData
+        assertEquals(ExitCode.COMPILATION_ERROR, compilationToolCall.exitCode)
+
+        // Note: The cycle is reported starting from the first library in the load order, i.e. in the order of `-library` arguments.
+        // a depends on c, c depends on b, b depends on a.
+        val expectedDiagnostic = """
+            error: cyclic dependency detected while computing DAG of KLIB dependencies:
+            ${moduleNameToKlibPath.getValue("a")} ->
+            ${moduleNameToKlibPath.getValue("c")} ->
+            ${moduleNameToKlibPath.getValue("b")} ->
+            ${moduleNameToKlibPath.getValue("a")}
+        """.trimIndent()
+
+        assertTrue(expectedDiagnostic in convertLineSeparators(compilationToolCall.toolOutput)) {
+            "[$expectedDiagnostic] is not contained in [${compilationToolCall.toolOutput}]"
+        }
+    }
+
+    @Test
     fun `Compiler loads libraries bundled in Kotlin Native distribution`() {
         doTestLoadingBundledLibraries(noStdlib = false, noDefaultLibs = false)
         doTestLoadingBundledLibraries(noStdlib = true, noDefaultLibs = false)
@@ -345,6 +541,114 @@ class KlibCliSanityTest : AbstractNativeSimpleTest() {
             }
         ) { _, successKlib ->
             successKlib.assertNoKlibLoaderIssues()
+        }
+    }
+
+    @Test
+    fun `Compiler does not load platform libraries implicitly when -no-default-libs is passed`() {
+        try {
+            newSourceModules {
+                addRegularModule("a") {
+                    sourceFileAddend(
+                        """
+                            @kotlinx.cinterop.ExperimentalForeignApi
+                            fun callPosix() = platform.posix.fopen("test.txt", "r")
+                        """.trimIndent()
+                    )
+                }
+            }.compileToKlibsViaCli(extraCliArgs = listOf("-no-default-libs"))
+
+            fail { "CompilationToolException is expected" }
+        } catch (cte: CompilationToolException) {
+            if (!cte.reason.contains("error: unresolved reference 'platform'"))
+                throw cte
+        }
+    }
+
+    @Test
+    fun `Compiler fails on missing direct dependency`() {
+        fun compile(passA: Boolean) = newSourceModules {
+            addRegularModule("a") { sourceFileAddend("fun foo() = 42") }
+            addRegularModule("b") {
+                if (passA) dependsOn("a")
+                sourceFileAddend("fun useA() = a.foo()")
+            }
+        }.compileToKlibsViaCli()
+
+        compile(passA = true)
+
+        try {
+            compile(passA = false)
+
+            fail { "CompilationToolException is expected" }
+        } catch (cte: CompilationToolException) {
+            if (!cte.reason.contains("error: unresolved reference 'a'"))
+                throw cte
+        }
+    }
+
+    @Test
+    fun `Klibs in distribution have signature index`() {
+        val libraries = KlibLoader {
+            libraryProviders(
+                KlibNativeDistributionLibraryProvider(testRunSettings.get<KotlinNativeHome>().dir) {
+                    withStdlib()
+                    withPlatformLibs(testRunSettings.get<KotlinNativeTargets>().testTarget)
+                }
+            )
+        }.load().librariesStdlibFirst
+
+        assertTrue(libraries.size > 1)
+        assertTrue(libraries.any { it.isNativeStdlib })
+
+        for (library in libraries) {
+            val signatureIndex = library.signatureIndex ?: fail("No signature index in library: ${library.canonicalPath}")
+
+            if (signatureIndex.exportedTopLevelSignatures.isEmpty()) {
+                // There are a few special C-interop libraries without declarations. Need to check this additionally.
+                assertTrue(library.isCInteropLibrary())
+
+                val packageFqName = library.packageFqName!!
+                val metadata = library.metadata
+
+                for (fragmentName in metadata.getPackageFragmentNames(packageFqName)) {
+                    val packageFragmentProto = parsePackageFragment(metadata.getPackageFragment(packageFqName, fragmentName))
+                    assertEquals(0, packageFragmentProto.class_Count)
+                    assertEquals(0, packageFragmentProto.`package`?.functionCount ?: 0)
+                    assertEquals(0, packageFragmentProto.`package`?.propertyCount ?: 0)
+                    assertEquals(0, packageFragmentProto.`package`?.typeAliasCount ?: 0)
+                }
+            } else {
+                assertTrue(signatureIndex.importedTopLevelSignatures.isNotEmpty())
+            }
+        }
+    }
+
+    @Test
+    fun `Compiler generates signature index for regular Klibs`() {
+        newSourceModules {
+            addRegularModule("r") { sourceFileAddend("fun main() = Unit") }
+            addCInteropModule("c")
+        }.compileToKlibsViaCli { _, successKlib ->
+            val generatedKlibPath = successKlib.resultingArtifact.klibFile.absolutePath
+            val generatedKlib = KlibLoader { libraryPaths(generatedKlibPath) }.load().librariesStdlibFirst.single()
+
+            val signatureIndex = generatedKlib.signatureIndex ?: fail("No signature index in library: $generatedKlibPath")
+            assertTrue(signatureIndex.exportedTopLevelSignatures.isNotEmpty())
+            assertTrue(signatureIndex.importedTopLevelSignatures.isNotEmpty())
+        }
+    }
+
+    @Test
+    fun `Compiler does not generate signature index for metadata Klibs`() {
+        newSourceModules {
+            addRegularModule("r") { sourceFileAddend("fun main() = Unit") }
+        }.compileToKlibsViaCli(extraCliArgs = listOf("-Xmetadata-klib")) { _, successKlib ->
+            val generatedKlibPath = successKlib.resultingArtifact.klibFile.absolutePath
+            val generatedKlib = KlibLoader { libraryPaths(generatedKlibPath) }.load().librariesStdlibFirst.single()
+            assertNull(generatedKlib.signatureIndex) {
+                "Unexpected signature index in metadata-only library: $generatedKlibPath"
+            }
         }
     }
 
@@ -394,11 +698,27 @@ class KlibCliSanityTest : AbstractNativeSimpleTest() {
         assertTrue(": $friendPath" in toolOutput[0])
     }
 
+    private fun TestCompilationResult<*>.assertProblematicIncludedOrExportedLibs(
+        cliParameter: KProperty1<K2NativeCompilerArguments, *>,
+        vararg pathsOfExpectedProblematicIncludes: String,
+    ) {
+        val compilationToolCall = (this as TestCompilationResult.ImmediateResult<*>).loggedData as LoggedData.CompilationToolCall
+
+        val messagePattern = "cannot be used in ${cliParameter.cliArgument} CLI argument: "
+        val toolOutput = compilationToolCall.toolOutput.lines()
+
+        val pathsOfActualProblematicIncludes = toolOutput.mapNotNull { line ->
+            if (messagePattern in line)
+                line.substringAfterLast(messagePattern).trim()
+            else
+                null
+        }
+
+        assertEquals(pathsOfExpectedProblematicIncludes.toSet(), pathsOfActualProblematicIncludes.toSet())
+    }
+
     companion object {
         private val CLI_PARAM_LIBRARIES: String = K2NativeCompilerArguments::libraries.cliArgument
         private val CLI_PARAM_FRIENDS: String = K2NativeCompilerArguments::friendModules.cliArgument
-
-        @Suppress("TestFunctionName")
-        private fun CLI_ARG_INCLUDES(path: String): String = K2NativeCompilerArguments::includes.cliArgument(path)
     }
 }

@@ -1,10 +1,13 @@
 // TARGET_BACKEND: JVM
 // WITH_REFLECT
 
+package test
+
 import kotlin.coroutines.*
 import kotlin.reflect.*
 import kotlin.reflect.full.*
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 abstract class S0 : suspend () -> Unit
 abstract class S1 : suspend (String) -> String
@@ -55,6 +58,11 @@ fun box(): String {
         checkSuperclasses(Function1::class, Any::class)
         checkAllSuperclasses(Function1::class, Function::class, Any::class)
     }
+
+    assertEquals(4, S0::class.members.size)
+    val invoke = S0::class.members.single { it.name == "invoke" } as KFunction<*>
+    assertEquals("fun test.S0.invoke(): kotlin.Unit", invoke.toString())
+    assertTrue(invoke.isSuspend)
 
     return "OK"
 }

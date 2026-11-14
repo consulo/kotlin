@@ -1,21 +1,20 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.fir.symbols
 
-import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationList
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
-import org.jetbrains.kotlin.analysis.api.fir.getAllowedPsi
-import org.jetbrains.kotlin.analysis.api.impl.base.symbols.pointers.KaCannotCreateSymbolPointerForLocalLibraryDeclarationException
+import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaCannotCreateSymbolPointerForLocalLibraryDeclarationException
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.KaAnonymousObjectSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.fir.symbols.impl.FirAnonymousObjectSymbol
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
+import org.jetbrains.kotlin.psi.KtObjectLiteralExpression
 
 internal open class KaFirAnonymousObjectSymbol private constructor(
     override val backingPsi: KtObjectDeclaration?,
@@ -38,11 +37,21 @@ internal open class KaFirAnonymousObjectSymbol private constructor(
         analysisSession = session,
     )
 
-    override val psi: PsiElement? get() = withValidityAssertion { backingPsi ?: firSymbol.fir.getAllowedPsi() }
-
     override val annotations: KaAnnotationList
         get() = withValidityAssertion {
-            psiOrSymbolAnnotationList()
+            /**
+             * For object literals, [backingPsi] is [KtObjectDeclaration].
+             * However, annotations are placed on the enclosing [KtObjectLiteralExpression], i.e.,
+             * it has a [org.jetbrains.kotlin.psi.KtAnnotatedExpression] parent.
+             *
+             * So an adjusted PSI should be provided for the PSI-based optimization.
+             *
+             * ```kotlin
+             * @MyAnnotation object : MyInterface {}
+             * ```
+             */
+            val adjustedPsi = backingPsi?.parent as? KtObjectLiteralExpression
+            psiOrSymbolAnnotationList(adjustedPsi ?: backingPsi)
         }
 
     override val superTypes: List<KaType>

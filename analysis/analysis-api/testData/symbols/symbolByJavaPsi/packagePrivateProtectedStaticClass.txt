@@ -1,9 +1,9 @@
 KaNamedClassSymbol:
+  anchorPsi: PsiClassImpl
   annotations: []
   classId: JavaClass.NestedClass
   classKind: CLASS
   companionObject: null
-  compilerVisibility: ProtectedStaticVisibility
   contextReceivers: []
   isActual: false
   isData: false
@@ -12,10 +12,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: CLASS
   modality: OPEN
   name: NestedClass
   origin: JAVA_SOURCE
+  psi: PsiClassImpl
+  realPsi: PsiClassImpl
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -26,6 +29,6 @@ KaNamedClassSymbol:
   visibility: PACKAGE_PROTECTED
   getContainingFileSymbol: null
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: JavaClass.NestedClass

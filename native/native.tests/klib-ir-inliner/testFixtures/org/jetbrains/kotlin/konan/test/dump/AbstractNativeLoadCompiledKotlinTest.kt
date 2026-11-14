@@ -14,12 +14,12 @@ import org.jetbrains.kotlin.platform.konan.NativePlatforms
 import org.jetbrains.kotlin.test.FirMetadataLoadingTestSuppressor
 import org.jetbrains.kotlin.test.FirParser
 import org.jetbrains.kotlin.test.TargetBackend
-import org.jetbrains.kotlin.test.backend.handlers.NoIrCompilationErrorsHandler
 import org.jetbrains.kotlin.test.backend.ir.IrDiagnosticsHandler
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.builders.firHandlersStep
 import org.jetbrains.kotlin.test.builders.klibArtifactsHandlersStep
 import org.jetbrains.kotlin.test.builders.loweredIrHandlersStep
+import org.jetbrains.kotlin.test.configuration.commonIrHandlersForCodegenTest
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
 import org.jetbrains.kotlin.test.directives.ConfigurationDirectives.WITH_STDLIB
 import org.jetbrains.kotlin.test.directives.configureFirParser
@@ -27,17 +27,17 @@ import org.jetbrains.kotlin.test.frontend.fir.handlers.FirDiagnosticsHandler
 import org.jetbrains.kotlin.test.model.ArtifactKind
 import org.jetbrains.kotlin.test.model.DependencyKind
 import org.jetbrains.kotlin.test.model.FrontendKinds
-import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerWithTargetBackendTest
+import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerNativeTest
 import org.jetbrains.kotlin.test.services.configuration.CommonEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.NativeFirstStageEnvironmentConfigurator
+import org.jetbrains.kotlin.test.services.configuration.NativeSecondStageEnvironmentConfigurator
 
-abstract class AbstractNativeLoadCompiledKotlinTest :
-    AbstractKotlinCompilerWithTargetBackendTest(TargetBackend.NATIVE)
-{
+abstract class AbstractNativeLoadCompiledKotlinTest : AbstractKotlinCompilerNativeTest() {
     override fun configure(builder: TestConfigurationBuilder) = with(builder) {
         useConfigurators(
             ::CommonEnvironmentConfigurator,
             ::NativeFirstStageEnvironmentConfigurator,
+            ::NativeSecondStageEnvironmentConfigurator,
         )
         globalDefaults {
             frontend = FrontendKinds.FIR
@@ -60,17 +60,17 @@ abstract class AbstractNativeLoadCompiledKotlinTest :
         facadeStep(::NativePreSerializationLoweringCliFacade)
 
         loweredIrHandlersStep {
+            commonIrHandlersForCodegenTest()
             useHandlers(::IrDiagnosticsHandler)
-            useHandlers(::NoIrCompilationErrorsHandler)
         }
 
         facadeStep(::KlibSerializerNativeCliFacade)
-        facadeStep(::NativeDeserializerFacade)
-
         klibArtifactsHandlersStep {
             useHandlers(::KlibNativeLoadedMetadataDumpHandler)
         }
-        useAfterAnalysisCheckers(
+        facadeStep(::NativeDeserializerFacade)
+
+        useFailureSuppressors(
             { testServices -> FirMetadataLoadingTestSuppressor(testServices, CodegenTestDirectives.IGNORE_FIR_METADATA_LOADING_K2) }
         )
     }

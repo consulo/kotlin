@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -9,7 +9,7 @@ import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
 import llvm.*
-import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.NativeBackendContext
 import org.jetbrains.kotlin.backend.konan.RuntimeNames
 import org.jetbrains.kotlin.backend.konan.binaryTypeIsReference
 import org.jetbrains.kotlin.backend.konan.lower.originalConstructor
@@ -75,7 +75,7 @@ private class LlvmFunctionAttributesCopier(private val externalFunction: LLVMVal
     }
 
     override fun addCallSiteAttributes(callSite: LLVMValueRef) {
-        attributesForCallSite.withIndex().forEach { (listIndex, attributeList) ->
+        attributesForCallSite.withIndex().forEach { [listIndex, attributeList] ->
             attributeList.forEach { attributeRef ->
                 LLVMAddCallSiteAttribute(callSite, LLVMAttributeFunctionIndex + listIndex, attributeRef)
             }
@@ -83,7 +83,7 @@ private class LlvmFunctionAttributesCopier(private val externalFunction: LLVMVal
     }
 
     override fun addFunctionAttributes(function: LLVMValueRef) {
-        attributesForFunctionDeclaration.withIndex().forEach { (listIndex, attributeList) ->
+        attributesForFunctionDeclaration.withIndex().forEach { [listIndex, attributeList] ->
             attributeList.forEach { attributeRef ->
                 LLVMAddAttributeAtIndex(function, LLVMAttributeFunctionIndex + listIndex, attributeRef)
             }
@@ -179,16 +179,15 @@ sealed class FunctionOrigin {
     class OwnedBy(val declaration: IrDeclaration, val weak: Boolean = false) : FunctionOrigin()
 }
 
-
 /**
  * Prototype of a LLVM function that is not tied to a specific LLVM module.
  */
 internal class LlvmFunctionProto(
-      val name: String,
-      val signature: LlvmFunctionSignature,
-      val origin: FunctionOrigin?,
-      val linkage: LLVMLinkage,
-      val independent: Boolean = false,
+        val name: String,
+        val signature: LlvmFunctionSignature,
+        val origin: FunctionOrigin?,
+        val linkage: LLVMLinkage,
+        val independent: Boolean = false,
 ) {
     constructor(irFunction: IrSimpleFunction, symbolName: String, contextUtils: ContextUtils, linkage: LLVMLinkage) : this(
             name = symbolName,
@@ -198,22 +197,23 @@ internal class LlvmFunctionProto(
             independent = irFunction.hasAnnotation(RuntimeNames.independent)
     )
 
-    fun createLlvmFunction(context: Context, llvmModule: LLVMModuleRef): LlvmCallable {
+    /**
+     * Given the current [context], it creates a new function definition within the [llvmModule] module.
+     */
+    fun createLlvmFunction(context: NativeBackendContext, llvmModule: LLVMModuleRef): LlvmFunction.Definition {
         val function = LLVMAddFunction(llvmModule, name, signature.llvmFunctionType)!!
         addDefaultLlvmFunctionAttributes(context, function)
         addTargetCpuAndFeaturesAttributes(context, function)
         signature.addFunctionAttributes(function)
         LLVMSetLinkage(function, linkage)
-        return LlvmCallable(function, signature)
+        return LlvmFunction.Definition(function, signature)
     }
 }
 
 internal fun LlvmFunctionSignature.toProto(name: String, origin: FunctionOrigin?, linkage: LLVMLinkage, independent: Boolean = false) =
         LlvmFunctionProto(name, this, origin, linkage, independent)
 
-
-
-private fun mustNotInline(context: Context, irFunction: IrSimpleFunction): Boolean {
+private fun mustNotInline(context: NativeBackendContext, irFunction: IrSimpleFunction): Boolean {
     if (context.shouldContainLocationDebugInfo()) {
         if (irFunction.originalConstructor?.let { it.isPrimary && it.returnType.isThrowable() } == true) {
             // To simplify skipping this constructor when scanning call stack in Kotlin_getCurrentStackTrace.

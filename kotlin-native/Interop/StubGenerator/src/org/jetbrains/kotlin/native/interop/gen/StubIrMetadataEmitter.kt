@@ -2,7 +2,6 @@
  * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
-@file:OptIn(ExperimentalAnnotationsInMetadata::class)
 
 package org.jetbrains.kotlin.native.interop.gen
 
@@ -19,27 +18,13 @@ class StubIrMetadataEmitter(
         private val bridgeBuilderResult: BridgeBuilderResult
 ) {
     fun emit(): KlibModuleMetadata {
-        val fragments = emitModuleFragments()
-        return KlibModuleMetadata(moduleName, fragments, context.metadataVersion)
+        val fragment = ModuleMetadataEmitter(
+                context.configuration.pkgName,
+                builderResult.stubs,
+                bridgeBuilderResult
+        ).emit()
+        return KlibModuleMetadata(moduleName, listOf(fragment), context.metadataVersion)
     }
-
-    private fun emitModuleFragments(): List<KmModuleFragment> =
-            ModuleMetadataEmitter(
-                    context.configuration.pkgName,
-                    builderResult.stubs,
-                    bridgeBuilderResult
-            ).emit().let { kmModuleFragment ->
-                // We need to create module fragment for each part of package name.
-                val pkgName = context.configuration.pkgName
-                val fakePackages = pkgName.mapIndexedNotNull { idx, char ->
-                    if (char == '.') idx else null
-                }.map { dotPosition ->
-                    KmModuleFragment().also {
-                        it.fqName = pkgName.substring(0, dotPosition)
-                    }
-                }
-                fakePackages + kmModuleFragment
-            }
 }
 
 /**
@@ -355,7 +340,7 @@ private class MappingExtensions(
 
     fun AnnotationStub.map(): KmAnnotation {
         fun Pair<String, String>.asOptionalAnnotationArgument(): Pair<String, KmAnnotationArgument.StringValue>? {
-            val (argumentName, argumentValue) = this
+            val [argumentName, argumentValue] = this
             return if (argumentValue.isEmpty()) null else argumentName to KmAnnotationArgument.StringValue(argumentValue)
         }
 
@@ -396,6 +381,11 @@ private class MappingExtensions(
             is AnnotationStub.ObjC.ExternalClass -> mapOfNotNull(
                     ("protocolGetter" to protocolGetter).asOptionalAnnotationArgument(),
                     ("binaryName" to binaryName).asOptionalAnnotationArgument()
+            )
+            is AnnotationStub.ObjC.ObjCName -> mapOfNotNull(
+                    ("name" to name).asOptionalAnnotationArgument(),
+                    ("swiftName" to swiftName).asOptionalAnnotationArgument(),
+                    ("exact" to KmAnnotationArgument.BooleanValue(exact)).takeIf { exact }
             )
             AnnotationStub.CCall.CString -> emptyMap()
             AnnotationStub.CCall.WCString -> emptyMap()
@@ -443,6 +433,8 @@ private class MappingExtensions(
                     ("align" to KmAnnotationArgument.IntValue(align))
             )
             is AnnotationStub.ExperimentalForeignApi -> emptyMap()
+            is AnnotationStub.LowPriorityInOverloadResolution -> emptyMap()
+            AnnotationStub.ObjC.Unavailable -> emptyMap()
         }
         return KmAnnotation(classifier.fqNameSerialized, args)
     }

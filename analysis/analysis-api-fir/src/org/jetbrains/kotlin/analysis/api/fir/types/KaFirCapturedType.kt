@@ -22,13 +22,6 @@ internal class KaFirCapturedType(
 ) : KaCapturedType(), KaFirType {
     override val token: KaLifetimeToken get() = builder.token
 
-    @Deprecated(
-        "Use `isMarkedNullable`, `isNullable` or `hasFlexibleNullability` instead. See KDocs for the migration guide",
-        replaceWith = ReplaceWith("this.isMarkedNullable")
-    )
-    @Suppress("Deprecation")
-    override val nullability: KaTypeNullability get() = withValidityAssertion { KaTypeNullability.create(coneType.isMarkedNullable) }
-
     override val projection: KaTypeProjection
         get() = withValidityAssertion { builder.typeBuilder.buildTypeProjection(coneType.constructor.projection) }
 

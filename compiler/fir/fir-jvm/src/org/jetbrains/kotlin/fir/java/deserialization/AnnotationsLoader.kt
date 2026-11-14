@@ -21,10 +21,11 @@ import org.jetbrains.kotlin.load.kotlin.findKotlinClass
 import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.ClassIdBasedLocality
+import org.jetbrains.kotlin.name.JvmStandardClassIds.THROWS_ANNOTATION_CLASS_ID
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.resolve.constants.ClassLiteralValue
-import org.jetbrains.kotlin.util.toJvmMetadataVersion
+import org.jetbrains.kotlin.util.toMetadataVersion
 
 internal class AnnotationsLoader(private val session: FirSession, private val kotlinClassFinder: KotlinClassFinder) {
     private abstract inner class AnnotationsLoaderVisitorImpl : KotlinJvmBinaryClass.AnnotationArgumentVisitor {
@@ -203,7 +204,7 @@ internal class AnnotationsLoader(private val session: FirSession, private val ko
         if (classId.outerClassId == null || classId.shortClassName.asString() != JvmAbi.REPEATABLE_ANNOTATION_CONTAINER_NAME
         ) return false
 
-        val klass = kotlinClassFinder.findKotlinClass(classId, session.languageVersionSettings.languageVersion.toJvmMetadataVersion())
+        val klass = kotlinClassFinder.findKotlinClass(classId, session.languageVersionSettings.languageVersion.toMetadataVersion())
         return klass != null && SpecialJvmAnnotations.isAnnotatedWithContainerMetaAnnotation(klass)
     }
 
@@ -224,5 +225,39 @@ internal class AnnotationsLoader(private val session: FirSession, private val ko
         buildEnumEntryDeserializedAccessExpression {
             enumClassId = classId
             enumEntryName = name
+        }
+
+    internal fun convertToThrowsAnnotations(exceptions: List<ClassId>): FirAnnotation =
+        buildAnnotation {
+            val exceptionClassLiterals: List<FirExpression> = exceptions.map { exceptionClassId ->
+                val exceptionTypeRef = exceptionClassId.toLookupTag().toDefaultResolvedTypeRef()
+                val classLiteralType = StandardClassIds.KClass.constructClassLikeType(
+                    arrayOf(exceptionTypeRef.coneType),
+                    isMarkedNullable = false,
+                )
+                val classReference = buildClassReferenceExpression {
+                    classTypeRef = exceptionTypeRef
+                    coneTypeOrNull = classLiteralType
+                }
+                buildGetClassCall {
+                    argumentList = buildUnaryArgumentList(classReference)
+                    coneTypeOrNull = classLiteralType
+                }
+            }
+            val throwableClassType = StandardClassIds.KClass.constructClassLikeType(
+                arrayOf(ConeKotlinTypeProjectionOut(session.builtinTypes.throwableType.coneType)),
+                isMarkedNullable = false,
+            )
+            val exceptionClassesArray = buildCollectionLiteral {
+                coneTypeOrNull = throwableClassType.createOutArrayType()
+                argumentList = buildArgumentList {
+                    arguments += exceptionClassLiterals
+                }
+            }
+
+            annotationTypeRef = THROWS_ANNOTATION_CLASS_ID.toLookupTag().toDefaultResolvedTypeRef()
+            argumentMapping = buildAnnotationArgumentMapping {
+                mapping[Name.identifier("exceptionClasses")] = exceptionClassesArray
+            }
         }
 }

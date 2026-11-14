@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// SKIP_TXT
+// RUN_PIPELINE_TILL: CODEGEN
 
 class Out<out T : CharSequence?>(val t: T)
 

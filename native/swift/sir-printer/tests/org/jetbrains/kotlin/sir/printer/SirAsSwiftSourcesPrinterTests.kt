@@ -435,10 +435,10 @@ class SirAsSwiftSourcesPrinterTests {
                     )
                     returnType = SirNominalType(SirSwiftModule.bool)
                     documentation = """
-                            /// Function foo description.
-                            /// - Parameters:
-                            ///   - p: first Integer to consume
-                            /// - Returns: Bool
+                            Function foo description.
+                            - Parameters:
+                              - p: first Integer to consume
+                            - Returns: Bool
                         """.trimIndent()
                 }
             )
@@ -461,10 +461,10 @@ class SirAsSwiftSourcesPrinterTests {
                     visibility = SirVisibility.PUBLIC
                     name = "Foo"
                     documentation = """
-                            /// Function foo description.
-                            /// - Parameters:
-                            ///   - p: first Integer to consume
-                            /// - Returns: Bool
+                            Function foo description.
+                            - Parameters:
+                              - p: first Integer to consume
+                            - Returns: Bool
                         """.trimIndent()
                 }
             )
@@ -489,10 +489,10 @@ class SirAsSwiftSourcesPrinterTests {
                         visibility = SirVisibility.PUBLIC
                         name = "Foo"
                         documentation = """
-                            /**
-                             *  demo comment for
-                             *  NAMESPACED_CLASS
-                             */
+                            
+                            demo comment for
+                            NAMESPACED_CLASS
+                            
                         """.trimIndent()
                     }
                 }
@@ -516,10 +516,10 @@ class SirAsSwiftSourcesPrinterTests {
                     type = SirNominalType(SirSwiftModule.bool)
                     getter = buildGetter {}
                     documentation = """
-                            /// Function foo description.
-                            /// - Parameters:
-                            ///   - p: first Integer to consume
-                            /// - Returns: Bool
+                            Function foo description.
+                            - Parameters:
+                              - p: first Integer to consume
+                            - Returns: Bool
                         """.trimIndent()
                 }
             )
@@ -1016,10 +1016,10 @@ class SirAsSwiftSourcesPrinterTests {
                     extendedType = SirNominalType(SirSwiftModule.int32)
                     visibility = SirVisibility.PUBLIC
                     documentation = """
-                        ///
-                        /// this is a documented extension
-                        /// (is it even possible? Printer don't actually care)
-                        ///
+                        
+                        this is a documented extension
+                        (is it even possible? Printer don't actually care)
+                        
                     """.trimIndent()
                 }
             )
@@ -1133,7 +1133,6 @@ class SirAsSwiftSourcesPrinterTests {
         val actualSwiftSrc = SirAsSwiftSourcesPrinter.print(
             module,
             stableDeclarationsOrder = false,
-            renderDocComments = true,
             renderDeclarationOrigins = false,
             emptyBodyStub = SirFunctionBody(listOf("stub()"))
         )
@@ -1201,7 +1200,7 @@ class SirAsSwiftSourcesPrinterTests {
                 visibility = SirVisibility.PUBLIC
                 name = "method"
                 returnType = SirNominalType(SirSwiftModule.bool)
-                documentation = "// Check that nested attributes handled properly"
+                documentation = "Check that nested attributes handled properly"
                 attributes += SirAttribute.Available(message = "Deprecated method", deprecated = true)
             }
         }.attachDeclarations()
@@ -1224,7 +1223,7 @@ class SirAsSwiftSourcesPrinterTests {
                     type = SirNominalType(SirSwiftModule.bool)
                     getter = buildGetter {}
                     documentation = """
-                            /// Example docstring
+                            Example docstring
                         """.trimIndent()
                     attributes += SirAttribute.Available(message = "Deprecated variable", deprecated = true)
                 }
@@ -1234,7 +1233,7 @@ class SirAsSwiftSourcesPrinterTests {
                     name = "myVariable"
                     type = SirNominalType(SirSwiftModule.bool)
                     documentation = """
-                            /// Example docstring
+                            Example docstring
                         """.trimIndent()
                     attributes += SirAttribute.Available(message = "Unavailable typealias", unavailable = true)
                 }
@@ -1277,7 +1276,7 @@ class SirAsSwiftSourcesPrinterTests {
             name = "Test"
         }.apply {
             for (identifier in identifiers) {
-                val doc = identifier.split('\n').joinToString(separator = "\n") { "// $it" }
+                val doc = identifier
                 val decl = buildStruct {
                     origin = SirOrigin.Unknown
                     name = identifier
@@ -1345,7 +1344,7 @@ class SirAsSwiftSourcesPrinterTests {
                         origin = SirOrigin.Unknown
                         name = "test"
                         attributes.add(SirAttribute.Available(deprecated = true, message = message))
-                        documentation = message.split('\n').joinToString(separator = "\n") { "// $it" }
+                        documentation = message
                     }
                 }
             }
@@ -1693,6 +1692,91 @@ class SirAsSwiftSourcesPrinterTests {
             module,
             "testData/context_parameter_functional_type"
         )
+    }
+
+    @Test
+    fun `should print struct with variables`() {
+        val module = buildModule {
+            name = "Test"
+            buildStruct {
+                name = "Foo"
+                buildVariable {
+                    name = "constantValue"
+                    isConstant = true
+                    type = SirNominalType(SirSwiftModule.bool)
+                }.also(declarations::add)
+                buildVariable {
+                    name = "storedValue"
+                    type = SirNominalType(SirSwiftModule.int)
+                }.also(declarations::add)
+                buildVariable {
+                    name = "readOnlyValue"
+                    type = SirNominalType(SirSwiftModule.string)
+                    getter = buildGetter {
+                        body = SirFunctionBody(listOf("\"hello\""))
+                    }
+                }.also { it.getter?.parent = it }.also(declarations::add)
+                buildVariable {
+                    name = "writeableValue"
+                    type = SirNominalType(SirSwiftModule.int)
+                    getter = buildGetter {
+                        body = SirFunctionBody(listOf("storedValue"))
+                    }
+                    setter = buildSetter {
+                        body = SirFunctionBody(listOf("storedValue = newValue"))
+                    }
+                }.also {
+                    it.getter?.parent = it
+                    it.setter?.parent = it
+                }.also(declarations::add)
+                buildInit {
+                    isFailable = false
+                    body = SirFunctionBody(listOf("constantValue = true", "storedValue = 1"))
+                }.also(declarations::add)
+            }.attachDeclarations().also(declarations::add)
+        }.attachDeclarations()
+
+        runTest(module, "testData/struct_with_variables")
+    }
+
+    @Test
+    fun `should print struct with protocol`() {
+        val module = buildModule {
+            name = "Test"
+            val foo = buildProtocol {
+                name = "Foo"
+            }.also(declarations::add)
+            buildStruct {
+                name = "Bar"
+                protocols.add(foo)
+            }.also(declarations::add)
+        }.attachDeclarations()
+
+        runTest(module, "testData/struct_with_protocol")
+    }
+
+    @Test
+    fun `should print enum with associated values`() {
+        val module = buildModule {
+            name = "Test"
+            buildEnum {
+                name = "MyEnum"
+                buildEnumCase {
+                    name = "foo"
+                }.also(declarations::add)
+                buildEnumCase {
+                    name = "bar"
+                    associatedValueTypes.add(SirNominalType(SirSwiftModule.int))
+                }.also(declarations::add)
+                buildEnumCase {
+                    name = "baz"
+                    associatedValueTypes.add(SirNominalType(SirSwiftModule.string))
+                    associatedValueTypes.add(SirNominalType(SirSwiftModule.bool))
+                }.also(declarations::add)
+            }.attachDeclarations().also(declarations::add)
+        }.attachDeclarations()
+
+        runTest(module, "testData/enum_with_associated_values")
     }
 
     companion object {

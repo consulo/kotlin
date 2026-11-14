@@ -5,6 +5,7 @@
 
 package com.example
 
+@JsExport
 fun best(): Int {
     return 42
 }
@@ -13,5 +14,11 @@ fun simpleBest(): Int {
     return 73
 }
 
-fun main() =
+fun bigLong(): Long {
+    return 9007199254740993L
+}
+
+fun main() {
     println("Hello, World!")
+    println("Long: ${bigLong()}")
+}

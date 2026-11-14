@@ -1,6 +1,5 @@
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
 
 buildscript {
@@ -43,39 +42,17 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
 }
 
-repositories {
-    mavenCentral { setUrl("https://cache-redirector.jetbrains.com/maven-central") }
-    google { setUrl("https://cache-redirector.jetbrains.com/dl.google.com/dl/android/maven2") }
-    maven("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies")
-    maven("https://redirector.kotlinlang.org/maven/kotlin-dependencies")
-    gradlePluginPortal()
-}
-
 kotlin {
     @OptIn(ExperimentalKotlinGradlePluginApi::class, ExperimentalBuildToolsApi::class)
-    compilerVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation
+    compilerVersion = embeddedKotlinVersion
+    @Suppress("DEPRECATION")
+    coreLibrariesVersion = embeddedKotlinVersion
     jvmToolchain(17)
 
     compilerOptions {
         allWarningsAsErrors.set(true)
         optIn.add("kotlin.ExperimentalStdlibApi")
         optIn.add("org.jetbrains.kotlin.gradle.swiftexport.ExperimentalSwiftExportDsl")
-    }
-}
-
-afterEvaluate {
-    afterEvaluate {
-        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile>().configureEach {
-            // Required to be able to use bootstrap metadata version in the build scripts and Gradle Kotlin runtime version
-            compilerOptions.freeCompilerArgs.add("-Xskip-metadata-version-check")
-        }
-    }
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    compilerOptions {
-        languageVersion.set(KotlinVersion.KOTLIN_2_1)
-        apiVersion.set(KotlinVersion.KOTLIN_2_1)
     }
 }
 
@@ -90,8 +67,7 @@ java {
 dependencies {
     api(project(":gradle-plugins-common"))
 
-    implementation(kotlin("stdlib", embeddedKotlinVersion))
-    implementation("org.jetbrains.kotlin:kotlin-build-gradle-plugin:${kotlinBuildProperties.buildGradlePluginVersion.get()}")
+    implementation(kotlinBuildHelpers())
     implementation(libs.gradle.pluginPublish.gradlePlugin)
     implementation(libs.dokka.gradlePlugin)
     implementation(libs.spdx.gradlePlugin)
@@ -114,24 +90,52 @@ dependencies {
     compileOnly(project(":android-sdk-provisioner"))
 
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:$bootstrapKotlinVersion")
-    //implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:${libs.versions.kotlin.`for`.gradle.plugins.compilation.get()}")
     implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:$bootstrapKotlinVersion") {
         isTransitive = false
     }
     implementation(libs.gson)
     implementation(project(":d8-configuration"))
+    implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))
+
+    implementation(project(":test-federation-convention")) {
+        isTransitive = false
+    }
+    implementation(project(":jvm-toolchains-convention")) {
+        isTransitive = false
+    }
+
+    testImplementation(kotlin("test"))
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }
 
 tasks.register("checkBuild") {
     dependsOn("test")
 }
 
-project.configurations.named(org.jetbrains.kotlin.gradle.plugin.PLUGIN_CLASSPATH_CONFIGURATION_NAME + "Main") {
-    resolutionStrategy {
-        eachDependency {
-            if (this.requested.group == "org.jetbrains.kotlin") useVersion(libs.versions.kotlin.`for`.gradle.plugins.compilation.get())
+listOf(
+    org.jetbrains.kotlin.gradle.plugin.PLUGIN_CLASSPATH_CONFIGURATION_NAME + "Main",
+    "compilePluginsBlocksPluginClasspathElements",
+).forEach { confName ->
+    project.configurations.named(confName) {
+        resolutionStrategy {
+            eachDependency {
+                if (this.requested.group == "org.jetbrains.kotlin") useVersion(embeddedKotlinVersion)
+            }
         }
     }
 }
 
-kotlin.compilerOptions.moduleName.value(project.name)
+project.configurations.named(org.jetbrains.kotlin.gradle.plugin.PLUGIN_CLASSPATH_CONFIGURATION_NAME + "Test") {
+    resolutionStrategy {
+        eachDependency {
+            if (this.requested.group == "org.jetbrains.kotlin") useVersion(embeddedKotlinVersion)
+        }
+    }
+}
+

@@ -1,14 +1,12 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.fir.symbols
 
-import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationList
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
-import org.jetbrains.kotlin.analysis.api.fir.findPsi
 import org.jetbrains.kotlin.analysis.api.fir.isExternalDeclaration
 import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirPrimaryConstructorSymbolPointer
 import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirSecondaryConstructorSymbolPointer
@@ -16,11 +14,8 @@ import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirTypeAliasedCo
 import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.createOwnerPointer
 import org.jetbrains.kotlin.analysis.api.fir.visibilityByModifiers
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
-import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
-import org.jetbrains.kotlin.analysis.api.symbols.typeParameters
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.analysis.low.level.api.fir.providers.FirCallableSignature
 import org.jetbrains.kotlin.descriptors.Visibilities
@@ -57,8 +52,6 @@ internal class KaFirConstructorSymbol private constructor(
         analysisSession = session,
     )
 
-    override val psi: PsiElement? get() = withValidityAssertion { backingPsi ?: findPsi() }
-
     override val returnType: KaType get() = withValidityAssertion { firSymbol.returnType(builder) }
 
     override val valueParameters: List<KaValueParameterSymbol>
@@ -75,24 +68,26 @@ internal class KaFirConstructorSymbol private constructor(
             }
         }
 
-    override val compilerVisibility: Visibility
-        get() = withValidityAssertion {
-            val backingPsi = backingPsi
-            if (backingPsi != null) {
-                val visibility = backingPsi.visibilityByModifiers ?: backingPsi.ifNoStatusCompilerPluginPresent {
-                    val owner = backingPsi.getContainingClassOrObject()
-                    when {
-                        owner is KtObjectDeclaration || owner is KtEnumEntry || owner.hasModifier(ENUM_KEYWORD) -> Visibilities.Private
-                        owner.hasModifier(SEALED_KEYWORD) -> Visibilities.Protected
-                        else -> Visibilities.Public
-                    }
-                }
+    override val visibility: KaSymbolVisibility
+        get() = withValidityAssertion { computeCompilerVisibility().asKaSymbolVisibility }
 
-                visibility?.let { return it }
+    private fun computeCompilerVisibility(): Visibility {
+        val backingPsi = backingPsi
+        if (backingPsi != null) {
+            val visibility = backingPsi.visibilityByModifiers ?: backingPsi.ifNoStatusCompilerPluginPresent {
+                val owner = backingPsi.getContainingClassOrObject()
+                when {
+                    owner is KtObjectDeclaration || owner is KtEnumEntry || owner.hasModifier(ENUM_KEYWORD) -> Visibilities.Private
+                    owner.hasModifier(SEALED_KEYWORD) -> Visibilities.Protected
+                    else -> Visibilities.Public
+                }
             }
 
-            firSymbol.visibility
+            visibility?.let { return it }
         }
+
+        return firSymbol.visibility
+    }
 
     override val annotations: KaAnnotationList
         get() = withValidityAssertion {
@@ -139,18 +134,18 @@ internal class KaFirConstructorSymbol private constructor(
 
         when {
             firSymbol.isTypeAliasedConstructor -> KaFirTypeAliasedConstructorMemberPointer(
-                ownerPointer = analysisSession.createOwnerPointer(this),
+                ownerPointer = createOwnerPointer(),
                 signature = FirCallableSignature.createSignature(firSymbol),
                 originalSymbol = this,
             )
 
             firSymbol.isPrimary -> KaFirPrimaryConstructorSymbolPointer(
-                ownerPointer = analysisSession.createOwnerPointer(this),
+                ownerPointer = createOwnerPointer(),
                 originalSymbol = this,
             )
 
             else -> KaFirSecondaryConstructorSymbolPointer(
-                ownerPointer = analysisSession.createOwnerPointer(this),
+                ownerPointer = createOwnerPointer(),
                 signature = FirCallableSignature.createSignature(firSymbol),
                 originalSymbol = this,
             )

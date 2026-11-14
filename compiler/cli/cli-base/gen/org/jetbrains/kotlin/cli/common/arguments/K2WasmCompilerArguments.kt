@@ -32,12 +32,23 @@ sealed class K2WasmCompilerArguments : CommonJsAndWasmCompilerArguments() {
             field = if (value.isNullOrEmpty()) null else value
         }
 
-    @Deprecated("This flag is deprecated. Use kotlinc-wasm or the KotlinWasmCompiler class instead to compile to WebAssembly.")
+    @all:Deprecated("Use kotlinc-wasm or the KotlinWasmCompiler class instead to compile to WebAssembly.")
     @Argument(
         value = "-Xwasm",
         description = "Use the WebAssembly compiler backend.",
+        deprecatedVersion = "2.4.0",
     )
     var wasm: Boolean = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xwasm-IC-generate-unchanged-modules",
+        description = "Regenerate unchanged modules in multimodule IC.",
+    )
+    var regenerateUnchangedModules: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -74,10 +85,20 @@ sealed class K2WasmCompilerArguments : CommonJsAndWasmCompilerArguments() {
         }
 
     @Argument(
+        value = "-Xwasm-disable-array-range-checks-safe-elimination",
+        description = "Disable bounds check elimination for provably-safe array accesses in for-loops. Only effective when -Xwasm-enable-array-range-checks is also enabled.",
+    )
+    var wasmDisableArrayRangeChecksSafeElimination: Boolean = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
         value = "-Xwasm-enable-array-range-checks",
         description = "Turn on range checks for array access functions.",
     )
-    var wasmEnableArrayRangeChecks: Boolean = false
+    var wasmEnableArrayRangeChecks: Boolean = true
         set(value) {
             checkFrozen()
             field = value
@@ -88,6 +109,16 @@ sealed class K2WasmCompilerArguments : CommonJsAndWasmCompilerArguments() {
         description = "Turn on asserts.",
     )
     var wasmEnableAsserts: Boolean = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xwasm-enable-tail-calls",
+        description = "Emit WebAssembly tail call instructions (return_call / return_call_indirect).",
+    )
+    var wasmEnableTailCalls: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -175,6 +206,7 @@ sealed class K2WasmCompilerArguments : CommonJsAndWasmCompilerArguments() {
 
     @Argument(
         value = "-Xwasm-target",
+        valueDescription = "{wasm-js|wasm-wasi}",
         description = "Set up the Wasm target (wasm-js or wasm-wasi).",
     )
     var wasmTarget: String? = null
@@ -188,6 +220,16 @@ sealed class K2WasmCompilerArguments : CommonJsAndWasmCompilerArguments() {
         description = "Use an updated version of the exception proposal with try_table.",
     )
     var wasmUseNewExceptionProposal: Boolean? = null
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xwasm-use-stack-switching-proposal",
+        description = "Compile Kotlin Coroutines with WebAssembly Stack Switching Proposal",
+    )
+    var wasmUseStackSwitchingProposal: Boolean = false
         set(value) {
             checkFrozen()
             field = value

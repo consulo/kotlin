@@ -5,22 +5,17 @@
 
 package org.jetbrains.kotlin.test.frontend.fir
 
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.StandardFileSystems
 import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.psi.PsiElementFinder
-import com.intellij.psi.search.ProjectScope
-import org.jetbrains.kotlin.asJava.finder.JavaElementFinder
 import org.jetbrains.kotlin.backend.common.loadMetadataKlibs
 import org.jetbrains.kotlin.cli.common.contentRoots
-import org.jetbrains.kotlin.cli.jvm.compiler.PsiBasedProjectFileSearchScope
-import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
 import org.jetbrains.kotlin.cli.jvm.compiler.VfsBasedProjectEnvironment
-import org.jetbrains.kotlin.cli.jvm.compiler.unregisterFinders
+import org.jetbrains.kotlin.cli.jvm.compiler.javaInterop
 import org.jetbrains.kotlin.cli.jvm.config.JvmClasspathRoot
 import org.jetbrains.kotlin.cli.jvm.config.jvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.config.jvmModularRoots
 import org.jetbrains.kotlin.compiler.plugin.getCompilerExtensions
+import org.jetbrains.kotlin.jvm.environment.JvmClasspath
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageFeature.MultiPlatformProjects
@@ -59,8 +54,10 @@ import org.jetbrains.kotlin.test.services.*
 import org.jetbrains.kotlin.test.services.configuration.JsEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.WasmEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.nativeEnvironmentConfigurator
+import org.jetbrains.kotlin.test.testInfraError
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlin.wasm.config.WasmConfigurationKeys
+import kotlin.io.path.absolutePathString
 
 open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOutputArtifact>(testServices, FrontendKinds.FIR) {
     override val additionalServices: List<ServiceRegistrationData>
@@ -85,7 +82,7 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
 
         val sortedModules = if (isMppSupported) sortDependsOnTopologically(module) else listOf(module)
 
-        val (moduleDataMap, moduleDataProvider) = initializeModuleData(sortedModules)
+        val [moduleDataMap, moduleDataProvider] = initializeModuleData(sortedModules)
 
         val project = testServices.compilerConfigurationProvider.getProject(module)
         val configuration = testServices.compilerConfigurationProvider.getCompilerConfiguration(module)
@@ -96,11 +93,11 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
             val projectEnvironment = VfsBasedProjectEnvironment(
                 project, VirtualFileManager.getInstance().getFileSystem(StandardFileSystems.FILE_PROTOCOL),
             ) { packagePartProviderFactory.invoke(it) }
-            val librariesScope = PsiBasedProjectFileSearchScope(ProjectScope.getLibrariesScope(project))
             FirJvmSessionFactory.Context(
                 configuration,
                 projectEnvironment,
-                librariesScope,
+                JvmClasspath.ProjectLibraries(),
+                projectEnvironment.javaInterop(configuration),
             )
         }
         val librarySession = createLibrarySession(
@@ -168,7 +165,7 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
         moduleDataProvider: ModuleDataProvider,
         configuration: CompilerConfiguration,
         extensionRegistrars: List<FirExtensionRegistrar>,
-        jvmSessionFactoryContext: FirJvmSessionFactory.Context?
+        jvmSessionFactoryContext: FirJvmSessionFactory.Context?,
     ): FirSession {
         val languageVersionSettings = module.languageVersionSettings
         val targetPlatform = module.targetPlatform(testServices)
@@ -200,7 +197,7 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
                         extensionRegistrars = extensionRegistrars,
                         JarMetadataProviderComponents(
                             jvmSessionFactoryContext.packagePartProviderForLibraries as PackageAndMetadataPartProvider,
-                            jvmSessionFactoryContext.librariesScope,
+                            jvmSessionFactoryContext.librariesClasspath,
                             jvmSessionFactoryContext.projectEnvironment,
                         ),
                         resolvedKLibs = klibs,
@@ -252,7 +249,7 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
                     extensionRegistrars,
                 ).also(::registerExtraComponents)
             }
-            else -> error("Unsupported")
+            else -> testInfraError("Unsupported targetPlatform: $targetPlatform")
         }
     }
 
@@ -268,15 +265,20 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
 
         val project = compilerConfigurationProvider.getProject(module)
 
-        PsiElementFinder.EP.getPoint(project).unregisterFinders<JavaElementFinder>()
-
         val parser = module.directives.singleValue(FirDiagnosticsDirectives.FIR_PARSER)
 
-        val (ktFiles, lightTreeFiles) = when (parser) {
-            FirParser.LightTree -> {
-                emptyMap<TestFile, KtFile>() to testServices.sourceFileProvider.getKtSourceFilesForSourceFiles(module.files)
+        val keepNonKtFiles = FirDiagnosticsDirectives.HAS_CUSTOM_EXTENSION_FILES in module.directives
+        val [ktFiles, lightTreeFiles] = when (parser) {
+            FirParser.LightTree, FirParser.KmpTree -> {
+                emptyMap<TestFile, KtFile>() to testServices.sourceFileProvider.getKtSourceFilesForSourceFiles(
+                    module.files, keepNonKtFiles
+                )
             }
-            FirParser.Psi -> testServices.sourceFileProvider.getKtFilesForSourceFiles(module.files, project) to emptyMap()
+            FirParser.Psi -> {
+                testServices.sourceFileProvider.getKtFilesForSourceFiles(
+                    module.files, project, keepNonKtFiles = keepNonKtFiles
+                ) to emptyMap()
+            }
         }
 
         val sessionConfigurator: FirSessionConfigurator.() -> Unit = {
@@ -297,8 +299,6 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
             extensionRegistrars,
             sessionConfigurator,
             jvmSessionFactoryContext,
-            project,
-            ktFiles.values
         )
 
         val firAnalyzerFacade = FirAnalyzerFacade(
@@ -311,7 +311,7 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
         val firFiles = firAnalyzerFacade.runResolution()
 
         val usedFilesMap = when (parser) {
-            FirParser.LightTree -> lightTreeFiles
+            FirParser.LightTree, FirParser.KmpTree -> lightTreeFiles
             FirParser.Psi -> ktFiles
         }
 
@@ -336,8 +336,6 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
         extensionRegistrars: List<FirExtensionRegistrar>,
         sessionConfigurator: FirSessionConfigurator.() -> Unit,
         jvmSessionFactoryContext: FirJvmSessionFactory.Context?,
-        project: Project,
-        ktFiles: Collection<KtFile>,
     ): FirSession {
         val configuration = testServices.compilerConfigurationProvider.getCompilerConfiguration(module)
         val sessionFactory = FirMetadataSessionFactory(configuration.targetPlatform ?: CommonPlatforms.defaultCommonPlatform)
@@ -353,20 +351,18 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
                         createJvmContext = { jvmSessionFactoryContext },
                         createJsContext = { FirJsSessionFactory.Context(configuration) }
                     ),
-                    isForLeafHmppModule = false,
+                    kmpModuleKind = KmpModuleKind.SingleModule,
                     init = sessionConfigurator,
                 ).also(::registerExtraComponents)
             }
             targetPlatform.isJvm() -> {
                 FirJvmSessionFactory.createSourceSession(
                     moduleData,
-                    PsiBasedProjectFileSearchScope(TopDownAnalyzerFacadeForJVM.newModuleSearchScope(project, ktFiles)),
                     createIncrementalCompilationSymbolProviders = { null },
                     extensionRegistrars,
                     configuration,
                     jvmSessionFactoryContext!!,
-                    needRegisterJavaElementFinder = true,
-                    isForLeafHmppModule = false,
+                    kmpModuleKind = KmpModuleKind.SingleModule,
                     init = sessionConfigurator,
                 ).also(::registerExtraComponents)
             }
@@ -383,7 +379,7 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
                     moduleData,
                     extensionRegistrars,
                     configuration,
-                    isForLeafHmppModule = false,
+                    kmpModuleKind = KmpModuleKind.SingleModule,
                     init = sessionConfigurator
                 ).also(::registerExtraComponents)
             }
@@ -395,7 +391,7 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
                     sessionConfigurator,
                 ).also(::registerExtraComponents)
             }
-            else -> error("Unsupported")
+            else -> testInfraError("Unsupported targetPlatform: $targetPlatform")
         }
     }
 
@@ -417,7 +413,7 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
                         }
                         targetPlatform.isJs() -> {
                             val runtimeKlibsPaths = JsEnvironmentConfigurator.getRuntimePathsForModule(mainModule, testServices)
-                            val (transitiveLibraries, friendLibraries) = getTransitivesAndFriends(mainModule, testServices)
+                            val [transitiveLibraries, friendLibraries] = getTransitivesAndFriends(mainModule, testServices)
                             dependencies(runtimeKlibsPaths)
                             dependencies(transitiveLibraries.map { it.path })
                             friendDependencies(friendLibraries.map { it.path })
@@ -426,14 +422,14 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
                             val nativeEnvironmentConfigurator = testServices.nativeEnvironmentConfigurator
                             val runtimeLibraryProviders = nativeEnvironmentConfigurator.getRuntimeLibraryProviders(mainModule)
 
-                            val (transitiveLibraries, friendLibraries) = getTransitivesAndFriends(mainModule, testServices)
+                            val [transitiveLibraries, friendLibraries] = getTransitivesAndFriends(mainModule, testServices)
                             val allPaths = (runtimeLibraryProviders.flatMap { it.getLibraryPaths() } + transitiveLibraries.map { it.path }).distinct()
                             val friendPaths = friendLibraries.map { it.path }
 
                             val loadedKlibs = KlibLoader { libraryPaths(allPaths) }.load().librariesStdlibFirst
-                            val (interopLibs, regularLibs) = loadedKlibs.partition { it.isCInteropLibrary() }
+                            val [interopLibs, regularLibs] = loadedKlibs.partition { it.isCInteropLibrary() }
 
-                            dependencies(regularLibs.map { it.libraryFile.absolutePath })
+                            dependencies(regularLibs.map { it.path.absolutePathString() })
                             friendDependencies(friendPaths)
 
                             if (interopLibs.isNotEmpty()) {
@@ -441,7 +437,7 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
                                     Name.special("<regular interop dependencies of $mainModuleName>"),
                                     FirModuleCapabilities.create(listOf(ImplicitIntegerCoercionModuleCapability))
                                 )
-                                this@build.dependencies(interopModuleData, interopLibs.map { it.libraryFile.absolutePath })
+                                this@build.dependencies(interopModuleData, interopLibs.map { it.path.absolutePathString() })
                             }
                         }
                         targetPlatform.isWasm() -> {
@@ -449,12 +445,12 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
                                 configuration.get(WasmConfigurationKeys.WASM_TARGET, WasmTarget.JS),
                                 testServices
                             )
-                            val (transitiveLibraries, friendLibraries) = getTransitivesAndFriends(mainModule, testServices)
+                            val [transitiveLibraries, friendLibraries] = getTransitivesAndFriends(mainModule, testServices)
                             dependencies(runtimeKlibsPaths)
                             dependencies(transitiveLibraries.map { it.path })
                             friendDependencies(friendLibraries.map { it.path })
                         }
-                        else -> error("Unsupported")
+                        else -> testInfraError("Unsupported targetPlatform: $targetPlatform")
                     }
                 }
             }
@@ -476,6 +472,5 @@ open class FirFrontendFacade(testServices: TestServices) : FrontendFacade<FirOut
                 true
             }
         }
-
     }
 }

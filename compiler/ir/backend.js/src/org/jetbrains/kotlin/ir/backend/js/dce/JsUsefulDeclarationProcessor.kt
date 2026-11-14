@@ -6,14 +6,13 @@
 package org.jetbrains.kotlin.ir.backend.js.dce
 
 import org.jetbrains.kotlin.backend.common.compilationException
+import org.jetbrains.kotlin.ir.backend.js.BackendJsSymbols.RuntimeMetadataKind
 import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
 import org.jetbrains.kotlin.ir.backend.js.JsStatementOrigins
-import org.jetbrains.kotlin.ir.backend.js.BackendJsSymbols.RuntimeMetadataKind
 import org.jetbrains.kotlin.ir.backend.js.ir.isExported
-import org.jetbrains.kotlin.ir.backend.js.lower.exportedValueClassBoxFunction
+import org.jetbrains.kotlin.ir.backend.js.lower.exportedInlineClassBoxFunction
 import org.jetbrains.kotlin.ir.backend.js.lower.isBuiltInClass
 import org.jetbrains.kotlin.ir.backend.js.lower.isEs6ConstructorReplacement
-import org.jetbrains.kotlin.ir.backend.js.lower.isEs6PrimaryConstructorReplacement
 import org.jetbrains.kotlin.ir.backend.js.objectGetInstanceFunction
 import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.*
@@ -27,9 +26,8 @@ import org.jetbrains.kotlin.ir.util.*
 
 internal class JsUsefulDeclarationProcessor(
     override val context: JsIrBackendContext,
-    printReachabilityInfo: Boolean,
-    removeUnusedAssociatedObjects: Boolean
-) : UsefulDeclarationProcessor(printReachabilityInfo, removeUnusedAssociatedObjects) {
+    printReachabilityInfo: Boolean
+) : UsefulDeclarationProcessor(printReachabilityInfo, removeUnusedAssociatedObjects = true, ignoreFieldWrites = true) {
     private val equalsMethod = getMethodOfAny("equals")
     private val hashCodeMethod = getMethodOfAny("hashCode")
 
@@ -55,7 +53,7 @@ internal class JsUsefulDeclarationProcessor(
                         context.inlineClassesUtils.getRuntimeClassFor(it)
                     } ?: compilationException("Unexpected type argument in box intrinsic", expression)
 
-                    val boxFunction = inlineClass.exportedValueClassBoxFunction
+                    val boxFunction = inlineClass.exportedInlineClassBoxFunction
                         ?: inlineClass.declarations.filterIsInstance<IrConstructor>().single { it.isPrimary }
 
                     boxFunction.enqueue(data, "intrinsic: jsBoxIntrinsic")
@@ -272,7 +270,7 @@ internal class JsUsefulDeclarationProcessor(
             if (removeUnusedAssociatedObjects && klass !in referencedJsClasses && klass !in referencedJsClassesFromExpressions) continue
 
             for (annotation in klass.annotations) {
-                val annotationClass = annotation.symbol.owner.constructedClass
+                val annotationClass = annotation.classSymbol.owner
                 if (removeUnusedAssociatedObjects && annotationClass !in referencedJsClasses) continue
 
                 annotation.associatedObject()?.objectGetInstanceFunction?.enqueue(klass, "associated object factory")

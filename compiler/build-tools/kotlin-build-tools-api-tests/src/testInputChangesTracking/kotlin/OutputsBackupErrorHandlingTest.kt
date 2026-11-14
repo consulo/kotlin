@@ -10,12 +10,8 @@ import org.jetbrains.kotlin.buildtools.api.BaseIncrementalCompilationConfigurati
 import org.jetbrains.kotlin.buildtools.tests.CompilerExecutionStrategyConfiguration
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertCompiledSources
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.DefaultStrategyAgnosticCompilationTest
-import org.jetbrains.kotlin.buildtools.tests.compilation.model.Module
-import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.Scenario
-import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.ScenarioModule
-import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.assertAddedOutputs
-import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.assertNoOutputSetChanges
-import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.scenario
+import org.jetbrains.kotlin.buildtools.tests.compilation.model.ModuleContext
+import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.*
 import org.jetbrains.kotlin.buildtools.tests.compilation.util.execute
 import org.jetbrains.kotlin.test.TestMetadata
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -27,41 +23,41 @@ class OutputsBackupErrorHandlingTest : BaseCompilationTest() {
 
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Externally tracked: with backup options, outputs are preserved after compilation error")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testExternallyTrackedWithBackupOptionsOutputsPreserved(strategyConfig: CompilerExecutionStrategyConfiguration) {
         testWithBackupOptionsOutputsPreserved(strategyConfig) {
-            module("jvm-module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true; it[KEEP_IC_CACHES_IN_MEMORY] = true })
+            module("basic-multimodule-project/module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true; it[KEEP_IC_CACHES_IN_MEMORY] = true })
         }
     }
 
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Externally tracked: without backup options, outputs are lost after compilation error")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testExternallyTrackedWithoutBackupOptionsOutputsLost(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        testWithoutBackupOptionsOutputsLost(strategyConfig) { module("jvm-module-1") }
+        testWithoutBackupOptionsOutputsLost(strategyConfig) { module("basic-multimodule-project/module-1") }
     }
 
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Internally tracked: with backup options, outputs are preserved after compilation error")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testInternallyTrackedWithBackupOptionsOutputsPreserved(strategyConfig: CompilerExecutionStrategyConfiguration) {
         testWithBackupOptionsOutputsPreserved(strategyConfig) {
-            trackedModule("jvm-module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true; it[KEEP_IC_CACHES_IN_MEMORY] = true })
+            trackedModule("basic-multimodule-project/module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true; it[KEEP_IC_CACHES_IN_MEMORY] = true })
         }
     }
 
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Internally tracked: without backup options, outputs are lost after compilation error")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testInternallyTrackedWithoutBackupOptionsOutputsLost(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        testWithoutBackupOptionsOutputsLost(strategyConfig) { trackedModule("jvm-module-1") }
+        testWithoutBackupOptionsOutputsLost(strategyConfig) { trackedModule("basic-multimodule-project/module-1") }
     }
 
     private fun testWithBackupOptionsOutputsPreserved(
         strategyConfig: CompilerExecutionStrategyConfiguration,
-        createModule: Scenario.() -> ScenarioModule,
+        createModule: Scenario<*, *>.() -> ScenarioModule,
     ) {
-        scenario(strategyConfig) {
+        jvmScenario(strategyConfig) {
             val module = createModule()
 
             module.createFile("extra.kt", "fun extra() = foo()")
@@ -75,16 +71,16 @@ class OutputsBackupErrorHandlingTest : BaseCompilationTest() {
                 expectFail()
                 assertNoOutputSetChanges()
                 assertOutputFileExists("ExtraKt.class")
-                assertOutputFileExists("META-INF/jvm-module-1.kotlin_module")
+                assertOutputFileExists("META-INF/basic-multimodule-project_module-1.kotlin_module")
             }
         }
     }
 
     private fun testWithoutBackupOptionsOutputsLost(
         strategyConfig: CompilerExecutionStrategyConfiguration,
-        createModule: Scenario.() -> ScenarioModule,
+        createModule: Scenario<*, *>.() -> ScenarioModule,
     ) {
-        scenario(strategyConfig) {
+        jvmScenario(strategyConfig) {
             val module = createModule()
 
             module.createFile("extra.kt", "fun extra() = foo()")
@@ -97,34 +93,34 @@ class OutputsBackupErrorHandlingTest : BaseCompilationTest() {
             module.compile {
                 expectFail()
                 assertOutputFileDoesNotExist("ExtraKt.class")
-                assertOutputFileDoesNotExist("META-INF/jvm-module-1.kotlin_module")
+                assertOutputFileDoesNotExist("META-INF/basic-multimodule-project/module-1.kotlin_module")
             }
         }
     }
 
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Externally tracked: BACKUP_CLASSES only, outputs preserved but caches invalid - recompiles on revert")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testExternallyTrackedBackupClassesOnlyOutputsPreservedButCachesInvalid(strategyConfig: CompilerExecutionStrategyConfiguration) {
         testBackupClassesOnlyOutputsPreservedButCachesInvalid(strategyConfig) {
-            module("jvm-module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true })
+            module("basic-multimodule-project/module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true })
         }
     }
 
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Internally tracked: BACKUP_CLASSES only, outputs preserved but caches invalid - recompiles on revert")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testInternallyTrackedBackupClassesOnlyOutputsPreservedButCachesInvalid(strategyConfig: CompilerExecutionStrategyConfiguration) {
         testBackupClassesOnlyOutputsPreservedButCachesInvalid(strategyConfig) {
-            trackedModule("jvm-module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true })
+            trackedModule("basic-multimodule-project/module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true })
         }
     }
 
     private fun testBackupClassesOnlyOutputsPreservedButCachesInvalid(
         strategyConfig: CompilerExecutionStrategyConfiguration,
-        createModule: Scenario.() -> ScenarioModule,
+        createModule: Scenario<*, *>.() -> ScenarioModule,
     ) {
-        scenario(strategyConfig) {
+        jvmScenario(strategyConfig) {
             val module = createModule()
 
             module.createFile("extra.kt", "fun extra() = foo()")
@@ -151,27 +147,27 @@ class OutputsBackupErrorHandlingTest : BaseCompilationTest() {
 
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Externally tracked: with backup, compiled code is correct after error and fix")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testExternallyTrackedCorrectnessAfterRecovery(strategyConfig: CompilerExecutionStrategyConfiguration) {
         testCorrectnessAfterRecovery(strategyConfig) {
-            module("jvm-module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true; it[KEEP_IC_CACHES_IN_MEMORY] = true })
+            module("basic-multimodule-project/module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true; it[KEEP_IC_CACHES_IN_MEMORY] = true })
         }
     }
 
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Internally tracked: with backup, compiled code is correct after error and fix")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testInternallyTrackedCorrectnessAfterRecovery(strategyConfig: CompilerExecutionStrategyConfiguration) {
         testCorrectnessAfterRecovery(strategyConfig) {
-            trackedModule("jvm-module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true; it[KEEP_IC_CACHES_IN_MEMORY] = true })
+            trackedModule("basic-multimodule-project/module-1", icOptionsConfigAction = { it[BACKUP_CLASSES] = true; it[KEEP_IC_CACHES_IN_MEMORY] = true })
         }
     }
 
     private fun testCorrectnessAfterRecovery(
         strategyConfig: CompilerExecutionStrategyConfiguration,
-        createModule: Scenario.() -> ScenarioModule,
+        createModule: Scenario<*, *>.() -> ScenarioModule,
     ) {
-        scenario(strategyConfig) {
+        jvmScenario(strategyConfig) {
             val module = createModule()
 
             module.createFile("extra.kt", "fun main() { println(\"v1\") }")
@@ -194,14 +190,14 @@ class OutputsBackupErrorHandlingTest : BaseCompilationTest() {
     }
 
     companion object {
-        context(module: Module)
+        context(module: ModuleContext)
         fun assertOutputFileExists(relativePath: String) {
             assertTrue(module.outputDirectory.resolve(relativePath).exists()) {
                 "$relativePath should exist in output directory after failed compilation with backup"
             }
         }
 
-        context(module: Module)
+        context(module: ModuleContext)
         fun assertOutputFileDoesNotExist(relativePath: String) {
             assertFalse(module.outputDirectory.resolve(relativePath).exists()) {
                 "$relativePath should not exist in output directory after failed compilation without backup"

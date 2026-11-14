@@ -44,6 +44,35 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.Under1
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.Under4
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.Ungroup0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.With0
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnSetExceptSelector
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnSetExceptColumnsResolver
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnSetExceptColumnsResolvers
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnSetExceptString
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnSetExceptStrings
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnSetExceptColumnPath
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnSetExceptColumnPaths
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.CSDslAllExceptSelector
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.CSDslAllExceptColumnsResolvers
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.CSDslAllExceptStrings
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.CSDslAllExceptColumnPaths
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnGroupAllColsExceptSelector
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnGroupAllColsExceptStrings
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnGroupAllColsExceptColumnPaths
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnGroupExceptSelector
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnGroupExceptStrings
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnGroupExceptColumnPaths
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.StringExceptSelector
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.StringExceptStrings
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.StringExceptColumnPaths
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnPathExceptSelector
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnPathExceptStrings
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnPathExceptColumnPaths
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.StringAllColsExceptSelector
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.StringAllColsExceptStrings
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.StringAllColsExceptColumnPaths
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnPathAllColsExceptSelector
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnPathAllColsExceptStrings
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnPathAllColsExceptColumnPaths
 import org.jetbrains.kotlin.fir.declarations.findArgumentByName
 import org.jetbrains.kotlin.fir.declarations.getAnnotationWithResolvedArgumentsByClassId
 import org.jetbrains.kotlin.fir.declarations.getStringArgument
@@ -53,6 +82,7 @@ import org.jetbrains.kotlin.fir.expressions.FirGetClassCall
 import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
 import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.expressions.UnresolvedExpressionTypeAccess
+import org.jetbrains.kotlin.fir.expressions.classId
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
 import org.jetbrains.kotlin.fir.references.toResolvedFunctionSymbol
 import org.jetbrains.kotlin.fir.resolve.fqName
@@ -88,6 +118,7 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AllFrom2
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AllUpTo0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AllUpTo1
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AllUpTo2
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AnyColCast
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AsGroupBy
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.AsGroupByDefault
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ByCharDelimiters
@@ -109,6 +140,7 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColsAtAnyDepth2
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColsOf0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColsOf1
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColsOf2
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnOfFrames
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnOfPairs
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnPathCol
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnPathColUntyped
@@ -118,10 +150,28 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnPathSelect
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnRange
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ConcatWithKeys
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ConvertAsColumn
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ConvertAsFrame
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ConvertNotNull
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataColumnValueCounts
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameAddAll
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderFill
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderFillIndexed
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderFillValue
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderInvoke0
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderNulls
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderRandomBoolean
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderRandomDouble
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderRandomDoubleRange
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderRandomFloat
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderRandomInt
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderRandomIntRange
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderRandomLong
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameBuilderRandomLongRange
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameConcat
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameCumSum
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameCumSum0
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameGenerator
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameGetColumns
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameOf0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameOf3
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DataFrameOfPairs
@@ -138,8 +188,10 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DropNa1
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.DropNulls1
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ExcludeJoin
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ExcludeJoinWith
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ExplodeColumns
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.FillNaNs0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.FillNulls0
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.FilterIsInstance
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.FilterJoin
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.FilterJoinWith
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.First0
@@ -162,6 +214,7 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.GatherValuesInto
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.GatherWhere
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.GroupByAdd
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.GroupByCount0
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.GroupByCountDistinct0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.GroupByCumSum
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.GroupByCumSum0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.GroupByInto
@@ -211,6 +264,8 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.InsertAt
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.IntoStringLambda
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.JoinWith
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.LeftJoinWith
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.MapColumn
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.MapColumnKType
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.MapToFrame
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.MatchRegex
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.MatchStringRegex
@@ -316,6 +371,9 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.api.Take2
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.TakeLast0
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.TakeLast1
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.TakeLast2
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ToDataFrameDslAdd
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ToDataFrameDslIntoPath
+import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ToDataFrameDslIntoString
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ToSpecificType
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ToSpecificTypePattern
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ToSpecificTypeZone
@@ -441,12 +499,14 @@ private fun String.loadImpl(isTest: Boolean): Interpreter<*>? {
         "With0" -> With0()
         "ConvertAsColumn" -> ConvertAsColumn()
         "ConvertNotNull" -> ConvertNotNull()
+        "ConvertAsFrame" -> ConvertAsFrame()
         "PerRowCol" -> PerRowCol()
         "UpdatePerCol" -> UpdatePerColLambda()
         "UpdatePerColRow" -> UpdatePerColRow()
         "UpdatePerColMap" -> UpdatePerColMap()
         "UpdatePerRowCol" -> UpdatePerRowCol()
         "Explode0" -> Explode0()
+        "ExplodeColumns" -> ExplodeColumns()
         "Implode" -> Implode()
         "ImplodeDefault" -> ImplodeDefault()
         "Insert1" -> Insert1()
@@ -475,6 +535,7 @@ private fun String.loadImpl(isTest: Boolean): Interpreter<*>? {
         "RenameMapping" -> RenameMapping()
         "Select0" -> Select0()
         "SelectString" -> SelectString()
+        "DataFrameGetColumns" -> DataFrameGetColumns()
         "Distinct0" -> Select0()
         "NestedSelect" -> NestedSelect()
         "Expr0" -> Expr0()
@@ -594,10 +655,27 @@ private fun String.loadImpl(isTest: Boolean): Interpreter<*>? {
         "toDataFrame" -> ToDataFrame()
         "toDataFrameDefault" -> ToDataFrameDefault()
         "ToDataFrameDslStringInvoke" -> ToDataFrameDslStringInvoke()
+        "ToDataFrameDslIntoString" -> ToDataFrameDslIntoString()
+        "ToDataFrameDslIntoPath" -> ToDataFrameDslIntoPath()
+        "ToDataFrameDslAdd" -> ToDataFrameDslAdd()
         "DataFrameOf0" -> DataFrameOf0()
         "DataFrameOfPairs" -> DataFrameOfPairs()
+        "DataFrameGenerator" -> DataFrameGenerator()
         "ColumnOfPairs" -> ColumnOfPairs()
+        "ColumnOfFrames" -> ColumnOfFrames()
         "DataFrameBuilderInvoke0" -> DataFrameBuilderInvoke0()
+        "DataFrameBuilderRandomInt" -> DataFrameBuilderRandomInt()
+        "DataFrameBuilderRandomIntRange" -> DataFrameBuilderRandomIntRange()
+        "DataFrameBuilderRandomDouble" -> DataFrameBuilderRandomDouble()
+        "DataFrameBuilderRandomDoubleRange" -> DataFrameBuilderRandomDoubleRange()
+        "DataFrameBuilderRandomFloat" -> DataFrameBuilderRandomFloat()
+        "DataFrameBuilderRandomLong" -> DataFrameBuilderRandomLong()
+        "DataFrameBuilderRandomLongRange" -> DataFrameBuilderRandomLongRange()
+        "DataFrameBuilderRandomBoolean" -> DataFrameBuilderRandomBoolean()
+        "DataFrameBuilderNulls" -> DataFrameBuilderNulls()
+        "DataFrameBuilderFillIndexed" -> DataFrameBuilderFillIndexed()
+        "DataFrameBuilderFill" -> DataFrameBuilderFill()
+        "DataFrameBuilderFillValue" -> DataFrameBuilderFillValue()
         "ToDataFrameColumn" -> ToDataFrameColumn()
         "FillNulls0" -> FillNulls0()
         "FillNaNs0" -> FillNaNs0()
@@ -613,7 +691,13 @@ private fun String.loadImpl(isTest: Boolean): Interpreter<*>? {
         "AddDslNamedGroup" -> AddDslNamedGroup()
         "AddDslAddGroup" -> AddDslAddGroup()
         "AddDslAddGroupInto" -> AddDslAddGroupInto()
+        "DataFrameAddAll" -> DataFrameAddAll()
         "MapToFrame" -> MapToFrame()
+        "DataColumnMap" -> MapColumn()
+        "DataColumnMapIndexed" -> MapColumn()
+        "DataColumnMapKType" -> MapColumnKType()
+        "DataColumnMapIndexedKType" -> MapColumnKType()
+        "AnyColCast" -> AnyColCast()
         "Move0" -> Move0()
         "ToTop" -> ToTop()
         "Update0" -> Update0()
@@ -623,6 +707,7 @@ private fun String.loadImpl(isTest: Boolean): Interpreter<*>? {
         "AggregateRow" -> AggregateRow()
         "DataFrameOf3" -> DataFrameOf3()
         "ValueCounts" -> ValueCounts()
+        "DataColumnValueCounts" -> DataColumnValueCounts()
         "RenameToCamelCase" -> RenameToCamelCase()
         "RenameToCamelCaseClause" -> RenameToCamelCaseClause()
         "MoveUnder0" -> MoveUnder0()
@@ -662,6 +747,7 @@ private fun String.loadImpl(isTest: Boolean): Interpreter<*>? {
         "DataFrameCumSum" -> DataFrameCumSum()
         "DataFrameCumSum0" -> DataFrameCumSum0()
         "GroupByCount0" -> GroupByCount0()
+        "GroupByCountDistinct0" -> GroupByCountDistinct0()
         "GroupByMean0" -> GroupByMean0()
         "GroupByMean1" -> GroupByMean1()
         "GroupByMean2" -> GroupByMean2()
@@ -705,6 +791,7 @@ private fun String.loadImpl(isTest: Boolean): Interpreter<*>? {
         "GatherExplodeLists" -> GatherExplodeLists()
         "GatherValuesInto" -> GatherValuesInto()
         "GatherKeysInto" -> GatherKeysInto()
+        "DataFrameConcat" -> DataFrameConcat()
         "ConcatWithKeys" -> ConcatWithKeys()
         "DataFrameUnfold" -> DataFrameUnfold()
         "StringInvokeUntyped" -> StringInvokeUntyped()
@@ -728,6 +815,36 @@ private fun String.loadImpl(isTest: Boolean): Interpreter<*>? {
         "ParseString" -> ParseString()
         "ParseDefault" -> ParseDefault()
         "Require0" -> Require0()
+        "FilterIsInstance" -> FilterIsInstance()
+        "ColumnSetExceptSelector" -> ColumnSetExceptSelector()
+        "ColumnSetExceptColumnsResolver" -> ColumnSetExceptColumnsResolver()
+        "ColumnSetExceptColumnsResolvers" -> ColumnSetExceptColumnsResolvers()
+        "ColumnSetExceptString" -> ColumnSetExceptString()
+        "ColumnSetExceptStrings" -> ColumnSetExceptStrings()
+        "ColumnSetExceptColumnPath" -> ColumnSetExceptColumnPath()
+        "ColumnSetExceptColumnPaths" -> ColumnSetExceptColumnPaths()
+        "CSDslAllExceptSelector" -> CSDslAllExceptSelector()
+        "CSDslAllExceptColumnsResolvers" -> CSDslAllExceptColumnsResolvers()
+        "CSDslAllExceptStrings" -> CSDslAllExceptStrings()
+        "CSDslAllExceptColumnPaths" -> CSDslAllExceptColumnPaths()
+        "ColumnGroupAllColsExceptSelector" -> ColumnGroupAllColsExceptSelector()
+        "ColumnGroupAllColsExceptStrings" -> ColumnGroupAllColsExceptStrings()
+        "ColumnGroupAllColsExceptColumnPaths" -> ColumnGroupAllColsExceptColumnPaths()
+        "ColumnGroupExceptSelector" -> ColumnGroupExceptSelector()
+        "ColumnGroupExceptStrings" -> ColumnGroupExceptStrings()
+        "ColumnGroupExceptColumnPaths" -> ColumnGroupExceptColumnPaths()
+        "StringExceptSelector" -> StringExceptSelector()
+        "StringExceptStrings" -> StringExceptStrings()
+        "StringExceptColumnPaths" -> StringExceptColumnPaths()
+        "ColumnPathExceptSelector" -> ColumnPathExceptSelector()
+        "ColumnPathExceptStrings" -> ColumnPathExceptStrings()
+        "ColumnPathExceptColumnPaths" -> ColumnPathExceptColumnPaths()
+        "StringAllColsExceptSelector" -> StringAllColsExceptSelector()
+        "StringAllColsExceptStrings" -> StringAllColsExceptStrings()
+        "StringAllColsExceptColumnPaths" -> StringAllColsExceptColumnPaths()
+        "ColumnPathAllColsExceptSelector" -> ColumnPathAllColsExceptSelector()
+        "ColumnPathAllColsExceptStrings" -> ColumnPathAllColsExceptStrings()
+        "ColumnPathAllColsExceptColumnPaths" -> ColumnPathAllColsExceptColumnPaths()
         else -> if (isTest) error(this) else null
     }
 }

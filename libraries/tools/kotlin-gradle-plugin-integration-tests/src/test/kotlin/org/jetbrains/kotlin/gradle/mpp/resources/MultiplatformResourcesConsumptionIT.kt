@@ -7,6 +7,7 @@
 
 package org.jetbrains.kotlin.gradle.mpp.resources
 
+import org.gradle.api.logging.configuration.WarningMode
 import org.gradle.api.tasks.Copy
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
@@ -16,14 +17,17 @@ import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.uklibs.*
 import org.jetbrains.kotlin.incremental.testingUtils.assertEqualDirectoriesIgnoringDotFiles
 import org.jetbrains.kotlin.konan.target.HostManager
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 
 @MppGradlePluginTests
+@MustRunOnChangesInGradle
 @DisplayName("Test resources consumption APIs")
 class MultiplatformResourcesConsumptionIT : KGPBaseTest() {
 
     @DisplayName("Resolve resources with consumption API using variant reselection")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testWithVariantReselection(
         gradleVersion: GradleVersion,
         androidVersion: String,
@@ -33,7 +37,9 @@ class MultiplatformResourcesConsumptionIT : KGPBaseTest() {
             "multiplatformResources/consumption",
             gradleVersion,
             buildJdk = providedJdk.location,
-            buildOptions = defaultBuildOptions.copy(androidVersion = androidVersion),
+            buildOptions = defaultBuildOptions
+                .copy(androidVersion = androidVersion)
+                .disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
         ) {
             addKgpToBuildScriptCompilationClasspath()
             addAgpToBuildScriptCompilationClasspath(androidVersion)
@@ -173,7 +179,9 @@ class MultiplatformResourcesConsumptionIT : KGPBaseTest() {
             }.publish(
                 publisherConfiguration = PublisherConfiguration(group = "test"),
                 deriveBuildOptions = {
-                    buildOptions.copy(androidVersion = androidVersion)
+                    buildOptions
+                        .copy(androidVersion = androidVersion)
+                        .copy(warningMode = WarningMode.None)
                 }
             )
             publishedProjects[dependencyProject.name] = published
@@ -192,7 +200,9 @@ class MultiplatformResourcesConsumptionIT : KGPBaseTest() {
             "multiplatformResources/consumption/dependency",
             gradleVersion,
             buildJdk = providedJdk.location,
-            buildOptions = defaultBuildOptions.copy(androidVersion = androidVersion),
+            buildOptions = defaultBuildOptions
+                .copy(androidVersion = androidVersion)
+                .disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
         ) {
             addKgpToBuildScriptCompilationClasspath()
             addAgpToBuildScriptCompilationClasspath(androidVersion)

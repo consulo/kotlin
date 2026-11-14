@@ -3,4 +3,9 @@ fun testArrayIncrementDecrement(d: dynamic) {
   val t2: dynamic = --d["prefixDecr"]
   val t3: dynamic = d["postfixIncr"]++
   val t4: dynamic = d["postfixDecr"]--
+  ++d["prefixIncr"] /*~> Unit */
+  --d["prefixDecr"] /*~> Unit */
+  d["postfixIncr"]++ /*~> Unit */
+  d["postfixDecr"]-- /*~> Unit */
 }
+

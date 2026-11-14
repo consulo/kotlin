@@ -1,3 +1,14 @@
+// Test exercises low-level coroutine intrinsics.
+// The Stack Switching implementation intentionally doesn't reproduce full intrinsic semantics.
+// Supporting it would require extra flags/checks for working with special cases of internal testing.
+// WASM_IGNORE_FOR: mode=regular runner=org.jetbrains.kotlin.wasm.test.WasmJsCodegenCoroutinesStackSwitchingTestGenerated
+// WASM_IGNORE_FOR: mode=single-module runner=org.jetbrains.kotlin.wasm.test.FirWasmJsCodegenCoroutinesStackSwitchingSingleModuleTestGenerated
+// WASM_IGNORE_FOR: mode=multi-module runner=org.jetbrains.kotlin.wasm.test.WasmJsCodegenCoroutinesStackSwitchingMultiModuleTestGenerated
+
+// WASM_IGNORE_FOR: mode=regular runner=org.jetbrains.kotlin.wasm.test.WasmWasiCodegenCoroutinesStackSwitchingTestGenerated
+
+// Unmute after KT-89625 [Wasm] remove WasmContinuationBox and fix inner resumptions with `startCoroutine...`
+
 // WITH_STDLIB
 // WITH_COROUTINES
 import helpers.*

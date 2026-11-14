@@ -10,7 +10,7 @@ private val reservedPropertyNames = cKeywords + setOf("description") // https://
 /**
  * Following class and object names should be handled in a special way to avoid clashing with NSObject class methods.
  *
- * When processing ["alloc", "copy", "mutableCopy", "new", "init"] names the `get` prefix should be added.
+ * When processing ["alloc", "copy", "mutableCopy", "new", "init"] names, certain prefixes such as `do` or `get` should be added.
  * Other reserved names are mangled by adding `_` suffix.
  */
 private val reservedClassOrObjectNames = setOf(
@@ -24,7 +24,7 @@ private val reservedClassOrObjectNames = setOf(
 internal val String.isReservedPropertyName: Boolean
     get() = this in reservedPropertyNames
 
-private val String.isReservedClassOrObjectName: Boolean
+internal val String.isReservedClassOrObjectName: Boolean
     get() = this in reservedClassOrObjectNames
 
 /**
@@ -37,3 +37,5 @@ private val String.isReservedClassOrObjectName: Boolean
  * See [reservedClassOrObjectNames], [reservedPropertyNames] and [reservedPropertyNames]
  */
 internal fun String.mangleIfReservedObjCName(): String = if (this.isReservedClassOrObjectName) this + "_" else this
+
+internal fun String.mangleIfReservedPropertyName(): String = if (this.isReservedPropertyName) this + "_" else this

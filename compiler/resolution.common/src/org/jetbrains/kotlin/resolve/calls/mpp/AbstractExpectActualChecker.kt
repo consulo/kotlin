@@ -84,13 +84,29 @@ object AbstractExpectActualChecker {
             checkSingleExpectAgainstMatchedActual(
                 expectDeclaration,
                 actualDeclaration,
-                substitutor = null,
+                substitutor = computeParentSubstitutorForPotentiallyInnerClasses(expectDeclaration, actualDeclaration),
                 expectClassSymbol = null,
                 actualClassSymbol = null,
                 incompatibleMembers = null,
                 languageVersionSettings,
             )
         }
+    }
+
+    private fun ExpectActualMatchingContext<*>.computeParentSubstitutorForPotentiallyInnerClasses(
+        expectDeclaration: DeclarationSymbolMarker,
+        actualDeclaration: DeclarationSymbolMarker,
+    ): TypeSubstitutorMarker? {
+        var expectClass = expectDeclaration as? RegularClassSymbolMarker ?: return null
+        var actualClass = actualDeclaration as? RegularClassSymbolMarker ?: return null
+        var substitutor = createEmptySubstitutor()
+
+        while (expectClass.isInner && actualClass.isInner) {
+            expectClass = expectClass.containingClass as? RegularClassSymbolMarker ?: break
+            actualClass = actualClass.containingClass as? RegularClassSymbolMarker ?: break
+            substitutor = createExpectActualTypeParameterSubstitutor(expectClass.typeParameters zip actualClass.typeParameters, substitutor)
+        }
+        return substitutor
     }
 
     private fun ExpectActualMatchingContext<*>.isInterfaceActualizedAsAny(
@@ -132,7 +148,7 @@ object AbstractExpectActualChecker {
             }
         }
 
-        if (!equalBy(expectClassSymbol, actualClass) { listOf(it.isCompanion, it.isInner, it.isInlineOrValue) }) {
+        if (!equalBy(expectClassSymbol, actualClass) { listOf(it.isCompanion, it.isInner, it.isValue, it.isInline, it.isRichError) }) {
             add(ExpectActualIncompatibility.ClassModifiers)
         }
 
@@ -165,7 +181,7 @@ object AbstractExpectActualChecker {
             add(ExpectActualIncompatibility.Supertypes)
         }
 
-        if (isIllegalRequiresOptInAnnotation(on = actualClass, expectClassSymbol, languageVersionSettings)) {
+        if (isIllegalRequiresOptInAnnotation(on = actualClass, expectClassSymbol)) {
             add(ExpectActualIncompatibility.IllegalRequiresOpt)
         }
 
@@ -410,6 +426,17 @@ object AbstractExpectActualChecker {
             }
         }
 
+        if (
+            languageVersionSettings.supportsFeature(LanguageFeature.StrictEquals) &&
+            expectDeclaration is SimpleFunctionSymbolMarker &&
+            actualDeclaration is SimpleFunctionSymbolMarker &&
+            substitutor != null
+        ) {
+            if (equalityBoundMatcher?.matches(expectDeclaration, actualDeclaration, substitutor) == false) {
+                add(ExpectActualIncompatibility.EqualityBoundsAreDifferent)
+            }
+        }
+
         if (sizesAreEqualAndElementsNotEqualBy(expectedTypeParameters, actualTypeParameters) { nameOf(it) }) {
             add(ExpectActualIncompatibility.TypeParameterNames)
         }
@@ -464,7 +491,18 @@ object AbstractExpectActualChecker {
 
             // If default params came from common supertypes of actual class and expect class then it's a valid code.
             // Here we filter out such default params.
-            if ((actualOverriddenDeclarations - expectOverriddenDeclarations).flatMap { it.valueParameters }.any { it.hasDefaultValue }) {
+            // In the HMPP compilation scheme there could be two different real classes for the same supertype (one from platform
+            // dependencies, one from common), so to filter out declarations which are present in both expect and actual
+            // supertype scopes, we need to compare members by their dispatch receiver.
+            val actualOverriddenDeclarationsNotFromExpect = actualOverriddenDeclarations.filter { actualOverridden ->
+                // We want to preserve the original declaration, but only if it's explictly declared in the actual class
+                if (actualOverridden == actualDeclaration && !actualDeclaration.isFakeOverride(actualContainingClass)) return@filter true
+                val actualOverriddenContainingClassConstructor = actualOverridden.dispatchReceiverType?.typeConstructor() ?: return@filter true
+                expectOverriddenDeclarations.none { expectOverridden ->
+                    expectOverridden.dispatchReceiverType?.typeConstructor() == actualOverriddenContainingClassConstructor
+                }
+            }
+            if (actualOverriddenDeclarationsNotFromExpect.flatMap { it.valueParameters }.any { it.hasDefaultValue }) {
                 add(ExpectActualIncompatibility.ActualFunctionWithOptionalParameters)
             }
         }
@@ -595,7 +633,7 @@ object AbstractExpectActualChecker {
         }
 
         // Removing "reified" from an expected function's type parameter is fine
-        if ((expectTypeParameterSymbols zipIfSizesAreEqual actualTypeParameterSymbols)?.any { (e, a) -> !e.isReified && a.isReified } == true) {
+        if ((expectTypeParameterSymbols zipIfSizesAreEqual actualTypeParameterSymbols)?.any { [e, a] -> !e.isReified && a.isReified } == true) {
             return ExpectActualIncompatibility.TypeParameterReified
         }
 
@@ -679,10 +717,8 @@ object AbstractExpectActualChecker {
 fun ExpectActualMatchingContext<*>.isIllegalRequiresOptInAnnotation(
     on: RegularClassSymbolMarker, // actual or expect
     expect: RegularClassSymbolMarker,
-    languageVersionSettings: LanguageVersionSettings,
 ): Boolean {
-    return languageVersionSettings.supportsFeature(LanguageFeature.MultiplatformRestrictions) &&
-            on.classKind.isAnnotationClass &&
+    return on.classKind.isAnnotationClass &&
             expect.annotations.none { it.classId == StandardClassIds.Annotations.OptionalExpectation } &&
             on.annotations.any { it.classId == OptInNames.REQUIRES_OPT_IN_CLASS_ID }
 }

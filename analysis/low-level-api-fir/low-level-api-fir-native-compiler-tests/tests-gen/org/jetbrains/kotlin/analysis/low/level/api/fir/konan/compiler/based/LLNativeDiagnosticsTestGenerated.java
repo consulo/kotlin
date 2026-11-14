@@ -27,7 +27,7 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
 
   @Test
   public void testAllFilesPresentInNativeTests() {
-    KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+    KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|ll|latestLV|disabled)(\\.repl)?\\.kts?$"), true);
   }
 
   @Test
@@ -49,9 +49,21 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
   }
 
   @Test
+  @TestMetadata("crossModuleVolatile.kt")
+  public void testCrossModuleVolatile() {
+    run("crossModuleVolatile.kt");
+  }
+
+  @Test
   @TestMetadata("dynamic.kt")
   public void testDynamic() {
     run("dynamic.kt");
+  }
+
+  @Test
+  @TestMetadata("eagerInitialization.kt")
+  public void testEagerInitialization() {
+    run("eagerInitialization.kt");
   }
 
   @Test
@@ -91,6 +103,12 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
   }
 
   @Test
+  @TestMetadata("friendModuleAccessToInternalVolatileVal.kt")
+  public void testFriendModuleAccessToInternalVolatileVal() {
+    run("friendModuleAccessToInternalVolatileVal.kt");
+  }
+
+  @Test
   @TestMetadata("identifiers.kt")
   public void testIdentifiers() {
     run("identifiers.kt");
@@ -103,15 +121,27 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
   }
 
   @Test
-  @TestMetadata("isInitialized.kt")
-  public void testIsInitialized() {
-    run("isInitialized.kt");
+  @TestMetadata("identityHashCodeOnWillBecomeValueClass.kt")
+  public void testIdentityHashCodeOnWillBecomeValueClass() {
+    run("identityHashCodeOnWillBecomeValueClass.kt");
   }
 
   @Test
-  @TestMetadata("isInitializedError.kt")
-  public void testIsInitializedError() {
-    run("isInitializedError.kt");
+  @TestMetadata("identitySensitiveOperationsOnValueClasses.kt")
+  public void testIdentitySensitiveOperationsOnValueClasses() {
+    run("identitySensitiveOperationsOnValueClasses.kt");
+  }
+
+  @Test
+  @TestMetadata("interfaceCompanionBlockProperty.kt")
+  public void testInterfaceCompanionBlockProperty() {
+    run("interfaceCompanionBlockProperty.kt");
+  }
+
+  @Test
+  @TestMetadata("isInitialized.kt")
+  public void testIsInitialized() {
+    run("isInitialized.kt");
   }
 
   @Test
@@ -217,6 +247,12 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
   }
 
   @Test
+  @TestMetadata("prohibitKotlinPackageInNative.kt")
+  public void testProhibitKotlinPackageInNative() {
+    run("prohibitKotlinPackageInNative.kt");
+  }
+
+  @Test
   @TestMetadata("resolveToDelegatedProperty.kt")
   public void testResolveToDelegatedProperty() {
     run("resolveToDelegatedProperty.kt");
@@ -275,7 +311,7 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
 
     @Test
     public void testAllFilesPresentInDefaultArguments() {
-      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/defaultArguments"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/defaultArguments"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|ll|latestLV|disabled)(\\.repl)?\\.kts?$"), true);
     }
 
     @Test
@@ -308,7 +344,13 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
 
     @Test
     public void testAllFilesPresentInMultiplatform() {
-      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/multiplatform"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/multiplatform"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|ll|latestLV|disabled)(\\.repl)?\\.kts?$"), true);
+    }
+
+    @Test
+    @TestMetadata("containingClassSymbolWithWrongModuleDataBug.kt")
+    public void testContainingClassSymbolWithWrongModuleDataBug() {
+      run("containingClassSymbolWithWrongModuleDataBug.kt");
     }
 
     @Test
@@ -365,7 +407,7 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
 
     @Test
     public void testAllFilesPresentInSpecialBackendChecks() {
-      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|ll|latestLV|disabled)(\\.repl)?\\.kts?$"), true);
     }
 
     @Nested
@@ -379,7 +421,7 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
 
       @Test
       public void testAllFilesPresentInCInterop() {
-        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/cInterop"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/cInterop"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|ll|latestLV|disabled)(\\.repl)?\\.kts?$"), true);
       }
 
       @Test
@@ -520,7 +562,7 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
 
       @Test
       public void testAllFilesPresentInConcurrent() {
-        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/concurrent"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/concurrent"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|ll|latestLV|disabled)(\\.repl)?\\.kts?$"), true);
       }
 
       @Test
@@ -559,7 +601,7 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
 
       @Test
       public void testAllFilesPresentInImmutableBlobOf() {
-        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/immutableBlobOf"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/immutableBlobOf"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|ll|latestLV|disabled)(\\.repl)?\\.kts?$"), true);
       }
 
       @Test
@@ -598,7 +640,7 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
 
       @Test
       public void testAllFilesPresentInNativeRef() {
-        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/nativeRef"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/nativeRef"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|ll|latestLV|disabled)(\\.repl)?\\.kts?$"), true);
       }
 
       @Test
@@ -625,7 +667,7 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
 
       @Test
       public void testAllFilesPresentInObjCInterop() {
-        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/objCInterop"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/objCInterop"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|ll|latestLV|disabled)(\\.repl)?\\.kts?$"), true);
       }
 
       @Test
@@ -755,6 +797,24 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
       }
 
       @Test
+      @TestMetadata("t36.kt")
+      public void testT36() {
+        run("t36.kt");
+      }
+
+      @Test
+      @TestMetadata("t37.kt")
+      public void testT37() {
+        run("t37.kt");
+      }
+
+      @Test
+      @TestMetadata("t38.kt")
+      public void testT38() {
+        run("t38.kt");
+      }
+
+      @Test
       @TestMetadata("t4.kt")
       public void testT4() {
         run("t4.kt");
@@ -802,7 +862,7 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
 
       @Test
       public void testAllFilesPresentInPosix() {
-        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/posix"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/posix"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|ll|latestLV|disabled)(\\.repl)?\\.kts?$"), true);
       }
 
       @Test
@@ -829,7 +889,7 @@ public class LLNativeDiagnosticsTestGenerated extends AbstractLLNativeDiagnostic
 
       @Test
       public void testAllFilesPresentInReflect() {
-        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/reflect"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/nativeTests/specialBackendChecks/reflect"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|ll|latestLV|disabled)(\\.repl)?\\.kts?$"), true);
       }
 
       @Test

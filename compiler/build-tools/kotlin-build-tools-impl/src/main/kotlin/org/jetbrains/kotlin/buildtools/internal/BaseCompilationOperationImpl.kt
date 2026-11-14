@@ -3,99 +3,218 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:OptIn(ExperimentalCompilerArgument::class)
-
 package org.jetbrains.kotlin.buildtools.internal
 
+import kotlinx.serialization.Transient
 import org.jetbrains.kotlin.build.report.metrics.*
 import org.jetbrains.kotlin.build.report.reportPerformanceData
 import org.jetbrains.kotlin.buildtools.api.*
-import org.jetbrains.kotlin.buildtools.api.arguments.ExperimentalCompilerArgument
+import org.jetbrains.kotlin.buildtools.api.cri.CompilerRefIndexConfiguration
+import org.jetbrains.kotlin.buildtools.api.cri.CriToolchain
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmCompilationOperation.CompilerArgumentsLogLevel
 import org.jetbrains.kotlin.buildtools.api.trackers.CompilerLookupTracker
-import org.jetbrains.kotlin.buildtools.internal.DaemonExecutionPolicyImpl.Companion.DAEMON_RUN_DIR_PATH
-import org.jetbrains.kotlin.buildtools.internal.DaemonExecutionPolicyImpl.Companion.JVM_ARGUMENTS
-import org.jetbrains.kotlin.buildtools.internal.DaemonExecutionPolicyImpl.Companion.LOGS_FILE_COUNT_LIMIT
-import org.jetbrains.kotlin.buildtools.internal.DaemonExecutionPolicyImpl.Companion.LOGS_FILE_SIZE_LIMIT
-import org.jetbrains.kotlin.buildtools.internal.DaemonExecutionPolicyImpl.Companion.LOGS_PATH
-import org.jetbrains.kotlin.buildtools.internal.DaemonExecutionPolicyImpl.Companion.SHUTDOWN_DELAY_MILLIS
-import org.jetbrains.kotlin.buildtools.internal.arguments.CommonCompilerArgumentsImpl
-import org.jetbrains.kotlin.buildtools.internal.arguments.CommonToolArgumentsImpl.Companion.VERBOSE
-import org.jetbrains.kotlin.buildtools.internal.arguments.CommonToolArgumentsImpl.Companion.WERROR
-import org.jetbrains.kotlin.buildtools.internal.arguments.absolutePathStringOrThrow
-import org.jetbrains.kotlin.buildtools.internal.arguments.reportRestrictedViolations
-import org.jetbrains.kotlin.buildtools.internal.jvm.operations.JvmCompilationOperationImpl
-import org.jetbrains.kotlin.buildtools.internal.jvm.operations.JvmCompilationOperationImpl.Option
-import org.jetbrains.kotlin.buildtools.internal.trackers.CompilerImportTracker
-import org.jetbrains.kotlin.buildtools.internal.trackers.ImportTrackerAdapter
+import org.jetbrains.kotlin.buildtools.api.trackers.IcEvent
+import org.jetbrains.kotlin.buildtools.api.trackers.IcEventCollector
+import org.jetbrains.kotlin.buildtools.internal.arguments.*
+import org.jetbrains.kotlin.buildtools.internal.cri.CompilerRefIndexConfigurationImpl
+import org.jetbrains.kotlin.buildtools.internal.cri.CompilerReferenceIndexCollector
+import org.jetbrains.kotlin.buildtools.internal.serializability.CompilerMessageVisitor
+import org.jetbrains.kotlin.buildtools.internal.serializability.IcEventVisitor
+import org.jetbrains.kotlin.buildtools.internal.serializability.LookupMessageVisitor
+import org.jetbrains.kotlin.buildtools.internal.serializability.Message
+import org.jetbrains.kotlin.buildtools.internal.serializability.MessageReportingMessageCollectorWithDiagnosticId
+import org.jetbrains.kotlin.buildtools.internal.serializability.MessageVisitor
+import org.jetbrains.kotlin.buildtools.internal.serializability.cast
+import org.jetbrains.kotlin.buildtools.internal.serializability.throwPropertyNotFound
 import org.jetbrains.kotlin.buildtools.internal.trackers.LookupTrackerAdapter
 import org.jetbrains.kotlin.buildtools.internal.trackers.getMetricsReporter
 import org.jetbrains.kotlin.cli.common.CLICompiler
-import org.jetbrains.kotlin.cli.common.CompilerSystemProperties
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
-import org.jetbrains.kotlin.compilerRunner.KotlinCompilerRunnerUtils
+import org.jetbrains.kotlin.cli.common.messages.MessageCollectorWithDiagnosticId
+import org.jetbrains.kotlin.cli.jvm.plugins.PluginsLoader
 import org.jetbrains.kotlin.compilerRunner.toArgumentStrings
+import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.Services
 import org.jetbrains.kotlin.daemon.client.BasicCompilerServicesWithResultsFacadeServer
 import org.jetbrains.kotlin.daemon.common.*
-import org.jetbrains.kotlin.incremental.components.ImportTracker
 import org.jetbrains.kotlin.incremental.components.LookupInfo
 import org.jetbrains.kotlin.incremental.components.LookupTracker
+import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion
 import org.jetbrains.kotlin.progress.CompilationCanceledStatus
+import org.jetbrains.kotlin.util.toMetadataVersion
 import java.io.ByteArrayOutputStream
-import java.io.File
 import java.io.ObjectOutputStream
 import java.io.Serializable
-import java.net.URLClassLoader
-import java.nio.file.Files
 import java.nio.file.Path
-import java.rmi.RemoteException
 
-internal abstract class BaseCompilationOperationImpl<BtaCompilerArgs : CommonCompilerArgumentsImpl, CompilerArgs : CommonCompilerArguments>(
-    val compilerArguments: BtaCompilerArgs,
-    private val buildIdToSessionFlagFile: MutableMap<ProjectId, File>,
-) : CancellableBuildOperationImpl<CompilationResult>(), BaseCompilationOperation, BaseCompilationOperation.Builder {
+@kotlinx.serialization.Serializable
+internal abstract class BaseCompilationOperationImpl<BtaCompilerArgs : CommonCompilerArgumentsImpl, CompilerArgs : CommonCompilerArguments> :
+    CancellableBuildOperationImpl<CompilationResult>, BaseCompilationOperation, BaseCompilationOperation.Builder {
 
+    protected constructor() : super()
+    protected constructor(other: BaseCompilationOperationImpl<BtaCompilerArgs, CompilerArgs>) : super(other) {
+        lookupTracker = other.lookupTracker
+        compilerArgumentsLogLevel = other.compilerArgumentsLogLevel
+        compilerMessageRenderer = other.compilerMessageRenderer
+        generateCompilerRefIndex = other.generateCompilerRefIndex
+        compilerRefIndexConfiguration = other.compilerRefIndexConfiguration
+        icEventCollector = other.icEventCollector
+    }
+
+    abstract override val compilerArguments: BtaCompilerArgs
+
+    override fun afterDeserialization(messageReporter: (Message) -> Unit, compilerFacade: CompilerServicesFacadeBase?) {
+        super.afterDeserialization(messageReporter, compilerFacade)
+        if (hasLookupTracker) {
+            lookupTracker = MessageReportingCompilerLookupTracker(messageReporter)
+        }
+        if (hasIcEventCollector) {
+            icEventCollector = MessageReportingIcEventCollector(messageReporter)
+        }
+        compilerMessageCollector = MessageReportingMessageCollectorWithDiagnosticId(messageReporter)
+    }
+
+    override fun beforeSerialization(logger: KotlinLogger): List<MessageVisitor> = buildList {
+        addAll(super.beforeSerialization(logger))
+        lookupTracker?.let { add(LookupMessageVisitor(it)) }
+        icEventCollector?.let { add(IcEventVisitor(it)) }
+        add(
+            CompilerMessageVisitor(
+                KotlinLoggerMessageCollectorAdapter(
+                    logger,
+                    compilerMessageRenderer,
+                    compilerArguments.allWarningsAsErrors
+                )
+            )
+        )
+    }
+
+    @Transient
+    var lookupTracker: CompilerLookupTracker? = null
+        set(value) {
+            hasLookupTracker = value != null
+            field = value
+        }
+
+    private var hasLookupTracker: Boolean = false
+
+    internal var compilerArgumentsLogLevel: CompilerArgumentsLogLevel = DEBUG
+
+    @Transient
+    override var compilerMessageRenderer: CompilerMessageRenderer = DefaultCompilerMessageRenderer
+
+    internal var generateCompilerRefIndex: Boolean = false
+
+    @Transient
+    internal var compilerRefIndexConfiguration: CompilerRefIndexConfiguration? = null
+
+    @Transient
+    var icEventCollector: IcEventCollector? = null
+        set(value) {
+            hasIcEventCollector = value != null
+            field = value
+        }
+
+    private var hasIcEventCollector: Boolean = false
+
+    override val warningsAsError: Boolean
+        get() = compilerArguments.allWarningsAsErrors
+
+    @Transient
+    private var compilerMessageCollector: MessageCollectorWithDiagnosticId? = null
+
+    // In-process compilation and linking run a CLICompiler, which creates and uses the shared application environment.
+    override val usesApplicationEnvironment: Boolean
+        get() = true
+
+    @Suppress("UNCHECKED_CAST")
     @UseFromImplModuleRestricted
-    override fun <V> get(key: BaseCompilationOperation.Option<V>): V = options[key]
+    override fun <V> get(key: BaseCompilationOperation.Option<V>): V = when (key.id) {
+        "LOOKUP_TRACKER" -> lookupTracker
+        "COMPILER_ARGUMENTS_LOG_LEVEL" -> compilerArgumentsLogLevel
+        "COMPILER_MESSAGE_RENDERER" -> compilerMessageRenderer
+        "GENERATE_COMPILER_REF_INDEX" -> generateCompilerRefIndex
+        "COMPILER_REF_INDEX" -> compilerRefIndexConfiguration
+        "IC_EVENT_COLLECTOR" -> icEventCollector
+        else -> throwPropertyNotFound(key.id)
+    } as V
 
     @UseFromImplModuleRestricted
     override fun <V> set(key: BaseCompilationOperation.Option<V>, value: V) {
-        options[key] = value
+        checkOptionIsAvailableForVersion(key)
+        when (key.id) {
+            "LOOKUP_TRACKER" -> lookupTracker = value.cast()
+            "COMPILER_ARGUMENTS_LOG_LEVEL" -> compilerArgumentsLogLevel = value.cast()
+            "COMPILER_MESSAGE_RENDERER" -> compilerMessageRenderer = value.cast()
+            "GENERATE_COMPILER_REF_INDEX" -> generateCompilerRefIndex = value.cast()
+            "COMPILER_REF_INDEX" -> compilerRefIndexConfiguration = value.cast()
+            "IC_EVENT_COLLECTOR" -> icEventCollector = value.cast()
+            else -> throwPropertyNotFound(key.id)
+        }
     }
 
-    operator fun <V> get(key: Option<V>): V = options[key]
+    override fun compilerRefIndexConfigurationBuilder(outputDirectory: Path): CompilerRefIndexConfiguration.Builder =
+        CompilerRefIndexConfigurationImpl(outputDirectory)
 
-    @OptIn(UseFromImplModuleRestricted::class)
-    operator fun <V> set(key: Option<V>, value: V) {
-        options[key] = value
-    }
+    /**
+     * Returns the directory an incremental compilation writes the compiler reference index to, or `null` when it isn't requested.
+     *
+     * [BaseCompilationOperation.COMPILER_REF_INDEX] takes precedence over the deprecated
+     * [BaseCompilationOperation.GENERATE_COMPILER_REF_INDEX], which writes to the [CriToolchain.DATA_PATH] directory
+     * under [icWorkingDirectory].
+     * The configured directory is made absolute here because the daemon runs in a directory of its own.
+     */
+    internal fun compilerRefIndexDirectory(icWorkingDirectory: Path): Path? =
+        compilerRefIndexConfiguration?.outputDirectory?.toAbsolutePath()
+            ?: icWorkingDirectory.resolve(CriToolchain.DATA_PATH).takeIf { generateCompilerRefIndex }
 
-    class Option<V> : BaseOptionWithDefault<V> {
-        constructor(id: String) : super(id)
-        constructor(id: String, default: V) : super(id, default = default)
-    }
 
-    override fun executeCancellableImpl(projectId: ProjectId, executionPolicy: ExecutionPolicy, logger: KotlinLogger?): CompilationResult {
-        val compilerMessageRenderer = this[COMPILER_MESSAGE_RENDERER]
+    override fun executeCancellableImpl(
+        projectId: ProjectId,
+        executionPolicy: ExecutionPolicy,
+        logger: KotlinLogger?,
+        executionContext: ExecutionContext,
+    ): CompilationResult {
         val kotlinLogger = logger ?: DefaultKotlinLogger
-        compilerArguments.reportRestrictedViolations(kotlinLogger)
-        val loggerAdapter = KotlinLoggerMessageCollectorAdapter(kotlinLogger, compilerMessageRenderer, compilerArguments[WERROR])
+        val messageCollector = compilerMessageCollector ?: createMessageCollector(kotlinLogger)
 
-        return when (executionPolicy) {
+        if (reportArgumentWarningsAndErrors(kotlinLogger, messageCollector)) return COMPILATION_ERROR
+        val hasArgumentParsingErrors = messageCollector.hasErrors()
+        val result = when (executionPolicy) {
             InProcessExecutionPolicyImpl -> {
-                compileInProcess(loggerAdapter)
+                compileInProcess(kotlinLogger, messageCollector, executionContext)
             }
             is DaemonExecutionPolicyImpl -> {
-                compileWithDaemon(projectId, executionPolicy, loggerAdapter)
+                compileWithDaemon(executionPolicy, kotlinLogger, messageCollector, executionContext)
             }
             else -> {
                 CompilationResult.COMPILATION_ERROR.also {
-                    loggerAdapter.kotlinLogger.error("Unknown execution mode: ${executionPolicy::class.qualifiedName}")
+                    kotlinLogger.error("Unknown execution mode: ${executionPolicy::class.qualifiedName}")
                 }
             }
         }
+        return if (hasArgumentParsingErrors && result == CompilationResult.COMPILATION_SUCCESS) {
+            CompilationResult.COMPILATION_ERROR
+        } else {
+            result
+        }
+    }
+
+    override fun createMessageCollector(logger: KotlinLogger): KotlinLoggerMessageCollectorAdapter =
+        KotlinLoggerMessageCollectorAdapter(logger, compilerMessageRenderer, compilerArguments.allWarningsAsErrors)
+
+    private fun reportArgumentWarningsAndErrors(
+        kotlinLogger: KotlinLogger,
+        messageCollector: MessageCollectorWithDiagnosticId,
+    ): Boolean {
+        compilerArguments.reportRestrictedViolations(kotlinLogger)
+        if (compilerArguments.hasValidationErrors()) {
+            compilerArguments.reportValidationErrors(kotlinLogger)
+            return true
+        }
+        compilerArguments.reportArgumentParseWarnings(messageCollector, createAndPrepareCompilerArguments())
+        return false
     }
 
     abstract val targetPlatform: CompileService.TargetPlatform
@@ -106,18 +225,18 @@ internal abstract class BaseCompilationOperationImpl<BtaCompilerArgs : CommonCom
         reportSeverity: Int,
         requestedCompilationResults: Array<Int>,
         arguments: CompilerArgs,
-    ): IncrementalCompilationOptions?
+    ): CompilationOptions?
 
     private fun toDaemonCompilationOptions(isDebugLoggingEnabled: Boolean, arguments: CompilerArgs): CompilationOptions {
         // TODO: KT-79976 automagically compute the value, related to BasicCompilerServicesWithResultsFacadeServer
         val reportCategories = buildList {
             add(ReportCategory.COMPILER_MESSAGE.code)
-            if (get(LOOKUP_TRACKER) != null) {
+            if (lookupTracker != null) {
                 add(ReportCategory.COMPILER_LOOKUP.code)
             }
         }.toTypedArray()
 
-        val reportSeverity = if (VERBOSE in compilerArguments && compilerArguments[VERBOSE]) {
+        val reportSeverity = if (compilerArguments.verbose) {
             ReportSeverity.DEBUG.code
         } else {
             ReportSeverity.INFO.code
@@ -125,9 +244,10 @@ internal abstract class BaseCompilationOperationImpl<BtaCompilerArgs : CommonCom
 
         val requestedCompilationResults = listOfNotNull(
             CompilationResultCategory.IC_COMPILE_ITERATION.code,
-            CompilationResultCategory.BUILD_METRICS.code.takeIf { this[METRICS_COLLECTOR] != null || this[XX_KGP_METRICS_COLLECTOR] },
+            CompilationResultCategory.BUILD_METRICS.code.takeIf { metricsCollector != null || kgpMetricsCollector },
             // Daemon would report log lines only if debug logging is enabled or metrics are requested
-            CompilationResultCategory.VERBOSE_BUILD_REPORT_LINES.code.takeIf { this[METRICS_COLLECTOR] != null || this[XX_KGP_METRICS_COLLECTOR] || isDebugLoggingEnabled },
+            CompilationResultCategory.VERBOSE_BUILD_REPORT_LINES.code.takeIf { metricsCollector != null || kgpMetricsCollector || isDebugLoggingEnabled },
+            CompilationResultCategory.IC_EVENT.code.takeIf { icEventCollector != null },
         ).toTypedArray()
 
         return getIcOptionsOrNull(reportCategories, reportSeverity, requestedCompilationResults, arguments)
@@ -138,93 +258,57 @@ internal abstract class BaseCompilationOperationImpl<BtaCompilerArgs : CommonCom
                 reportSeverity = reportSeverity,
                 requestedCompilationResults = requestedCompilationResults,
                 kotlinScriptExtensions = ktsExtensionsAsArray,
-                generateCompilerRefIndex = this[GENERATE_COMPILER_REF_INDEX],
             )
     }
 
     private fun compileWithDaemon(
-        projectId: ProjectId,
         executionPolicy: DaemonExecutionPolicyImpl,
-        loggerAdapter: KotlinLoggerMessageCollectorAdapter,
+        logger: KotlinLogger,
+        messageCollector: MessageCollectorWithDiagnosticId,
+        executionContext: ExecutionContext,
     ): CompilationResult {
-        loggerAdapter.kotlinLogger.debug("Compiling using the daemon strategy")
-        val compilerId = CompilerId.makeCompilerId(getCurrentClasspath())
-        val sessionIsAliveFlagFile = buildIdToSessionFlagFile.computeIfAbsent(projectId) {
-            createSessionIsAliveFlagFile()
-        }
-
-        val daemonLogOptions = DaemonLogOptions(
-            logsPath = executionPolicy[LOGS_PATH].absolutePathStringOrThrow(),
-            logsFileSizeLimit = executionPolicy[LOGS_FILE_SIZE_LIMIT] ?: 0,
-            logsFileCountLimit = executionPolicy[LOGS_FILE_COUNT_LIMIT] ?: Int.MAX_VALUE,
-        )
-        Files.createDirectories(executionPolicy[LOGS_PATH])
-
-        val additionalJvmArguments = mutableListOf<String>()
-        val daemonOptions = configureDaemonOptions(
-            DaemonOptions().apply {
-                executionPolicy[SHUTDOWN_DELAY_MILLIS]?.let { shutdownDelay ->
-                    shutdownDelayMilliseconds = shutdownDelay
-                }
-
-                runFilesPath = executionPolicy[DAEMON_RUN_DIR_PATH].absolutePathStringOrThrow()
-                additionalJvmArguments += "D${CompilerSystemProperties.COMPILE_DAEMON_CUSTOM_RUN_FILES_PATH_FOR_TESTS.property}=$runFilesPath"
-            })
-
-        val jvmOptions = configureDaemonJVMOptions(
-            inheritMemoryLimits = true, inheritOtherJvmOptions = false, inheritAdditionalProperties = true
-        ).also { opts ->
-            val effectiveJvmArguments = additionalJvmArguments + (executionPolicy[JVM_ARGUMENTS] ?: emptyList())
-            if (effectiveJvmArguments.isNotEmpty()) {
-                opts.jvmParams.addAll(
-                    effectiveJvmArguments.filterExtractProps(opts.mappers, "", opts.restMapper)
-                )
-            }
-        }
-
-        val (daemon, sessionId) = KotlinCompilerRunnerUtils.newDaemonConnection(
-            compilerId,
-            clientIsAliveFile,
-            sessionIsAliveFlagFile,
-            loggerAdapter,
-            loggerAdapter.kotlinLogger.isDebugEnabled || System.getProperty("kotlin.daemon.debug.log")?.toBooleanStrictOrNull() ?: true,
-            daemonJVMOptions = jvmOptions,
-            daemonOptions = daemonOptions,
-            daemonLogOptions = daemonLogOptions,
+        logger.debug("Compiling using the daemon strategy")
+        (val daemon = compileService, val sessionId) = executionContext.daemonConnectionRegistry.getCompileServiceSession(
+            executionPolicy,
+            logger,
+            messageCollector,
         ) ?: return ExitCode.INTERNAL_ERROR.asCompilationResult
+
         onCancel {
             daemon.cancelCompilation(sessionId, compilationId)
         }
-        if (loggerAdapter.kotlinLogger.isDebugEnabled) {
-            daemon.getDaemonJVMOptions().takeIf { it.isGood }?.let { jvmOpts ->
-                loggerAdapter.kotlinLogger.debug("Kotlin compile daemon JVM options: ${jvmOpts.get().mappers.flatMap { it.toArgs("-") }}")
-            }
-        }
 
         val arguments = createAndPrepareCompilerArguments()
-        arguments.addSources() // TODO: pass the sources explicitly KT-62759
-        logCompilerArguments(loggerAdapter, arguments, get(COMPILER_ARGUMENTS_LOG_LEVEL))
+        arguments.addSources()
+        logCompilerArguments(logger, arguments, compilerArgumentsLogLevel)
 
         val rootProjectDir = getRootProjectDir()
-        val daemonCompileOptions = toDaemonCompilationOptions(loggerAdapter.kotlinLogger.isDebugEnabled, arguments)
-        loggerAdapter.kotlinLogger.info("Options for KOTLIN DAEMON: $daemonCompileOptions")
+        val daemonCompileOptions = toDaemonCompilationOptions(logger.isDebugEnabled, arguments)
+        logger.info("Options for KOTLIN DAEMON: $daemonCompileOptions")
 
         val metricsReporter = getMetricsReporter()
-        val exitCode = daemon.compile(
-            sessionId,
-            arguments.toArgumentStrings().toTypedArray(),
-            daemonCompileOptions,
-            BtaCompilerServicesWithResultsFacade(loggerAdapter, get(LOOKUP_TRACKER)),
-            DaemonCompilationResults(
-                loggerAdapter.kotlinLogger, rootProjectDir?.toFile(), metricsReporter
-            ),
-            compilationId
-        ).get()
+        val memoryUsageBeforeBuild = daemon.getUsedMemory(withGC = false).takeIf { it.isGood }?.get()
 
-        try {
-            daemon.releaseCompileSession(sessionId)
-        } catch (e: RemoteException) {
-            loggerAdapter.kotlinLogger.warn("Unable to release compile session, maybe daemon is already down: $e")
+        val exitCode = try {
+            daemon.compile(
+                sessionId,
+                arguments.toArgumentStrings(allowArgFileInValues = false).toTypedArray(),
+                daemonCompileOptions,
+                createCompilerServicesFacade(logger, messageCollector),
+                DaemonCompilationResults(
+                    logger, rootProjectDir?.toFile(), metricsReporter, icEventCollector
+                ),
+                compilationId
+            ).get()
+        } finally {
+            val memoryUsageAfterBuild = runCatching { daemon.getUsedMemory(withGC = false).takeIf { it.isGood }?.get() }.getOrNull()
+
+            if (memoryUsageAfterBuild == null || memoryUsageBeforeBuild == null) {
+                logger.debug("Unable to calculate memory usage")
+            } else {
+                metricsReporter.addMetric(DAEMON_INCREASED_MEMORY, memoryUsageAfterBuild - memoryUsageBeforeBuild)
+                metricsReporter.addMetric(DAEMON_MEMORY_USAGE, memoryUsageAfterBuild)
+            }
         }
 
         return (ExitCode.entries.find { it.code == exitCode } ?: if (exitCode == 0) {
@@ -236,9 +320,15 @@ internal abstract class BaseCompilationOperationImpl<BtaCompilerArgs : CommonCom
         }
     }
 
+    override fun createCompilerServicesFacade(
+        logger: KotlinLogger,
+        messageCollector: MessageCollectorWithDiagnosticId,
+    ): CompilerServicesFacadeBase =
+        BaseCompilerServicesWithResultsFacade(messageCollector, lookupTracker)
+
     protected fun populateMetricsCollector(metricsReporter: BuildMetricsReporter<BuildTimeMetric, BuildPerformanceMetric>) {
-        if (this[XX_KGP_METRICS_COLLECTOR] && metricsReporter is BuildMetricsReporterImpl) {
-            this[XX_KGP_METRICS_COLLECTOR_OUT] = ByteArrayOutputStream().apply {
+        if (kgpMetricsCollector && metricsReporter is BuildMetricsReporterImpl) {
+            kgpMetricsCollectorOut = ByteArrayOutputStream().apply {
                 ObjectOutputStream(this).writeObject(metricsReporter)
             }.toByteArray()
         }
@@ -248,25 +338,28 @@ internal abstract class BaseCompilationOperationImpl<BtaCompilerArgs : CommonCom
 
     abstract fun createAndPrepareCompilerArguments(): CompilerArgs
 
-    private fun getCurrentClasspath() =
-        (JvmCompilationOperationImpl::class.java.classLoader as URLClassLoader).urLs.map { transformUrlToFile(it) }
-
     abstract fun shouldCompileIncrementally(): Boolean
 
-    protected open fun compileInProcess(loggerAdapter: KotlinLoggerMessageCollectorAdapter): CompilationResult {
-        loggerAdapter.kotlinLogger.debug("Compiling using the in-process strategy")
+    protected open fun compileInProcess(
+        logger: KotlinLogger,
+        messageCollector: MessageCollectorWithDiagnosticId,
+        executionContext: ExecutionContext,
+    ): CompilationResult {
+        logger.debug("Compiling using the in-process strategy")
         val arguments = createAndPrepareCompilerArguments()
 
         return if (shouldCompileIncrementally()) {
-            compileIncrementallyInProcess(arguments, loggerAdapter)
+            compileIncrementallyInProcess(arguments, logger, messageCollector, executionContext)
         } else {
-            compileInProcessWithoutIc(arguments, loggerAdapter)
+            compileInProcessWithoutIc(arguments, logger, messageCollector, executionContext)
         }
     }
 
     abstract fun compileIncrementallyInProcess(
         arguments: CompilerArgs,
-        loggerAdapter: KotlinLoggerMessageCollectorAdapter,
+        logger: KotlinLogger,
+        messageCollector: MessageCollectorWithDiagnosticId,
+        executionContext: ExecutionContext,
     ): CompilationResult
 
     abstract fun createCompiler(): CLICompiler<CompilerArgs>
@@ -275,42 +368,51 @@ internal abstract class BaseCompilationOperationImpl<BtaCompilerArgs : CommonCom
 
     private fun compileInProcessWithoutIc(
         arguments: CompilerArgs,
-        loggerAdapter: KotlinLoggerMessageCollectorAdapter,
+        logger: KotlinLogger,
+        messageCollector: MessageCollectorWithDiagnosticId,
+        executionContext: ExecutionContext,
     ): CompilationResult {
         val compiler = createCompiler()
         arguments.addSources()
         val services = Services.Builder().apply {
             register(CompilationCanceledStatus::class.java, cancellationHandle)
-            get(LOOKUP_TRACKER)?.let { tracker: CompilerLookupTracker ->
+            lookupTracker?.let { tracker: CompilerLookupTracker ->
                 register(LookupTracker::class.java, LookupTrackerAdapter(tracker))
             }
-            get(IMPORT_TRACKER)?.let { tracker: CompilerImportTracker ->
-                register(ImportTracker::class.java, ImportTrackerAdapter(tracker))
-            }
+            executionContext.classloadersCache?.let { register(PluginsLoader::class.java, it.asPluginsLoader()) }
+            registerPlatformServices(logger)
         }.build()
-        logCompilerArguments(loggerAdapter, arguments, get(COMPILER_ARGUMENTS_LOG_LEVEL))
+        logCompilerArguments(logger, arguments, compilerArgumentsLogLevel)
         val metricsReporter = getMetricsReporter()
         metricsReporter.startMeasureGc()
-        val compilationResult = compiler.exec(loggerAdapter, services, arguments).asCompilationResult
+        val compilationResult = compiler.exec(messageCollector, services, arguments).asCompilationResult
         metricsReporter.reportPerformanceData(compiler.defaultPerformanceManager.unitStats)
         metricsReporter.addMetric(COMPILE_ITERATION, 1) // in non-IC case there's always 1 iteration
         metricsReporter.endMeasureGc()
 
         populateMetricsCollector(metricsReporter)
 
+        val compilerReferenceIndexCollector = services[CompilerReferenceIndexCollector::class.java]
+        if (compilationResult == CompilationResult.COMPILATION_SUCCESS && compilerReferenceIndexCollector != null) {
+            val metadataVersion = LanguageVersion.fromVersionString(arguments.languageVersion)?.toMetadataVersion() ?: MetadataVersion.INSTANCE
+            compilerReferenceIndexCollector.write(metadataVersion)
+        }
+
         return compilationResult
     }
 
-    protected fun getLookupTrackerAdapter(): LookupTracker = this[LOOKUP_TRACKER]?.let { tracker ->
+    protected open fun Services.Builder.registerPlatformServices(logger: KotlinLogger) {}
+
+    protected fun getLookupTrackerAdapter(): LookupTracker = lookupTracker?.let { tracker ->
         LookupTrackerAdapter(tracker)
     } ?: LookupTracker.DO_NOTHING
 
     protected fun logCompilerArguments(
-        loggerAdapter: KotlinLoggerMessageCollectorAdapter,
+        logger: KotlinLogger,
         arguments: CompilerArgs,
         argumentsLogLevel: CompilerArgumentsLogLevel,
     ) {
-        with(loggerAdapter.kotlinLogger) {
+        with(logger) {
             val message = "Kotlin compiler args: ${arguments.toArgumentStrings().joinToString(" ")}"
             when (argumentsLogLevel) {
                 CompilerArgumentsLogLevel.ERROR -> error(message)
@@ -320,33 +422,38 @@ internal abstract class BaseCompilationOperationImpl<BtaCompilerArgs : CommonCom
             }
         }
     }
+}
 
-    companion object {
-        val LOOKUP_TRACKER: Option<CompilerLookupTracker?> = Option("LOOKUP_TRACKER", null)
+internal class MessageReportingCompilerLookupTracker(private val messageReporter: (Message) -> Unit) : CompilerLookupTracker {
+    override fun recordLookup(
+        filePath: String,
+        scopeFqName: String,
+        scopeKind: CompilerLookupTracker.ScopeKind,
+        name: String,
+    ) {
+        messageReporter(
+            Message.LookupTracker.Record(filePath, scopeFqName, scopeKind, name)
+        )
+    }
 
-        /*
-        * Tracks imports during compilation.
-        * This option partially addresses [KT-84450](https://youtrack.jetbrains.com/issue/KT-84450)
-        * and is not intended to work in all cases for now.
-        * */
-        val IMPORT_TRACKER: Option<CompilerImportTracker?> = Option("IMPORT_TRACKER", null)
-
-        val COMPILER_ARGUMENTS_LOG_LEVEL: Option<CompilerArgumentsLogLevel> =
-            Option("COMPILER_ARGUMENTS_LOG_LEVEL", default = CompilerArgumentsLogLevel.DEBUG)
-
-        val COMPILER_MESSAGE_RENDERER: Option<CompilerMessageRenderer> =
-            Option("COMPILER_MESSAGE_RENDERER", default = DefaultCompilerMessageRenderer)
-
-        val GENERATE_COMPILER_REF_INDEX: Option<Boolean> = Option("GENERATE_COMPILER_REF_INDEX", false)
-
+    override fun clear() {
+        messageReporter(
+            Message.LookupTracker.Clear
+        )
     }
 }
 
-private class BtaCompilerServicesWithResultsFacade(
-    loggerAdapter: KotlinLoggerMessageCollectorAdapter,
+internal class MessageReportingIcEventCollector(private val messageReporter: (Message) -> Unit) : IcEventCollector {
+    override fun collectEvents(eventsFromBta: List<IcEvent>) {
+        messageReporter(Message.IcEventCollector.CollectEvents(eventsFromBta))
+    }
+}
+
+
+private class BaseCompilerServicesWithResultsFacade(
+    messageCollector: MessageCollectorWithDiagnosticId,
     val lookupTracker: CompilerLookupTracker? = null,
-) :
-    BasicCompilerServicesWithResultsFacadeServer(loggerAdapter) {
+) : BasicCompilerServicesWithResultsFacadeServer(messageCollector) {
     override fun report(category: Int, severity: Int, message: String?, attachment: Serializable?) {
         when (category) {
             ReportCategory.COMPILER_LOOKUP.code -> {

@@ -11,14 +11,14 @@ scopes:
     packages: 0
     classifiers: 1
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: [
-          <error>()
+          null()
             psi: KtAnnotationEntry
         ]
         classId: pkg/ValueInt
         classKind: CLASS
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -27,10 +27,13 @@ scopes:
         isFun: false
         isInline: true
         isInner: false
+        isValue: true
         location: TOP_LEVEL
         modality: FINAL
         name: ValueInt
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []
@@ -53,4 +56,3 @@ scopes:
     constructors: 0
 
   DefaultStarImportingScope, index = 5
-

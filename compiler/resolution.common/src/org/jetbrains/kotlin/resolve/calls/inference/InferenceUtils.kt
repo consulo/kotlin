@@ -5,9 +5,12 @@
 
 package org.jetbrains.kotlin.resolve.calls.inference
 
+import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.resolve.calls.inference.components.extractProjectionsForAllCapturedTypes
 import org.jetbrains.kotlin.resolve.calls.inference.model.ConstraintStorage
 import org.jetbrains.kotlin.resolve.calls.inference.model.NewConstraintSystemImpl
+import org.jetbrains.kotlin.types.EmptyIntersectionTypeKind
 import org.jetbrains.kotlin.types.model.*
 
 fun ConstraintStorage.buildCurrentSubstitutor(
@@ -24,13 +27,13 @@ fun ConstraintStorage.buildAbstractResultingSubstitutor(
     if (allTypeVariables.isEmpty()) return createEmptySubstitutor()
 
     val uninferredSubstitutorMap = if (transformTypeVariablesToErrorTypes) {
-        notFixedTypeVariables.entries.associate { (freshTypeConstructor, typeVariable) ->
+        notFixedTypeVariables.entries.associate { [freshTypeConstructor, typeVariable] ->
             freshTypeConstructor to context.createUninferredType(
                 (typeVariable.typeVariable).freshTypeConstructor()
             )
         }
     } else {
-        notFixedTypeVariables.entries.associate { (freshTypeConstructor, typeVariable) ->
+        notFixedTypeVariables.entries.associate { [freshTypeConstructor, typeVariable] ->
             freshTypeConstructor to typeVariable.typeVariable.defaultType(this)
         }
     }
@@ -43,6 +46,28 @@ fun ConstraintStorage.buildNotFixedVariablesToNonSubtypableTypesSubstitutor(
     return context.typeSubstitutorByTypeConstructor(
         notFixedTypeVariables.mapValues { context.createStubTypeForTypeVariablesInSubtyping(it.value.typeVariable) }
     )
+}
+
+context(c: TypeSystemInferenceExtensionContext)
+fun TypeConstructorMarker.hasRecursionCapturedTypes(): Boolean {
+    fun TypeConstructorMarker.hasRecursiveSupertypes() =
+        supertypes().any { it.typeConstructor().hasRecursionCapturedTypes() }
+
+    return when {
+        isIntersection() -> hasRecursiveSupertypes()
+        this is CapturedTypeConstructorMarker -> hasRecursiveBounds()
+        else -> false
+    }
+}
+
+context(c: TypeSystemInferenceExtensionContext)
+private fun CapturedTypeConstructorMarker.hasRecursiveBounds(): Boolean =
+    supertypes().any { it.hasAsArgument(this) }
+
+context(c: TypeSystemInferenceExtensionContext)
+private fun KotlinTypeMarker.hasAsArgument(constructor: TypeConstructorMarker): Boolean = when {
+    typeConstructor().isIntersection() -> typeConstructor().supertypes().any { it.hasAsArgument(constructor) }
+    else -> getArguments().any { it.getType()?.typeConstructor() == constructor }
 }
 
 context(c: TypeSystemInferenceExtensionContext)
@@ -110,4 +135,8 @@ private fun KotlinTypeMarker.extractAllContainingTypeVariablesNoCaptureTypeProce
         }
         false
     }
+}
+
+fun EmptyIntersectionTypeKind.isError(settings: LanguageVersionSettings): Boolean {
+    return isDefinitelyEmpty && settings.supportsFeature(LanguageFeature.ForbidInferringTypeVariablesIntoEmptyIntersection)
 }

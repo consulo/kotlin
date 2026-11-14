@@ -34,7 +34,9 @@ fun KGPBaseTest.resourcesProducerProject(
     "multiplatformResources/publication",
     gradleVersion,
     buildJdk = providedJdk?.location,
-    buildOptions = defaultBuildOptions.copy(androidVersion = androidVersion),
+    buildOptions = defaultBuildOptions
+        .copy(androidVersion = androidVersion, configurationCache = BuildOptions.ConfigurationCacheValue.DISABLED)
+        .disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
 ) {
     addKgpToBuildScriptCompilationClasspath()
     androidVersion?.let { addAgpToBuildScriptCompilationClasspath(it) }

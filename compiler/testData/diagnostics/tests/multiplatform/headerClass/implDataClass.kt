@@ -1,4 +1,6 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
+// LANGUAGE: -StrictEquals
+//  ^^^ KT-88389
 // MODULE: m1-common
 // FILE: common.kt
 

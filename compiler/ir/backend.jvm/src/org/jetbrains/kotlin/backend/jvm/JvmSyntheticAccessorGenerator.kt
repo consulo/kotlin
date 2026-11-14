@@ -8,7 +8,7 @@ package org.jetbrains.kotlin.backend.jvm
 import org.jetbrains.kotlin.backend.common.ScopeWithIr
 import org.jetbrains.kotlin.backend.common.descriptors.synthesizedString
 import org.jetbrains.kotlin.backend.common.lower.inline.SyntheticAccessorGenerator
-import org.jetbrains.kotlin.backend.jvm.ir.isJvmInterface
+import org.jetbrains.kotlin.backend.jvm.ir.*
 import org.jetbrains.kotlin.codegen.AsmUtil
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.DescriptorVisibility
@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.load.java.JavaDescriptorVisibilities
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.name.JvmStandardClassIds
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.org.objectweb.asm.Opcodes
 
 class JvmSyntheticAccessorGenerator(context: JvmBackendContext) :
@@ -77,7 +78,10 @@ class JvmSyntheticAccessorGenerator(context: JvmBackendContext) :
         parent: IrDeclarationParent,
         scopeInfo: List<ScopeWithIr>,
     ): IrDeclarationParent =
-        if (visibility == JavaDescriptorVisibilities.PROTECTED_STATIC_VISIBILITY) {
+        if (parent is IrClass && parent.origin == JvmLoweredDeclarationOrigin.INTERFACE_PRIVATE_FIELDS_CLASS) {
+            // For INTERFACE_PRIVATE_FIELDS_CLASS, place the accessor in the parent interface
+            parent.parentAsClass
+        } else if (visibility == JavaDescriptorVisibilities.PROTECTED_STATIC_VISIBILITY) {
             val classes = scopeInfo.map { it.irElement }.filterIsInstance<IrClass>()
             val companions = classes.mapNotNull(IrClass::companionObject)
             val objectsInScope =
@@ -183,21 +187,32 @@ class JvmSyntheticAccessorGenerator(context: JvmBackendContext) :
                     accessor.metadata = declaration.metadata
                     declaration.metadata = null
                 }
-                accessor.annotations += declaration.annotations
-                declaration.annotations = emptyList()
-                declaration.parameters.forEach { it.annotations = emptyList() }
+                // @JvmExposeBoxed marks the exposed constructor, not the constructor with a marker
+                accessor.annotations += declaration.annotations.withoutJvmExposeBoxedAnnotation()
+                if (!declaration.isExposedByMakingPublic()) {
+                    declaration.annotations = emptyList()
+                    declaration.parameters.forEach { it.annotations = emptyList() }
+                }
             }
         }
 
     fun isOrShouldBeHiddenSinceHasMangledParams(constructor: IrConstructor): Boolean {
-        if (constructor.hasAnnotation(JvmStandardClassIds.JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME)) return false
+        if (constructor.hasAnnotation(JvmStandardClassIds.JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME) &&
+            !constructor.isExposedByMakingPublic()
+        ) return false
         if (constructor.hiddenConstructorMangledParams != null) return true
         return constructor.isOrShouldBeHiddenDueToOrigin &&
                 !DescriptorVisibilities.isPrivate(constructor.visibility) &&
-                !constructor.constructedClass.isValue &&
-                (constructor.originalConstructorOfThisMfvcConstructorReplacement ?: constructor).hasMangledParameters() &&
+                !constructor.constructedClass.isInlineClass &&
+                constructor.hasMangledParameters() &&
+                !constructor.hasIntroducedAtAnnotatedParameter() &&
                 !constructor.constructedClass.isAnonymousObject
     }
+
+    // @IntroducedAt already creates default constructor if some parameters are inline classes
+    // no need to duplicate it.
+    private fun IrConstructor.hasIntroducedAtAnnotatedParameter(): Boolean =
+        parameters.any { it.hasAnnotation(StandardClassIds.Annotations.IntroducedAt) }
 
     fun isOrShouldBeHiddenAsSealedClassConstructor(constructor: IrConstructor): Boolean {
         if (constructor.hiddenConstructorOfSealedClass != null) return true
@@ -222,3 +237,12 @@ class JvmSyntheticAccessorGenerator(context: JvmBackendContext) :
             declaration.hiddenConstructorOfSealedClass = it
         }
 }
+
+// If ordinary class constructor accepts boxed inline classes, and none of non-boxed inline classes,
+// usually, we generate a private unmangled constructor, and a constructor with a marker to be called from Kotlin code.
+// So, when exposing the constructor to Java, we simply make the hidden constructor public.
+// Also, we keep the constructor with the marker to preserve binary compatibility.
+fun IrConstructor.isExposedByMakingPublic(): Boolean =
+    hasAnnotation(JvmStandardClassIds.JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME) &&
+            constructedClass.modality != Modality.SEALED &&
+            parameters.filter { it.type.isInlineClassType() }.all { it.type.isBoxedInlineClassType() }

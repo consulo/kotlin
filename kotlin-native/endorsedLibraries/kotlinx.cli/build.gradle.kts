@@ -1,6 +1,9 @@
 import org.jetbrains.kotlin.*
 
 plugins {
+    id("common-configuration")
+    id("test-inputs-check")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("multiplatform")
 }
 
@@ -14,8 +17,7 @@ kotlin {
         }
         commonTest {
             dependencies {
-                // projectOrFiles is required for the performance project that includes kotlinx.cli compositely
-                projectOrFiles(project, ":kotlin-test")?.let { implementation(it) }
+                implementation(project(":kotlin-test"))
             }
             kotlin.srcDir("src/tests")
         }
@@ -29,7 +31,7 @@ kotlin {
             // JVM-specific tests and their dependencies:
             compilations["test"].defaultSourceSet {
                 dependencies {
-                    implementation(kotlinTest("junit"))
+                    implementation(kotlinTest("junit5"))
                 }
             }
 
@@ -43,4 +45,11 @@ kotlin {
             }
         }
     }
+    compilerOptions {
+        freeCompilerArgs.addAll(dogfoodedExperimentalFeatures)
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }

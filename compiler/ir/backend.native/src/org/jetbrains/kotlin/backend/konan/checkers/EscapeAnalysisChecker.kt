@@ -5,15 +5,15 @@
 
 package org.jetbrains.kotlin.backend.konan.checkers
 
-import org.jetbrains.kotlin.backend.common.report
+import org.jetbrains.kotlin.backend.common.getCompilerMessageLocation
 import org.jetbrains.kotlin.backend.konan.BinaryType
 import org.jetbrains.kotlin.backend.konan.IntrinsicType
+import org.jetbrains.kotlin.backend.konan.NativeBackendDiagnostics
 import org.jetbrains.kotlin.backend.konan.computeBinaryType
 import org.jetbrains.kotlin.backend.konan.driver.NativePhaseContext
 import org.jetbrains.kotlin.backend.konan.ir.annotations.escapes
 import org.jetbrains.kotlin.backend.konan.ir.annotations.pointsTo
 import org.jetbrains.kotlin.backend.konan.ir.tryGetIntrinsicType
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
@@ -31,16 +31,38 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.NativeRuntimeNames
 
+/**
+ * Same as [tryGetIntrinsicType], but treats an intrinsic `kind` that isn't a value in this compiler's [IntrinsicType] enum
+ * as "unknown" (returns `null`) instead of propagating [IllegalArgumentException] from [Enum.valueOf].
+ *
+ * Reserved for the stdlib-build traversal: the stdlib is compiled by a pinned bootstrap K/N distribution whose
+ * `IntrinsicType` enum may lag behind the current source. Without this tolerance, adding new `@TypedIntrinsic` kind
+ * to the runtime would require a bootstrap bump before the runtime can actually use it.
+ */
+private fun tryGetIntrinsicTypeIgnoringUnknown(function: IrFunction): IntrinsicType? = try {
+    tryGetIntrinsicType(function)
+} catch (_: IllegalArgumentException) {
+    null
+}
+
 class EscapeAnalysisChecker(
     private val context: NativePhaseContext,
     private val irFile: IrFile,
 ) : IrVisitorVoid() {
     private fun reportWarning(location: IrElement, message: String) {
-        context.report(CompilerMessageSeverity.STRONG_WARNING, location, irFile, message)
+        context.diagnosticReporter.report(
+            NativeBackendDiagnostics.NATIVE_ESCAPE_ANALYSIS_WARNING,
+            message,
+            location.getCompilerMessageLocation(irFile)
+        )
     }
 
     private fun reportNonFatalError(location: IrElement, message: String) {
-        context.report(CompilerMessageSeverity.ERROR, location, irFile, message)
+        context.diagnosticReporter.report(
+            NativeBackendDiagnostics.NATIVE_BACKEND_ERROR,
+            message,
+            location.getCompilerMessageLocation(irFile)
+        )
     }
 
     private val IntrinsicType.mustBeLowered: Boolean
@@ -82,7 +104,7 @@ class EscapeAnalysisChecker(
                 && !startsWith(kotlinPackageFqn.child(Name.identifier("native")).child(Name.identifier("concurrent")))
 
     private val IrFunction.isLoweredIntrinsic: Boolean
-        get() = tryGetIntrinsicType(this)?.mustBeLowered == true
+        get() = tryGetIntrinsicTypeIgnoringUnknown(this)?.mustBeLowered == true
 
     private val IrType.cannotEscape: Boolean
         get() = isUnit() || isNothing() || computeBinaryType() is BinaryType.Primitive

@@ -7,19 +7,20 @@ package org.jetbrains.kotlin.incremental.classpathDiff
 
 import org.jetbrains.kotlin.build.report.DoNothingBuildReporter
 import org.jetbrains.kotlin.buildtools.api.jvm.ClassSnapshotGranularity
-import org.jetbrains.kotlin.incremental.ChangesEither
-import org.jetbrains.kotlin.incremental.LookupSymbol
 import org.jetbrains.kotlin.buildtools.api.jvm.ClassSnapshotGranularity.CLASS_LEVEL
 import org.jetbrains.kotlin.buildtools.api.jvm.ClassSnapshotGranularity.CLASS_MEMBER_LEVEL
 import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
+import org.jetbrains.kotlin.incremental.ChangesEither
+import org.jetbrains.kotlin.incremental.LookupSymbol
 import org.jetbrains.kotlin.incremental.classpathDiff.ClasspathSnapshotTestCommon.ClassFileUtil.asFile
 import org.jetbrains.kotlin.incremental.classpathDiff.ClasspathSnapshotTestCommon.ClassFileUtil.snapshot
 import org.jetbrains.kotlin.incremental.classpathDiff.ClasspathSnapshotTestCommon.CompileUtil.compileAll
 import org.jetbrains.kotlin.incremental.classpathDiff.impl.ClassFile
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.jvm.JvmClassName
 import org.jetbrains.kotlin.resolve.sam.SAM_LOOKUP_NAME
-import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import org.junit.jupiter.api.Test
 import java.io.File
 import kotlin.test.fail
 
@@ -352,6 +353,170 @@ class KotlinOnlyClasspathChangesComputerTest : ClasspathChangesComputerTest() {
             )
         ).assertEquals(changes)
     }
+
+    /**
+     * Tests [TypeAliasExpansionImpact]: a change in the class a type alias expands to must also be reported against the alias, so that
+     * source files referencing only the alias are recompiled.
+     */
+    @Test
+    fun testImpactComputation_TypeAliasExpansions() {
+        val changes = computeClasspathChanges(
+            File(testDataDir, "KotlinOnly/testImpactComputation_TypeAliasExpansions/src"), tmpDir, expandTypeAliases = true
+        )
+        Changes(
+            lookupSymbols = setOf(
+                LookupSymbol(name = "changedFunction", scope = "com.example.B"),
+                LookupSymbol(name = SAM_LOOKUP_NAME.asString(), scope = "com.example.B"),
+                // The alias mirrors the change in the class it expands to
+                LookupSymbol(name = "changedFunction", scope = "com.example.AliasOfB"),
+                LookupSymbol(name = SAM_LOOKUP_NAME.asString(), scope = "com.example.AliasOfB"),
+            ),
+            fqNames = setOf(
+                "com.example.B",
+                "com.example.AliasOfB"
+            )
+        ).assertEquals(changes)
+    }
+
+    /** Without [ClasspathEntrySnapshotter.Settings.expandTypeAliases], the change above must not be attributed to the alias. */
+    @Test
+    fun testImpactComputation_TypeAliasExpansions_Disabled() {
+        val changes = computeClasspathChanges(
+            File(testDataDir, "KotlinOnly/testImpactComputation_TypeAliasExpansions/src"), tmpDir
+        )
+        Changes(
+            lookupSymbols = setOf(
+                LookupSymbol(name = "changedFunction", scope = "com.example.B"),
+                LookupSymbol(name = SAM_LOOKUP_NAME.asString(), scope = "com.example.B"),
+            ),
+            fqNames = setOf("com.example.B")
+        ).assertEquals(changes)
+    }
+
+    /**
+     * KT-90252: when [ClasspathEntrySnapshotter.Settings.expandTypeAliases] is enabled only for the current snapshot, the aliases newly
+     * collected for the (otherwise unchanged) facade must still be used, so the change in the expanded class reaches the alias.
+     */
+    @Test
+    fun testImpactComputation_TypeAliasExpansions_EnabledAfterDisabled() {
+        val changes = computeClasspathChanges(
+            File(testDataDir, "KotlinOnly/testImpactComputation_TypeAliasExpansions/src"), tmpDir,
+            expandTypeAliases = true, previousExpandTypeAliases = false,
+        )
+        Changes(
+            lookupSymbols = setOf(
+                LookupSymbol(name = "changedFunction", scope = "com.example.B"),
+                LookupSymbol(name = SAM_LOOKUP_NAME.asString(), scope = "com.example.B"),
+                LookupSymbol(name = "changedFunction", scope = "com.example.AliasOfB"),
+                LookupSymbol(name = SAM_LOOKUP_NAME.asString(), scope = "com.example.AliasOfB"),
+            ),
+            fqNames = setOf(
+                "com.example.B",
+                "com.example.AliasOfB"
+            )
+        ).assertEquals(changes)
+    }
+
+    /**
+     * Tests granularity transition with a companion object where only the companion's ABI changes.
+     * Without the fix in computeKotlinClassChanges, this triggers IllegalStateException:
+     * "The following FqNames can't be derived from DirtyData.dirtyLookupSymbols"
+     * because the companion reports MembersChanged(parentFqName, ...) but the parent class
+     * is not in allClasses (its ABI didn't change so it wasn't included in changed classes).
+     */
+    @Test // KT-84271
+    fun testGranularityTransition_CoarseToFine() {
+        val testDataSrcDir = File(testDataDir, "KotlinOnly/testGranularityTransition/src")
+        val previousSnapshot = snapshotClasspath(File(testDataSrcDir, "previous-classpath"), tmpDir, CLASS_LEVEL)
+        val currentSnapshot = snapshotClasspath(File(testDataSrcDir, "current-classpath"), tmpDir, CLASS_MEMBER_LEVEL)
+        val changes = computeClasspathChanges(currentSnapshot, previousSnapshot)
+        // Only the companion object's ABI changed. With the fix, granularity-mismatched classes
+        // are compared at the coarse (class) level, so only class-level changes are reported.
+        Changes(
+            lookupSymbols = setOf(
+                LookupSymbol(name = "Companion", scope = "com.example.Outer"),
+            ),
+            fqNames = setOf(
+                "com.example.Outer.Companion",
+            )
+        ).assertEquals(changes)
+    }
+
+    /** Same as [testGranularityTransition_CoarseToFine] but in the opposite direction. */
+    @Test // KT-84271
+    fun testGranularityTransition_FineToCoarse() {
+        val testDataSrcDir = File(testDataDir, "KotlinOnly/testGranularityTransition/src")
+        val previousSnapshot = snapshotClasspath(File(testDataSrcDir, "previous-classpath"), tmpDir, CLASS_MEMBER_LEVEL)
+        val currentSnapshot = snapshotClasspath(File(testDataSrcDir, "current-classpath"), tmpDir, CLASS_LEVEL)
+        val changes = computeClasspathChanges(currentSnapshot, previousSnapshot)
+        Changes(
+            lookupSymbols = setOf(
+                LookupSymbol(name = "Companion", scope = "com.example.Outer"),
+            ),
+            fqNames = setOf(
+                "com.example.Outer.Companion",
+            )
+        ).assertEquals(changes)
+    }
+
+    /**
+     * After a coarse→fine granularity transition (class-level comparison), a subsequent fine→fine build
+     * should correctly use member-level comparison since both snapshots now have fine-grained data.
+     */
+    @Test // KT-84271
+    fun testGranularityTransition_CoarseToFineToFine() {
+        val testDataSrcDir = File(testDataDir, "KotlinOnly/testGranularityTransition/src")
+        val coarseGrainedCompanionChanges = Changes(
+            lookupSymbols = setOf(
+                LookupSymbol(name = "Companion", scope = "com.example.Outer"),
+            ),
+            fqNames = setOf("com.example.Outer.Companion")
+        )
+        val fineGrainedCompanionChanges = Changes(
+            lookupSymbols = setOf(
+                LookupSymbol(name = "companionFunction", scope = "com.example.Outer.Companion"),
+                LookupSymbol(name = SAM_LOOKUP_NAME.asString(), scope = "com.example.Outer.Companion"),
+            ),
+            fqNames = setOf("com.example.Outer.Companion")
+        )
+
+        // Build 1→2: coarse → fine (granularity transition → class-level comparison)
+        val build1Snapshot = snapshotClasspath(File(testDataSrcDir, "previous-classpath"), tmpDir, CLASS_LEVEL)
+        val build2Snapshot = snapshotClasspath(File(testDataSrcDir, "current-classpath"), tmpDir, CLASS_MEMBER_LEVEL)
+        coarseGrainedCompanionChanges.assertEquals(computeClasspathChanges(build2Snapshot, build1Snapshot))
+
+        // Build 2→3: fine → fine (stable granularity → member-level comparison)
+        val build3Snapshot = snapshotClasspath(File(testDataSrcDir, "previous-classpath"), tmpDir, CLASS_MEMBER_LEVEL)
+        fineGrainedCompanionChanges.assertEquals(computeClasspathChanges(build3Snapshot, build2Snapshot))
+    }
+
+    /**
+     * Verifies multiple granularity transitions: fine→coarse, then coarse→coarse, then coarse→fine.
+     * All transitions and stable states should use class-level comparison (coarse is involved every time).
+     */
+    @Test // KT-84271
+    fun testGranularityTransition_FineToCoarseToCoarseToFine() {
+        val testDataSrcDir = File(testDataDir, "KotlinOnly/testGranularityTransition/src")
+        val coarseGrainedCompanionChanges = Changes(
+            lookupSymbols = setOf(
+                LookupSymbol(name = "Companion", scope = "com.example.Outer"),
+            ),
+            fqNames = setOf("com.example.Outer.Companion")
+        )
+
+        // Build 1→2: fine → coarse (granularity transition → class-level comparison)
+        val build1Snapshot = snapshotClasspath(File(testDataSrcDir, "previous-classpath"), tmpDir, CLASS_MEMBER_LEVEL)
+        val build2Snapshot = snapshotClasspath(File(testDataSrcDir, "current-classpath"), tmpDir, CLASS_LEVEL)
+        coarseGrainedCompanionChanges.assertEquals(computeClasspathChanges(build2Snapshot, build1Snapshot))
+
+        // Build 2→3: coarse → coarse (same granularity → class-level comparison)
+        val build3Snapshot = snapshotClasspath(File(testDataSrcDir, "previous-classpath"), tmpDir, CLASS_LEVEL)
+        coarseGrainedCompanionChanges.assertEquals(computeClasspathChanges(build3Snapshot, build2Snapshot))
+
+        // Build 3→4: coarse → fine (granularity transition → class-level comparison)
+        val build4Snapshot = snapshotClasspath(File(testDataSrcDir, "current-classpath"), tmpDir, CLASS_MEMBER_LEVEL)
+        coarseGrainedCompanionChanges.assertEquals(computeClasspathChanges(build4Snapshot, build3Snapshot))
+    }
 }
 
 class JavaOnlyClasspathChangesComputerTest : ClasspathChangesComputerTest() {
@@ -507,10 +672,89 @@ class KotlinAndJavaClasspathChangesComputerTest : ClasspathSnapshotTestCommon() 
             )
         ).assertEquals(changes)
     }
+
+    @Test
+    fun testPackageInfoChange() {
+        val changes = computeClasspathChanges(File(testDataDir, "JavaOnly/testPackageInfoChange/src"), tmpDir)
+        Changes(
+            lookupSymbols = setOf(
+                // Changed
+                LookupSymbol(name = "package-info", scope = "com.example"),
+                // Impacted: every class in the package, and (transitively) their subclasses in other packages
+                LookupSymbol(name = "ClassInPackage", scope = "com.example"),
+                LookupSymbol(name = "SubClassOfClassInPackage", scope = "com.other"),
+            ),
+            fqNames = setOf(
+                "com.example.package-info",
+                "com.example.ClassInPackage",
+                "com.other.SubClassOfClassInPackage",
+            )
+        ).assertEquals(changes)
+    }
+
+    @Test
+    fun testModuleInfoChange() {
+        val changes = computeClasspathChanges(File(testDataDir, "JavaOnly/testModuleInfoChange/src"), tmpDir)
+        Changes(
+            lookupSymbols = setOf(
+                // Changed
+                LookupSymbol(name = "module-info", scope = "mid"),
+                // Impacted
+                LookupSymbol(name = "M", scope = "mpkg"),
+                LookupSymbol(name = "module-info", scope = "base"),
+                LookupSymbol(name = "A", scope = "apkg"),
+            ),
+            fqNames = setOf(
+                "mid.module-info",
+                "mpkg.M",
+                "base.module-info",
+                "apkg.A",
+            )
+        ).assertEquals(changes)
+    }
+
+    @Test
+    fun testModuleInfoChange_impactsPackageMembers() {
+        val packageFacade = PackageFacadeKotlinClassSnapshot(
+            classId = ClassId.topLevel(FqName("apkg.UtilKt")),
+            classAbiHash = 0,
+            classMemberLevelSnapshot = null,
+            packageMemberNames = setOf("aFunction"),
+            typeAliases = null,
+        )
+
+        fun moduleInfo(classAbiHash: Long) = ModuleInfoClassSnapshot(
+            classId = ModuleInfoClassSnapshot.moduleInfoClassId("dep"),
+            classAbiHash = classAbiHash,
+            packages = setOf(FqName("apkg")),
+            transitiveRequires = emptyList(),
+        )
+
+        val changes = ClasspathChangesComputer.computeChangedAndImpactedSet(
+            currentClassSnapshots = listOf(packageFacade, moduleInfo(classAbiHash = 2)),
+            previousClassSnapshots = listOf(packageFacade, moduleInfo(classAbiHash = 1)),
+            ClasspathSnapshotBuildReporter(DoNothingBuildReporter)
+        ).normalize()
+
+        Changes(
+            lookupSymbols = setOf(
+                // Changed
+                LookupSymbol(name = "module-info", scope = "dep"),
+                // Impacted: a package facade is only looked up by its package members
+                LookupSymbol(name = "UtilKt", scope = "apkg"),
+                LookupSymbol(name = "aFunction", scope = "apkg"),
+            ),
+            fqNames = setOf(
+                "dep.module-info",
+                "apkg.UtilKt",
+                "apkg",
+            )
+        ).assertEquals(changes)
+    }
 }
 
 private fun testMixedClassSnapshotGranularities_snapshotClasspath(
-    language: String, classpathSourceDirName: String, tmpDir: TemporaryFolder
+    language: String, classpathSourceDirName: String, tmpDir: File
 ): ClasspathSnapshot {
     val classes = compileAll(File("$testDataDir/$language/testMixedClassSnapshotGranularities/src/$classpathSourceDirName"), tmpDir)
 
@@ -541,11 +785,14 @@ private fun List<ClassSnapshot>.toClasspathSnapshot(): ClasspathSnapshot {
 
 private fun computeClasspathChanges(
     classpathSourceDir: File,
-    tmpDir: TemporaryFolder,
-    granularity: ClassSnapshotGranularity? = null
+    tmpDir: File,
+    granularity: ClassSnapshotGranularity? = null,
+    expandTypeAliases: Boolean = false,
+    previousExpandTypeAliases: Boolean = expandTypeAliases,
 ): Changes {
-    val currentSnapshot = snapshotClasspath(File(classpathSourceDir, "current-classpath"), tmpDir, granularity)
-    val previousSnapshot = snapshotClasspath(File(classpathSourceDir, "previous-classpath"), tmpDir, granularity)
+    val currentSnapshot = snapshotClasspath(File(classpathSourceDir, "current-classpath"), tmpDir, granularity, expandTypeAliases)
+    val previousSnapshot =
+        snapshotClasspath(File(classpathSourceDir, "previous-classpath"), tmpDir, granularity, previousExpandTypeAliases)
     return computeClasspathChanges(currentSnapshot, previousSnapshot)
 }
 

@@ -155,8 +155,9 @@ public var KmClass.isExpect: Boolean by classBooleanFlag(FlagImpl(ProtoFlags.IS_
 /**
  * Indicates that the corresponding class is either a pre-Kotlin-1.5 `inline` class, or a 1.5+ `value` class.
  *
- * Note that it does not imply that the class has [JvmInline] annotation and will be inlined.
- * Currently, it is impossible to declare a value class without this annotation, but this can be changed in the future.
+ * Note that it does not imply that the class has [JvmInline] annotation and will be inlined: an experimental full value class, declared
+ * without this annotation, is not inlined on JVM. Unlike a full value class, an inline class compiled by Kotlin 1.5 or later has
+ * [KmClass.inlineClassUnderlyingPropertyName].
  */
 public var KmClass.isValue: Boolean by classBooleanFlag(FlagImpl(ProtoFlags.IS_VALUE_CLASS))
 
@@ -208,7 +209,6 @@ public var KmConstructor.hasNonStableParameterNames: Boolean by constructorBoole
  *
  * @see [MustUseReturnValues]
  */
-@ExperimentalMustUseStatus
 public var KmConstructor.returnValueStatus: ReturnValueStatus by returnValueStatusDelegate(
     KmConstructor::flags,
     ProtoFlags.RETURN_VALUE_STATUS_CTOR
@@ -291,11 +291,36 @@ public var KmFunction.hasNonStableParameterNames: Boolean by functionBooleanFlag
  *
  * @see [MustUseReturnValues]
  */
-@ExperimentalMustUseStatus
 public var KmFunction.returnValueStatus: ReturnValueStatus by returnValueStatusDelegate(
     KmFunction::flags,
     ProtoFlags.RETURN_VALUE_STATUS_FUNCTION
 )
+
+/**
+ * Indicates whether the function is compiled as static on the JVM.
+ * It is true for functions declared in the companion blocks.
+ *
+ * Note that there are some other functions that are also compiled as static, such as `Enum.valueOf`
+ * or ones produced by `@JvmStatic`, but they do not have metadata on their own,
+ * and thus this flag is not related to them.
+ */
+@Deprecated("Use isCompanionBlockMember instead", ReplaceWith("isCompanionBlockMember"))
+@OptIn(ExperimentalCompanionBlocks::class)
+@ExperimentalCompanionBlocksAndExtensions
+public var KmFunction.isStatic: Boolean
+    get() = isCompanionBlockMember
+    set(value) {
+        isCompanionBlockMember = value
+    }
+
+/**
+ * Indicates whether the function is a companion block member.
+ *
+ * Refer to [KEEP-449](https://github.com/Kotlin/KEEP/blob/main/proposals/KEEP-0449-companions-block-extension.md)
+ * for more details about companion blocks and companion block members.
+ */
+@ExperimentalCompanionBlocks
+public var KmFunction.isCompanionBlockMember: Boolean by functionBooleanFlag(FlagImpl(ProtoFlags.IS_STATIC_FUNCTION))
 
 // --- PROPERTY ---
 
@@ -393,11 +418,37 @@ public var KmProperty.isExpect: Boolean by propertyBooleanFlag(FlagImpl(ProtoFla
  *
  * @see [MustUseReturnValues]
  */
-@ExperimentalMustUseStatus
 public var KmProperty.returnValueStatus: ReturnValueStatus by returnValueStatusDelegate(
     KmProperty::flags,
     ProtoFlags.RETURN_VALUE_STATUS_PROPERTY
 )
+
+/**
+ * Indicates whether the property is compiled as static on the JVM.
+ * It is true for properties declared in the companion blocks.
+ * Property accessor in this case is also static, and there is no separate attribute for it.
+ *
+ * Note that there are some other properties that are also compiled as static, such as `Enum.entries`
+ * or ones produced by `@JvmStatic`, but they do not have metadata on their own,
+ * and thus this flag is not related to them.
+ */
+@OptIn(ExperimentalCompanionBlocks::class)
+@ExperimentalCompanionBlocksAndExtensions
+@Deprecated(message = "Use isCompanionBlockMember instead", replaceWith = ReplaceWith("isCompanionBlockMember"))
+public var KmProperty.isStatic: Boolean
+    get() = isCompanionBlockMember
+    set(value) {
+        isCompanionBlockMember = value
+    }
+
+/**
+ * Indicates whether the property is a companion block member.
+ *
+ * Refer to [KEEP-449](https://github.com/Kotlin/KEEP/blob/main/proposals/KEEP-0449-companions-block-extension.md)
+ * for more details about companion blocks and companion block members.
+ */
+@ExperimentalCompanionBlocks
+public var KmProperty.isCompanionBlockMember: Boolean by propertyBooleanFlag(FlagImpl(ProtoFlags.IS_STATIC_PROPERTY))
 
 // --- PROPERTY ACCESSOR ---
 

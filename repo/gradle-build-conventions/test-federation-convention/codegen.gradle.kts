@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import org.gradle.api.file.Directory
+import org.gradle.api.file.RegularFile
 import kotlin.io.path.createParentDirectories
 import kotlin.io.path.writeText
 
@@ -35,11 +37,23 @@ tasks.register("generateDomainSources") {
     outputs.dir(outputDir)
 
     doLast {
+        DomainSourcesGenerator.generate(outputDir, declaredDomains)
+    }
+}
+
+private object DomainSourcesGenerator {
+    fun generate(outputDir: Directory, declaredDomains: RegularFile) {
         val mapper = ObjectMapper(YAMLFactory()).registerKotlinModule()
         val node = mapper.readTree(declaredDomains.asFile)
-        val domains = node.properties().mapNotNull { (key, value) ->
-            if (key.startsWith("$")) null else value.toDomainDTO(key)
-        }
+
+        val ignores = node.properties()
+            .filter { (key, _) -> key == "ignore" }
+            .flatMap { (_, value) -> value.valueStream()?.toList().orEmpty().map { it.asText() } }
+
+        val domains = node.properties()
+            .filter { (key, _) -> key != "ignore" }
+            .filter { (key, _) -> !key.startsWith("$") }
+            .map { (key, value) -> value.toDomainDTO(key) }
 
 
         outputDir.asFile.toPath().resolve("domains.kt").createParentDirectories().writeText(
@@ -60,46 +74,78 @@ tasks.register("generateDomainSources") {
                 this += "|"
                 for (domain in domains) {
                     this += "|internal object ${domain.name}DomainInfo : DomainInfo {"
-                    this += "|    override val home = \"${domain.home}\""
                     this += "|    override val domain = Domain.${domain.name}"
                     this += "|    override val include: List<String> = listOf(${domain.includes.joinToString { "\"$it\"" }})"
                     this += "|    override val exclude: List<String> = listOf(${domain.excludes.joinToString { "\"$it\"" }})"
-                    this += "|    override val fullyAffectedBy: List<DomainInfo> by lazy { listOf(${domain.fullyAffectedBy.joinToString { "${it}DomainInfo" }}) }"
+                    this += "|    override val mustRunAllTestsOnChangesIn: List<DomainInfo> by lazy { listOf(${domain.mustRunAllTestsOnChangesIn.joinToString { "${it}DomainInfo" }}) }"
+                    this += "|    override val team: String = \"${domain.team}\""
                     this += "|}"
                     this += "|"
                 }
 
                 this += "|"
-                this += "|internal val allDomainInfos: List<DomainInfo> by lazy {"
+                this += "|val allDomainInfos: List<DomainInfo> by lazy {"
                 this += "|    listOf("
                 for (domain in domains) {
                     this += "|        ${domain.name}DomainInfo,"
                 }
                 this += "|    )"
                 this += "|}"
+                this += "|"
+                this += "|val ignores = listOf<String>(${ignores.joinToString { "\"$it\"" }})"
+            }.trimMargin()
+        )
+
+        outputDir.asFile.toPath().resolve("testSubsets.kt").createParentDirectories().writeText(
+            buildString {
+                this += "|// This file is generated automatically. DO NOT MODIFY IT MANUALLY"
+                this += "|// See 'codegen.gradle.kts'"
+                this += "|"
+                this += "|package org.jetbrains.kotlin.testFederation"
+                this += "|"
+                this += "|enum class TestSubset {"
+                this += "|    AllTests,"
+                this += "|    SmokeTests,"
+                for (domain in domains) {
+                    this += "|    ContractTestsFor${domain.name},"
+                }
+                this += "|    ;"
+                this += "|}"
+                this += "|"
+                this += "|fun contractTestsSubsetOf(domain: Domain): TestSubset = when (domain) {"
+                for (domain in domains) {
+                    this += "|    Domain.${domain.name} -> TestSubset.ContractTestsFor${domain.name}"
+                }
+                this += "|}"
+                this += "|"
+                this += "|val contractSubsets = setOf("
+                for (domain in domains) {
+                    this += "|    TestSubset.ContractTestsFor${domain.name},"
+                }
+                this += "|)"
             }.trimMargin()
         )
     }
-}
 
-private fun JsonNode.toDomainDTO(key: String): DomainDTO {
-    return DomainDTO(
-        name = key,
-        home = get("home").asText(),
-        includes = get("include")?.valueStream()?.toList().orEmpty().map { it.asText() },
-        excludes = get("exclude")?.valueStream()?.toList().orEmpty().map { it.asText() },
-        fullyAffectedBy = get("fullyAffectedBy")?.valueStream()?.toList().orEmpty().map { it.asText() },
+    private fun JsonNode.toDomainDTO(key: String): DomainDTO {
+        return DomainDTO(
+            name = key,
+            includes = get("include")?.valueStream()?.toList().orEmpty().map { it.asText() },
+            excludes = get("exclude")?.valueStream()?.toList().orEmpty().map { it.asText() },
+            mustRunAllTestsOnChangesIn = get("mustRunAllTestsOnChangesIn")?.valueStream()?.toList().orEmpty().map { it.asText() },
+            team = get("team")?.asText() ?: error("Domain '$key' is missing 'team'"),
+        )
+    }
+
+    private data class DomainDTO(
+        val name: String,
+        val includes: List<String>,
+        val excludes: List<String>,
+        val mustRunAllTestsOnChangesIn: List<String>,
+        val team: String,
     )
-}
 
-private data class DomainDTO(
-    val name: String,
-    val home: String,
-    val includes: List<String>,
-    val excludes: List<String>,
-    val fullyAffectedBy: List<String>,
-)
-
-private operator fun StringBuilder.plusAssign(s: String) {
-    this.appendLine(s)
+    private operator fun StringBuilder.plusAssign(s: String) {
+        this.appendLine(s)
+    }
 }

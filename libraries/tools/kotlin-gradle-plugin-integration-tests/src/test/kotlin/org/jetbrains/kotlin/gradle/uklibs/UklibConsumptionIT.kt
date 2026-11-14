@@ -25,8 +25,10 @@ import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.testing.*
 import org.jetbrains.kotlin.gradle.testing.PrettyPrint
 import org.jetbrains.kotlin.gradle.testing.ResolvedComponentWithArtifacts
+import org.jetbrains.kotlin.gradle.util.computeTransformedLibraryVersionChecksum
 import org.jetbrains.kotlin.gradle.util.resolveIdeDependencies
 import org.jetbrains.kotlin.gradle.utils.named
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import java.io.File
 import java.io.Serializable
@@ -39,6 +41,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalWasmDsl::class)
 @MppGradlePluginTests
 @DisplayName("Smoke test uklib consumption")
+@MustRunOnChangesInGradle
 class UklibConsumptionIT : KGPBaseTest() {
 
     @GradleAndroidTest
@@ -51,7 +54,7 @@ class UklibConsumptionIT : KGPBaseTest() {
             androidTarget().publishLibraryVariants("debug", "release")
             linuxArm64()
             iosArm64()
-            @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+            // fixme: KT-89587 Clean up tests after iosX64 target deprecation
             iosX64()
             macosArm64()
             jvm()
@@ -269,28 +272,25 @@ class UklibConsumptionIT : KGPBaseTest() {
 
             assertEquals(
                 """
-                /consumeIn_appleMain|consumeIn_appleMain(Producer_commonMain;Producer_nativeMain;Producer_appleMain){}[0]
-                /consumeIn_commonMain|consumeIn_commonMain(Producer_commonMain){}[0]
-                /consumeIn_iosArm64Main|consumeIn_iosArm64Main(Producer_commonMain;Producer_nativeMain;Producer_appleMain;Producer_iosArm64Main){}[0]
-                /consumeIn_iosMain|consumeIn_iosMain(Producer_commonMain;Producer_nativeMain;Producer_appleMain;Producer_iosMain){}[0]
-                /consumeIn_nativeMain|consumeIn_nativeMain(Producer_commonMain;Producer_nativeMain){}[0]
-
+                public final fun consumeIn_appleMain(Producer_commonMain: Producer_commonMain, Producer_nativeMain: Producer_nativeMain, Producer_appleMain: Producer_appleMain): kotlin/Unit
+                public final fun consumeIn_commonMain(Producer_commonMain: Producer_commonMain): kotlin/Unit
+                public final fun consumeIn_iosArm64Main(Producer_commonMain: Producer_commonMain, Producer_nativeMain: Producer_nativeMain, Producer_appleMain: Producer_appleMain, Producer_iosArm64Main: Producer_iosArm64Main): kotlin/Unit
+                public final fun consumeIn_iosMain(Producer_commonMain: Producer_commonMain, Producer_nativeMain: Producer_nativeMain, Producer_appleMain: Producer_appleMain, Producer_iosMain: Producer_iosMain): kotlin/Unit
+                public final fun consumeIn_nativeMain(Producer_commonMain: Producer_commonMain, Producer_nativeMain: Producer_nativeMain): kotlin/Unit
                 """.trimIndent(),
                 dumpKlibMetadataSignatures(klibs.iosArm64Klib),
             )
 
             assertEquals(
                 """
-                /consumeIn_iosMain|consumeIn_iosMain(Producer_commonMain;Producer_nativeMain;Producer_appleMain;Producer_iosMain){}[0]
-
+                public final fun consumeIn_iosMain(Producer_commonMain: Producer_commonMain, Producer_nativeMain: Producer_nativeMain, Producer_appleMain: Producer_appleMain, Producer_iosMain: Producer_iosMain): kotlin/Unit
                 """.trimIndent(),
                 dumpKlibMetadataSignatures(klibs.iosMainKlib),
             )
 
             assertEquals(
                 """
-                /consumeIn_commonMain|consumeIn_commonMain(Producer_commonMain){}[0]
-
+                public final fun consumeIn_commonMain(Producer_commonMain: Producer_commonMain): kotlin/Unit
                 """.trimIndent(),
                 dumpKlibMetadataSignatures(klibs.commonMainKlib),
             )
@@ -305,9 +305,11 @@ class UklibConsumptionIT : KGPBaseTest() {
         return project(
             "empty",
             gradleVersion,
-            buildOptions = defaultBuildOptions.copy(
-                androidVersion = androidVersion,
-            ).disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
+            buildOptions = defaultBuildOptions
+                .copy(
+                    androidVersion = androidVersion,
+                )
+                .disableIsolatedProjectsBecauseOfJsAndWasmKT75899()
         ) {
             if (androidVersion != null) addAgpToBuildScriptCompilationClasspath(androidVersion)
             addKgpToBuildScriptCompilationClasspath()
@@ -400,6 +402,7 @@ class UklibConsumptionIT : KGPBaseTest() {
             addPublishedProjectToRepositories(transitive)
             buildScriptInjection {
                 project.computeTransformedLibraryChecksum(false)
+                project.computeTransformedLibraryVersionChecksum(enable = false)
                 project.setUklibResolutionStrategy()
                 project.applyMultiplatform {
                     linuxArm64()
@@ -677,7 +680,7 @@ class UklibConsumptionIT : KGPBaseTest() {
             buildScriptInjection {
                 project.applyMultiplatform {
                     iosArm64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                    // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                     iosX64()
                     jvm()
                     sourceSets.commonMain.get().compileSource(
@@ -701,7 +704,7 @@ class UklibConsumptionIT : KGPBaseTest() {
             buildScriptInjection {
                 project.applyMultiplatform {
                     iosArm64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                    // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                     iosX64()
                     jvm {
                         binaries {
@@ -793,6 +796,7 @@ class UklibConsumptionIT : KGPBaseTest() {
             addPublishedProjectToRepositories(direct)
             buildScriptInjection {
                 project.computeTransformedLibraryChecksum()
+                project.computeTransformedLibraryVersionChecksum(enable = false)
                 project.setUklibResolutionStrategy()
                 project.applyMultiplatform {
                     targetSetup()
@@ -1348,15 +1352,22 @@ class UklibConsumptionIT : KGPBaseTest() {
             buildScriptInjection {
                 project.applyMultiplatform {
                     iosArm64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                    // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                     iosX64()
                     js()
                     sourceSets.commonMain.get().compileSource("class Common")
                 }
             }
-        }.publish(publisherConfiguration = PublisherConfiguration(group = "producer"))
+        }.publish(
+            publisherConfiguration = PublisherConfiguration(group = "producer"),
+            deriveBuildOptions = { buildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899() }
+        )
 
-        val consumer = project("empty", version) {
+        val consumer = project(
+            "empty",
+            version,
+            buildOptions = defaultBuildOptions.copy(enableLegacyAgpDsl = false),
+        ) {
             addKgpToBuildScriptCompilationClasspath()
             addAgpToBuildScriptCompilationClasspath(androidVersion)
             addPublishedProjectToRepositories(producer)
@@ -1452,7 +1463,7 @@ class UklibConsumptionIT : KGPBaseTest() {
     }
 
     @GradleAndroidTest
-    @AndroidTestVersions(minVersion = TestVersions.AGP.AGP_88)
+    @AndroidTestVersions(minVersion = TestVersions.AGP.AGP_88, maxVersion = TestVersions.AGP.AGP_813)
     fun `uklib consumption - KMP androidLibrary with stub JVM variant - KT-81434`(
         version: GradleVersion,
         androidVersion: String,
@@ -1468,6 +1479,7 @@ class UklibConsumptionIT : KGPBaseTest() {
         val producer = project(
             "empty",
             version,
+            buildOptions = defaultBuildOptions.copy(enableLegacyAgpDsl = false),
         ) {
             addKgpToBuildScriptCompilationClasspath()
             addAgpToBuildScriptCompilationClasspath(androidVersion)
@@ -1483,7 +1495,11 @@ class UklibConsumptionIT : KGPBaseTest() {
             }
         }.publish(publisherConfiguration = PublisherConfiguration(group = "producer"))
 
-        val consumer = project("empty", version) {
+        val consumer = project(
+            "empty",
+            version,
+            buildOptions = defaultBuildOptions.copy(enableLegacyAgpDsl = false),
+        ) {
             addKgpToBuildScriptCompilationClasspath()
             addAgpToBuildScriptCompilationClasspath(androidVersion)
             addPublishedProjectToRepositories(producer)

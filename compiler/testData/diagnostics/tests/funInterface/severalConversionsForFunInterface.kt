@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +SamConversionForKotlinFunctions +SamConversionPerArgument +FunctionalInterfaceConversion
+// RUN_PIPELINE_TILL: CODEGEN
 
 interface J {
     fun foo1(r: KRunnable)

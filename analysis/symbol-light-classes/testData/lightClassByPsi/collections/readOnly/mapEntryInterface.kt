@@ -1,4 +1,5 @@
-// WITH_STDLIB
+// STDLIB_JDK8
+// FULL_JDK
 package test
 
 interface IMapEntry<KElem, VElem> : Map.Entry<KElem, VElem>

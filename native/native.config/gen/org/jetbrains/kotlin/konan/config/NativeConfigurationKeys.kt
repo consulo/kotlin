@@ -17,23 +17,17 @@ import org.jetbrains.kotlin.backend.konan.LlvmVariant
 import org.jetbrains.kotlin.backend.konan.TestRunnerKind
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
+import org.jetbrains.kotlin.konan.library.SerializedKlibDAG
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
 object NativeConfigurationKeys {
-    // Bundle ID to be set in Info.plist of a produced framework.
-    @JvmField
-    val BUNDLE_ID = CompilerConfigurationKey.create<String>("BUNDLE_ID")
-
     // Check dependencies and download the missing ones.
     @JvmField
     val CHECK_DEPENDENCIES = CompilerConfigurationKey.create<Boolean>("CHECK_DEPENDENCIES")
 
     @JvmField
     val DEBUG = CompilerConfigurationKey.create<Boolean>("DEBUG")
-
-    @JvmField
-    val FAKE_OVERRIDE_VALIDATOR = CompilerConfigurationKey.create<Boolean>("FAKE_OVERRIDE_VALIDATOR")
 
     @JvmField
     val EMIT_LAZY_OBJC_HEADER_FILE = CompilerConfigurationKey.create<String>("EMIT_LAZY_OBJC_HEADER_FILE")
@@ -71,6 +65,10 @@ object NativeConfigurationKeys {
     @JvmField
     val INCREMENTAL_CACHE_DIR = CompilerConfigurationKey.create<String>("INCREMENTAL_CACHE_DIR")
 
+    // Path to a file where the list of all cache archives produced by this build should be written.
+    @JvmField
+    val DUMP_BUILT_CACHES_TO = CompilerConfigurationKey.create<String>("DUMP_BUILT_CACHES_TO")
+
     // Mapping from library paths to cache paths.
     @JvmField
     val CACHED_LIBRARIES = CompilerConfigurationKey.create<Map<String, String>>("CACHED_LIBRARIES")
@@ -81,6 +79,10 @@ object NativeConfigurationKeys {
 
     @JvmField
     val MAKE_PER_FILE_CACHE = CompilerConfigurationKey.create<Boolean>("MAKE_PER_FILE_CACHE")
+
+    // Combined fingerprint of external cached dependencies of the library being cached.
+    @JvmField
+    val CACHED_LIBRARY_DEPENDENCIES_FINGERPRINT = CompilerConfigurationKey.create<String>("CACHED_LIBRARY_DEPENDENCIES_FINGERPRINT")
 
     @JvmField
     val FRAMEWORK_IMPORT_HEADERS = CompilerConfigurationKey.create<List<String>>("FRAMEWORK_IMPORT_HEADERS")
@@ -130,10 +132,6 @@ object NativeConfigurationKeys {
     @JvmField
     val KONAN_NO_DEFAULT_LIBS = CompilerConfigurationKey.create<Boolean>("KONAN_NO_DEFAULT_LIBS")
 
-    // Don't link with the endorsed libraries.
-    @JvmField
-    val KONAN_NO_ENDORSED_LIBS = CompilerConfigurationKey.create<Boolean>("KONAN_NO_ENDORSED_LIBS")
-
     // Assume 'main' entry point to be provided by external libraries.
     @JvmField
     val NOMAIN = CompilerConfigurationKey.create<Boolean>("NOMAIN")
@@ -169,9 +167,6 @@ object NativeConfigurationKeys {
 
     @JvmField
     val KONAN_PRODUCED_ARTIFACT_KIND = CompilerConfigurationKey.create<CompilerOutputKind>("KONAN_PRODUCED_ARTIFACT_KIND")
-
-    @JvmField
-    val KONAN_PURGE_USER_LIBS = CompilerConfigurationKey.create<Boolean>("KONAN_PURGE_USER_LIBS")
 
     @JvmField
     val RUNTIME_FILE = CompilerConfigurationKey.create<String>("RUNTIME_FILE")
@@ -278,11 +273,11 @@ object NativeConfigurationKeys {
     @JvmField
     val LLVM_LTO_PASSES = CompilerConfigurationKey.create<String>("LLVM_LTO_PASSES")
 
-}
+    // A wrapper over the DAG of libraries that the compiler needs to build static caches for. It's saved in the compiler configuration for spawned static cache compilation to avoid recomputing the DAG.
+    @JvmField
+    val SERIALIZED_KLIB_DAG = CompilerConfigurationKey.create<SerializedKlibDAG>("SERIALIZED_KLIB_DAG")
 
-var CompilerConfiguration.bundleId: String?
-    get() = get(NativeConfigurationKeys.BUNDLE_ID)
-    set(value) { put(NativeConfigurationKeys.BUNDLE_ID, requireNotNull(value) { "nullable values are not allowed" }) }
+}
 
 var CompilerConfiguration.checkDependencies: Boolean
     get() = getBoolean(NativeConfigurationKeys.CHECK_DEPENDENCIES)
@@ -291,10 +286,6 @@ var CompilerConfiguration.checkDependencies: Boolean
 var CompilerConfiguration.debug: Boolean
     get() = getBoolean(NativeConfigurationKeys.DEBUG)
     set(value) { put(NativeConfigurationKeys.DEBUG, value) }
-
-var CompilerConfiguration.fakeOverrideValidator: Boolean
-    get() = getBoolean(NativeConfigurationKeys.FAKE_OVERRIDE_VALIDATOR)
-    set(value) { put(NativeConfigurationKeys.FAKE_OVERRIDE_VALIDATOR, value) }
 
 var CompilerConfiguration.emitLazyObjcHeaderFile: String?
     get() = get(NativeConfigurationKeys.EMIT_LAZY_OBJC_HEADER_FILE)
@@ -336,6 +327,10 @@ var CompilerConfiguration.incrementalCacheDir: String?
     get() = get(NativeConfigurationKeys.INCREMENTAL_CACHE_DIR)
     set(value) { put(NativeConfigurationKeys.INCREMENTAL_CACHE_DIR, requireNotNull(value) { "nullable values are not allowed" }) }
 
+var CompilerConfiguration.dumpBuiltCachesTo: String?
+    get() = get(NativeConfigurationKeys.DUMP_BUILT_CACHES_TO)
+    set(value) { put(NativeConfigurationKeys.DUMP_BUILT_CACHES_TO, requireNotNull(value) { "nullable values are not allowed" }) }
+
 var CompilerConfiguration.cachedLibraries: Map<String, String>
     get() = getMap(NativeConfigurationKeys.CACHED_LIBRARIES)
     set(value) { put(NativeConfigurationKeys.CACHED_LIBRARIES, value) }
@@ -347,6 +342,10 @@ var CompilerConfiguration.filesToCache: List<String>
 var CompilerConfiguration.makePerFileCache: Boolean
     get() = getBoolean(NativeConfigurationKeys.MAKE_PER_FILE_CACHE)
     set(value) { put(NativeConfigurationKeys.MAKE_PER_FILE_CACHE, value) }
+
+var CompilerConfiguration.cachedLibraryDependenciesFingerprint: String?
+    get() = get(NativeConfigurationKeys.CACHED_LIBRARY_DEPENDENCIES_FINGERPRINT)
+    set(value) { put(NativeConfigurationKeys.CACHED_LIBRARY_DEPENDENCIES_FINGERPRINT, requireNotNull(value) { "nullable values are not allowed" }) }
 
 var CompilerConfiguration.frameworkImportHeaders: List<String>
     get() = getList(NativeConfigurationKeys.FRAMEWORK_IMPORT_HEADERS)
@@ -408,10 +407,6 @@ var CompilerConfiguration.konanNoDefaultLibs: Boolean
     get() = getBoolean(NativeConfigurationKeys.KONAN_NO_DEFAULT_LIBS)
     set(value) { put(NativeConfigurationKeys.KONAN_NO_DEFAULT_LIBS, value) }
 
-var CompilerConfiguration.konanNoEndorsedLibs: Boolean
-    get() = getBoolean(NativeConfigurationKeys.KONAN_NO_ENDORSED_LIBS)
-    set(value) { put(NativeConfigurationKeys.KONAN_NO_ENDORSED_LIBS, value) }
-
 var CompilerConfiguration.nomain: Boolean
     get() = getBoolean(NativeConfigurationKeys.NOMAIN)
     set(value) { put(NativeConfigurationKeys.NOMAIN, value) }
@@ -455,10 +450,6 @@ var CompilerConfiguration.konanPrintFiles: Boolean
 var CompilerConfiguration.konanProducedArtifactKind: CompilerOutputKind?
     get() = get(NativeConfigurationKeys.KONAN_PRODUCED_ARTIFACT_KIND)
     set(value) { put(NativeConfigurationKeys.KONAN_PRODUCED_ARTIFACT_KIND, requireNotNull(value) { "nullable values are not allowed" }) }
-
-var CompilerConfiguration.konanPurgeUserLibs: Boolean
-    get() = getBoolean(NativeConfigurationKeys.KONAN_PURGE_USER_LIBS)
-    set(value) { put(NativeConfigurationKeys.KONAN_PURGE_USER_LIBS, value) }
 
 var CompilerConfiguration.runtimeFile: String?
     get() = get(NativeConfigurationKeys.RUNTIME_FILE)
@@ -575,4 +566,8 @@ var CompilerConfiguration.llvmModulePasses: String?
 var CompilerConfiguration.llvmLtoPasses: String?
     get() = get(NativeConfigurationKeys.LLVM_LTO_PASSES)
     set(value) { put(NativeConfigurationKeys.LLVM_LTO_PASSES, requireNotNull(value) { "nullable values are not allowed" }) }
+
+var CompilerConfiguration.serializedKlibDag: SerializedKlibDAG?
+    get() = get(NativeConfigurationKeys.SERIALIZED_KLIB_DAG)
+    set(value) { put(NativeConfigurationKeys.SERIALIZED_KLIB_DAG, requireNotNull(value) { "nullable values are not allowed" }) }
 

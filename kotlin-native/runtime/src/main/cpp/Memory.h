@@ -182,10 +182,7 @@ OBJ_GETTER(AllocInstance, const TypeInfo* type_info) RUNTIME_NOTHROW;
 OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, int32_t elements);
 
 
-// `initialValue` may be `nullptr`, which signifies that the appropriate initial value was already
-// set by static initialization.
-// TODO: When global initialization becomes lazy, this signature won't do.
-void InitAndRegisterGlobal(ObjHeader** location, const ObjHeader* initialValue) RUNTIME_NOTHROW;
+void RegisterGlobal(ObjHeader** location) RUNTIME_NOTHROW;
 
 //
 // Object reference management.
@@ -249,7 +246,8 @@ ObjHeader** LookupTLS(void** key, int index) RUNTIME_NOTHROW;
 void Kotlin_native_internal_GC_collect(ObjHeader*);
 void Kotlin_native_internal_GC_setTuneThreshold(ObjHeader*, bool value);
 bool Kotlin_native_internal_GC_getTuneThreshold(ObjHeader*);
-RUNTIME_NOTHROW bool Kotlin_native_runtime_Debugging_dumpMemory(ObjHeader*, int fd);
+RUNTIME_NOTHROW bool Kotlin_native_runtime_Debugging_dumpMemoryWithOptions(
+        ObjHeader*, int fd, bool omitPrimitiveArrayPayloads);
 
 void PerformFullGC(MemoryState* memory) RUNTIME_NOTHROW;
 
@@ -320,7 +318,7 @@ public:
     ObjHeader* GetExceptionObject() noexcept;
 
     // Exceptions are not on a hot path, so having virtual dispatch is fine.
-    virtual ~ExceptionObjHolder() = default;
+    virtual ~ExceptionObjHolder();
 };
 
 namespace kotlin {

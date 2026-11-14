@@ -1,16 +1,17 @@
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: [
     kotlin/IgnorableReturnValue()
       psi: null
   ]
   callableId: kotlin/collections/MutableList.add
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -25,6 +26,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: add
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -33,15 +36,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -53,15 +58,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: element
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaTypeParameterType:
         annotations: []
         type: E
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -77,20 +86,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: ExplicitlyIgnorable
+  javaMethodName: add
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.add
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -105,6 +116,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: add
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -113,15 +126,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -133,27 +148,33 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: index
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -165,15 +186,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: element
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaTypeParameterType:
         annotations: []
         type: E
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -189,23 +214,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: add
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: [
     kotlin/IgnorableReturnValue()
       psi: null
   ]
   callableId: kotlin/collections/MutableList.remove
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -220,6 +247,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: remove
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -228,15 +257,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -248,15 +279,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: element
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaTypeParameterType:
         annotations: []
         type: E
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -272,23 +307,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: ExplicitlyIgnorable
+  javaMethodName: remove
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: [
     kotlin/IgnorableReturnValue()
       psi: null
   ]
   callableId: kotlin/collections/MutableList.addAll
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -303,6 +340,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: addAll
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -311,15 +350,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -331,6 +372,9 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: elements
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
@@ -340,11 +384,12 @@ KaNamedFunctionSymbol:
             type: E
         ]
         type: kotlin/collections/Collection<E>
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -360,23 +405,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: ExplicitlyIgnorable
+  javaMethodName: addAll
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: [
     kotlin/IgnorableReturnValue()
       psi: null
   ]
   callableId: kotlin/collections/MutableList.addAll
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -391,6 +438,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: addAll
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -399,15 +448,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -419,27 +470,33 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: index
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -451,6 +508,9 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: elements
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
@@ -460,11 +520,12 @@ KaNamedFunctionSymbol:
             type: E
         ]
         type: kotlin/collections/Collection<E>
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -480,23 +541,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: ExplicitlyIgnorable
+  javaMethodName: addAll
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: [
     kotlin/IgnorableReturnValue()
       psi: null
   ]
   callableId: kotlin/collections/MutableList.removeAll
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -511,6 +574,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: removeAll
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -519,15 +584,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -539,6 +606,9 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: elements
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
@@ -548,11 +618,12 @@ KaNamedFunctionSymbol:
             type: E
         ]
         type: kotlin/collections/Collection<E>
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -568,23 +639,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: ExplicitlyIgnorable
+  javaMethodName: removeAll
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: [
     kotlin/IgnorableReturnValue()
       psi: null
   ]
   callableId: kotlin/collections/MutableList.retainAll
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -599,6 +672,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: retainAll
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -607,15 +682,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -627,6 +704,9 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: elements
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
@@ -636,11 +716,12 @@ KaNamedFunctionSymbol:
             type: E
         ]
         type: kotlin/collections/Collection<E>
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -656,20 +737,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: ExplicitlyIgnorable
+  javaMethodName: retainAll
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.clear
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -684,6 +767,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: clear
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -704,23 +789,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: clear
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: [
     kotlin/IgnorableReturnValue()
       psi: null
   ]
   callableId: kotlin/collections/MutableList.set
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -735,6 +822,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: set
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaTypeParameterType:
     annotations: []
@@ -742,15 +831,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -762,27 +853,33 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: index
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -794,15 +891,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: element
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaTypeParameterType:
         annotations: []
         type: E
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -818,23 +919,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: true
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: ExplicitlyIgnorable
+  javaMethodName: set
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: [
     kotlin/IgnorableReturnValue()
       psi: null
   ]
   callableId: kotlin/collections/MutableList.removeAt
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -849,6 +952,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: removeAt
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaTypeParameterType:
     annotations: []
@@ -856,15 +961,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -876,16 +983,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: index
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -901,20 +1012,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: ExplicitlyIgnorable
+  javaMethodName: removeAt
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.listIterator
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -929,6 +1042,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: listIterator
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -953,20 +1068,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: listIterator
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.listIterator
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -981,6 +1098,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: listIterator
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -993,15 +1112,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1013,16 +1134,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: index
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1038,20 +1163,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: listIterator
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.subList
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1066,6 +1193,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: subList
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1078,15 +1207,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1098,27 +1229,33 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: fromIndex
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1130,16 +1267,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: toIndex
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1155,24 +1296,27 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: subList
   importableFqName: null
 
 KaKotlinPropertySymbol:
+  anchorPsi: null
   annotations: []
   backingFieldSymbol: null
   callableId: kotlin/collections/MutableList.size
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: null
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -1182,11 +1326,14 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: ABSTRACT
     origin: INTERSECTION_OVERRIDE
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getDispatchReceiver(): KaUsualClassType:
@@ -1200,19 +1347,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: null
     getContainingJvmClassName: kotlin.collections.MutableList
     getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: getSize
     importableFqName: null
   hasBackingField: false
   hasGetter: true
   hasSetter: false
   initializer: null
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: true
   isStatic: false
@@ -1221,6 +1369,9 @@ KaKotlinPropertySymbol:
   modality: ABSTRACT
   name: size
   origin: INTERSECTION_OVERRIDE
+  primaryConstructorParameter: null
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1240,22 +1391,21 @@ KaKotlinPropertySymbol:
   getContainingFileSymbol: null
   getContainingJvmClassName: kotlin.collections.MutableList
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
-  javaGetterName: getSize
-  javaSetterName: null
+  deprecation: null
   isInline: false
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.isEmpty
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1270,6 +1420,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: isEmpty
   origin: INTERSECTION_OVERRIDE
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1290,20 +1442,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: isEmpty
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.contains
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1318,6 +1472,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: contains
   origin: INTERSECTION_OVERRIDE
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1326,15 +1482,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1346,15 +1504,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: element
       origin: INTERSECTION_OVERRIDE
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaTypeParameterType:
         annotations: []
         type: E
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1370,20 +1532,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: true
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: contains
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.iterator
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1398,6 +1562,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: iterator
   origin: INTERSECTION_OVERRIDE
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1422,20 +1588,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: true
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: iterator
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.containsAll
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1450,6 +1618,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: containsAll
   origin: INTERSECTION_OVERRIDE
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1458,15 +1628,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1478,6 +1650,9 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: elements
       origin: INTERSECTION_OVERRIDE
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
@@ -1487,11 +1662,12 @@ KaNamedFunctionSymbol:
             type: E
         ]
         type: kotlin/collections/Collection<E>
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1507,20 +1683,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: containsAll
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.get
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1535,6 +1713,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: get
   origin: SUBSTITUTION_OVERRIDE
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaTypeParameterType:
     annotations: []
@@ -1542,15 +1722,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1562,16 +1744,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: index
       origin: SUBSTITUTION_OVERRIDE
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1587,20 +1773,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: true
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: get
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.indexOf
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1615,6 +1803,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: indexOf
   origin: SUBSTITUTION_OVERRIDE
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1623,15 +1813,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1643,15 +1835,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: element
       origin: SUBSTITUTION_OVERRIDE
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaTypeParameterType:
         annotations: []
         type: E
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1667,20 +1863,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: indexOf
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.lastIndexOf
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1695,6 +1893,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: lastIndexOf
   origin: SUBSTITUTION_OVERRIDE
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1703,15 +1903,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1723,15 +1925,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: element
       origin: SUBSTITUTION_OVERRIDE
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaTypeParameterType:
         annotations: []
         type: E
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.collections.MutableList
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1747,20 +1953,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: lastIndexOf
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/Any.equals
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1775,6 +1983,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: equals
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1783,15 +1993,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: null
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -1803,16 +2015,20 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: null
+      realPsi: null
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Any?
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: kotlin.Any
       getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -1824,20 +2040,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Any
   canBeOperator: true
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: equals
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/Any.hashCode
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1852,6 +2070,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: hashCode
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1868,20 +2088,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Any
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: hashCode
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/Any.toString
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1896,6 +2118,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: toString
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -1912,20 +2136,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.Any
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: MustUse
+  javaMethodName: toString
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.getFirst
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1940,6 +2166,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: getFirst
   origin: SUBSTITUTION_OVERRIDE
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaTypeParameterType:
     annotations: []
@@ -1959,20 +2187,22 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: DeprecationInfo(deprecationLevel=HIDDEN, propagatesToOverrides=true, message=null)
+  deprecation: KaDeprecation(level=HIDDEN, isPropagatedToOverrides=true)
   returnValueStatus: Unspecified
+  javaMethodName: getFirst
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/MutableList.getLast
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -1987,6 +2217,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: getLast
   origin: SUBSTITUTION_OVERRIDE
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaTypeParameterType:
     annotations: []
@@ -2006,6 +2238,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.MutableList
   canBeOperator: false
   getContainingModule: KaBuiltinsModule "Builtins for JVM (1.8)"
-  deprecationStatus: DeprecationInfo(deprecationLevel=HIDDEN, propagatesToOverrides=true, message=null)
+  deprecation: KaDeprecation(level=HIDDEN, isPropagatedToOverrides=true)
   returnValueStatus: Unspecified
+  javaMethodName: getLast
   importableFqName: null

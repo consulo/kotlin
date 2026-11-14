@@ -1,13 +1,14 @@
 KaNamedFunctionSymbol:
+  anchorPsi: null
   annotations: []
   callableId: kotlin/collections/List.getFirst
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -22,6 +23,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: getFirst
   origin: LIBRARY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaTypeParameterType:
     annotations: []
@@ -41,6 +44,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: kotlin.collections.List
   canBeOperator: false
   getContainingModule: KaLibraryModule "Library kotlin-stdlib"
-  deprecationStatus: DeprecationInfo(deprecationLevel=HIDDEN, propagatesToOverrides=true, message=null)
+  deprecation: KaDeprecation(level=HIDDEN, isPropagatedToOverrides=true)
   returnValueStatus: Unspecified
+  javaMethodName: getFirst
   importableFqName: null

@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.konan.test
 
-import org.jetbrains.kotlin.konan.properties.Properties
-import org.jetbrains.kotlin.konan.properties.propertyList
+import org.jetbrains.kotlin.io.propertyList
+import org.jetbrains.kotlin.io.readProperties
 import org.jetbrains.kotlin.konan.test.blackbox.AbstractNativeSimpleTest
 import org.jetbrains.kotlin.konan.test.blackbox.support.compilation.TestCompilationArtifact.KLIB
 import org.jetbrains.kotlin.konan.test.blackbox.support.compilation.TestCompilationResult
@@ -16,12 +16,15 @@ import org.jetbrains.kotlin.library.*
 import org.jetbrains.kotlin.library.components.KlibMetadataComponent
 import org.jetbrains.kotlin.library.components.metadata
 import org.jetbrains.kotlin.library.metadata.KlibMetadataProtoBuf
-import org.jetbrains.kotlin.library.metadata.parseModuleHeader
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.testFederation.HostDependent
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import org.jetbrains.kotlin.konan.file.File as KlibFile
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.util.Properties
 
+@HostDependent
 class UsedLibrariesComputationTest : AbstractNativeSimpleTest() {
     @Test
     fun `Used libraries are computed correctly (CLI)`() {
@@ -33,9 +36,8 @@ class UsedLibrariesComputationTest : AbstractNativeSimpleTest() {
 
         fun TestCompilationResult.Success<out KLIB>.assertDependencyNames(vararg expectedDependencyNamesInManifest: String) {
             val expectedDependencyNames = expectedDependencyNamesInManifest.toSet()
-            val actualDependencyNames = resultingArtifact.klibFile.resolve("default").resolve("manifest").bufferedReader().use { reader ->
-                Properties().apply { load(reader) }
-            }.propertyList(KLIB_PROPERTY_DEPENDS, escapeInQuotes = true).toSet()
+            val actualDependencyNames = resultingArtifact.klibFile.resolve("default").resolve("manifest").toPath()
+                .readProperties().propertyList(KLIB_PROPERTY_DEPENDS, escapeInQuotes = true).toSet()
 
             assertEquals(expectedDependencyNames, actualDependencyNames) {
                 "Dependency mismatch for module ${resultingArtifact.klibFile}: expected $expectedDependencyNames, got $actualDependencyNames"
@@ -50,24 +52,12 @@ class UsedLibrariesComputationTest : AbstractNativeSimpleTest() {
             )
         }
 
-        // TODO (KT-60874): Need to clarify why used-specified libraries are forced to stay in the list of "used libraries"
-        //  even when they are not used. Note that the default value for `konanPurgeUserLibs` is always `false`.
         newSourceModules {
             addRegularModule("test")
         }.compileToKlibsViaCli(extraCliArgs = listOf("-l", additionalUnusedModulePath)) { _, successKlib ->
             successKlib.assertDependencyNames(
                 /* implicit unavoidable dependency */ "stdlib",
                 /* because it was passed explicitly via CLI, even if "test" doesn't use any API from "additional" */ "additional",
-            )
-        }
-
-        // TODO (KT-60874): Need to clarify why used-specified libraries are forced to stay in the list of "used libraries"
-        //  even when they are not used. Note that the default value for `konanPurgeUserLibs` is always `false`.
-        newSourceModules {
-            addRegularModule("test")
-        }.compileToKlibsViaCli(extraCliArgs = listOf("-l", additionalUnusedModulePath, "-Xpurge-user-libs")) { _, successKlib ->
-            successKlib.assertDependencyNames(
-                /* implicit unavoidable dependency */ "stdlib",
             )
         }
 
@@ -110,11 +100,7 @@ class UsedLibrariesComputationTest : AbstractNativeSimpleTest() {
 
         // Compute used libraries using metadata proto header.
         val usedLibraries: Set<MockKotlinLibrary> = allLibraries.filter { library ->
-            val header = parseModuleHeader(library.metadata.moduleHeaderData)
-            val nonEmptyPackageNames = buildSet {
-                addAll(header.packageFragmentNameList)
-                removeAll(header.emptyPackageList)
-            }
+            val nonEmptyPackageNames = library.metadata.getPackageNames()
             usedPackages.any { it.asString() in nonEmptyPackageNames }
         }.toSet()
 
@@ -126,12 +112,13 @@ class UsedLibrariesComputationTest : AbstractNativeSimpleTest() {
             .setModuleName(name)
             .addAllPackageFragmentName(packages)
             .build()
-        return MockKotlinLibrary(name, header.toByteArray())
+        return MockKotlinLibrary(name, header.toByteArray(), packages)
     }
 
     private class MockKotlinLibrary(
         val libName: String,
-        val headerBytes: ByteArray
+        val headerBytes: ByteArray,
+        val packages: List<String>
     ) : KotlinLibrary {
         override fun <KC : KlibComponent> getComponent(kind: KlibComponent.Kind<KC, *>): KC? {
             if (kind == KlibMetadataComponent.Kind) {
@@ -140,16 +127,17 @@ class UsedLibrariesComputationTest : AbstractNativeSimpleTest() {
                     override val moduleHeaderData: ByteArray get() = headerBytes
                     override fun getPackageFragmentNames(packageFqName: String): Set<String> = emptySet()
                     override fun getPackageFragment(packageFqName: String, fragmentName: String): ByteArray = ByteArray(0)
+                    override fun getPackageNames(): Set<String> = packages.toSet()
                 } as KC
             }
             return null
         }
 
-        override val location: KlibFile get() = KlibFile(".")
+        override val path: Path get() = Paths.get(".")
+        override val canonicalPath: Path get() = error("Not supported")
         override val attributes: KlibAttributes get() = error("Not supported")
 
         override val versions: KotlinLibraryVersioning get() = error("Not supported")
-        override val libraryFile: KlibFile get() = KlibFile(".")
 
         override val manifestProperties: Properties = Properties().apply {
             setProperty(KLIB_PROPERTY_UNIQUE_NAME, libName)

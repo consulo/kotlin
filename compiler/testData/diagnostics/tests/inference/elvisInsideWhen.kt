@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// SKIP_TXT
+// RUN_PIPELINE_TILL: CODEGEN
 
 fun <X> select(vararg x: X): X = x[0]
 fun <E> myOut(): Out<E> = TODO()

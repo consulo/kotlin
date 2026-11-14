@@ -2,14 +2,20 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import com.github.jengelman.gradle.plugins.shadow.transformers.DontIncludeResourceTransformer
 
 plugins {
+    id("common-configuration")
     kotlin("jvm")
     id("generated-sources")
     id("test-inputs-check")
+    kotlin("plugin.serialization")
+    id("project-tests-convention")
 }
 
 dependencies {
     api(project(":compiler:build-tools:kotlin-build-tools-api"))
+    compileOnly(project(":compiler:build-tools:kotlin-build-tools-api-jps"))
     implementation(kotlinStdlib())
+    compileOnly(libs.kotlinx.serialization.protobuf)
+    compileOnly(libs.guava)
     compileOnly(project(":compiler:cli"))
     compileOnly(project(":compiler:cli-jvm"))
     compileOnly(project(":compiler:cli-js"))
@@ -23,9 +29,15 @@ dependencies {
     compileOnly(intellijCore())
     compileOnly(project(":kotlin-scripting-compiler"))
     compileOnly(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
+    implementation(project(":kotlin-tooling-core"))
 
     runtimeOnly(project(":kotlin-compiler-embeddable"))
     runtimeOnly(project(":kotlin-compiler-runner"))
+
+    compileOnly(project(":js:typescript-export-standalone"))
+    runtimeOnly(project(":js:typescript-export-standalone-embeddable"))
+
+    embedded(libs.guava)
     embedded(project(":kotlin-scripting-compiler-embeddable")) { isTransitive = false }
     embedded(project(":kotlin-scripting-compiler-impl-embeddable")) { isTransitive = false }
     embedded(project(":kotlin-scripting-common")) { isTransitive = false }
@@ -41,7 +53,12 @@ dependencies {
 
     testCompileOnly(project(":compiler:cli"))
     testCompileOnly(intellijPlatformUtil())
-    testImplementation(kotlinTest("junit"))
+    testImplementation(project(":compiler:incremental-compilation-impl"))
+    testImplementation(project(":native:kotlin-native-utils"))
+    testImplementation(project(":daemon-common"))
+    testImplementation(project(":kotlin-daemon-client"))
+    testImplementation(kotlinTest("junit5"))
+    testImplementation(libs.kotlinx.serialization.protobuf)
 }
 
 publish()
@@ -60,8 +77,12 @@ tasks.named<ShadowJar>(EMBEDDABLE_COMPILER_TASK_NAME) {
     transform(DontIncludeResourceTransformer::class.java) {
         resource = "META-INF/services/org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar"
     }
-    transform(DontIncludeResourceTransformer::class.java) {
-        resource = "META-INF/services/org.jetbrains.kotlin.compiler.plugin.ComponentRegistrar"
+    relocate("kotlinx.serialization", "org.jetbrains.kotlin.buildtools.internal.serialization")
+}
+
+projectTests {
+    testTask {
+        useJUnitPlatform()
     }
 }
 
@@ -76,15 +97,22 @@ kotlin {
 }
 
 generatedSourcesTask(
-    taskName = "generateBtaArguments",
-    generatorProject = ":compiler:build-tools:kotlin-build-tools-options-generator",
-    generatorMainClass = "org.jetbrains.kotlin.buildtools.options.generator.MainKt",
+    taskName = "generateBtaSources",
+    generatorProject = ":compiler:build-tools:kotlin-build-tools-generator",
+    generatorMainClass = "org.jetbrains.kotlin.buildtools.generator.MainKt",
     argsProvider = { generationRoot ->
         listOf(
             generationRoot.toString(),
             version.toString(),
             "impl",
-            "jvmCompilerArguments",
+            "jvmCompilerArguments,wasmArguments,jsArguments,metadataArguments",
         )
     },
+    versionDependent = true,
 )
+
+testing {
+    suites.withType<JvmTestSuite> {
+        useJUnitJupiter(libs.versions.junit5.get())
+    }
+}

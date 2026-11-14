@@ -460,7 +460,7 @@ private class FirPartialBodyExpressionResolveTransformer(
         block.transformOtherChildren(transformer, data)
 
         // This makes the compiler think the declaration is fully resolved (see 'FirExpression.isResolved')
-        block.writeResultType(session)
+        block.writeResultType()
 
         publishPartialAnalysisState(
             request = request,
@@ -558,8 +558,9 @@ private class FirPartialBodyExpressionResolveTransformer(
  *   to be resolved before the file to build correct [CFG][ControlFlowGraph].
  * - [FirScript] – All members which [isUsedInControlFlowGraphBuilderForScript] have
  *   to be resolved before the script to build correct [CFG][ControlFlowGraph].
- * - [FirRegularClass] – All members which [isUsedInControlFlowGraphBuilderForClass] have
- *   to be resolved before the class to build correct [CFG][ControlFlowGraph].
+ * - [FirRegularClass] – All declarations which [isUsedInControlFlowGraphBuilderForClass]
+ *   or [isUsedInControlFlowGraphBuilderForStatic] have to be resolved before the
+ *   class to build correct [CFG][ControlFlowGraph].
  *
  * @see BodyStateKeepers
  * @see FirBodyResolveTransformer
@@ -611,7 +612,9 @@ private class LLFirBodyTargetResolver(target: LLFirResolveTarget) : LLFirAbstrac
             is FirRegularClass -> {
                 if (checkAnalysisReadiness(target, containingDeclarations, resolverPhase)) return true
 
-                // resolve class CFG graph here, to do this we need to have property & init blocks resoled
+                // Resolve class CFG graphs here.
+                // To create the member graph, we need to have property & init blocks resoled.
+                // To create the static graph, we need to have enum entries & companions resolved.
                 resolveMembersForControlFlowGraph(
                     declarationWithMembers = target,
                     withDeclaration = this::withRegularClass,
@@ -686,12 +689,15 @@ private class LLFirBodyTargetResolver(target: LLFirResolveTarget) : LLFirAbstrac
 
         val dataFlowAnalyzer = transformer.declarationsTransformer.dataFlowAnalyzer
         dataFlowAnalyzer.enterClass(target, buildGraph = true)
-        val controlFlowGraph = dataFlowAnalyzer.exitClass()
+        val (memberGraph, staticGraph) = dataFlowAnalyzer.exitClass()
             ?: errorWithAttachment("CFG should not be 'null' as 'buildGraph' is specified") {
                 withFirEntry("firClass", target)
             }
 
-        target.replaceControlFlowGraphReference(FirControlFlowGraphReferenceImpl(controlFlowGraph))
+        target.replaceControlFlowGraphReference(FirControlFlowGraphReferenceImpl(memberGraph))
+        if (staticGraph != null) {
+            target.replaceStaticControlFlowGraphReference(FirControlFlowGraphReferenceImpl(staticGraph))
+        }
     }
 
     private inline fun <T : FirElementWithResolveState> resolveMembersForControlFlowGraph(
@@ -787,9 +793,8 @@ private class LLFirBodyTargetResolver(target: LLFirResolveTarget) : LLFirAbstrac
                 }
 
             LLFirCodeFragmentContext(
-                elementContext.towerDataContext.withProperSession(resolveTargetSession, resolveTargetScopeSession)
-                    .withExtraScopes(),
-                elementContext.smartCasts
+                elementContext.towerDataContext.withProperSession(resolveTargetSession, resolveTargetScopeSession).withExtraScopes(),
+                elementContext.smartCasts.associate { it.realVariable to it.upperTypes }
             )
         } else {
             val towerDataContext = FirTowerDataContext().withExtraScopes()
@@ -813,21 +818,19 @@ private class LLFirBodyTargetResolver(target: LLFirResolveTarget) : LLFirAbstrac
         scope?.withReplacedSessionOrNull(session, scopeSession) ?: scope,
         implicitReceiver?.withReplacedSessionOrNull(session, scopeSession),
         contextParameterGroup,
+        staticScopeOwnerSymbol,
         isLocal,
-        staticScopeOwnerSymbol
+        isAllowedAsCompanionExtensionReceiver,
     )
 
     override fun doLazyResolveUnderLock(target: FirElementWithResolveState) {
-        // There is no sense to resolve such declarations as they do not have bodies
-        // Also, they have STUB expression instead of default values, so we shouldn't change them
-        if (target is FirCallableDeclaration && target.canHaveDeferredReturnTypeCalculation) return
-
         when (target) {
             is FirFile, is FirScript, is FirRegularClass, is FirCodeFragment -> error("Should have been resolved in ${::doResolveWithoutLock.name}")
             is FirConstructor -> resolve(target, BodyStateKeepers.CONSTRUCTOR)
             is FirFunction -> resolve(target, BodyStateKeepers.FUNCTION)
             is FirProperty -> resolve(target, BodyStateKeepers.PROPERTY)
             is FirField -> resolve(target, BodyStateKeepers.FIELD)
+            is FirEnumEntry -> resolve(target, BodyStateKeepers.ENUM_ENTRY)
             is FirVariable -> resolve(target, BodyStateKeepers.VARIABLE)
             is FirAnonymousInitializer -> resolve(target, BodyStateKeepers.ANONYMOUS_INITIALIZER)
             is FirDanglingModifierList,
@@ -925,6 +928,11 @@ internal object BodyStateKeepers {
     val FIELD: StateKeeper<FirField, FirDesignation> = stateKeeper { builder, _, designation ->
         builder.add(VARIABLE, designation)
         builder.add(FirField::controlFlowGraphReference, FirField::replaceControlFlowGraphReference)
+    }
+
+    val ENUM_ENTRY: StateKeeper<FirEnumEntry, FirDesignation> = stateKeeper { builder, _, designation ->
+        builder.add(VARIABLE, designation)
+        builder.add(FirEnumEntry::controlFlowGraphReference, FirEnumEntry::replaceControlFlowGraphReference)
     }
 
     val PROPERTY: StateKeeper<FirProperty, FirDesignation> = stateKeeper { builder, property, designation ->
@@ -1026,7 +1034,7 @@ private fun <T : FirDeclaration> StateKeeperScope<T, FirDesignation>.preservePar
         // NOTE: parameters might have `evaluatedInitializer` that is not stored in the partial context,
         // but it is not a problem as long as annotation constructors are not partially resolvable
         val newParameters = parameterSupplier(declaration)
-        for ((index, newParameter) in newParameters.withIndex()) {
+        for ([index, newParameter] in newParameters.withIndex()) {
             if (newParameter.defaultValue != null) {
                 newParameter.replaceDefaultValue(oldDefaultValues[index])
             }
@@ -1119,4 +1127,4 @@ private val FirDeclaration.isUsedInScriptControlFlowGraphBuilder: Boolean
     get() = this is FirControlFlowGraphOwner && isUsedInControlFlowGraphBuilderForScript
 
 private val FirDeclaration.isUsedInClassControlFlowGraphBuilder: Boolean
-    get() = this is FirControlFlowGraphOwner && isUsedInControlFlowGraphBuilderForClass
+    get() = this is FirControlFlowGraphOwner && isUsedInControlFlowGraphBuilderForClassOrStatic

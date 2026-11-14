@@ -66,7 +66,7 @@ class ManifestReadingTest {
             ),
         )
 
-        testData.forEach { (libraryName, originalManifest) ->
+        testData.forEach { [libraryName, originalManifest] ->
             val libraryFile = createEmptyLibraryWithSpecificManifest(libraryName, originalManifest)
             val readManifest = LibraryAbiReader.readAbiInfo(libraryFile).manifest
 
@@ -104,7 +104,7 @@ class ManifestReadingTest {
                     }
                 }
             }
-            includeIr(SerializedIrModule(files = emptyList(), fileWithPreparedInlinableFunctions = null)) // empty IR
+            includeIr(SerializedIrModule(null, emptyList(), emptyList())) // empty IR
         }.writeTo(libraryFile.absolutePath)
 
         return libraryFile

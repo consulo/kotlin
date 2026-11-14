@@ -1,29 +1,25 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.fir.symbols
 
-import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationList
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
-import org.jetbrains.kotlin.analysis.api.fir.findPsi
+import org.jetbrains.kotlin.analysis.api.fir.annotations.KaFirEmptyAnnotationList
+import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirContextParameterSymbolPointer
 import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.createOwnerPointer
 import org.jetbrains.kotlin.analysis.api.fir.utils.firSymbol
-import org.jetbrains.kotlin.analysis.api.impl.base.annotations.KaBaseEmptyAnnotationList
-import org.jetbrains.kotlin.analysis.api.impl.base.symbols.pointers.KaBaseContextParameterSymbolPointer
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.KaContextParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.resolveToFirSymbol
-import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.FirValueParameter
-import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
 import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
@@ -62,9 +58,6 @@ internal class KaFirContextReceiverBasedContextParameterSymbol private construct
         analysisSession = session,
     )
 
-    override val psi: PsiElement?
-        get() = withValidityAssertion { backingPsi ?: findPsi() }
-
     override val name: Name
         get() = withValidityAssertion {
             // Currently, library elements are representing both context receiver and context parameters,
@@ -75,14 +68,11 @@ internal class KaFirContextReceiverBasedContextParameterSymbol private construct
             } ?: firSymbol.name
         }
 
-    override val compilerVisibility: Visibility
-        get() = withValidityAssertion { FirResolvedDeclarationStatusImpl.DEFAULT_STATUS_FOR_STATUSLESS_DECLARATIONS.visibility }
-
     override val returnType: KaType
         get() = withValidityAssertion { firSymbol.returnType(builder) }
 
     override val annotations: KaAnnotationList
-        get() = withValidityAssertion { KaBaseEmptyAnnotationList(token) }
+        get() = withValidityAssertion { KaFirEmptyAnnotationList(token) }
 
     override fun createPointer(): KaSymbolPointer<KaContextParameterSymbol> = withValidityAssertion {
         psiBasedSymbolPointerOfTypeIfSource<KaContextParameterSymbol>()?.let { return it }
@@ -91,8 +81,8 @@ internal class KaFirContextReceiverBasedContextParameterSymbol private construct
             ?: error("Containing declaration is expected for a context parameter symbol")
 
         val parameters = ownerSymbol.firSymbol.fir.contextParameters
-        return KaBaseContextParameterSymbolPointer(
-            ownerPointer = analysisSession.createOwnerPointer(this),
+        return KaFirContextParameterSymbolPointer(
+            ownerPointer = createOwnerPointer(),
             name = name,
             index = parameters.indexOf(firSymbol.fir),
             originalSymbol = this,

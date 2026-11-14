@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.standalone.fir.test.configurators.Analy
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.diagnosticProvider.AbstractElementDiagnosticsTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.diagnosticProvider.AbstractElementDiagnosticsTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirStandaloneNormalAnalysisSourceModuleElementDiagnosticsTestGenera
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirStandaloneModeTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.Source,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Standalone,
@@ -64,6 +62,12 @@ public class FirStandaloneNormalAnalysisSourceModuleElementDiagnosticsTestGenera
   }
 
   @Test
+  @TestMetadata("defaultValueInFunctionWithOverride.kt")
+  public void testDefaultValueInFunctionWithOverride() {
+    run("defaultValueInFunctionWithOverride.kt");
+  }
+
+  @Test
   @TestMetadata("delegatedClass.kt")
   public void testDelegatedClass() {
     run("delegatedClass.kt");
@@ -76,9 +80,27 @@ public class FirStandaloneNormalAnalysisSourceModuleElementDiagnosticsTestGenera
   }
 
   @Test
+  @TestMetadata("delegatedFunctionWithImplicitReturnTypeFromOtherFile.kt")
+  public void testDelegatedFunctionWithImplicitReturnTypeFromOtherFile() {
+    run("delegatedFunctionWithImplicitReturnTypeFromOtherFile.kt");
+  }
+
+  @Test
+  @TestMetadata("delegatedPropertyWithImplicitReturnTypeFromOtherFile.kt")
+  public void testDelegatedPropertyWithImplicitReturnTypeFromOtherFile() {
+    run("delegatedPropertyWithImplicitReturnTypeFromOtherFile.kt");
+  }
+
+  @Test
   @TestMetadata("fileWithFunctionWithImplicitType.kt")
   public void testFileWithFunctionWithImplicitType() {
     run("fileWithFunctionWithImplicitType.kt");
+  }
+
+  @Test
+  @TestMetadata("fileWithInlineFunction.kt")
+  public void testFileWithInlineFunction() {
+    run("fileWithInlineFunction.kt");
   }
 
   @Test
@@ -91,5 +113,17 @@ public class FirStandaloneNormalAnalysisSourceModuleElementDiagnosticsTestGenera
   @TestMetadata("javaScriptStableName.kt")
   public void testJavaScriptStableName() {
     run("javaScriptStableName.kt");
+  }
+
+  @Test
+  @TestMetadata("uninitializedMemberProperty.kt")
+  public void testUninitializedMemberProperty() {
+    run("uninitializedMemberProperty.kt");
+  }
+
+  @Test
+  @TestMetadata("uninitializedTopLevelProperty.kt")
+  public void testUninitializedTopLevelProperty() {
+    run("uninitializedTopLevelProperty.kt");
   }
 }

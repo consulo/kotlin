@@ -11,7 +11,7 @@ fun copyCommonJsAndWasmCompilerArguments(from: CommonJsAndWasmCompilerArguments,
     copyCommonKlibBasedCompilerArguments(from, to)
 
     to.cacheDirectory = from.cacheDirectory
-    to.fakeOverrideValidator = from.fakeOverrideValidator
+    to.enableAdvancedOptimizations = from.enableAdvancedOptimizations
     to.friendModules = from.friendModules
     to.friendModulesDisabled = from.friendModulesDisabled
     to.generateDts = from.generateDts
@@ -22,12 +22,15 @@ fun copyCommonJsAndWasmCompilerArguments(from: CommonJsAndWasmCompilerArguments,
     to.irModuleName = from.irModuleName
     to.irPerModuleOutputName = from.irPerModuleOutputName
     to.irProduceJs = from.irProduceJs
+    @Suppress("DEPRECATION")
     to.irProduceKlibDir = from.irProduceKlibDir
+    @Suppress("DEPRECATION")
     to.irProduceKlibFile = from.irProduceKlibFile
     to.irPropertyLazyInitialization = from.irPropertyLazyInitialization
     to.libraries = from.libraries
     to.main = from.main
     to.moduleName = from.moduleName
+    to.nopack = from.nopack
     to.outputDir = from.outputDir
     to.sourceMap = from.sourceMap
     to.sourceMapBaseDirs = from.sourceMapBaseDirs

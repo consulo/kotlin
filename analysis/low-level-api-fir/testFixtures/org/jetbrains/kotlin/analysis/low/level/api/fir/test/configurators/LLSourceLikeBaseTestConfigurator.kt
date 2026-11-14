@@ -7,11 +7,12 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
-import org.jetbrains.kotlin.analysis.api.impl.base.test.configurators.AnalysisApiBaseTestServiceRegistrar
-import org.jetbrains.kotlin.analysis.api.impl.base.test.configurators.AnalysisApiIdeModeTestServiceRegistrar
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.AnalysisApiServiceRegistrar
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.FirStandaloneServiceRegistrar
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.AnalysisApiServiceRegistrar
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.FirStandaloneServiceRegistrar
+import org.jetbrains.kotlin.analysis.low.level.api.fir.test.base.AnalysisApiBaseTestServiceRegistrar
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.base.AnalysisApiFirTestServiceRegistrar
+import org.jetbrains.kotlin.analysis.low.level.api.fir.test.base.AnalysisApiIdeModeTestServiceRegistrar
+import org.jetbrains.kotlin.analysis.low.level.api.fir.test.base.configureFirConsistencyChecks
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.base.configureOptionalTestCompilerPlugin
 import org.jetbrains.kotlin.analysis.test.data.manager.withAdditionalVariant
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.KtTestModuleStructure
@@ -21,7 +22,6 @@ import org.jetbrains.kotlin.analysis.test.framework.services.configuration.Analy
 import org.jetbrains.kotlin.analysis.test.framework.services.libraries.configurePlatformEnvironmentConfigurators
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.preprocessors.ExternalAnnotationsSourcePreprocessor
 import org.jetbrains.kotlin.test.services.TestModuleStructure
@@ -32,7 +32,6 @@ abstract class LLSourceLikeBaseTestConfigurator(
     override val analyseInDependentSession: Boolean,
 ) : AnalysisApiTestConfigurator {
     override val analysisApiMode: AnalysisApiMode get() = AnalysisApiMode.Ide
-    override val frontendKind: FrontendKind get() = FrontendKind.Fir
 
     override fun configureTest(builder: TestConfigurationBuilder, disposable: Disposable) {
         builder.apply {
@@ -41,6 +40,7 @@ abstract class LLSourceLikeBaseTestConfigurator(
             configurePlatformEnvironmentConfigurators()
             useConfigurators(::ExternalAnnotationsEnvironmentConfigurator)
             useSourcePreprocessor(::ExternalAnnotationsSourcePreprocessor)
+            configureFirConsistencyChecks()
         }
     }
 

@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.types.AbstractTypeByDeclarationReturnTypeTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.types.AbstractTypeByDeclarationReturnTypeTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirIdeNormalAnalysisSourceLikeModuleTypeByDeclarationReturnTypeTest
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -55,6 +53,24 @@ public class FirIdeNormalAnalysisSourceLikeModuleTypeByDeclarationReturnTypeTest
   @TestMetadata("anonymousFunction.kt")
   public void testAnonymousFunction() {
     run("anonymousFunction.kt");
+  }
+
+  @Test
+  @TestMetadata("chainedLocalClassesWithOneGeneric.kt")
+  public void testChainedLocalClassesWithOneGeneric() {
+    run("chainedLocalClassesWithOneGeneric.kt");
+  }
+
+  @Test
+  @TestMetadata("chainedLocalGenericClasses.kt")
+  public void testChainedLocalGenericClasses() {
+    run("chainedLocalGenericClasses.kt");
+  }
+
+  @Test
+  @TestMetadata("chainedLocalGenericClassesWithNonGenericTarget.kt")
+  public void testChainedLocalGenericClassesWithNonGenericTarget() {
+    run("chainedLocalGenericClassesWithNonGenericTarget.kt");
   }
 
   @Test
@@ -82,6 +98,24 @@ public class FirIdeNormalAnalysisSourceLikeModuleTypeByDeclarationReturnTypeTest
   }
 
   @Test
+  @TestMetadata("genericInnerClass.kt")
+  public void testGenericInnerClass() {
+    run("genericInnerClass.kt");
+  }
+
+  @Test
+  @TestMetadata("genericTypeAliasInInnerClass.kt")
+  public void testGenericTypeAliasInInnerClass() {
+    run("genericTypeAliasInInnerClass.kt");
+  }
+
+  @Test
+  @TestMetadata("javaNestedAndInnerGenericClasses.kt")
+  public void testJavaNestedAndInnerGenericClasses() {
+    run("javaNestedAndInnerGenericClasses.kt");
+  }
+
+  @Test
   @TestMetadata("lambdaWithAnnotatedParameterName.kt")
   public void testLambdaWithAnnotatedParameterName() {
     run("lambdaWithAnnotatedParameterName.kt");
@@ -100,9 +134,63 @@ public class FirIdeNormalAnalysisSourceLikeModuleTypeByDeclarationReturnTypeTest
   }
 
   @Test
+  @TestMetadata("localGenericAnonymousClass.kt")
+  public void testLocalGenericAnonymousClass() {
+    run("localGenericAnonymousClass.kt");
+  }
+
+  @Test
+  @TestMetadata("localGenericClass.kt")
+  public void testLocalGenericClass() {
+    run("localGenericClass.kt");
+  }
+
+  @Test
+  @TestMetadata("localGenericClassInGenericFunction.kt")
+  public void testLocalGenericClassInGenericFunction() {
+    run("localGenericClassInGenericFunction.kt");
+  }
+
+  @Test
+  @TestMetadata("localGenericClassWithFunctionGenericType.kt")
+  public void testLocalGenericClassWithFunctionGenericType() {
+    run("localGenericClassWithFunctionGenericType.kt");
+  }
+
+  @Test
+  @TestMetadata("localGenericClassWithOuterClasses.kt")
+  public void testLocalGenericClassWithOuterClasses() {
+    run("localGenericClassWithOuterClasses.kt");
+  }
+
+  @Test
+  @TestMetadata("localGenericInnerClasses.kt")
+  public void testLocalGenericInnerClasses() {
+    run("localGenericInnerClasses.kt");
+  }
+
+  @Test
+  @TestMetadata("localGenericTypeAliasInGenericFunction.kt")
+  public void testLocalGenericTypeAliasInGenericFunction() {
+    run("localGenericTypeAliasInGenericFunction.kt");
+  }
+
+  @Test
+  @TestMetadata("localInnerClassWithTwoGenerics.kt")
+  public void testLocalInnerClassWithTwoGenerics() {
+    run("localInnerClassWithTwoGenerics.kt");
+  }
+
+  @Test
   @TestMetadata("localNestedClassType.kt")
   public void testLocalNestedClassType() {
     run("localNestedClassType.kt");
+  }
+
+  @Test
+  @TestMetadata("localNestedGenericClasses.kt")
+  public void testLocalNestedGenericClasses() {
+    run("localNestedGenericClasses.kt");
   }
 
   @Test
@@ -112,9 +200,33 @@ public class FirIdeNormalAnalysisSourceLikeModuleTypeByDeclarationReturnTypeTest
   }
 
   @Test
+  @TestMetadata("nestedAndInnerGenericClasses.kt")
+  public void testNestedAndInnerGenericClasses() {
+    run("nestedAndInnerGenericClasses.kt");
+  }
+
+  @Test
+  @TestMetadata("nestedAndInnerGenericClassesFromLibrary.kt")
+  public void testNestedAndInnerGenericClassesFromLibrary() {
+    run("nestedAndInnerGenericClassesFromLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("nestedAndInnerGenericClassesInScript.kts")
+  public void testNestedAndInnerGenericClassesInScript() {
+    run("nestedAndInnerGenericClassesInScript.kts");
+  }
+
+  @Test
   @TestMetadata("nestedClassInsideGeneratedTopLevelClass.kt")
   public void testNestedClassInsideGeneratedTopLevelClass() {
     run("nestedClassInsideGeneratedTopLevelClass.kt");
+  }
+
+  @Test
+  @TestMetadata("nestedGenericClass.kt")
+  public void testNestedGenericClass() {
+    run("nestedGenericClass.kt");
   }
 
   @Test

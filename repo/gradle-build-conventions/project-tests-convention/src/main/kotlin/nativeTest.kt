@@ -13,7 +13,6 @@ import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.*
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.environment
-import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.kotlin.dsl.project
@@ -55,7 +54,9 @@ private enum class TestProperty(shortName: String) {
     XCTEST_FRAMEWORK("xctest"),
     TEAMCITY("teamcity"),
     MINIDUMP_ANALYZER("minidumpAnalyzer"),
+    USE_PROVISIONED_XCODE("useProvisionedXcode"),
     JDK_VERSION("jdkVersion"),
+    DEPEND_ON_PLATFORM_LIBS("dependOnPlatformLibs")
     ;
 
     val fullName = "kotlin.internal.native.test.$shortName"
@@ -148,10 +149,13 @@ private open class NativeArgsProvider @Inject constructor(
 
     // XCTest depends on platform libraries, so platform libraries must be available.
     @get:Input
-    protected val dependOnPlatformLibs = xcTestEnabled.orElse(requirePlatformLibs)
+    protected val dependOnPlatformLibs = xcTestEnabled.map { it || requirePlatformLibs }
 
     @get:Input
     protected val teamcity: Boolean = project.kotlinBuildProperties.isTeamcityBuild.get()
+
+    @get:Input
+    protected val useProvisionedXcode: Boolean = project.useProvisionedXcode()
 
     @get:Internal
     protected val customNativeHome: Provider<String> = providers.testProperty(KOTLIN_NATIVE_HOME)
@@ -199,7 +203,7 @@ private open class NativeArgsProvider @Inject constructor(
                 from(distDir.dir("konan/"))
                 from(distDir.dir("tools/"))
                 from(distDir.dir("klib/common/"))
-                from(distDir.dir("klib/cache/${testTargetWithDefault.get()}-gSTATIC-system/stdlib-cache/"))
+                from(distDir.dir("klib/cache/${testTargetWithDefault.get()}-gSTATIC-system/stdlib-per-file-cache/"))
             } else {
                 from(distDir)
             }
@@ -242,7 +246,7 @@ private open class NativeArgsProvider @Inject constructor(
     @get:PathSensitive(PathSensitivity.NONE) // it doesn't matter at all how is this analyzer named, or where it's placed
     @get:Optional
     protected val minidumpAnalyzer: ConfigurableFileCollection = objects.fileCollection().apply {
-        if (HostManager.hostIsMac && !project.hasProperty("disableBreakpad")) {
+        if (HostManager.hostIsMac) {
             val fileCollection = project.configurations.detachedConfiguration(
                 project.dependencies.project(":kotlin-native:tools:minidump-analyzer"),
             ).also {
@@ -258,10 +262,13 @@ private open class NativeArgsProvider @Inject constructor(
         val customKlibs = customTestDependencies.files + xcTestConfiguration.files
         return listOfNotNull(
             "-D${KOTLIN_NATIVE_HOME.fullName}=${internalNativeHomeDir.get().absolutePath}",
-            "-D${COMPILER_CLASSPATH.fullName}=${compilerClasspath.files.takeIf { it.isNotEmpty() }?.joinToString(File.pathSeparator) { it.absolutePath }}",
+            "-D${COMPILER_CLASSPATH.fullName}=${
+                compilerClasspath.files.takeIf { it.isNotEmpty() }?.joinToString(File.pathSeparator) { it.absolutePath }
+            }",
             "-D${COMPILER_PLUGINS.fullName}=${compilerPluginDependencies.files.joinToString(File.pathSeparator) { it.absolutePath }}".takeIf { !compilerPluginDependencies.isEmpty },
             testKind.orNull?.let { "-D${TEST_KIND.fullName}=$it" },
             "-D${TEAMCITY.fullName}=$teamcity",
+            "-D${USE_PROVISIONED_XCODE.fullName}=$useProvisionedXcode",
             customCompilerDist.orNull?.let { "-D${CUSTOM_KOTLIN_NATIVE_HOME.fullName}=${it.asFile.absolutePath}" },
             testTarget.orNull?.let { "-D${TEST_TARGET.fullName}=$it" },
             testMode.orNull?.let { "-D${TEST_MODE.fullName}=$it" },
@@ -281,6 +288,7 @@ private open class NativeArgsProvider @Inject constructor(
             xctestFramework.orNull?.let { "-D${XCTEST_FRAMEWORK.fullName}=$it" },
             "-D${CUSTOM_KLIBS.fullName}=${customKlibs.joinToString(File.pathSeparator) { it.absolutePath }}".takeIf { customKlibs.isNotEmpty() },
             if (minidumpAnalyzer.isEmpty) null else "-D${MINIDUMP_ANALYZER.fullName}=${minidumpAnalyzer.singleFile.absolutePath}",
+            "-D${DEPEND_ON_PLATFORM_LIBS.fullName}=${dependOnPlatformLibs.get()}"
         )
     }
 }
@@ -317,6 +325,21 @@ private abstract class JdkVersionDependentFlagsProvider : CommandLineArgumentPro
 private fun ProviderFactory.testProperty(property: TestProperty) =
     gradleProperty(property.fullName).orElse(gradleProperty(property.shortName))
 
+private fun Project.useProvisionedXcode(): Boolean =
+    HostManager.hostIsMac && kotlinBuildProperties.booleanProperty("kotlin.native.internalServer.wholeXcode", false).get()
+
+private fun Project.hostXcodeConfiguration(): Configuration =
+    configurations.findByName(HOST_XCODE_CONFIGURATION) ?: run {
+        val hostXcode = dependencies.project(":kotlin-native:dependencies", "hostXcode")
+        configurations.create(HOST_XCODE_CONFIGURATION) {
+            isCanBeConsumed = false
+            isCanBeResolved = true
+            dependencies.add(hostXcode)
+        }
+    }
+
+private const val HOST_XCODE_CONFIGURATION = "nativeTestHostXcode"
+
 /**
  * @param taskName Name of Gradle task.
  * @param tag Optional JUnit test tag. See https://junit.org/junit5/docs/current/user-guide/#writing-tests-tagging-and-filtering
@@ -338,16 +361,22 @@ fun ProjectTestsExtension.nativeTestTask(
     compilerPluginDependencies: List<FileCollection> = emptyList(),
     allowParallelExecution: Boolean = true,
     customCompilerDist: TaskProvider<Sync>? = null,
-    maxMetaspaceSizeMb: Int = 512,
+    maxHeapSize: Size = testMaxHeapSizeLarge, // Extra heap space for Kotlin/Native compiler.
+    maxMetaspaceSize: Size = testDefaultMaxMetaspaceSize,
     allowUnsafe: Boolean = false,
     defineJDKEnvVariables: List<JdkMajorVersion> = emptyList(),
+    enableGroupingTestEngine: Boolean = false,
     body: Test.() -> Unit = {},
 ): TaskProvider<Test> = testTask(
     taskName = taskName,
-    jUnitMode = JUnitMode.JUnit5,
-    maxHeapSizeMb = 3072, // Extra heap space for Kotlin/Native compiler.
-    maxMetaspaceSizeMb = maxMetaspaceSizeMb,
+    maxHeapSize = maxHeapSize, // Extra heap space for Kotlin/Native compiler.
+    maxMetaspaceSize = maxMetaspaceSize,
+    // Using JDK 11 instead of JDK 8 (project default) makes some tests take 15-25% more time.
+    // This seems to be caused by the fact that JDK 11 uses G1 GC by default, while JDK 8 uses Parallel GC.
+    // Switch back to Parallel GC to mitigate the test execution time degradation:
+    garbageCollector = GarbageCollector.Parallel,
     defineJDKEnvVariables = defineJDKEnvVariables,
+    enableGroupingTestEngine = enableGroupingTestEngine,
     skipInLocalBuild = false,
 ) {
     val project = this@nativeTestTask.project
@@ -356,11 +385,13 @@ fun ProjectTestsExtension.nativeTestTask(
     group = "verification"
 
     if (kotlinBuildProperties.isKotlinNativeEnabled.get()) {
-        workingDir = project.rootDir
+        if (!project.plugins.hasPlugin("test-inputs-check")) {
+            workingDir = project.rootDir
+        }
 
         // Use ARM64 JDK on ARM64 Mac as required by the K/N compiler.
         // See https://youtrack.jetbrains.com/issue/KTI-2421#focus=Comments-27-12231298.0-0.
-        val defaultJdkVersion = JdkMajorVersion.JDK_11_0
+        val defaultJdkVersion = DEFAULT_JAVA_LAUNCHER_FOR_TESTS
 
         val nativeTestJdkVersion = project.providers.testProperty(JDK_VERSION)
             .map { versionString ->
@@ -381,10 +412,6 @@ fun ProjectTestsExtension.nativeTestTask(
             this.allowUnsafe.set(allowUnsafe)
         })
 
-        // Using JDK 11 instead of JDK 8 (project default) makes some tests take 15-25% more time.
-        // This seems to be caused by the fact that JDK 11 uses G1 GC by default, while JDK 8 uses Parallel GC.
-        // Switch back to Parallel GC to mitigate the test execution time degradation:
-        jvmArgs("-XX:+UseParallelGC")
         // Another reason for switching back to Parallel GC is CLI tests:
         // some of them validate the compiler performance report.
         // The latter contains GC statistics, and the format varies per GC.
@@ -398,10 +425,6 @@ fun ProjectTestsExtension.nativeTestTask(
         // Such tests are successfully compiled in old test infra with the default 1 MB stack just by accident. New test infra requires ~55
         // additional stack frames more compared to the old one because of another launcher, etc. and it turns out this is not enough.
         jvmArgs("-Xss2m")
-
-        // Allow the test to access Kotlin/Native-specific locations.
-        // See `repo/gradle-build-conventions/project-tests-convention/Readme.md` for more details
-        extensions.findByType<TestInputsCheckExtension>()?.isNative?.set(true)
 
         jvmArgumentProviders.add(project.objects.newInstance(NativeArgsProvider::class.java, requirePlatformLibs).apply {
             this.customCompilerDependencies.from(customCompilerDependencies)
@@ -423,10 +446,18 @@ fun ProjectTestsExtension.nativeTestTask(
         // Pass the current Gradle task name so test can use it in logging.
         environment("GRADLE_TASK_NAME", path)
 
+        if (project.useProvisionedXcode()) {
+            dependsOn(project.hostXcodeConfiguration())
+            environment(
+                "DEVELOPER_DIR",
+                project.hostXcodeConfiguration().singleFile.resolve("Contents/Developer").absolutePath
+            )
+        }
+
         useJUnitPlatform {
             // Note: arbitrary JUnit tag expressions can be used in this property.
             // See https://junit.org/junit5/docs/current/user-guide/#running-tests-tag-expressions
-            val globalTags = project.findProperty("kotlin.native.tests.tags")?.toString()
+            val globalTags = project.providers.gradleProperty("kotlin.native.tests.tags").orNull
             val testTags = when {
                 tag == null -> globalTags
                 globalTags == null -> tag
@@ -449,6 +480,8 @@ fun ProjectTestsExtension.nativeTestTask(
                     }
                 }
             )
+
+            logger.info("$path task classpath: " + classpath.files.joinToString(File.pathSeparator))
         }
     } else
         doFirst {

@@ -6,12 +6,14 @@
 package org.jetbrains.kotlin.psi;
 
 import com.intellij.lang.ASTNode;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.KtStubBasedElementTypes;
+import org.jetbrains.kotlin.KtNodeTypes;
 import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.psi.stubs.KotlinPlaceHolderStub;
 import org.jetbrains.kotlin.psi.stubs.elements.KtTokenSets;
+import org.jetbrains.kotlin.resolution.KtResolvable;
 
 import java.util.Collections;
 import java.util.List;
@@ -24,16 +26,25 @@ import java.util.List;
  * val name: String? = null
  * //        ^_____^
  * }</pre>
+ *
+ * <p>A nullable type owns a modifier list when the type it wraps is parenthesized, as the parentheses are not a PSI
+ * element of their own. {@code (@A Int)?} and {@code @A Int?} denote the same type, but in the former the modifier
+ * list belongs to this element rather than to the enclosing {@link KtTypeReference}.
  */
-public class KtNullableType extends KtElementImplStub<KotlinPlaceHolderStub<KtNullableType>> implements KtTypeElement {
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
+public class KtNullableType extends KtModifierListOwnerStub<KotlinPlaceHolderStub<KtNullableType>>
+        implements KtTypeElement, KtResolvable {
+    @KtImplementationDetail
     public KtNullableType(@NotNull ASTNode node) {
         super(node);
     }
 
+    @KtImplementationDetail
     public KtNullableType(@NotNull KotlinPlaceHolderStub<KtNullableType> stub) {
-        super(stub, KtStubBasedElementTypes.NULLABLE_TYPE);
+        super(stub, KtNodeTypes.NULLABLE_TYPE);
     }
 
+    /** Returns the AST node of the {@code ?} token that marks the type as nullable. */
     @NotNull
     public ASTNode getQuestionMarkNode() {
         return getNode().findChildByType(KtTokens.QUEST);
@@ -51,21 +62,10 @@ public class KtNullableType extends KtElementImplStub<KotlinPlaceHolderStub<KtNu
         return visitor.visitNullableType(this, data);
     }
 
+    /** Returns the underlying non-nullable type (the part before {@code ?}), or {@code null} if it is absent in incomplete code. */
     @Nullable
     @IfNotParsed
     public KtTypeElement getInnerType() {
         return KtStubbedPsiUtil.getStubOrPsiChild(this, KtTokenSets.TYPE_ELEMENT_TYPES, KtTypeElement.ARRAY_FACTORY);
-    }
-
-    @Nullable
-    @SuppressWarnings("deprecation") // KT-78356
-    public KtModifierList getModifierList() {
-        return getStubOrPsiChild(KtStubBasedElementTypes.MODIFIER_LIST);
-    }
-
-    @NotNull
-    public List<KtAnnotationEntry> getAnnotationEntries() {
-        KtModifierList modifierList = getModifierList();
-        return modifierList != null ? modifierList.getAnnotationEntries() : Collections.emptyList();
     }
 }

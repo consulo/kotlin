@@ -23,13 +23,25 @@ KtParameter(24,41): 'val value: String'
   null
 
 KtTypeReference(35,41): 'String'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtUserType(35,41): 'String'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtNameReferenceExpression(35,41): 'String'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtClass(43,98): 'annotation class MyAnnoVararg(vararg val value: String)'
   null
@@ -50,13 +62,25 @@ KtDeclarationModifierList(73,79): 'vararg'
   null
 
 KtTypeReference(91,97): 'String'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtUserType(91,97): 'String'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtNameReferenceExpression(91,97): 'String'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtClass(99,165): 'annotation class MyAnnoKClass(val value: kotlin.reflect.KClass<*>)'
   null
@@ -74,25 +98,55 @@ KtParameter(129,164): 'val value: kotlin.reflect.KClass<*>'
   null
 
 KtTypeReference(140,164): 'kotlin.reflect.KClass<*>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/reflect/KClass
+    ]
 
 KtUserType(140,164): 'kotlin.reflect.KClass<*>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/reflect/KClass
+    ]
 
 KtUserType(140,154): 'kotlin.reflect'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin.reflect
+    ]
 
 KtUserType(140,146): 'kotlin'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin
+    ]
 
 KtNameReferenceExpression(140,146): 'kotlin'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin
+    ]
 
 KtNameReferenceExpression(147,154): 'reflect'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin.reflect
+    ]
 
 KtNameReferenceExpression(155,161): 'KClass'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/reflect/KClass
+    ]
 
 KtTypeArgumentList(161,164): '<*>'
   null
@@ -107,25 +161,34 @@ KtDeclarationModifierList(167,183): '@MyAnno((("A")))'
   null
 
 KtAnnotationEntry(167,183): '@MyAnno((("A")))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(value: kotlin.String): MyAnno
     ]
 
 KtConstructorCalleeExpression(168,174): 'MyAnno'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(value: kotlin.String): MyAnno
     ]
 
 KtTypeReference(168,174): 'MyAnno'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnno
+    ]
 
 KtUserType(168,174): 'MyAnno'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnno
+    ]
 
 KtNameReferenceExpression(168,174): 'MyAnno'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MyAnno
     ]
@@ -161,25 +224,34 @@ KtDeclarationModifierList(199,223): '@MyAnno(value = (("A")))'
   null
 
 KtAnnotationEntry(199,223): '@MyAnno(value = (("A")))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(value: kotlin.String): MyAnno
     ]
 
 KtConstructorCalleeExpression(200,206): 'MyAnno'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(value: kotlin.String): MyAnno
     ]
 
 KtTypeReference(200,206): 'MyAnno'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnno
+    ]
 
 KtUserType(200,206): 'MyAnno'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnno
+    ]
 
 KtNameReferenceExpression(200,206): 'MyAnno'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MyAnno
     ]
@@ -194,7 +266,13 @@ KtValueArgumentName(207,212): 'value'
   null
 
 KtNameReferenceExpression(207,212): 'value'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      value: kotlin.String
+    ]
 
 KtParenthesizedExpression(215,222): '(("A"))'
   null
@@ -221,25 +299,34 @@ KtDeclarationModifierList(239,269): '@MyAnno((((("A")) as String)))'
   null
 
 KtAnnotationEntry(239,269): '@MyAnno((((("A")) as String)))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(value: kotlin.String): MyAnno
     ]
 
 KtConstructorCalleeExpression(240,246): 'MyAnno'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(value: kotlin.String): MyAnno
     ]
 
 KtTypeReference(240,246): 'MyAnno'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnno
+    ]
 
 KtUserType(240,246): 'MyAnno'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnno
+    ]
 
 KtNameReferenceExpression(240,246): 'MyAnno'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MyAnno
     ]
@@ -272,16 +359,31 @@ KtLiteralStringTemplateEntry(252,253): 'A'
   null
 
 KtOperationReferenceExpression(257,259): 'as'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtTypeReference(260,266): 'String'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtUserType(260,266): 'String'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtNameReferenceExpression(260,266): 'String'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtParameterList(278,280): '()'
   null
@@ -296,25 +398,34 @@ KtDeclarationModifierList(285,341): '@MyAnnoVararg((("A")), "B", *((arrayOf("A",
   null
 
 KtAnnotationEntry(285,341): '@MyAnnoVararg((("A")), "B", *((arrayOf("A", "B", "C"))))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(vararg value: kotlin.String): MyAnnoVararg
     ]
 
 KtConstructorCalleeExpression(286,298): 'MyAnnoVararg'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(vararg value: kotlin.String): MyAnnoVararg
     ]
 
 KtTypeReference(286,298): 'MyAnnoVararg'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnnoVararg
+    ]
 
 KtUserType(286,298): 'MyAnnoVararg'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnnoVararg
+    ]
 
 KtNameReferenceExpression(286,298): 'MyAnnoVararg'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MyAnnoVararg
     ]
@@ -356,13 +467,16 @@ KtParenthesizedExpression(315,339): '(arrayOf("A", "B", "C"))'
   null
 
 KtCallExpression(316,338): 'arrayOf("A", "B", "C")'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/arrayOf(vararg elements: T): kotlin.Array<T>
     ]
 
 KtNameReferenceExpression(316,323): 'arrayOf'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/arrayOf(vararg elements: T): kotlin.Array<T>
     ]
@@ -410,25 +524,34 @@ KtDeclarationModifierList(357,403): '@MyAnnoVararg(value = ((arrayOf(("A"), "B")
   null
 
 KtAnnotationEntry(357,403): '@MyAnnoVararg(value = ((arrayOf(("A"), "B"))))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(vararg value: kotlin.String): MyAnnoVararg
     ]
 
 KtConstructorCalleeExpression(358,370): 'MyAnnoVararg'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(vararg value: kotlin.String): MyAnnoVararg
     ]
 
 KtTypeReference(358,370): 'MyAnnoVararg'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnnoVararg
+    ]
 
 KtUserType(358,370): 'MyAnnoVararg'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnnoVararg
+    ]
 
 KtNameReferenceExpression(358,370): 'MyAnnoVararg'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MyAnnoVararg
     ]
@@ -443,7 +566,13 @@ KtValueArgumentName(371,376): 'value'
   null
 
 KtNameReferenceExpression(371,376): 'value'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      vararg value: kotlin.String
+    ]
 
 KtParenthesizedExpression(379,402): '((arrayOf(("A"), "B")))'
   null
@@ -452,13 +581,16 @@ KtParenthesizedExpression(380,401): '(arrayOf(("A"), "B"))'
   null
 
 KtCallExpression(381,400): 'arrayOf(("A"), "B")'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/arrayOf(vararg elements: T): kotlin.Array<T>
     ]
 
 KtNameReferenceExpression(381,388): 'arrayOf'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/arrayOf(vararg elements: T): kotlin.Array<T>
     ]
@@ -500,25 +632,34 @@ KtDeclarationModifierList(419,453): '@MyAnnoKClass((((String::class))))'
   null
 
 KtAnnotationEntry(419,453): '@MyAnnoKClass((((String::class))))'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(value: kotlin.reflect.KClass<*>): MyAnnoKClass
     ]
 
 KtConstructorCalleeExpression(420,432): 'MyAnnoKClass'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(value: kotlin.reflect.KClass<*>): MyAnnoKClass
     ]
 
 KtTypeReference(420,432): 'MyAnnoKClass'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnnoKClass
+    ]
 
 KtUserType(420,432): 'MyAnnoKClass'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /MyAnnoKClass
+    ]
 
 KtNameReferenceExpression(420,432): 'MyAnnoKClass'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /MyAnnoKClass
     ]
@@ -539,10 +680,16 @@ KtParenthesizedExpression(435,450): '(String::class)'
   null
 
 KtClassLiteralExpression(436,449): 'String::class'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtNameReferenceExpression(436,442): 'String'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/String
     ]

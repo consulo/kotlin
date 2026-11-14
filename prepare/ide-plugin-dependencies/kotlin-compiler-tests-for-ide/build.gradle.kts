@@ -1,12 +1,12 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
 publishTestJarsForIde(
-    projectNames = listOf(
-        ":compiler:tests-spec"
-    ),
     projectWithFixturesNames = listOf(
+        ":compiler:tests-spec",
         ":compiler:tests-compiler-utils",
         ":compiler:test-infrastructure-utils.common",
         ":compiler:test-infrastructure-utils",

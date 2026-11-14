@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.gradle.api.Project
@@ -31,13 +29,13 @@ class MultiplatformIncorrectCompileOnlyDependenciesValidationTest {
 
                 linuxX64()
                 mingwX64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                macosX64()
 
                 js { browser() }
 
                 wasmJs { browser() }
-                wasmWasi { nodejs() }
+                wasmWasi {
+                    wasmtime()
+                }
             }
 
             configure()
@@ -118,7 +116,7 @@ class MultiplatformIncorrectCompileOnlyDependenciesValidationTest {
                 actual = actualWarning.message,
             )
             assertContains(
-                expected = "(source sets: jsMain, linuxX64Main, macosX64Main, mingwX64Main, wasmJsMain, wasmWasiMain)",
+                expected = "(source sets: jsMain, linuxX64Main, mingwX64Main, wasmJsMain, wasmWasiMain)",
                 actual = actualWarning.message,
             )
         }
@@ -177,7 +175,7 @@ class MultiplatformIncorrectCompileOnlyDependenciesValidationTest {
             val actualWarning = diagnostics.assertContainsSingleDiagnostic(IncorrectCompileOnlyDependencyWarning)
 
             assertContains(
-                expected = "- org.jetbrains.kotlinx:atomicfu:latest.release (source sets: jsMain, linuxX64Main, macosX64Main, mingwX64Main, wasmJsMain, wasmWasiMain)",
+                expected = "- org.jetbrains.kotlinx:atomicfu:latest.release (source sets: jsMain, linuxX64Main, mingwX64Main, wasmJsMain, wasmWasiMain)",
                 actual = actualWarning.message,
             )
             assertContains(
@@ -185,7 +183,7 @@ class MultiplatformIncorrectCompileOnlyDependenciesValidationTest {
                 actual = actualWarning.message,
             )
             assertContains(
-                expected = "- org.jetbrains.kotlinx:kotlinx-serialization-json:latest.release (source sets: linuxX64Main, macosX64Main, mingwX64Main)",
+                expected = "- org.jetbrains.kotlinx:kotlinx-serialization-json:latest.release (source sets: linuxX64Main, mingwX64Main)",
                 actual = actualWarning.message,
             )
         }

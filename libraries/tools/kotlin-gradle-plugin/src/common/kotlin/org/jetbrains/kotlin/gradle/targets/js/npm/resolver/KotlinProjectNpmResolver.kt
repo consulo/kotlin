@@ -6,8 +6,6 @@
 package org.jetbrains.kotlin.gradle.targets.js.npm.resolver
 
 import org.gradle.api.Project
-import org.gradle.api.Task
-import org.gradle.api.tasks.TaskCollection
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinSingleTargetExtension
 import org.jetbrains.kotlin.gradle.dsl.kotlinExtensionOrNull
@@ -16,13 +14,14 @@ import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrCompilation
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
 import org.jetbrains.kotlin.gradle.targets.js.npm.KotlinNpmResolutionManager
 import org.jetbrains.kotlin.gradle.targets.js.npm.resolved.KotlinProjectNpmResolution
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 import org.jetbrains.kotlin.gradle.utils.withType
 import java.io.Serializable
-import kotlin.reflect.KClass
 
 /**
  * See [KotlinNpmResolutionManager] for details about resolution process.
  */
+@ObsoleteNpmDependencyModel
 class KotlinProjectNpmResolver(
     project: Project,
     var resolver: KotlinRootNpmResolver,
@@ -36,8 +35,11 @@ class KotlinProjectNpmResolver(
     }
 
     operator fun get(compilationName: String): KotlinCompilationNpmResolver {
-        return byCompilation[compilationName] ?: error("$compilationName was not registered in $this")
+        return getOrNull(compilationName) ?: error("$compilationName was not registered in $this")
     }
+
+    internal fun getOrNull(compilationName: String): KotlinCompilationNpmResolver? =
+        byCompilation[compilationName]
 
     private var resolution: KotlinProjectNpmResolution? = null
 
@@ -67,10 +69,7 @@ class KotlinProjectNpmResolver(
         if (target.platformType == resolver.platform && target.wasmTargetType != KotlinWasmTargetType.WASI
         ) {
             target.compilations.all { compilation ->
-                if (compilation is KotlinJsIrCompilation) {
-                    // compilation may be KotlinWithJavaTarget for old Kotlin2JsPlugin
-                    addCompilation(compilation)
-                }
+                addCompilation(compilation)
             }
         }
     }
@@ -97,13 +96,3 @@ class KotlinProjectNpmResolver(
         )
     }
 }
-
-
-/**
- * Filters a [TaskCollection] by type that is not a subtype of [Task] (for use with interfaces)
- *
- * TODO properly express within the type system? The result should be a TaskCollection<T & R>
- */
-internal fun <T : Task, R : Any> TaskCollection<T>.implementing(kclass: KClass<R>): TaskCollection<T> =
-    @Suppress("UNCHECKED_CAST")
-    withType(kclass.java as Class<T>)

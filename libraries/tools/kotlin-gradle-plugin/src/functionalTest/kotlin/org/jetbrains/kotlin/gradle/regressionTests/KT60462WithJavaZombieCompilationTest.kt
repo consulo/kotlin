@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.regressionTests
 
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
@@ -60,7 +58,7 @@ class KT60462WithJavaZombieCompilationTest {
     @Test
     fun `test - custom compilation`() = buildProjectWithMPP().runLifecycleAwareTest {
         multiplatformExtension.jvm().apply {
-            @Suppress("DEPRECATION")
+            @Suppress("DEPRECATION_ERROR")
             withJava()
 
             var instanceUsedForConfigureBlock: KotlinJvmCompilation? = null

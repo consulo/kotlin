@@ -1,3 +1,4 @@
+// LANGUAGE: +ReportReificationProblemsInDnnAndFlexible
 // RUN_PIPELINE_TILL: FRONTEND
 // ISSUE: KT-74516
 

@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.backend.konan.optimizations
 
-import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.NativeBackendContext
 import org.jetbrains.kotlin.backend.konan.lower.bridgeTarget
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
 internal fun dce(
-        context: Context,
+        context: NativeBackendContext,
         irModule: IrModuleFragment,
         moduleDFG: ModuleDFG,
 ): Set<IrSimpleFunction> {
@@ -44,10 +44,8 @@ internal fun dce(
         if (!node.symbol.isStaticFieldInitializer)
             referenceFunction(node.symbol)
 
-        for (callSite in node.callSites) {
-            if (!callSite.isVirtual)
-                referenceFunction(callSite.actualCallee)
-        }
+        for (callSite in node.callSites)
+            (callSite as? CallGraphNode.CallSite.Static)?.forEachCallee { referenceFunction(it) }
     }
 
     irModule.acceptChildrenVoid(object : IrVisitorVoid() {

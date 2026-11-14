@@ -1,7 +1,8 @@
-// IGNORE_BACKEND: WASM_JS, WASM_WASI
-// WASM_MUTE_REASON: IGNORED_IN_JS
 // IGNORE_BACKEND: JS_IR
 // IGNORE_BACKEND: JS_IR_ES6
+
+// IGNORE_KLIB_RUNTIME_ERRORS_WITH_CUSTOM_SECOND_STAGE: Wasm-JS:2.4
+// ^^^ KT-87742 is available in 2.5.0-Beta1
 
 open class Base {
     open fun setup() {}
@@ -21,6 +22,8 @@ class Derived : Base {
         xLong = 5L
         xFloat = 6.0f
         xDouble = 7.0
+        xNegativeZeroFloat = 8.0f
+        xNegativeZeroDouble = 9.0
         xRef = placeHolder
     }
 
@@ -36,6 +39,8 @@ class Derived : Base {
     var xLong = 0L
     var xFloat = 0.0f
     var xDouble = 0.0
+    var xNegativeZeroFloat = -0.0f
+    var xNegativeZeroDouble = -0.0
     var xRef: Any? = null
 }
 
@@ -49,6 +54,8 @@ fun box(): String {
     if (d.xLong != 5L) return "fail Long"
     if (d.xFloat != 6.0f) return "fail Float"
     if (d.xDouble != 7.0) return "fail Double"
+    if (1.0f / d.xNegativeZeroFloat != Float.NEGATIVE_INFINITY) return "fail negative zero Float"
+    if (1.0 / d.xNegativeZeroDouble != Double.NEGATIVE_INFINITY) return "fail negative zero Double"
     if (d.xRef != placeHolder) return "fail Ref"
     return "OK"
 }

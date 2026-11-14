@@ -52,15 +52,69 @@ public class SourceLikeClassIdTestGenerated extends AbstractSourceLikeClassIdTes
   }
 
   @Test
-  @TestMetadata("classWithPackageRepl.repl.kts")
-  public void testClassWithPackageRepl_repl() {
-    run("classWithPackageRepl.repl.kts");
-  }
-
-  @Test
   @TestMetadata("classWithPackageScript.kts")
   public void testClassWithPackageScript() {
     run("classWithPackageScript.kts");
+  }
+
+  @Test
+  @TestMetadata("companionBlockInsideDataClass.kt")
+  public void testCompanionBlockInsideDataClass() {
+    run("companionBlockInsideDataClass.kt");
+  }
+
+  @Test
+  @TestMetadata("companionBlockInsideDataClassScript.kts")
+  public void testCompanionBlockInsideDataClassScript() {
+    run("companionBlockInsideDataClassScript.kts");
+  }
+
+  @Test
+  @TestMetadata("companionBlocks.kt")
+  public void testCompanionBlocks() {
+    run("companionBlocks.kt");
+  }
+
+  @Test
+  @TestMetadata("companionBlocksScript.kts")
+  public void testCompanionBlocksScript() {
+    run("companionBlocksScript.kts");
+  }
+
+  @Test
+  @TestMetadata("companionsInsideNamelessClasses.kt")
+  public void testCompanionsInsideNamelessClasses() {
+    run("companionsInsideNamelessClasses.kt");
+  }
+
+  @Test
+  @TestMetadata("companionsInsideNamelessClassesScript.kts")
+  public void testCompanionsInsideNamelessClassesScript() {
+    run("companionsInsideNamelessClassesScript.kts");
+  }
+
+  @Test
+  @TestMetadata("deepNestingInsideNamelessClasses.kt")
+  public void testDeepNestingInsideNamelessClasses() {
+    run("deepNestingInsideNamelessClasses.kt");
+  }
+
+  @Test
+  @TestMetadata("deepNestingInsideNamelessClassesScript.kts")
+  public void testDeepNestingInsideNamelessClassesScript() {
+    run("deepNestingInsideNamelessClassesScript.kts");
+  }
+
+  @Test
+  @TestMetadata("deepNestingInsideNamelessLocalClasses.kt")
+  public void testDeepNestingInsideNamelessLocalClasses() {
+    run("deepNestingInsideNamelessLocalClasses.kt");
+  }
+
+  @Test
+  @TestMetadata("deepNestingInsideNamelessLocalClassesScript.kts")
+  public void testDeepNestingInsideNamelessLocalClassesScript() {
+    run("deepNestingInsideNamelessLocalClassesScript.kts");
   }
 
   @Test
@@ -85,6 +139,12 @@ public class SourceLikeClassIdTestGenerated extends AbstractSourceLikeClassIdTes
   @TestMetadata("enumScript.kts")
   public void testEnumScript() {
     run("enumScript.kts");
+  }
+
+  @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
   }
 
   @Test
@@ -124,6 +184,30 @@ public class SourceLikeClassIdTestGenerated extends AbstractSourceLikeClassIdTes
   }
 
   @Test
+  @TestMetadata("namedInsideNamelessClasses.kt")
+  public void testNamedInsideNamelessClasses() {
+    run("namedInsideNamelessClasses.kt");
+  }
+
+  @Test
+  @TestMetadata("namedInsideNamelessClassesScript.kts")
+  public void testNamedInsideNamelessClassesScript() {
+    run("namedInsideNamelessClassesScript.kts");
+  }
+
+  @Test
+  @TestMetadata("namedInsideNamelessLocalClasses.kt")
+  public void testNamedInsideNamelessLocalClasses() {
+    run("namedInsideNamelessLocalClasses.kt");
+  }
+
+  @Test
+  @TestMetadata("namedInsideNamelessLocalClassesScript.kts")
+  public void testNamedInsideNamelessLocalClassesScript() {
+    run("namedInsideNamelessLocalClassesScript.kts");
+  }
+
+  @Test
   @TestMetadata("namelessClasses.kt")
   public void testNamelessClasses() {
     run("namelessClasses.kt");
@@ -133,6 +217,18 @@ public class SourceLikeClassIdTestGenerated extends AbstractSourceLikeClassIdTes
   @TestMetadata("namelessClassesScript.kts")
   public void testNamelessClassesScript() {
     run("namelessClassesScript.kts");
+  }
+
+  @Test
+  @TestMetadata("namelessEnumClasses.kt")
+  public void testNamelessEnumClasses() {
+    run("namelessEnumClasses.kt");
+  }
+
+  @Test
+  @TestMetadata("namelessEnumClassesScript.kts")
+  public void testNamelessEnumClassesScript() {
+    run("namelessEnumClassesScript.kts");
   }
 
   @Test
@@ -148,14 +244,14 @@ public class SourceLikeClassIdTestGenerated extends AbstractSourceLikeClassIdTes
   }
 
   @Test
-  @TestMetadata("replSnippetLocalClasses.repl.kts")
-  public void testReplSnippetLocalClasses_repl() {
-    run("replSnippetLocalClasses.repl.kts");
+  @TestMetadata("namelessInsideNamelessLocalClasses.kt")
+  public void testNamelessInsideNamelessLocalClasses() {
+    run("namelessInsideNamelessLocalClasses.kt");
   }
 
   @Test
-  @TestMetadata("replSnippetSimple.repl.kts")
-  public void testReplSnippetSimple_repl() {
-    run("replSnippetSimple.repl.kts");
+  @TestMetadata("namelessInsideNamelessLocalClassesScript.kts")
+  public void testNamelessInsideNamelessLocalClassesScript() {
+    run("namelessInsideNamelessLocalClassesScript.kts");
   }
 }

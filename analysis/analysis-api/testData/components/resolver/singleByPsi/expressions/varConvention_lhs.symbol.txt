@@ -1,5 +1,8 @@
 KtNameReferenceExpression(31,32): 'i'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var i: kotlin.Int
     ]

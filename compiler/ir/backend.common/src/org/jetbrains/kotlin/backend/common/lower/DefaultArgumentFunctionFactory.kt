@@ -1,27 +1,28 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.backend.common.lower
 
 import org.jetbrains.kotlin.backend.common.CommonBackendContext
-import org.jetbrains.kotlin.backend.common.defaultArgumentsDispatchFunction
-import org.jetbrains.kotlin.backend.common.defaultArgumentsOriginalFunction
 import org.jetbrains.kotlin.descriptors.DescriptorVisibility
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.declarations.buildConstructor
 import org.jetbrains.kotlin.ir.builders.declarations.buildFun
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.defaultArgumentsDispatchFunction
+import org.jetbrains.kotlin.ir.defaultArgumentsOriginalFunction
 import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.expressions.impl.IrErrorExpressionImpl
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.utils.*
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.utils.memoryOptimizedMap
+import org.jetbrains.kotlin.utils.memoryOptimizedPlus
 
 abstract class DefaultArgumentFunctionFactory(
     val context: CommonBackendContext,
@@ -46,6 +47,14 @@ abstract class DefaultArgumentFunctionFactory(
      */
     protected open fun IrType.hasNullAsUndefinedValue(): Boolean = true
 
+    /**
+     * Annotations of the original function to keep on the generated default stub.
+     *
+     * By default, all of them are kept.
+     * TODO some annotations are needed (e.g. @JvmStatic), others need different values (e.g. @JvmName), the rest are redundant.
+     */
+    protected open fun filterCopiedAnnotations(annotations: List<IrAnnotation>): List<IrAnnotation> = annotations
+
     protected fun IrFunction.copyValueParametersFrom(original: IrFunction) {
         parameters = original.parameters.memoryOptimizedMap {
             val newType = it.type.remapTypeParameters(original.classIfConstructor, classIfConstructor)
@@ -65,11 +74,21 @@ abstract class DefaultArgumentFunctionFactory(
         }
     }
 
+    protected open val IrFunction.hasDefaultValues: Boolean
+        get() = parameters.any { it.defaultValue != null }
+
+    protected open val IrFunction.doNotFindBaseFunctionWithDefaultArguments: Boolean
+        get() = isStatic
+
     fun findBaseFunctionWithDefaultArgumentsFor(
         declaration: IrFunction,
         skipInlineMethods: Boolean,
         skipExternalMethods: Boolean
     ): IrFunction? {
+        if (declaration.doNotFindBaseFunctionWithDefaultArguments) {
+            return declaration.takeIf { it.hasDefaultValues }
+        }
+
         val visited = mutableSetOf<IrFunction>()
 
         fun IrFunction.dfsImpl(): IrFunction? {
@@ -85,7 +104,7 @@ abstract class DefaultArgumentFunctionFactory(
                 }
             }
 
-            if (parameters.any { it.defaultValue != null }) return this
+            if (hasDefaultValues) return this
 
             return null
         }
@@ -108,7 +127,7 @@ abstract class DefaultArgumentFunctionFactory(
         declaration.defaultArgumentsDispatchFunction?.let { return it }
         if (declaration is IrSimpleFunction) {
             // If this is an override of a function with default arguments, produce a fake override of a default stub.
-            if (declaration.overriddenSymbols.any {
+            if (!declaration.isStatic && declaration.overriddenSymbols.any {
                     findBaseFunctionWithDefaultArgumentsFor(
                         it.owner,
                         skipInlineMethods,
@@ -152,7 +171,7 @@ abstract class DefaultArgumentFunctionFactory(
         //     }
         // Since this bug causes the metadata serializer to write the "has default value" flag into compiled
         // binaries, it's way too late to fix it. Hence the workaround.
-        if (declaration.parameters.any { it.defaultValue != null }) {
+        if (declaration.hasDefaultValues) {
             return generateDefaultsFunctionImpl(
                 declaration,
                 IrDeclarationOrigin.FUNCTION_FOR_DEFAULT_PARAMETER,
@@ -217,8 +236,7 @@ abstract class DefaultArgumentFunctionFactory(
         return newFunction.apply {
             parent = declaration.parent
             generateDefaultArgumentStubFrom(declaration, useConstructorMarker)
-            // TODO some annotations are needed (e.g. @JvmStatic), others need different values (e.g. @JvmName), the rest are redundant.
-            annotations = annotations memoryOptimizedPlus copiedAnnotations
+            annotations = annotations memoryOptimizedPlus filterCopiedAnnotations(copiedAnnotations)
         }
     }
 }

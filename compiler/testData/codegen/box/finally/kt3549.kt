@@ -1,4 +1,3 @@
-// WASM_FAILS_IN: WasmEdge
 
 fun test1() : String {
     var s = "";

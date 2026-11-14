@@ -1,4 +1,3 @@
-// IGNORE_BACKEND: WASM_WASI
 
 fun box(): String {
     var result = "fail"

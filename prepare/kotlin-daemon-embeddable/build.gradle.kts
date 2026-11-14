@@ -1,6 +1,8 @@
 description = "Kotlin Daemon (for using with embeddable compiler)"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     `java`
 }
 

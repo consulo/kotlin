@@ -16,12 +16,9 @@
 
 package androidx.compose.compiler.plugins.kotlin.inference
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class TestBindings {
 
@@ -75,6 +72,82 @@ class TestBindings {
 
         // Binding one should bind them all.
         opens.forEach { assertEquals(closed.token, it.token) }
+    }
+
+    @Test
+    fun canCreateOpenBindingWithConstraints() {
+        val bindings = Bindings()
+        val open = bindings.open(Constraints.restrictedTo(setOf("W", "X")))
+        assertNull(open.token)
+        assertEquals(Constraints.restrictedTo(setOf("W", "X")), open.constraints)
+    }
+
+    @Test
+    fun unifyConstrainedAndUnconstrainedOpenBindings() {
+        val bindings = Bindings()
+        val open1 = bindings.open(Constraints.restrictedTo(setOf("W", "X")))
+        val open2 = bindings.open()
+
+        assertTrue(bindings.unify(open1, open2))
+        assertNull(open1.token)
+        assertEquals(Constraints.restrictedTo(setOf("W", "X")), open1.constraints)
+        assertNull(open2.token)
+        assertEquals(Constraints.restrictedTo(setOf("W", "X")), open2.constraints)
+    }
+
+    @Test
+    fun unifyTwoOpenBindingsWithDisjointConstraintsFails() {
+        val bindings = Bindings()
+        val open1 = bindings.open(Constraints.restrictedTo(setOf("W", "X")))
+        val open2 = bindings.open(Constraints.restrictedTo(setOf("Y", "Z")))
+
+        assertFalse(bindings.unify(open1, open2))
+        assertNull(open1.token)
+        assertEquals(Constraints.restrictedTo(setOf("W", "X")), open1.constraints)
+        assertNull(open2.token)
+        assertEquals(Constraints.restrictedTo(setOf("Y", "Z")), open2.constraints)
+    }
+
+    @Test
+    fun unifyTwoOpenBindingsWithIntersectingConstraints() {
+        val bindings = Bindings()
+        val open1 = bindings.open(Constraints.restrictedTo(setOf("W", "X", "Y")))
+        val open2 = bindings.open(Constraints.restrictedTo(setOf("X", "Y", "Z")))
+
+        assertTrue(bindings.unify(open1, open2))
+        assertNull(open1.token)
+        assertEquals(Constraints.restrictedTo(setOf("X", "Y")), open1.constraints)
+        assertNull(open2.token)
+        assertEquals(Constraints.restrictedTo(setOf("X", "Y")), open2.constraints)
+    }
+
+    @Test
+    fun unifyTwoOpenBindingsWithIntersectionOfOneTokenClosesThem() {
+        val bindings = Bindings()
+        val open1 = bindings.open(Constraints.restrictedTo(setOf("W", "X")))
+        val open2 = bindings.open(Constraints.restrictedTo(setOf("X", "Y", "Z")))
+
+        assertTrue(bindings.unify(open1, open2))
+        assertEquals("X", open1.token)
+        assertEquals(Constraints.UNRESTRICTED, open1.constraints)
+        assertEquals("X", open2.token)
+        assertEquals(Constraints.UNRESTRICTED, open2.constraints)
+    }
+
+    @Test
+    fun unifyConstrainedOpenBindingAndClosedBinding() {
+        val bindings = Bindings()
+        val open = bindings.open(Constraints.restrictedTo(setOf("W", "X")))
+        val closed1 = bindings.closed("W")
+        val closed2 = bindings.closed("Y")
+
+        assertFalse(bindings.unify(open, closed2))
+        assertNull(open.token)
+        assertEquals(Constraints.restrictedTo(setOf("W", "X")), open.constraints)
+
+        assertTrue(bindings.unify(open, closed1))
+        assertEquals("W", open.token)
+        assertEquals(Constraints.UNRESTRICTED, open.constraints)
     }
 
     @Test
@@ -158,9 +231,9 @@ class TestBindings {
         cBindings.onChange { cChanges++ }
 
         fun expect(a: Int, b: Int, c: Int) {
-            assertEquals(aChanges, a)
-            assertEquals(bChanges, b)
-            assertEquals(cChanges, c)
+            assertEquals(a, aChanges)
+            assertEquals(b, bChanges)
+            assertEquals(c, cChanges)
         }
 
         val aOpen = aBindings.open()

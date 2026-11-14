@@ -3,26 +3,26 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:Suppress("DEPRECATION_ERROR", "OVERRIDE_DEPRECATION")
+
 package org.jetbrains.kotlin.daemon
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.impl.ZipHandler
 import com.intellij.openapi.vfs.impl.jar.CoreJarFileSystem
+import org.jetbrains.kotlin.CoreEnvironmentDeprecation
 import org.jetbrains.kotlin.build.DEFAULT_KOTLIN_SOURCE_FILES_EXTENSIONS
 import org.jetbrains.kotlin.build.report.DoNothingBuildReporter
 import org.jetbrains.kotlin.build.report.RemoteBuildReporter
 import org.jetbrains.kotlin.build.report.RemoteReporter
-import org.jetbrains.kotlin.build.report.metrics.BuildPerformanceMetric
-import org.jetbrains.kotlin.build.report.metrics.BuildTimeMetric
-import org.jetbrains.kotlin.build.report.metrics.COMPILE_ITERATION
-import org.jetbrains.kotlin.build.report.metrics.endMeasureGc
-import org.jetbrains.kotlin.build.report.metrics.startMeasureGc
+import org.jetbrains.kotlin.build.report.metrics.*
 import org.jetbrains.kotlin.build.report.reportPerformanceData
 import org.jetbrains.kotlin.buildtools.api.SourcesChanges
-import org.jetbrains.kotlin.cli.common.*
+import org.jetbrains.kotlin.cli.common.CLICompiler
+import org.jetbrains.kotlin.cli.common.CompilerSystemProperties
+import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.common.arguments.*
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.repl.ReplCheckResult
 import org.jetbrains.kotlin.cli.common.repl.ReplCodeLine
@@ -40,15 +40,7 @@ import org.jetbrains.kotlin.daemon.report.CompileServicesFacadeMessageCollector
 import org.jetbrains.kotlin.daemon.report.DaemonMessageReporter
 import org.jetbrains.kotlin.daemon.report.getBuildReporter
 import org.jetbrains.kotlin.incremental.*
-import org.jetbrains.kotlin.incremental.components.EnumWhenTracker
-import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
-import org.jetbrains.kotlin.incremental.components.InlineConstTracker
-import org.jetbrains.kotlin.incremental.components.LookupInfo
-import org.jetbrains.kotlin.incremental.components.LookupTracker
-import org.jetbrains.kotlin.incremental.components.Position
-import org.jetbrains.kotlin.incremental.components.ScopeKind
-import org.jetbrains.kotlin.incremental.js.IncrementalDataProvider
-import org.jetbrains.kotlin.incremental.js.IncrementalResultsConsumer
+import org.jetbrains.kotlin.incremental.components.*
 import org.jetbrains.kotlin.incremental.multiproject.EmptyModulesApiHistory
 import org.jetbrains.kotlin.incremental.multiproject.ModulesApiHistoryJs
 import org.jetbrains.kotlin.incremental.parsing.classesFqNames
@@ -71,6 +63,7 @@ import java.util.concurrent.ConcurrentSkipListSet
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -108,6 +101,7 @@ class EventManagerImpl : EventManager {
 abstract class CompileServiceImplBase(
     val daemonOptions: DaemonOptions,
     val compilerId: CompilerId,
+    val javaLanguageVersion: JavaLanguageVersion,
     val port: Int,
     val timer: Timer,
     val onShutdown: () -> Unit,
@@ -118,20 +112,30 @@ abstract class CompileServiceImplBase(
         CompilerSystemProperties.KOTLIN_COMPILER_ENVIRONMENT_KEEPALIVE_PROPERTY.value = "true"
     }
 
+    protected class OneShotDisposable(disposable: Disposable?) {
+        val disposableReference = AtomicReference<Disposable?>(disposable)
+
+        fun dispose() {
+            val disposable = disposableReference.getAndSet(null)
+            disposable?.let {
+                Disposer.dispose(it)
+            }
+        }
+    }
+
+    protected fun Disposable.asOneShot(): OneShotDisposable = OneShotDisposable(this)
+
     // wrapped in a class to encapsulate alive check logic
-    protected class ClientOrSessionProxy<out T : Any>(
+    protected data class ClientOrSessionProxy<out T : Any>(
         val aliveFlagPath: String?,
         val data: T? = null,
-        private var disposable: Disposable? = null,
+        private val disposable: OneShotDisposable? = null,
     ) {
         val isAlive: Boolean
             get() = aliveFlagPath?.let { File(it).exists() } ?: true // assuming that if no file was given, the client is alive
 
         fun dispose() {
-            disposable?.let {
-                Disposer.dispose(it)
-                disposable = null
-            }
+            disposable?.dispose()
         }
     }
 
@@ -256,12 +260,14 @@ abstract class CompileServiceImplBase(
             runFileDir,
             makeRunFilenameString(
                 timestamp = "%tFT%<tH-%<tM-%<tS.%<tLZ".format(Calendar.getInstance(TimeZone.getTimeZone("Z"))),
-                digest = compilerId.digest(),
+                digest = makeRunFileDigest(javaLanguageVersion, compilerId.compilerClasspath.map { Path(it) }),
                 port = port.toString()
             )
         )
         try {
-            if (!runFile.createNewFile()) throw Exception("createNewFile returned false")
+            val secret = DaemonConnectionAuth.generateSecret()
+            createRunFileWithSecret(runFile, secret)
+            DaemonConnectionAuth.setOwnSecret(secret)
         } catch (e: Throwable) {
             throw IllegalStateException("Unable to create run file '${runFile.absolutePath}'", e)
         }
@@ -272,7 +278,7 @@ abstract class CompileServiceImplBase(
         if (state.sessions.isEmpty()) {
             // TODO: and some goes here
         }
-        timer.schedule(0) {
+        val _ = timer.schedule(0) {
             periodicAndAfterSessionCheck()
         }
         return CompileService.CallResult.Ok()
@@ -351,34 +357,33 @@ abstract class CompileServiceImplBase(
         servicesFacade: ServicesFacadeT,
         compilationResults: CompilationResultsT,
         hasIncrementalCaches: JpsServicesFacadeT.() -> Boolean,
-        createMessageCollector: (ServicesFacadeT, CompilationOptions) -> MessageCollector,
+        createMessageCollector: (ServicesFacadeT, CompilationOptions, warningsAsErrors: Boolean) -> MessageCollector,
         createReporter: (ServicesFacadeT, CompilationOptions) -> DaemonMessageReporter,
         createServices: (JpsServicesFacadeT, EventManager, Profiler) -> Services,
         getICReporter: (ServicesFacadeT, CompilationResultsT & Any, CompilationOptions) -> RemoteBuildReporter<BuildTimeMetric, BuildPerformanceMetric>,
         compilationId: Int? = null,
     ) = kotlin.run {
         maybeWaitForTestStart()
-        val messageCollector = createMessageCollector(servicesFacade, compilationOptions)
         val daemonReporter = createReporter(servicesFacade, compilationOptions)
         val targetPlatform = compilationOptions.targetPlatform
         log.info("Starting compilation with args: " + compilerArguments.joinToString(" "))
 
-        @Suppress("UNCHECKED_CAST")
-        val compiler = when (targetPlatform) {
+        val compilerForPlatform = when (targetPlatform) {
             CompileService.TargetPlatform.JVM -> K2JVMCompiler()
             CompileService.TargetPlatform.JS -> K2JSCompiler()
             CompileService.TargetPlatform.WASM -> KotlinWasmCompiler()
             CompileService.TargetPlatform.METADATA -> KotlinMetadataCompiler()
-        } as CLICompiler<CommonCompilerArguments>
+        }
+        @Suppress("UNCHECKED_CAST")
+        val compiler = compilerForPlatform as CLICompiler<CommonCompilerArguments>
 
         val k2PlatformArgs = compiler.createArguments()
         parseCommandLineArguments(compilerArguments.asList(), k2PlatformArgs)
-        val argumentParseError = validateArgumentsAllErrors(k2PlatformArgs.errors)
 
-        if (argumentParseError.isNotEmpty()) {
-            argumentParseError.forEach {
-                messageCollector.report(CompilerMessageSeverity.ERROR, it)
-            }
+        val messageCollector = createMessageCollector(servicesFacade, compilationOptions, k2PlatformArgs.allWarningsAsErrors)
+
+        if (k2PlatformArgs.diagnostics.hasFatalError) {
+            messageCollector.reportCliArgumentFatalDiagnostics(k2PlatformArgs)
             CompileService.CallResult.Good(ExitCode.COMPILATION_ERROR.code)
         } else when (compilationOptions.compilerMode) {
             CompilerMode.JPS_COMPILER -> {
@@ -441,13 +446,13 @@ abstract class CompileServiceImplBase(
             CompilerMode.INCREMENTAL_COMPILER -> {
                 val gradleIncrementalArgs = compilationOptions as IncrementalCompilationOptions
                 val gradleIncrementalServicesFacade = servicesFacade
+                val lookupTracker = if (ReportCategory.COMPILER_LOOKUP.code in compilationOptions.reportCategories) {
+                    RemoteLookupTracker(servicesFacade)
+                } else null
 
                 when (targetPlatform) {
                     CompileService.TargetPlatform.JVM -> withIncrementalCompilation(k2PlatformArgs) {
                         doCompile(sessionId, daemonReporter, tracer = null, compilationId = compilationId) { _, _, compilationCanceled ->
-                            val lookupTracker = if (ReportCategory.COMPILER_LOOKUP.code in compilationOptions.reportCategories) {
-                                RemoteLookupTracker(servicesFacade)
-                            } else null
                             execIncrementalCompiler(
                                 k2PlatformArgs as K2JVMCompilerArguments,
                                 gradleIncrementalArgs,
@@ -473,7 +478,9 @@ abstract class CompileServiceImplBase(
                                     gradleIncrementalServicesFacade,
                                     compilationResults!!,
                                     gradleIncrementalArgs
-                                )
+                                ),
+                                lookupTracker,
+                                gradleIncrementalArgs.configurationInputs
                             )
                         }
                     }
@@ -487,7 +494,9 @@ abstract class CompileServiceImplBase(
                                     gradleIncrementalServicesFacade,
                                     compilationResults!!,
                                     gradleIncrementalArgs
-                                )
+                                ),
+                                lookupTracker,
+                                gradleIncrementalArgs.configurationInputs
                             )
                         }
                     }
@@ -581,7 +590,7 @@ abstract class CompileServiceImplBase(
                 }
 
                 // this will only be reported if if appropriate (e.g. ByClass) profiler is used
-                for ((obj, counters) in rpcProfiler.getCounters()) {
+                for ([obj, counters] in rpcProfiler.getCounters()) {
                     "PERF: rpc by $obj: ${counters.count} calls, ${counters.time.ms()} ms, thread ${counters.threadTime.ms()} ms".let {
                         daemonMessageReporter.report(ReportSeverity.INFO, it)
                         log.info(it)
@@ -622,17 +631,17 @@ abstract class CompileServiceImplBase(
     //    }
 
     fun startDaemonElections() {
-        timer.schedule(10) {
+        val _ = timer.schedule(10) {
             exceptionLoggingTimerThread { initiateElections() }
         }
     }
 
     fun configurePeriodicActivities() {
         log.info("Periodic liveness check activities configured")
-        timer.schedule(delay = DAEMON_PERIODIC_CHECK_INTERVAL_MS, period = DAEMON_PERIODIC_CHECK_INTERVAL_MS) {
+        val _ = timer.schedule(delay = DAEMON_PERIODIC_CHECK_INTERVAL_MS, period = DAEMON_PERIODIC_CHECK_INTERVAL_MS) {
             exceptionLoggingTimerThread { periodicAndAfterSessionCheck() }
         }
-        timer.schedule(delay = DAEMON_PERIODIC_SELDOM_CHECK_INTERVAL_MS + 100, period = DAEMON_PERIODIC_SELDOM_CHECK_INTERVAL_MS) {
+        val _ = timer.schedule(delay = DAEMON_PERIODIC_SELDOM_CHECK_INTERVAL_MS + 100, period = DAEMON_PERIODIC_SELDOM_CHECK_INTERVAL_MS) {
             exceptionLoggingTimerThread { periodicSeldomCheck() }
         }
     }
@@ -688,6 +697,8 @@ abstract class CompileServiceImplBase(
         incrementalCompilationOptions: IncrementalCompilationOptions,
         compilerMessageCollector: MessageCollector,
         reporter: RemoteBuildReporter<BuildTimeMetric, BuildPerformanceMetric>,
+        lookupTracker: LookupTracker? = null,
+        configurationInputs: ConfigurationInputs? = null,
     ): ExitCode {
         reporter.startMeasureGc()
         @Suppress("DEPRECATION") // TODO: get rid of that parsing KT-62759
@@ -702,6 +713,12 @@ abstract class CompileServiceImplBase(
             ModulesApiHistoryJs(rootProjectDir, modulesInfo)
         } ?: EmptyModulesApiHistory
 
+        val projectDir = incrementalCompilationOptions.rootProjectDir
+        val buildDir = incrementalCompilationOptions.buildDir
+        val fileLocations = if (projectDir != null && buildDir != null) {
+            FileLocations(projectDir, buildDir)
+        } else null
+
         val compiler = IncrementalJsCompilerRunner(
             workingDir = workingDir,
             reporter = reporter,
@@ -709,9 +726,17 @@ abstract class CompileServiceImplBase(
             scopeExpansion = CompileScopeExpansionMode.ALWAYS,
             modulesApiHistory = modulesApiHistory,
             icFeatures = incrementalCompilationOptions.icFeatures,
+            lookupTrackerDelegate = lookupTracker ?: LookupTracker.DO_NOTHING,
         )
         return try {
-            compiler.compile(allKotlinFiles, args, compilerMessageCollector, incrementalCompilationOptions.sourceChanges.toChangedFiles())
+            compiler.compile(
+                allKotlinFiles,
+                args,
+                compilerMessageCollector,
+                incrementalCompilationOptions.sourceChanges.toChangedFiles(),
+                fileLocations = fileLocations,
+                configurationInputs = configurationInputs,
+            )
         } finally {
             reporter.endMeasureGc()
             reporter.flush()
@@ -760,7 +785,7 @@ abstract class CompileServiceImplBase(
                     usePreciseJavaTracking = verifiedPreciseJavaTracking
                 ),
                 compilationCanceledStatus = compilationCanceledStatus,
-                generateCompilerRefIndex = incrementalCompilationOptions.generateCompilerRefIndex,
+                compilerRefIndexDirectory = incrementalCompilationOptions.compilerRefIndexDirectory,
                 lookupTrackerDelegate = lookupTracker ?: LookupTracker.DO_NOTHING,
             )
         } else {
@@ -774,7 +799,7 @@ abstract class CompileServiceImplBase(
                     usePreciseJavaTracking = verifiedPreciseJavaTracking
                 ),
                 compilationCanceledStatus = compilationCanceledStatus,
-                generateCompilerRefIndex = incrementalCompilationOptions.generateCompilerRefIndex,
+                compilerRefIndexDirectory = incrementalCompilationOptions.compilerRefIndexDirectory,
                 lookupTrackerDelegate = lookupTracker ?: LookupTracker.DO_NOTHING,
             )
         }
@@ -792,14 +817,24 @@ abstract class CompileServiceImplBase(
         }
     }
 
-    protected inline fun <R, KotlinJvmReplServiceT> withValidReplImpl(
-        sessionId: Int,
-        body: KotlinJvmReplServiceT.() -> CompileService.CallResult<R>,
-    ): CompileService.CallResult<R> =
-        withValidClientOrSessionProxy(sessionId) { session ->
-            @Suppress("UNCHECKED_CAST")
-            (session?.data as? KotlinJvmReplServiceT?)?.body() ?: CompileService.CallResult.Error("Not a REPL session $sessionId")
-        }
+}
+
+private const val REPL_IS_NOT_SUPPORTED = "REPL is not supported by the daemon anymore"
+
+private val internalRng = Random()
+
+private inline fun getValidId(counter: AtomicInteger, check: (Int) -> Boolean): Int {
+    // fighting hypothetical integer wrapping
+    var newId = counter.incrementAndGet()
+    var attemptsLeft = 100
+    while (!check(newId)) {
+        attemptsLeft -= 1
+        if (attemptsLeft <= 0)
+            throw IllegalStateException("Invalid state or algorithm error")
+        // assuming wrap, jumping to random number to reduce probability of further clashes
+        newId = counter.addAndGet(internalRng.nextInt())
+    }
+    return newId
 }
 
 class CompileServiceImpl(
@@ -808,15 +843,11 @@ class CompileServiceImpl(
     compilerId: CompilerId,
     daemonOptions: DaemonOptions,
     val daemonJVMOptions: DaemonJVMOptions,
+    javaLanguageVersion: JavaLanguageVersion,
     port: Int,
     timer: Timer,
     onShutdown: () -> Unit,
-) : CompileService, CompileServiceImplBase(daemonOptions, compilerId, port, timer, onShutdown) {
-
-    private inline fun <R> withValidRepl(
-        sessionId: Int,
-        body: KotlinJvmReplService.() -> CompileService.CallResult<R>,
-    ) = withValidReplImpl(sessionId, body)
+) : CompileService, CompileServiceImplBase(daemonOptions, compilerId, javaLanguageVersion, port, timer, onShutdown) {
 
     override val lastUsedSeconds: Long
         get() =
@@ -868,12 +899,15 @@ class CompileServiceImpl(
                     override fun dispose() {
                         runningCompilations.cancelAll()
                     }
-                })
+                }.asOneShot())
             }).apply {
                 log.info("leased a new session $this, session alive file: $aliveFlagPath")
             })
     }
 
+    override fun isSessionActive(sessionId: Int): CompileService.CallResult<Boolean> = ifAlive(minAliveness = Aliveness.LastSession) {
+        CompileService.CallResult.Good(state.sessions[sessionId] != null)
+    }
 
     override fun releaseCompileSession(sessionId: Int) = ifAlive(minAliveness = Aliveness.LastSession) {
         state.sessions.remove(sessionId)
@@ -954,8 +988,8 @@ class CompileServiceImpl(
     }
 
 
-    // TODO: add more checks (e.g. is it a repl session)
-    override fun releaseReplSession(sessionId: Int): CompileService.CallResult<Nothing> = releaseCompileSession(sessionId)
+    override fun releaseReplSession(sessionId: Int): CompileService.CallResult<Nothing> =
+        CompileService.CallResult.Error(REPL_IS_NOT_SUPPORTED)
 
     private fun createCompileServices(
         @Suppress("DEPRECATION") facade: CompilerCallbackServicesFacade,
@@ -984,11 +1018,11 @@ class CompileServiceImpl(
         if (facade.hasEnumWhenTracker()) {
             builder.register(EnumWhenTracker::class.java, RemoteEnumWhenTracker(facade, rpcProfiler))
         }
-        if (facade.hasIncrementalResultsConsumer()) {
-            builder.register(IncrementalResultsConsumer::class.java, RemoteIncrementalResultsConsumer(facade, rpcProfiler))
+        if (facade.hasImportTracker()) {
+            builder.register(ImportTracker::class.java, RemoteImportTracker(facade, rpcProfiler))
         }
-        if (facade.hasIncrementalDataProvider()) {
-            builder.register(IncrementalDataProvider::class.java, RemoteIncrementalDataProvider(facade, rpcProfiler))
+        if (facade.hasICFileMappingTracker()) {
+            builder.register(ICFileMappingTracker::class.java, RemoteICFileMappingTracker(facade, rpcProfiler))
         }
 
         return builder.build()
@@ -1001,46 +1035,16 @@ class CompileServiceImpl(
         servicesFacade: CompilerServicesFacadeBase,
         templateClasspath: List<File>,
         templateClassName: String,
-    ): CompileService.CallResult<Int> = ifAlive(minAliveness = Aliveness.Alive) {
-        if (compilationOptions.targetPlatform != CompileService.TargetPlatform.JVM)
-            CompileService.CallResult.Error("Sorry, only JVM target platform is supported now")
-        else {
-            val disposable = Disposer.newDisposable("Disposable for ${CompileServiceImpl::class.simpleName}.leaseReplSession")
-            val messageCollector = CompileServicesFacadeMessageCollector(servicesFacade, compilationOptions)
-            val repl = KotlinJvmReplService(
-                disposable, port, compilerId, templateClasspath, templateClassName,
-                messageCollector, null
-            )
-            val sessionId = state.sessions.leaseSession(ClientOrSessionProxy(aliveFlagPath, repl, disposable))
-
-            CompileService.CallResult.Good(sessionId)
-        }
-    }
+    ): CompileService.CallResult<Int> = CompileService.CallResult.Error(REPL_IS_NOT_SUPPORTED)
 
     override fun replCreateState(sessionId: Int): CompileService.CallResult<ReplStateFacade> =
-        ifAlive(minAliveness = Aliveness.Alive) {
-            withValidRepl(sessionId) {
-                CompileService.CallResult.Good(createRemoteState(port))
-            }
-        }
+        CompileService.CallResult.Error(REPL_IS_NOT_SUPPORTED)
 
     override fun replCheck(sessionId: Int, replStateId: Int, codeLine: ReplCodeLine): CompileService.CallResult<ReplCheckResult> =
-        ifAlive(minAliveness = Aliveness.Alive) {
-            withValidRepl(sessionId) {
-                withValidReplState(replStateId) { state ->
-                    check(state, codeLine)
-                }
-            }
-        }
+        CompileService.CallResult.Error(REPL_IS_NOT_SUPPORTED)
 
     override fun replCompile(sessionId: Int, replStateId: Int, codeLine: ReplCodeLine): CompileService.CallResult<ReplCompileResult> =
-        ifAlive(minAliveness = Aliveness.Alive) {
-            withValidRepl(sessionId) {
-                withValidReplState(replStateId) { state ->
-                    compile(state, codeLine)
-                }
-            }
-        }
+        CompileService.CallResult.Error(REPL_IS_NOT_SUPPORTED)
 
     override fun periodicAndAfterSessionCheck() {
 
@@ -1101,73 +1105,90 @@ class CompileServiceImpl(
 
     // TODO: handover should include mechanism for client to switch to a new daemon then previous "handed over responsibilities" and shot down
     override fun initiateElections() {
-
         ifAliveUnit {
-
             log.info("initiate elections")
-            val aliveWithOpts = walkDaemons(
-                File(daemonOptions.runFilesPathOrDefault),
-                compilerId,
-                runFile,
-                filter = { _, p -> p != port },
-                report = { _, msg -> log.info(msg) }).toList()
+
             val comparator =
                 compareByDescending<DaemonWithMetadata, DaemonJVMOptions>(DaemonJVMOptionsMemoryComparator(), { it.jvmOptions })
                     .thenBy(FileAgeComparator()) { it.runFile }
-            aliveWithOpts.maxWithOrNull(comparator)?.let { bestDaemonWithMetadata ->
-                val fattestOpts = bestDaemonWithMetadata.jvmOptions
-                if (fattestOpts memorywiseFitsInto daemonJVMOptions && FileAgeComparator().compare(
-                        bestDaemonWithMetadata.runFile,
-                        runFile
-                    ) < 0
-                ) {
-                    // all others are smaller that me, take overs' clients and shut them down
-                    log.info("$LOG_PREFIX_ASSUMING_OTHER_DAEMONS_HAVE lower prio, taking clients from them and schedule them to shutdown: my runfile: ${runFile.name} (${runFile.lastModified()}) vs best other runfile: ${bestDaemonWithMetadata.runFile.name} (${bestDaemonWithMetadata.runFile.lastModified()})")
-                    aliveWithOpts.forEach { (daemon, runFile, _) ->
-                        try {
-                            daemon.getClients().takeIf { it.isGood }?.let {
-                                it.get().forEach { clientAliveFile -> registerClient(clientAliveFile) }
-                            }
-                            daemon.scheduleShutdown(true)
-                        } catch (e: Throwable) {
-                            log.info("Cannot connect to a daemon, assuming dying ('${runFile.normalize().absolutePath}'): ${e.message}")
+            val aliveWithOpts = walkDaemons(
+                File(daemonOptions.runFilesPathOrDefault),
+                compilerId,
+                javaLanguageVersion,
+                runFile,
+                filter = { _, p -> p != port },
+                report = { _, msg -> log.info(msg) }
+            ).toList()
+                .sortedWith(comparator)
+
+            fun hasHigherPriorityThan(other: DaemonWithMetadata): Boolean =
+                other.jvmOptions memorywiseFitsInto daemonJVMOptions && FileAgeComparator().compare(
+                    other.runFile,
+                    runFile
+                ) < 0
+
+            fun hasLowerPriorityThan(other: DaemonWithMetadata): Boolean =
+                daemonJVMOptions memorywiseFitsInto other.jvmOptions && FileAgeComparator().compare(other.runFile, runFile) > 0
+
+            var bestDaemonWithMetadata = aliveWithOpts.firstOrNull() ?: return@ifAliveUnit
+
+            if (hasHigherPriorityThan(bestDaemonWithMetadata)) {
+                // all others are smaller that me, take overs' clients and shut them down
+                log.info("$LOG_PREFIX_ASSUMING_OTHER_DAEMONS_HAVE lower prio, taking clients from them and schedule them to shutdown: my runfile: ${runFile.name} (${runFile.lastModified()}) vs best other runfile: ${aliveWithOpts.first().runFile.name} (${aliveWithOpts.first().runFile.lastModified()})")
+
+                aliveWithOpts.forEach { (val daemon, val runFile) ->
+                    try {
+                        daemon.getClients().takeIf { it.isGood }?.let {
+                            it.get().forEach { clientAliveFile -> registerClient(clientAliveFile) }
                         }
+                        daemon.scheduleShutdown(true)
+                    } catch (e: Throwable) {
+                        log.info("Cannot connect to a daemon, assuming dying ('${runFile.normalize().absolutePath}'): ${e.message}")
                     }
                 }
-                // TODO: seems that the second part of condition is incorrect, reconsider:
-                // the comment by @tsvtkv from review:
-                //    Algorithm in plain english:
-                //    (1) If the best daemon fits into me and the best daemon is younger than me, then I take over all other daemons clients.
-                //    (2) If I fit into the best daemon and the best daemon is older than me, then I give my clients to that daemon.
-                //
-                //    For example:
-                //
-                //    daemon A starts with params: maxMem=100, codeCache=50
-                //    daemon B starts with params: maxMem=200, codeCache=50
-                //    daemon C starts with params: maxMem=150, codeCache=100
-                //    A performs election: (1) is false because neither B nor C does not fit into A, (2) is false because both B and C are younger than A.
-                //    B performs election: (1) is false because neither A nor C does not fit into B, (2) is false because B does not fit into neither A nor C.
-                //    C performs election: (1) is false because B is better than A and B does not fit into C, (2) is false C does not fit into neither A nor B.
-                //    Result: all daemons are alive and well.
-                else if (daemonJVMOptions memorywiseFitsInto fattestOpts && FileAgeComparator().compare(
-                        bestDaemonWithMetadata.runFile,
-                        runFile
-                    ) > 0
-                ) {
-                    // there is at least one bigger, handover my clients to it and shutdown
-                    log.info("$LOG_PREFIX_ASSUMING_OTHER_DAEMONS_HAVE higher prio, handover clients to it and schedule shutdown: my runfile: ${runFile.name} (${runFile.lastModified()}) vs best other runfile: ${bestDaemonWithMetadata.runFile.name} (${bestDaemonWithMetadata.runFile.lastModified()})")
-                    getClients().takeIf { it.isGood }?.let {
-                        it.get().forEach { bestDaemonWithMetadata.daemon.registerClient(it) }
+
+                return@ifAliveUnit
+            }
+
+            // TODO: seems that the second part of condition is incorrect, reconsider:
+            // the comment by @tsvtkv from review:
+            //    Algorithm in plain english:
+            //    (1) If the best daemon fits into me and the best daemon is younger than me, then I take over all other daemons clients.
+            //    (2) If I fit into the best daemon and the best daemon is older than me, then I give my clients to that daemon.
+            //
+            //    For example:
+            //
+            //    daemon A starts with params: maxMem=100, codeCache=50
+            //    daemon B starts with params: maxMem=200, codeCache=50
+            //    daemon C starts with params: maxMem=150, codeCache=100
+            //    A performs election: (1) is false because neither B nor C does not fit into A, (2) is false because both B and C are younger than A.
+            //    B performs election: (1) is false because neither A nor C does not fit into B, (2) is false because B does not fit into neither A nor C.
+            //    C performs election: (1) is false because B is better than A and B does not fit into C, (2) is false C does not fit into neither A nor B.
+            //    Result: all daemons are alive and well.
+            for (i in 0 until aliveWithOpts.size) {
+                bestDaemonWithMetadata = aliveWithOpts[i]
+                if (hasLowerPriorityThan(bestDaemonWithMetadata)) {
+                    // there is at least one bigger, try to handover my clients to it and shutdown
+                    log.info("$LOG_PREFIX_ASSUMING_OTHER_DAEMONS_HAVE higher prio, try to handover clients to it and schedule shutdown: my runfile: ${runFile.name} (${runFile.lastModified()}) vs best other runfile: ${bestDaemonWithMetadata.runFile.name} (${bestDaemonWithMetadata.runFile.lastModified()})")
+                    val clients = getClients().takeIf { it.isGood }?.get() ?: emptyList()
+                    val handoverSuccessful = clients
+                        .map { client -> bestDaemonWithMetadata.daemon.registerClient(client) }
+                        .all { it.isOk }
+
+                    if (handoverSuccessful) {
+                        scheduleShutdown(true)
+                        return@ifAliveUnit
+                    } else {
+                        log.info("Failed to handover clients to daemon, assuming dying ${bestDaemonWithMetadata.runFile.normalize().absolutePath}")
                     }
-                    scheduleShutdown(true)
-                } else {
-                    // undecided, do nothing
-                    log.info("$LOG_PREFIX_ASSUMING_OTHER_DAEMONS_HAVE equal prio, continue: ${runFile.name} (${runFile.lastModified()}) vs best other runfile: ${bestDaemonWithMetadata.runFile.name} (${bestDaemonWithMetadata.runFile.lastModified()})")
-                    // TODO: implement some behaviour here, e.g.:
-                    //   - shutdown/takeover smaller daemon
-                    //   - run (or better persuade client to run) a bigger daemon (in fact may be even simple shutdown will do, because of client's daemon choosing logic)
                 }
             }
+
+            // undecided, do nothing
+            log.info("$LOG_PREFIX_ASSUMING_OTHER_DAEMONS_HAVE equal prio, continue: ${runFile.name} (${runFile.lastModified()}) vs best other runfile: ${bestDaemonWithMetadata.runFile.name} (${bestDaemonWithMetadata.runFile.lastModified()})")
+            // TODO: implement some behaviour here, e.g.:
+            //   - shutdown/takeover smaller daemon
+            //   - run (or better persuade client to run) a bigger daemon (in fact may be even simple shutdown will do, because of client's daemon choosing logic)
         }
     }
 
@@ -1191,7 +1212,7 @@ class CompileServiceImpl(
         val currentSessionId = state.sessions.lastSessionId
         val currentCompilationsCount = compilationsCounter.get()
         log.info("Delayed shutdown in ${daemonOptions.shutdownDelayMilliseconds}ms")
-        timer.schedule(daemonOptions.shutdownDelayMilliseconds) {
+        val _ = timer.schedule(daemonOptions.shutdownDelayMilliseconds) {
             state.delayedShutdownQueued.set(false)
             if (currentClientsCount == state.clientsCounter &&
                 currentCompilationsCount == compilationsCounter.get() &&
@@ -1231,7 +1252,7 @@ class CompileServiceImpl(
         if (!onAnotherThread) {
             shutdownIfIdle()
         } else {
-            timer.schedule(1) {
+            val _ = timer.schedule(1) {
                 shutdownIfIdle()
             }
         }
@@ -1258,6 +1279,7 @@ class CompileServiceImpl(
 
     override fun clearJarCache() {
         ZipHandler.clearFileAccessorCache()
+        @OptIn(CoreEnvironmentDeprecation::class)
         KotlinCoreEnvironment.applicationEnvironment?.apply {
             (jarFileSystem as? CoreJarFileSystem)?.clearHandlersCache()
             (jrtFileSystem as? CoreJrtFileSystem)?.clearRoots()

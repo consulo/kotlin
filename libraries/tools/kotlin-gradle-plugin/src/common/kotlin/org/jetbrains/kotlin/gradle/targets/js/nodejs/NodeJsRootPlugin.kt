@@ -8,12 +8,15 @@ package org.jetbrains.kotlin.gradle.targets.js.nodejs
 import org.gradle.api.Project
 import org.gradle.api.provider.Provider
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
+import org.jetbrains.kotlin.gradle.targets.js.internal.checkIsJsToolingProject
+import org.jetbrains.kotlin.gradle.targets.js.internal.jsToolingProject
 import org.jetbrains.kotlin.gradle.targets.js.npm.KotlinNpmResolutionManager
 import org.jetbrains.kotlin.gradle.targets.js.npm.LockCopyTask
 import org.jetbrains.kotlin.gradle.targets.js.npm.NpmExtension
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin
 import org.jetbrains.kotlin.gradle.targets.web.nodejs.CommonNodeJsRootPlugin
 import org.jetbrains.kotlin.gradle.targets.web.nodejs.NodeJsRootPluginApplier
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 import org.jetbrains.kotlin.gradle.utils.castIsolatedKotlinPluginClassLoaderAware
 
 /**
@@ -33,6 +36,7 @@ import org.jetbrains.kotlin.gradle.utils.castIsolatedKotlinPluginClassLoaderAwar
  * - Managing root-level configurations for Node.js and dependency resolution.
  * - Setting up shared resources such as lock files and task groups.
  */
+@ObsoleteNpmDependencyModel
 abstract class NodeJsRootPlugin internal constructor() : CommonNodeJsRootPlugin {
 
     override fun apply(target: Project) {
@@ -50,13 +54,18 @@ abstract class NodeJsRootPlugin internal constructor() : CommonNodeJsRootPlugin 
         ).apply(target)
     }
 
+    @ObsoleteNpmDependencyModel
     companion object {
         const val TASKS_GROUP_NAME: String = "nodeJs"
 
-        fun apply(rootProject: Project): NodeJsRootExtension {
-            check(rootProject == rootProject.rootProject)
-            rootProject.plugins.apply(NodeJsRootPlugin::class.java)
-            return rootProject.extensions.getByName(NodeJsRootExtension.EXTENSION_NAME) as NodeJsRootExtension
+        fun apply(project: Project): NodeJsRootExtension {
+            checkIsJsToolingProject(project) {
+                "Cannot register ${NodeJsRootPlugin::class.simpleName} in ${project.displayName}. It can only be registered in ${project.jsToolingProject().displayName}."
+            }
+            val toolingProject = project.jsToolingProject()
+
+            toolingProject.plugins.apply(NodeJsRootPlugin::class.java)
+            return toolingProject.extensions.getByName(NodeJsRootExtension.EXTENSION_NAME) as NodeJsRootExtension
         }
 
         val Project.kotlinNodeJsRootExtension: NodeJsRootExtension

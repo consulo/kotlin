@@ -16,6 +16,8 @@ val SirElement.debugString: String
             is SirSetter -> "${parent.swiftFqNameOrNull ?: "?"}.set"
             is SirInit -> "${swiftParentNamePrefix}.init${"?".takeIf { isFailable } ?: ""}(${renderParameters()})${renderEffects()}"
             is SirFunction -> "func ${swiftFqName}(${renderParameters()})${renderEffects()}"
+            is SirGetterFunction -> getter.debugString
+            is SirSetterFunction -> setter.debugString
             is SirExtension -> "extension ${extendedType.render}${renderProtocols.prefixIfNotEmpty(": ")}"
             is SirClass -> "class ${swiftFqName}${listOfNotNull(superClass?.render, renderProtocols.takeIf { it.isNotEmpty() }).joinToString().prefixIfNotEmpty(": ")}"
             is SirProtocol -> "protocol ${swiftFqName}${renderProtocols.prefixIfNotEmpty(": ")}"
@@ -47,7 +49,7 @@ private val SirType.render: String
         is SirDictionaryType -> "[${keyType.render} : ${valueType.render}]"
         is SirExistentialType -> protocols.takeIf {
             it.isNotEmpty()
-        }?.joinToString(prefix = "any ", separator = " & ") { (protocol, typeArguments) ->
+        }?.joinToString(prefix = "any ", separator = " & ") { [protocol, typeArguments] ->
             val typeArguments = typeArguments.takeIf { it.isNotEmpty() }
             "${protocol.swiftFqName}${typeArguments?.joinToString(prefix = "<", postfix = ">", separator = ",") { it.render } ?: ""}"
         } ?: "Any"
@@ -55,5 +57,10 @@ private val SirType.render: String
         is SirErrorType -> "<ERROR>"
         is SirUnsupportedType -> "<UNSUPPORTED>"
         is SirFunctionalType -> "(${parameterTypes.joinToString { it.render }}) -> ${returnType.render}"
-        is SirTupleType -> "(${types.joinToString { (name, type) -> "${name?.let { "$it: " } ?: ""}${type.render}" }})"
+        is SirTupleType -> "(${types.joinToString { [name, type] -> "${name?.let { "$it: " } ?: ""}${type.render}" }})"
+        is SirType.Metatype -> when (type) {
+            is SirNominalType, is SirType.Metatype -> type.render
+            is SirExistentialType -> type.render.removePrefix("any ").let { if (type.protocols.size == 1) it else "($it)" }
+            else -> "(${type.render})"
+        }.let { "$it.Type" }
     }

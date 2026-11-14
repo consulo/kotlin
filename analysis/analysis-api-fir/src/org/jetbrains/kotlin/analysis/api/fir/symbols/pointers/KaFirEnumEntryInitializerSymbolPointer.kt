@@ -10,21 +10,20 @@ import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
 import org.jetbrains.kotlin.analysis.api.fir.symbols.KaFirEnumEntryInitializerSymbol
 import org.jetbrains.kotlin.analysis.api.fir.symbols.KaFirEnumEntrySymbol
-import org.jetbrains.kotlin.analysis.api.impl.base.symbols.pointers.KaBaseCachedSymbolPointer
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 
 internal class KaFirEnumEntryInitializerSymbolPointer(
     private val ownerPointer: KaSymbolPointer<KaFirEnumEntrySymbol>,
     originalSymbol: KaFirEnumEntryInitializerSymbol?,
-) : KaBaseCachedSymbolPointer<KaFirEnumEntryInitializerSymbol>(originalSymbol) {
+) : KaFirCachedSymbolPointer<KaFirEnumEntryInitializerSymbol>(originalSymbol) {
     @KaImplementationDetail
     override fun restoreIfNotCached(analysisSession: KaSession): KaFirEnumEntryInitializerSymbol? {
         require(analysisSession is KaFirSession)
         val owner = with(analysisSession) {
             ownerPointer.restoreSymbol()
         }
-        return owner?.enumEntryInitializer
+        return owner?.initializer as? KaFirEnumEntryInitializerSymbol
     }
 
     override fun pointsToTheSameSymbolAs(other: KaSymbolPointer<KaSymbol>): Boolean = this === other ||

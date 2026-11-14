@@ -57,10 +57,7 @@ internal class JvmSnapshotBasedIncrementalCompilationOptionsImpl internal constr
         return options[key]
     }
 
-    open class Option<V> : BaseOptionWithDefault<V> {
-        constructor(id: String) : super(id)
-        constructor(id: String, default: V) : super(id, default = default)
-    }
+    open class Option<V>(id: String, default: V) : BaseOptionWithDefault<V>(id, defaultValue = default)
 
     companion object {
 
@@ -70,5 +67,7 @@ internal class JvmSnapshotBasedIncrementalCompilationOptionsImpl internal constr
             Option("ASSURED_NO_CLASSPATH_SNAPSHOT_CHANGES", false)
 
         val USE_FIR_RUNNER: Option<Boolean> = Option("USE_FIR_RUNNER", false)
+
+        val ENABLE_ERROR_RECOVERY_ROUND: Option<Boolean> = Option("ENABLE_ERROR_RECOVERY_ROUND", true)
     }
 }

@@ -5,6 +5,8 @@ import java.util.jar.JarFile
 import kotlin.sequences.forEach
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
 }

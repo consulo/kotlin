@@ -9,18 +9,16 @@ import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationList
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
 import org.jetbrains.kotlin.analysis.api.fir.annotations.KaFirAnnotationListForDeclaration
+import org.jetbrains.kotlin.analysis.api.fir.annotations.KaFirEmptyAnnotationList
 import org.jetbrains.kotlin.analysis.api.fir.hasAnnotation
-import org.jetbrains.kotlin.analysis.api.impl.base.annotations.KaBaseEmptyAnnotationList
-import org.jetbrains.kotlin.analysis.api.impl.base.symbols.pointers.KaBaseValueParameterFromDefaultSetterSymbolPointer
+import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirValueParameterFromDefaultSetterSymbolPointer
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolOrigin
 import org.jetbrains.kotlin.analysis.api.symbols.KaValueParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.builtins.StandardNames
-import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
-import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
 import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirSymbolEntry
 import org.jetbrains.kotlin.name.Name
@@ -62,9 +60,6 @@ internal class KaFirDefaultSetterValueParameter(
     override val returnType: KaType
         get() = withValidityAssertion { firSymbol.returnType(builder) }
 
-    override val compilerVisibility: Visibility
-        get() = withValidityAssertion { FirResolvedDeclarationStatusImpl.DEFAULT_STATUS_FOR_STATUSLESS_DECLARATIONS.visibility }
-
     override val psi: PsiElement?
         get() = withValidityAssertion { null }
 
@@ -74,13 +69,13 @@ internal class KaFirDefaultSetterValueParameter(
     override val annotations: KaAnnotationList
         get() = withValidityAssertion {
             if (owningKaSetter.owningKaProperty.backingPsi?.hasAnnotation(AnnotationUseSiteTarget.SETTER_PARAMETER) == false)
-                KaBaseEmptyAnnotationList(token)
+                KaFirEmptyAnnotationList(token)
             else
                 KaFirAnnotationListForDeclaration.create(firSymbol, builder)
         }
 
     override fun createPointer(): KaSymbolPointer<KaValueParameterSymbol> = withValidityAssertion {
-        KaBaseValueParameterFromDefaultSetterSymbolPointer(owningKaSetter.owningKaProperty.createPointer(), this)
+        KaFirValueParameterFromDefaultSetterSymbolPointer(owningKaSetter.owningKaProperty.createPointer(), this)
     }
 
     override val origin: KaSymbolOrigin

@@ -26,22 +26,46 @@ KtParameter(44,56): 'element: Int'
   null
 
 KtTypeReference(53,56): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(53,56): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(53,56): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtTypeReference(59,66): 'Boolean'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Boolean
+    ]
 
 KtUserType(59,66): 'Boolean'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Boolean
+    ]
 
 KtNameReferenceExpression(59,66): 'Boolean'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Boolean
+    ]
 
 KtConstantExpression(69,73): 'true'
   null
@@ -59,22 +83,25 @@ KtProperty(94,113): 'val c = Container()'
   null
 
 KtCallExpression(102,113): 'Container()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): Container
     ]
 
 KtNameReferenceExpression(102,111): 'Container'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(): Container
+      /Container
     ]
 
 KtValueArgumentList(111,113): '()'
   null
 
 KtBinaryExpression(118,124): '1 in c'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /Container.contains(<dispatch receiver>: Container, element: kotlin.Int): kotlin.Boolean
     ]
@@ -83,19 +110,25 @@ KtConstantExpression(118,119): '1'
   null
 
 KtOperationReferenceExpression(120,122): 'in'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /Container.contains(<dispatch receiver>: Container, element: kotlin.Int): kotlin.Boolean
     ]
 
 KtNameReferenceExpression(123,124): 'c'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val c: Container
     ]
 
 KtBinaryExpression(129,136): '2 !in c'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /Container.contains(<dispatch receiver>: Container, element: kotlin.Int): kotlin.Boolean
     ]
@@ -104,13 +137,19 @@ KtConstantExpression(129,130): '2'
   null
 
 KtOperationReferenceExpression(131,134): '!in'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /Container.contains(<dispatch receiver>: Container, element: kotlin.Int): kotlin.Boolean
     ]
 
 KtNameReferenceExpression(135,136): 'c'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val c: Container
     ]

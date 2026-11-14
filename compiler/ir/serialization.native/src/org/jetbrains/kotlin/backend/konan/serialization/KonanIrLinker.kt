@@ -5,61 +5,62 @@
 
 package org.jetbrains.kotlin.backend.konan.serialization
 
+import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageIssueSink
 import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageSupportForLinker
+import org.jetbrains.kotlin.backend.common.linkage.partial.createPartialLinkageSupportForLinker
 import org.jetbrains.kotlin.backend.common.overrides.IrLinkerFakeOverrideProvider
-import org.jetbrains.kotlin.backend.common.serialization.DeserializationStrategy
+import org.jetbrains.kotlin.backend.common.serialization.DeserializationStrategyResolver
+import org.jetbrains.kotlin.backend.common.serialization.IrModuleDeserializerWithBuiltIns
 import org.jetbrains.kotlin.backend.common.serialization.KotlinIrLinker
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.ir.IrBuiltIns
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
+import org.jetbrains.kotlin.backend.common.serialization.kotlinLibrary
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.ir.IrDiagnosticReporter
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.objcinterop.isObjCClass
 import org.jetbrains.kotlin.ir.overrides.IrExternalOverridabilityCondition
-import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
-import org.jetbrains.kotlin.ir.util.DeclarationStubGenerator
+import org.jetbrains.kotlin.ir.util.KotlinMangler
 import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.isNativeStdlib
-import org.jetbrains.kotlin.library.metadata.DeserializedKlibModuleOrigin
-import org.jetbrains.kotlin.library.metadata.impl.KlibResolvedModuleDescriptorsFactoryImpl
 import org.jetbrains.kotlin.library.metadata.isCInteropLibrary
-import org.jetbrains.kotlin.library.metadata.klibModuleOrigin
+import org.jetbrains.kotlin.library.metadata.isForwardDeclarationModule
 
-@OptIn(ObsoleteDescriptorBasedAPI::class)
 class KonanIrLinker(
-    private val currentModule: ModuleDescriptor,
-    messageCollector: MessageCollector,
-    builtIns: IrBuiltIns,
+    configuration: CompilerConfiguration,
     symbolTable: SymbolTable,
-    friendModules: Map<String, Collection<String>>,
-    private val forwardModuleDescriptor: ModuleDescriptor?,
-    private val stubGenerator: DeclarationStubGenerator,
-    private val cInteropModuleDeserializerFactory: CInteropModuleDeserializerFactory,
-    exportedDependencies: List<ModuleDescriptor>,
-    override val partialLinkageSupport: PartialLinkageSupportForLinker,
-    private val libraryBeingCached: PartialCacheInfo?,
+    friendModules: Map<KotlinLibrary, Collection<KotlinLibrary>>,
+    private val cInteropModuleDeserializerFactory: CInteropModuleDeserializerFactory<*>,
+    irDiagnosticReporter: IrDiagnosticReporter,
+    private val librariesBeingCached: Map<KotlinLibrary, PartialCacheInfo>,
     externalOverridabilityConditions: List<IrExternalOverridabilityCondition>,
-) : KotlinIrLinker(currentModule, messageCollector, builtIns, symbolTable, exportedDependencies) {
-
-    override fun isBuiltInModule(moduleDescriptor: ModuleDescriptor): Boolean {
-        val klib = (moduleDescriptor.klibModuleOrigin as? DeserializedKlibModuleOrigin)?.library ?: return false
+    partialLinkageIssueSink: PartialLinkageIssueSink? = null,
+) : KotlinIrLinker(configuration, symbolTable) {
+    override fun isBuiltInModule(module: IrModuleFragment): Boolean {
+        val klib = module.kotlinLibrary ?: return false
         return klib.isNativeStdlib
     }
 
-    private val forwardDeclarationDeserializer = forwardModuleDescriptor?.let {
-        KonanForwardDeclarationModuleDeserializer(it, this, stubGenerator)
-    }
+    override val irMangler: KotlinMangler.IrMangler = KonanManglerIr
+
+    override val partialLinkageSupport: PartialLinkageSupportForLinker = createPartialLinkageSupportForLinker(
+        irFactory = symbolTable.irFactory,
+        anyClass = anyClass,
+        nothingClass = nothingClass,
+        diagnosticReporter = irDiagnosticReporter,
+        issueSink = partialLinkageIssueSink,
+    )
+
+    private val globalDeclarationTable = KonanGlobalDeclarationTable(null)
 
     override val fakeOverrideBuilder = IrLinkerFakeOverrideProvider(
-        linker = this,
+        fileLocalSymbolProvider = fileLocalSymbolProvider,
         symbolTable = symbolTable,
-        mangler = KonanManglerIr,
-        typeSystem = IrTypeSystemContextImpl(builtIns),
+        mangler = irMangler,
         friendModules = friendModules,
         partialLinkageSupport = partialLinkageSupport,
         platformSpecificClassFilter = K1LazyFakeOverrideClassFilter,
+        fakeOverrideDeclarationTable = KonanDeclarationTable(globalDeclarationTable),
         externalOverridabilityConditions = externalOverridabilityConditions,
         isMultipleInheritedImplementationsAllowed = {
             // Properties of ObjC protocols are serialized as final, along with their getters and setters.
@@ -71,55 +72,37 @@ class KonanIrLinker(
         },
     )
 
-    val moduleDeserializers = mutableMapOf<ModuleDescriptor, KonanPartialModuleDeserializer>()
-    val klibToModuleDeserializerMap = mutableMapOf<KotlinLibrary, KonanPartialModuleDeserializer>()
-
     override fun createModuleDeserializer(
-        moduleDescriptor: ModuleDescriptor,
+        moduleFragment: IrModuleFragment,
         klib: KotlinLibrary?,
-        strategyResolver: (String) -> DeserializationStrategy,
+        strategyResolver: DeserializationStrategyResolver,
     ) = when {
-        moduleDescriptor === forwardModuleDescriptor -> {
-            forwardDeclarationDeserializer ?: error("forward declaration deserializer expected")
+        moduleFragment.descriptor.isForwardDeclarationModule -> {
+            KonanForwardDeclarationModuleDeserializer(moduleFragment, this)
         }
         klib == null -> {
-            error("Expecting kotlin library for $moduleDescriptor")
+            error("Expecting kotlin library for module fragment ${moduleFragment.name}")
         }
         klib.isCInteropLibrary() -> {
             cInteropModuleDeserializerFactory.createIrModuleDeserializer(
-                moduleDescriptor,
+                moduleFragment,
                 klib,
-                listOfNotNull(forwardDeclarationDeserializer),
+                this,
             )
         }
         else -> {
-            val deserializationStrategy = when {
-                klib == libraryBeingCached?.klib -> libraryBeingCached.strategy
-                else -> CacheDeserializationStrategy.WholeModule
-            }
+            val deserializationStrategy = librariesBeingCached[klib]?.strategy ?: CacheDeserializationStrategy.WholeModule
             KonanPartialModuleDeserializer(
-                this, moduleDescriptor, klib, strategyResolver, deserializationStrategy
-            ).also {
-                moduleDeserializers[moduleDescriptor] = it
-                klibToModuleDeserializerMap[klib] = it
-            }
+                this, moduleFragment, klib, strategyResolver, deserializationStrategy
+            )
         }
     }
 
-    override fun postProcess(inOrAfterLinkageStep: Boolean) {
-        stubGenerator.unboundSymbolGeneration = true
-        super.postProcess(inOrAfterLinkageStep)
-    }
-
-    private val String.isForwardDeclarationModuleName: Boolean get() = this == KlibResolvedModuleDescriptorsFactoryImpl.Companion.FORWARD_DECLARATIONS_MODULE_NAME.asString()
-
-    val modules: Map<String, IrModuleFragment>
-        get() = mutableMapOf<String, IrModuleFragment>().apply {
-            deserializersForModules
-                .filter { !it.key.isForwardDeclarationModuleName && it.value.moduleDescriptor !== currentModule }
-                .forEach {
-                    val klib = it.value.klib
-                    this[klib.location.path] = it.value.moduleFragment
-                }
+    fun findKonanModuleDeserializer(library: KotlinLibrary): KonanPartialModuleDeserializer? {
+        return when (val deserializer = klibDeserializers[library]) {
+            is KonanPartialModuleDeserializer -> deserializer
+            is IrModuleDeserializerWithBuiltIns -> deserializer.delegate as? KonanPartialModuleDeserializer
+            else -> null
         }
+    }
 }

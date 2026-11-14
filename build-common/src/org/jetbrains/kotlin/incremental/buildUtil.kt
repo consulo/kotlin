@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.incremental
 
 import com.intellij.openapi.vfs.impl.ZipHandler
 import com.intellij.openapi.vfs.impl.jar.CoreJarFileSystem
-import org.jetbrains.kotlin.K1Deprecation
+import org.jetbrains.kotlin.CoreEnvironmentDeprecation
 import org.jetbrains.kotlin.build.GeneratedFile
 import org.jetbrains.kotlin.build.GeneratedJvmClass
 import org.jetbrains.kotlin.build.JvmSourceRoot
@@ -51,7 +51,7 @@ fun makeModuleFile(
     javaSourceRoots: Iterable<JvmSourceRoot>,
     classpath: Iterable<File>,
     friendDirs: Iterable<File>,
-    isIncrementalMode: Boolean = true
+    isIncrementalMode: Boolean = true,
 ): File {
     val builder = KotlinModuleXmlBuilder()
     builder.addModule(
@@ -93,7 +93,7 @@ private fun sanitizeJavaIdentifier(string: String) =
 fun makeCompileServices(
     incrementalCaches: Map<TargetId, IncrementalCache>,
     lookupTracker: LookupTracker,
-    compilationCanceledStatus: CompilationCanceledStatus?
+    compilationCanceledStatus: CompilationCanceledStatus?,
 ): Services =
     with(Services.Builder()) {
         register(LookupTracker::class.java, lookupTracker)
@@ -108,8 +108,14 @@ fun updateIncrementalCache(
     generatedFiles: Iterable<GeneratedFile>,
     cache: IncrementalJvmCache,
     changesCollector: ChangesCollector,
-    javaChangesTracker: JavaClassesTrackerImpl?
+    jvmCommonMetadataTracker: ICJvmCommonMetadataTrackerImpl?,
 ) {
+    // Store common-fragment metadata before class files: an `expect` declaration and its `actual` share an FqName,
+    // so the platform proto is recorded last.
+    jvmCommonMetadataTracker?.commonMetadataByModule?.forEach { [moduleName, metadata] ->
+        cache.saveCommonMetadataToCache(moduleName, metadata, changesCollector)
+    }
+
     for (generatedFile in generatedFiles) {
         when {
             generatedFile is GeneratedJvmClass -> cache.saveFileToCache(generatedFile, changesCollector)
@@ -120,17 +126,13 @@ fun updateIncrementalCache(
         }
     }
 
-    javaChangesTracker?.javaClassesUpdates?.forEach { (source, serializedJavaClass) ->
-        cache.saveJavaClassProto(source, serializedJavaClass, changesCollector)
-    }
-
     cache.clearCacheForRemovedClasses(changesCollector)
 }
 
 fun LookupStorage.update(
     lookupTracker: LookupTracker,
     filesToCompile: Iterable<File>,
-    removedFiles: Iterable<File>
+    removedFiles: Iterable<File>,
 ) {
     if (lookupTracker !is LookupTrackerImpl) throw AssertionError("Lookup tracker is expected to be LookupTrackerImpl, got ${lookupTracker::class.java}")
 
@@ -142,7 +144,7 @@ fun LookupStorage.update(
 data class DirtyData(
     val dirtyLookupSymbols: Collection<LookupSymbol> = emptyList(),
     val dirtyClassesFqNames: Collection<FqName> = emptyList(),
-    val dirtyClassesFqNamesForceRecompile: Collection<FqName> = emptyList()
+    val dirtyClassesFqNamesForceRecompile: Collection<FqName> = emptyList(),
 )
 
 /**
@@ -162,7 +164,7 @@ fun ChangesCollector.getChangedSymbols(reporter: ICReporter): DirtyData {
  */
 fun ChangesCollector.getChangedAndImpactedSymbols(
     caches: Iterable<IncrementalCacheCommon>,
-    reporter: ICReporter
+    reporter: ICReporter,
 ): DirtyData {
     return changes().getChangedAndImpactedSymbols(caches, reporter)
 }
@@ -174,7 +176,7 @@ fun ChangesCollector.getChangedAndImpactedSymbols(
  */
 fun List<ChangeInfo>.getChangedAndImpactedSymbols(
     caches: Iterable<IncrementalCacheCommon>,
-    reporter: ICReporter
+    reporter: ICReporter,
 ): DirtyData {
     val dirtyLookupSymbols = HashSet<LookupSymbol>()
     val dirtyClassesFqNames = HashSet<FqName>()
@@ -211,6 +213,11 @@ fun List<ChangeInfo>.getChangedAndImpactedSymbols(
             }
         }
     }
+    reporter.reportProcessedChanges(
+        dirtyLookupSymbols.map { Pair(it.scope, it.name) },
+        dirtyClassesFqNames.map { it.asString() },
+        sealedParents.map { it.asString() }
+    )
     return DirtyData(dirtyLookupSymbols, dirtyClassesFqNames, sealedParents)
 }
 
@@ -218,7 +225,7 @@ fun mapLookupSymbolsToFiles(
     lookupStorage: LookupStorage,
     lookupSymbols: Iterable<LookupSymbol>,
     reporter: ICReporter,
-    excludes: Set<File> = emptySet()
+    excludes: Set<File> = emptySet(),
 ): Set<File> {
     val dirtyFiles = HashSet<File>()
 
@@ -235,7 +242,7 @@ fun mapClassesFqNamesToFiles(
     caches: Iterable<IncrementalCacheCommon>,
     classesFqNames: Iterable<FqName>,
     reporter: ICReporter,
-    excludes: Set<File> = emptySet()
+    excludes: Set<File> = emptySet(),
 ): Set<File> {
     val fqNameToAffectedFiles = HashMap<FqName, MutableSet<File>>()
 
@@ -248,7 +255,7 @@ fun mapClassesFqNamesToFiles(
         }
     }
 
-    for ((classFqName, affectedFiles) in fqNameToAffectedFiles) {
+    for ([classFqName, affectedFiles] in fqNameToAffectedFiles) {
         reporter.reportMarkDirtyClass(affectedFiles, classFqName.asString())
     }
 
@@ -257,7 +264,7 @@ fun mapClassesFqNamesToFiles(
 
 fun isSealed(
     fqName: FqName,
-    caches: Iterable<IncrementalCacheCommon>
+    caches: Iterable<IncrementalCacheCommon>,
 ): Boolean = caches.any { cache -> cache.isSealed(fqName) ?: false }
 
 /**
@@ -267,17 +274,17 @@ fun isSealed(
  */
 fun findSealedSupertypes(
     fqName: FqName,
-    caches: Iterable<IncrementalCacheCommon>
+    caches: Iterable<IncrementalCacheCommon>,
 ): Collection<FqName> {
     if (isSealed(fqName, caches)) {
         return listOf(fqName)
     }
-    return caches.flatMap { cache -> cache.getSupertypesOf(fqName).filter { cache.isSealed(it) ?: false }}
+    return caches.flatMap { cache -> cache.getSupertypesOf(fqName).filter { cache.isSealed(it) ?: false } }
 }
 
 fun withSubtypes(
     typeFqName: FqName,
-    caches: Iterable<IncrementalCacheCommon>
+    caches: Iterable<IncrementalCacheCommon>,
 ): Set<FqName> {
     val typesToProccess = LinkedHashSet(listOf(typeFqName))
     val proccessedTypes = hashSetOf<FqName>()
@@ -301,7 +308,7 @@ fun withSubtypes(
 
 fun clearJarCaches() {
     ZipHandler.clearFileAccessorCache()
-    @OptIn(K1Deprecation::class)
+    @OptIn(CoreEnvironmentDeprecation::class)
     KotlinCoreEnvironment.applicationEnvironment?.apply {
         (jarFileSystem as? CoreJarFileSystem)?.clearHandlersCache()
         (jrtFileSystem as? CoreJrtFileSystem)?.clearRoots()

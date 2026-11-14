@@ -163,6 +163,11 @@ message Type {
   optional Type abbreviated_type = 13;
   optional int32 abbreviated_type_id = 14 [(type_id_in_table) = true];
 
+  repeated Type rich_error = 15;
+  repeated int32 rich_error_id = 16 [(type_id_in_table) = true];
+
+  repeated Annotation union_type_annotation = 17;
+
   /*
     suspend
     definitelyNonNull
@@ -213,16 +218,18 @@ message Class {
 
   /*
     hasAnnotations
-    Visibility
-    Modality
-    ClassKind
+    Visibility (3 bits)
+    Modality (2 bits)
+    ClassKind (3 bits)
     isInner
     isData
     isExternal
     isExpect
-    isInline
+    isValue
     isFun
     hasEnumEntries
+    isRichError
+    isFullValue
   */
   optional int32 flags = 1 [default = 6 /* public final class, no annotations */];
 
@@ -295,9 +302,10 @@ message TypeTable {
 message Constructor {
   /*
     hasAnnotations
-    Visibility
+    Visibility (2 bits)
     isSecondary
     hasNonStableParameterNames
+    ReturnValueStatus (2 bits)
   */
   optional int32 flags = 1 [default = 6 /* public constructor, no annotations */];
 
@@ -318,9 +326,9 @@ message Constructor {
 message Function {
   /*
     hasAnnotations
-    Visibility
-    Modality
-    MemberKind
+    Visibility (3 bits)
+    Modality (2 bits)
+    MemberKind (2 bits)
     isOperator
     isInfix
     isInline
@@ -329,6 +337,8 @@ message Function {
     isSuspend
     isExpect
     hasNonStableParameterNames
+    ReturnValueStatus (2 bits)
+    isStatic
   */
   optional int32 flags = 9 [default = 6 /* public final function, no annotations */];
   optional int32 old_flags = 1 [default = 6];
@@ -342,6 +352,9 @@ message Function {
 
   optional Type receiver_type = 5;
   optional int32 receiver_type_id = 8 [(type_id_in_table) = true];
+
+  optional Type companion_extension_receiver_type = 14;
+  optional int32 companion_extension_receiver_type_id = 15 [(type_id_in_table) = true];
 
   repeated Type context_receiver_type = 10;
   repeated int32 context_receiver_type_id = 11 [packed = true, (type_id_in_table) = true];
@@ -370,9 +383,9 @@ message Function {
 message Property {
   /*
     hasAnnotations
-    Visibility
-    Modality
-    MemberKind
+    Visibility (3 bits)
+    Modality (2 bits)
+    MemberKind (2 bits)
     isVar
     hasGetter
     hasSetter
@@ -382,6 +395,8 @@ message Property {
     isExternal
     isDelegated
     isExpect
+    ReturnValueStatus (2 bits)
+    isStatic
   */
   optional int32 flags = 11 [default = 518 /* public (6) final property with getter (512) */];
   optional int32 old_flags = 1 [default = 2054];
@@ -396,6 +411,9 @@ message Property {
   optional Type receiver_type = 5;
   optional int32 receiver_type_id = 10 [(type_id_in_table) = true];
 
+  optional Type companion_extension_receiver_type = 18;
+  optional int32 companion_extension_receiver_type_id = 19 [(type_id_in_table) = true];
+
   repeated Type context_receiver_type = 12;
   repeated int32 context_receiver_type_id = 13 [packed = true, (type_id_in_table) = true];
 
@@ -405,8 +423,8 @@ message Property {
 
   /*
     hasAnnotations
-    Visibility
-    Modality
+    Visibility (3 bits)
+    Modality (2 bits)
     isNotDefault
     isExternal
     isInline
@@ -459,13 +477,16 @@ message ValueParameter {
 
   optional Annotation.Argument.Value annotation_parameter_default_value = 8;
 
+  optional Type equality_bound_type = 9;
+  optional int32 equality_bound_type_id = 10 [(type_id_in_table) = true];
+
   extensions 100 to 199;
 }
 
 message TypeAlias {
   /*
     hasAnnotations
-    Visibility
+    Visibility (2 bits)
   */
   optional int32 flags = 1 [default = 6 /* public, no annotations */];
 
@@ -622,6 +643,9 @@ message Effect {
 
     // ReturnsResultOf(callable: ParameterReference)
     RETURNS_RESULT_OF = 3;
+
+    // ReturnsParameter(callable: ParameterReference)
+    RETURNS_PARAMETER = 4;
   }
   optional EffectType effect_type = 1;
 

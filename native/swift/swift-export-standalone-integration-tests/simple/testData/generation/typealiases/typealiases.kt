@@ -51,14 +51,10 @@ typealias objectWithClassInheritance = OBJECT_WITH_CLASS_INHERITANCE
 // FILE: interfaces.kt
 
 interface OUTSIDE_PROTO {
-    // FIXME: KT-70541: typealiases can not properly detect unsupported nested classes
-    // So we have to exclude these tests for now:
-//    abstract class INSIDE_PROTO
+    abstract class INSIDE_PROTO
 }
 
 typealias outerInterface = OUTSIDE_PROTO
-// FIXME: See the comment above on OUTSIDE_PROTO.INSIDE_PROTO
-/*
 typealias innerInterface = OUTSIDE_PROTO.INSIDE_PROTO
 
 class INHERITANCE_COUPLE : OUTSIDE_PROTO.INSIDE_PROTO(), OUTSIDE_PROTO
@@ -66,7 +62,6 @@ typealias inheritanceCouple = INHERITANCE_COUPLE
 
 class INHERITANCE_SINGLE_PROTO : OUTSIDE_PROTO.INSIDE_PROTO()
 typealias inhertanceSingleProto = INHERITANCE_SINGLE_PROTO
-*/
 object OBJECT_WITH_INTERFACE_INHERITANCE: OUTSIDE_PROTO
 typealias objectWithInterfaceInheritance = OBJECT_WITH_INTERFACE_INHERITANCE
 
@@ -78,6 +73,20 @@ fun consume_closure(block: closure): Unit = TODO()
 fun produce_closure(): closure = TODO()
 var block: closure = { }
 fun deeper_closure_typealiase(block: deeper_closure_typealias): deeper_closure_typealias = TODO()
+
+@Deprecated("hidden", level = DeprecationLevel.HIDDEN)
+class HiddenClass
+
+@Suppress("DEPRECATION_ERROR")
+typealias funWithHiddenClassA = context(HiddenClass) () -> Unit
+@Suppress("DEPRECATION_ERROR")
+typealias funWithHiddenClassB = HiddenClass.() -> Unit
+@Suppress("DEPRECATION_ERROR")
+typealias funWithHiddenClassC = (HiddenClass) -> Unit
+@Suppress("DEPRECATION_ERROR")
+typealias funWithHiddenClassD = () -> HiddenClass
+@Suppress("DEPRECATION_ERROR")
+typealias funWithHiddenClassE = suspend () -> HiddenClass
 
 // FILE: should_be_ignored.kt
 import typealiases.Foo

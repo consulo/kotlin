@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir
 
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.session.AbstractSessionInvalidationTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.AbstractResolveToFirSymbolTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.AbstractFirOutOfContentRootContextCollectionTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.AbstractFirSourceLikeContextCollectionTest
@@ -113,39 +112,6 @@ fun main(args: Array<String>) {
                 model("contentAndResolutionScopesProviders", recursive = false, pattern = TestGeneratorUtil.KT_OR_KTS)
             }
 
-            // Modifiable PSI tests must not be generated until KT-63650 is fixed.
-//        testClass<AbstractDeclarationModificationServiceCallExpressionCalleeResilienceTest> {
-//            model(
-//                "declarationModificationService/psiResilience/callExpression",
-//                recursive = false,
-//                pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME,
-//            )
-//        }
-//
-//        testClass<AbstractDeclarationModificationServiceDotQualifiedExpressionReceiverResilienceTest> {
-//            model(
-//                "declarationModificationService/psiResilience/dotQualifiedExpression",
-//                recursive = false,
-//                pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME,
-//            )
-//        }
-//
-//        testClass<AbstractDeclarationModificationServiceDotQualifiedExpressionSelectorResilienceTest> {
-//            model(
-//                "declarationModificationService/psiResilience/dotQualifiedExpression",
-//                recursive = false,
-//                pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME,
-//            )
-//        }
-//
-//        testClass<AbstractDeclarationModificationServicePropertyDeclarationInitializerResilienceTest> {
-//            model(
-//                "declarationModificationService/psiResilience/propertyDeclaration",
-//                recursive = false,
-//                pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME,
-//            )
-//        }
-
             testClass<AbstractSourceLikeFileStructureTest> {
                 model("fileStructure", pattern = TestGeneratorUtil.KT_OR_KTS)
             }
@@ -172,14 +138,6 @@ fun main(args: Array<String>) {
 
             testClass<AbstractOutOfContentRootWholeFileResolvePhaseTest> {
                 model("fileStructure", pattern = TestGeneratorUtil.KT)
-            }
-
-            testClass<AbstractSourcePartialRawFirBuilderTestCase> {
-                model("partialRawBuilder", testMethod = "doRawFirTest")
-            }
-
-            testClass<AbstractOutOfContentRootPartialRawFirBuilderTestCase> {
-                model("partialRawBuilder", testMethod = "doRawFirTest")
             }
 
             testClass<AbstractSourceLikeGetOrBuildFirTest> {
@@ -226,6 +184,10 @@ fun main(args: Array<String>) {
                 model("contextCollector", pattern = TestGeneratorUtil.KTS)
             }
 
+            testClass<AbstractCustomScriptDefinitionConfigurationRefinementTest> {
+                model("scriptConfigurationRefinement", pattern = TestGeneratorUtil.KTS)
+            }
+
             testClass<AbstractResolveExtensionDisposalAfterModificationEventTest> {
                 model("resolveExtensionDisposal")
             }
@@ -255,13 +217,13 @@ fun main(args: Array<String>) {
                     model("compilerLikeAnalysis", pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME)
                 }
 
-                testClass<AbstractLLDiagnosticsTest> {
+                testClass<AbstractLLDiagnosticsTest>("LLDiagnosticsCompilerLikeTestGenerated") {
                     modelInit()
                 }
-                testClass<AbstractLLReversedDiagnosticsTest> {
+                testClass<AbstractLLReversedDiagnosticsTest>("LLReversedDiagnosticsCompilerLikeTestGenerated") {
                     modelInit()
                 }
-                testClass<AbstractLLPartialDiagnosticsTest> {
+                testClass<AbstractLLPartialDiagnosticsTest>("LLPartialDiagnosticsCompilerLikeTestGenerated") {
                     modelInit()
                 }
             }
@@ -302,14 +264,6 @@ fun main(args: Array<String>) {
 
             testClass<AbstractCodeFragmentContextModificationLLFirSessionInvalidationTest> {
                 model("sessions/sessionInvalidation", excludeDirsRecursively = AbstractSessionInvalidationTest.TEST_OUTPUT_DIRECTORY_NAMES)
-            }
-
-            testClass<AbstractSourceLikeResolveCandidatesFirTreeConsistencyTest> {
-                model("components/resolver/singleByPsi", pattern = TestGeneratorUtil.KT_OR_KTS)
-            }
-
-            testClass<AbstractSourceLikeResolveCandidatesByFileFirTreeConsistencyTest> {
-                model("components/resolver/allByPsi", pattern = TestGeneratorUtil.KT_OR_KTS)
             }
         }
     }

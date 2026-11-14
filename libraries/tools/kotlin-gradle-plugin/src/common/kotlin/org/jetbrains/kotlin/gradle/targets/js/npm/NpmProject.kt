@@ -9,34 +9,36 @@ import org.gradle.api.Project
 import org.gradle.api.file.Directory
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.disambiguateName
 import org.jetbrains.kotlin.gradle.plugin.mpp.fileExtension
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsTargetDsl
+import org.jetbrains.kotlin.gradle.targets.js.internal.jsToolingProject
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrCompilation
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsPlugin.Companion.kotlinNodeJsEnvSpec
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin.Companion.kotlinNodeJsRootExtension
+import org.jetbrains.kotlin.gradle.targets.js.npm.tasks.KotlinImportMapGenerateTask
 import org.jetbrains.kotlin.gradle.targets.js.npm.tasks.KotlinPackageJsonTask
 import org.jetbrains.kotlin.gradle.targets.js.webTargetVariant
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
+import org.jetbrains.kotlin.gradle.targets.web.providerRequiringWebIsolatedProjectsSupportOff
 import org.jetbrains.kotlin.gradle.utils.getFile
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import java.io.Serializable
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsPlugin.Companion.kotlinNodeJsEnvSpec as wasmKotlinNodeJsEnvSpec
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootPlugin.Companion.kotlinNodeJsRootExtension as wasmKotlinNodeJsRootExtension
 
+@get:ObsoleteNpmDependencyModel
 val KotlinJsIrCompilation.npmProject: NpmProject
     get() = NpmProject(this)
-
-@Deprecated("Use npmProject for KotlinJsIrCompilation. Scheduled for removal in Kotlin 2.3.", level = DeprecationLevel.ERROR)
-val KotlinJsCompilation.npmProject: NpmProject
-    get() = NpmProject(this as KotlinJsIrCompilation)
 
 /**
  * Basic info for [NpmProject] created from [compilation].
  * This class contains only basic info.
  *
- * More info can be obtained from [KotlinCompilationNpmResolution], which is available after project resolution (after [KotlinNpmInstallTask] execution).
+ * More info can be obtained from [org.jetbrains.kotlin.gradle.targets.js.npm.resolver.KotlinCompilationNpmResolution],
+ * which is available after project resolution (after [org.jetbrains.kotlin.gradle.targets.js.npm.tasks.KotlinNpmInstallTask] execution).
  */
+@ObsoleteNpmDependencyModel
 open class NpmProject(@Transient val compilation: KotlinJsIrCompilation) : Serializable {
     val compilationName = compilation.disambiguatedName
 
@@ -47,8 +49,8 @@ open class NpmProject(@Transient val compilation: KotlinJsIrCompilation) : Seria
     @delegate:Transient
     val nodeJsRoot by lazy {
         compilation.webTargetVariant(
-            { project.rootProject.kotlinNodeJsRootExtension },
-            { project.rootProject.wasmKotlinNodeJsRootExtension },
+            { project.jsToolingProject().kotlinNodeJsRootExtension },
+            { project.jsToolingProject().wasmKotlinNodeJsRootExtension },
         )
     }
 
@@ -60,9 +62,11 @@ open class NpmProject(@Transient val compilation: KotlinJsIrCompilation) : Seria
         )
     }
 
-    val dir: Provider<Directory> = nodeJsRoot.projectPackagesDirectory.zip(name) { directory, name ->
-        directory.dir(name)
-    }
+    val dir: Provider<Directory> = compilation.project
+        .providerRequiringWebIsolatedProjectsSupportOff("${compilation.name} npm project directory") { nodeJsRoot.projectPackagesDirectory }
+        .zip(name) { directory, name ->
+            directory.dir(name)
+        }
 
     val target: KotlinJsTargetDsl
         get() = compilation.target
@@ -70,7 +74,9 @@ open class NpmProject(@Transient val compilation: KotlinJsIrCompilation) : Seria
     val project: Project
         get() = target.project
 
-    val nodeModulesDir: Provider<Directory> = nodeJsRoot.rootPackageDirectory.map { it.dir(NODE_MODULES) }
+    val nodeModulesDir: Provider<Directory> = compilation.project
+        .providerRequiringWebIsolatedProjectsSupportOff("${compilation.name} node_modules directory") { nodeJsRoot.rootPackageDirectory }
+        .map { it.dir(NODE_MODULES) }
 
     val packageJsonFile: Provider<RegularFile>
         get() = dir.map { it.file(PACKAGE_JSON) }
@@ -111,16 +117,24 @@ open class NpmProject(@Transient val compilation: KotlinJsIrCompilation) : Seria
     val publicPackageJsonTaskName: String
         get() = compilation.disambiguateName(PublicPackageJsonTask.NAME)
 
+    val generateImportMapTaskName: String
+        get() = compilation.disambiguateName(KotlinImportMapGenerateTask.NAME + "Server")
+
+    val generateImportMapDistTaskName: String
+        get() = compilation.disambiguateName(KotlinImportMapGenerateTask.NAME + "Dist")
+
     internal val modules by lazy {
         NpmProjectModules(dir.getFile())
     }
 
+    @Deprecated("Use nodeJsToolchainService instead")
     internal val nodeExecutable by lazy {
         nodeJs.executable.get()
     }
 
     override fun toString() = "NpmProject(${name.get()})"
 
+    @ObsoleteNpmDependencyModel
     companion object {
         const val PACKAGE_JSON = "package.json"
         const val NODE_MODULES = "node_modules"

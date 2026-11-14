@@ -5,11 +5,9 @@
 
 package org.jetbrains.kotlin.buildtools.internal
 
-import org.jetbrains.kotlin.buildtools.api.CancellableBuildOperation
-import org.jetbrains.kotlin.buildtools.api.ExecutionPolicy
-import org.jetbrains.kotlin.buildtools.api.KotlinLogger
-import org.jetbrains.kotlin.buildtools.api.OperationCancelledException
-import org.jetbrains.kotlin.buildtools.api.ProjectId
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import org.jetbrains.kotlin.buildtools.api.*
 import org.jetbrains.kotlin.progress.CompilationCanceledException
 import org.jetbrains.kotlin.progress.CompilationCanceledStatus
 import kotlin.concurrent.atomics.AtomicBoolean
@@ -19,8 +17,15 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 import kotlin.concurrent.atomics.incrementAndFetch
 
 @OptIn(ExperimentalAtomicApi::class)
-internal abstract class CancellableBuildOperationImpl<R> : BuildOperationImpl<R>(), CancellableBuildOperation<R> {
+@Serializable
+internal abstract class CancellableBuildOperationImpl<R> : BuildOperationImpl<R>, CancellableBuildOperation<R> {
+    protected constructor() : super()
+    protected constructor(other: CancellableBuildOperationImpl<R>) : super(other)
+
+    @Transient
     private val isCancelled: AtomicBoolean = AtomicBoolean(false)
+
+    @Transient
     private val onCancelAction: AtomicReference<(() -> Unit)?> = AtomicReference(null)
     protected val compilationId: Int = compilationIdCounter.incrementAndFetch()
 
@@ -36,6 +41,7 @@ internal abstract class CancellableBuildOperationImpl<R> : BuildOperationImpl<R>
         check(actionWasSet) { "onCancel action was already set. Setting it again is an error." }
     }
 
+    @Transient
     protected val cancellationHandle = object : CompilationCanceledStatus {
         override fun checkCanceled() {
             if (isCancelled.load()) {
@@ -52,10 +58,16 @@ internal abstract class CancellableBuildOperationImpl<R> : BuildOperationImpl<R>
         projectId: ProjectId,
         executionPolicy: ExecutionPolicy,
         logger: KotlinLogger?,
+        executionContext: ExecutionContext,
     ): R
 
-    final override fun executeImpl(projectId: ProjectId, executionPolicy: ExecutionPolicy, logger: KotlinLogger?): R {
-        val returnValue = executeCancellableImpl(projectId, executionPolicy, logger)
+    final override fun executeImpl(
+        projectId: ProjectId,
+        executionPolicy: ExecutionPolicy,
+        logger: KotlinLogger?,
+        executionContext: ExecutionContext
+    ): R {
+        val returnValue = executeCancellableImpl(projectId, executionPolicy, logger, executionContext)
         return if (isCancelled.load()) {
             throw OperationCancelledException()
         } else {

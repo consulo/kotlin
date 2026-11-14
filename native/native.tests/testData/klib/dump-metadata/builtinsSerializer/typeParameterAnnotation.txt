@@ -1,5 +1,4 @@
 library {
-  // module name: <typeParameterAnnotation.kt>
 
   library fragment {
     // package name: test

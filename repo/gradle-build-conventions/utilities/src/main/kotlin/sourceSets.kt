@@ -12,6 +12,9 @@ import org.jetbrains.kotlin.ideaExt.idea
 inline fun Project.sourceSets(crossinline body: SourceSetsBuilder.() -> Unit) = SourceSetsBuilder(this).body()
 
 class SourceSetsBuilder(val project: Project) {
+    val main = "main"
+    val test = "test"
+    val testFixtures = "testFixtures"
 
     inline operator fun String.invoke(crossinline body: SourceSet.() -> Unit): SourceSet {
         val sourceSetName = this
@@ -76,8 +79,10 @@ val JavaPluginExtension.codebaseTestSourceSet: SourceSet
     get() = sourceSets.getByName("codebaseTest")
 
 fun Project.mainJavaPluginSourceSet() = findJavaPluginExtension()?.sourceSets?.findByName("main")
+
 fun Project.mainKotlinSourceSet() =
     (extensions.findByName("kotlin") as? KotlinSourceSetContainer)?.sourceSets?.findByName("main")
+
 fun Project.sources() = mainJavaPluginSourceSet()?.allSource ?: mainKotlinSourceSet()?.kotlin
 
 fun SourceSet.generatedDir(project: Project, generationRoot: Provider<Directory>) {

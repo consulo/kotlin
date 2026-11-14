@@ -16,12 +16,17 @@
 
 package org.jetbrains.kotlin.gradle.plugin
 
+import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Property
 import org.jetbrains.kotlin.gradle.dsl.KaptArguments
 import org.jetbrains.kotlin.gradle.dsl.KaptExtensionConfig
 import org.jetbrains.kotlin.gradle.dsl.KaptJavacOption
+import org.jetbrains.kotlin.gradle.dsl.KaptStubGenerationScheme
+import org.jetbrains.kotlin.gradle.utils.propertyWithConvention
 import java.util.*
+import javax.inject.Inject
 
-open class KaptExtension : KaptExtensionConfig {
+open class KaptExtension @Inject constructor(objectFactory: ObjectFactory) : KaptExtensionConfig {
     open var generateStubs: Boolean = false
 
     override var useLightAnalysis: Boolean = true
@@ -36,9 +41,14 @@ open class KaptExtension : KaptExtensionConfig {
 
     override var stripMetadata: Boolean = false
 
+    override val stubGenerationScheme: Property<KaptStubGenerationScheme> =
+        objectFactory.propertyWithConvention(KaptStubGenerationScheme.JTREE)
+
+    override val headerMode: Property<Boolean> = objectFactory.propertyWithConvention(false)
+
     override var showProcessorStats: Boolean = false
 
-    override var detectMemoryLeaks: String = "default"
+    override var detectMemoryLeaks: String = "standard"
 
     override var includeCompileClasspath: Boolean? = null
 

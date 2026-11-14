@@ -1,11 +1,13 @@
 KaConstructorSymbol:
+  anchorPsi: KtEnumEntry
   annotations: []
   callableId: null
-  compilerVisibility: Private
   containingClassId: null
+  contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -13,6 +15,8 @@ KaConstructorSymbol:
   location: CLASS
   modality: FINAL
   origin: SOURCE_MEMBER_GENERATED
+  psi: KtEnumEntry
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -24,5 +28,6 @@ KaConstructorSymbol:
   getContainingFileSymbol: KaFileSymbol(enumEntryInitializerWithEmptyBody.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: null

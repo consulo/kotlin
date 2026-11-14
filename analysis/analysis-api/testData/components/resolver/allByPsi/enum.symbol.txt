@@ -23,13 +23,25 @@ KtParameter(31,41): 'val i: Int'
   null
 
 KtTypeReference(38,41): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(38,41): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(38,41): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtClassBody(43,133): '{'
   null
@@ -41,27 +53,36 @@ KtInitializerList(54,57): '(1)'
   null
 
 KtSuperTypeCallEntry(54,57): '(1)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(i: kotlin.Int): EnumWithConstructor
     ]
 
 KtConstructorCalleeExpression(54,54): ''
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(i: kotlin.Int): EnumWithConstructor
     ]
 
 KtTypeReference(54,54): ''
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /EnumWithConstructor
+    ]
 
 KtUserType(54,54): ''
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /EnumWithConstructor
+    ]
 
 KtEnumEntrySuperclassReferenceExpression(54,54): ''
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(i: kotlin.Int): EnumWithConstructor
+      /EnumWithConstructor
     ]
 
 KtValueArgumentList(54,57): '(1)'
@@ -80,27 +101,36 @@ KtInitializerList(76,79): '(2)'
   null
 
 KtSuperTypeCallEntry(76,79): '(2)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(i: kotlin.Int): EnumWithConstructor
     ]
 
 KtConstructorCalleeExpression(76,76): ''
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(i: kotlin.Int): EnumWithConstructor
     ]
 
 KtTypeReference(76,76): ''
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /EnumWithConstructor
+    ]
 
 KtUserType(76,76): ''
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /EnumWithConstructor
+    ]
 
 KtEnumEntrySuperclassReferenceExpression(76,76): ''
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(i: kotlin.Int): EnumWithConstructor
+      /EnumWithConstructor
     ]
 
 KtValueArgumentList(76,79): '(2)'
@@ -125,7 +155,10 @@ KtBlockExpression(100,125): '{'
   null
 
 KtNameReferenceExpression(114,115): 'i'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val i: kotlin.Int
     ]
@@ -158,31 +191,37 @@ KtBlockExpression(220,254): '{'
   null
 
 KtDotQualifiedExpression(234,244): 'this.baz()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       baz(<dispatch receiver>: <anonymous>): kotlin.Unit
     ]
 
 KtThisExpression(234,238): 'this'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <anonymous>
     ]
 
 KtNameReferenceExpression(234,238): 'this'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <anonymous>
     ]
 
 KtCallExpression(239,244): 'baz()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       baz(<dispatch receiver>: <anonymous>): kotlin.Unit
     ]
 
 KtNameReferenceExpression(239,242): 'baz'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       baz(<dispatch receiver>: <anonymous>): kotlin.Unit
     ]
@@ -200,181 +239,247 @@ KtParameter(274,299): 'with: EnumWithConstructor'
   null
 
 KtTypeReference(280,299): 'EnumWithConstructor'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /EnumWithConstructor
+    ]
 
 KtUserType(280,299): 'EnumWithConstructor'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /EnumWithConstructor
+    ]
 
 KtNameReferenceExpression(280,299): 'EnumWithConstructor'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /EnumWithConstructor
+    ]
 
 KtBlockExpression(301,575): '{'
   null
 
 KtDotQualifiedExpression(307,319): 'with.ordinal'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val ordinal: kotlin.Int
     ]
 
 KtNameReferenceExpression(307,311): 'with'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       with: EnumWithConstructor
     ]
 
 KtNameReferenceExpression(312,319): 'ordinal'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val ordinal: kotlin.Int
     ]
 
 KtDotQualifiedExpression(325,350): 'EnumWithConstructor.Entry'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor.Entry
     ]
 
 KtNameReferenceExpression(325,344): 'EnumWithConstructor'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor
     ]
 
 KtNameReferenceExpression(345,350): 'Entry'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor.Entry
     ]
 
 KtDotQualifiedExpression(355,385): 'EnumWithConstructor.Entry.name'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val name: kotlin.String
     ]
 
 KtDotQualifiedExpression(355,380): 'EnumWithConstructor.Entry'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor.Entry
     ]
 
 KtNameReferenceExpression(355,374): 'EnumWithConstructor'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor
     ]
 
 KtNameReferenceExpression(375,380): 'Entry'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor.Entry
     ]
 
 KtNameReferenceExpression(381,385): 'name'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val name: kotlin.String
     ]
 
 KtDotQualifiedExpression(390,423): 'EnumWithConstructor.EntryWithBody'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor.EntryWithBody
     ]
 
 KtNameReferenceExpression(390,409): 'EnumWithConstructor'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor
     ]
 
 KtNameReferenceExpression(410,423): 'EntryWithBody'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor.EntryWithBody
     ]
 
 KtDotQualifiedExpression(428,463): 'EnumWithConstructor.EntryWithBody.i'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val i: kotlin.Int
     ]
 
 KtDotQualifiedExpression(428,461): 'EnumWithConstructor.EntryWithBody'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor.EntryWithBody
     ]
 
 KtNameReferenceExpression(428,447): 'EnumWithConstructor'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor
     ]
 
 KtNameReferenceExpression(448,461): 'EntryWithBody'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithConstructor.EntryWithBody
     ]
 
 KtNameReferenceExpression(462,463): 'i'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val i: kotlin.Int
     ]
 
 KtDotQualifiedExpression(469,499): 'EnumWithoutConstructor.entries'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val entries: kotlin.enums.EnumEntries<EnumWithoutConstructor>
     ]
 
 KtNameReferenceExpression(469,491): 'EnumWithoutConstructor'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithoutConstructor
     ]
 
 KtNameReferenceExpression(492,499): 'entries'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val entries: kotlin.enums.EnumEntries<EnumWithoutConstructor>
     ]
 
 KtDotQualifiedExpression(504,532): 'EnumWithoutConstructor.Entry'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithoutConstructor.Entry
     ]
 
 KtNameReferenceExpression(504,526): 'EnumWithoutConstructor'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithoutConstructor
     ]
 
 KtNameReferenceExpression(527,532): 'Entry'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithoutConstructor.Entry
     ]
 
 KtDotQualifiedExpression(537,573): 'EnumWithoutConstructor.EntryWithBody'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithoutConstructor.EntryWithBody
     ]
 
 KtNameReferenceExpression(537,559): 'EnumWithoutConstructor'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithoutConstructor
     ]
 
 KtNameReferenceExpression(560,573): 'EntryWithBody'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /EnumWithoutConstructor.EntryWithBody
     ]

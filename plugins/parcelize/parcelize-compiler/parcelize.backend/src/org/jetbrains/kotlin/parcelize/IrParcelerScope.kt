@@ -7,12 +7,11 @@ package org.jetbrains.kotlin.parcelize
 
 import org.jetbrains.kotlin.ir.declarations.IrAnnotationContainer
 import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.types.IrSimpleType
-import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.getClass
-import org.jetbrains.kotlin.ir.types.typeOrNull
-import org.jetbrains.kotlin.ir.util.constructedClass
+import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.util.classId
 import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
+import org.jetbrains.kotlin.ir.util.getAllSubstitutedSupertypes
+import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.parcelize.ParcelizeNames.TYPE_PARCELER_FQ_NAMES
 import org.jetbrains.kotlin.parcelize.ParcelizeNames.WRITE_WITH_FQ_NAMES
 
@@ -29,10 +28,26 @@ class IrParcelerScope(private val parent: IrParcelerScope? = null) {
         parent?.get(type) ?: typeParcelers[type]
 }
 
-fun IrParcelerScope?.getCustomSerializer(irType: IrType): IrClass? {
-    return irType.getAnyAnnotation(WRITE_WITH_FQ_NAMES)?.let { writeWith ->
-        (writeWith.type as IrSimpleType).arguments.single().typeOrNull!!.getClass()!!
-    } ?: this?.get(irType)
+fun IrParcelerScope?.getCustomSerializer(irType: IrType): IrParcelSerializer? {
+    val writeWithArgumentType = irType.getAnyAnnotation(WRITE_WITH_FQ_NAMES)?.let { writeWith ->
+        (writeWith.type as IrSimpleType).arguments.single().typeOrNull
+    }
+    writeWithArgumentType?.getClass()?.let { parceler ->
+        val customSerializer = IrCustomParcelSerializer(parceler)
+        val parcelerSupertype = getAllSubstitutedSupertypes(parceler)
+            .first { it.classOrNull?.owner?.classId in ParcelizeNames.PARCELER_CLASS_IDS }
+        val parcelerTypeArgument = parcelerSupertype.arguments.single().typeOrFail
+        return if (irType.isNullable() && !parcelerTypeArgument.isNullable()) IrNullAwareParcelSerializer(customSerializer)
+        else customSerializer
+    }
+
+    this?.get(irType)?.let { return IrCustomParcelSerializer(it) }
+
+    return if (irType.isNullable()) {
+        this?.get(irType.makeNotNull())?.let { IrNullAwareParcelSerializer(IrCustomParcelSerializer(it)) }
+    } else {
+        null
+    }
 }
 
 fun IrParcelerScope?.hasCustomSerializer(irType: IrType): Boolean {
@@ -41,7 +56,7 @@ fun IrParcelerScope?.hasCustomSerializer(irType: IrType): Boolean {
 
 fun IrAnnotationContainer.getParcelerScope(parent: IrParcelerScope? = null): IrParcelerScope? {
     val typeParcelerAnnotations = annotations.filterTo(mutableListOf()) {
-        it.symbol.owner.constructedClass.fqNameWhenAvailable in TYPE_PARCELER_FQ_NAMES
+        it.classSymbol.owner.fqNameWhenAvailable in TYPE_PARCELER_FQ_NAMES
     }
 
     if (typeParcelerAnnotations.isEmpty())
@@ -50,7 +65,7 @@ fun IrAnnotationContainer.getParcelerScope(parent: IrParcelerScope? = null): IrP
     val scope = IrParcelerScope(parent)
 
     for (annotation in typeParcelerAnnotations) {
-        val (mappedType, parcelerType) = (annotation.type as IrSimpleType).arguments.map { it.typeOrNull!! }
+        val [mappedType, parcelerType] = (annotation.type as IrSimpleType).arguments.map { it.typeOrNull!! }
         scope.add(mappedType, parcelerType.getClass()!!)
     }
 

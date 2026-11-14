@@ -1,445 +1,149 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.fir.components
 
-import com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.KtFakeSourceElementKind
-import org.jetbrains.kotlin.KtRealSourceElementKind
-import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
-import org.jetbrains.kotlin.analysis.api.components.KaSymbolRelationProvider
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
 import org.jetbrains.kotlin.analysis.api.fir.buildSymbol
-import org.jetbrains.kotlin.analysis.api.fir.symbols.*
+import org.jetbrains.kotlin.analysis.api.fir.symbols.KaFirConstructorSymbol
+import org.jetbrains.kotlin.analysis.api.fir.symbols.KaFirNamedClassSymbol
+import org.jetbrains.kotlin.analysis.api.fir.symbols.KaFirSymbol
+import org.jetbrains.kotlin.analysis.api.fir.symbols.findSyntheticJavaPropertyAccessor
 import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.getClassLikeSymbol
+import org.jetbrains.kotlin.analysis.api.fir.toKaImplementationState
 import org.jetbrains.kotlin.analysis.api.fir.utils.firSymbol
-import org.jetbrains.kotlin.analysis.api.fir.utils.getContainingKtModule
 import org.jetbrains.kotlin.analysis.api.fir.utils.withSymbolAttachment
-import org.jetbrains.kotlin.analysis.api.impl.base.components.KaBaseSessionComponent
+import org.jetbrains.kotlin.analysis.api.internals.KaInternalsSymbolRelationProvider
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
-import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileModule
-import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResolutionMode
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.symbols.*
-import org.jetbrains.kotlin.analysis.low.level.api.fir.compile.isForeignValue
-import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.llFirSession
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.getContainingFile
-import org.jetbrains.kotlin.analysis.utils.printer.parentOfType
 import org.jetbrains.kotlin.config.LanguageFeature
-import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.analysis.checkers.getImplementationStatus
+import org.jetbrains.kotlin.fir.analysis.checkers.isSupertypeOf
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOverloadabilityHelper.ContextParameterShadowing.BothWays
-import org.jetbrains.kotlin.fir.diagnostics.ConeDestructuringDeclarationsOnTopLevel
+import org.jetbrains.kotlin.fir.languageVersionSettings
 import org.jetbrains.kotlin.fir.resolve.FirSamResolver
 import org.jetbrains.kotlin.fir.resolve.SessionHolderImpl
-import org.jetbrains.kotlin.fir.resolve.calls.FirSimpleSyntheticPropertySymbol
 import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
-import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.scopes.impl.typeAliasConstructorInfo
-import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.*
+import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.types.classId
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.toLookupTag
-import org.jetbrains.kotlin.fir.utils.exceptions.withFirSymbolEntry
-import org.jetbrains.kotlin.ir.util.kotlinPackageFqn
-import org.jetbrains.kotlin.load.java.JvmAbi
-import org.jetbrains.kotlin.load.java.getPropertyNamesCandidatesByAccessorName
+import org.jetbrains.kotlin.fir.unwrapFakeOverridesOrDelegated
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.platform.jvm.isJvm
-import org.jetbrains.kotlin.psi
-import org.jetbrains.kotlin.psi.*
-import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
-import org.jetbrains.kotlin.psi.psiUtil.parents
-import org.jetbrains.kotlin.resolve.multiplatform.ExpectActualMatchingCompatibility
-import org.jetbrains.kotlin.util.ImplementationStatus
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.analysis.api.fir.components.isDirectSubClassOf as computeIsDirectSubClassOf
+import org.jetbrains.kotlin.analysis.api.fir.components.isSubClassOf as computeIsSubClassOf
 
 internal class KaFirSymbolRelationProvider(
     override val analysisSessionProvider: () -> KaFirSession,
-) : KaBaseSessionComponent<KaFirSession>(), KaSymbolRelationProvider, KaFirSessionComponent {
-    override val KaSymbol.containingSymbol: KaSymbol?
-        get() = withValidityAssertion {
-            when (this) {
-                is KaPackageSymbol -> null
-                is KaFileSymbol -> analysisSession.firSymbolBuilder.createPackageSymbol(kotlinPackageFqn)
-                else -> containingDeclaration ?: containingFile
-            }
-        }
-
-    override val KaSymbol.containingDeclaration: KaDeclarationSymbol?
-        get() = withValidityAssertion {
-            if (!hasParentSymbol(this)) {
-                return null
-            }
-
-            getContainingDeclarationForDependentDeclaration(this)?.let { return it }
-
-            // Handle intersection overrides on synthetic properties
-            val firSymbol = (firSymbol as? FirSimpleSyntheticPropertySymbol)?.getterSymbol?.delegateFunctionSymbol
-                ?: firSymbol
-            val symbolFirSession = firSymbol.llFirSession
-            val symbolModule = symbolFirSession.ktModule
-
-            if (firSymbol is FirErrorPropertySymbol && firSymbol.diagnostic is ConeDestructuringDeclarationsOnTopLevel) {
-                return null
-            }
-
-            if (symbolModule is KaDanglingFileModule && symbolModule.resolutionMode == KaDanglingFileResolutionMode.IGNORE_SELF) {
-                if (hasParentPsi(this)) {
-                    // getSymbol(ClassId) returns a symbol from the original file, so here we avoid using it
-                    return getContainingDeclarationByPsi(this)
-                }
-            }
-
-            when (this) {
-                is KaLocalVariableSymbol,
-                is KaAnonymousFunctionSymbol,
-                is KaAnonymousObjectSymbol,
-                is KaDestructuringDeclarationSymbol,
-                    -> {
-                    return getContainingDeclarationByPsi(this)
-                }
-
-                is KaClassInitializerSymbol -> {
-                    val outerFirClassifier = firSymbol.getContainingClassSymbol()
-                    if (outerFirClassifier != null) {
-                        return firSymbolBuilder.buildSymbol(outerFirClassifier) as? KaDeclarationSymbol
-                    }
-                }
-
-                is KaCallableSymbol -> {
-                    val typeAliasForConstructor = (firSymbol as? FirConstructorSymbol)?.typeAliasConstructorInfo?.typeAliasSymbol
-                    if (typeAliasForConstructor != null) {
-                        return firSymbolBuilder.classifierBuilder.buildTypeAliasSymbol(typeAliasForConstructor)
-                    }
-
-                    val outerFirClassifier = firSymbol.getContainingClassSymbol()
-                    if (outerFirClassifier != null) {
-                        return firSymbolBuilder.buildSymbol(outerFirClassifier) as? KaDeclarationSymbol
-                    }
-
-                    if (firSymbol.origin == FirDeclarationOrigin.DynamicScope) {
-                        // A callable declaration from dynamic scope has no containing declaration as it comes from a dynamic type
-                        // which is not based on a specific classifier
-                        return null
-                    }
-                }
-
-                is KaClassLikeSymbol -> {
-                    firSymbol.getContainingClassSymbol()?.let { outerFirClassifier ->
-                        return firSymbolBuilder.buildSymbol(outerFirClassifier) as? KaDeclarationSymbol
-                    }
-                    getContainingDeclarationsForLocalClass(firSymbol, symbolFirSession)?.let { return it }
-                }
-            }
-
-            return getContainingDeclarationByPsi(this)
-        }
-
-    private fun getContainingDeclarationsForLocalClass(firSymbol: FirBasedSymbol<*>, symbolFirSession: FirSession): KaDeclarationSymbol? {
-        val fir = firSymbol.fir as? FirClassLikeDeclaration ?: return null
-        val containerSymbol = fir.containingClassForLocalAttr?.toSymbol(symbolFirSession) ?: return null
-        return firSymbolBuilder.classifierBuilder.buildClassLikeSymbol(containerSymbol)
+) : KaFirSessionComponent(), KaInternalsSymbolRelationProvider {
+    override fun containingSymbol(symbol: KaSymbol): KaSymbol? = withValidityAssertion {
+        computeContainingSymbol(symbol)
     }
 
-    private fun hasParentSymbol(symbol: KaSymbol): Boolean {
-        when (symbol) {
-            is KaReceiverParameterSymbol -> {
-                // KT-55124
-                return true
-            }
-
-            !is KaDeclarationSymbol -> {
-                // File, package, etc.
-                return false
-            }
-
-            is KaSamConstructorSymbol -> {
-                // SAM constructors are always top-level
-                return false
-            }
-
-            is KaScriptSymbol -> {
-                // Scripts are always top-level
-                return false
-            }
-
-            else -> {}
-        }
-
-        if (symbol.isTopLevel) {
-            val containingFile = (symbol.firSymbol.fir as? FirElementWithResolveState)?.getContainingFile()
-
-            @OptIn(DirectDeclarationsAccess::class)
-            if (containingFile == null || containingFile.declarations.firstOrNull() !is FirScript) {
-                // Should be replaced with proper check after KT-61451 and KT-61887
-                return false
-            }
-        }
-
-        val firSymbol = symbol.firSymbol
-        if (firSymbol is FirPropertySymbol && firSymbol.isForeignValue) {
-            return false
-        }
-
-        return true
+    override fun containingDeclaration(symbol: KaSymbol): KaDeclarationSymbol? = withValidityAssertion {
+        computeContainingDeclaration(symbol)
     }
 
-    private fun getContainingDeclarationByPsi(symbol: KaSymbol): KaDeclarationSymbol? {
-        val containingDeclaration = getContainingPsi(symbol) ?: return null
-        val declarationSymbol = with(analysisSession) { containingDeclaration.symbol }
-
-        if (declarationSymbol is KaFirEnumEntrySymbol && symbol !is KaFirEnumEntryInitializerSymbol) {
-            // From the FIR point of view, the real containing declaration of enum entry functions or implicit constructor
-            // is not the enum entry itself, but its `KaFirEnumEntryInitializerSymbol`.
-            return declarationSymbol.enumEntryInitializer
-        }
-
-        return declarationSymbol
+    override fun containingFile(symbol: KaSymbol): KaFileSymbol? = withValidityAssertion {
+        computeContainingFile(symbol)
     }
 
-    private fun getContainingDeclarationForDependentDeclaration(symbol: KaSymbol): KaDeclarationSymbol? = when (symbol) {
-        is KaReceiverParameterSymbol -> symbol.owningCallableSymbol
-        is KaBackingFieldSymbol -> symbol.owningProperty
-        is KaPropertyAccessorSymbol -> firSymbolBuilder.buildSymbol(symbol.firSymbol.propertySymbol) as KaDeclarationSymbol
-        is KaTypeParameterSymbol -> firSymbolBuilder.buildSymbol(symbol.firSymbol.containingDeclarationSymbol) as? KaDeclarationSymbol
-        is KaValueParameterSymbol -> firSymbolBuilder.buildSymbol(symbol.firSymbol.containingDeclarationSymbol) as? KaDeclarationSymbol
-        is KaContextParameterSymbol -> {
-            val containingFirSymbol = symbol.firSymbol.containingDeclarationSymbol
-            val firSymbol = if (containingFirSymbol is FirDanglingModifierSymbol) {
-                containingFirSymbol.getContainingClassSymbol()
-                    ?: containingFirSymbol.fir.getContainingFile()?.symbol
-                    ?: errorWithAttachment("Containing element is expected for the dangling modifier symbol") {
-                        withSymbolAttachment("symbolForContainingPsi", analysisSession, symbol)
-                        withFirSymbolEntry("containingFirSymbol", containingFirSymbol)
-                    }
-            } else {
-                containingFirSymbol
-            }
-
-            firSymbolBuilder.buildSymbol(firSymbol) as? KaDeclarationSymbol
-        }
-        else -> null
+    override fun containingModule(symbol: KaSymbol): KaModule = withValidityAssertion {
+        computeContainingModule(symbol)
     }
 
-    override val KaSymbol.containingFile: KaFileSymbol?
-        get() = withValidityAssertion {
-            if (this is KaFileSymbol) {
-                return null
-            }
-
-            val firFileSymbol = this.firSymbol.fir.getContainingFile()?.symbol ?: return null
-            return firSymbolBuilder.buildFileSymbol(firFileSymbol)
-        }
-
-    override val KaSymbol.containingModule: KaModule
-        get() = withValidityAssertion {
-            getContainingKtModule(analysisSession.resolutionFacade)
-        }
-
-    private fun getContainingPsi(symbol: KaSymbol): KtDeclaration? {
-        val source = symbol.firSymbol.source
-            ?: errorWithAttachment("PSI should present for declaration built by Kotlin code") {
-                withSymbolAttachment("symbolForContainingPsi", analysisSession, symbol)
-            }
-
-        getContainingPsiForFakeSource(source)?.let { return it }
-
-        val psi = source.psi
-            ?: errorWithAttachment("PSI not found for source kind '${source.kind}'") {
-                withSymbolAttachment("symbolForContainingPsi", analysisSession, symbol)
-            }
-
-        if (source.kind != KtRealSourceElementKind) {
-            errorWithAttachment("Cannot compute containing PSI for unknown source kind '${source.kind}' (${psi::class.simpleName})") {
-                withSymbolAttachment("symbolForContainingPsi", analysisSession, symbol)
-            }
-        }
-
-        if (isSyntheticSymbolWithParentSource(symbol)) {
-            return psi as KtDeclaration
-        }
-
-        if (isOrdinarySymbolWithSource(symbol)) {
-            val result = psi.getContainingPsiDeclaration()
-
-            if (result == null) {
-                val containingFile = psi.containingFile
-                if (containingFile is KtCodeFragment) {
-                    // All content inside a code fragment is implicitly local, but there is no non-local parent
-                    return null
-                }
-
-                if (psi.parentOfType<KtModifierList>() != null) {
-                    // Invalid code: the declaration is nested inside a dangling annotation
-                    return null
-                }
-
-                errorWithAttachment("Containing declaration should present for nested declaration ${psi::class}") {
-                    withSymbolAttachment("symbolForContainingPsi", analysisSession, symbol)
-                }
-            }
-
-            return result
-        }
-
-        errorWithAttachment("Unsupported declaration origin ${symbol.origin} ${psi::class}") {
-            withSymbolAttachment("symbolForContainingPsi", analysisSession, symbol)
+    override fun samConstructor(symbol: KaClassLikeSymbol): KaSamConstructorSymbol? = withValidityAssertion {
+        val classId = symbol.classId ?: return null
+        val owner = analysisSession.getClassLikeSymbol(classId) ?: return null
+        val firSession = analysisSession.firSession
+        val resolver = FirSamResolver(firSession, analysisSession.getScopeSessionFor(firSession))
+        return resolver.getSamConstructor(owner)?.let {
+            analysisSession.firSymbolBuilder.functionBuilder.buildSamConstructorSymbol(it.symbol)
         }
     }
 
-    private fun hasParentPsi(symbol: KaSymbol): Boolean {
-        val source = symbol.firSymbol.source?.takeIf { it.psi is KtElement } ?: return false
-
-        return getContainingPsiForFakeSource(source) != null
-                || isSyntheticSymbolWithParentSource(symbol)
-                || isOrdinarySymbolWithSource(symbol)
+    override fun functionalInterfaceFunction(symbol: KaClassLikeSymbol): KaNamedFunctionSymbol? = withValidityAssertion {
+        val classId = symbol.classId ?: return null
+        val firClassOrTypeAlias = analysisSession.getClassLikeSymbol(classId) ?: return null
+        val firSession = analysisSession.firSession
+        val resolver = FirSamResolver(firSession, analysisSession.getScopeSessionFor(firSession))
+        val samFunction = resolver.getSamFunction(firClassOrTypeAlias) ?: return null
+        return analysisSession.firSymbolBuilder.functionBuilder.buildNamedFunctionSymbol(samFunction)
     }
 
-    private fun isSyntheticSymbolWithParentSource(symbol: KaSymbol): Boolean {
-        return when (symbol.origin) {
-            KaSymbolOrigin.SOURCE_MEMBER_GENERATED -> true
-            else -> false
+    override fun functionalInterface(symbol: KaSamConstructorSymbol): KaClassLikeSymbol = withValidityAssertion {
+        symbol.firSymbol.fir.returnTypeRef.coneType.classId?.toLookupTag()?.let {
+            analysisSession.firSymbolBuilder.classifierBuilder.buildClassLikeSymbolByLookupTag(it)
+        } ?: errorWithAttachment("Cannot retrieve functional interface for KaSamConstructorSymbol") {
+            withSymbolAttachment("KaSamConstructorSymbol", analysisSession, symbol)
         }
     }
 
-    private fun isOrdinarySymbolWithSource(symbol: KaSymbol): Boolean {
-        return symbol.origin == KaSymbolOrigin.SOURCE
-                || symbol.firSymbol.fir.origin == FirDeclarationOrigin.ScriptCustomization.ResultProperty
-    }
-
-    private fun getContainingPsiForFakeSource(source: KtSourceElement): KtDeclaration? {
-        return when (source.kind) {
-            KtFakeSourceElementKind.ImplicitConstructor -> source.psi as KtDeclaration
-            KtFakeSourceElementKind.PropertyFromParameter -> source.psi?.parentOfType<KtPrimaryConstructor>()!!
-            KtFakeSourceElementKind.EnumInitializer -> source.psi as KtEnumEntry
-            KtFakeSourceElementKind.EnumGeneratedDeclaration -> source.psi as KtDeclaration
-            KtFakeSourceElementKind.ScriptParameter -> source.psi as KtScript
-            KtFakeSourceElementKind.DataClassGeneratedMembers -> when (val source = source.psi) {
-                is KtClassOrObject -> {
-                    // for generated `equals`, `hashCode`, `toString` methods the source is the containing `KtClass`
-                    source
-                }
-                is KtParameter -> {
-                    // for `componentN` functions, the source points to the parameter by which the `componentN` function was generated
-                    val constructor = source.ownerFunction as KtPrimaryConstructor
-                    constructor.containingClassOrObject!!
-                }
-                is KtPrimaryConstructor -> {
-                    source.containingClassOrObject!!
-                }
-                else -> null
+    override fun functionalInterfaceFunction(symbol: KaSamConstructorSymbol): KaNamedFunctionSymbol = withValidityAssertion {
+        functionalInterfaceFunction(functionalInterface(symbol))
+            ?: errorWithAttachment("SAM constructor should have a corresponding function in its functional interface") {
+                withSymbolAttachment("KaSamConstructorSymbol", analysisSession, symbol)
+                withSymbolAttachment("functionalInterface", analysisSession, functionalInterface(symbol))
             }
-            else -> null
-        }
     }
-
-    private fun PsiElement.getContainingPsiDeclaration(): KtDeclaration? {
-        for (parent in parents) {
-            if (parent is KtDeclaration && parent !is KtDestructuringDeclaration) {
-                return parent
-            }
-        }
-
-        return null
-    }
-
-    override val KaClassLikeSymbol.samConstructor: KaSamConstructorSymbol?
-        get() = withValidityAssertion {
-            val classId = classId ?: return null
-            val owner = analysisSession.getClassLikeSymbol(classId) ?: return null
-            val firSession = analysisSession.firSession
-            val resolver = FirSamResolver(firSession, analysisSession.getScopeSessionFor(firSession))
-            return resolver.getSamConstructor(owner)?.let {
-                analysisSession.firSymbolBuilder.functionBuilder.buildSamConstructorSymbol(it.symbol)
-            }
-        }
-
-    override val KaClassLikeSymbol.functionalInterfaceFunction: KaNamedFunctionSymbol?
-        get() = withValidityAssertion {
-            val classId = classId ?: return null
-            val firClassOrTypeAlias = analysisSession.getClassLikeSymbol(classId) ?: return null
-            val firSession = analysisSession.firSession
-            val resolver = FirSamResolver(firSession, analysisSession.getScopeSessionFor(firSession))
-            val samFunction = resolver.getSamFunction(firClassOrTypeAlias) ?: return null
-            return analysisSession.firSymbolBuilder.functionBuilder.buildNamedFunctionSymbol(samFunction)
-        }
-
-    override val KaSamConstructorSymbol.functionalInterface: KaClassLikeSymbol
-        get() = withValidityAssertion {
-            firSymbol.fir.returnTypeRef.coneType.classId?.toLookupTag()?.let {
-                analysisSession.firSymbolBuilder.classifierBuilder.buildClassLikeSymbolByLookupTag(it)
-            } ?: errorWithAttachment("Cannot retrieve functional interface for KaSamConstructorSymbol") {
-                withSymbolAttachment("KaSamConstructorSymbol", analysisSession, this@functionalInterface)
-            }
-        }
-
-    override val KaSamConstructorSymbol.functionalInterfaceFunction: KaNamedFunctionSymbol
-        get() = withValidityAssertion {
-            functionalInterface.functionalInterfaceFunction
-                ?: errorWithAttachment("SAM constructor should have a corresponding function in its functional interface") {
-                    withSymbolAttachment("KaSamConstructorSymbol", analysisSession, this@functionalInterfaceFunction)
-                    withSymbolAttachment("functionalInterface", analysisSession, functionalInterface)
-                }
-        }
 
     @KaExperimentalApi
-    override val KaConstructorSymbol.originalConstructorIfTypeAliased: KaConstructorSymbol?
-        get() = withValidityAssertion {
-            require(this is KaFirConstructorSymbol)
+    override fun originalConstructorIfTypeAliased(symbol: KaConstructorSymbol): KaConstructorSymbol? = withValidityAssertion {
+        require(symbol is KaFirConstructorSymbol)
 
-            val originalConstructor = firSymbol.typeAliasConstructorInfo?.originalConstructor as? FirConstructor ?: return null
+        val originalConstructor = symbol.firSymbol.typeAliasConstructorInfo?.originalConstructor as? FirConstructor ?: return null
 
-            analysisSession.firSymbolBuilder.functionBuilder.buildConstructorSymbol(originalConstructor.symbol)
-        }
-
-    override val KaCallableSymbol.allOverriddenSymbols: Sequence<KaCallableSymbol>
-        get() = withValidityAssertion {
-            handleOverriddenSymbols(
-                forAccessorSymbol = { getAllOverriddenAccessorSymbols(it) },
-                fallback = { getAllOverriddenSymbols(it) },
-            )
-        }
-
-    override val KaCallableSymbol.directlyOverriddenSymbols: Sequence<KaCallableSymbol>
-        get() = withValidityAssertion {
-            handleOverriddenSymbols(
-                forAccessorSymbol = { getDirectlyOverriddenAccessorSymbols(it) },
-                fallback = { getDirectlyOverriddenSymbols(it) },
-            )
-        }
-
-    override fun KaClassSymbol.isSubClassOf(superClass: KaClassSymbol): Boolean = withValidityAssertion {
-        return isSubClassOf(this, superClass)
+        analysisSession.firSymbolBuilder.functionBuilder.buildConstructorSymbol(originalConstructor.symbol)
     }
 
-    override fun KaClassSymbol.isDirectSubClassOf(superClass: KaClassSymbol): Boolean = withValidityAssertion {
-        return isDirectSubClassOf(this, superClass)
+    override fun allOverriddenSymbols(symbol: KaCallableSymbol): Sequence<KaCallableSymbol> = withValidityAssertion {
+        symbol.handleOverriddenSymbols(
+            forAccessorSymbol = { getAllOverriddenAccessorSymbols(it) },
+            fallback = { getAllOverriddenSymbols(it) },
+        )
+    }
+
+    override fun directlyOverriddenSymbols(symbol: KaCallableSymbol): Sequence<KaCallableSymbol> = withValidityAssertion {
+        symbol.handleOverriddenSymbols(
+            forAccessorSymbol = { getDirectlyOverriddenAccessorSymbols(it) },
+            fallback = { getDirectlyOverriddenSymbols(it) },
+        )
+    }
+
+    override fun isSubClassOf(symbol: KaClassSymbol, superClass: KaClassSymbol): Boolean = withValidityAssertion {
+        return computeIsSubClassOf(symbol, superClass)
+    }
+
+    override fun isDirectSubClassOf(symbol: KaClassSymbol, superClass: KaClassSymbol): Boolean = withValidityAssertion {
+        return computeIsDirectSubClassOf(symbol, superClass)
     }
 
     private inline fun KaCallableSymbol.handleOverriddenSymbols(
         forAccessorSymbol: (KaPropertyAccessorSymbol) -> Sequence<KaCallableSymbol>,
         fallback: (KaCallableSymbol) -> Sequence<KaCallableSymbol>,
     ): Sequence<KaCallableSymbol> = when (this) {
-        is KaValueParameterSymbol -> this.generatedPrimaryConstructorProperty?.let(fallback).orEmpty()
+        is KaValueParameterSymbol -> this.primaryConstructorProperty?.let(fallback).orEmpty()
         is KaPropertyAccessorSymbol -> forAccessorSymbol(this)
         is KaNamedFunctionSymbol -> getSyntheticJavaPropertyAccessor(this)?.let(forAccessorSymbol) ?: fallback(this)
         else -> fallback(this)
     }
 
-    override val KaCallableSymbol.intersectionOverriddenSymbols: List<KaCallableSymbol>
-        get() = withValidityAssertion {
-            handleOverriddenSymbols(
-                forAccessorSymbol = { getIntersectionOverriddenAccessorSymbols(it).asSequence() },
-                fallback = { getIntersectionOverriddenSymbols(it).asSequence() },
-            ).toList()
-        }
+    override fun intersectionOverriddenSymbols(symbol: KaCallableSymbol): List<KaCallableSymbol> = withValidityAssertion {
+        symbol.handleOverriddenSymbols(
+            forAccessorSymbol = { getIntersectionOverriddenAccessorSymbols(it).asSequence() },
+            fallback = { getIntersectionOverriddenSymbols(it).asSequence() },
+        ).toList()
+    }
 
     /**
      * Finds the synthetic property accessor corresponding to the given Java getter or setter method.
@@ -457,147 +161,172 @@ internal class KaFirSymbolRelationProvider(
      */
     private fun getSyntheticJavaPropertyAccessor(functionSymbol: KaNamedFunctionSymbol): KaPropertyAccessorSymbol? {
         val origin = functionSymbol.origin
-        if (origin != KaSymbolOrigin.JAVA_SOURCE && origin != KaSymbolOrigin.JAVA_LIBRARY) return null
+        if (!origin.isFromJava) return null
 
-        val accessorName = functionSymbol.name
-        val accessorNameAsString = accessorName.asString()
-        val isGetter = JvmAbi.isGetterName(accessorNameAsString)
-        val isSetter = JvmAbi.isSetterName(accessorNameAsString)
-        if (!isGetter && !isSetter) return null
-
-        with(analysisSession) {
+        return with(analysisSession) {
             val containingClass = functionSymbol.containingDeclaration as? KaClassSymbol ?: return null
-            val propertyNames = getPropertyNamesCandidatesByAccessorName(accessorName)
-            for (propertyName in propertyNames) {
-                for (callable in containingClass.combinedDeclaredMemberScope.callables(propertyName)) {
-                    val propertySymbol = callable as? KaSyntheticJavaPropertySymbol ?: continue
-
-                    if (isGetter && propertySymbol.javaGetterSymbol == functionSymbol) {
-                        return propertySymbol.getter
-                    } else if (isSetter && propertySymbol.javaSetterSymbol == functionSymbol) {
-                        return propertySymbol.setter
-                    }
-                }
-            }
-        }
-
-        return null
-    }
-
-    override fun KaCallableSymbol.getImplementationStatus(parentClassSymbol: KaClassSymbol): ImplementationStatus? {
-        withValidityAssertion {
-            if (this is KaReceiverParameterSymbol) return null
-
-            require(this is KaFirSymbol<*>)
-            require(parentClassSymbol is KaFirSymbol<*>)
-
-            // Inspecting implementation status requires resolving to status
-            val memberFir = firSymbol.fir as? FirCallableDeclaration ?: return null
-            val parentClassFir = parentClassSymbol.firSymbol.fir as? FirClass ?: return null
-            memberFir.lazyResolveToPhase(FirResolvePhase.STATUS)
-
-            val scopeSession = analysisSession.getScopeSessionFor(analysisSession.firSession)
-            return with(SessionHolderImpl(rootModuleSession, scopeSession)) {
-                memberFir.symbol.getImplementationStatus(parentClassFir.symbol)
-            }
-        }
-    }
-
-    override val KaCallableSymbol.fakeOverrideOriginal: KaCallableSymbol
-        get() = withValidityAssertion {
-            if (this is KaReceiverParameterSymbol) return this
-
-            require(this is KaFirSymbol<*>)
-
-            val originalDeclaration = firSymbol.fir as FirCallableDeclaration
-            val unwrappedDeclaration = originalDeclaration.unwrapFakeOverridesOrDelegated()
-
-            return unwrappedDeclaration.buildSymbol(analysisSession.firSymbolBuilder) as KaCallableSymbol
-        }
-
-    override fun KaDeclarationSymbol.getExpectsForActual(): List<KaDeclarationSymbol> = withValidityAssertion {
-        if (this is KaReceiverParameterSymbol) {
-            val owningExpectSymbols =
-                this.owningCallableSymbol.firSymbol.expectForActual?.get(ExpectActualMatchingCompatibility.MatchedSuccessfully).orEmpty()
-            return owningExpectSymbols
-                .filterIsInstance<FirCallableSymbol<*>>()
-                .mapNotNull { callableSymbol ->
-                    callableSymbol.receiverParameterSymbol?.let {
-                        analysisSession.firSymbolBuilder.callableBuilder.buildExtensionReceiverSymbol(it)
+            containingClass.combinedDeclaredMemberScope
+                .findSyntheticJavaPropertyAccessor(functionSymbol.name) { propertySymbol, accessorKind, _ ->
+                    if (accessorKind.getJavaAccessorSymbol(propertySymbol) == functionSymbol) {
+                        accessorKind.getPropertyAccessorSymbol(propertySymbol)
+                    } else {
+                        null
                     }
                 }
         }
-
-        require(this is KaFirSymbol<*>)
-        val firSymbol = firSymbol
-        if (firSymbol !is FirCallableSymbol && firSymbol !is FirClassSymbol && firSymbol !is FirTypeAliasSymbol) {
-            return emptyList()
-        }
-
-        return firSymbol.expectForActual?.get(ExpectActualMatchingCompatibility.MatchedSuccessfully)
-            ?.map { analysisSession.firSymbolBuilder.buildSymbol(it) as KaDeclarationSymbol }.orEmpty()
     }
 
-    override val KaNamedClassSymbol.sealedClassInheritors: List<KaNamedClassSymbol>
-        get() = withValidityAssertion {
-            require(modality == KaSymbolModality.SEALED)
-            require(this is KaFirNamedClassSymbol)
+    override fun implementationState(
+        symbol: KaCallableSymbol,
+        implementerClassSymbol: KaClassSymbol,
+    ): KaCallableImplementationState? = withValidityAssertion {
+        require(symbol is KaFirSymbol<*>)
+        require(implementerClassSymbol is KaFirSymbol<*>)
 
-            val inheritorClassIds = firSymbol.fir.getSealedClassInheritors(analysisSession.firSession)
+        when (symbol) {
+            is KaNamedFunctionSymbol, is KaPropertySymbol, is KaPropertyAccessorSymbol -> {
+                val memberFirSymbol = symbol.firSymbol as? FirCallableSymbol<*> ?: return null
 
-            return with(analysisSession) {
-                inheritorClassIds.mapNotNull { findClass(it) as? KaNamedClassSymbol }
+                val memberClassFirSymbol = memberFirSymbol.getContainingClassSymbol() as? FirClassSymbol<*> ?: return null
+                memberClassFirSymbol.lazyResolveToPhase(FirResolvePhase.SUPER_TYPES)
+
+                val implementerClassFirSymbol = implementerClassSymbol.firSymbol as? FirClassSymbol<*> ?: return null
+                implementerClassFirSymbol.lazyResolveToPhase(FirResolvePhase.SUPER_TYPES)
+
+                if (
+                    memberClassFirSymbol != implementerClassFirSymbol &&
+                    !memberClassFirSymbol.isSupertypeOf(implementerClassFirSymbol, rootModuleSession)
+                ) {
+                    return null
+                }
+
+                memberFirSymbol.lazyResolveToPhase(FirResolvePhase.STATUS)
+
+                val scopeSession = analysisSession.getScopeSessionFor(analysisSession.firSession)
+                with(SessionHolderImpl(rootModuleSession, scopeSession)) {
+                    return memberFirSymbol.getImplementationStatus(implementerClassFirSymbol).toKaImplementationState()
+                }
+            }
+            else -> {
+                return null
             }
         }
+    }
 
-    override fun KaFunctionSymbol.hasConflictingSignatureWith(other: KaFunctionSymbol, targetPlatform: TargetPlatform): Boolean =
-        withValidityAssertion {
-            val thisFirSymbol = firSymbol
-            val otherFirSymbol = other.firSymbol
+    override fun fakeOverrideOriginal(symbol: KaCallableSymbol): KaCallableSymbol = withValidityAssertion {
+        require(symbol is KaFirSymbol<*>)
+        if (symbol is KaLocalVariableSymbol ||
+            symbol is KaEnumEntrySymbol ||
+            symbol is KaConstructorSymbol ||
+            symbol is KaSamConstructorSymbol ||
+            symbol is KaAnonymousFunctionSymbol
+        ) {
+            return symbol
+        }
 
-            val thisHasLowPriority = hasLowPriorityAnnotation(thisFirSymbol.resolvedAnnotationsWithClassIds)
-            val otherHasLowPriority = hasLowPriorityAnnotation(otherFirSymbol.resolvedAnnotationsWithClassIds)
-            if (thisHasLowPriority != otherHasLowPriority) {
+        // Fake-override attributes are placed on the first-class callables, not on their sub-callables (e.g., value parameters).
+        // So for such callables we unwrap the enclosing callable and return the corresponding sub-callable from the base declaration.
+        return when (symbol) {
+            is KaReceiverParameterSymbol -> {
+                val original = fakeOverrideOriginal(symbol.owningCallableSymbol)
+                original.receiverParameter
+            }
+            is KaValueParameterSymbol -> {
+                val owner = containingDeclaration(symbol) as? KaFunctionSymbol ?: return symbol
+                val index = owner.valueParameters.indexOf(symbol)
+                val original = fakeOverrideOriginal(owner) as? KaFunctionSymbol
+                original?.valueParameters?.getOrNull(index)
+            }
+            is KaContextParameterSymbol -> {
+                val owner = containingDeclaration(symbol) as? KaCallableSymbol ?: return symbol
+                val index = owner.contextParameters.indexOf(symbol)
+                val original = fakeOverrideOriginal(owner)
+                original.contextParameters.getOrNull(index)
+            }
+            is KaPropertyAccessorSymbol -> {
+                val owner = containingDeclaration(symbol) as? KaPropertySymbol ?: return symbol
+                val original = fakeOverrideOriginal(owner) as? KaPropertySymbol ?: return symbol
+                if (symbol is KaPropertyGetterSymbol) {
+                    original.getter
+                } else {
+                    original.setter
+                }
+            }
+            else -> {
+                val originalDeclaration = symbol.firSymbol.fir as FirCallableDeclaration
+                val unwrappedDeclaration = originalDeclaration.unwrapFakeOverridesOrDelegated()
+                unwrappedDeclaration.buildSymbol(analysisSession.firSymbolBuilder) as KaCallableSymbol
+            }
+        } ?: symbol
+    }
+
+
+    override fun getExpectsForActual(symbol: KaDeclarationSymbol): List<KaDeclarationSymbol> = withValidityAssertion {
+        computeExpectsForActual(symbol)
+    }
+
+    override fun sealedClassInheritors(symbol: KaNamedClassSymbol): List<KaNamedClassSymbol> = withValidityAssertion {
+        require(symbol.modality == KaSymbolModality.SEALED)
+        require(symbol is KaFirNamedClassSymbol)
+
+        val inheritorClassIds = symbol.firSymbol.fir.getSealedClassInheritors(analysisSession.firSession)
+
+        return with(analysisSession) {
+            inheritorClassIds.mapNotNull { findClass(it) as? KaNamedClassSymbol }
+        }
+    }
+
+    override fun hasConflictingSignatureWith(
+        symbol: KaFunctionSymbol,
+        other: KaFunctionSymbol,
+        targetPlatform: TargetPlatform,
+    ): Boolean = withValidityAssertion {
+        val thisFirSymbol = symbol.firSymbol
+        val otherFirSymbol = other.firSymbol
+
+        val thisHasLowPriority = hasLowPriorityAnnotation(thisFirSymbol.resolvedAnnotationsWithClassIds)
+        val otherHasLowPriority = hasLowPriorityAnnotation(otherFirSymbol.resolvedAnnotationsWithClassIds)
+        if (thisHasLowPriority != otherHasLowPriority) {
+            return false
+        }
+
+        /**
+         * [FirDeclarationOverloadabilityHelper] performs signature comparison only from JVM platform perspective.
+         * However, as the API needs to be more generic than that, here we perform manual signature comparison
+         * before calling [FirDeclarationOverloadabilityHelper].
+         * This is done to handle cases which are considered conflicting on JVM but completely valid on other platforms:
+         * - Overloads by type parameters
+         * ```kotlin
+         * fun <T> foo() // Conflicting on JVM, valid on other platforms
+         * fun foo()
+         * ```
+         * - Overloads by vararg/array parameters
+         * ```kotlin
+         * fun foo(vararg ints: Int) // Conflicting on JVM, valid on other platforms
+         * fun foo(ints: IntArray)
+         * ```
+         */
+        if (!targetPlatform.isJvm()) {
+            if (thisFirSymbol.typeParameterSymbols.isEmpty() != otherFirSymbol.typeParameterSymbols.isEmpty()) {
                 return false
             }
 
-            /**
-             * [FirDeclarationOverloadabilityHelper] performs signature comparison only from JVM platform perspective.
-             * However, as the API needs to be more generic than that, here we perform manual signature comparison
-             * before calling [FirDeclarationOverloadabilityHelper].
-             * This is done to handle cases which are considered conflicting on JVM but completely valid on other platforms:
-             * - Overloads by type parameters
-             * ```kotlin
-             * fun <T> foo() // Conflicting on JVM, valid on other platforms
-             * fun foo()
-             * ```
-             * - Overloads by vararg/array parameters
-             * ```kotlin
-             * fun foo(vararg ints: Int) // Conflicting on JVM, valid on other platforms
-             * fun foo(ints: IntArray)
-             * ```
-             */
-            if (!targetPlatform.isJvm()) {
-                if (thisFirSymbol.typeParameterSymbols.isEmpty() != otherFirSymbol.typeParameterSymbols.isEmpty()) {
-                    return false
-                }
-
-                val thisVarargParameterPosition = valueParameters.indexOfFirst { it.isVararg }
-                val otherVarargParameterPosition = other.valueParameters.indexOfFirst { it.isVararg }
-                if (thisVarargParameterPosition != otherVarargParameterPosition) {
-                    return false
-                }
-            }
-
-            val overloadabilityHelper = analysisSession.firSession.declarationOverloadabilityHelper
-
-            return if (analysisSession.firSession.languageVersionSettings.supportsFeature(LanguageFeature.ContextParameters)) {
-                overloadabilityHelper.getContextParameterShadowing(thisFirSymbol, otherFirSymbol) == BothWays
-            } else {
-                overloadabilityHelper.isConflicting(
-                    thisFirSymbol,
-                    otherFirSymbol,
-                )
+            val thisVarargParameterPosition = symbol.valueParameters.indexOfFirst { it.isVararg }
+            val otherVarargParameterPosition = other.valueParameters.indexOfFirst { it.isVararg }
+            if (thisVarargParameterPosition != otherVarargParameterPosition) {
+                return false
             }
         }
+
+        val overloadabilityHelper = analysisSession.firSession.declarationOverloadabilityHelper
+
+        return if (analysisSession.firSession.languageVersionSettings.supportsFeature(LanguageFeature.ContextParameters)) {
+            overloadabilityHelper.getContextParameterShadowing(thisFirSymbol, otherFirSymbol) == BothWays
+        } else {
+            overloadabilityHelper.isConflicting(
+                thisFirSymbol,
+                otherFirSymbol,
+            )
+        }
+    }
 }

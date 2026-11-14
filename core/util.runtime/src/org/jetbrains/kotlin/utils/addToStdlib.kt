@@ -1,7 +1,9 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+
+@file:OptIn(ExperimentalContracts::class, ExperimentalExtendedContracts::class)
 
 package org.jetbrains.kotlin.utils.addToStdlib
 
@@ -12,6 +14,10 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.AbstractMap
 import kotlin.collections.AbstractSet
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.ExperimentalExtendedContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 import kotlin.reflect.KMutableProperty0
 
 inline fun <reified T : Any> Sequence<*>.firstIsInstanceOrNull(): T? {
@@ -52,6 +58,24 @@ inline fun <reified T> Iterable<*>.filterIsInstanceWithChecker(additionalChecker
         }
     }
     return result
+}
+
+@OptIn(ExperimentalContracts::class)
+inline fun <reified T> requireIsInstance(obj: Any) {
+    contract {
+        returns() implies (obj is T)
+    }
+
+    require(obj is T) { "Expected ${T::class} instead of ${obj::class} for $obj" }
+}
+
+@OptIn(ExperimentalContracts::class)
+inline fun <reified T> checkIsInstance(obj: Any) {
+    contract {
+        returns() implies (obj is T)
+    }
+
+    check(obj is T) { "Expected ${T::class} instead of ${obj::class} for $obj" }
 }
 
 fun <T> Iterator<T>.nextOrNull(): T? = if (hasNext()) next() else null
@@ -204,6 +228,8 @@ inline fun <T> Iterable<T>.sumByLong(selector: (T) -> Long): Long {
     return sum
 }
 
+fun <T, C : Collection<T>> C.takeIfNotEmpty(): C? = ifEmpty { null }
+
 inline fun <T, C : Collection<T>, O> C.ifNotEmpty(body: C.() -> O?): O? = if (isNotEmpty()) this.body() else null
 
 inline fun <T, O> Array<out T>.ifNotEmpty(body: Array<out T>.() -> O?): O? = if (isNotEmpty()) this.body() else null
@@ -242,10 +268,29 @@ inline fun <T, R> Iterable<T>.same(extractor: (T) -> R): Boolean {
     return true
 }
 
-inline fun <R> runIf(condition: Boolean, block: () -> R): R? = if (condition) block() else null
-inline fun <R> runUnless(condition: Boolean, block: () -> R): R? = if (condition) null else block()
+inline fun <R> runIf(condition: Boolean, block: () -> R): R? {
+    contract {
+        condition.holdsIn(block)
+        callsInPlace(block, InvocationKind.AT_MOST_ONCE)
+    }
+    return if (condition) block() else null
+}
 
-inline fun <A : B, B> A.butIf(condition: Boolean, block: (A) -> B): B = if (condition) block(this) else this
+inline fun <R> runUnless(condition: Boolean, block: () -> R): R? {
+    contract {
+        (!condition).holdsIn(block)
+        callsInPlace(block, InvocationKind.AT_MOST_ONCE)
+    }
+    return if (condition) null else block()
+}
+
+inline fun <A : B, B> A.butIf(condition: Boolean, block: (A) -> B): B {
+    contract {
+        condition.holdsIn(block)
+        callsInPlace(block, InvocationKind.AT_MOST_ONCE)
+    }
+    return if (condition) block(this) else this
+}
 
 inline fun <T, R> Collection<T>.foldMap(transform: (T) -> R, operation: (R, R) -> R): R {
     val iterator = iterator()
@@ -286,15 +331,30 @@ fun <K, V> Map<K, V>.compactIfPossible(): Map<K, V> =
         else -> this
     }
 
-inline fun <T, R : T> R.applyIf(`if`: Boolean, body: R.() -> T): T =
-    if (`if`) body() else this
+inline fun <T, R : T> R.applyIf(`if`: Boolean, body: R.() -> T): T {
+    contract {
+        `if`.holdsIn(body)
+        callsInPlace(body, InvocationKind.AT_MOST_ONCE)
+    }
+    return if (`if`) body() else this
+}
 
 
-inline fun <T> Boolean.ifTrue(body: () -> T?): T? =
-    if (this) body() else null
+inline fun <T> Boolean.ifTrue(body: () -> T?): T? {
+    contract {
+        this@ifTrue.holdsIn(body)
+        callsInPlace(body, InvocationKind.AT_MOST_ONCE)
+    }
+    return if (this) body() else null
+}
 
-inline fun <T> Boolean.ifFalse(body: () -> T?): T? =
-    if (!this) body() else null
+inline fun <T> Boolean.ifFalse(body: () -> T?): T? {
+    contract {
+        (!this@ifFalse).holdsIn(body)
+        callsInPlace(body, InvocationKind.AT_MOST_ONCE)
+    }
+    return if (!this) body() else null
+}
 
 inline fun <T, K> List<T>.flatGroupBy(keySelector: (T) -> Collection<K>): Map<K, List<T>> {
     return flatGroupBy(keySelector, keyTransformer = { it }, valueTransformer = { it })
@@ -330,6 +390,14 @@ inline fun <T, K> List<T>.flatAssociateBy(selector: (T) -> Collection<K>): Map<K
                 put(key, value)
             }
         }
+    }
+}
+
+inline fun <reified R> Iterable<*>.eachIsInstanceOrNull(): Iterable<R>? {
+    @Suppress("UNCHECKED_CAST")
+    return when {
+        all { it is R } -> this as Iterable<R>
+        else -> null
     }
 }
 
@@ -500,5 +568,27 @@ class ChainedIterator<T>(delegates: Collection<Iterator<T>>) : Iterator<T> {
     override fun next(): T {
         promote()
         return currentIterator?.next() ?: throw NoSuchElementException()
+    }
+}
+
+fun <T> Iterator<T>.skipNext() {
+    // util.runtime is compiled with the language-version=2.2
+    // will be changed to val _ = next() once the module is compiled with >= 2.5
+    next()
+}
+
+inline fun <T, K> Iterable<T>.forEachZipped(other: Iterable<K>, transform: (T, K) -> Unit) {
+    val first = iterator()
+    val second = other.iterator()
+    while (first.hasNext() && second.hasNext()) {
+        transform(first.next(), second.next())
+    }
+}
+
+inline fun <T, K> Array<out T>.forEachZipped(other: Iterable<K>, transform: (T, K) -> Unit) {
+    val second = other.iterator()
+    for (first in this) {
+        if (!second.hasNext()) break
+        transform(first, second.next())
     }
 }

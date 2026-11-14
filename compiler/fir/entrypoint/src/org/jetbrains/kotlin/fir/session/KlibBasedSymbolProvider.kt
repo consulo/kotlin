@@ -16,14 +16,14 @@ import org.jetbrains.kotlin.fir.scopes.FirKotlinScopeProvider
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.components.metadata
 import org.jetbrains.kotlin.library.metadata.KlibDeserializedContainerSource
+import org.jetbrains.kotlin.library.metadata.KlibMetadataProtoBuf
 import org.jetbrains.kotlin.library.metadata.getIncompatibility
 import org.jetbrains.kotlin.library.metadata.parseModuleHeader
 import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.serialization.deserialization.IncompatibleVersionErrorData
-import org.jetbrains.kotlin.util.toKlibMetadataVersion
+import org.jetbrains.kotlin.util.toMetadataVersion
 import org.jetbrains.kotlin.utils.SmartList
-import java.nio.file.Paths
 
 class KlibBasedSymbolProvider(
     session: FirSession,
@@ -40,7 +40,7 @@ class KlibBasedSymbolProvider(
     defaultDeserializationOrigin,
     metadataProvider = { it.metadata },
 ) {
-    private val ownMetadataVersion: MetadataVersion = session.languageVersionSettings.languageVersion.toKlibMetadataVersion()
+    private val ownMetadataVersion: MetadataVersion = session.languageVersionSettings.languageVersion.toMetadataVersion()
 
     private val KotlinLibrary.incompatibility: IncompatibleVersionErrorData<MetadataVersion>?
         get() {
@@ -49,14 +49,16 @@ class KlibBasedSymbolProvider(
         }
 
 
-    private val moduleHeaders by lazy {
-        resolvedLibraries.associateWith { parseModuleHeader(metadataProvider(it).moduleHeaderData) }
+    private val moduleHeaders: Map<KotlinLibrary, KlibMetadataProtoBuf.Header?> by lazy {
+        resolvedLibraries.associateWith {
+            parseModuleHeader(metadataProvider(it).moduleHeaderData)
+        }
     }
 
     override val fragmentNamesInLibraries: Map<String, List<KotlinLibrary>> by lazy {
         buildMap<String, SmartList<KotlinLibrary>> {
-            for ((library, header) in moduleHeaders) {
-                for (fragmentName in header.packageFragmentNameList) {
+            for (library in resolvedLibraries) {
+                for (fragmentName in library.metadata.getPackageNames()) {
                     getOrPut(fragmentName) { SmartList() }
                         .add(library)
                 }
@@ -66,8 +68,8 @@ class KlibBasedSymbolProvider(
 
     override val knownPackagesInLibraries: Set<FqName> by lazy {
         buildSet<FqName> {
-            for ((_, header) in moduleHeaders) {
-                for (fragmentName in header.packageFragmentNameList) {
+            for (library in resolvedLibraries) {
+                for (fragmentName in library.metadata.getPackageNames()) {
                     var curPackage = FqName(fragmentName)
                     while (!curPackage.isRoot) {
                         add(curPackage)
@@ -79,8 +81,7 @@ class KlibBasedSymbolProvider(
     }
 
     override fun moduleData(library: KotlinLibrary): FirModuleData? {
-        val libraryPath = Paths.get(library.libraryFile.path)
-        return moduleDataProvider.getModuleData(libraryPath)
+        return moduleDataProvider.getModuleData(library.path)
     }
 
     override fun createDeserializedContainerSource(
@@ -88,7 +89,7 @@ class KlibBasedSymbolProvider(
         packageFqName: FqName
     ): KlibDeserializedContainerSource = KlibDeserializedContainerSource(
         resolvedLibrary,
-        moduleHeaders[resolvedLibrary]!!,
+        moduleHeaders[resolvedLibrary],
         deserializationConfiguration,
         packageFqName,
         resolvedLibrary.incompatibility

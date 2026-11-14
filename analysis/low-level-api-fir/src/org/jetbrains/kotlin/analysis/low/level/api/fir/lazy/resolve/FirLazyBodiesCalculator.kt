@@ -19,7 +19,6 @@ import org.jetbrains.kotlin.fir.contracts.*
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.getExplicitBackingField
 import org.jetbrains.kotlin.fir.declarations.utils.hasGeneratedDelegateBody
-import org.jetbrains.kotlin.fir.declarations.utils.replSnippetDelegatedPropertyCopies
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.impl.FirContractCallBlock
 import org.jetbrains.kotlin.fir.expressions.impl.FirLazyDelegatedConstructorCall
@@ -29,22 +28,19 @@ import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
 import org.jetbrains.kotlin.fir.references.builder.buildDelegateFieldReference
 import org.jetbrains.kotlin.fir.references.builder.buildImplicitThisReference
 import org.jetbrains.kotlin.fir.references.builder.buildResolvedNamedReference
-import org.jetbrains.kotlin.fir.scopes.impl.typeAliasConstructorInfo
 import org.jetbrains.kotlin.fir.scopes.kotlinScopeProvider
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirReceiverParameterSymbol
+import org.jetbrains.kotlin.fir.types.ConeTypeParameterType
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.builder.buildTypeProjectionWithVariance
-import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirSymbolEntry
 import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.fir.visitors.transformSingle
-import org.jetbrains.kotlin.psi.KtAnnotated
-import org.jetbrains.kotlin.psi.KtAnnotationEntry
-import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getStrictParentOfType
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
@@ -54,14 +50,14 @@ import kotlin.contracts.contract
 
 @LLFirInternals
 object FirLazyBodiesCalculator {
-    fun calculateBodies(designation: FirDesignation) {
+    internal fun calculateBodies(designation: FirDesignation) {
         designation.target.transformSingle(
             FirTargetLazyBodiesCalculatorTransformer,
             designation.path.toPersistentList(),
         )
     }
 
-    fun calculateContracts(designation: FirDesignation) {
+    internal fun calculateContracts(designation: FirDesignation) {
         designation.target.transformSingle(
             FirTargetLazyContractsCalculatorTransformer,
             designation.path.toPersistentList(),
@@ -101,7 +97,7 @@ private inline fun <reified T : FirDeclaration> revive(
 ): T {
     val session = designation.target.moduleData.session
 
-    return RawFirNonLocalDeclarationBuilder.buildWithFunctionSymbolRebind(
+    return RawFirNonLocalDeclarationBuilder.buildWithSymbolRebind(
         session = session,
         scopeProvider = session.kotlinScopeProvider,
         designation = designation,
@@ -114,7 +110,7 @@ private fun replaceLazyValueParameters(target: FirFunction, copy: FirFunction) {
     val copyParameters = copy.valueParameters
     require(targetParameters.size == copyParameters.size)
 
-    for ((valueParameter, newValueParameter) in targetParameters.zip(copyParameters)) {
+    for ([valueParameter, newValueParameter] in targetParameters.zip(copyParameters)) {
         if (valueParameter.defaultValue is FirLazyExpression) {
             valueParameter.replaceDefaultValue(newValueParameter.defaultValue)
         }
@@ -159,7 +155,7 @@ private fun replaceLazyDelegatedConstructor(target: FirConstructor, copy: FirCon
             require(targetCall.delegatedConstructorCalls.size == copyCall.delegatedConstructorCalls.size)
 
             val newCalls = targetCall.delegatedConstructorCalls.zip(copyCall.delegatedConstructorCalls)
-                .map { (target, copy) -> target.takeUnless { it is FirLazyDelegatedConstructorCall } ?: copy }
+                .map { [target, copy] -> target.takeUnless { it is FirLazyDelegatedConstructorCall } ?: copy }
 
             targetCall.replaceDelegatedConstructorCalls(newCalls)
         }
@@ -183,10 +179,6 @@ private val FirCallableDeclaration.originalPsi: PsiElement? get() = unwrapFakeOv
 private fun calculateLazyBodiesForFunction(designation: FirDesignation) {
     val simpleFunction = designation.target as FirNamedFunction
     require(needCalculatingLazyBodyForFunction(simpleFunction))
-    if (simpleFunction.origin == FirDeclarationOrigin.Synthetic.ReplEvalFunction) {
-        calculateLazyBodyForEvalFunction(simpleFunction, designation)
-        return
-    }
 
     val newSimpleFunction = revive<FirNamedFunction>(designation, simpleFunction.originalPsi)
 
@@ -194,55 +186,18 @@ private fun calculateLazyBodiesForFunction(designation: FirDesignation) {
     replaceLazyValueParameters(simpleFunction, newSimpleFunction)
 }
 
-private fun calculateLazyBodyForEvalFunction(
-    function: FirNamedFunction,
-    designation: FirDesignation,
-) {
-    val snippet = designation.path.getOrNull(1)
-    if (snippet !is FirReplSnippet) {
-        errorWithAttachment("Unexpected designation path: ${snippet?.let { it::class.simpleName }}") {
-            withFirDesignationEntry("designation", designation)
-            withFirEntry("snippet", snippet)
-        }
-    }
-
-    val replDesignation = FirDesignation(listOf(designation.file), snippet)
-    val newSnippet = revive<FirReplSnippet>(replDesignation)
-    val newFunction = newSnippet.evalFunctionSymbol.fir
-    replaceLazyBody(function, newFunction)
-    replacePropertyCopies(function, newFunction)
-}
-
-@OptIn(FirImplementationDetail::class)
-private fun replacePropertyCopies(
-    target: FirNamedFunction,
-    newFunction: FirNamedFunction,
-) {
-    val copies = target.replSnippetDelegatedPropertyCopies?.entries ?: return
-    val newProperties = newFunction.replSnippetDelegatedPropertyCopies?.values
-    requireWithAttachment(copies.size == newProperties?.size, { "Unexpected copies size" }) {
-        withFirEntry("target", target)
-        withFirEntry("newFunction", newFunction)
-    }
-
-    copies.zip(newProperties).forEach { (copy, newProperty) ->
-        copy.setValue(newProperty)
-    }
-}
-
 private fun calculateLazyBodyForConstructor(designation: FirDesignation) {
     val constructor = designation.target as FirConstructor
     require(needCalculatingLazyBodyForConstructor(constructor))
 
-    // TODO A temporary hack to avoid problems with lazy resolve of typealiased constructors; see KT-73481
-    val constructorPsi = (constructor.typeAliasConstructorInfo?.originalConstructor ?: constructor).psi
-
-    val newConstructor = revive<FirConstructor>(designation, constructorPsi)
+    val newConstructor = reviveConstructor(designation, constructor.psi)
 
     replaceLazyBody(constructor, newConstructor)
     replaceLazyDelegatedConstructor(constructor, newConstructor)
     replaceLazyValueParameters(constructor, newConstructor)
 }
+
+private fun reviveConstructor(designation: FirDesignation, psi: PsiElement?): FirConstructor = revive<FirConstructor>(designation, psi)
 
 private fun calculateLazyBodyForProperty(designation: FirDesignation) {
     val firProperty = designation.target as FirProperty
@@ -305,11 +260,6 @@ private fun calculateLazyBodyForResultProperty(firProperty: FirProperty, designa
  */
 private fun rebindDelegate(newTarget: FirProperty, oldTarget: FirProperty) {
     val delegate = newTarget.delegate ?: return
-    // Repl has a reference instead of the delegate
-    if (delegate is FirReplExpressionReference) {
-        return
-    }
-
     requireWithAttachment(
         delegate is FirWrappedDelegateExpression,
         { "Unexpected delegate type: ${delegate::class.simpleName}" },
@@ -564,7 +514,7 @@ private fun rebindPropertyRef(
             source = expression.source
             variance = Variance.INVARIANT
             typeRef = buildResolvedTypeRef {
-                coneType = ConeTypeParameterTypeImpl(it.symbol.toLookupTag(), false)
+                coneType = ConeTypeParameterType(it.symbol.toLookupTag(), false)
             }
         }
     })
@@ -807,8 +757,8 @@ private fun <E : FirElement> FirTransformer<PersistentList<FirDeclaration>>.recu
     element: E,
     data: PersistentList<FirDeclaration>,
 ): E {
-    if (element is FirFile || element is FirScript || element is FirRegularClass || element is FirReplSnippet) {
-        val newList = data.add(element as FirDeclaration)
+    if (element is FirFile || element is FirScript || element is FirRegularClass) {
+        val newList = data.adding(element as FirDeclaration)
         element.transformChildren(this, newList)
     }
 

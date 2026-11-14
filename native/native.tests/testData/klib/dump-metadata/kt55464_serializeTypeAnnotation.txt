@@ -1,5 +1,4 @@
 library {
-  // module name: <kt55464_serializeTypeAnnotation.kt>
 
   library fragment {
     // package name: test

@@ -5,14 +5,18 @@
 
 package org.jetbrains.kotlin.kmp.utils
 
+import com.intellij.platform.syntax.LazyParser
 import com.intellij.platform.syntax.SyntaxElementType
-import com.intellij.platform.syntax.impl.fastutil.ints.Int2IntOpenHashMap
+
+@Suppress("DEPRECATION")
+typealias Int2IntOpenHashMap = fleet.com.intellij.multiplatform.util.fastutil.ints.Int2IntOpenHashMap
 
 abstract class SyntaxElementTypesWithIds {
     companion object {
         const val NO_ID: Int = 0
     }
 
+    @Suppress("TYPEALIAS_EXPANSION_DEPRECATION")
     private val indexToIdMap: Int2IntOpenHashMap = Int2IntOpenHashMap()
 
     /**
@@ -23,8 +27,8 @@ abstract class SyntaxElementTypesWithIds {
      */
     fun getElementTypeId(syntaxElementType: SyntaxElementType?): Int = syntaxElementType?.index?.let { indexToIdMap[it] } ?: NO_ID
 
-    fun register(id: Int, name: String): SyntaxElementType {
-        return SyntaxElementType(name).also {
+    fun register(id: Int, name: String, lazyParser: LazyParser? = null): SyntaxElementType {
+        return SyntaxElementType(name, lazyParser).also {
             if (indexToIdMap.containsValue(id)) {
                 error("The element with id $id is already registered. Please fix the constant.")
             }

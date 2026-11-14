@@ -5,14 +5,16 @@
 
 package org.jetbrains.kotlin.buildtools.tests.arguments
 
-import org.jetbrains.kotlin.buildtools.api.CompilerArgumentsParseException
 import org.jetbrains.kotlin.buildtools.api.arguments.ExperimentalCompilerArgument
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmPlatformToolchain.Companion.jvm
-import org.jetbrains.kotlin.buildtools.tests.arguments.model.common.AllCommonCompilerArgumentsWithBtaVersionsTest
-import org.jetbrains.kotlin.buildtools.tests.arguments.model.common.CommonArgumentConfiguration
-import org.jetbrains.kotlin.buildtools.tests.arguments.model.common.InvalidRawValueCommonCompilerArgumentsWithBtaVersionsTest
-import org.jetbrains.kotlin.buildtools.tests.arguments.model.common.NullableCommonCompilerArgumentsWithBtaVersionsTest
+import org.jetbrains.kotlin.buildtools.tests.CompilerExecutionStrategyConfiguration
+import org.jetbrains.kotlin.buildtools.tests.arguments.model.common.*
+import org.jetbrains.kotlin.buildtools.tests.arguments.util.assumeArgumentAvailable
 import org.jetbrains.kotlin.buildtools.tests.compilation.BaseCompilationTest
+import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertLogContainsPatterns
+import org.jetbrains.kotlin.buildtools.tests.compilation.model.LogLevel
+import org.jetbrains.kotlin.buildtools.tests.compilation.model.jvmProject
+import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.DisplayName
@@ -25,7 +27,7 @@ internal class CommonCompilerArgumentConversionTest : BaseCompilationTest() {
     @AllCommonCompilerArgumentsWithBtaVersionsTest
     @DisplayName("BTA argument is converted to a raw argument")
     fun <T> CommonArgumentConfiguration<T>.testBtaArgumentToArgumentString() {
-        assumeArgumentSupported()
+        assumeArgumentAvailable()
         for (value in argumentValues) {
             val jvmOperation = kotlinToolchain.jvm.jvmCompilationOperationBuilder(emptyList(), Paths.get(".")).apply {
                 compilerArguments[argumentKey] = value
@@ -43,7 +45,7 @@ internal class CommonCompilerArgumentConversionTest : BaseCompilationTest() {
     @AllCommonCompilerArgumentsWithBtaVersionsTest
     @DisplayName("Raw argument has the default value when BTA argument is not set")
     fun <T> CommonArgumentConfiguration<T>.testBtaArgumentNotSetByDefault() {
-        assumeArgumentSupported()
+        assumeArgumentAvailable()
         val jvmOperation = kotlinToolchain.jvm.jvmCompilationOperationBuilder(emptyList(), Paths.get(".")).build()
 
         val actualArgumentStrings = jvmOperation.compilerArguments.toArgumentStrings()
@@ -57,7 +59,7 @@ internal class CommonCompilerArgumentConversionTest : BaseCompilationTest() {
     @AllCommonCompilerArgumentsWithBtaVersionsTest
     @DisplayName("BTA argument can be set and retrieved")
     fun <T> CommonArgumentConfiguration<T>.testBtaArgumentGetWhenSet() {
-        assumeArgumentSupported()
+        assumeArgumentAvailable()
         for (value in argumentValues) {
             val jvmOperation = kotlinToolchain.jvm.jvmCompilationOperationBuilder(emptyList(), Paths.get(".")).apply {
                 compilerArguments[argumentKey] = value
@@ -72,7 +74,7 @@ internal class CommonCompilerArgumentConversionTest : BaseCompilationTest() {
     @AllCommonCompilerArgumentsWithBtaVersionsTest
     @DisplayName("BTA argument has the default value when not set")
     fun <T> CommonArgumentConfiguration<T>.testBtaArgumentGetWhenNull() {
-        assumeArgumentSupported()
+        assumeArgumentAvailable()
         val jvmOperation = kotlinToolchain.jvm.jvmCompilationOperationBuilder(emptyList(), Paths.get(".")).build()
 
         val value = jvmOperation.compilerArguments[argumentKey]
@@ -85,26 +87,22 @@ internal class CommonCompilerArgumentConversionTest : BaseCompilationTest() {
     @AllCommonCompilerArgumentsWithBtaVersionsTest
     @DisplayName("Raw argument strings are converted to BTA argument")
     fun <T> CommonArgumentConfiguration<T>.testRawArgumentStringsConversion() {
-        assumeArgumentSupported()
-        for (value in argumentValues) {
+        assumeArgumentAvailable()
+        for (value in argumentRawValues) {
             val operation = kotlinToolchain.jvm.jvmCompilationOperationBuilder(emptyList(), Paths.get(".")).apply {
-                compilerArguments.applyArgumentStrings(
-                    expectedArgumentStringsFor(
-                        getValueString(value),
-                    )
-                )
+                compilerArguments.applyCommandLineArguments(expectedArgumentStringsFor(value))
             }
 
-            assertEquals(value, operation.compilerArguments[argumentKey])
+            assertEquals(value, getValueString(operation.compilerArguments[argumentKey]))
         }
     }
 
     @AllCommonCompilerArgumentsWithBtaVersionsTest
     @DisplayName("BTA argument has the default value when no raw arguments are applied")
     fun <T> CommonArgumentConfiguration<T>.testNoRawArgumentStrings() {
-        assumeArgumentSupported()
+        assumeArgumentAvailable()
         val operation = kotlinToolchain.jvm.jvmCompilationOperationBuilder(emptyList(), Paths.get(".")).apply {
-            compilerArguments.applyArgumentStrings(listOf())
+            compilerArguments.applyCommandLineArguments(listOf())
         }
 
         assertEquals(
@@ -113,13 +111,17 @@ internal class CommonCompilerArgumentConversionTest : BaseCompilationTest() {
     }
 
     @InvalidRawValueCommonCompilerArgumentsWithBtaVersionsTest
-    @DisplayName("Raw argument with non-existent BTA argument value fails conversion")
+    @DisplayName("Raw argument with non-existent BTA argument value is rejected at configuration or execution time")
     fun <T> CommonArgumentConfiguration<T>.testInvalidRawArgumentConversionFails() {
-        assumeArgumentSupported()
+        assumeArgumentAvailable()
+        // Old BTA versions throw from applyCommandLineArguments; new versions store the error and report it during executeOperation
+        val kotlinToolingVersion = KotlinToolingVersion(kotlinToolchain.getCompilerVersion())
+        assumeTrue { kotlinToolingVersion < KotlinToolingVersion(2, 4, 20, "snapshot") }
+
         for (invalidValue in invalidRawValues) {
-            assertThrows<CompilerArgumentsParseException> {
+            assertThrows<Throwable> {
                 kotlinToolchain.jvm.jvmCompilationOperationBuilder(emptyList(), Paths.get(".")).apply {
-                    compilerArguments.applyArgumentStrings(
+                    compilerArguments.applyCommandLineArguments(
                         expectedArgumentStringsFor(invalidValue)
                     )
                     compilerArguments[argumentKey]
@@ -128,10 +130,32 @@ internal class CommonCompilerArgumentConversionTest : BaseCompilationTest() {
         }
     }
 
+    @InvalidRawValueCommonCompilerArgumentsBtaV2StrategyAgnosticTest
+    @DisplayName("Raw argument with non-existent BTA argument value is rejected at compilation time")
+    fun testInvalidRawArgumentCompilationFails(pair: Pair<CommonArgumentConfiguration<*>, CompilerExecutionStrategyConfiguration>) {
+        val [argumentConfig, strategyConfig] = pair
+        argumentConfig.assumeArgumentAvailable()
+        // Old BTA versions throw from applyCommandLineArguments; new versions store the error and report it during executeOperation
+        val kotlinToolingVersion = KotlinToolingVersion(argumentConfig.kotlinToolchain.getCompilerVersion())
+        assumeTrue { kotlinToolingVersion >= KotlinToolingVersion(2, 4, 20, "snapshot") }
+
+        jvmProject(strategyConfig) {
+            val module = module("basic-multimodule-project/module-1")
+            for (invalidValue in argumentConfig.invalidRawValues) {
+                module.compile(compilationConfigAction = {
+                    it.compilerArguments.applyCommandLineArguments(argumentConfig.expectedArgumentStringsFor(invalidValue))
+                }) {
+                    expectFail()
+                    assertLogContainsPatterns(LogLevel.ERROR, Regex(".*${Regex.escape(invalidValue)}.*"))
+                }
+            }
+        }
+    }
+
     @NullableCommonCompilerArgumentsWithBtaVersionsTest
     @DisplayName("BTA argument of null value is converted to raw argument")
     fun <T> CommonArgumentConfiguration<T?>.testNullBtaArgument() {
-        assumeArgumentSupported()
+        assumeArgumentAvailable()
         val jvmOperation = kotlinToolchain.jvm.jvmCompilationOperationBuilder(emptyList(), Paths.get(".")).apply {
             compilerArguments[argumentKey] = null
         }.build()
@@ -141,13 +165,6 @@ internal class CommonCompilerArgumentConversionTest : BaseCompilationTest() {
         assertEquals(
             expectedArgumentStringsFor(getValueString(null)),
             actualArgumentStrings,
-        )
-    }
-
-    private fun CommonArgumentConfiguration<*>.assumeArgumentSupported() {
-        assumeTrue(
-            kotlinToolchain.getCompilerVersion() >= argumentKey.availableSinceVersion.toString(),
-            "Test requires compiler version >= ${argumentKey.availableSinceVersion}"
         )
     }
 }

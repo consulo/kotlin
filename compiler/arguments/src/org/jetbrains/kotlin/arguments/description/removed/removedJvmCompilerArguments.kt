@@ -6,14 +6,16 @@
 package org.jetbrains.kotlin.arguments.description.removed
 
 import org.jetbrains.kotlin.arguments.description.CompilerArgumentsLevelNames
-import org.jetbrains.kotlin.arguments.dsl.base.KotlinReleaseVersion
-import org.jetbrains.kotlin.arguments.dsl.base.asReleaseDependent
-import org.jetbrains.kotlin.arguments.dsl.base.compilerArgumentsLevel
+import org.jetbrains.kotlin.arguments.dsl.base.*
 import org.jetbrains.kotlin.arguments.dsl.defaultFalse
 import org.jetbrains.kotlin.arguments.dsl.defaultNull
+import org.jetbrains.kotlin.arguments.dsl.previous
 import org.jetbrains.kotlin.arguments.dsl.types.BooleanType
+import org.jetbrains.kotlin.arguments.dsl.types.SearchPathType
 import org.jetbrains.kotlin.arguments.dsl.types.StringArrayType
 import org.jetbrains.kotlin.arguments.dsl.types.StringType
+import org.jetbrains.kotlin.cli.common.arguments.Enables
+import org.jetbrains.kotlin.config.LanguageFeature
 
 val removedJvmCompilerArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.jvmCompilerArguments) {
     compilerArgument {
@@ -97,6 +99,111 @@ val removedJvmCompilerArguments by compilerArgumentsLevel(CompilerArgumentsLevel
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_6_0,
             removedVersion = KotlinReleaseVersion.v2_4_0,
+        )
+    }
+
+    compilerArgument {
+        name = "Xvalue-classes"
+        description = "Enable experimental value classes.".asReleaseDependent()
+        valueType = BooleanType.defaultFalse
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v1_8_20,
+            removedVersion = KotlinReleaseVersion.v2_4_20,
+        )
+    }
+
+    @OptIn(ExperimentalArgumentApi::class)
+    compilerArgument {
+        name = "Xklib"
+        compilerName = "klibLibraries"
+        description = "Paths to cross-platform libraries in the .klib format.".asReleaseDependent()
+        valueType = StringType.defaultNull
+        valueDescription = "<path>".asReleaseDependent()
+        argumentType = SearchPathType.defaultNull
+        delimiter = KotlinCompilerArgument.Delimiter.PathSeparator
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v1_4_0,
+            removedVersion = KotlinReleaseVersion.v2_5_0,
+        )
+    }
+
+    compilerArgument {
+        name = "Xlink-via-signatures"
+        description = """Link JVM IR symbols via signatures instead of descriptors.
+This mode is slower, but it can be useful for troubleshooting problems with the JVM IR backend.
+This option is deprecated and will be deleted in future versions.
+It has no effect when -language-version is 2.0 or higher.""".asReleaseDependent()
+        valueType = BooleanType.defaultFalse
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v1_7_0,
+            deprecatedVersion = KotlinReleaseVersion.v2_0_0,
+            removedVersion = KotlinReleaseVersion.v2_5_0,
+        )
+    }
+
+    compilerArgument {
+        val commonDescriptionPart = "Suppress warnings about deprecated JVM target versions."
+        name = "Xsuppress-deprecated-jvm-target-warning"
+        val introducedVersion = KotlinReleaseVersion.v1_5_0
+        val deprecatedVersion = KotlinReleaseVersion.v1_7_20 // According to https://github.com/JetBrains/kotlin/commit/2e515f39456be7a8a0f9e15b9456c883b032375e
+        val removedVersion = KotlinReleaseVersion.v2_5_0
+        description = ReleaseDependent(
+            commonDescriptionPart,
+            deprecatedVersion..removedVersion.previous!! to """$commonDescriptionPart
+This option has no effect and will be deleted in a future version.""",
+            introducedVersion..deprecatedVersion.previous!! to commonDescriptionPart,
+        )
+        valueType = BooleanType.defaultFalse
+
+        lifecycle(
+            introducedVersion = introducedVersion,
+            deprecatedVersion = deprecatedVersion,
+            removedVersion = removedVersion,
+        )
+    }
+
+    compilerArgument {
+        name = "Xtype-enhancement-improvements-strict-mode"
+        compilerName = "typeEnhancementImprovementsInStrictMode"
+        description = """Enable strict mode for improvements to type enhancement for loaded Java types based on nullability annotations,
+including the ability to read type-use annotations from class files.
+See KT-45671 for more details.""".asReleaseDependent()
+        valueType = BooleanType.defaultFalse
+
+        additionalAnnotations(Enables(LanguageFeature.TypeEnhancementImprovementsInStrictMode))
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v1_5_0,
+            removedVersion = KotlinReleaseVersion.v2_5_0,
+        )
+    }
+
+    compilerArgument {
+        name = "Xenhance-type-parameter-types-to-def-not-null"
+        description =
+            "Enhance not-null-annotated type parameter types to definitely-non-nullable types ('@NotNull T' => 'T & Any').".asReleaseDependent()
+        valueType = BooleanType.defaultFalse
+
+        additionalAnnotations(Enables(LanguageFeature.ProhibitUsingNullableTypeParameterAgainstNotNullAnnotated))
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v1_6_0,
+            removedVersion = KotlinReleaseVersion.v2_5_0,
+        )
+    }
+
+    compilerArgument {
+        name = "Xir-do-not-clear-binding-context"
+        compilerName = "doNotClearBindingContext"
+        description = "When using the IR backend, do not clear BindingContext between 'psi2ir' and lowerings.".asReleaseDependent()
+        valueType = BooleanType.defaultFalse
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v1_4_30,
+            removedVersion = KotlinReleaseVersion.v2_5_0,
         )
     }
 }

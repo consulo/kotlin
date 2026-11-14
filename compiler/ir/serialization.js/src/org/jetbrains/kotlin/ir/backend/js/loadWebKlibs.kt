@@ -7,9 +7,8 @@ package org.jetbrains.kotlin.ir.backend.js
 
 import org.jetbrains.kotlin.backend.common.LoadedKlibs
 import org.jetbrains.kotlin.backend.common.eliminateLibrariesWithDuplicatedUniqueNames
-import org.jetbrains.kotlin.backend.common.loadFriendLibraries
+import org.jetbrains.kotlin.backend.common.selectLibrariesByPaths
 import org.jetbrains.kotlin.backend.common.reportLoadingProblemsIfAny
-import org.jetbrains.kotlin.cli.common.testEnvironment
 import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.ir.backend.js.checkers.JsLibrarySpecialCompatibilityChecker
 import org.jetbrains.kotlin.ir.backend.js.checkers.WasmLibrarySpecialCompatibilityChecker
@@ -17,6 +16,7 @@ import org.jetbrains.kotlin.js.config.friendLibraries
 import org.jetbrains.kotlin.js.config.includes
 import org.jetbrains.kotlin.js.config.libraries
 import org.jetbrains.kotlin.library.KotlinAbiVersion
+import org.jetbrains.kotlin.library.KotlinAbiVersion.Companion.FIRST_SUPPORTED_COMPILER_VERSION
 import org.jetbrains.kotlin.library.loader.KlibLoader
 import org.jetbrains.kotlin.library.loader.KlibPlatformChecker
 
@@ -34,22 +34,23 @@ fun loadWebKlibs(
     val result = KlibLoader {
         libraryPaths(configuration.libraries)
         platformChecker(platformChecker)
+        minPermittedAbiVersion(KotlinAbiVersion.FIRST_SUPPORTED, FIRST_SUPPORTED_COMPILER_VERSION)
         maxPermittedAbiVersion(KotlinAbiVersion.CURRENT)
         configuration.zipFileSystemAccessor?.let { zipFileSystemAccessor(it) }
     }.load()
-        .apply { reportLoadingProblemsIfAny(configuration, allAsErrors = configuration.testEnvironment) }
+        .apply { reportLoadingProblemsIfAny(configuration) }
         // TODO (KT-76785): Handling of duplicated names is a workaround that needs to be removed in the future.
         .eliminateLibrariesWithDuplicatedUniqueNames(configuration)
 
     return LoadedKlibs(
         all = result.librariesStdlibFirst,
-        friends = result.loadFriendLibraries(configuration.friendLibraries),
-        included = result.loadFriendLibraries(listOfNotNull(configuration.includes)).firstOrNull()
+        friends = result.selectLibrariesByPaths(libraryPaths = configuration.friendLibraries),
+        included = result.selectLibrariesByPaths(libraryPaths = listOfNotNull(configuration.includes)).firstOrNull()
     ).also { klibs ->
         if (!configuration.skipLibrarySpecialCompatibilityChecks) {
             val isWasm = platformChecker is KlibPlatformChecker.Wasm
             val checker = if (isWasm) WasmLibrarySpecialCompatibilityChecker else JsLibrarySpecialCompatibilityChecker
-            checker.check(klibs.all, configuration.messageCollector, configuration.klibAbiCompatibilityLevel)
+            checker.check(klibs.all, configuration)
         }
     }
 }

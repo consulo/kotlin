@@ -20,21 +20,43 @@ import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilerExecutionStrategy
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInBuildToolsApi
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
-import kotlin.io.path.*
-import kotlin.test.assertContains
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.io.path.div
+import kotlin.io.path.invariantSeparatorsPathString
+import kotlin.io.path.readBytes
+import kotlin.io.path.relativeTo
+import kotlin.test.*
 
-@OptIn(ExperimentalBuildToolsApi::class)
+@OptIn(ExperimentalBuildToolsApi::class, EnvironmentalVariablesOverride::class)
 @DisplayName("Gradle / Compiler Reference Index")
+@MustRunOnChangesInGradle
+@MustRunOnChangesInBuildToolsApi
 class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
+
+    // Env variables for CI detection are the same as in [org.jetbrains.kotlin.gradle.fus.internal.isCiBuild]
+    private val ciEnvironmentVariables = setOf(
+        "CI",
+        "JENKINS_URL",
+        "HUDSON_URL",
+        "TEAMCITY_VERSION",
+        "CIRCLE_BUILD_URL",
+        "bamboo_resultsUrl",
+        "GITHUB_ACTIONS",
+        "GITLAB_CI",
+        "TRAVIS_JOB_ID",
+        "BITRISE_BUILD_URL",
+        "GO_SERVER_URL",
+        "TF_BUILD",
+        "BUILDKITE",
+    )
+
+    private val localEnvironment = EnvironmentalVariables { it - ciEnvironmentVariables }
 
     override val defaultBuildOptions: BuildOptions = super.defaultBuildOptions.copy(
         runViaBuildToolsApi = true,
-        generateCompilerRefIndex = true,
     )
 
     private val defaultInProcessBuildOptions: BuildOptions = defaultBuildOptions.copy(
@@ -45,6 +67,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
         compilerExecutionStrategy = KotlinCompilerExecutionStrategy.DAEMON,
     )
 
+    @TestMetadata("kotlinProject")
     @GradleTest
     @DisplayName("Smoke test for Gradle / CRI data generation and deserialization")
     @GradleTestExtraStringArguments("in-process", "daemon")
@@ -57,6 +80,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
                 "daemon" -> defaultDaemonBuildOptions
                 else -> return
             },
+            environmentVariables = localEnvironment,
         ) {
             kotlinSourcesDir().source("main.kt") {
                 //language=kotlin
@@ -78,6 +102,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @GradleTest
     @DisplayName("Incremental CRI data generation appends new entries without invalidation, rebuild removes stale entries")
     fun testIncrementalCriDataGeneration(gradleVersion: GradleVersion) {
@@ -85,6 +110,7 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
             "kotlinProject",
             gradleVersion,
             buildOptions = defaultInProcessBuildOptions,
+            environmentVariables = localEnvironment,
         ) {
             val source1Filename = "file1.kt"
             val source2Filename = "file2.kt"
@@ -175,17 +201,115 @@ class CompilerReferenceIndexIT : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @GradleTest
-    @DisplayName("CRI generation can't be enabled without BTA. KT-83161")
-    fun testCriWithoutBta(gradleVersion: GradleVersion) {
+    @DisplayName("CI disables implicit CRI generation, but explicit CRI enables it")
+    fun testCiEnvironmentDisablesImplicitCriGeneration(gradleVersion: GradleVersion) {
         project(
             "kotlinProject",
             gradleVersion,
+            environmentVariables = EnvironmentalVariables { it - ciEnvironmentVariables + ("CI" to "true") },
         ) {
-            build("assemble", buildOptions = buildOptions.copy(runViaBuildToolsApi = false)) {
-                assertHasDiagnostic(KotlinToolingDiagnostics.GeneratingCompilerRefIndexWithoutBuildToolsApi)
+            val lookups = projectPath / "build/kotlin/compileKotlin/cacheable" / DATA_PATH / LOOKUPS_FILENAME
+
+            build("assemble") {
+                assertNoDiagnostic(KotlinToolingDiagnostics.GeneratingCompilerRefIndexWithoutBuildToolsApi)
             }
-            build("assemble", buildOptions = buildOptions.copy(runViaBuildToolsApi = true)) {
+            assertFileNotExists(lookups)
+
+            build(
+                "assemble",
+                buildOptions = buildOptions.copy(generateCompilerRefIndex = true),
+            )
+            assertFileExists(lookups)
+        }
+    }
+
+    @TestMetadata("kotlinProject")
+    @GradleTest
+    @DisplayName("TeamCity system property disables implicit CRI generation")
+    fun testTeamCitySystemPropertyCriDefault(gradleVersion: GradleVersion) {
+        project("kotlinProject", gradleVersion, environmentVariables = localEnvironment) {
+            val lookups = projectPath / "build/kotlin/compileKotlin/cacheable" / DATA_PATH / LOOKUPS_FILENAME
+
+            build("assemble", "-DTEAMCITY_VERSION=1.0.0")
+            assertFileNotExists(lookups)
+        }
+    }
+
+    @TestMetadata("kotlinProject")
+    @GradleTest
+    @DisplayName("Explicitly disabled CRI is not generated outside CI")
+    fun testExplicitlyDisabledCriOutsideCi(gradleVersion: GradleVersion) {
+        project("kotlinProject", gradleVersion, environmentVariables = localEnvironment) {
+            val criDir = projectPath / "build/kotlin/compileKotlin/cacheable" / DATA_PATH
+
+            build("assemble", buildOptions = buildOptions.copy(generateCompilerRefIndex = false)) {
+                assertTasksExecuted(":compileKotlin")
+            }
+            assertDirectoryDoesNotExist(criDir)
+        }
+    }
+
+    @TestMetadata("jvm-and-js-hmpp")
+    @GradleTest
+    @DisplayName("Default CRI generation outside CI works for KMP project with JVM and JS targets")
+    fun testDefaultCriOutsideCiInKmpWithJvmAndJs(gradleVersion: GradleVersion) {
+        project(
+            "jvm-and-js-hmpp",
+            gradleVersion,
+            buildOptions = defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
+            environmentVariables = localEnvironment,
+        ) {
+            build("compileKotlinJvm", "compileKotlinJs", "compileJvmAndJsMainKotlinMetadata") {
+                assertTasksExecuted(":compileKotlinJvm", ":compileKotlinJs", ":compileJvmAndJsMainKotlinMetadata")
+                assertNoDiagnostic(KotlinToolingDiagnostics.GeneratingCompilerRefIndexWithoutBuildToolsApi)
+            }
+            assertFileExists(projectPath / "build/kotlin/compileKotlinJvm/cacheable" / DATA_PATH / LOOKUPS_FILENAME)
+        }
+    }
+
+    @TestMetadata("kotlinProject")
+    @GradleTest
+    @DisplayName("Enabling CRI invalidates compileKotlin UP-TO-DATE state. KT-86118")
+    fun testEnablingCriInvalidatesCompileKotlinUpToDate(gradleVersion: GradleVersion) {
+        project("kotlinProject", gradleVersion) {
+            val lookups = projectPath / "build/kotlin/compileKotlin/cacheable" / DATA_PATH / LOOKUPS_FILENAME
+
+            build("assemble", buildOptions = buildOptions.copy(generateCompilerRefIndex = false)) {
+                assertTasksExecuted(":compileKotlin")
+            }
+            assertFileNotExists(lookups)
+
+            build("assemble", buildOptions = buildOptions.copy(generateCompilerRefIndex = true)) {
+                assertTasksExecuted(":compileKotlin")
+            }
+            assertFilesExist(lookups)
+        }
+    }
+
+    @TestMetadata("native-simple-project")
+    @GradleTest
+    @DisplayName("Enabling CRI does not fail Kotlin/Native compile tasks. KT-86118")
+    fun testEnablingCriDoesNotFailNativeCompile(gradleVersion: GradleVersion) {
+        nativeProject("native-simple-project", gradleVersion) {
+            build("assemble", buildOptions = buildOptions.copy(generateCompilerRefIndex = true)) {
+                assertNoDiagnostic(KotlinToolingDiagnostics.GeneratingCompilerRefIndexWithoutBuildToolsApi)
+            }
+        }
+    }
+
+    @TestMetadata("jvm-and-js-hmpp")
+    @GradleTest
+    @DisplayName("CRI warning without BTA is only emitted for JVM targets in KMP")
+    fun testCriWarningWithoutBtaOnlyForJvmInKmp(gradleVersion: GradleVersion) {
+        val options = defaultBuildOptions.copy(
+            runViaBuildToolsApi = false,
+            generateCompilerRefIndex = true,
+        ).disableIsolatedProjectsBecauseOfJsAndWasmKT75899()
+        project("jvm-and-js-hmpp", gradleVersion, buildOptions = options) {
+            build("compileKotlinJvm")
+            build("compileKotlinJs") {
                 assertNoDiagnostic(KotlinToolingDiagnostics.GeneratingCompilerRefIndexWithoutBuildToolsApi)
             }
         }

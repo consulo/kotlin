@@ -3,12 +3,11 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.dependencyResolutionTests.tcs
 
 import org.gradle.api.artifacts.ResolveException
 import org.jetbrains.kotlin.gradle.dependencyResolutionTests.mavenCentralCacheRedirector
+import org.jetbrains.kotlin.gradle.dependencyResolutionTests.kotlinBuildDeps
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.ide.dependencyResolvers.resolveMetadata
@@ -79,7 +78,7 @@ class StdlibJsExplicitDependencyResolutionTest {
     ) {
         val project = buildProject {
             enableDependencyVerification(false)
-            repositories.mavenLocal()
+            repositories.kotlinBuildDeps()
             repositories.mavenCentralCacheRedirector()
             applyMultiplatformPlugin()
             kotlin {

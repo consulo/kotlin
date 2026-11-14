@@ -255,6 +255,7 @@ class NewConstraintSystemImpl(
         private val beforeConstraintCountByVariables: Map<TypeConstructorMarker, Int>,
         private val beforeConstraintsFromAllForks: Int,
         private val beforeHasContradictionInForkPointsCache: Boolean?,
+        private val beforeInferenceLoggerState: InferenceLogger.Snapshot?,
     ) : ConstraintSystemTransaction() {
         override fun closeTransaction() {
             checkState(State.TRANSACTION)
@@ -287,6 +288,7 @@ class NewConstraintSystemImpl(
             addedInitialConstraints.clear() // remove constraint from storage.initialConstraints
 
             hasContradictionInForkPointsCache = beforeHasContradictionInForkPointsCache
+            beforeInferenceLoggerState?.rollback()
 
             closeTransaction(beforeState, beforeTypeVariablesTransactionSize)
         }
@@ -303,6 +305,7 @@ class NewConstraintSystemImpl(
             beforeConstraintCountByVariables = storage.notFixedTypeVariables.mapValues { it.value.rawConstraintsCount },
             beforeConstraintsFromAllForks = storage.constraintsFromAllForkPoints.size,
             beforeHasContradictionInForkPointsCache = hasContradictionInForkPointsCache,
+            beforeInferenceLoggerState = inferenceLogger?.getSnapshot(),
         ).also {
             state = State.TRANSACTION
         }
@@ -407,11 +410,11 @@ class NewConstraintSystemImpl(
             notProperTypesCache.clear()
         }
 
-        for ((k, v) in otherSystem.approximatorCaches) {
+        for ([k, v] in otherSystem.approximatorCaches) {
             storage.approximatorCaches.getOrPut(k) { AbstractTypeApproximator.Cache() } += v
         }
 
-        for ((variable, constraints) in otherSystem.notFixedTypeVariables) {
+        for ([variable, constraints] in otherSystem.notFixedTypeVariables) {
             if (!mergeMode) {
                 notFixedTypeVariables[variable] = MutableVariableWithConstraints(this, constraints)
             } else {
@@ -425,7 +428,7 @@ class NewConstraintSystemImpl(
             }
         }
 
-        for ((variable, variablesThatReferenceGivenOne) in otherSystem.typeVariableDependencies) {
+        for ([variable, variablesThatReferenceGivenOne] in otherSystem.typeVariableDependencies) {
             if (!mergeMode || variable !in typeVariableDependencies) {
                 typeVariableDependencies[variable] = variablesThatReferenceGivenOne.toMutableSet()
             } else {
@@ -590,7 +593,7 @@ class NewConstraintSystemImpl(
         // Each of them defines two sets of constraints, e.g. for the first for point:
         // 1. {Xv=Int} – is a one-element set (but potentially there might be more constraints in the set)
         // 2. {Xv=T} – second constraints set
-        for ((position, forkPointData) in allForkPointsData) {
+        for ([position, forkPointData] in allForkPointsData) {
             applyTheBestBranchFromForkPoint(forkPointData, position)
         }
     }
@@ -619,7 +622,7 @@ class NewConstraintSystemImpl(
 
         val isThereAnyUnsuccessful: Boolean
         runTransaction {
-            isThereAnyUnsuccessful = allForkPointsData.any { (position, forkPointData) ->
+            isThereAnyUnsuccessful = allForkPointsData.any { [position, forkPointData] ->
                 !applyTheBestBranchFromForkPoint(forkPointData, position)
             }
 
@@ -691,6 +694,8 @@ class NewConstraintSystemImpl(
         constraintInjector.addInitialEqualityConstraint(variable.defaultType(), resultType, position)
 
         val freshTypeConstructor = variable.freshTypeConstructor()
+        substituteConstraintsReferringTypeVariableBeingFixed(freshTypeConstructor, resultType, position)
+
         val variableWithConstraints =
             notFixedTypeVariables.remove(freshTypeConstructor) ?: error("Seems that $variable is being fixed second time")
 
@@ -700,9 +705,8 @@ class NewConstraintSystemImpl(
             }
         }
 
-        for (otherVariableWithConstraints in notFixedTypeVariables.values) {
-            otherVariableWithConstraints.removeConstraints { it.type.containsTypeVariable(freshTypeConstructor) }
-        }
+        // NOOP once EliminateSecondKindIncorporation is enabled
+        removeConstraintsReferringTypeVariableBeingFixed(freshTypeConstructor)
 
         storage.fixedTypeVariables[freshTypeConstructor] = resultType
         inferenceLogger?.logFixVariable(variable, resultType, this@NewConstraintSystemImpl)
@@ -710,6 +714,56 @@ class NewConstraintSystemImpl(
         postponeOnlyInputTypesCheck(variableWithConstraints, resultType)
 
         doPostponedComputationsIfAllVariablesAreFixed()
+    }
+
+    private fun removeConstraintsReferringTypeVariableBeingFixed(freshTypeConstructor: TypeVariableTypeConstructorMarker) {
+        if (languageVersionSettings.supportsFeature(LanguageFeature.EliminateSecondKindIncorporation)) return
+        for (otherVariableWithConstraints in notFixedTypeVariables.values) {
+            otherVariableWithConstraints.removeConstraints { it.type.containsTypeVariable(freshTypeConstructor) }
+        }
+    }
+
+    /**
+     * Given a type variable T and its ResultType used for fixation, for all other type variables F and their
+     * constraints like F <: SomeOtherType<T>, it removes the original constraint and adds
+     * F <: SomeOtherType<ResultType> instead.
+     *
+     * NB: Constraints still mentioning T afterwards (derived by the incorporation of the replacements)
+     * are removed by the sweep in [NewConstraintSystemImpl.fixVariable].
+     *
+     * Before [LanguageFeature.EliminateSecondKindIncorporation], it was performed at [ConstraintIncorporator.insideOtherConstraint]
+     */
+    private fun substituteConstraintsReferringTypeVariableBeingFixed(
+        freshTypeConstructor: TypeVariableTypeConstructorMarker,
+        resultType: KotlinTypeMarker,
+        position: FixVariableConstraintPosition<*>,
+    ) {
+        if (!languageVersionSettings.supportsFeature(LanguageFeature.EliminateSecondKindIncorporation)) return
+        val substitutor = typeSubstitutorByTypeConstructor(mapOf(freshTypeConstructor to resultType))
+
+        val constraintsToBeAdded = mutableListOf<Triple<MutableVariableWithConstraints, KotlinTypeMarker, Constraint>>()
+
+        for ([otherVariableConstructor, otherVariableWithConstraints] in notFixedTypeVariables.entries) {
+            if (freshTypeConstructor == otherVariableConstructor) continue
+            for (constraint in otherVariableWithConstraints.constraints) {
+                substitutor.substituteOrNull(constraint.type)?.let { newConstraintType ->
+                    constraintsToBeAdded += Triple(otherVariableWithConstraints, newConstraintType, constraint)
+                }
+            }
+
+            otherVariableWithConstraints.removeConstraints { it.type.containsTypeVariable(freshTypeConstructor) }
+        }
+
+        if (resultType.isError()) return
+
+        for ([otherVariableWithConstraints, newConstraintType, existingConstraint] in constraintsToBeAdded) {
+            constraintInjector.addSubstitutedConstraintReplacementAfterVariableFixation(
+                otherVariableWithConstraints.typeVariable,
+                existingConstraint,
+                newConstraintType,
+                position,
+            )
+        }
     }
 
     override fun getEmptyIntersectionTypeKind(types: Collection<KotlinTypeMarker>): EmptyIntersectionTypeInfo? {
@@ -734,9 +788,7 @@ class NewConstraintSystemImpl(
         // Remove existing errors from the resolution stage because a completion stage error is always more precise
         storage.errors.removeIf { it is InferredEmptyIntersection }
 
-        val isInferredEmptyIntersectionForbidden =
-            languageVersionSettings.supportsFeature(LanguageFeature.ForbidInferringTypeVariablesIntoEmptyIntersection)
-        val errorFactory = if (emptyIntersectionTypeInfo.kind.isDefinitelyEmpty && isInferredEmptyIntersectionForbidden)
+        val errorFactory = if (emptyIntersectionTypeInfo.kind.isError(languageVersionSettings))
             ::InferredEmptyIntersectionError
         else ::InferredEmptyIntersectionWarning
 
@@ -783,7 +835,7 @@ class NewConstraintSystemImpl(
         val substitutor = buildCurrentSubstitutor()
         val approximator = constraintInjector.typeApproximator
         val projectedInputCallTypes = variableWithConstraints.getProjectedInputCallTypes(utilContext)
-        val isResultTypeEqualSomeInputType = projectedInputCallTypes.any { (inputType, constraintKind) ->
+        val isResultTypeEqualSomeInputType = projectedInputCallTypes.any { [inputType, constraintKind] ->
             val inputTypeConstructor = inputType.typeConstructor()
             val otherResultType = inputType.substituteAndApproximateIfNecessary(substitutor, approximator, constraintKind)
 
@@ -869,7 +921,7 @@ class NewConstraintSystemImpl(
     }
 
     override fun removePostponedTypeVariablesFromConstraints(postponedTypeVariables: Set<TypeConstructorMarker>) {
-        for ((_, variableWithConstraints) in storage.notFixedTypeVariables) {
+        for ([_, variableWithConstraints] in storage.notFixedTypeVariables) {
             variableWithConstraints.removeConstraints { constraint ->
                 constraint.type.contains { it is StubTypeMarker && it.getOriginalTypeVariable() in postponedTypeVariables }
             }

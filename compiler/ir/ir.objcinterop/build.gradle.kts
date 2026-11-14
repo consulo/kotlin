@@ -1,4 +1,6 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
@@ -7,6 +9,7 @@ dependencies {
     api(project(":compiler:ir.tree"))
 
     implementation(project(":core:compiler.common.native"))
+    implementation(project(":core:descriptors"))
 
     compileOnly(intellijCore())
 }

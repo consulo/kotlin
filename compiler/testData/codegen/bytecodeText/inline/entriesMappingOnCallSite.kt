@@ -1,4 +1,4 @@
-// TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: JVM
 // WITH_STDLIB
 // WITH_RUNTIME
 
@@ -12,7 +12,6 @@ enum class X {
 }
 
 // MODULE: caller(lib)
-// LANGUAGE: +EnumEntries
 
 // FILE: F.kt
 

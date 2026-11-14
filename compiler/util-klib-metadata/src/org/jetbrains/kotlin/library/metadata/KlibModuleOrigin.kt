@@ -24,12 +24,19 @@ object CurrentKlibModuleOrigin : CompiledKlibModuleOrigin()
 
 object SyntheticModulesOrigin : KlibModuleOrigin()
 
-internal fun KlibModuleOrigin.isCInteropLibrary(): Boolean = when (this) {
+fun KlibModuleOrigin.isCInteropLibrary(): Boolean = when (this) {
     is DeserializedKlibModuleOrigin -> this.library.isCInteropLibrary()
     CurrentKlibModuleOrigin, SyntheticModulesOrigin -> false
 }
 
-val ModuleDescriptor.klibModuleOrigin get() = this.getCapability(KlibModuleOrigin.CAPABILITY)!!
+val ModuleDescriptor.klibModuleOriginOrNull: KlibModuleOrigin?
+    get() = this.getCapability(KlibModuleOrigin.CAPABILITY)
 
-val ModuleDescriptor.kotlinLibrary
-    get() = (this.klibModuleOrigin as DeserializedKlibModuleOrigin).library
+val ModuleDescriptor.klibModuleOrigin: KlibModuleOrigin
+    get() = klibModuleOriginOrNull
+        ?: error(
+            "No KlibModuleOrigin capability in $this (${this::class.qualifiedName}). " +
+                    "Note that FirModuleDescriptor provides no capabilities; " +
+                    "use klibModuleOriginOrNull for modules that may not originate from a klib."
+        )
+

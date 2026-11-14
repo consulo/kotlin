@@ -9,7 +9,6 @@ import org.gradle.kotlin.dsl.project
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
-import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget.MACOS_ARM64
 import java.io.File
 
@@ -38,7 +37,7 @@ fun ProjectTestsExtension.nativeTestTaskWithExternalDependencies(
             attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
             attribute(KotlinPlatformType.attribute, KotlinPlatformType.native)
             /* Project dependencies shall resolve the platform from the current host */
-            attribute(KotlinNativeTarget.konanTargetAttribute, HostManager.host.name)
+            hostKonanTargetAttribute()
         }
 
         project.dependencies {
@@ -47,6 +46,7 @@ fun ProjectTestsExtension.nativeTestTaskWithExternalDependencies(
             testDependencyProjectKlibs(project(":native:external-projects-test-utils:testLibraryC"))
             testDependencyProjectKlibs(project(":native:external-projects-test-utils:testInternalLibrary"))
             testDependencyProjectKlibs(project(":native:external-projects-test-utils:testExtensionsLibrary"))
+            testDependencyProjectKlibs(project(":native:external-projects-test-utils:testKDocLibrary"))
         }
     }
 
@@ -66,19 +66,19 @@ fun ProjectTestsExtension.nativeTestTaskWithExternalDependencies(
                 testDependencyLibraryKlibs("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3")
                 testDependencyLibraryKlibs("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0")
                 testDependencyLibraryKlibs("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-                implicitDependencies("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3") {
+                "implicitDependencies"("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3") {
                     because("workaround for KTIJ-30065, remove after its resolution")
                 }
-                implicitDependencies("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3") {
+                "implicitDependencies"("org.jetbrains.kotlinx:kotlinx-serialization-core:1.7.3") {
                     because("workaround for KTIJ-30065, remove after its resolution")
                 }
-                implicitDependencies("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0") {
+                "implicitDependencies"("org.jetbrains.kotlinx:kotlinx-datetime:0.6.0") {
                     because("workaround for KTIJ-30065, remove after its resolution")
                 }
-                implicitDependencies("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1") {
+                "implicitDependencies"("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1") {
                     because("workaround for KTIJ-30065, remove after its resolution")
                 }
-                implicitDependencies("org.jetbrains.kotlinx:kotlinx-coroutines-debug:1.8.1") {
+                "implicitDependencies"("org.jetbrains.kotlinx:kotlinx-coroutines-debug:1.8.1") {
                     because("workaround for KTIJ-30065, remove after its resolution")
                 }
             }

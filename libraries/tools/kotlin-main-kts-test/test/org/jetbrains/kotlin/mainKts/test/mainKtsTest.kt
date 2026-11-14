@@ -5,27 +5,32 @@
 package org.jetbrains.kotlin.mainKts.test
 
 import org.jetbrains.kotlin.mainKts.COMPILED_SCRIPTS_CACHE_DIR_PROPERTY
+import org.jetbrains.kotlin.mainKts.MainKtsDependencyResolver
 import org.jetbrains.kotlin.mainKts.MainKtsScript
 import org.jetbrains.kotlin.mainKts.SCRIPT_FILE_LOCATION_DEFAULT_VARIABLE_NAME
 import org.jetbrains.kotlin.mainKts.impl.Directories
-import org.jetbrains.kotlin.scripting.compiler.plugin.assertTrue
-import org.junit.Assert
-import org.junit.Assert.assertEquals
-import org.junit.Ignore
-import org.junit.Test
+import org.jetbrains.kotlin.testFederation.MustRunAlways
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Disabled
+import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PrintStream
+import java.security.MessageDigest
 import java.util.*
+import kotlin.io.path.createTempDirectory
 import kotlin.script.experimental.api.*
+import kotlin.script.experimental.host.ScriptingHostConfiguration
+import kotlin.script.experimental.host.shouldResolveDependencies
 import kotlin.script.experimental.host.toScriptSource
+import kotlin.script.experimental.jvm.JvmDependencyFromClassLoader
 import kotlin.script.experimental.jvm.baseClassLoader
+import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
 import kotlin.script.experimental.jvm.jvm
+import kotlin.script.experimental.jvm.util.toClassPathOrEmpty
 import kotlin.script.experimental.jvmhost.BasicJvmScriptingHost
 import kotlin.script.experimental.jvmhost.createJvmScriptDefinitionFromTemplate
-
-internal const val SCRIPT_BASE_COMPILER_ARGUMENTS_PROPERTY = "kotlin.script.base.compiler.arguments"
-internal val isRunningTestOnK2 = System.getProperty(SCRIPT_BASE_COMPILER_ARGUMENTS_PROPERTY)?.contains("-language-version 1.9") != true
 
 fun evalFile(
     scriptFile: File,
@@ -54,10 +59,7 @@ fun evalFileWithConfigurations(
         }
     )
 
-    val host =
-        if (isRunningTestOnK2) BasicJvmScriptingHost()
-        else BasicJvmScriptingHost.createLegacy()
-
+    val host = BasicJvmScriptingHost()
     return host.eval(scriptFile.toScriptSource(), scriptDefinition.compilationConfiguration, scriptDefinition.evaluationConfiguration)
 }
 
@@ -66,6 +68,7 @@ const val TEST_DATA_ROOT = "libraries/tools/kotlin-main-kts-test/testData"
 val OUT_FROM_IMPORT_TEST = listOf("Hi from common", "Hi from middle", "Hi from main", "sharedVar == 5")
 
 
+@MustRunAlways
 class MainKtsTest {
 
     @Test
@@ -86,10 +89,52 @@ class MainKtsTest {
         assertSucceeded(resOk)
 
         val resErr = evalFile(File("$TEST_DATA_ROOT/resolve-error-hamcrest-via-junit.main.kts"))
-        Assert.assertTrue(
+        assertTrue(
             resErr is ResultWithDiagnostics.Failure &&
                     resErr.reports.any { it.message.contains("Unresolved reference") && it.message.contains("hamcrest") }
         )
+    }
+
+
+
+    @Test
+    fun testResolveInImportedScript() {
+        assertSucceeded(evalFile(File("$TEST_DATA_ROOT/import-resolve-junit.main.kts")))
+    }
+
+    @Test
+    fun testResolutionKeepsDependenciesItDidNotResolve() {
+        // JvmDependencyFromClassLoader carries a classloader, not classpath entries, and must survive resolution.
+        val fromClassLoader = JvmDependencyFromClassLoader { MainKtsTest::class.java.classLoader }
+        val artifact = File("$TEST_DATA_ROOT/empty.main.kts")
+
+        val configuration = ScriptCompilationConfiguration {
+            dependencies.append(fromClassLoader, DependencyCoordinates(listOf(artifact.path)))
+        }
+
+        val result = MainKtsDependencyResolver()
+            .invoke(ScriptConfigurationRefinementContext("".toScriptSource(), configuration, null))
+
+        val refined = (result as ResultWithDiagnostics.Success).value[ScriptCompilationConfiguration.dependencies].orEmpty()
+        assertTrue(refined.none { it is DependencyCoordinates }, "resolved coordinates should be consumed: $refined")
+        assertTrue(refined.contains(fromClassLoader), "the classloader dependency should survive: $refined")
+        assertTrue(refined.toClassPathOrEmpty().contains(artifact), "resolved artifact should be on the classpath: $refined")
+    }
+
+    @Test
+    fun testResolutionLeftToTheHost() {
+        val coordinates = DependencyCoordinates(listOf("junit:junit:4.11"))
+        val configuration = ScriptCompilationConfiguration {
+            hostConfiguration(ScriptingHostConfiguration(defaultJvmScriptingHostConfiguration) { shouldResolveDependencies(false) })
+            dependencies.append(coordinates)
+        }
+
+        val result = MainKtsDependencyResolver()
+            .invoke(ScriptConfigurationRefinementContext("".toScriptSource(), configuration, null))
+
+        val refined = (result as ResultWithDiagnostics.Success).value[ScriptCompilationConfiguration.dependencies].orEmpty()
+        assertEquals(listOf(coordinates), refined.filterIsInstance<DependencyCoordinates>())
+        assertTrue(refined.toClassPathOrEmpty().isEmpty(), "nothing should have been resolved: $refined")
     }
 
     @Test
@@ -103,11 +148,12 @@ class MainKtsTest {
         assertEquals("MimeTypedResult", value::class.simpleName)
     }
 
-//    @Test
+    @Test
     // this test is disabled: the resolving works fine, but ivy resolver is not processing "pom"-type dependencies correctly (
     //  as far as I can tell)
     // TODO: 1. find non-default but non-pom dependency suitable for an example to test resolving
     // TODO: 2. implement proper handling of pom-typed dependencies (e.g. consider to reimplement it on aether as in JarRepositoryManager (from IDEA))
+    @Disabled
     fun testResolveWithArtifactType() {
         val res = evalFile(File("$TEST_DATA_ROOT/resolve-moneta.main.kts"))
         assertSucceeded(res)
@@ -141,6 +187,17 @@ class MainKtsTest {
     }
 
     @Test
+    fun testImportKt87958() {
+
+        val out = captureOut {
+            val res = evalFile(File("$TEST_DATA_ROOT/kt87958/testing.main.kts"))
+            assertSucceeded(res)
+        }.lines()
+
+        assertEquals(listOf("Ok"), out)
+    }
+
+    @Test
     fun testImport() {
 
         val out = captureOut {
@@ -148,7 +205,7 @@ class MainKtsTest {
             assertSucceeded(res)
         }.lines()
 
-        Assert.assertEquals(OUT_FROM_IMPORT_TEST, out)
+        assertEquals(OUT_FROM_IMPORT_TEST, out)
     }
 
     @Test
@@ -159,7 +216,7 @@ class MainKtsTest {
             assertSucceeded(res)
         }.lines()
 
-        Assert.assertEquals(OUT_FROM_IMPORT_TEST, out)
+        assertEquals(OUT_FROM_IMPORT_TEST, out)
     }
 
     @Test
@@ -174,6 +231,55 @@ class MainKtsTest {
         // TODO: the second error is due to the late cycle detection, see TODO in makeCompiledScript$makeOtherScripts
         // TODO: third error is due to the early IR backend error, consider processing it in makeCompiledScript$makeOtherScripts
         assertFailedAny("Unable to handle recursive script dependencies", "is already bound", "Duplicate JVM class name", res = res)
+    }
+
+    @Test
+    fun testKt89247() {
+        val cacheDir = createTempDirectory("main.kts.test.cache").toFile()
+        try {
+            val script = File("$TEST_DATA_ROOT/kt89247/main.main.kts")
+            // the second run is served from the compilation cache, and the dependencies of the imported script should
+            // be restored from the cached jar as well
+            repeat(2) { run ->
+                var res: ResultWithDiagnostics<EvaluationResult>? = null
+                val out = captureOut {
+                    res = evalFile(script, cacheDir = cacheDir)
+                }.lines()
+                assertSucceeded(res!!)
+                assertEquals(listOf("Ok"), out, "run $run, script result: ${res.valueOrNull()?.returnValue}")
+            }
+        } finally {
+            cacheDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun testKt86352() {
+
+        val out = captureOut {
+            val res = evalFile(File("$TEST_DATA_ROOT/kt86352-main.main.kts"))
+            assertSucceeded(res)
+        }.lines()
+
+        assertEquals(listOf("result = MyData"), out)
+    }
+
+    @Test
+    fun testCacheInvalidationOnImportedScriptChange() {
+        assertCacheInvalidatedAfterEdit(
+            "cache.invalidation.imported.main.kts",
+            "@file:Import(\"cache.invalidation.kts\")\n\nprintln(\"from cache.invalidation.imported.main.kts version 2\")\n",
+            listOf("from cache.invalidation.imported.kts version 1", "from cache.invalidation.imported.main.kts version 2")
+        )
+    }
+
+    @Test
+    fun testCacheInvalidationOnTransitiveImportChange() {
+        assertCacheInvalidatedAfterEdit(
+            "cache.invalidation.kts",
+            "println(\"from cache.invalidation.imported.kts version 2\")\n",
+            listOf("from cache.invalidation.imported.kts version 2", "from cache.invalidation.imported.main.kts version 1")
+        )
     }
 
     @Test
@@ -243,7 +349,7 @@ class MainKtsTest {
     }
 
     @Test
-    @Ignore // Overriding provided properties is no supported yet, the test was working by errorneous coincidence. See #KT-52986
+    @Disabled // Overriding provided properties is no supported yet, the test was working by errorneous coincidence. See #KT-52986
     fun ignore_testScriptFileLocationDefaultVariableRedefinition() {
         val resOk = evalFile(File("$TEST_DATA_ROOT/script-file-location-redefine-variable.kts"))
         assertSucceeded(resOk)
@@ -284,7 +390,7 @@ class MainKtsTest {
     @Test
     fun testUtf8Bom() {
         val scriptPath = "$TEST_DATA_ROOT/utf8bom.main.kts"
-        Assert.assertTrue("Expect file '$scriptPath' to start with UTF-8 BOM", File(scriptPath).readText().startsWith(UTF8_BOM))
+        assertTrue(File(scriptPath).readText().startsWith(UTF8_BOM), "Expect file '$scriptPath' to start with UTF-8 BOM")
         val res = evalFile(File(scriptPath))
         assertSucceeded(res)
     }
@@ -295,16 +401,16 @@ class MainKtsTest {
             val res = evalFile(File("$TEST_DATA_ROOT/use-slf4j.main.kts"))
             assertSucceeded(res)
         }.second
-        Assert.assertTrue(
-            "Expect info log line with \"test-slf4j\" text, got:\n$err",
-            err.contains("INFO  - test-slf4j")
+        assertTrue(
+            err.contains("INFO  - test-slf4j"),
+            "Expect info log line with \"test-slf4j\" text, got:\n$err"
         )
     }
 
     private fun assertSucceeded(res: ResultWithDiagnostics<EvaluationResult>) {
-        Assert.assertTrue(
-            "test failed:\n  ${res.reports.joinToString("\n  ") { it.severity.name + ": " + it.message + if (it.exception == null) "" else ": ${it.exception}" }}",
-            res is ResultWithDiagnostics.Success
+        assertTrue(
+            res is ResultWithDiagnostics.Success,
+            "test failed:\n  ${res.reports.joinToString("\n  ") { it.severity.name + ": " + it.message + if (it.exception == null) "" else ": ${it.exception}" }}"
         )
     }
 
@@ -324,17 +430,12 @@ class MainKtsTest {
             1 -> " with the message \"${expectedErrors[0]}\""
             else -> " with any of the messages: ${expectedErrors.joinToString("\", \"", "\"", "\";")}"
         }
-        Assert.assertTrue(
+        assertTrue(
+            res is ResultWithDiagnostics.Failure && reports.any { report -> expectedErrors.any { report.containsIgnoringPunctuation(it) } },
             "test failed - expecting a failure$expected but received " +
                     (if (res is ResultWithDiagnostics.Failure) "failure" else "success") +
-                    ":\n  ${reports.joinToString("\n  ")}",
-            res is ResultWithDiagnostics.Failure && reports.any { report -> expectedErrors.any { report.containsIgnoringPunctuation(it) } }
+                    ":\n  ${reports.joinToString("\n  ")}"
         )
-    }
-
-    private val regexNonWord = "\\W".toRegex()
-    private fun String.containsIgnoringPunctuation(it: String): Boolean {
-        return this.replace(regexNonWord, "").contains(it.replace(regexNonWord, ""))
     }
 
     private fun evalSuccessWithOut(scriptFile: File, cacheDir: File? = null): List<String> =
@@ -342,6 +443,41 @@ class MainKtsTest {
             val res = evalFile(scriptFile, cacheDir)
             assertSucceeded(res)
         }.lines()
+
+    private fun assertCacheInvalidatedAfterEdit(fileToEdit: String, newText: String, expectedOutput: List<String>) {
+        val tempDir = createTempDirectory("main-kts-cache-test").toFile()
+        val cacheDir = createTempDirectory("main-kts-cache").toFile()
+        try {
+            listOf("cache.invalidation.main.kts", "cache.invalidation.imported.main.kts", "cache.invalidation.kts")
+                .forEach { File("$TEST_DATA_ROOT/$it").copyTo(File(tempDir, it)) }
+            val mainScript = File(tempDir, "cache.invalidation.main.kts")
+
+            assertEquals(
+                listOf("from cache.invalidation.imported.kts version 1", "from cache.invalidation.imported.main.kts version 1"),
+                evalSuccessWithOut(mainScript, cacheDir)
+            )
+            val cachedJar = cacheDir.listFiles()!!.single { it.extension == "jar" }
+            val checksum = MessageDigest.getInstance("SHA-256").digest(cachedJar.readBytes())
+
+            File(tempDir, fileToEdit).writeText(newText)
+
+            assertEquals(expectedOutput, evalSuccessWithOut(mainScript, cacheDir))
+            assertEquals(listOf(cachedJar), cacheDir.listFiles()!!.filter { it.extension == "jar" })
+            assertTrue(cachedJar.isFile)
+            assertTrue(
+                !checksum.contentEquals(MessageDigest.getInstance("SHA-256").digest(cachedJar.readBytes())),
+                "The cached jar should change after an imported script is edited"
+            )
+        } finally {
+            tempDir.deleteRecursively()
+            cacheDir.deleteRecursively()
+        }
+    }
+
+    private val regexNonWord = "\\W".toRegex()
+    private fun String.containsIgnoringPunctuation(it: String): Boolean {
+        return this.replace(regexNonWord, "").contains(it.replace(regexNonWord, ""))
+    }
 }
 
 class CacheDirectoryDetectorTest {
@@ -414,7 +550,7 @@ class CacheDirectoryDetectorTest {
 
     private fun assertCacheDir(path: String?) {
         val file = path?.let(::File)
-        Assert.assertEquals(file, directories.cache)
+        assertEquals(file, directories.cache)
     }
 
     private val systemProperties = Properties().apply {

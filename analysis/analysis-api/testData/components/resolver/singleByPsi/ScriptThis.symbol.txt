@@ -1,9 +1,12 @@
 KtNameReferenceExpression(16,20): 'this'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       KaScriptSymbol:
+        anchorPsi: KtScript
         annotations: []
-        compilerVisibility: Local
         isActual: false
         isExpect: false
         isExternal: false
@@ -11,5 +14,7 @@ KtNameReferenceExpression(16,20): 'this'
         modality: FINAL
         name: <script-ScriptThis.kts>
         origin: SOURCE
+        psi: KtScript
+        realPsi: KtScript
         visibility: LOCAL
     ]

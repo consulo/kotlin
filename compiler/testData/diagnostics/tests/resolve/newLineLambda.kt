@@ -1,4 +1,5 @@
 // RUN_PIPELINE_TILL: FRONTEND
+// COMPARE_WITH_LIGHT_TREE
 // DIAGNOSTICS: -UNUSED_PARAMETER
 
 fun noArgs() {}
@@ -29,7 +30,7 @@ fun testNoArgs() {
 }
 
 fun testLambdaArg() {
-    oneLambdaArg<!NO_VALUE_FOR_PARAMETER!>()<!>
+    <!NO_VALUE_FOR_PARAMETER!>oneLambdaArg<!>()
     oneLambdaArg {}
     oneLambdaArg()
     {}
@@ -41,7 +42,7 @@ fun testLambdaArg() {
         <!TOO_MANY_ARGUMENTS!>{}<!>
     )
     oneLambdaArg() {}
-    oneLambdaArg<!NO_VALUE_FOR_PARAMETER!>()<!> // {}
+    <!NO_VALUE_FOR_PARAMETER!>oneLambdaArg<!>() // {}
     oneLambdaArg() /* */ {}
     oneLambdaArg() /*
         block
@@ -63,6 +64,8 @@ fun testLambdaArg() {
     oneLambdaArg() {} <!MANY_LAMBDA_EXPRESSION_ARGUMENTS!>{}<!>
     oneLambdaArg() {}
     <!UNEXPECTED_TRAILING_LAMBDA_ON_A_NEW_LINE!>{}<!>
+    oneLambdaArg()
+    {}<!MANY_LAMBDA_EXPRESSION_ARGUMENTS!>{}<!>
     oneLambdaArg() {} // comment
     <!UNEXPECTED_TRAILING_LAMBDA_ON_A_NEW_LINE!>{}<!>
 }
@@ -96,7 +99,7 @@ fun testTwoLambdas() {
     )
 
     fun bar(): () -> Unit {
-        twoLambdaArgs<!NO_VALUE_FOR_PARAMETER!>()<!>
+        <!NO_VALUE_FOR_PARAMETER!>twoLambdaArgs<!>()
         {}
         <!UNEXPECTED_TRAILING_LAMBDA_ON_A_NEW_LINE!>{}<!>
 

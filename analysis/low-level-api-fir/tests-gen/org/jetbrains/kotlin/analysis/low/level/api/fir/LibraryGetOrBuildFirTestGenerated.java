@@ -35,6 +35,12 @@ public class LibraryGetOrBuildFirTestGenerated extends AbstractLibraryGetOrBuild
   }
 
   @Test
+  @TestMetadata("annotatedEnumEntry.kt")
+  public void testAnnotatedEnumEntry() {
+    run("annotatedEnumEntry.kt");
+  }
+
+  @Test
   @TestMetadata("annotatedProperties.kt")
   public void testAnnotatedProperties() {
     run("annotatedProperties.kt");
@@ -44,6 +50,12 @@ public class LibraryGetOrBuildFirTestGenerated extends AbstractLibraryGetOrBuild
   @TestMetadata("annotatedReturnType.kt")
   public void testAnnotatedReturnType() {
     run("annotatedReturnType.kt");
+  }
+
+  @Test
+  @TestMetadata("complexAnnotationClass.kt")
+  public void testComplexAnnotationClass() {
+    run("complexAnnotationClass.kt");
   }
 
   @Test
@@ -104,18 +116,6 @@ public class LibraryGetOrBuildFirTestGenerated extends AbstractLibraryGetOrBuild
   @TestMetadata("implicitFlexibleDnnType.kt")
   public void testImplicitFlexibleDnnType() {
     run("implicitFlexibleDnnType.kt");
-  }
-
-  @Test
-  @TestMetadata("multiFieldValueClass.kt")
-  public void testMultiFieldValueClass() {
-    run("multiFieldValueClass.kt");
-  }
-
-  @Test
-  @TestMetadata("multiFieldValueClassWithTypeAlias.kt")
-  public void testMultiFieldValueClassWithTypeAlias() {
-    run("multiFieldValueClassWithTypeAlias.kt");
   }
 
   @Test
@@ -269,12 +269,6 @@ public class LibraryGetOrBuildFirTestGenerated extends AbstractLibraryGetOrBuild
   }
 
   @Test
-  @TestMetadata("nestedValueClass.kt")
-  public void testNestedValueClass() {
-    run("nestedValueClass.kt");
-  }
-
-  @Test
   @TestMetadata("parameter.kt")
   public void testParameter() {
     run("parameter.kt");
@@ -326,6 +320,12 @@ public class LibraryGetOrBuildFirTestGenerated extends AbstractLibraryGetOrBuild
   @TestMetadata("parameterizedSuspendFunctionTypeComplex.kt")
   public void testParameterizedSuspendFunctionTypeComplex() {
     run("parameterizedSuspendFunctionTypeComplex.kt");
+  }
+
+  @Test
+  @TestMetadata("primitiveConsts.kt")
+  public void testPrimitiveConsts() {
+    run("primitiveConsts.kt");
   }
 
   @Test
@@ -419,45 +419,47 @@ public class LibraryGetOrBuildFirTestGenerated extends AbstractLibraryGetOrBuild
   }
 
   @Test
-  @TestMetadata("valueClassWithAnotherValueClass.kt")
-  public void testValueClassWithAnotherValueClass() {
-    run("valueClassWithAnotherValueClass.kt");
-  }
-
-  @Test
-  @TestMetadata("valueClassWithMultiFieldValueClass.kt")
-  public void testValueClassWithMultiFieldValueClass() {
-    run("valueClassWithMultiFieldValueClass.kt");
-  }
-
-  @Test
-  @TestMetadata("valueClassWithNestedClass.kt")
-  public void testValueClassWithNestedClass() {
-    run("valueClassWithNestedClass.kt");
-  }
-
-  @Test
-  @TestMetadata("valueClassWithNullableMultiFieldValueClass.kt")
-  public void testValueClassWithNullableMultiFieldValueClass() {
-    run("valueClassWithNullableMultiFieldValueClass.kt");
-  }
-
-  @Test
-  @TestMetadata("valueClassWithParameterizedAlias.kt")
-  public void testValueClassWithParameterizedAlias() {
-    run("valueClassWithParameterizedAlias.kt");
-  }
-
-  @Test
-  @TestMetadata("valueClassWithTypeAliasOnAnotherValueClass.kt")
-  public void testValueClassWithTypeAliasOnAnotherValueClass() {
-    run("valueClassWithTypeAliasOnAnotherValueClass.kt");
-  }
-
-  @Test
   @TestMetadata("varargAndFunctionalType.kt")
   public void testVarargAndFunctionalType() {
     run("varargAndFunctionalType.kt");
+  }
+
+  @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/getOrBuildFirBinary/companionBlocks")
+  @TestDataPath("$PROJECT_ROOT")
+  public class CompanionBlocks {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/getOrBuildFirBinary/companionBlocks/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInCompanionBlocks() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/getOrBuildFirBinary/companionBlocks"), Pattern.compile("^(.+)\\.kt$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("companionMethod.kt")
+    public void testCompanionMethod() {
+      run("companionMethod.kt");
+    }
+
+    @Test
+    @TestMetadata("companionProperty.kt")
+    public void testCompanionProperty() {
+      run("companionProperty.kt");
+    }
+
+    @Test
+    @TestMetadata("companionVariable.kt")
+    public void testCompanionVariable() {
+      run("companionVariable.kt");
+    }
+
+    @Test
+    @TestMetadata("mixOfRegularAndStaticMethods.kt")
+    public void testMixOfRegularAndStaticMethods() {
+      run("mixOfRegularAndStaticMethods.kt");
+    }
   }
 
   @Nested
@@ -943,6 +945,142 @@ public class LibraryGetOrBuildFirTestGenerated extends AbstractLibraryGetOrBuild
   }
 
   @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/getOrBuildFirBinary/inlineClasses")
+  @TestDataPath("$PROJECT_ROOT")
+  public class InlineClasses {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/getOrBuildFirBinary/inlineClasses/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInInlineClasses() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/getOrBuildFirBinary/inlineClasses"), Pattern.compile("^(.+)\\.kt$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("inlineClassWithEscapedPropertyName.kt")
+    public void testInlineClassWithEscapedPropertyName() {
+      run("inlineClassWithEscapedPropertyName.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassWithPrivateProperty.kt")
+    public void testInlineClassWithPrivateProperty() {
+      run("inlineClassWithPrivateProperty.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassWithSameNamedProperties.kt")
+    public void testInlineClassWithSameNamedProperties() {
+      run("inlineClassWithSameNamedProperties.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassWithTypeParameterUnderlyingType.kt")
+    public void testInlineClassWithTypeParameterUnderlyingType() {
+      run("inlineClassWithTypeParameterUnderlyingType.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineValueClass.kt")
+    public void testInlineValueClass() {
+      run("inlineValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineValueClassWithAnnotation.kt")
+    public void testInlineValueClassWithAnnotation() {
+      run("inlineValueClassWithAnnotation.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineValueClassWithFullValueClasses.kt")
+    public void testInlineValueClassWithFullValueClasses() {
+      run("inlineValueClassWithFullValueClasses.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineValueClassWithJvmInline.kt")
+    public void testInlineValueClassWithJvmInline() {
+      run("inlineValueClassWithJvmInline.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedValueClass.kt")
+    public void testNestedValueClass() {
+      run("nestedValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("valueClassWithAnotherValueClass.kt")
+    public void testValueClassWithAnotherValueClass() {
+      run("valueClassWithAnotherValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("valueClassWithNestedClass.kt")
+    public void testValueClassWithNestedClass() {
+      run("valueClassWithNestedClass.kt");
+    }
+
+    @Test
+    @TestMetadata("valueClassWithParameterizedAlias.kt")
+    public void testValueClassWithParameterizedAlias() {
+      run("valueClassWithParameterizedAlias.kt");
+    }
+
+    @Test
+    @TestMetadata("valueClassWithTypeAliasOnAnotherValueClass.kt")
+    public void testValueClassWithTypeAliasOnAnotherValueClass() {
+      run("valueClassWithTypeAliasOnAnotherValueClass.kt");
+    }
+
+    @Nested
+    @TestMetadata("analysis/low-level-api-fir/testData/getOrBuildFirBinary/inlineClasses/jvmAbi")
+    @TestDataPath("$PROJECT_ROOT")
+    public class JvmAbi {
+      private void run(String fileName) {
+        runTest("analysis/low-level-api-fir/testData/getOrBuildFirBinary/inlineClasses/jvmAbi/" + fileName);
+      }
+
+      @Test
+      public void testAllFilesPresentInJvmAbi() {
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/getOrBuildFirBinary/inlineClasses/jvmAbi"), Pattern.compile("^(.+)\\.kt$"), null, true);
+      }
+
+      @Test
+      @TestMetadata("jvmAbiInlineClassWithPrivateConstructor.kt")
+      public void testJvmAbiInlineClassWithPrivateConstructor() {
+        run("jvmAbiInlineClassWithPrivateConstructor.kt");
+      }
+
+      @Test
+      @TestMetadata("jvmAbiInlineClassWithPrivateProperty.kt")
+      public void testJvmAbiInlineClassWithPrivateProperty() {
+        run("jvmAbiInlineClassWithPrivateProperty.kt");
+      }
+
+      @Test
+      @TestMetadata("jvmAbiInlineClassWithPublicConstructor.kt")
+      public void testJvmAbiInlineClassWithPublicConstructor() {
+        run("jvmAbiInlineClassWithPublicConstructor.kt");
+      }
+
+      @Test
+      @TestMetadata("jvmAbiInlineClassWithTypeParameterUnderlyingType.kt")
+      public void testJvmAbiInlineClassWithTypeParameterUnderlyingType() {
+        run("jvmAbiInlineClassWithTypeParameterUnderlyingType.kt");
+      }
+
+      @Test
+      @TestMetadata("jvmAbiInlineValueClassWithFullValueClasses.kt")
+      public void testJvmAbiInlineValueClassWithFullValueClasses() {
+        run("jvmAbiInlineValueClassWithFullValueClasses.kt");
+      }
+    }
+  }
+
+  @Nested
   @TestMetadata("analysis/low-level-api-fir/testData/getOrBuildFirBinary/js")
   @TestDataPath("$PROJECT_ROOT")
   public class Js {
@@ -1035,6 +1173,118 @@ public class LibraryGetOrBuildFirTestGenerated extends AbstractLibraryGetOrBuild
   }
 
   @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/getOrBuildFirBinary/multiFieldValueClasses")
+  @TestDataPath("$PROJECT_ROOT")
+  public class MultiFieldValueClasses {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/getOrBuildFirBinary/multiFieldValueClasses/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInMultiFieldValueClasses() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/getOrBuildFirBinary/multiFieldValueClasses"), Pattern.compile("^(.+)\\.kt$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("fullValueClassAbstract.kt")
+    public void testFullValueClassAbstract() {
+      run("fullValueClassAbstract.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassObject.kt")
+    public void testFullValueClassObject() {
+      run("fullValueClassObject.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassSealed.kt")
+    public void testFullValueClassSealed() {
+      run("fullValueClassSealed.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithEscapedPropertyName.kt")
+    public void testFullValueClassWithEscapedPropertyName() {
+      run("fullValueClassWithEscapedPropertyName.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithMultipleProperties.kt")
+    public void testFullValueClassWithMultipleProperties() {
+      run("fullValueClassWithMultipleProperties.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithPrivateProperty.kt")
+    public void testFullValueClassWithPrivateProperty() {
+      run("fullValueClassWithPrivateProperty.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithPublicProperty.kt")
+    public void testFullValueClassWithPublicProperty() {
+      run("fullValueClassWithPublicProperty.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithSameNamedProperties.kt")
+    public void testFullValueClassWithSameNamedProperties() {
+      run("fullValueClassWithSameNamedProperties.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithSuperClass.kt")
+    public void testFullValueClassWithSuperClass() {
+      run("fullValueClassWithSuperClass.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithTypeParameterUnderlyingType.kt")
+    public void testFullValueClassWithTypeParameterUnderlyingType() {
+      run("fullValueClassWithTypeParameterUnderlyingType.kt");
+    }
+
+    @Nested
+    @TestMetadata("analysis/low-level-api-fir/testData/getOrBuildFirBinary/multiFieldValueClasses/jvmAbi")
+    @TestDataPath("$PROJECT_ROOT")
+    public class JvmAbi {
+      private void run(String fileName) {
+        runTest("analysis/low-level-api-fir/testData/getOrBuildFirBinary/multiFieldValueClasses/jvmAbi/" + fileName);
+      }
+
+      @Test
+      public void testAllFilesPresentInJvmAbi() {
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/getOrBuildFirBinary/multiFieldValueClasses/jvmAbi"), Pattern.compile("^(.+)\\.kt$"), null, true);
+      }
+
+      @Test
+      @TestMetadata("jvmAbiFullValueClassAbstract.kt")
+      public void testJvmAbiFullValueClassAbstract() {
+        run("jvmAbiFullValueClassAbstract.kt");
+      }
+
+      @Test
+      @TestMetadata("jvmAbiFullValueClassWithPrivateConstructor.kt")
+      public void testJvmAbiFullValueClassWithPrivateConstructor() {
+        run("jvmAbiFullValueClassWithPrivateConstructor.kt");
+      }
+
+      @Test
+      @TestMetadata("jvmAbiFullValueClassWithPrivateProperty.kt")
+      public void testJvmAbiFullValueClassWithPrivateProperty() {
+        run("jvmAbiFullValueClassWithPrivateProperty.kt");
+      }
+
+      @Test
+      @TestMetadata("jvmAbiFullValueClassWithPublicConstructor.kt")
+      public void testJvmAbiFullValueClassWithPublicConstructor() {
+        run("jvmAbiFullValueClassWithPublicConstructor.kt");
+      }
+    }
+  }
+
+  @Nested
   @TestMetadata("analysis/low-level-api-fir/testData/getOrBuildFirBinary/mustUseReturnValue")
   @TestDataPath("$PROJECT_ROOT")
   public class MustUseReturnValue {
@@ -1105,6 +1355,12 @@ public class LibraryGetOrBuildFirTestGenerated extends AbstractLibraryGetOrBuild
     @TestMetadata("mustUseReturnValueHalfEnabled.kt")
     public void testMustUseReturnValueHalfEnabled() {
       run("mustUseReturnValueHalfEnabled.kt");
+    }
+
+    @Test
+    @TestMetadata("returnsParameterContract.kt")
+    public void testReturnsParameterContract() {
+      run("returnsParameterContract.kt");
     }
 
     @Test
@@ -1197,6 +1453,44 @@ public class LibraryGetOrBuildFirTestGenerated extends AbstractLibraryGetOrBuild
     @TestMetadata("publishedApiPropertySetter.kt")
     public void testPublishedApiPropertySetter() {
       run("publishedApiPropertySetter.kt");
+    }
+  }
+
+  @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/getOrBuildFirBinary/strictEquals")
+  @TestDataPath("$PROJECT_ROOT")
+  public class StrictEquals {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/getOrBuildFirBinary/strictEquals/" + fileName);
+    }
+
+    @Test
+    @TestMetadata("aliasedEqualityBound.kt")
+    public void testAliasedEqualityBound() {
+      run("aliasedEqualityBound.kt");
+    }
+
+    @Test
+    public void testAllFilesPresentInStrictEquals() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/getOrBuildFirBinary/strictEquals"), Pattern.compile("^(.+)\\.kt$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("explicitEqualityBound.kt")
+    public void testExplicitEqualityBound() {
+      run("explicitEqualityBound.kt");
+    }
+
+    @Test
+    @TestMetadata("generatedEqualityBound.kt")
+    public void testGeneratedEqualityBound() {
+      run("generatedEqualityBound.kt");
+    }
+
+    @Test
+    @TestMetadata("inheritedEqualityBound.kt")
+    public void testInheritedEqualityBound() {
+      run("inheritedEqualityBound.kt");
     }
   }
 }

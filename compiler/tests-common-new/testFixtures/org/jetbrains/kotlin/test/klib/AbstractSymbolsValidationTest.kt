@@ -11,18 +11,24 @@ import org.jetbrains.kotlin.test.FirParser
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
 import org.jetbrains.kotlin.test.backend.ir.IrPreSerializationSymbolValidationHandler
-import org.jetbrains.kotlin.test.backend.ir.IrSecondPhaseSymbolValidationHandler
-import org.jetbrains.kotlin.test.builders.*
+import org.jetbrains.kotlin.test.backend.ir.IrSecondStageSymbolValidationHandler
+import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
+import org.jetbrains.kotlin.test.builders.firHandlersStep
+import org.jetbrains.kotlin.test.builders.irHandlersStep
+import org.jetbrains.kotlin.test.builders.loweredIrHandlersStep
 import org.jetbrains.kotlin.test.directives.ConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.configureFirParser
 import org.jetbrains.kotlin.test.frontend.fir.FirOutputArtifact
 import org.jetbrains.kotlin.test.model.*
 import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerWithTargetBackendTest
-import org.jetbrains.kotlin.test.services.LibraryProvider
+import org.jetbrains.kotlin.test.runners.UnspecifiedTargetBackend
 import org.jetbrains.kotlin.test.services.configuration.CommonEnvironmentConfigurator
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCommonBackend
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 
+@OptIn(UnspecifiedTargetBackend::class)
+@MustRunOnChangesInCommonBackend
 abstract class AbstractSymbolsValidationTest(
     targetBackend: TargetBackend,
     private val targetPlatform: TargetPlatform,
@@ -32,7 +38,7 @@ abstract class AbstractSymbolsValidationTest(
     private val serializerFacade: Constructor<BackendFacade<IrBackendInput, BinaryArtifacts.KLib>>,
     private val deserializerFacade: Constructor<DeserializerFacade<BinaryArtifacts.KLib, IrBackendInput>>,
     private val firstStageHandler: Constructor<IrPreSerializationSymbolValidationHandler>,
-    private val secondStageHandler: Constructor<IrSecondPhaseSymbolValidationHandler>? = null, // TODO KT-79801 make not nullable after all backends are supported
+    private val secondStageHandler: Constructor<IrSecondStageSymbolValidationHandler>? = null, // TODO KT-79801 make not nullable after all backends are supported
 ) : AbstractKotlinCompilerWithTargetBackendTest(targetBackend) {
     open fun TestConfigurationBuilder.applyConfigurators() {}
 
@@ -48,8 +54,6 @@ abstract class AbstractSymbolsValidationTest(
         defaultDirectives {
             +ConfigurationDirectives.WITH_STDLIB
         }
-
-        useAdditionalService(::LibraryProvider)
 
         facadeStep(frontendFacade)
         firHandlersStep()

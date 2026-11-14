@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// SKIP_TXT
+// RUN_PIPELINE_TILL: CODEGEN
 // FILE: A.java
 public class A {
     public String getS4ClassRepresentation() { return ""; }

@@ -8,18 +8,15 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.test.base
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.psi.search.GlobalSearchScope
-import org.jetbrains.kotlin.analysis.api.impl.base.test.configurators.AnalysisApiBaseTestServiceRegistrar
-import org.jetbrains.kotlin.analysis.api.impl.base.test.configurators.AnalysisApiIdeModeTestServiceRegistrar
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaLibraryModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.allDirectDependenciesOfType
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.AnalysisApiServiceRegistrar
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.FirStandaloneServiceRegistrar
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.AnalysisApiServiceRegistrar
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.FirStandaloneServiceRegistrar
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.*
 import org.jetbrains.kotlin.analysis.test.framework.services.configuration.AnalysisApiBinaryLibraryIndexingMode
 import org.jetbrains.kotlin.analysis.test.framework.services.configuration.AnalysisApiIndexingConfiguration
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
@@ -29,11 +26,11 @@ import org.jetbrains.kotlin.test.services.TestServices
 object FirLowLevelCompilerBasedTestConfigurator : AnalysisApiTestConfigurator {
     override val analyseInDependentSession: Boolean get() = false
     override val analysisApiMode: AnalysisApiMode get() = AnalysisApiMode.Ide
-    override val frontendKind: FrontendKind get() = FrontendKind.Fir
 
     override fun configureTest(builder: TestConfigurationBuilder, disposable: Disposable) {
         builder.apply {
             useAdditionalService { AnalysisApiIndexingConfiguration(AnalysisApiBinaryLibraryIndexingMode.INDEX_STUBS) }
+            configureFirConsistencyChecks()
         }
     }
 
@@ -53,7 +50,7 @@ object FirLowLevelCompilerBasedTestConfigurator : AnalysisApiTestConfigurator {
             val files = TestModuleStructureFactory.createSourcePsiFiles(testModule, testServices, project)
             val scriptFile = files.singleOrNull() as? KtFile
 
-            val (ktModule, testModuleKind) = if (scriptFile?.isScript() == true) {
+            val [ktModule, testModuleKind] = if (scriptFile?.isScript() == true) {
                 Pair(
                     KaScriptModuleByCompilerConfiguration(project, testModule, scriptFile, testServices),
                     TestModuleKind.ScriptSource,

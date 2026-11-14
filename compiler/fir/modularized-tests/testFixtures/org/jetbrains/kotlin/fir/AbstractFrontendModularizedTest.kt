@@ -55,7 +55,7 @@ abstract class AbstractFrontendModularizedTest(config: ModularizedTestConfig) : 
             configuration.addJavaSourceRoot(it.path, it.packagePrefix)
         }
 
-        val isJava9Module = moduleData.javaSourceRoots.any { (file, packagePrefix) ->
+        val isJava9Module = moduleData.javaSourceRoots.any { (val file = path, val packagePrefix) ->
             packagePrefix == null &&
                     (file.name == PsiJavaModule.MODULE_INFO_FILE ||
                             (file.isDirectory && file.listFiles()!!.any { it.name == PsiJavaModule.MODULE_INFO_FILE }))
@@ -72,6 +72,7 @@ abstract class AbstractFrontendModularizedTest(config: ModularizedTestConfig) : 
             moduleData.modularJdkRoot
                 ?: moduleData.jdkHome?.absoluteFile
                 ?: originalArguments?.jdkHome?.fixPath(config.rootPathPrefix)?.absoluteFile
+                ?: config.fallbackJdkHome?.absoluteFile
 
         if (originalArguments != null) {
             configuration.put(JVMConfigurationKeys.NO_JDK, originalArguments.noJdk)

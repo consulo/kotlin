@@ -1,42 +1,54 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.psi;
 
 import com.intellij.lang.ASTNode;
-import com.intellij.psi.stubs.IStubElementType;
+import com.intellij.psi.tree.IElementType;
+import kotlin.DeprecationLevel;
+import kotlin.ReplaceWith;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.KtStubBasedElementTypes;
+import org.jetbrains.kotlin.KtNodeTypes;
 import org.jetbrains.kotlin.psi.stubs.KotlinStubWithFqName;
 
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Base implementation of {@link KtTypeParameterListOwner} that may be backed either by the AST tree or by a stub.
+ *
+ * <p>This is an internal implementation base class of the Kotlin PSI, not intended for direct use or subclassing outside of the PSI
+ * implementation. See {@link KtElementImplStub} for details on stub backing.
+ *
+ * @param <T> the type of stub backing this declaration, carrying its fully qualified name
+ */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public abstract class KtTypeParameterListOwnerStub<T extends KotlinStubWithFqName<?>>
         extends KtNamedDeclarationStub<T> implements KtTypeParameterListOwner {
-    public KtTypeParameterListOwnerStub(@NotNull T stub, @NotNull IStubElementType nodeType) {
+    @KtImplementationDetail
+    public KtTypeParameterListOwnerStub(@NotNull T stub, @NotNull IElementType nodeType) {
         super(stub, nodeType);
     }
 
+    @KtImplementationDetail
     public KtTypeParameterListOwnerStub(@NotNull ASTNode node) {
         super(node);
     }
 
     @Override
     @Nullable
-    @SuppressWarnings("deprecation") // KT-78356
     public KtTypeParameterList getTypeParameterList() {
-        return getStubOrPsiChild(KtStubBasedElementTypes.TYPE_PARAMETER_LIST);
+        return getStubOrPsiChild(KtNodeTypes.TYPE_PARAMETER_LIST, KtTypeParameterList.class);
     }
 
     @Override
     @Nullable
-    @SuppressWarnings("deprecation") // KT-78356
     public KtTypeConstraintList getTypeConstraintList() {
-        return getStubOrPsiChild(KtStubBasedElementTypes.TYPE_CONSTRAINT_LIST);
+        return getStubOrPsiChild(KtNodeTypes.TYPE_CONSTRAINT_LIST, KtTypeConstraintList.class);
     }
 
     @Override
@@ -61,6 +73,14 @@ public abstract class KtTypeParameterListOwnerStub<T extends KotlinStubWithFqNam
     /**
      * @deprecated Use {@link KtModifierList#getContextParameterList()} (via {@link #getModifierList()}) instead. This method is obsolete and exists for compatibility reasons only.
      */
+    @kotlin.Deprecated(
+            message = "Use 'KtModifierList.getContextParameterList()' (via 'getModifierList()') instead. This method is obsolete and exists for compatibility reasons only.",
+            replaceWith = @ReplaceWith(
+                    expression = "modifierList?.contextParameterList",
+                    imports = {}
+            ),
+            level = DeprecationLevel.HIDDEN
+    )
     @Deprecated
     @Nullable
     public KtContextReceiverList getContextReceiverList() {
@@ -80,6 +100,14 @@ public abstract class KtTypeParameterListOwnerStub<T extends KotlinStubWithFqNam
      * @return a non-null list of {@link KtContextReceiverList} defined in the associated modifier list.
      * Returns an empty list if no context receiver lists are present.
      */
+    @kotlin.Deprecated(
+            message = "Use 'KtModifierList.getContextParameterLists()' (via 'getModifierList()') instead. This method is obsolete and exists for compatibility reasons only.",
+            replaceWith = @ReplaceWith(
+                    expression = "modifierList?.contextParameterLists.orEmpty()",
+                    imports = {}
+            ),
+            level = DeprecationLevel.HIDDEN
+    )
     @Deprecated
     @SuppressWarnings("unchecked")
     @NotNull

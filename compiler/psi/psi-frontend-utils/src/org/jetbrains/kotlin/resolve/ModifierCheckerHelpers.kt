@@ -32,10 +32,14 @@ enum class Compatibility {
     INCOMPATIBLE,
 
     // same but only for functions / properties: error
-    COMPATIBLE_FOR_CLASSES_ONLY
-}
+    COMPATIBLE_FOR_CLASSES_ONLY,
 
-val compatibilityTypeMap = hashMapOf<Pair<KtKeywordToken, KtKeywordToken>, Compatibility>()
+    /**
+     * The combination of `inline` and `value` is allowed,
+     * but only since [LanguageFeature.ExplicitInlineValueClassesSyntax].
+     */
+    INLINE_VALUE_ALLOWED,
+}
 
 fun compatibility(first: KtKeywordToken, second: KtKeywordToken): Compatibility {
     return if (first == second) {
@@ -63,7 +67,7 @@ private fun buildCompatibilityMap(): Map<Pair<KtKeywordToken, KtKeywordToken>, C
     result += incompatibilityRegister(DATA_KEYWORD, SEALED_KEYWORD)
     result += incompatibilityRegister(DATA_KEYWORD, INLINE_KEYWORD)
     result += incompatibilityRegister(DATA_KEYWORD, VALUE_KEYWORD)
-    result += incompatibilityRegister(INLINE_KEYWORD, VALUE_KEYWORD)
+    result += compatibilityRegister(Compatibility.INLINE_VALUE_ALLOWED, INLINE_KEYWORD, VALUE_KEYWORD)
     result += incompatibilityRegister(DATA_KEYWORD, OBJECT_KEYWORD, EXPECT_KEYWORD)
     // open is redundant to abstract & override
     result += redundantRegister(ABSTRACT_KEYWORD, OPEN_KEYWORD)
@@ -302,7 +306,11 @@ val possibleTargetPredicateMap = mapOf(
         KotlinTarget.TYPEALIAS
     ),
     FUN_KEYWORD to always(KotlinTarget.INTERFACE),
-    VALUE_KEYWORD to always(KotlinTarget.CLASS_ONLY)
+    VALUE_KEYWORD to or(
+        always(KotlinTarget.CLASS_ONLY),
+        ifSupported(LanguageFeature.FullValueClasses, KotlinTarget.STANDALONE_OBJECT)
+    ),
+    ERROR_KEYWORD to always(KotlinTarget.CLASS_ONLY, KotlinTarget.OBJECT),
 )
 
 // NOTE: deprecated targets must be possible!
@@ -383,6 +391,7 @@ val possibleParentTargetPredicateMap = mapOf(
         KotlinTarget.OBJECT_LITERAL,
         KotlinTarget.ENUM_CLASS,
         KotlinTarget.ENUM_ENTRY,
+        KotlinTarget.INTERFACE,
         KotlinTarget.FILE
     ),
     PRIVATE_KEYWORD to always(
@@ -403,7 +412,7 @@ val possibleParentTargetPredicateMap = mapOf(
             KotlinTarget.ANNOTATION_CLASS,
         ),
         ifSupported(
-            LanguageFeature.CompanionBlocksAndExtensions,
+            LanguageFeature.CompanionExtensions,
             KotlinTarget.FILE,
         )
     ),

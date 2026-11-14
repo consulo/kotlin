@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.fir.analysis.native.checkers.FirNativeObjCNameUtilit
 import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirClass
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
+import org.jetbrains.kotlin.fir.declarations.FirReceiverParameter
 import org.jetbrains.kotlin.fir.declarations.FirValueParameter
 import org.jetbrains.kotlin.fir.declarations.utils.isOverride
 import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
@@ -34,7 +35,7 @@ object FirNativeObjCNameChecker : FirBasicDeclarationChecker(MppCheckerKind.Plat
 
     context(context: CheckerContext, reporter: DiagnosticReporter)
     override fun check(declaration: FirDeclaration) {
-        if (declaration is FirValueParameter) return // those are checked with the FirFunction
+        if (declaration is FirValueParameter || declaration is FirReceiverParameter) return // those are checked with the FirFunction
         val objCNames = declaration.symbol.getObjCNames(context.session).filterNotNull()
         if (objCNames.isEmpty()) return
         if (declaration is FirCallableDeclaration && declaration.isOverride) {
@@ -55,7 +56,7 @@ object FirNativeObjCNameChecker : FirBasicDeclarationChecker(MppCheckerKind.Plat
         declaration: FirDeclaration,
     ) {
         val annotationSource = objCName.annotation.source
-        for ((_, argument) in objCName.annotation.argumentMapping.mapping) {
+        for ([_, argument] in objCName.annotation.argumentMapping.mapping) {
             if (argument is FirLiteralExpression) continue
             reporter.reportOn(argument.source, NON_LITERAL_OBJC_NAME_ARG)
         }

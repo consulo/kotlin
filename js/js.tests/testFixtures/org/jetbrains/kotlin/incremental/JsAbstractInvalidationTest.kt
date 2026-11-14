@@ -5,38 +5,43 @@
 
 package org.jetbrains.kotlin.incremental
 
+import org.jetbrains.kotlin.CoreEnvironmentDeprecation
 import org.jetbrains.kotlin.cli.create
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
+import org.jetbrains.kotlin.cli.pipeline.ConfigurationPipelineArtifact
+import org.jetbrains.kotlin.cli.pipeline.web.js.JsIncrementalBuildingPhase
+import org.jetbrains.kotlin.cli.pipeline.web.js.JsIncrementalCachePreparationPipelinePhase
 import org.jetbrains.kotlin.codegen.ModelTarget
 import org.jetbrains.kotlin.codegen.ModuleInfo
 import org.jetbrains.kotlin.codegen.ProjectInfo
-import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.phaseConfig
+import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.config.phaser.PhaseConfig
 import org.jetbrains.kotlin.config.phaser.PhaseSet
 import org.jetbrains.kotlin.config.targetPlatform
-import org.jetbrains.kotlin.ir.backend.js.JsICContext
-import org.jetbrains.kotlin.ir.backend.js.SourceMapsInfo
-import org.jetbrains.kotlin.ir.backend.js.ic.CacheUpdater
-import org.jetbrains.kotlin.ir.backend.js.ic.JsExecutableProducer
-import org.jetbrains.kotlin.ir.backend.js.ic.JsModuleArtifact
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.CompilationOutputs
 import org.jetbrains.kotlin.js.config.*
 import org.jetbrains.kotlin.js.engine.ScriptExecutionException
+import org.jetbrains.kotlin.js.test.converters.AnalysisApiBasedDtsGeneratorFacade
 import org.jetbrains.kotlin.js.test.runners.AbstractJsCompilerInvocationTest
 import org.jetbrains.kotlin.js.test.runners.JsCompilerInvocationTestConfiguration
 import org.jetbrains.kotlin.js.testOld.V8JsTestChecker
+import org.jetbrains.kotlin.js.tsexport.TypeScriptModuleConfig
+import org.jetbrains.kotlin.js.tsexport.createTypeScriptExportInputModule
 import org.jetbrains.kotlin.klib.KlibCompilerInvocationTestUtils
+import org.jetbrains.kotlin.library.metadata.KlibInputModule
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.platform.js.JsPlatforms
 import org.jetbrains.kotlin.test.DebugMode
 import org.jetbrains.kotlin.test.TargetBackend
-import org.jetbrains.kotlin.test.util.JUnit4Assertions
+import org.jetbrains.kotlin.test.services.JUnit5Assertions
+import org.jetbrains.kotlin.test.testInfraError
 import org.jetbrains.kotlin.test.utils.TestDisposable
-import org.jetbrains.kotlin.utils.addToStdlib.runIf
-import org.junit.ComparisonFailure
+import org.jetbrains.kotlin.utils.fileUtils.withReplacedExtensionOrNull
+import org.junit.jupiter.api.Assertions
+import org.opentest4j.AssertionFailedError
 import java.io.File
+import kotlin.io.path.Path
 
 abstract class JsAbstractInvalidationTest(
     targetBackend: TargetBackend,
@@ -54,13 +59,13 @@ abstract class JsAbstractInvalidationTest(
 
     override val modelTarget: ModelTarget = ModelTarget.JS
 
-    override val outputDirPath = System.getProperty("kotlin.js.test.root.out.dir") ?: error("'kotlin.js.test.root.out.dir' is not set")
+    override val outputDirPath = System.getProperty("kotlin.js.test.root.out.dir") ?: testInfraError("'kotlin.js.test.root.out.dir' is not set")
 
     override val stdlibKLib: String =
-        File(System.getProperty("kotlin.js.stdlib.klib.path") ?: error("Please set stdlib path")).canonicalPath
+        File(System.getProperty("kotlin.js.stdlib.klib.path") ?: testInfraError("Please set stdlib path")).canonicalPath
 
     override val kotlinTestKLib: String =
-        File(System.getProperty("kotlin.js.kotlin.test.klib.path") ?: error("Please set kotlin.test path")).canonicalPath
+        File(System.getProperty("kotlin.js.kotlin.test.klib.path") ?: testInfraError("Please set kotlin.test path")).canonicalPath
 
     open val libraryNamesToExcludeFromStats
         get() = setOf(STDLIB_MODULE_NAME, KOTLIN_TEST_MODULE_NAME)
@@ -69,6 +74,7 @@ abstract class JsAbstractInvalidationTest(
         TestDisposable("${JsAbstractInvalidationTest::class.simpleName}.rootDisposable")
 
     override val environment: KotlinCoreEnvironment =
+        @OptIn(CoreEnvironmentDeprecation::class)
         KotlinCoreEnvironment.createForParallelTests(rootDisposable, CompilerConfiguration.create(), EnvironmentConfigFiles.JS_CONFIG_FILES)
 
     override fun testConfiguration(buildDir: File): KlibCompilerInvocationTestUtils.TestConfiguration =
@@ -81,6 +87,7 @@ abstract class JsAbstractInvalidationTest(
         allLibraries: List<String>,
         friendLibraries: List<String>,
         includedLibrary: String?,
+        outputDir: File,
     ): CompilerConfiguration {
         val copy = super.createConfiguration(
             moduleName = moduleName,
@@ -89,6 +96,7 @@ abstract class JsAbstractInvalidationTest(
             allLibraries = allLibraries,
             friendLibraries = friendLibraries,
             includedLibrary = includedLibrary,
+            outputDir = outputDir,
         )
         copy.put(JSConfigurationKeys.USE_ES6_CLASSES, targetBackend == TargetBackend.JS_IR_ES6)
         copy.put(JSConfigurationKeys.COMPILE_SUSPEND_AS_JS_GENERATOR, targetBackend == TargetBackend.JS_IR_ES6)
@@ -116,9 +124,9 @@ abstract class JsAbstractInvalidationTest(
         override fun execute() {
             if (granularity in projectInfo.ignoredGranularities) return
 
-            val mainArguments = runIf(projectInfo.callMain) { emptyList<String>() }
-            val dtsStrategy = when (granularity) {
-                JsGenerationGranularity.PER_FILE -> TsCompilationStrategy.EACH_FILE
+            val dtsStrategy = when {
+                !projectInfo.checkTypeScriptDefinitions -> TsCompilationStrategy.NONE
+                granularity == JsGenerationGranularity.PER_FILE -> TsCompilationStrategy.EACH_FILE
                 else -> TsCompilationStrategy.MERGED
             }
 
@@ -127,16 +135,19 @@ abstract class JsAbstractInvalidationTest(
 
                 val mainModuleInfo = testInfo.last()
                 testInfo.find { it != mainModuleInfo && it.friends.isNotEmpty() }?.let {
-                    error("module ${it.moduleName} has friends, but only main module may have the friends")
+                    testInfraError("module ${it.moduleName} has friends, but only main module may have the friends")
                 }
 
+                val moduleName = projStep.order.last()
+                val allLibraries = testInfo.mapTo(mutableListOf(stdlibKLib, kotlinTestKLib)) { it.modulePath }
                 val configuration = createConfiguration(
-                    moduleName = projStep.order.last(),
+                    moduleName = moduleName,
                     moduleKind = projectInfo.moduleKind,
                     languageFeatures = projStep.language,
-                    allLibraries = testInfo.mapTo(mutableListOf(stdlibKLib, kotlinTestKLib)) { it.modulePath },
+                    allLibraries = allLibraries,
                     friendLibraries = mainModuleInfo.friends,
                     includedLibrary = mainModuleInfo.modulePath,
+                    outputDir = jsDir,
                 ).apply {
                     put(JSConfigurationKeys.GENERATE_DTS, projectInfo.checkTypeScriptDefinitions)
                     put(JSConfigurationKeys.SOURCE_MAP_EMBED_SOURCES, SourceMapSourceEmbedding.NEVER)
@@ -148,48 +159,70 @@ abstract class JsAbstractInvalidationTest(
                 }
 
                 configuration.phaseConfig = createPhaseConfig(projStep.id, buildDir)
-                val icContext = JsICContext(
-                    mainArguments,
-                    granularity,
-                    setOf(FqName(BOX_FUNCTION_NAME)),
+                configuration.additionalExportedDeclarationNames = setOf(FqName(BOX_FUNCTION_NAME))
+                configuration.icCacheDirectory = buildDir.resolve("incremental-cache").absolutePath
+
+                val artifactConfiguration = WebArtifactConfiguration(
+                    moduleKind = projectInfo.moduleKind,
+                    moduleName = moduleName,
+                    outputDirectory = jsDir,
+                    outputName = moduleName,
+                    granularity = granularity,
+                    tsCompilationStrategy = dtsStrategy,
+                    production = false,
+                    minimizedMemberNames = false,
                 )
 
-
-                val cacheUpdater = CacheUpdater(
-                    cacheDir = buildDir.resolve("incremental-cache").absolutePath,
-                    compilerConfiguration = configuration,
-                    icContext = icContext
-                )
+                configuration.artifactConfigurations = listOf(artifactConfiguration)
 
                 val removedModulesInfo = (projectInfo.modules - projStep.order.toSet()).map { setupTestStep(projStep, it) }
 
-                val icCaches = cacheUpdater.actualizeCaches().map { it as JsModuleArtifact }
-                verifyCacheUpdateStats(projStep.id, cacheUpdater.getDirtyFileLastStats(), testInfo + removedModulesInfo)
+                val preparedIcCachesArtifact =
+                    JsIncrementalCachePreparationPipelinePhase.executePhase(ConfigurationPipelineArtifact(configuration, rootDisposable))!!
+                val [icCaches, dirtyFileLastStats, _, _] = preparedIcCachesArtifact
+                verifyCacheUpdateStats(projStep.id, dirtyFileLastStats, testInfo + removedModulesInfo)
 
                 val mainModuleName = icCaches.last().moduleExternalName
-                val jsExecutableProducer = JsExecutableProducer(
-                    mainModuleName = mainModuleName,
-                    moduleKind = configuration[JSConfigurationKeys.MODULE_KIND]!!,
-                    sourceMapsInfo = SourceMapsInfo.from(configuration),
-                    caches = icCaches,
-                    relativeRequirePath = true
-                )
 
-                val (jsOutput, rebuiltModules) = jsExecutableProducer.buildExecutable(granularity, outJsProgram = true)
-                val writtenFiles = writeJsCode(projStep.id, mainModuleName, jsOutput, dtsStrategy)
+                val (result) = JsIncrementalBuildingPhase.executePhase(preparedIcCachesArtifact)
+
+                val jsOutput = result.outputs.values.single()
+                val rebuiltModules = result.rebuiltModules.values.single()
+                val writtenFiles = writeJsCode(projStep.id, jsOutput)
 
                 verifyJsExecutableProducerBuildModules(projStep.id, rebuiltModules, dirtyData)
                 verifyJsCode(projStep.id, mainModuleName, writtenFiles)
 
                 if (projectInfo.checkTypeScriptDefinitions) {
-                    verifyDTS(projStep.id, testInfo)
+                    val tsExportConfig = AnalysisApiBasedDtsGeneratorFacade.createExportConfig(
+                        targetPlatform = JsPlatforms.defaultJsPlatform,
+                        artifactConfiguration = artifactConfiguration.copy(outputDirectory = jsDir.resolve("ts-aa")),
+                        configuration = configuration,
+                    )
+
+                    val tsExportModules: List<KlibInputModule<TypeScriptModuleConfig>> = buildList {
+                        allLibraries.mapTo(this, ::createTypeScriptExportInputModule)
+                    }
+
+                    AnalysisApiBasedDtsGeneratorFacade.runTypeScriptExportOrFail(tsExportModules, tsExportConfig)
+
+                    // Verify TypeScript generated from IR (legacy)
+                    verifyDTS(projStep.id, testInfo, jsDir)
+
+                    // Verify TypeScript generated from metadata
+                    verifyDTS(projStep.id, testInfo, tsExportConfig.artifactConfiguration.outputDirectory, expectedDtsSuffix = ".aa")
                 }
             }
         }
 
+        private fun createTypeScriptExportInputModule(klibPath: String): KlibInputModule<TypeScriptModuleConfig> =
+            createTypeScriptExportInputModule(Path(klibPath)) { _, message ->
+                JUnit5Assertions.fail { message }
+            }
+
         private fun verifyJsExecutableProducerBuildModules(stepId: Int, gotRebuilt: List<String>, expectedRebuilt: List<String>) {
             val got = gotRebuilt.filter { moduleName -> libraryNamesToExcludeFromStats.none { moduleName.startsWith(it) } }
-            JUnit4Assertions.assertSameElements(got, expectedRebuilt) {
+            JUnit5Assertions.assertSameElements(expectedRebuilt, got) {
                 "Mismatched rebuilt modules at step $stepId"
             }
         }
@@ -199,15 +232,15 @@ abstract class JsAbstractInvalidationTest(
                 V8JsTestChecker.checkWithTestFunctionArgs(
                     files = jsFiles,
                     testModuleName = "./$mainModuleName${projectInfo.moduleKind.jsExtension}",
-                    testPackageName = null,
+                    testPackageName = FqName.ROOT,
                     testFunctionName = BOX_FUNCTION_NAME,
                     testFunctionArgs = "$stepId, false",
                     expectedResult = "OK",
                     withModuleSystem = projectInfo.moduleKind in setOf(ModuleKind.COMMON_JS, ModuleKind.UMD, ModuleKind.AMD),
                     entryModulePath = jsFiles.last()
                 )
-            } catch (e: ComparisonFailure) {
-                throw ComparisonFailure("Mismatched box out at step $stepId", e.expected, e.actual)
+            } catch (e: AssertionFailedError) {
+                throw AssertionFailedError("Mismatched box out at step $stepId", e.expected, e.actual)
             } catch (e: IllegalStateException) {
                 throw IllegalStateException("Something goes wrong (bad JS code?) at step $stepId\n${e.message}")
             } catch (e: ScriptExecutionException) {
@@ -215,7 +248,7 @@ abstract class JsAbstractInvalidationTest(
             }
         }
 
-        private fun verifyDTS(stepId: Int, testInfo: List<TestStepInfo>) {
+        private fun verifyDTS(stepId: Int, testInfo: List<TestStepInfo>, outputDirectory: File, expectedDtsSuffix: String = "") {
             val dtsFileExtension = projectInfo.moduleKind.dtsExtension
 
             for (info in testInfo) {
@@ -226,41 +259,30 @@ abstract class JsAbstractInvalidationTest(
                     else -> "$moduleName$dtsFileExtension"
                 }
 
-                val dtsFile = jsDir.resolve(dtsFilePath)
-                JUnit4Assertions.assertTrue(dtsFile.exists()) {
+                val dtsFile = outputDirectory.resolve(dtsFilePath)
+                Assertions.assertTrue(dtsFile.exists()) {
                     "Cannot find $dtsFileExtension (${dtsFile.absolutePath}) file for module ${info.moduleName} at step $stepId"
                 }
 
                 val gotDTS = dtsFile.readText()
-                JUnit4Assertions.assertEquals(expectedDTS.content, gotDTS) {
+                val expectedDtsFile = expectedDTS.file.withReplacedExtensionOrNull(".d.ts", "$expectedDtsSuffix.d.ts")
+                    ?: expectedDTS.file.withReplacedExtensionOrNull(".d.mts", "$expectedDtsSuffix.d.mts")
+                    ?: testInfraError("Unexpected extension in file ${expectedDTS.file.name}")
+                JUnit5Assertions.assertEqualsToFile(expectedDtsFile, gotDTS, { it }) {
                     "Mismatched $$dtsFileExtension for module ${info.moduleName} at step $stepId"
                 }
             }
         }
 
-        private fun writeJsCode(
-            stepId: Int,
-            mainModuleName: String,
-            jsOutput: CompilationOutputs,
-            dtsStrategy: TsCompilationStrategy
-        ): List<String> {
-            val compiledJsFiles = jsOutput.writeAll(
-                WebArtifactConfiguration(
-                    moduleKind = projectInfo.moduleKind,
-                    moduleName = mainModuleName,
-                    outputDirectory = jsDir,
-                    outputName = mainModuleName,
-                    granularity = granularity,
-                    tsCompilationStrategy = dtsStrategy,
-                )
-            ).filter {
+        private fun writeJsCode(stepId: Int, jsOutput: CompilationOutputs): List<String> {
+            val compiledJsFiles = jsOutput.writeAll().filter {
                 it.extension == "js" || it.extension == "mjs"
             }
             for (jsCodeFile in compiledJsFiles) {
                 val sourceMappingUrlLine = jsCodeFile.readLines().singleOrNull { it.startsWith(SOURCE_MAPPING_URL_PREFIX) }
 
                 if (sourceMappingUrlLine != null) {
-                    JUnit4Assertions.assertEquals("${SOURCE_MAPPING_URL_PREFIX}${jsCodeFile.name}.map", sourceMappingUrlLine) {
+                    Assertions.assertEquals("${SOURCE_MAPPING_URL_PREFIX}${jsCodeFile.name}.map", sourceMappingUrlLine) {
                         "Mismatched source map url at step $stepId"
                     }
                 }

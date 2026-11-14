@@ -8,12 +8,12 @@ package org.jetbrains.kotlin.backend.konan.llvm
 import llvm.LLVMLinkage
 import llvm.LLVMValueRef
 import org.jetbrains.kotlin.backend.konan.*
-import org.jetbrains.kotlin.ir.util.getAnnotationStringValue
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.objcinterop.*
+import org.jetbrains.kotlin.ir.util.getConstArgument
 
 internal class KotlinObjCClassInfoGenerator(override val generationState: NativeGenerationState) : ContextUtils {
     fun generate(irClass: IrClass) {
@@ -81,6 +81,7 @@ internal class KotlinObjCClassInfoGenerator(override val generationState: Native
 
         assert(irClass.getSuperClassNotAny()!!.isExternalObjCClass())
         val allInitMethodsInfo = irClass.getSuperClassNotAny()!!.constructors
+                .filterNot { it.isObjCUnavailable() }
                 .mapNotNull { it.getObjCInitMethod()?.getExternalObjCMethodInfo() }
                 .filter { it.selector !in allImplementedSelectors }
                 .distinctBy { it.selector }
@@ -98,7 +99,7 @@ internal class KotlinObjCClassInfoGenerator(override val generationState: Native
         return if (irClass.annotations.hasAnnotation(exportObjCClassAnnotation)) irClass.name.asString() else null
     }
 
-    private fun selectInternalClassName(irClass: IrClass): String? = if (irClass.isExported()) {
+    private fun selectInternalClassName(irClass: IrClass): String? = if (irClass.isExported) {
         irClass.fqNameForIrSerialization.asString()
     } else {
         null // Generate as anonymous.
@@ -121,8 +122,8 @@ internal class KotlinObjCClassInfoGenerator(override val generationState: Native
                                 return@mapNotNull null
 
                 ObjCMethodDesc(
-                        annotation.getAnnotationStringValue("selector"),
-                        annotation.getAnnotationStringValue("encoding"),
+                        annotation.getConstArgument<String>("selector")!!,
+                        annotation.getConstArgument<String>("encoding")!!,
                         it.llvmFunction.toConstPointer()
                 )
             }
@@ -164,7 +165,8 @@ internal class KotlinObjCClassInfoGenerator(override val generationState: Native
 internal fun CodeGenerator.kotlinObjCClassInfo(irClass: IrClass): LLVMValueRef {
     require(irClass.isKotlinObjCClass())
     return if (isExternal(irClass)) {
-        importGlobal(irClass.kotlinObjCClassInfoSymbolName, runtime.kotlinObjCClassInfo, irClass)
+        generationState.dependenciesTracker.add(irClass)
+        importGlobal(irClass.kotlinObjCClassInfoSymbolName, runtime.kotlinObjCClassInfo)
     } else {
         llvmDeclarations.forClass(irClass).objCDeclarations!!.classInfoGlobal.llvmGlobal
     }

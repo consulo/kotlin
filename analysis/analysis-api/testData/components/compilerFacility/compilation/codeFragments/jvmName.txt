@@ -3,8 +3,7 @@
 public final class CodeFragment {
 
   // compiled from: fragment.kt
-
-  @Lkotlin/Metadata;(mv={2, 4, 0}, k=3, xi=48)
+  @Lkotlin/Metadata;
 
   // access flags 0x1
   public <init>()V
@@ -27,7 +26,7 @@ public final class CodeFragment {
     LDC "p0"
     INVOKESTATIC kotlin/jvm/internal/Intrinsics.checkNotNullParameter (Ljava/lang/Object;Ljava/lang/String;)V
    L1
-    LINENUMBER 27 L1
+    LINENUMBER 28 L1
     NEW java/lang/StringBuilder
     DUP
     INVOKESPECIAL java/lang/StringBuilder.<init> ()V

@@ -7,6 +7,7 @@ package org.jetbrains.kotlinx.dataframe.plugin
 
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.SessionHolder
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.analysis.checkers.toClassLikeSymbol
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.declaredProperties
@@ -14,7 +15,6 @@ import org.jetbrains.kotlin.fir.declarations.findArgumentByName
 import org.jetbrains.kotlin.fir.declarations.getAnnotationByClassId
 import org.jetbrains.kotlin.fir.declarations.getAnnotationWithResolvedArgumentsByClassId
 import org.jetbrains.kotlin.fir.declarations.hasAnnotation
-import org.jetbrains.kotlin.fir.declarations.utils.isLocal
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.impl.FirResolvedArgumentList
 import org.jetbrains.kotlin.fir.references.*
@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.fir.resolve.fqName
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.resolve.toSymbol
+import org.jetbrains.kotlin.fir.resolve.typeParameterSymbol
 import org.jetbrains.kotlin.fir.scopes.collectAllProperties
 import org.jetbrains.kotlin.fir.scopes.getProperties
 import org.jetbrains.kotlin.fir.scopes.impl.declaredMemberScope
@@ -36,8 +37,9 @@ import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlinx.dataframe.annotations.HasSchema
 import org.jetbrains.kotlinx.dataframe.columns.ColumnPath
 import org.jetbrains.kotlinx.dataframe.plugin.extensions.CallShapeData
-import org.jetbrains.kotlinx.dataframe.plugin.extensions.KotlinTypeFacade
 import org.jetbrains.kotlinx.dataframe.plugin.extensions.ColumnType
+import org.jetbrains.kotlinx.dataframe.plugin.extensions.KotlinTypeFacade
+import org.jetbrains.kotlinx.dataframe.plugin.extensions.approximateIntersections
 import org.jetbrains.kotlinx.dataframe.plugin.extensions.callShapeData
 import org.jetbrains.kotlinx.dataframe.plugin.impl.*
 import org.jetbrains.kotlinx.dataframe.plugin.impl.api.ColumnsResolver
@@ -74,9 +76,8 @@ fun <T> KotlinTypeFacade.interpret(
             val value: Any = if (lens == Interpreter.Id) {
                 firTypeProjection.toConeTypeProjection()
             } else {
-                val type = firTypeProjection.toConeTypeProjection().type ?: session.builtinTypes.nullableAnyType.coneType
-                if (type is ConeIntersectionType) return@forEachIndexed
-                ColumnType(type)
+                val type = firTypeProjection.toConeTypeProjection().type ?: StandardTypes.NullableAny
+                ColumnType(type.approximateIntersections())
             }
             put(key, Interpreter.Success(value))
         }
@@ -166,8 +167,21 @@ fun <T> KotlinTypeFacade.interpret(
                 }
                 // ok for ReducedGroupBy too
                 val resolvedType = it.expression.resolvedType.fullyExpandedType()
-                val keys = pluginDataFrameSchema(resolvedType.typeArguments[0])
-                val groups = pluginDataFrameSchema(resolvedType.typeArguments[1])
+
+                fun schemaArg(i: Int): PluginDataFrameSchema =
+                    resolvedType.typeArguments.getOrNull(i)
+                        ?.pluginDataFrameSchema()
+                        ?: PluginDataFrameSchema.EMPTY
+
+                val [keys, groups] = when (resolvedType.classId) {
+                    Names.GROUP_BY_CLASS_ID, Names.REDUCED_GROUP_BY_CLASS_ID ->
+                        schemaArg(0) to schemaArg(1)
+
+                    Names.GROUPED_CLASS_ID -> PluginDataFrameSchema.EMPTY to schemaArg(0)
+
+                    else -> PluginDataFrameSchema.EMPTY to PluginDataFrameSchema.EMPTY
+                }
+
                 Interpreter.Success(GroupBy(keys, groups))
             }
 
@@ -310,19 +324,14 @@ interface InterpretationErrorReporter {
 }
 
 context(sessionHolder: SessionHolder)
-fun pluginDataFrameSchema(schemaTypeArg: ConeTypeProjection): PluginDataFrameSchema {
-    val schema = if (schemaTypeArg.isStarProjection) {
-        PluginDataFrameSchema.EMPTY
-    } else {
-        val coneClassLikeType = schemaTypeArg.type as? ConeClassLikeType ?: return PluginDataFrameSchema.EMPTY
-        pluginDataFrameSchema(coneClassLikeType)
-    }
-    return schema
+fun ConeTypeProjection.pluginDataFrameSchema(): PluginDataFrameSchema = when (val t = type) {
+    is ConeClassLikeType -> t.pluginDataFrameSchema()
+    else -> PluginDataFrameSchema.EMPTY
 }
 
 context(sessionHolder: SessionHolder)
-fun pluginDataFrameSchema(coneClassLikeType: ConeClassLikeType): PluginDataFrameSchema {
-    val symbol = coneClassLikeType.toRegularClassSymbol() ?: return PluginDataFrameSchema.EMPTY
+fun ConeClassLikeType.pluginDataFrameSchema(): PluginDataFrameSchema {
+    val symbol = toRegularClassSymbol() ?: return PluginDataFrameSchema.EMPTY
     val callShapeData = symbol.callShapeData
     val declarationSymbols = if (callShapeData is CallShapeData.RefinedType) {
         val rootSchemaSymbol = callShapeData.schemaSymbol
@@ -335,7 +344,7 @@ fun pluginDataFrameSchema(coneClassLikeType: ConeClassLikeType): PluginDataFrame
     }
 
     val mapping = symbol.typeParameterSymbols
-        .mapIndexed { i, symbol -> symbol to coneClassLikeType.typeArguments[i] }
+        .mapIndexed { i, symbol -> symbol to typeArguments[i] }
         .toMap()
 
     val propertySymbols = declarationSymbols
@@ -371,7 +380,7 @@ private fun KotlinTypeFacade.columnWithPathApproximations(propertyAccess: FirPro
         val column = when (it.classId) {
             Names.DATA_COLUMN_CLASS_ID -> {
                 val type = when (val arg = it.typeArguments.single()) {
-                    is ConeStarProjection -> session.builtinTypes.nullableAnyType.coneType
+                    is ConeStarProjection -> StandardTypes.NullableAny
                     is ConeKotlinTypeProjection -> arg.type
                 }
                 simpleColumnOf(propertyAccess.columnName(), type)
@@ -379,7 +388,7 @@ private fun KotlinTypeFacade.columnWithPathApproximations(propertyAccess: FirPro
             Names.COLUM_GROUP_CLASS_ID -> {
                 val arg = it.typeArguments.single()
                 val name = propertyAccess.columnName()
-                SimpleColumnGroup(name, pluginDataFrameSchema(arg).columns())
+                SimpleColumnGroup(name, arg.pluginDataFrameSchema().columns())
             }
             else -> null
         }
@@ -456,7 +465,7 @@ private fun isDataRow(it: FirPropertySymbol) =
 
 context(sessionHolder: SessionHolder)
 private fun shouldBeConvertedToFrameColumn(it: FirPropertySymbol) =
-    isDataFrame(it) ||
+    isDataFrame(it) && !it.resolvedReturnType.isMarkedNullable ||
             (it.resolvedReturnType.classId == Names.LIST &&
                     it.resolvedReturnType.typeArguments[0].type?.toRegularClassSymbol()
                         ?.hasAnnotation(Names.DATA_SCHEMA_CLASS_ID, sessionHolder.session) == true)
@@ -511,7 +520,7 @@ internal fun FirFunctionCall.collectArgumentExpressions(): RefinedArguments {
         refinedArgument += RefinedArgument(parameterName, it)
     }
 
-    (argumentList as FirResolvedArgumentList).mapping.forEach { (expression, parameter) ->
+    (argumentList as FirResolvedArgumentList).mapping.forEach { [expression, parameter] ->
         refinedArgument += RefinedArgument(parameter.name, expression)
     }
     return RefinedArguments(refinedArgument)
@@ -520,7 +529,7 @@ internal fun FirFunctionCall.collectArgumentExpressions(): RefinedArguments {
 context(sessionHolder: SessionHolder)
 internal fun ConeKotlinType.findSchemaArgument(isTest: Boolean): ObjectWithSchema? {
     return toSymbol()?.let {
-        val (typeRef: ConeKotlinType, symbol) = if (it is FirTypeAliasSymbol) {
+        val [typeRef: ConeKotlinType, symbol] = if (it is FirTypeAliasSymbol) {
             it.resolvedExpandedTypeRef.coneType to it.resolvedExpandedTypeRef.toClassLikeSymbol(sessionHolder.session)!!
         } else {
             this to it
@@ -547,7 +556,6 @@ context(sessionHolder: SessionHolder)
 internal fun ObjectWithSchema.getSchema(): PluginDataFrameSchema {
     val arg = schemaArg
     val schemaTypeArg = (annotatedType as ConeClassLikeType).typeArguments[arg]
-    val schema = pluginDataFrameSchema(schemaTypeArg)
+    val schema = schemaTypeArg.pluginDataFrameSchema()
     return schema
 }
-

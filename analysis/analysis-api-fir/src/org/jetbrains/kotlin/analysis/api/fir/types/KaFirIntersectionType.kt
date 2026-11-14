@@ -32,13 +32,6 @@ internal class KaFirIntersectionType(
             KaFirAnnotationListForType.create(coneType, builder)
         }
 
-    @Deprecated(
-        "Use `isMarkedNullable`, `isNullable` or `hasFlexibleNullability` instead. See KDocs for the migration guide",
-        replaceWith = ReplaceWith("this.isMarkedNullable")
-    )
-    @Suppress("Deprecation")
-    override val nullability: KaTypeNullability get() = withValidityAssertion { KaTypeNullability.NON_NULLABLE }
-
     override val abbreviation: KaUsualClassType?
         get() = withValidityAssertion { null }
 

@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.kapt.KaptContextForStubGeneration
 import org.jetbrains.kotlin.kapt.base.parseJavaFiles
 import org.jetbrains.kotlin.kapt.javac.KaptJavaFileObject
 import org.jetbrains.kotlin.kapt.stubs.KaptStubConverter
-import org.jetbrains.kotlin.kapt.util.prettyPrint
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.getRealJavaFiles
@@ -26,11 +25,12 @@ abstract class BaseKaptHandler(testServices: TestServices) : AbstractKaptHandler
         generateNonExistentClass: Boolean
     ): List<JCTree.JCCompilationUnit> {
         val javaFiles = testServices.sourceFileProvider.getRealJavaFiles(module)
-        val converter = KaptStubConverter(kaptContext, generateNonExistentClass)
+        val converter = KaptStubConverter.create(kaptContext, generateNonExistentClass)
 
         val kaptStubs = converter.convert()
         val convertedFiles = kaptStubs.mapIndexed { index, stub ->
-            val sourceFile = module.createTempJavaFile("stub$index.java", stub.file.prettyPrint(kaptContext.context))
+            val content = stub.getText(kaptContext.context)
+            val sourceFile = module.createTempJavaFile("stub$index.java", content)
             stub.writeMetadataIfNeeded(forSource = sourceFile)
             sourceFile
         }

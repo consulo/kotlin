@@ -31,6 +31,7 @@ class TransactionOutputsRegistrarTest {
         override fun addSourceReferencedByCompilerPlugin(sourceFile: File) {}
 
         override fun addOutputFileGeneratedForPlugin(outputFile: File) {}
+        override fun addSourceFileGeneratedForPlugin(sourceFile: File) {}
     }
 
     @Test
@@ -38,7 +39,7 @@ class TransactionOutputsRegistrarTest {
         val mockCollector = MockOutputItemsCollector()
         val srcFile = workingDir.resolve("a.kt")
         val outputFile = workingDir.resolve("AKt.class")
-        RecoverableCompilationTransaction(DoNothingBuildReporter, stashDir).use {
+        RecoverableCompilationTransaction(DoNothingBuildReporter, stashDir, workingDir).use {
             val registrar = TransactionOutputsRegistrar(it, mockCollector)
             registrar.add(listOf(srcFile.toFile()), outputFile.toFile())
             Files.write(outputFile, "blah-blah".toByteArray())
@@ -57,7 +58,7 @@ class TransactionOutputsRegistrarTest {
         val mockCollector = MockOutputItemsCollector()
         val srcFile = workingDir.resolve("a.kt")
         val outputFile = workingDir.resolve("AKt.class")
-        RecoverableCompilationTransaction(DoNothingBuildReporter, stashDir).use {
+        RecoverableCompilationTransaction(DoNothingBuildReporter, stashDir, workingDir).use {
             val registrar = TransactionOutputsRegistrar(it, mockCollector)
             registrar.add(listOf(srcFile.toFile()), outputFile.toFile())
             Files.write(outputFile, "blah-blah".toByteArray())

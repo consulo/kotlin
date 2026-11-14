@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.gradle.tasks
 
 import org.gradle.api.file.ConfigurableFileCollection
-import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileTreeElement
 import org.gradle.api.model.ObjectFactory
@@ -36,7 +35,7 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext.Companion.create
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics.DeprecatedKotlinVersionKotlinDsl
-import org.jetbrains.kotlin.gradle.plugin.diagnostics.ToolingDiagnostic
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnosticsSeverity
 import org.jetbrains.kotlin.gradle.report.BuildReportMode
 import org.jetbrains.kotlin.gradle.tasks.internal.KotlinJvmOptionsCompat
 import org.jetbrains.kotlin.gradle.utils.*
@@ -93,20 +92,19 @@ abstract class KotlinCompile @Inject constructor(
     @get:Input
     internal val useFirRunner: Property<Boolean> = objectFactory.propertyWithConvention(false)
 
+    @get:Input
+    internal val enableJvmClasspathMetadata: Property<Boolean> = objectFactory.propertyWithConvention(false)
+
     @get:Nested
     abstract val classpathSnapshotProperties: ClasspathSnapshotProperties
 
     /** Properties related to the classpath snapshots based incremental compilation feature. */
     abstract class ClasspathSnapshotProperties {
         @get:Classpath
+        @get:NormalizeLineEndings
         @get:Incremental
         @get:Optional // Set if useClasspathSnapshot == true
         abstract val classpathSnapshot: ConfigurableFileCollection
-
-        @get:OutputDirectory
-        @get:Optional // Set if useClasspathSnapshot == true
-        @Deprecated("The classpathSnapshotDir parameter is no longer required. Scheduled for removal in Kotlin 2.5.")
-        abstract val classpathSnapshotDir: DirectoryProperty
     }
 
     override val incrementalProps: List<FileCollection>
@@ -189,13 +187,6 @@ abstract class KotlinCompile @Inject constructor(
     @get:Internal
     internal var executionTimeFreeCompilerArgs: List<String>? = null
 
-    @Suppress("DeprecatedCallableAddReplaceWith")
-    @Deprecated("KTIJ-25227: Necessary override for IDEs < 2023.2", level = DeprecationLevel.ERROR)
-    override fun setupCompilerArgs(args: K2JVMCompilerArguments, defaultsOnly: Boolean, ignoreClasspathResolutionErrors: Boolean) {
-        @Suppress("DEPRECATION_ERROR")
-        super.setupCompilerArgs(args, defaultsOnly, ignoreClasspathResolutionErrors)
-    }
-
     override fun createCompilerArguments(
         context: KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext,
     ): K2JVMCompilerArguments = context.create<K2JVMCompilerArguments> {
@@ -230,9 +221,10 @@ abstract class KotlinCompile @Inject constructor(
             overrideXJvmDefaultInPresenceOfKotlinDslPlugin(args)
 
             explicitApiMode.orNull?.run { args.explicitApi = toCompilerValue() }
+            returnValueCheckerMode.orNull?.run { args.returnValueChecker = toCompilerValue() }
 
             if (useFirRunner.get()) {
-                @Suppress("DEPRECATION")
+                @Suppress("DEPRECATION_ERROR")
                 if (compilerOptions.languageVersion.orElse(KotlinVersion.DEFAULT).get() < KotlinVersion.KOTLIN_2_0) {
                     reportDiagnostic(
                         KotlinToolingDiagnostics.IcFirMisconfigurationLV(
@@ -242,8 +234,8 @@ abstract class KotlinCompile @Inject constructor(
                     )
                 }
 
+                @Suppress("DEPRECATION")
                 args.useFirIC = true
-                args.useFirLT = true
             }
 
             args.separateKmpCompilationScheme = separateKmpCompilation.get()
@@ -279,6 +271,9 @@ abstract class KotlinCompile @Inject constructor(
                         args.fragmentDependencies = emptyArray()
                         args.fragmentFriendDependencies = emptyArray()
                     }
+                    if (isIncrementalCompilationEnabled() && enableUnsafeIncrementalCompilationForMultiplatform.get() && enableJvmClasspathMetadata.get()) {
+                        args.useMetadataOnIncrementalClasspath = true
+                    }
                 } else {
                     args.commonSources = commonSourceSet.asFileTree.toPathsArray()
                 }
@@ -310,13 +305,13 @@ abstract class KotlinCompile @Inject constructor(
     private fun validateKotlinVersionsInPresenceOfKotlinDslPlugin(args: KotlinJvmCompilerOptions) {
         if (!kotlinDslPluginIsPresent.get()) return
 
-        fun KotlinVersion?.unsupportedLevel(): ToolingDiagnostic.Severity? {
+        fun KotlinVersion?.unsupportedLevel(): KotlinToolingDiagnosticsSeverity? {
             if (this == null) return null
             val metadata = UnsupportedKotlinLanguageVersionsMetadata.unsupportedPerVersion[this]
             return when {
                 metadata == null -> null
-                metadata.removalVersion != null && metadata.removalVersion <= kotlinCompilerVersion.get() -> ToolingDiagnostic.Severity.STRONG_WARNING
-                metadata.deprecationVersion <= kotlinCompilerVersion.get() -> ToolingDiagnostic.Severity.WARNING
+                metadata.removalVersion != null && metadata.removalVersion <= kotlinCompilerVersion.get() -> KotlinToolingDiagnosticsSeverity.STRONG_WARNING
+                metadata.deprecationVersion <= kotlinCompilerVersion.get() -> KotlinToolingDiagnosticsSeverity.WARNING
                 else -> null
             }
         }
@@ -352,11 +347,10 @@ abstract class KotlinCompile @Inject constructor(
     }
 
     private fun overrideXJvmDefaultInPresenceOfKotlinDslPlugin(
-        args: K2JVMCompilerArguments
+        args: K2JVMCompilerArguments,
     ) {
         val kotlinCompilerVersion = kotlinCompilerVersion.orNull
-        val shouldSkipCheck = runViaBuildToolsApi.get() &&
-                kotlinCompilerVersion != null &&
+        val shouldSkipCheck = kotlinCompilerVersion != null &&
                 kotlinCompilerVersion <= KotlinToolingVersion(2, 2, 19, null)
         if (!shouldSkipCheck && kotlinDslPluginIsPresent.get() && args.freeArgs.any { it.startsWith("-Xjvm-default") }) {
             val xJvmDefaultArg = args.freeArgs.first { it.startsWith("-Xjvm-default") }
@@ -423,18 +417,15 @@ abstract class KotlinCompile @Inject constructor(
             )
         } else null
 
-        @Suppress("DEPRECATION")
         val environment = GradleCompilerEnvironment(
             defaultCompilerClasspath, gradleMessageCollector, outputItemCollector,
-            // In the incremental compiler, outputFiles will be cleaned on rebuild. However, because classpathSnapshotDir is not included in
-            // TaskOutputsBackup, we don't want classpathSnapshotDir to be cleaned immediately on rebuild, and therefore we exclude it from
-            // outputFiles here. (See TaskOutputsBackup's kdoc for more info.)
-            outputFiles = allOutputFiles()
-                    - (classpathSnapshotProperties.classpathSnapshotDir.orNull?.asFile?.let { setOf(it) } ?: emptySet()),
+            outputFiles = allOutputFiles(),
             reportingSettings = reportingSettings(),
             incrementalCompilationEnvironment = icEnv,
             kotlinScriptExtensions = scriptExtensions.get().toTypedArray(),
-            compilerArgumentsLogLevel = kotlinCompilerArgumentsLogLevel.get()
+            compilerArgumentsLogLevel = kotlinCompilerArgumentsLogLevel.get(),
+            toolingDiagnosticsCollector = toolingDiagnosticsCollector,
+            toolingDiagnosticsContext = toolingDiagnosticsContext,
         )
         compilerRunner.runJvmCompilerAsync(
             args,
@@ -454,8 +445,8 @@ abstract class KotlinCompile @Inject constructor(
         ) return
 
         val severity = when (jvmTargetValidationMode.get()) {
-            JvmTargetValidationMode.ERROR -> ToolingDiagnostic.Severity.FATAL
-            JvmTargetValidationMode.WARNING -> ToolingDiagnostic.Severity.WARNING
+            JvmTargetValidationMode.ERROR -> KotlinToolingDiagnosticsSeverity.FATAL
+            JvmTargetValidationMode.WARNING -> KotlinToolingDiagnosticsSeverity.WARNING
             else -> return
         }
 
@@ -522,16 +513,13 @@ abstract class KotlinCompile @Inject constructor(
     override fun makeIncrementalCompilationFeatures(): IncrementalCompilationFeatures {
         return super.makeIncrementalCompilationFeatures().copy(
             usePreciseJavaTracking = usePreciseJavaTracking,
-            /* Disabled on JVM in favor of classpath snapshot machinery */
-            withAbiSnapshot = false,
         )
     }
 
     private fun getClasspathChanges(inputChanges: InputChanges): ClasspathChanges {
-        @Suppress("DEPRECATION")
         val classpathSnapshotFiles = ClasspathSnapshotFiles(
             classpathSnapshotProperties.classpathSnapshot.files.toList(),
-            classpathSnapshotProperties.classpathSnapshotDir.get().asFile
+            taskBuildCacheableOutputDirectory.get().asFile
         )
         return when {
             !inputChanges.isIncremental -> NotAvailableForNonIncrementalRun(classpathSnapshotFiles)

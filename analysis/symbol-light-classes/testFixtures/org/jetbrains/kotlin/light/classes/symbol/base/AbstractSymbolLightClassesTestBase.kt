@@ -9,15 +9,17 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.api.KaNonPublicApi
+import org.jetbrains.kotlin.analysis.api.javaInterop.asFacadePsiClass
+import org.jetbrains.kotlin.analysis.api.javaInterop.asPsiClass
+import org.jetbrains.kotlin.analysis.api.session.analyze
+import org.jetbrains.kotlin.analysis.api.symbols.symbol
 import org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiBasedTest
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.KtTestModule
 import org.jetbrains.kotlin.analysis.test.framework.services.libraries.CompiledLibraryProvider
 import org.jetbrains.kotlin.analysis.test.framework.services.libraries.TestModuleCompiler
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator
 import org.jetbrains.kotlin.asJava.finder.JavaElementFinder
-import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.asJava.unwrapped
-import org.jetbrains.kotlin.light.classes.symbol.base.service.NullabilityAnnotationSourceProvider
 import org.jetbrains.kotlin.light.classes.symbol.withMultiplatformLightClassSupport
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.platform.has
@@ -35,6 +37,7 @@ import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.assertions
 import org.jetbrains.kotlin.test.services.service
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
+import org.opentest4j.TestAbortedException
 import java.nio.file.Path
 
 // Same as LightProjectDescriptor.TEST_MODULE_NAME
@@ -48,9 +51,6 @@ abstract class AbstractSymbolLightClassesTestBase(
         with(builder) {
             useAdditionalServices(service(::CompiledLibraryProvider))
             useDirectives(Directives, TestModuleCompiler.Directives)
-            if (configurator.defaultTargetPlatform.has<JvmPlatform>()) {
-                useAdditionalSourceProviders(::NullabilityAnnotationSourceProvider)
-            }
             defaultDirectives {
                 +ConfigurationDirectives.WITH_STDLIB
                 ModuleStructureDirectives.MODULE + TEST_MODULE_NAME
@@ -61,6 +61,77 @@ abstract class AbstractSymbolLightClassesTestBase(
     override fun doTestByMainModuleAndOptionalMainFile(mainFile: KtFile?, mainModule: KtTestModule, testServices: TestServices) {
         val ktFiles = mainModule.ktFiles
         doLightClassTest(ktFiles, mainModule, testServices)
+        runSupplementaryChecks(ktFiles, mainModule, testServices)
+    }
+
+    /**
+     * Light classes to be passed to the supplementary checks, or `null` if the test has no supplementary checks.
+     *
+     * @see runSupplementaryChecks
+     */
+    protected open fun supplementaryLightClasses(ktFiles: List<KtFile>): Collection<PsiClass>? = null
+
+    /**
+     * Slot for the declaration matching check, which is only meaningful for decompiled light classes.
+     *
+     * @see runSupplementaryChecks
+     */
+    protected open fun checkDeclarationMatching(ktFiles: List<KtFile>, testServices: TestServices) {}
+
+    /**
+     * Runs additional checks over the light classes of the already prepared module.
+     *
+     * Such checks used to be separate test classes over the same test data, which meant compiling, indexing, and decompiling the very same
+     * sources once per check.
+     *
+     * Failures are collected and reported together, so one broken check does not hide the others. [doLightClassTest] is deliberately not
+     * part of the aggregation: it is the only assertion that reports a test data file mismatch, and the test data manager relies on that
+     * exception reaching it unwrapped.
+     */
+    private fun runSupplementaryChecks(ktFiles: List<KtFile>, module: KtTestModule, testServices: TestServices) {
+        // Non-JVM light classes require `withMultiplatformLightClassSupport`, and the checks were never run for them
+        if (!configurator.defaultTargetPlatform.has<JvmPlatform>()) return
+        val lightClasses = supplementaryLightClasses(ktFiles) ?: return
+
+        val failures = mutableListOf<Throwable>()
+        collectFailure(failures) {
+            ignoreExceptionIfIgnoreDirectivePresent(module) {
+                checkLightClassesParenting(
+                    lightClasses = lightClasses,
+                    isTestAgainstCompiledCode = isTestAgainstCompiledCode,
+                    directives = module.testModule.directives,
+                    assertions = testServices.assertions,
+                )
+            }
+        }
+
+        collectFailure(failures) {
+            checkDeclarationMatching(ktFiles, testServices)
+        }
+
+        // Has to be the last one: the check repeatedly invalidates the global module or source state,
+        // so anything computed by the checks above would be stale afterwards
+        collectFailure(failures) {
+            checkLightClassesEquality(
+                lightClasses = lightClasses,
+                isTestAgainstCompiledCode = isTestAgainstCompiledCode,
+                assertions = testServices.assertions,
+            )
+        }
+
+        if (failures.isNotEmpty()) {
+            testServices.assertions.failAll(failures)
+        }
+    }
+
+    private inline fun collectFailure(failures: MutableList<Throwable>, action: () -> Unit) {
+        try {
+            action()
+        } catch (e: TestAbortedException) {
+            throw e
+        } catch (e: Throwable) {
+            failures += e
+        }
     }
 
     @OptIn(KaNonPublicApi::class)
@@ -141,7 +212,9 @@ abstract class AbstractSymbolLightClassesTestBase(
         return findLightClass(fqname, GlobalSearchScope.fileScope(ktFile), project)
             ?: findLightClass(fqname, project)
             // TODO: KT-78534 JavaElementFinder: support script search
-            ?: ktFile.script?.takeIf { it.fqName.asString() == fqname }?.toLightClass()
+            ?: analyze(ktFile) {
+                ktFile.script?.takeIf { it.fqName.asString() == fqname }?.symbol?.asFacadePsiClass()
+            }
     }
 
     protected fun findLightClass(fqname: String, project: Project): PsiClass? {
@@ -159,13 +232,15 @@ abstract class AbstractSymbolLightClassesTestBase(
         val enumEntryName = fqName.shortName().asString()
         enumClass.findInnerClassByName(enumEntryName, false)?.let { return it }
 
-        return kotlinEnumClass.declarations.firstNotNullOfOrNull {
-            if (it is KtEnumEntry && it.name == enumEntryName) {
-                it
-            } else {
-                null
-            }
-        }?.toLightClass()
+        return analyze(kotlinEnumClass) {
+            kotlinEnumClass.declarations.firstNotNullOfOrNull {
+                if (it is KtEnumEntry && it.name == enumEntryName) {
+                    it
+                } else {
+                    null
+                }
+            }?.symbol?.initializer?.asPsiClass()
+        }
     }
 
     protected abstract val isTestAgainstCompiledCode: Boolean

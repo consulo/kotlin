@@ -2,7 +2,8 @@ MyAnnotation.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/MyAnnotation, fqName=MyAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=MyAnnotation, superNames=[Annotation]]
+    CLASS[classId=/MyAnnotation, fqName=MyAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=MyAnnotation, superNames=[Annotation]]
+      classFileMajorVersion: <current_major_version>
       MODIFIER_LIST[public final annotation]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=MyAnnotation]
         MODIFIER_LIST[public]
@@ -14,6 +15,7 @@ MyAnnotation.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Annotation]
+                isClassRef: true
       CLASS_BODY
 
 
@@ -21,7 +23,8 @@ MyAnnotation2.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/MyAnnotation2, fqName=MyAnnotation2, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=MyAnnotation2, superNames=[Annotation]]
+    CLASS[classId=/MyAnnotation2, fqName=MyAnnotation2, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=MyAnnotation2, superNames=[Annotation]]
+      classFileMajorVersion: <current_major_version>
       MODIFIER_LIST[public final annotation]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=MyAnnotation2]
         MODIFIER_LIST[public]
@@ -33,6 +36,7 @@ MyAnnotation2.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Annotation]
+                isClassRef: true
       CLASS_BODY
 
 
@@ -40,7 +44,8 @@ MyAnnotation3.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/MyAnnotation3, fqName=MyAnnotation3, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=MyAnnotation3, superNames=[Annotation]]
+    CLASS[classId=/MyAnnotation3, fqName=MyAnnotation3, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=MyAnnotation3, superNames=[Annotation]]
+      classFileMajorVersion: <current_major_version>
       MODIFIER_LIST[public final annotation]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=MyAnnotation3]
         MODIFIER_LIST[public]
@@ -52,6 +57,7 @@ MyAnnotation3.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Annotation]
+                isClassRef: true
       CLASS_BODY
 
 
@@ -59,7 +65,8 @@ MyAnnotation4.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/MyAnnotation4, fqName=MyAnnotation4, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=MyAnnotation4, superNames=[Annotation]]
+    CLASS[classId=/MyAnnotation4, fqName=MyAnnotation4, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=MyAnnotation4, superNames=[Annotation]]
+      classFileMajorVersion: <current_major_version>
       MODIFIER_LIST[public final annotation]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=MyAnnotation4]
         MODIFIER_LIST[public]
@@ -71,6 +78,7 @@ MyAnnotation4.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Annotation]
+                isClassRef: true
       CLASS_BODY
 
 
@@ -78,7 +86,8 @@ MyAnnotation5.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/MyAnnotation5, fqName=MyAnnotation5, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=MyAnnotation5, superNames=[Annotation]]
+    CLASS[classId=/MyAnnotation5, fqName=MyAnnotation5, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=MyAnnotation5, superNames=[Annotation]]
+      classFileMajorVersion: <current_major_version>
       MODIFIER_LIST[public final annotation]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=MyAnnotation5]
         MODIFIER_LIST[public]
@@ -90,6 +99,7 @@ MyAnnotation5.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Annotation]
+                isClassRef: true
       CLASS_BODY
 
 
@@ -97,7 +107,8 @@ MyAnnotation6.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/MyAnnotation6, fqName=MyAnnotation6, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=MyAnnotation6, superNames=[Annotation]]
+    CLASS[classId=/MyAnnotation6, fqName=MyAnnotation6, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=MyAnnotation6, superNames=[Annotation]]
+      classFileMajorVersion: <current_major_version>
       MODIFIER_LIST[public final annotation]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=MyAnnotation6]
         MODIFIER_LIST[public]
@@ -109,6 +120,7 @@ MyAnnotation6.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Annotation]
+                isClassRef: true
       CLASS_BODY
 
 
@@ -116,9 +128,10 @@ MyAnnotation7.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/MyAnnotation7, fqName=MyAnnotation7, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=MyAnnotation7, superNames=[Annotation]]
+    CLASS[classId=/MyAnnotation7, fqName=MyAnnotation7, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=MyAnnotation7, superNames=[Annotation]]
+      classFileMajorVersion: <current_major_version>
       MODIFIER_LIST[public final annotation]
-        ANNOTATION_ENTRY[hasValueArguments=false, shortName=Target]
+        ANNOTATION_ENTRY[hasValueArguments=true, shortName=Target]
           valueArguments: [ allowedTargets -> [AnnotationTarget.VALUE_PARAMETER] ]
           CONSTRUCTOR_CALLEE
             TYPE_REFERENCE
@@ -128,7 +141,20 @@ MyAnnotation7.class:
                     REFERENCE_EXPRESSION[referencedName=kotlin]
                   REFERENCE_EXPRESSION[referencedName=annotation]
                 REFERENCE_EXPRESSION[referencedName=Target]
-        ANNOTATION_ENTRY[hasValueArguments=false, shortName=Retention]
+                  isClassRef: true
+          VALUE_ARGUMENT_LIST
+            VALUE_ARGUMENT[isSpread=false]
+              VALUE_ARGUMENT_NAME
+                REFERENCE_EXPRESSION[referencedName=allowedTargets]
+              COLLECTION_LITERAL_EXPRESSION[innerExpressionCount=1]
+                DOT_QUALIFIED_EXPRESSION
+                  DOT_QUALIFIED_EXPRESSION
+                    DOT_QUALIFIED_EXPRESSION
+                      REFERENCE_EXPRESSION[referencedName=kotlin]
+                      REFERENCE_EXPRESSION[referencedName=annotation]
+                    REFERENCE_EXPRESSION[referencedName=AnnotationTarget]
+                  REFERENCE_EXPRESSION[referencedName=VALUE_PARAMETER]
+        ANNOTATION_ENTRY[hasValueArguments=true, shortName=Retention]
           valueArguments: [ value -> AnnotationRetention.RUNTIME ]
           CONSTRUCTOR_CALLEE
             TYPE_REFERENCE
@@ -138,6 +164,18 @@ MyAnnotation7.class:
                     REFERENCE_EXPRESSION[referencedName=kotlin]
                   REFERENCE_EXPRESSION[referencedName=annotation]
                 REFERENCE_EXPRESSION[referencedName=Retention]
+                  isClassRef: true
+          VALUE_ARGUMENT_LIST
+            VALUE_ARGUMENT[isSpread=false]
+              VALUE_ARGUMENT_NAME
+                REFERENCE_EXPRESSION[referencedName=value]
+              DOT_QUALIFIED_EXPRESSION
+                DOT_QUALIFIED_EXPRESSION
+                  DOT_QUALIFIED_EXPRESSION
+                    REFERENCE_EXPRESSION[referencedName=kotlin]
+                    REFERENCE_EXPRESSION[referencedName=annotation]
+                  REFERENCE_EXPRESSION[referencedName=AnnotationRetention]
+                REFERENCE_EXPRESSION[referencedName=RUNTIME]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=MyAnnotation7]
         MODIFIER_LIST[public]
         VALUE_PARAMETER_LIST
@@ -148,6 +186,7 @@ MyAnnotation7.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Annotation]
+                isClassRef: true
       CLASS_BODY
 
 
@@ -155,9 +194,10 @@ MyAnnotation8.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/MyAnnotation8, fqName=MyAnnotation8, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=MyAnnotation8, superNames=[Annotation]]
+    CLASS[classId=/MyAnnotation8, fqName=MyAnnotation8, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=MyAnnotation8, superNames=[Annotation]]
+      classFileMajorVersion: <current_major_version>
       MODIFIER_LIST[public final annotation]
-        ANNOTATION_ENTRY[hasValueArguments=false, shortName=Target]
+        ANNOTATION_ENTRY[hasValueArguments=true, shortName=Target]
           valueArguments: [ allowedTargets -> [AnnotationTarget.TYPE] ]
           CONSTRUCTOR_CALLEE
             TYPE_REFERENCE
@@ -167,6 +207,19 @@ MyAnnotation8.class:
                     REFERENCE_EXPRESSION[referencedName=kotlin]
                   REFERENCE_EXPRESSION[referencedName=annotation]
                 REFERENCE_EXPRESSION[referencedName=Target]
+                  isClassRef: true
+          VALUE_ARGUMENT_LIST
+            VALUE_ARGUMENT[isSpread=false]
+              VALUE_ARGUMENT_NAME
+                REFERENCE_EXPRESSION[referencedName=allowedTargets]
+              COLLECTION_LITERAL_EXPRESSION[innerExpressionCount=1]
+                DOT_QUALIFIED_EXPRESSION
+                  DOT_QUALIFIED_EXPRESSION
+                    DOT_QUALIFIED_EXPRESSION
+                      REFERENCE_EXPRESSION[referencedName=kotlin]
+                      REFERENCE_EXPRESSION[referencedName=annotation]
+                    REFERENCE_EXPRESSION[referencedName=AnnotationTarget]
+                  REFERENCE_EXPRESSION[referencedName=TYPE]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=MyAnnotation8]
         MODIFIER_LIST[public]
         VALUE_PARAMETER_LIST
@@ -177,6 +230,7 @@ MyAnnotation8.class:
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Annotation]
+                isClassRef: true
       CLASS_BODY
 
 
@@ -184,7 +238,8 @@ Test.class:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/Test, fqName=Test, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=Test, superNames=[]]
+    CLASS[classId=/Test, fqName=Test, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=Test, superNames=[]]
+      classFileMajorVersion: <current_major_version>
       MODIFIER_LIST[public final]
       PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=Test]
         MODIFIER_LIST[public]
@@ -197,11 +252,13 @@ Test.class:
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=MyAnnotation6]
+                        isClassRef: true
             TYPE_REFERENCE
               USER_TYPE
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=String]
+                  isClassRef: true
       CLASS_BODY
         PROPERTY[fqName=Test.bar, hasBackingField=true, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=true, name=bar]
           MODIFIER_LIST[public final]
@@ -211,6 +268,7 @@ Test.class:
                 TYPE_REFERENCE
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=MyAnnotation4]
+                      isClassRef: true
             ANNOTATION_ENTRY[hasValueArguments=false, shortName=MyAnnotation5]
               valueArguments: [ ]
               ANNOTATION_TARGET[useSiteTarget=FIELD]
@@ -218,11 +276,13 @@ Test.class:
                 TYPE_REFERENCE
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=MyAnnotation5]
+                      isClassRef: true
           TYPE_REFERENCE
             USER_TYPE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=String]
+                isClassRef: true
           PROPERTY_ACCESSOR[hasBody=false, hasNoExpressionBody=true, isGetter=true, mayHaveContract=false]
             MODIFIER_LIST[public final]
               ANNOTATION_ENTRY[hasValueArguments=false, shortName=MyAnnotation]
@@ -231,6 +291,7 @@ Test.class:
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=MyAnnotation]
+                        isClassRef: true
           PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=true, isGetter=false, mayHaveContract=false]
             MODIFIER_LIST[public final]
               ANNOTATION_ENTRY[hasValueArguments=false, shortName=MyAnnotation2]
@@ -239,6 +300,7 @@ Test.class:
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=MyAnnotation2]
+                        isClassRef: true
             VALUE_PARAMETER_LIST
               VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=value]
                 MODIFIER_LIST[]
@@ -248,11 +310,13 @@ Test.class:
                       TYPE_REFERENCE
                         USER_TYPE
                           REFERENCE_EXPRESSION[referencedName=MyAnnotation3]
+                            isClassRef: true
                 TYPE_REFERENCE
                   USER_TYPE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=kotlin]
                     REFERENCE_EXPRESSION[referencedName=String]
+                      isClassRef: true
         PROPERTY[fqName=Test.fooP, hasBackingField=false, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=true, isTopLevel=false, isVar=true, name=fooP]
           MODIFIER_LIST[public final]
           TYPE_REFERENCE
@@ -264,21 +328,25 @@ Test.class:
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=MyAnnotation7]
+                        isClassRef: true
               ANNOTATION_ENTRY[hasValueArguments=false, shortName=MyAnnotation8]
                 valueArguments: [ ]
                 CONSTRUCTOR_CALLEE
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=MyAnnotation8]
+                        isClassRef: true
             USER_TYPE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Int]
+                isClassRef: true
           TYPE_REFERENCE
             USER_TYPE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Unit]
+                isClassRef: true
           PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=true, isGetter=true, mayHaveContract=false]
             MODIFIER_LIST[public final]
             VALUE_PARAMETER_LIST
@@ -291,7 +359,8 @@ Test.class:
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=kotlin]
                     REFERENCE_EXPRESSION[referencedName=Unit]
-        FUN[fqName=Test.fooF, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=true, isTopLevel=false, mayHaveContract=false, name=fooF]
+                      isClassRef: true
+        FUNCTION[fqName=Test.fooF, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=true, isTopLevel=false, mayHaveContract=false, name=fooF]
           MODIFIER_LIST[public final]
           TYPE_REFERENCE
             MODIFIER_LIST[]
@@ -302,23 +371,27 @@ Test.class:
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=MyAnnotation7]
+                        isClassRef: true
               ANNOTATION_ENTRY[hasValueArguments=false, shortName=MyAnnotation8]
                 valueArguments: [ ]
                 CONSTRUCTOR_CALLEE
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=MyAnnotation8]
+                        isClassRef: true
             USER_TYPE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Int]
+                isClassRef: true
           VALUE_PARAMETER_LIST
           TYPE_REFERENCE
             USER_TYPE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Unit]
-        FUN[fqName=Test.fooWithNullableReceiver, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=true, isTopLevel=false, mayHaveContract=false, name=fooWithNullableReceiver]
+                isClassRef: true
+        FUNCTION[fqName=Test.fooWithNullableReceiver, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=true, isTopLevel=false, mayHaveContract=false, name=fooWithNullableReceiver]
           MODIFIER_LIST[public final]
           TYPE_REFERENCE
             MODIFIER_LIST[]
@@ -329,17 +402,20 @@ Test.class:
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=MyAnnotation7]
+                        isClassRef: true
               ANNOTATION_ENTRY[hasValueArguments=false, shortName=MyAnnotation8]
                 valueArguments: [ ]
                 CONSTRUCTOR_CALLEE
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION[referencedName=MyAnnotation8]
+                        isClassRef: true
             NULLABLE_TYPE
               USER_TYPE
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=Int]
+                  isClassRef: true
           VALUE_PARAMETER_LIST
             VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=l]
               TYPE_REFERENCE
@@ -347,8 +423,10 @@ Test.class:
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=kotlin]
                   REFERENCE_EXPRESSION[referencedName=Long]
+                    isClassRef: true
           TYPE_REFERENCE
             USER_TYPE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=kotlin]
               REFERENCE_EXPRESSION[referencedName=Unit]
+                isClassRef: true

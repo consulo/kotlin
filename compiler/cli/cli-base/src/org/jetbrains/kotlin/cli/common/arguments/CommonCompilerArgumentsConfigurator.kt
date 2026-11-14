@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.diagnostics.KtSourcelessDiagnosticFactory
 
 open class CommonCompilerArgumentsConfigurator {
     interface Reporter {
-        fun reportWarning(message: String)
         fun reportError(message: String)
 
         fun report(factory: KtSourcelessDiagnosticFactory, message: String)
@@ -21,7 +20,6 @@ open class CommonCompilerArgumentsConfigurator {
         fun withLanguageVersionSettings(languageVersionSettings: LanguageVersionSettings): Reporter
 
         object DoNothing : Reporter {
-            override fun reportWarning(message: String) {}
             override fun reportError(message: String) {}
             override fun report(factory: KtSourcelessDiagnosticFactory, message: String) {}
             override fun info(message: String) {}
@@ -39,8 +37,8 @@ open class CommonCompilerArgumentsConfigurator {
         HashMap<AnalysisFlag<*>, Any>().apply {
             putAnalysisFlag(AnalysisFlags.skipMetadataVersionCheck, skipMetadataVersionCheck)
             putAnalysisFlag(AnalysisFlags.skipPrereleaseCheck, skipPrereleaseCheck || skipMetadataVersionCheck)
-            putAnalysisFlag(AnalysisFlags.multiPlatformDoNotCheckActual, noCheckActual)
             putAnalysisFlag(AnalysisFlags.optIn, optIn?.toList().orEmpty())
+            putAnalysisFlag(AnalysisFlags.escapingFunctionsList, parseEscapingFunctions(arguments, reporter))
             putAnalysisFlag(AnalysisFlags.skipExpectedActualDeclarationChecker, metadataKlib)
             putAnalysisFlag(AnalysisFlags.explicitApiVersion, apiVersion != null)
             ExplicitApiMode.fromString(explicitApi)?.also { putAnalysisFlag(AnalysisFlags.explicitApiMode, it) }
@@ -58,14 +56,39 @@ open class CommonCompilerArgumentsConfigurator {
             putAnalysisFlag(AnalysisFlags.dontWarnOnErrorSuppression, dontWarnOnErrorSuppression)
             putAnalysisFlag(AnalysisFlags.lenientMode, lenientMode)
             putAnalysisFlag(AnalysisFlags.headerMode, headerMode)
-            putAnalysisFlag(AnalysisFlags.headerModeType, headerModeType)
+            HeaderMode.fromString(headerModeType)?.also { putAnalysisFlag(AnalysisFlags.headerModeType, it) }
+                ?: reporter.reportError(
+                    "Unknown value for parameter -Xheader-mode-type: '$headerModeType'. Value should be one of ${HeaderMode.availableValues()}"
+                )
+            putAnalysisFlag(AnalysisFlags.firAggressivePruning, firAggressivePruning ?: headerMode)
             putAnalysisFlag(AnalysisFlags.hierarchicalMultiplatformCompilation, separateKmpCompilationScheme && multiPlatform)
             fillWarningLevelMap(arguments, reporter)
-            ReturnValueCheckerMode.fromString(returnValueChecker)?.also { putAnalysisFlag(AnalysisFlags.returnValueCheckerMode, it) }
-                ?: reporter.reportError(
-                    "Unknown value for parameter -Xreturn-value-checker: '$returnValueChecker'. Value should be one of ${ReturnValueCheckerMode.availableValues()}"
-                )
+            returnValueCheckerMode(
+                languageVersion,
+                returnValueChecker,
+                reporter
+            )?.let { putAnalysisFlag(AnalysisFlags.returnValueCheckerMode, it) }
         }
+    }
+
+    private fun returnValueCheckerMode(
+        languageVersion: LanguageVersion,
+        compilerArg: String,
+        reporter: Reporter,
+    ): ReturnValueCheckerMode? {
+        val stableRvVersion = LanguageFeature.ReturnValueCheckerIsStable.sinceVersion
+        if (compilerArg == "default") {
+            return if (stableRvVersion != null && languageVersion >= stableRvVersion) {
+                ReturnValueCheckerMode.CHECKER
+            } else {
+                ReturnValueCheckerMode.DISABLED
+            }
+        }
+
+        ReturnValueCheckerMode.fromString(compilerArg)?.let { return it } ?: reporter.reportError(
+            "Unknown value for parameter -Xreturn-value-checker: '$compilerArg'. Value should be one of ${ReturnValueCheckerMode.availableValues()}"
+        )
+        return null
     }
 
     protected fun MutableMap<AnalysisFlag<*>, Any>.putAnalysisFlag(flag: AnalysisFlag<*>, value: Any) {
@@ -92,7 +115,11 @@ open class CommonCompilerArgumentsConfigurator {
                 }
             }
 
-            ReturnValueCheckerMode.fromString(returnValueChecker)?.also {
+            returnValueCheckerMode(
+                languageVersion,
+                returnValueChecker,
+                reporter
+            )?.also {
                 if (it != ReturnValueCheckerMode.DISABLED)
                     put(LanguageFeature.UnnamedLocalVariables, LanguageFeature.State.ENABLED)
             }
@@ -110,7 +137,7 @@ open class CommonCompilerArgumentsConfigurator {
     protected open fun configureExtraLanguageFeatures(
         arguments: CommonCompilerArguments,
         map: HashMap<LanguageFeature, LanguageFeature.State>,
-        reporter: Reporter
+        reporter: Reporter,
     ) {
     }
 
@@ -124,7 +151,7 @@ open class CommonCompilerArgumentsConfigurator {
 
         var standaloneSamConversionFeaturePassedExplicitly = false
         var functionReferenceWithDefaultValueFeaturePassedExplicitly = false
-        for ((feature, state) in arguments.internalArguments) {
+        for ((val feature = languageFeature, val state) in arguments.internalArguments) {
             put(feature, state)
             if (state == LanguageFeature.State.ENABLED && feature.forcesPreReleaseBinariesIfEnabled(languageVersion)) {
                 featuresThatForcePreReleaseBinaries += feature
@@ -169,7 +196,8 @@ open class CommonCompilerArgumentsConfigurator {
         }
 
         if (featuresThatForcePreReleaseBinaries.isNotEmpty()) {
-            reporter.reportWarning(
+            reporter.report(
+                CliDiagnostics.PRE_RELEASE_LANGUAGE_FEATURES_ENABLED,
                 "Following manually enabled features will force generation of pre-release binaries: ${featuresThatForcePreReleaseBinaries.joinToString()}"
             )
         }
@@ -182,18 +210,35 @@ open class CommonCompilerArgumentsConfigurator {
         }
     }
 
+    // Expected entry form: '(+|-)<fq.name>'.
+    // Entries that don't start with '+' or '-', or have an empty name, are reported and skipped.
+    private fun parseEscapingFunctions(arguments: CommonCompilerArguments, reporter: Reporter): List<String> {
+        return arguments.escapingFunctions?.toList().orEmpty().filter { entry ->
+            when (entry.firstOrNull()) {
+                '+', '-' -> {
+                    if (entry.length == 1) {
+                        reporter.report(
+                            CliDiagnostics.COMPILER_ARGUMENTS_WARNING,
+                            "Empty callable name in -Xescaping-functions entry '$entry'."
+                        )
+                        return@filter false
+                    }
+                    true
+                }
+                else -> {
+                    reporter.report(
+                        CliDiagnostics.COMPILER_ARGUMENTS_WARNING,
+                        "Incorrect -Xescaping-functions entry '$entry', each entry must start with '+' (to add) or '-' (to remove)."
+                    )
+                    false
+                }
+            }
+        }
+    }
+
     private fun HashMap<AnalysisFlag<*>, Any>.fillWarningLevelMap(arguments: CommonCompilerArguments, reporter: Reporter) {
         val result = buildMap {
-            val suppressedDiagnostics = arguments.suppressedDiagnostics.orEmpty()
-            suppressedDiagnostics.associateWithTo(this) { WarningLevel.Disabled }
-            if (suppressedDiagnostics.isNotEmpty()) {
-                val replacement = "-Xwarning-level=${suppressedDiagnostics.first()}:disabled"
-                val suffix = if (suppressedDiagnostics.size > 1) " (and the same for other warnings)" else ""
-                reporter.reportWarning(
-                    """Argument "-Xsuppress-warning" is deprecated. Use "$replacement" instead$suffix"""
-                )
-            }
-            for (rawArgument in arguments.warningLevels.orEmpty()) {
+            for (rawArgument in arguments.warningLevels) {
                 val split = rawArgument.split(":", limit = 2)
                 if (split.size < 2) {
                     reporter.reportError(
@@ -201,7 +246,7 @@ open class CommonCompilerArgumentsConfigurator {
                     )
                     continue
                 }
-                val (name, rawLevel) = split
+                val [name, rawLevel] = split
                 val level = WarningLevel.fromString(rawLevel) ?: run {
                     reporter.reportError(
                         "Incorrect value for warning level: $rawLevel. Available values are: ${WarningLevel.entries.joinToString { it.cliOption }}"
@@ -210,12 +255,7 @@ open class CommonCompilerArgumentsConfigurator {
                 }
                 val existing = put(name, level)
                 if (existing != null) {
-                    val message = if (name in suppressedDiagnostics) {
-                        "Severity of $name is configured both with -Xwarning-level and -Xsuppress-warning flags"
-                    } else {
-                        "-Xwarning-level is duplicated for warning $name"
-                    }
-                    reporter.reportError(message)
+                    reporter.reportError("-Xwarning-level is duplicated for warning $name")
                 }
             }
         }
@@ -261,25 +301,22 @@ fun CommonCompilerArguments.checkApiAndLanguageVersion(
     checkProgressiveMode(language, reporter)
 }
 
-private fun CommonCompilerArguments.checkApiVersionIsNotGreaterThenLanguageVersion(
+private fun checkApiVersionIsNotGreaterThenLanguageVersion(
     languageVersion: LanguageVersion,
     apiVersion: ApiVersion,
     reporter: CommonCompilerArgumentsConfigurator.Reporter,
 ) {
     if (apiVersion > ApiVersion.createByLanguageVersion(languageVersion)) {
-        if (!suppressApiVersionGreaterThanLanguageVersionError) {
-            reporter.reportError(
-                "-api-version (${apiVersion.versionString}) cannot be greater than -language-version (${languageVersion.versionString})."
-            )
-        }
-    } else if (suppressApiVersionGreaterThanLanguageVersionError) {
-        reporter.reportWarning(
-            "-Xsuppress-api-version-greater-than-language-version-error was passed, but the API version (${apiVersion.versionString}) is not greater than the language version (${languageVersion.versionString})."
+        reporter.reportError(
+            "-api-version (${apiVersion.versionString}) cannot be greater than -language-version (${languageVersion.versionString})."
         )
     }
 }
 
-private fun CommonCompilerArguments.checkLanguageVersionIsStable(languageVersion: LanguageVersion, reporter: CommonCompilerArgumentsConfigurator.Reporter) {
+private fun CommonCompilerArguments.checkLanguageVersionIsStable(
+    languageVersion: LanguageVersion,
+    reporter: CommonCompilerArgumentsConfigurator.Reporter,
+) {
     if (!languageVersion.isStable && !suppressVersionWarnings) {
         reporter.report(
             CliDiagnostics.EXPERIMENTAL_LANGUAGE_VERSION,
@@ -295,7 +332,7 @@ private fun CommonCompilerArguments.checkOutdatedVersions(
     api: ApiVersion,
     reporter: CommonCompilerArgumentsConfigurator.Reporter,
 ) {
-    val (version, supportedVersion, versionKind) = findOutdatedVersion(language, api) ?: return
+    val [version, supportedVersion, versionKind] = findOutdatedVersion(language, api) ?: return
     val firstNonDeprecated by lazy {
         when (versionKind) {
             VersionKind.LANGUAGE -> LanguageVersion.FIRST_NON_DEPRECATED
@@ -334,9 +371,13 @@ private fun findOutdatedVersion(
     }
 }
 
-private fun CommonCompilerArguments.checkProgressiveMode(languageVersion: LanguageVersion, reporter: CommonCompilerArgumentsConfigurator.Reporter) {
+private fun CommonCompilerArguments.checkProgressiveMode(
+    languageVersion: LanguageVersion,
+    reporter: CommonCompilerArgumentsConfigurator.Reporter,
+) {
     if (progressiveMode && languageVersion < LanguageVersion.LATEST_STABLE && !suppressVersionWarnings) {
-        reporter.reportWarning(
+        reporter.report(
+            CliDiagnostics.PROGRESSIVE_MODE_WITH_OLD_LANGUAGE_VERSION,
             "'-progressive' is meaningful only for the latest language version (${LanguageVersion.LATEST_STABLE}), " +
                     "while this build uses $languageVersion\n" +
                     "Compiler behavior in such mode is undefined; consider moving to the latest stable version " +
@@ -365,18 +406,15 @@ private enum class VersionKind(val text: String) {
 }
 
 private fun CommonCompilerArguments.parseOrConfigureLanguageVersion(reporter: CommonCompilerArgumentsConfigurator.Reporter): LanguageVersion {
-    if (useK2) {
-        reporter.reportError(
-            "Compiler flag -Xuse-k2 is no more supported. " +
-                    "Compiler versions 2.0+ use K2 by default, unless the language version is set to 1.9 or earlier"
-        )
-    }
-
     // If only "-api-version" is specified, language version is assumed to be the latest stable
     return parseVersion(reporter, languageVersion, "language") ?: LanguageVersion.LATEST_STABLE
 }
 
-private fun CommonCompilerArguments.parseVersion(reporter: CommonCompilerArgumentsConfigurator.Reporter, value: String?, versionOf: String): LanguageVersion? =
+private fun CommonCompilerArguments.parseVersion(
+    reporter: CommonCompilerArgumentsConfigurator.Reporter,
+    value: String?,
+    versionOf: String,
+): LanguageVersion? =
     if (value == null) null
     else LanguageVersion.fromVersionString(value)
         ?: run {

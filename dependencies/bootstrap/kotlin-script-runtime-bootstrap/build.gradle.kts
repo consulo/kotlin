@@ -1,3 +1,8 @@
+plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
+}
+
 val resolvedBootstrap = configurations.resolvable("kotlinScriptRuntimeBootstrapClasspath") {
     dependencies.addLater(providers.provider {
         project.dependencies.create("org.jetbrains.kotlin:kotlin-script-runtime:${bootstrapKotlinVersion}")

@@ -5,8 +5,14 @@
 
 package org.jetbrains.kotlin.buildtools.tests.compilation.assertions
 
+import org.jetbrains.kotlin.buildtools.api.ExecutionPolicy
+import org.jetbrains.kotlin.buildtools.tests.CompilerExecutionStrategyConfiguration
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.CompilationOutcome
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.LogLevel
+
+// TODO: KT-85024 — the daemon forwards IC messages as plain build report lines, so they always land on the DEBUG level
+fun expectedLogLevelForRebuildReason(strategyConfig: CompilerExecutionStrategyConfiguration): LogLevel =
+    if (strategyConfig.second is ExecutionPolicy.WithDaemon) LogLevel.DEBUG else LogLevel.INFO
 
 fun CompilationOutcome.assertLogContainsLines(logLevel: LogLevel, vararg expectedLines: String) {
     assertLogContainsLines(logLevel, expectedLines.toSet())
@@ -61,20 +67,31 @@ fun CompilationOutcome.assertLogDoesNotContainPatterns(logLevel: LogLevel, expec
     requireLogLevel(logLevel)
     val presentLines = expectedLines
         .associateWith { regex -> logLines.getValue(logLevel).filter { line -> regex.matches(line) } }
-        .filter { (_, lines) -> lines.isNotEmpty() }
+        .filter { [_, lines] -> lines.isNotEmpty() }
     assert(presentLines.isEmpty()) {
         """
         |The following lines were not expected to be printed on $logLevel level, however they were:
-        |${presentLines.entries.joinToString("\n\n\n") { (regex, lines) -> "Pattern $regex:\n${lines.joinToString("\n")}" }}
+        |${presentLines.entries.joinToString("\n\n\n") { [regex, lines] -> "Pattern $regex:\n${lines.joinToString("\n")}" }}
         """.trimMargin()
     }
 }
 
 fun CompilationOutcome.assertLogContainsSubstringExactlyTimes(logLevel: LogLevel, substring: String, expectedCount: Int) {
+    assertLogContainsPatternExactlyTimes(logLevel, substring.toRegex(RegexOption.LITERAL), expectedCount)
+}
+
+fun CompilationOutcome.assertLogContainsPatternExactlyTimes(logLevel: LogLevel, regex: Regex, expectedCount: Int) {
     requireLogLevel(logLevel)
-    val regex = substring.toRegex(RegexOption.LITERAL)
     val count = logLines.getValue(logLevel).sumOf { line -> regex.findAll(line).count() }
     assert(count == expectedCount) {
-        "Expected '$substring' to occur $expectedCount times on $logLevel, but found $count"
+        "Expected '$regex' to occur $expectedCount times on $logLevel, but found $count"
+    }
+}
+
+fun CompilationOutcome.assertNoWarnings() {
+    requireLogLevel(LogLevel.WARN)
+    val warnings = logLines.getValue(LogLevel.WARN)
+    assert(warnings.isEmpty()) {
+        "Expected no warnings, but found: $warnings"
     }
 }

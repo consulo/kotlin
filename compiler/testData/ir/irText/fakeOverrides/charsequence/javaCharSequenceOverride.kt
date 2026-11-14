@@ -3,6 +3,9 @@
 // FULL_JDK
 // WITH_STDLIB
 
+// KT-85832 Reflection: KClass.members for interface with explicit toString contains abstract toString
+// KOTLIN_REFLECT_DUMP_MISMATCH
+
 // FILE: Java1.java
 import org.jetbrains.annotations.NotNull;
 
@@ -134,15 +137,20 @@ abstract class L : Java1(), A {         // Kotlin ← Java, Kotlin2 ← Java2, J
     override fun codePoints(): IntStream {
         return null!!
     }
+    override fun isEmpty(): Boolean {
+        return false
+    }
 }
 
 abstract class M : Java1(), java.lang.CharSequence {    //Kotlin ← Java1, Java2
     override fun chars(): IntStream {
         return null!!
     }
-
     override fun codePoints(): IntStream {
         return null!!
+    }
+    override fun isEmpty(): Boolean {
+        return false
     }
 }
 

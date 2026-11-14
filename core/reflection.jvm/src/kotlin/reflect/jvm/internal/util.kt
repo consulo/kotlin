@@ -64,6 +64,7 @@ import kotlin.reflect.*
 import kotlin.reflect.full.IllegalCallableAccessException
 import kotlin.reflect.jvm.internal.calls.createAnnotationInstance
 import kotlin.reflect.jvm.internal.types.AbstractKType
+import kotlin.reflect.jvm.jvmErasure
 import kotlin.reflect.jvm.jvmName
 
 internal val JVM_STATIC = FqName("kotlin.jvm.JvmStatic")
@@ -104,9 +105,13 @@ internal fun ClassLoader.loadClass(kotlinClassId: ClassId, arrayDimensions: Int 
 internal val stdlibClassLoader: ClassLoader
     get() = Unit::class.java.safeClassLoader
 
+// JDK and kotlin-stdlib can be loaded by different class loaders. In this case, trying to resolve `kotlin/Unit` reference in a builtin
+// class will use the JDK class loader which cannot load `kotlin/Unit`. Same for `kotlin/ranges/IntRange` reference in `kotlin/Int`.
+internal fun ClassLoader.tryLoadClassOrFallbackToStdlib(fqName: String): Class<*>? =
+    tryLoadClass(fqName) ?: stdlibClassLoader.tryLoadClass(fqName)
+
 private fun loadClass(classLoader: ClassLoader, packageName: String, className: String, arrayDimensions: Int): Class<*>? {
     if (packageName == "kotlin") {
-        // See mapBuiltInType() in typeSignatureMapping.kt
         when (className) {
             "Array" -> return Array<Any>::class.java
             "BooleanArray" -> return BooleanArray::class.java
@@ -136,11 +141,16 @@ private fun loadClass(classLoader: ClassLoader, packageName: String, className: 
         }
     }
 
-    return classLoader.tryLoadClass(fqName)
+    return classLoader.tryLoadClassOrFallbackToStdlib(fqName)
 }
 
 internal fun Class<*>.createArrayType(): Class<*> =
     java.lang.reflect.Array.newInstance(this, 0)::class.java
+
+internal fun computeArrayClassifier(arguments: List<KTypeProjection>): KClass<*> {
+    val elementType = arguments.singleOrNull()?.takeUnless { it.variance == KVariance.IN }?.type ?: StandardKTypes.ANY
+    return elementType.jvmErasure.javaObjectType.createArrayType().kotlin
+}
 
 internal fun DescriptorVisibility.toKVisibility(): KVisibility? =
     when (this) {
@@ -222,7 +232,7 @@ private fun AnnotationDescriptor.toAnnotationInstance(): Annotation? {
     return createAnnotationInstance(
         annotationClass,
         allValueArguments.entries
-            .mapNotNull { (name, value) -> value.toRuntimeValue(annotationClass.classLoader)?.let(name.asString()::to) }
+            .mapNotNull { (name, value) -> value.toRuntimeValue(annotationClass.safeClassLoader)?.let(name.asString()::to) }
             .toMap()
     )
 }
@@ -314,9 +324,11 @@ internal fun Any?.asReflectCallable(): ReflectKCallable<*>? = when (this) {
 internal val DescriptorKCallable<*>.instanceReceiverParameter: ReceiverParameterDescriptor?
     get() {
         val descriptor = descriptor
+        val propertyIfAccessor = propertyIfAccessor
         return when {
-            overriddenStorage.isFakeOverride && isStatic -> null
-            overriddenStorage.isFakeOverride && !isStatic -> (this.container as? KClassImpl<*>)?.descriptor?.thisAsReceiverParameter
+            propertyIfAccessor.overriddenStorage.isFakeOverride ->
+                if (propertyIfAccessor.isStatic) null
+                else (this.container as? KClassImpl<*>)?.descriptor?.thisAsReceiverParameter
             descriptor is ConstructorDescriptor -> descriptor.dispatchReceiverParameter
             descriptor.dispatchReceiverParameter != null -> (descriptor.containingDeclaration as ClassDescriptor).thisAsReceiverParameter
             else -> null
@@ -356,7 +368,7 @@ internal class LocalDelegatedPropertyFakeContainerSource(val container: KDeclara
 }
 
 internal val KType.isInlineClassType: Boolean
-    get() = (classifier as? KClassImpl<*>)?.isValue == true
+    get() = (classifier as? KClassImpl<*>)?.isJvmInlineValue == true
 
 internal fun defaultPrimitiveValue(type: Type): Any? =
     if (type is Class<*> && type.isPrimitive) {
@@ -374,6 +386,11 @@ internal fun defaultPrimitiveValue(type: Type): Any? =
         }
     } else null
 
+internal class CreateNonConstructorKCallableVisitor(container: KDeclarationContainerImpl) : CreateKCallableVisitor(container) {
+    override fun visitConstructorDescriptor(descriptor: ConstructorDescriptor, data: Unit): DescriptorKCallable<*> =
+        throw IllegalStateException("No constructors should appear here: $descriptor")
+}
+
 internal open class CreateKCallableVisitor(private val container: KDeclarationContainerImpl) : CreateKFunctionVisitor(container) {
     override fun visitPropertyDescriptor(descriptor: PropertyDescriptor, data: Unit): DescriptorKCallable<*> {
         val receiverCount =
@@ -382,18 +399,20 @@ internal open class CreateKCallableVisitor(private val container: KDeclarationCo
             else
                 (descriptor.dispatchReceiverParameter?.let { 1 } ?: 0) + (descriptor.extensionReceiverParameter?.let { 1 } ?: 0)
 
+        val boundReceiver = CallableReference.NO_RECEIVER
+        val overriddenStorage = KCallableOverriddenStorage.EMPTY
         when {
             descriptor.isVar -> when (receiverCount) {
-                -1 -> return DescriptorKMutablePropertyN<Any?>(container, descriptor, KCallableOverriddenStorage.EMPTY)
-                0 -> return DescriptorKMutableProperty0<Any?>(container, descriptor, KCallableOverriddenStorage.EMPTY)
-                1 -> return DescriptorKMutableProperty1<Any?, Any?>(container, descriptor, KCallableOverriddenStorage.EMPTY)
-                2 -> return DescriptorKMutableProperty2<Any?, Any?, Any?>(container, descriptor, KCallableOverriddenStorage.EMPTY)
+                -1 -> return DescriptorKMutablePropertyN<Any?>(container, descriptor, boundReceiver, overriddenStorage)
+                0 -> return DescriptorKMutableProperty0<Any?>(container, descriptor, boundReceiver, overriddenStorage)
+                1 -> return DescriptorKMutableProperty1<Any?, Any?>(container, descriptor, boundReceiver, overriddenStorage)
+                2 -> return DescriptorKMutableProperty2<Any?, Any?, Any?>(container, descriptor, boundReceiver, overriddenStorage)
             }
             else -> when (receiverCount) {
-                -1 -> return DescriptorKPropertyN<Any?>(container, descriptor, KCallableOverriddenStorage.EMPTY)
-                0 -> return DescriptorKProperty0<Any?>(container, descriptor, KCallableOverriddenStorage.EMPTY)
-                1 -> return DescriptorKProperty1<Any?, Any?>(container, descriptor, KCallableOverriddenStorage.EMPTY)
-                2 -> return DescriptorKProperty2<Any?, Any?, Any?>(container, descriptor, KCallableOverriddenStorage.EMPTY)
+                -1 -> return DescriptorKPropertyN<Any?>(container, descriptor, boundReceiver, overriddenStorage)
+                0 -> return DescriptorKProperty0<Any?>(container, descriptor, boundReceiver, overriddenStorage)
+                1 -> return DescriptorKProperty1<Any?, Any?>(container, descriptor, boundReceiver, overriddenStorage)
+                2 -> return DescriptorKProperty2<Any?, Any?, Any?>(container, descriptor, boundReceiver, overriddenStorage)
             }
         }
 
@@ -414,12 +433,24 @@ internal fun Class<*>.getDeclaredMethodOrNull(name: String, vararg parameterType
         null
     }
 
-internal fun Class<*>.getDeclaredFieldOrNull(name: String): Field? =
-    try {
-        getDeclaredField(name)
-    } catch (e: NoSuchFieldException) {
-        null
+internal fun Class<*>.getDeclaredFieldOrNull(name: String, isStatic: Boolean): Field? {
+    fun Class<*>.lookup(name: String): Field? =
+        try {
+            getDeclaredField(name)
+        } catch (e: NoSuchFieldException) {
+            null
+        }
+
+    lookup(name)?.let { return it }
+    if (isInterface && isStatic) {
+        val classLoader = safeClassLoader
+        classLoader.tryLoadClass(this.name + "$" + JvmAbi.INTERFACE_PRIVATE_FIELDS1_CLASS_NAME)
+            ?.lookup(name)?.let { return it }
+        classLoader.tryLoadClass(this.name + "$" + JvmAbi.INTERFACE_PRIVATE_FIELDS2_CLASS_NAME)
+            ?.lookup(name)?.let { return it }
     }
+    return null
+}
 
 /**
  * Returns `true` if this type allows `null` values. Based on `TypeUtils.isNullableType` (K1), `ConeKotlinType.canBeNull` (K2).
@@ -488,7 +519,10 @@ internal fun ClassLoader.parseAndLoadDescriptor(desc: String, loadReturnType: Bo
 
 private fun ClassLoader.parseAndLoadType(desc: String, begin: Int = 0, end: Int = desc.length): Class<*> =
     when (desc[begin]) {
-        'L' -> loadClass(desc.substring(begin + 1, end - 1).replace('/', '.'))
+        'L' -> {
+            val fqName = desc.substring(begin + 1, end - 1).replace('/', '.')
+            tryLoadClassOrFallbackToStdlib(fqName) ?: throw ClassNotFoundException(fqName)
+        }
         '[' -> parseAndLoadType(desc, begin + 1, end).createArrayType()
         'V' -> Void.TYPE
         'Z' -> Boolean::class.java

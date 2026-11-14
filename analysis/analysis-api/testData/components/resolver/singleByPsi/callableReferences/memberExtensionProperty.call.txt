@@ -1,14 +1,17 @@
 KtCallableReferenceExpression(249,257): 'Bar::foo'
-  KaCallResolutionSuccess:
-    call = KaSimpleVariableAccessCall:
+  KaSimpleCallResolutionSuccess:
+    call = KaCallableReferenceCall:
       contextArguments = []
       dispatchReceiver = KaImplicitReceiverValue:
         symbol = KaReceiverParameterSymbol:
+          anchorPsi: KtFunctionLiteral
           annotations: []
           callableId: null
-          compilerVisibility: Public
+          contextParameters: []
           contextReceivers: []
           isActual: false
+          isCompanion: false
+          isDelegated: false
           isExpect: false
           isExtension: false
           isExternal: false
@@ -18,16 +21,17 @@ KtCallableReferenceExpression(249,257): 'Bar::foo'
           name: <receiver>
           origin: SOURCE
           owningCallableSymbol: KaAnonymousFunctionSymbol(<local>/<no name provided>)
+          psi: KtFunctionLiteral
+          realPsi: KtFunctionLiteral
           receiverParameter: null
           returnType: KaUsualClassType:
             annotations: []
             typeArguments: []
             type: Foo
+          typeParameters: []
           visibility: PUBLIC
         type = Foo
       extensionReceiver = null
-      isContextSensitive = false
-      kind = Read
       signature = KaVariableSignature:
         name = foo
         receiverType = Bar

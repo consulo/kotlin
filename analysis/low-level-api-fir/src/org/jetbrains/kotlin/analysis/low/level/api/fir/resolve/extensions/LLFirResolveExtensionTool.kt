@@ -7,7 +7,9 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.resolve.extensions
 
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VirtualFile
+import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import com.intellij.psi.search.GlobalSearchScope
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.permissions.forbidAnalysis
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDeclarationProvider
 import org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinFileBasedDeclarationProvider
@@ -24,6 +26,7 @@ import org.jetbrains.kotlin.fir.FirSessionComponent
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolNamesProvider
 import org.jetbrains.kotlin.load.kotlin.PackagePartClassUtils
 import org.jetbrains.kotlin.name.*
+import org.jetbrains.kotlin.name.ScriptNames
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.utils.mapToSetOrEmpty
@@ -35,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Caches generated [KaResolveExtensionFile]s, creates [KotlinDeclarationProvider], [KotlinPackageProvider], [FirSymbolNamesProvider] needed
  * for the [org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider].
  */
+@KaImplementationDetail
 abstract class LLFirResolveExtensionTool : FirSessionComponent {
     internal abstract val extensions: List<KaResolveExtension>
 
@@ -48,6 +52,7 @@ abstract class LLFirResolveExtensionTool : FirSessionComponent {
 /**
  * The session's [LLFirResolveExtensionTool], or `null` if the session's module defines no resolve extensions.
  */
+@KaImplementationDetail
 val FirSession.llResolveExtensionTool: LLFirResolveExtensionTool? by FirSession.nullableSessionComponentAccessor()
 
 internal class LLFirNonEmptyResolveExtensionTool(
@@ -98,12 +103,23 @@ private class LLFirResolveExtensionToolSymbolNamesProvider(
             .flatMapTo(mutableSetOf()) { it.getTopLevelCallableNames() }
     }
 
+    // Specific checks are deliberately disabled for now. `mayHaveTopLevelClassifier` and `mayHaveTopLevelCallable` iterate over all resolve
+    // extension files in the package on each call, without any caching. Without specific checks, composite symbol names providers fall back
+    // to "names in package" sets, which are cached.
+    //
+    // This hurts composability, since composites containing this provider cannot use specific checks either, but resolve extensions are
+    // expected to be absent in most projects.
+    override val hasSpecificTopLevelClassifierCheck: Boolean get() = false
+
     override fun mayHaveTopLevelClassifier(classId: ClassId): Boolean = forbidAnalysis {
         if (!packageFilter.packageExists(classId.packageFqName)) return false
 
         fileProvider.getFilesByPackage(classId.packageFqName)
             .any { it.mayHaveTopLevelClassifier(classId.getTopLevelShortClassName()) }
     }
+
+    // See the comment on `hasSpecificTopLevelClassifierCheck`.
+    override val hasSpecificTopLevelCallableCheck: Boolean get() = false
 
     override fun mayHaveTopLevelCallable(packageFqName: FqName, name: Name): Boolean = forbidAnalysis {
         if (!packageFilter.packageExists(packageFqName)) return false
@@ -113,6 +129,7 @@ private class LLFirResolveExtensionToolSymbolNamesProvider(
     }
 }
 
+@KaImplementationDetail
 class LLFirResolveExtensionToolPackageFilter(
     private val extensions: List<KaResolveExtension>
 ) {
@@ -153,6 +170,7 @@ class LLFirResolveExtensionToolPackageFilter(
     }
 }
 
+@KaImplementationDetail
 class LLFirResolveExtensionToolDeclarationProvider internal constructor(
     private val extensionProvider: LLFirResolveExtensionsFileProvider,
     private val ktModule: KaModule,
@@ -205,6 +223,14 @@ class LLFirResolveExtensionToolDeclarationProvider internal constructor(
             .flatMapTo(mutableSetOf()) { it.getTopLevelKotlinClassLikeDeclarationNamesInPackage(packageFqName) }
     }
 
+    // Native checks are deliberately disabled for now. They would have to iterate over all resolve extension files in the package on each
+    // call, without any caching. Without native checks, symbol names providers fall back to "names in package" sets, which are cached.
+    //
+    // This hurts composability, since composite declaration providers containing this provider cannot have native checks either, but
+    // resolve extensions are expected to be absent in most projects.
+    @KaExperimentalApi
+    override val mayHaveTopLevelKotlinClassLikeDeclaration: ((ClassId) -> Boolean)? get() = null
+
     override fun getTopLevelProperties(callableId: CallableId): Collection<KtProperty> = forbidAnalysis {
         return getDeclarationProvidersByPackage(callableId.packageName) { it.mayHaveTopLevelCallable(callableId.callableName) }
             .flatMapTo(mutableListOf()) { it.getTopLevelProperties(callableId) }
@@ -223,6 +249,10 @@ class LLFirResolveExtensionToolDeclarationProvider internal constructor(
     override fun getTopLevelCallableNamesInPackage(packageFqName: FqName): Set<Name> = forbidAnalysis {
         return extensionProvider.getFilesByPackage(packageFqName).flatMapTo(mutableSetOf()) { it.getTopLevelCallableNames() }
     }
+
+    // See the comment on `mayHaveTopLevelKotlinClassLikeDeclaration`.
+    @KaExperimentalApi
+    override val mayHaveTopLevelCallable: ((FqName, Name) -> Boolean)? get() = null
 
     override fun findFilesForFacadeByPackage(packageFqName: FqName): Collection<KtFile> = forbidAnalysis {
         return getDeclarationProvidersByPackage(packageFqName) { file ->
@@ -248,7 +278,7 @@ class LLFirResolveExtensionToolDeclarationProvider internal constructor(
         if (scriptFqName.isRoot) return emptyList()
         val packageFqName = scriptFqName.parent()
         return getDeclarationProvidersByPackage(packageFqName) { file ->
-            scriptFqName.shortName() == NameUtils.getScriptNameForFile(file.getFileName())
+            scriptFqName.shortName() == ScriptNames.getScriptNameForFile(file.getFileName())
         }
             .mapNotNullTo(mutableListOf()) { it.kotlinFile.script }
     }
@@ -367,6 +397,7 @@ private fun KaResolveExtensionFile.mayHaveTopLevelCallable(name: Name): Boolean 
     return name in getTopLevelCallableNames()
 }
 
+@KaImplementationDetail
 var VirtualFile.navigationTargetsProvider: KaResolveExtensionNavigationTargetsProvider?
         by UserDataProperty(Key.create("KT_RESOLVE_EXTENSION_NAVIGATION_TARGETS_PROVIDER"))
 

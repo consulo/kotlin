@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.ir.util
 
+import org.jetbrains.kotlin.DeprecatedCompilerApi
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
@@ -12,13 +13,22 @@ import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
 import org.jetbrains.kotlin.ir.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrAnnotation
+import org.jetbrains.kotlin.ir.expressions.IrBlock
+import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrConst
+import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetEnumValue
+import org.jetbrains.kotlin.ir.expressions.IrLazilyBoundAnnotationImpl
+import org.jetbrains.kotlin.ir.expressions.IrReturn
+import org.jetbrains.kotlin.ir.expressions.IrReturnableBlock
+import org.jetbrains.kotlin.ir.expressions.IrRichPropertyReference
+import org.jetbrains.kotlin.ir.expressions.IrTypeOperator
+import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.types.isArray
 import org.jetbrains.kotlin.name.*
-import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.utils.filterIsInstanceAnd
 
@@ -127,15 +137,28 @@ fun <S : IrSymbol> IrOverridableDeclaration<S>.overrides(other: IrOverridableDec
     return false
 }
 
-private val IrAnnotation.annotationClass
-    get() = this.symbol.owner.constructedClass
+@OptIn(DeprecatedCompilerApi::class)
+fun IrAnnotation.isAnnotationWithEqualFqName(fqName: FqName): Boolean = when {
+    this is IrLazilyBoundAnnotationImpl -> classSymbol.hasEqualFqName(fqName)
+    symbol.isBound -> classSymbol.owner.hasEqualFqName(fqName)
+    else -> symbol.hasEqualFqName(fqName.child(SpecialNames.INIT))
+}
 
-fun IrAnnotation.isAnnotationWithEqualFqName(fqName: FqName): Boolean =
-    if (symbol.isBound) {
-        annotationClass.hasEqualFqName(fqName)
-    } else {
-        symbol.hasEqualFqName(fqName.child(SpecialNames.INIT))
+val IrAnnotation.classId: ClassId get() = classSymbol.classIdWhenAvailable!!
+
+fun IrClass.hasEqualClassId(classId: ClassId): Boolean {
+    fun compare(declaration: IrDeclarationWithName, packageFqName: FqName, relativeName: FqName): Boolean {
+        if (declaration.name != relativeName.shortName()) return false
+        val relativeParent = relativeName.parent()
+        return when (val parent = declaration.parent) {
+            is IrPackageFragment -> parent.packageFqName == packageFqName && relativeParent.isRoot
+            is IrClass -> !relativeParent.isRoot && compare(parent, packageFqName, relativeParent)
+            else -> false
+        }
     }
+
+    return compare(this, classId.packageFqName, classId.relativeClassName)
+}
 
 val IrClass.packageFqName: FqName?
     get() = symbol.signature?.packageFqName() ?: parent.getPackageFragment()?.packageFqName
@@ -171,7 +194,12 @@ fun IrSymbol.hasTopLevelEqualFqName(packageName: String, declarationName: String
     }
 }
 
-fun List<IrAnnotation>.hasAnnotation(classId: ClassId): Boolean = hasAnnotation(classId.asSingleFqName())
+fun List<IrAnnotation>.hasAnnotation(classId: ClassId): Boolean =
+    // Note: check can be simplified to just classId comparison after IrAnnotation node migration is complete KT-74200.
+    hasAnnotation(
+        // Getting classId from an unbound annotation will throw an exception, go along the path where this is worked around.
+        classId.asSingleFqName()
+    )
 
 fun List<IrAnnotation>.hasAnnotation(fqName: FqName): Boolean =
     any { it.isAnnotationWithEqualFqName(fqName) }
@@ -244,8 +272,7 @@ val IrDeclaration.isLocal: Boolean
 val IrDeclaration.isOriginallyLocal: Boolean
     get() = isLocalImpl { it.visibility == DescriptorVisibilities.LOCAL || it.isOriginallyLocalDeclaration }
 
-@ObsoleteDescriptorBasedAPI
-val IrDeclaration.module get() = this.descriptor.module
+val IrDeclaration.moduleFragment: IrModuleFragment get() = this.getPackageFragment().module
 
 const val SYNTHETIC_OFFSET = -2
 
@@ -311,7 +338,8 @@ fun IrClassSymbol.getPropertyGetter(name: String): IrSimpleFunctionSymbol? = own
 @UnsafeDuringIrConstructionAPI
 fun IrClassSymbol.getPropertySetter(name: String): IrSimpleFunctionSymbol? = owner.getPropertySetter(name)
 
-fun filterOutAnnotations(fqName: FqName, annotations: List<IrAnnotation>): List<IrAnnotation> {
+fun filterOutAnnotations(classId: ClassId, annotations: List<IrAnnotation>): List<IrAnnotation> {
+    val fqName = classId.asSingleFqName()
     return annotations.filterNot { it.isAnnotationWithEqualFqName(fqName) }
 }
 
@@ -323,6 +351,18 @@ fun IrFunction.isBuiltInSuspendCoroutineUninterceptedOrReturn(): Boolean =
         "suspendCoroutineUninterceptedOrReturn",
         StandardNames.COROUTINES_INTRINSICS_PACKAGE_FQ_NAME
     )
+
+fun IrElement.isTypeOfIntrinsicCall() = this is IrCall && symbol.isTypeOfIntrinsic()
+
+fun IrFunctionSymbol.isTypeOfIntrinsic(): Boolean {
+    val packageFqName = StandardNames.KOTLIN_REFLECT_FQ_NAME
+
+    return if (isBound) {
+        this is IrSimpleFunctionSymbol && owner.isTopLevelInPackage("typeOf", packageFqName) && owner.hasShape()
+    } else {
+        hasTopLevelEqualFqName(packageFqName.asString(), "typeOf")
+    }
+}
 
 /**
  * @return null - if [this] class is not an annotation class ([isAnnotationClass])
@@ -338,7 +378,7 @@ fun IrClass.getAnnotationTargets(): Set<KotlinTarget>? {
     if (!this.isAnnotationClass) return null
 
     val valueArgument = getAnnotation(StandardNames.FqNames.target)
-        ?.getValueArgument(StandardClassIds.Annotations.ParameterNames.targetAllowedTargets) as? IrVararg
+        ?.argumentMapping[StandardClassIds.Annotations.ParameterNames.targetAllowedTargets] as? IrVararg
         ?: return KotlinTarget.DEFAULT_TARGET_SET
     return valueArgument.elements.filterIsInstance<IrGetEnumValue>().mapNotNull {
         KotlinTarget.valueOrNull(it.symbol.owner.name.asString())
@@ -363,3 +403,52 @@ fun IrClass.selectSAMOverriddenFunctionOrNull(): IrSimpleFunction? {
 
 fun IrClass.selectSAMOverriddenFunction(): IrSimpleFunction = selectSAMOverriddenFunctionOrNull()
     ?: error("${render()} should have a single abstract method to be a type of function reference")
+
+/**
+ * Creates an `IdSignature` representation for the current `ClassId`.
+ *
+ * Be aware that this is a straightforward transformation. It does not account for special cases, like C-interop classes.
+ */
+fun ClassId.toIdSignature(): IdSignature {
+    return IdSignature.CommonSignature(
+        packageFqName.asString(),
+        relativeClassName.asString(),
+        id = null,
+        mask = 0L,
+        description = null
+    )
+}
+
+fun IdSignature.CommonSignature.isClassSignature(): Boolean = id == null
+
+inline fun <reified T> IrAnnotation.getConstArgument(name: String): T? {
+    val expression = argumentMapping[Name.identifier(name)] as? IrConst
+    return expression?.value as? T
+}
+
+private val reflectionPackageNameFqName = StandardClassIds.Annotations.ReflectionPackageName.asSingleFqName()
+
+/**
+ * The package name that should be reported in the reflective information of the classes declared in this file
+ * instead of the real package name, or `null` if the file is not annotated with `@kotlin.internal.ReflectionPackageName`.
+ *
+ * The test infrastructure uses that annotation to compensate for the package renaming it performs when compiling
+ * several tests into one batch. Backends supporting reflective information are expected to respect it, so that
+ * the renaming does not affect the observable fully qualified names.
+ */
+val IrFile.reflectionPackageName: String?
+    get() = getAnnotation(reflectionPackageNameFqName)?.getConstArgument("name")
+
+val IrBlock.singleExpressionOrNull get() = statements.singleOrNull() as? IrExpression
+
+tailrec fun getSinglePropertyReference(expression: IrExpression?, expectedReturn: IrReturnableBlockSymbol?): IrRichPropertyReference? {
+    return when {
+        expression == null -> null
+        expectedReturn == null && expression is IrRichPropertyReference -> expression
+        expectedReturn == null && expression is IrReturnableBlock -> getSinglePropertyReference(expression.singleExpressionOrNull, expression.symbol)
+        expression is IrReturn && expression.returnTargetSymbol == expectedReturn -> getSinglePropertyReference(expression.value, null)
+        expression is IrBlock -> getSinglePropertyReference(expression.singleExpressionOrNull, expectedReturn)
+        expression is IrTypeOperatorCall && expression.operator == IrTypeOperator.IMPLICIT_CAST -> getSinglePropertyReference(expression.argument, expectedReturn)
+        else -> null
+    }
+}

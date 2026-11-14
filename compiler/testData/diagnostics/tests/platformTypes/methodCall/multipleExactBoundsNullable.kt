@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// JAVAC_EXPECTED_FILE
+// RUN_PIPELINE_TILL: CODEGEN
 // FILE: MyMap.java
 
 import java.util.AbstractMap;

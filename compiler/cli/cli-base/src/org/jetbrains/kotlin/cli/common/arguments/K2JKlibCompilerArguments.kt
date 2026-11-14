@@ -68,17 +68,6 @@ class K2JKlibCompilerArguments : CommonCompilerArguments() {
             field = value
         }
 
-    @Argument(
-        value = "-Xcompile-builtins-as-part-of-stdlib",
-        description = "Enable behaviour needed to compile builtins as part of JVM stdlib"
-    )
-    var expectBuiltinsAsPartOfStdlib = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-
     @Argument(value = "-no-jdk", description = "Don't automatically include the Java runtime in the classpath.")
     var noJdk = false
         set(value) {
@@ -127,6 +116,17 @@ See KT-45671 for more details."""
 -jvm-default=disable             Do not generate JVM default methods. This is the default behavior up to language version 2.1.""",
     )
     var jvmDefault: String? = null
+        set(value) {
+            checkFrozen()
+            field = if (value.isNullOrEmpty()) null else value
+        }
+
+    @Argument(
+        value = "-jvm-target",
+        valueDescription = "<version>",
+        description = "The target version of the generated JVM bytecode (1.8 and 9–28), with 1.8 as the default.",
+    )
+    var jvmTarget: String? = null
         set(value) {
             checkFrozen()
             field = if (value.isNullOrEmpty()) null else value
@@ -253,11 +253,34 @@ The default value is 'indy'.""",
             field = if (value.isNullOrEmpty()) null else value
         }
 
-    @Argument(
-        value = "-Xcompile-ir",
-        description = "Enable the IR compilation phase."
-    )
+    /**
+     * Whether to run the IR compilation phase. Not exposed as a command line argument: only
+     * `K2JKlibCompiler.compileKlibAndDeserializeIr` sets it, to get the IR of the module.
+     */
     var compileIr: Boolean = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xklib-manifest-property",
+        valueDescription = "<key=value>",
+        description = "Provide a custom property (key=value) to be added to the KLIB manifest.",
+        delimiter = Argument.Delimiters.none,
+    )
+    var klibManifestProperties: Array<String>? = null
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    // TODO(KT-87172): Remove if we decide to extend CommonKlibBasedCompilerArguments 
+    @Argument(
+        value = "-Xklib-zip-file-accessor-cache-limit",
+        description = "Maximum number of klibs that can be cached during compilation. Default is 500.",
+    )
+    var klibZipFileAccessorCacheLimit: String = "500"
         set(value) {
             checkFrozen()
             field = value

@@ -1,11 +1,11 @@
 /*
- * Copyright 2010-2022 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.backend.js.ic
 
-import org.jetbrains.kotlin.konan.file.use
+import org.jetbrains.kotlin.ir.backend.js.JsCommonBackendContext
 import org.jetbrains.kotlin.utils.newHashSetWithExpectedSize
 import java.io.BufferedOutputStream
 import java.io.File
@@ -13,7 +13,7 @@ import java.io.File
 internal sealed class SourceFileCacheArtifact(val srcFile: KotlinSourceFile, val binaryAstFile: File) {
     abstract fun commitMetadata()
 
-    fun commitBinaryAst(fragments: IrICProgramFragments, icContext: PlatformDependentICContext) {
+    fun commitBinaryAst(fragments: IrICProgramFragments) {
         binaryAstFile.parentFile?.mkdirs()
         BufferedOutputStream(binaryAstFile.outputStream()).use {
             fragments.serialize(it)
@@ -49,34 +49,34 @@ internal sealed class SourceFileCacheArtifact(val srcFile: KotlinSourceFile, val
 
 internal class IncrementalCacheArtifact(
     private val artifactsDir: File,
-    private val forceRebuildJs: Boolean,
+    private val forceRebuild: Boolean,
     private val srcCacheActions: List<SourceFileCacheArtifact>,
     private val externalModuleName: String?,
 ) {
     fun getSourceFiles() = srcCacheActions.mapTo(newHashSetWithExpectedSize(srcCacheActions.size)) { it.srcFile }
 
-    fun commitCache(
-        rebuiltFileFragments: Map<KotlinSourceFile, IrICProgramFragments>,
-        icContext: PlatformDependentICContext,
-    ) {
+    fun commitCache(rebuiltFileFragments: Map<KotlinSourceFile, IrICProgramFragments>) {
         srcCacheActions.forEach { srcFileAction ->
             val rebuiltFileFragment = rebuiltFileFragments[srcFileAction.srcFile]
             if (rebuiltFileFragment != null) {
-                srcFileAction.commitBinaryAst(rebuiltFileFragment, icContext)
+                srcFileAction.commitBinaryAst(rebuiltFileFragment)
             }
             srcFileAction.commitMetadata()
         }
     }
 
-    fun buildModuleArtifact(
+    fun <TModuleArtifact, TFileArtifact, TFragments> buildModuleArtifact(
         moduleName: String,
-        rebuiltFileFragments: Map<KotlinSourceFile, IrICProgramFragments>,
-        icContext: PlatformDependentICContext,
-    ): ModuleArtifact {
+        rebuiltFileFragments: Map<KotlinSourceFile, TFragments>,
+        icContext: PlatformDependentICContext<TModuleArtifact, TFileArtifact, TFragments, *>,
+    ): TModuleArtifact
+            where TModuleArtifact : ModuleArtifact,
+                  TFileArtifact : SrcFileArtifact,
+                  TFragments : IrICProgramFragments {
         val fileArtifacts = srcCacheActions.map { srcFileAction ->
             val rebuiltFileFragment = rebuiltFileFragments[srcFileAction.srcFile]
             icContext.createSrcFileArtifact(srcFileAction.srcFile.path, rebuiltFileFragment, srcFileAction.binaryAstFile)
         }
-        return icContext.createModuleArtifact(moduleName, fileArtifacts, artifactsDir, forceRebuildJs, externalModuleName)
+        return icContext.createModuleArtifact(moduleName, fileArtifacts, artifactsDir, forceRebuild, externalModuleName)
     }
 }

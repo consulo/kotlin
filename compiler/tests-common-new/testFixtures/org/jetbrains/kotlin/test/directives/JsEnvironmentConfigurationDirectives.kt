@@ -1,16 +1,18 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.test.directives
 
-import org.jetbrains.kotlin.cli.common.arguments.K2JsArgumentConstants
 import org.jetbrains.kotlin.js.config.ModuleKind
-import org.jetbrains.kotlin.js.config.RuntimeDiagnostic
 import org.jetbrains.kotlin.js.config.SourceMapSourceEmbedding
+import org.jetbrains.kotlin.js.config.TsCompilationStrategy
+import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.directives.model.DirectiveApplicability
+import org.jetbrains.kotlin.test.directives.model.SensitiveDirectiveAPI
 import org.jetbrains.kotlin.test.directives.model.SimpleDirectivesContainer
+import org.jetbrains.kotlin.utils.addToStdlib.runIf
 
 // TODO fill up all descriptions
 object JsEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
@@ -69,6 +71,11 @@ object JsEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
         applicability = DirectiveApplicability.Global
     )
 
+    val JS_DROP_REGION_COMMENTS by directive(
+        description = "",
+        applicability = DirectiveApplicability.Global
+    )
+
     val PROPERTY_LAZY_INITIALIZATION by directive(
         description = "",
         applicability = DirectiveApplicability.Global
@@ -76,6 +83,11 @@ object JsEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
 
     val GENERATE_INLINE_ANONYMOUS_FUNCTIONS by directive(
         description = "translate lambdas into in-line anonymous functions",
+        applicability = DirectiveApplicability.Global
+    )
+
+    val IGNORE_WITH_INLINE_ANONYMOUS_FUNCTIONS by enumDirective<TargetBackend>(
+        description = "Ignore failures of a test with the $GENERATE_INLINE_ANONYMOUS_FUNCTIONS directive",
         applicability = DirectiveApplicability.Global
     )
 
@@ -89,32 +101,24 @@ object JsEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
         applicability = DirectiveApplicability.Global
     )
 
-    val SAFE_EXTERNAL_BOOLEAN by directive(
-        description = "",
+    val EXPORT_WITH_UNKNOWN_TYPE_INSTEAD_ANY by directive(
+        description = "Export 'dynamic' and 'Any' Kotlin types as 'unknown' TypeScript type (instead of `any`).",
         applicability = DirectiveApplicability.Global
     )
 
-    val SAFE_EXTERNAL_BOOLEAN_DIAGNOSTIC by enumDirective<RuntimeDiagnostic>(
-        description = "",
+    val SAFE_EXTERNAL_BOOLEAN by directive(
+        description = "Wrap access to external 'Boolean' properties with an explicit conversion to 'Boolean'",
+        applicability = DirectiveApplicability.Global
+    )
+
+    val SAFE_EXTERNAL_BOOLEAN_DIAGNOSTIC by stringDirective(
+        description = "Enable runtime diagnostics when accessing external 'Boolean' properties.",
         applicability = DirectiveApplicability.Global,
-        additionalParser = {
-            when (it.lowercase()) {
-                K2JsArgumentConstants.RUNTIME_DIAGNOSTIC_LOG -> RuntimeDiagnostic.LOG
-                K2JsArgumentConstants.RUNTIME_DIAGNOSTIC_EXCEPTION -> RuntimeDiagnostic.EXCEPTION
-                else -> null
-            }
-        }
     )
 
     val DONT_RUN_GENERATED_CODE by stringDirective(
         description = "Specify target backend on which generated code will not be run",
         applicability = DirectiveApplicability.Global,
-    )
-
-    val MAIN_ARGS by valueDirective(
-        description = "Specify arguments that will be passes to main fun",
-        applicability = DirectiveApplicability.Global,
-        parser = { it.subSequence(1, it.length - 1).split(",") }
     )
 
     // Next directives are used only inside test system and must not be present in test file
@@ -150,8 +154,13 @@ object JsEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
         applicability = DirectiveApplicability.Global
     )
 
-    val GENERATE_DTS by directive(
+    val TS_COMPILATION_STRATEGY by enumDirective<TsCompilationStrategy>(
         description = "Will generate corresponding dts files",
+        applicability = DirectiveApplicability.Global
+    )
+
+    val GENERATE_DTS_FROM_IR by directive(
+        description = "Use IR-based TypeScript export",
         applicability = DirectiveApplicability.Global
     )
 
@@ -216,6 +225,11 @@ object JsEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
         applicability = DirectiveApplicability.Global
     )
 
+    val USE_CONST_AND_LET_FOR_VARIABLES by directive(
+        description = "Enables generating variables as `const'/'let' instead of 'var'",
+        applicability = DirectiveApplicability.Global,
+    )
+
     val ES_MODULES by directive(
         description = "Specify that the compiled js-sources will use ESM module system",
         applicability = DirectiveApplicability.Global
@@ -226,11 +240,6 @@ object JsEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
         applicability = DirectiveApplicability.File
     )
 
-    val PER_MODULE by directive(
-        description = "",
-        applicability = DirectiveApplicability.Global
-    )
-
     val NO_COMMON_FILES by directive(
         """
             Don't added helper files to prevent linking issues.
@@ -239,7 +248,7 @@ object JsEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
     )
 
     val KEEP by stringDirective(
-        description = "Keep declarations",
+        description = "List of fully qualified names not to be eliminated by DCE.",
         applicability = DirectiveApplicability.Global
     )
 
@@ -252,4 +261,45 @@ object JsEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
         description = "Forces EXPECT_GENERATED_JS directive handler to check optimized JS output files instead of dev ones",
         applicability = DirectiveApplicability.Any,
     )
+
+    val ENABLE_UNUSED_PROPERTY_DCE by directive(
+        description = "Enabled DCE of unused properties, and effect analysis",
+        applicability = DirectiveApplicability.Any
+    )
+
+    @OptIn(SensitiveDirectiveAPI::class)
+    val JS_DCE_EXPECTED_OUTPUT_SIZE by valueDirective(
+        description = "Expected total size (in bytes) of JS output files after DCE compilation. The file extension is inferred from the module system.",
+        applicability = DirectiveApplicability.Global,
+        splitValuesOnSpaces = false,
+        parser = expectedOutputSizeParser("JS_DCE_EXPECTED_OUTPUT_SIZE")
+    )
+
+    @OptIn(SensitiveDirectiveAPI::class)
+    val JS_DCE_EXPECTED_OUTPUT_SIZE_SWC by valueDirective(
+        description = "Expected size (in bytes) of the DCE output when the transpilation is delegated to swc. " +
+                "Overrides JS_DCE_EXPECTED_OUTPUT_SIZE for runners with DELEGATE_JS_TRANSPILATION.",
+        applicability = DirectiveApplicability.Global,
+        splitValuesOnSpaces = false,
+        parser = expectedOutputSizeParser("JS_DCE_EXPECTED_OUTPUT_SIZE_SWC")
+    )
+
+    data class JsExpectedOutputSize(val expectedOutputSize: Int, val forTargetBackend: TargetBackend?)
+
+    private fun expectedOutputSizeParser(directiveName: String): (String) -> JsExpectedOutputSize {
+        return { directiveValue ->
+            val spaceSeparatedValues = directiveValue.split("\\s+".toRegex())
+
+            if (spaceSeparatedValues.size !in 1..2) {
+                throw IllegalArgumentException("$directiveName expects either integer number of bytes for generated JS file, or target backend and the expected number of bytes (separated by spaces). The provided value '${directiveValue}' doesn't satisfy this format")
+            }
+
+            val size = spaceSeparatedValues.last().filter(Char::isDigit).toInt()
+            val expectedBackend = runIf(spaceSeparatedValues.size > 1) {
+                TargetBackend.valueOf(spaceSeparatedValues.first())
+            }
+
+            JsExpectedOutputSize(size, expectedBackend)
+        }
+    }
 }

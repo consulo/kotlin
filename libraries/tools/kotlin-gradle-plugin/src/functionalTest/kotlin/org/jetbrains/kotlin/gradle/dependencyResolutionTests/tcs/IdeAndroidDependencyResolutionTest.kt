@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.dependencyResolutionTests.tcs
 
 import org.jetbrains.kotlin.gradle.dependencyResolutionTests.mavenCentralCacheRedirector
@@ -31,7 +29,6 @@ class IdeAndroidDependencyResolutionTest {
         applyMultiplatformPlugin()
         plugins.apply("com.android.library")
         androidExtension.configureDefaults()
-        repositories.mavenLocal()
         repositories.mavenCentralCacheRedirector()
 
         multiplatformExtension.apply {

@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.js.config.ModuleKind
 import org.jetbrains.kotlin.js.config.SourceMapNamesPolicy
 import org.jetbrains.kotlin.js.config.SourceMapSourceEmbedding
 import org.jetbrains.kotlin.js.config.WebArtifactConfiguration
+import org.jetbrains.kotlin.name.FqName
 import java.io.File
 
 @Suppress("unused")
@@ -29,7 +30,12 @@ object JsConfigurationKeysContainer : KeysContainer("org.jetbrains.kotlin.js.con
 
     val USE_DEBUGGER_CUSTOM_FORMATTERS by key<Boolean>()
 
-    val ARTIFACT_CONFIGURATION by key<WebArtifactConfiguration>()
+    val ARTIFACT_CONFIGURATIONS by key<List<WebArtifactConfiguration>>(
+        """
+        Parameters for running the JS codegen. The codegen will be run once per each configuration.
+        Using more than one configuration is only supported in tests.
+        """.trimIndent()
+    )
 
     val OUTPUT_DIR by key<File>()
 
@@ -54,12 +60,6 @@ object JsConfigurationKeysContainer : KeysContainer("org.jetbrains.kotlin.js.con
     val INCREMENTAL_NEXT_ROUND_CHECKER by key<IncrementalNextRoundChecker>(throwOnNull = false)
 
     val FRIEND_PATHS_DISABLED by key<Boolean>()
-
-    val METADATA_ONLY by key<Boolean>()
-
-    val DEVELOPER_MODE by key<Boolean>("Enable additional checkers.")
-
-    val GENERATE_COMMENTS_WITH_FILE_PATH by key<Boolean>("Generate comments with file path at the start of each file block.")
 
     val GENERATE_POLYFILLS by key<Boolean>("Generate polyfills for newest properties, methods and classes from ES6+.")
 
@@ -87,8 +87,6 @@ object JsConfigurationKeysContainer : KeysContainer("org.jetbrains.kotlin.js.con
         "Dump declarations' reachability info to file during performing DCE.", throwOnNull = false,
     )
 
-    val FAKE_OVERRIDE_VALIDATOR by key<Boolean>()
-
     val PROPERTY_LAZY_INITIALIZATION by key<Boolean>()
 
     val GENERATE_INLINE_ANONYMOUS_FUNCTIONS by key<Boolean>("Translate lambdas into inline anonymous functions.")
@@ -98,6 +96,8 @@ object JsConfigurationKeysContainer : KeysContainer("org.jetbrains.kotlin.js.con
     val OPTIMIZE_GENERATED_JS by key<Boolean>()
 
     val USE_ES6_CLASSES by key<Boolean>()
+
+    val USE_ES6_CONST_LET by key<Boolean>()
 
     val INCLUDES by key<String>("List of KLibs for this linking phase.")
     val PRODUCE_KLIB_FILE by key<Boolean>("Need to produce KLib file or not.")
@@ -110,9 +110,12 @@ object JsConfigurationKeysContainer : KeysContainer("org.jetbrains.kotlin.js.con
     val SAFE_EXTERNAL_BOOLEAN by key<Boolean>("Wrap access to external 'Boolean' properties with an explicit conversion to 'Boolean'.")
     val SAFE_EXTERNAL_BOOLEAN_DIAGNOSTIC by key<String>("Enable runtime diagnostics when accessing external 'Boolean' properties.")
     val MINIMIZED_MEMBER_NAMES by key<Boolean>()
-    val CALL_MAIN_MODE by key<String>("Specify whether the 'main' function should be called upon execution.")
+    val CALL_MAIN by key<Boolean>("Specify whether the 'main' function should be called upon execution.", defaultValue = "true")
     val IC_CACHE_DIRECTORY by key<String>(throwOnNull = false)
-    val IC_CACHE_READ_ONLY by key<Boolean>()
-    val PRESERVE_IC_ORDER by key<Boolean>()
     val IC_FILES_TO_LOAD by key<Set<String>>(throwOnNull = false)
+    val ADDITIONAL_EXPORTED_DECLARATION_NAMES by key<Set<FqName>>()
+
+    val EXPORT_UNTYPED_AS_UNKNOWN by key<Boolean>()
+
+    val DCE_UNUSED_PROPERTIES by key<Boolean>("Enable DCE for unused properties")
 }

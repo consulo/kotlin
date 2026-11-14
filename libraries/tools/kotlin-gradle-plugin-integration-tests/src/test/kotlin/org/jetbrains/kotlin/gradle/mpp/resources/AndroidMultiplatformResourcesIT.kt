@@ -12,11 +12,13 @@ import org.jetbrains.kotlin.gradle.uklibs.addPublishedProjectToRepositories
 import org.jetbrains.kotlin.gradle.uklibs.include
 import org.jetbrains.kotlin.gradle.uklibs.publish
 import org.jetbrains.kotlin.incremental.testingUtils.assertEqualDirectoriesIgnoringDotFiles
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import java.io.File
 import java.nio.file.Path
 
 @MppGradlePluginTests
+@MustRunOnChangesInGradle
 @DisplayName("Test multiplatform resources consumption and publication in androidTarget()")
 class AndroidMultiplatformResourcesIT : KGPBaseTest() {
 
@@ -25,6 +27,7 @@ class AndroidMultiplatformResourcesIT : KGPBaseTest() {
 
     @DisplayName("Multiplatform resources consumption from self, published and project dependencies for Android target")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testConsumption(
         gradleVersion: GradleVersion,
         androidVersion: String,
@@ -57,7 +60,8 @@ class AndroidMultiplatformResourcesIT : KGPBaseTest() {
             "multiplatformResources/android",
             gradleVersion,
             buildJdk = providedJdk.location,
-            buildOptions = defaultBuildOptions.copy(androidVersion = androidVersion),
+            buildOptions = defaultBuildOptions
+                .copy(androidVersion = androidVersion),
         ) {
             include(projectDependency, subprojectDependencyName)
             addPublishedProjectToRepositories(publishedResourcesProducer)

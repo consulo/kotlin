@@ -3,9 +3,9 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=NamedArgumentKt]]
   partSimpleName: "NamedArgumentKt"
   PACKAGE_DIRECTIVE
   IMPORT_LIST
-  FUN[fqName=myRun, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=myRun]
+  FUNCTION[fqName=myRun, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=myRun]
     contract: [ effect:CallsInPlace(param(0), EXACTLY_ONCE) ]
-    origin: Facade(className=NamedArgumentKt, jvmClassName=null)
+    origin: Facade(className=NamedArgumentKt, jvmClassName=null, classFileMajorVersion=<current_major_version>)
     MODIFIER_LIST[public inline]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=f]
@@ -17,14 +17,16 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=NamedArgumentKt]]
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=Unit]
+                  isClassRef: true
     TYPE_REFERENCE
       USER_TYPE
         USER_TYPE
           REFERENCE_EXPRESSION[referencedName=kotlin]
         REFERENCE_EXPRESSION[referencedName=Unit]
-  FUN[fqName=test_1, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=test_1]
+          isClassRef: true
+  FUNCTION[fqName=test_1, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=test_1]
     contract: [ effect:CallsInPlace(param(0), EXACTLY_ONCE) ]
-    origin: Facade(className=NamedArgumentKt, jvmClassName=null)
+    origin: Facade(className=NamedArgumentKt, jvmClassName=null, classFileMajorVersion=<current_major_version>)
     MODIFIER_LIST[public inline]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=g]
@@ -36,14 +38,16 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=NamedArgumentKt]]
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=Unit]
+                  isClassRef: true
     TYPE_REFERENCE
       USER_TYPE
         USER_TYPE
           REFERENCE_EXPRESSION[referencedName=kotlin]
         REFERENCE_EXPRESSION[referencedName=Unit]
-  FUN[fqName=test_2, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=test_2]
+          isClassRef: true
+  FUNCTION[fqName=test_2, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=true, name=test_2]
     contract: [ effect:CallsInPlace(param(0), EXACTLY_ONCE) ]
-    origin: Facade(className=NamedArgumentKt, jvmClassName=null)
+    origin: Facade(className=NamedArgumentKt, jvmClassName=null, classFileMajorVersion=<current_major_version>)
     MODIFIER_LIST[public inline]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=g]
@@ -55,8 +59,10 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=NamedArgumentKt]]
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=kotlin]
                 REFERENCE_EXPRESSION[referencedName=Unit]
+                  isClassRef: true
     TYPE_REFERENCE
       USER_TYPE
         USER_TYPE
           REFERENCE_EXPRESSION[referencedName=kotlin]
         REFERENCE_EXPRESSION[referencedName=Unit]
+          isClassRef: true

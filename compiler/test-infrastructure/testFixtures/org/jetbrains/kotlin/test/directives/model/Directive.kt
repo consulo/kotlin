@@ -1,10 +1,11 @@
 /*
- * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.test.directives.model
 
+import org.jetbrains.kotlin.test.testInfraError
 import org.jetbrains.kotlin.test.util.joinToArrayString
 
 // --------------------------- Directive declaration ---------------------------
@@ -43,7 +44,8 @@ class ValueDirective<T : Any>(
     name: String,
     description: String,
     applicability: DirectiveApplicability,
-    val parser: (String) -> T?
+    val parser: (String) -> T?,
+    val splitValuesOnSpaces: Boolean,
 ) : Directive(name, description, applicability)
 
 // --------------------------- Registered directive ---------------------------
@@ -90,8 +92,8 @@ class RegisteredDirectivesImpl(
     override fun toString(): String {
         return buildString {
             simpleDirectives.forEach { appendLine("  $it") }
-            stringDirectives.forEach { (d, v) -> appendLine("  $d: ${v.joinToArrayString()}") }
-            valueDirectives.forEach { (d, v) -> appendLine("  $d: ${v.joinToArrayString()}") }
+            stringDirectives.forEach { [d, v] -> appendLine("  $d: ${v.joinToArrayString()}") }
+            valueDirectives.forEach { [d, v] -> appendLine("  $d: ${v.joinToArrayString()}") }
         }
     }
 
@@ -105,11 +107,11 @@ class RegisteredDirectivesImpl(
     }
 }
 
-class ComposedRegisteredDirectives(
+class ComposedRegisteredDirectives private constructor(
     private val containers: List<RegisteredDirectives>
 ) : RegisteredDirectives() {
     companion object {
-        operator fun invoke(vararg containers: RegisteredDirectives): RegisteredDirectives {
+        operator fun invoke(containers: Iterable<RegisteredDirectives>): RegisteredDirectives {
             val notEmptyContainers = containers.filterNot { it.isEmpty() }
             return when (notEmptyContainers.size) {
                 0 -> Empty
@@ -117,6 +119,8 @@ class ComposedRegisteredDirectives(
                 else -> ComposedRegisteredDirectives(notEmptyContainers)
             }
         }
+
+        operator fun invoke(vararg containers: RegisteredDirectives): RegisteredDirectives = invoke(containers.asIterable())
     }
 
     override fun contains(directive: Directive): Boolean {
@@ -163,7 +167,7 @@ fun RegisteredDirectives.suppressIf(suppressionDirective: Directive, filter: (Th
 }
 
 fun RegisteredDirectives.singleValue(directive: StringDirective): String {
-    return singleOrZeroValue(directive) ?: error("No values passed to $directive")
+    return singleOrZeroValue(directive) ?: testInfraError("No values passed to $directive")
 }
 
 fun RegisteredDirectives.singleOrZeroValue(directive: StringDirective): String? {
@@ -171,16 +175,16 @@ fun RegisteredDirectives.singleOrZeroValue(directive: StringDirective): String? 
     return when (values.size) {
         0 -> null
         1 -> values.single()
-        else -> error("Too many values passed to $directive")
+        else -> testInfraError("Too many values passed to $directive")
     }
 }
 
 fun RegisteredDirectives.notEmptyValues(directive: StringDirective): List<String> = this[directive].ifEmpty {
-    error("No values passed to $directive")
+    testInfraError("No values passed to $directive")
 }
 
 fun <T : Any> RegisteredDirectives.singleValue(directive: ValueDirective<T>): T {
-    return singleOrZeroValue(directive) ?: error("No values passed to $directive")
+    return singleOrZeroValue(directive) ?: testInfraError("No values passed to $directive")
 }
 
 fun <T : Any> RegisteredDirectives.singleOrZeroValue(directive: ValueDirective<T>): T? {
@@ -188,10 +192,10 @@ fun <T : Any> RegisteredDirectives.singleOrZeroValue(directive: ValueDirective<T
     return when (values.size) {
         0 -> null
         1 -> values.single()
-        else -> error("Too many values passed to $directive: ${values.joinToArrayString()}")
+        else -> testInfraError("Too many values passed to $directive: ${values.joinToArrayString()}")
     }
 }
 
 fun <T : Any> RegisteredDirectives.notEmptyValues(directive: ValueDirective<T>): List<T> = this[directive].ifEmpty {
-    error("No values passed to $directive")
+    testInfraError("No values passed to $directive")
 }

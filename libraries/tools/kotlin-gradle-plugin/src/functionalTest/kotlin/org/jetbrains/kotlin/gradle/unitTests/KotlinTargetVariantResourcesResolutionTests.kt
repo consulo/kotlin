@@ -3,14 +3,11 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:OptIn(ExperimentalWasmDsl::class)
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.internal.project.ProjectInternal
-import org.gradle.kotlin.dsl.project
 import org.gradle.testfixtures.ProjectBuilder
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dependencyResolutionTests.mavenCentralCacheRedirector
@@ -52,6 +49,7 @@ class KotlinTargetVariantResourcesResolutionTests {
         )
     }
 
+    @OptIn(ExperimentalWasmDsl::class)
     @Test
     fun `test direct dependency - for wasmJs, wasmWasi, js targets - when using artifact view`() {
         listOf<TargetProvider>(
@@ -332,7 +330,6 @@ class KotlinTargetVariantResourcesResolutionTests {
         preApplyCode = preApplyCode,
     ) {
         enableDefaultStdlibDependency(true)
-        repositories.mavenLocal()
         repositories.mavenCentralCacheRedirector()
         code()
     }

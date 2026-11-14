@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtElement
 
 /**
- * Adapter class to convert legacy [AdditionalKDocResolutionProvider][org.jetbrains.kotlin.analysis.api.symbols.AdditionalKDocResolutionProvider]
+ * Adapter class to convert legacy `org.jetbrains.kotlin.analysis.api.symbols.AdditionalKDocResolutionProvider`
  * to [KaAdditionalKDocResolutionProvider].
  */
 internal class KaAdditionalKDocResolutionProviderAdapter : KaAdditionalKDocResolutionProvider {
@@ -21,7 +21,7 @@ internal class KaAdditionalKDocResolutionProviderAdapter : KaAdditionalKDocResol
         fqName: FqName,
         contextElement: KtElement,
     ): Collection<KaSymbol> {
-        @Suppress("DEPRECATION")
+        @Suppress("DEPRECATION_ERROR")
         return org.jetbrains.kotlin.analysis.api.symbols.AdditionalKDocResolutionProvider.resolveKdocFqName(
             analysisSession = analysisSession,
             fqName = fqName,

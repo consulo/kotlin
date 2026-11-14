@@ -6,8 +6,8 @@
 package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
-import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.InteropFqNames
+import org.jetbrains.kotlin.backend.konan.NativeLoweringContext
 import org.jetbrains.kotlin.backend.konan.reportCompilationError
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 
-internal class SpecialObjCValidationLowering(val context: Context) : FileLoweringPass {
+internal class SpecialObjCValidationLowering(val context: NativeLoweringContext) : FileLoweringPass {
     override fun lower(irFile: IrFile) {
         irFile.acceptChildrenVoid(object : IrVisitorVoid() {
             override fun visitElement(element: IrElement) {

@@ -9,16 +9,21 @@ import org.gradle.api.logging.LogLevel
 import org.gradle.kotlin.dsl.kotlin
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.internals.asFinishLogMessage
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilerExecutionStrategy
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInBuildToolsApi
 import org.junit.jupiter.api.DisplayName
 import kotlin.io.path.writeText
 
 @DisplayName("Kotlin daemon JVM args")
+@MustRunOnChangesInBuildToolsApi
 class KotlinDaemonJvmArgsTest : KGPDaemonsBaseTest() {
     override val defaultBuildOptions: BuildOptions
         get() = super.defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
 
+    @TestMetadata("simpleProject")
     @GradleTest
     @DisplayName("Kotlin daemon by default should inherit Gradle daemon max jvm heap size")
     internal fun shouldInheritGradleDaemonArgsByDefault(gradleVersion: GradleVersion) {
@@ -27,6 +32,7 @@ class KotlinDaemonJvmArgsTest : KGPDaemonsBaseTest() {
             gradleVersion = gradleVersion,
             enableKotlinDaemonMemoryLimitInMb = null,
             enableGradleDaemonMemoryLimitInMb = null,
+            addHeapDumpOptions = false
         ) {
             gradleProperties.append(
                 """
@@ -42,6 +48,7 @@ class KotlinDaemonJvmArgsTest : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("Kotlin daemon should allow to define own jvm options via gradle daemon jvm args system property")
     @GradleTest
     internal fun shouldAllowToRedefineViaDGradleOption(gradleVersion: GradleVersion) {
@@ -50,6 +57,7 @@ class KotlinDaemonJvmArgsTest : KGPDaemonsBaseTest() {
             gradleVersion = gradleVersion,
             enableKotlinDaemonMemoryLimitInMb = null,
             enableGradleDaemonMemoryLimitInMb = null,
+            addHeapDumpOptions = false
         ) {
             gradleProperties.append(
                 """
@@ -65,6 +73,7 @@ class KotlinDaemonJvmArgsTest : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("Jvm args defined in gradle.properties should override Gradle daemon jvm arguments inheritance")
     @GradleTest
     internal fun shouldUseArgumentsFromGradleProperties(gradleVersion: GradleVersion) {
@@ -89,6 +98,7 @@ class KotlinDaemonJvmArgsTest : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("Should use arguments from extension DSL")
     @GradleTest
     internal fun shouldUseDslArguments(gradleVersion: GradleVersion) {
@@ -123,6 +133,7 @@ class KotlinDaemonJvmArgsTest : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("Should allow to override global arguments for specific task")
     @GradleTest
     internal fun allowOverrideArgsForSpecificTask(gradleVersion: GradleVersion) {
@@ -166,6 +177,7 @@ class KotlinDaemonJvmArgsTest : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("Should inherit Gradle memory settings if it is not set in Kotlin daemon jvm args")
     @GradleTest
     fun inheritGradleMemorySettingsIfKotlinArgsNotContain(gradleVersion: GradleVersion) {
@@ -174,6 +186,7 @@ class KotlinDaemonJvmArgsTest : KGPDaemonsBaseTest() {
             gradleVersion = gradleVersion,
             enableKotlinDaemonMemoryLimitInMb = null,
             enableGradleDaemonMemoryLimitInMb = null,
+            addHeapDumpOptions = false
         ) {
             gradleProperties.append(
                 """
@@ -196,6 +209,33 @@ class KotlinDaemonJvmArgsTest : KGPDaemonsBaseTest() {
                 assertKotlinDaemonJvmOptions(
                     listOf("-Xmx758m", "--Duser.country=US")
                 )
+            }
+        }
+    }
+
+    @TestMetadata("simpleProject")
+    @DisplayName("Incorrect JVM arguments trigger tooling diagnostic")
+    @GradleTest
+    fun toolingDiagnosticIsEmitted(gradleVersion: GradleVersion) {
+        project(
+            projectName = "simpleProject",
+            gradleVersion = gradleVersion,
+            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.INFO),
+            enableKotlinDaemonMemoryLimitInMb = null,
+            enableGradleDaemonMemoryLimitInMb = null,
+        ) {
+            gradleProperties.append(
+                """
+                kotlin.daemon.jvmargs=-XX:+NonExistentFlag
+                """.trimIndent()
+            )
+
+            buildAndFail("assemble") {
+                assertHasDiagnostic(KotlinToolingDiagnostics.KotlinCompilationInDaemonHasFailed)
+            }
+
+            build("assemble", buildOptions = buildOptions.copy(useDaemonFallbackStrategy = true)) {
+                assertHasDiagnostic(KotlinToolingDiagnostics.KotlinCompilationInDaemonHasFailed)
             }
         }
     }
@@ -226,6 +266,7 @@ class KotlinDaemonJvmArgsTest : KGPDaemonsBaseTest() {
                 "assemble",
                 buildOptions = buildOptions.copy(
                     configurationCache = BuildOptions.ConfigurationCacheValue.DISABLED,
+                    isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED,
                     runViaBuildToolsApi = withBta
                 )
             ) {

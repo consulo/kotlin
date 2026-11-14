@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.fir.declarations.utils
 
-import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.descriptors.SourceElement
 import org.jetbrains.kotlin.descriptors.SourceFile
 import org.jetbrains.kotlin.fir.FirEvaluatorResult
@@ -19,7 +18,7 @@ import org.jetbrains.kotlin.fir.references.impl.FirPropertyFromParameterResolved
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
-import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.fir.types.ConeKotlinType
 
 private object IsFromVarargKey : FirDeclarationDataKey()
 private object IsReferredViaField : FirDeclarationDataKey()
@@ -27,20 +26,20 @@ private object IsFromPrimaryConstructor : FirDeclarationDataKey()
 private object ComponentFunctionSymbolKey : FirDeclarationDataKey()
 private object SourceElementKey : FirDeclarationDataKey()
 private object ModuleNameKey : FirDeclarationDataKey()
-private object DanglingTypeConstraintsKey : FirDeclarationDataKey()
 private object KlibSourceFile : FirDeclarationDataKey()
 private object KlibFileAnnotationsKey : FirDeclarationDataKey()
 private object EvaluatedValue : FirDeclarationDataKey()
 private object CompilerPluginMetadata : FirDeclarationDataKey()
-private object OriginalReplSnippet : FirDeclarationDataKey()
 private object ScriptTopLevelDeclaration : FirDeclarationDataKey()
 private object ReplSnippetTopLevelDeclaration : FirDeclarationDataKey()
 private object ReplPropertyCopy : FirDeclarationDataKey()
+private object ReplPropertyCopyFlag : FirDeclarationDataKey()
 private object HasBackingFieldKey : FirDeclarationDataKey()
 private object IsDeserializedPropertyFromAnnotation : FirDeclarationDataKey()
 private object IsDelegatedProperty : FirDeclarationDataKey()
 private object LambdaArgumentHoldsInTruths : FirDeclarationDataKey()
 private object FileNameForPluginGeneratedCallable : FirDeclarationDataKey()
+private object EqualityBoundType : FirDeclarationDataKey()
 
 var FirProperty.isFromVararg: Boolean? by FirDeclarationDataRegistry.data(IsFromVarargKey)
 var FirProperty.isReferredViaField: Boolean? by FirDeclarationDataRegistry.data(IsReferredViaField)
@@ -49,7 +48,6 @@ var FirProperty.componentFunctionSymbol: FirNamedFunctionSymbol? by FirDeclarati
 var FirClassLikeDeclaration.sourceElement: SourceElement? by FirDeclarationDataRegistry.data(SourceElementKey)
 var FirRegularClass.moduleName: String? by FirDeclarationDataRegistry.data(ModuleNameKey)
 var FirDeclaration.compilerPluginMetadata: Map<String, ByteArray>? by FirDeclarationDataRegistry.data(CompilerPluginMetadata)
-var FirDeclaration.originalReplSnippetSymbol: FirReplSnippetSymbol? by FirDeclarationDataRegistry.data(OriginalReplSnippet)
 var FirAnonymousFunction.lambdaArgumentParent: FirQualifiedAccessExpression? by FirDeclarationDataRegistry.data(LambdaArgumentHoldsInTruths)
 var FirCallableDeclaration.fileNameForPluginGeneratedCallable: String? by FirDeclarationDataRegistry.data(FileNameForPluginGeneratedCallable)
 
@@ -75,10 +73,22 @@ val FirBasedSymbol<*>.isReplSnippetDeclaration: Boolean?
  * This means we cannot **actually** resolve the member property of this delegate expression.
  * But if we resolve a disposable copy of the property instead, we can replace the delegate expression
  * and resolve the member property accessors "again" when appropriate.
+ *
+ * **Note**: all copies are marked as [isCopiedDelegatedProperty]
+ *
+ * @see isCopiedDelegatedProperty
  */
 @FirImplementationDetail
 var FirFunction.replSnippetDelegatedPropertyCopies: MutableMap<FirPropertySymbol, FirProperty>?
         by FirDeclarationDataRegistry.data(ReplPropertyCopy)
+
+/**
+ * All copies from [replSnippetDelegatedPropertyCopies] have this flag
+ *
+ * @see replSnippetDelegatedPropertyCopies
+ */
+@FirImplementationDetail
+var FirProperty.isCopiedDelegatedProperty: Boolean? by FirDeclarationDataRegistry.data(ReplPropertyCopyFlag)
 
 /**
  * This is an implementation detail attribute to provide proper [hasBackingField]
@@ -147,15 +157,6 @@ val FirBasedSymbol<FirDeclaration>.klibFileAnnotations: List<FirAnnotation>
 
 var FirVariable.evaluatedInitializer: FirEvaluatorResult? by FirDeclarationDataRegistry.data(EvaluatedValue)
 
-/**
- * Constraint without corresponding type argument
- */
-data class DanglingTypeConstraint(val name: Name, val source: KtSourceElement)
-
-var <T> T.danglingTypeConstraints: List<DanglingTypeConstraint>?
-        where T : FirDeclaration, T : FirTypeParameterRefsOwner
-        by FirDeclarationDataRegistry.data(DanglingTypeConstraintsKey)
-
 // ----------------------------------- Utils -----------------------------------
 
 val FirProperty.hasExplicitBackingField: Boolean
@@ -210,15 +211,25 @@ val FirPropertySymbol.hasBackingField: Boolean
         return fir.hasBackingField
     }
 
-fun FirDeclaration.getDanglingTypeConstraintsOrEmpty(): List<DanglingTypeConstraint> {
-    return when (this) {
-        is FirRegularClass -> danglingTypeConstraints
-        is FirNamedFunction -> danglingTypeConstraints
-        is FirAnonymousFunction -> danglingTypeConstraints
-        is FirProperty -> danglingTypeConstraints
-        else -> null
-    } ?: emptyList()
-}
+/**
+ * Some properties have a backing field only as an implementation detail. For these properties,
+ * annotations cannot be added which target the backing field. Use this extension to determine
+ * if a property's backing field can be annotated.
+ */
+val FirProperty.hasAnnotatableBackingField: Boolean
+    get() = hasBackingField && !(isVal && isLateInit)
+
+/**
+ * Some properties have a backing field only as an implementation detail. For these properties,
+ * annotations cannot be added which target the backing field. Use this extension to determine
+ * if a property's backing field can be annotated.
+ */
+val FirPropertySymbol.hasAnnotatableBackingField: Boolean
+    get() {
+        // Phase must be consistent with "hasBackingField" extension.
+        lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
+        return fir.hasAnnotatableBackingField
+    }
 
 val FirPropertySymbol.correspondingValueParameterFromPrimaryConstructor: FirValueParameterSymbol?
     get() = fir.correspondingValueParameterFromPrimaryConstructor
@@ -230,3 +241,25 @@ val FirProperty.correspondingValueParameterFromPrimaryConstructor: FirValueParam
         val reference = initializer.calleeReference as? FirPropertyFromParameterResolvedNamedReference ?: return null
         return reference.resolvedSymbol as? FirValueParameterSymbol
     }
+
+/**
+ * Note: [equalityBoundType] can be a [org.jetbrains.kotlin.fir.types.ConeErrorType].
+ * It means that `EqualityBound` annotation was found on the parameter of `equals`,
+ * but its argument could not be resolved during [FirResolvePhase.TYPES] phase for whatever reason.
+ */
+var FirValueParameter.equalityBoundType: ConeKotlinType? by FirDeclarationDataRegistry.data(EqualityBoundType)
+val FirValueParameterSymbol.equalityBoundType: ConeKotlinType?
+    get() {
+        lazyResolveToPhase(FirResolvePhase.STATUS)
+        return fir.equalityBoundType
+    }
+
+var FirNamedFunction.equalityBoundTypeOfParameter: ConeKotlinType?
+    get() = valueParameters.singleOrNull()?.equalityBoundType
+    set(value) {
+        valueParameters.singleOrNull()?.equalityBoundType = value
+    }
+
+val FirNamedFunctionSymbol.equalityBoundTypeOfParameter: ConeKotlinType?
+    get() = valueParameterSymbols.singleOrNull()?.equalityBoundType
+

@@ -8,6 +8,8 @@ import java.io.ByteArrayOutputStream
 description = "XCTest wrapper of Native kotlin.test"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("multiplatform")
 }
 
@@ -104,7 +106,7 @@ fun MutableList<KotlinNativeTarget>.addIfEnabledOnHost(target: KotlinNativeTarge
 
 kotlin {
     with(nativeTargets) {
-        @Suppress("DEPRECATION")
+        @Suppress("DEPRECATION_ERROR", "DEPRECATION")
         addIfEnabledOnHost(macosX64())
         addIfEnabledOnHost(macosArm64())
         @Suppress("DEPRECATION")

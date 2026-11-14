@@ -1,4 +1,3 @@
-import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 group = "test"
@@ -18,17 +17,17 @@ kotlin {
     linuxX64()
 
     sourceSets {
-        val commonMain by getting {}
+        val commonMain = getByName("commonMain") {}
 
-        val intermediateMain by creating {
+        val intermediateMain = create("intermediateMain") {
             dependsOn(commonMain)
         }
 
-        val jvmMain by getting {
+        val jvmMain = getByName("jvmMain") {
             dependsOn(intermediateMain)
         }
 
-        val linuxX64Main by getting {
+        val linuxX64Main = getByName("linuxX64Main") {
             dependsOn(intermediateMain)
         }
     }
@@ -37,8 +36,5 @@ kotlin {
 tasks.withType<KotlinCompilationTask<*>>().configureEach {
     compilerOptions {
         freeCompilerArgs.add("-Xrender-internal-diagnostic-names")
-        with(project.providers) {
-            languageVersion.set(KotlinVersion.fromVersion("2.0"))
-        }
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.LLFirDecla
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkInitializerIsResolved
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkReturnTypeRefIsResolved
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
-import org.jetbrains.kotlin.fir.canHaveDeferredReturnTypeCalculation
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.getExplicitBackingField
 import org.jetbrains.kotlin.fir.declarations.utils.isConst
@@ -175,16 +174,6 @@ internal class LLFirImplicitBodyTargetResolver(
 
     override fun doLazyResolveUnderLock(target: FirElementWithResolveState) {
         when (target) {
-            is FirCallableDeclaration if target.canHaveDeferredReturnTypeCalculation -> {
-                val typeCalculator = transformer.returnTypeCalculator.callableCopyTypeCalculator
-                typeCalculator.computeReturnType(target)
-
-                val explicitBackingField = (target as? FirProperty)?.getExplicitBackingField()
-                if (explicitBackingField != null) {
-                    typeCalculator.computeReturnType(explicitBackingField)
-                }
-            }
-
             is FirFunction -> {
                 if (target.returnTypeRef is FirImplicitTypeRef) {
                     resolve(target, BodyStateKeepers.FUNCTION)
@@ -203,11 +192,34 @@ internal class LLFirImplicitBodyTargetResolver(
                 }
             }
 
-            is FirRegularClass, is FirTypeAlias, is FirFile, is FirCodeFragment, is FirAnonymousInitializer, is FirDanglingModifierList, is FirEnumEntry, is FirScript -> {
+            is FirRegularClass,
+            is FirTypeAlias,
+            is FirFile,
+            is FirCodeFragment,
+            is FirAnonymousInitializer,
+            is FirDanglingModifierList,
+            is FirEnumEntry,
+            is FirScript,
+                -> {
                 // No implicit bodies here
             }
 
             else -> throwUnexpectedFirElementError(target)
+        }
+
+        target.forEachDeclarationWhichCanHavePostponedSymbols(::publishPostponedSymbols)
+    }
+
+    /**
+     * Fake declarations may have a deferred return type which is computed from the original declaration.
+     */
+    override fun doLazyResolveFakeDeclarationUnderLock(target: FirCallableDeclaration) {
+        val typeCalculator = transformer.returnTypeCalculator.callableCopyTypeCalculator
+        typeCalculator.computeReturnType(target)
+
+        val explicitBackingField = (target as? FirProperty)?.getExplicitBackingField()
+        if (explicitBackingField != null) {
+            typeCalculator.computeReturnType(explicitBackingField)
         }
 
         target.forEachDeclarationWhichCanHavePostponedSymbols(::publishPostponedSymbols)

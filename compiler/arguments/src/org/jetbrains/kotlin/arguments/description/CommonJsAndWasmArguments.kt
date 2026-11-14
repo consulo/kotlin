@@ -6,10 +6,10 @@
 package org.jetbrains.kotlin.arguments.description
 
 import org.jetbrains.kotlin.arguments.dsl.base.*
+import org.jetbrains.kotlin.arguments.dsl.base.KotlinCompilerPhase
 import org.jetbrains.kotlin.arguments.dsl.defaultFalse
 import org.jetbrains.kotlin.arguments.dsl.defaultNull
-import org.jetbrains.kotlin.arguments.dsl.types.BooleanType
-import org.jetbrains.kotlin.arguments.dsl.types.StringType
+import org.jetbrains.kotlin.arguments.dsl.types.*
 
 val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLevelNames.commonJsAndWasmArguments) {
     compilerArgument {
@@ -20,6 +20,7 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_3_70,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -31,26 +32,32 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
             introducedVersion = KotlinReleaseVersion.v1_0_0,
             stabilizedVersion = KotlinReleaseVersion.v1_0_0,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "Xinclude"
         compilerName = "includes"
         description = "Path to an intermediate library that should be processed in the same manner as source files.".asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "<path>".asReleaseDependent()
+        argumentType = PathType.defaultNull
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_4_0,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "ir-output-dir"
         compilerName = "outputDir"
         description = "Destination for generated files.".asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "<directory>".asReleaseDependent()
+        argumentType = PathType.defaultNull
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_8_20,
@@ -82,21 +89,48 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
     }
 
     compilerArgument {
-        name = "Xir-produce-klib-file"
-        description = "Generate a packed klib into the directory specified by '-ir-output-dir'.".asReleaseDependent()
+        name = "nopack"
+        description = "Don't pack the library into a klib file.".asReleaseDependent()
         valueType = BooleanType.defaultFalse
 
         lifecycle(
-            introducedVersion = KotlinReleaseVersion.v1_3_70,
+            introducedVersion = KotlinReleaseVersion.v2_4_20,
         )
     }
 
+    compilerArgument {
+        name = "Xir-produce-klib-file"
+        description = ReleaseDependent("Generate a packed klib into the directory specified by '-ir-output-dir'.")
+        valueType = BooleanType(
+            isNullable = ReleaseDependent(
+                true,
+                KotlinReleaseVersion.v1_3_70..KotlinReleaseVersion.v2_4_20 to false,
+            ),
+            defaultValue = ReleaseDependent(
+                null,
+                KotlinReleaseVersion.v1_3_70..KotlinReleaseVersion.v2_4_20 to false,
+            ),
+        )
+        deprecatedMessage =
+            "Producing a packed klib is now the default behavior. " +
+                    "The '-nopack' argument can be used instead to determine if a packed klib file will be produced. " +
+                    "Setting this argument to something other than `null` overrides the value from '-nopack'."
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v1_3_70,
+            deprecatedVersion = KotlinReleaseVersion.v2_4_20,
+        )
+        restrictedToCompilerPhase = KotlinCompilerPhase.KLIB_COMPILATION
+    }
+
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "libraries"
         description =
             "Paths to Kotlin libraries with .meta.js and .kjsm files, separated by the system path separator.".asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "<path>".asReleaseDependent()
+        argumentType = SearchPathType.defaultNull
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_1_0,
@@ -104,36 +138,57 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
         )
     }
 
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "Xfriend-modules"
         description = "Paths to friend modules.".asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "<path>".asReleaseDependent()
+        argumentType = SearchPathType.defaultNull
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_1_3,
         )
     }
 
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "Xcache-directory"
         description = "Path to the cache directory.".asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "<path>".asReleaseDependent()
+        argumentType = PathType.defaultNull
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_8_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
         name = "Xir-produce-klib-dir"
-        description = "Generate an unpacked klib into the parent directory of the output JS file.".asReleaseDependent()
-        valueType = BooleanType.defaultFalse
+        description = ReleaseDependent(
+            "Generate an unpacked klib into the parent directory of the output JS file."
+        )
+        valueType = BooleanType(
+            isNullable = ReleaseDependent(
+                true,
+                KotlinReleaseVersion.v1_3_70..KotlinReleaseVersion.v2_4_20 to false,
+            ),
+            defaultValue = ReleaseDependent(
+                null,
+                KotlinReleaseVersion.v1_3_70..KotlinReleaseVersion.v2_4_20 to false,
+            ),
+        )
+        deprecatedMessage =
+            "Use '-nopack' instead to determine if a packed klib file will be produced. " +
+                    "Setting this argument to something other than `null` overrides the value from '-nopack'."
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_3_70,
+            deprecatedVersion = KotlinReleaseVersion.v2_4_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.KLIB_COMPILATION
     }
 
     compilerArgument {
@@ -147,6 +202,7 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_4_30,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -157,6 +213,7 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_3_70,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -167,19 +224,24 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_5_30,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.KLIB_COMPILATION
     }
 
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "main"
         description = "Specify whether the 'main' function should be called upon execution.".asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "{call|noCall}".asReleaseDependent()
+        argumentType = JsMainCallModeType()
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_0_0,
             stabilizedVersion = KotlinReleaseVersion.v1_0_0,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
+
     compilerArgument {
         name = "source-map-prefix"
         description = "Add the specified prefix to the paths in the source map.".asReleaseDependent()
@@ -189,21 +251,26 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
             introducedVersion = KotlinReleaseVersion.v1_1_4,
             stabilizedVersion = KotlinReleaseVersion.v1_1_4,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "source-map-base-dirs"
         deprecatedName = "source-map-source-roots"
         description = "Base directories for calculating relative paths to source files in the source map.".asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "<path>".asReleaseDependent()
+        argumentType = SearchPathType.defaultNull
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_1_60,
             stabilizedVersion = KotlinReleaseVersion.v1_1_60,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         /**
          * SourceMapEmbedSources should be null by default, since it has effect only when source maps are enabled.
@@ -213,23 +280,28 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
         description = "Embed source files into the source map.".asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "{always|never|inlining}".asReleaseDependent()
+        argumentType = SourceMapEmbedSourcesType()
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_1_4,
             stabilizedVersion = KotlinReleaseVersion.v1_1_4,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "source-map-names-policy"
         description = "Mode for mapping generated names to original names.".asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "{no|simple-names|fully-qualified-names}".asReleaseDependent()
+        argumentType = SourceMapNamesPolicyType()
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_8_20,
             stabilizedVersion = KotlinReleaseVersion.v1_8_20,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
     compilerArgument {
         name = "Xfriend-modules-disabled"
@@ -250,27 +322,21 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_4_0,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
-    compilerArgument {
-        name = "Xfake-override-validator"
-        description = "Enable the IR fake override validator.".asReleaseDependent()
-        valueType = BooleanType.defaultFalse
-
-        lifecycle(
-            introducedVersion = KotlinReleaseVersion.v1_4_30,
-        )
-    }
-
+    @OptIn(ExperimentalArgumentApi::class)
     compilerArgument {
         name = "Xir-dce-runtime-diagnostic"
         description = "Enable runtime diagnostics instead of removing declarations when performing DCE.".asReleaseDependent()
         valueType = StringType.defaultNull
         valueDescription = "{log|exception}".asReleaseDependent()
+        argumentType = JsIrDiagnosticModeType()
 
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_5_0,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -281,6 +347,7 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_3_70,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 
     compilerArgument {
@@ -292,5 +359,17 @@ val actualCommonJsAndWasmArguments by compilerArgumentsLevel(CompilerArgumentsLe
         lifecycle(
             introducedVersion = KotlinReleaseVersion.v1_8_0,
         )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
+    }
+
+    compilerArgument {
+        name = "Xenable-advanced-optimizations"
+        description = "Enable experimental advanced optimization passes (e.g. effect analysis).".asReleaseDependent()
+        valueType = BooleanType.defaultFalse
+
+        lifecycle(
+            introducedVersion = KotlinReleaseVersion.v2_5_0
+        )
+        restrictedToCompilerPhase = KotlinCompilerPhase.BACKEND_COMPILATION
     }
 }

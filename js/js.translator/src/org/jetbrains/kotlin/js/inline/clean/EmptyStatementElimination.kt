@@ -20,10 +20,9 @@ import org.jetbrains.kotlin.js.backend.ast.*
 import org.jetbrains.kotlin.js.backend.ast.metadata.synthetic
 import org.jetbrains.kotlin.js.translate.utils.JsAstUtils
 
-internal class EmptyStatementElimination(private val root: JsStatement) {
-    private var hasChanges = false
+internal class EmptyStatementElimination(private val root: JsStatement) : FunctionPostProcessorStep() {
 
-    fun apply(): Boolean {
+    override fun apply() {
         object : JsVisitorWithContextImpl() {
             override fun visit(x: JsFunction, ctx: JsContext<*>) = false
 
@@ -86,7 +85,7 @@ internal class EmptyStatementElimination(private val root: JsStatement) {
             }
 
             private fun processStatements(statements: MutableList<JsStatement>) {
-                for ((index, statement) in statements.withIndex().reversed()) {
+                for ([index, statement] in statements.withIndex().reversed()) {
                     if (statement is JsEmpty) {
                         statements.removeAt(index)
                         hasChanges = true
@@ -100,6 +99,5 @@ internal class EmptyStatementElimination(private val root: JsStatement) {
 
             private fun isEmpty(statement: JsStatement) = statement is JsBlock && statement.isEmpty || statement is JsEmpty
         }.accept(root)
-        return hasChanges
     }
 }

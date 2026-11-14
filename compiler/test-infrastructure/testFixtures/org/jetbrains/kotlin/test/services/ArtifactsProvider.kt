@@ -49,9 +49,14 @@ class ArtifactsProvider : TestService {
         artifactsByModule.remove(module)
     }
 
+    /** Drops the artifacts of all modules except those of [kinds]. */
+    fun retainOnly(kinds: Set<TestArtifactKind<*>>) {
+        artifactsByModule.values.forEach { it.keys.retainAll(kinds) }
+    }
+
     fun copy(): ArtifactsProvider {
         return ArtifactsProvider().also {
-            it.artifactsByModule.putAll(artifactsByModule.mapValues { (_, map) -> map.toMutableMap() })
+            it.artifactsByModule.putAll(artifactsByModule.mapValues { [_, map] -> map.toMutableMap() })
         }
     }
 

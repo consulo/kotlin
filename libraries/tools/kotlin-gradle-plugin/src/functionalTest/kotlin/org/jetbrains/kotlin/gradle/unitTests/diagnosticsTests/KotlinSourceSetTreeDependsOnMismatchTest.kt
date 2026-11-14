@@ -2,8 +2,6 @@
  * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests.diagnosticsTests
 
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
@@ -23,10 +21,9 @@ class KotlinSourceSetTreeDependsOnMismatchTest {
                 applyDefaultHierarchyTemplate()
                 @Suppress("DEPRECATION")
                 androidTarget()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64(); iosArm64(); iosSimulatorArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                macosX64(); macosArm64()
+                macosArm64()
 
                 configure()
             }
@@ -197,14 +194,13 @@ class KotlinSourceSetTreeDependsOnMismatchTest {
     @Test
     fun `test that few incorrect source set dependencies can be reported`() = checkDiagnostics {
         sourceSets.getByName("iosX64Test").dependsOn(sourceSets.getByName("iosMain"))
-        sourceSets.getByName("macosX64Test").dependsOn(sourceSets.getByName("macosMain"))
         sourceSets.getByName("macosArm64Test").dependsOn(sourceSets.getByName("macosMain"))
     }.assertDiagnostics(
         KotlinSourceSetTreeDependsOnMismatch(dependeeName = "iosX64Test", dependencyName = "iosMain"),
         KotlinSourceSetTreeDependsOnMismatch(
             dependents = mapOf(
-                "main" to listOf("macosArm64Main", "macosX64Main"),
-                "test" to listOf("macosArm64Test", "macosX64Test")
+                "main" to listOf("macosArm64Main"),
+                "test" to listOf("macosArm64Test")
             ),
             dependencyName = "macosMain"
         ),

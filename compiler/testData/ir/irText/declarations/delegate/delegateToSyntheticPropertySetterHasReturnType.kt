@@ -1,0 +1,21 @@
+// TARGET_BACKEND: JVM
+// WITH_STDLIB
+// IGNORE_BACKEND: JKLIB
+// ^ KT-91301: JKlib can't mangle properties without accessors or backing field.
+// FILE: J.java
+public class J {
+    private String foo;
+
+    public String getFoo() {
+        return foo;
+    }
+
+    public String setFoo(String foo) {
+        return this.foo = foo;
+    }
+}
+
+// FILE: test.kt
+class Foo(val j: J) {
+    var bar by j::foo
+}

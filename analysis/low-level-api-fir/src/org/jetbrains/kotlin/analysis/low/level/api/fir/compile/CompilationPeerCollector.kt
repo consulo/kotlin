@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -16,8 +16,7 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.projectStructure.llFirMod
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.LLPlatformActualizer
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.containingKtFileIfAny
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.getContainingFile
-import org.jetbrains.kotlin.codegen.state.GenerationState
-import org.jetbrains.kotlin.fir.*
+import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.contracts.FirContractDescription
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.hasBody
@@ -27,15 +26,13 @@ import org.jetbrains.kotlin.fir.expressions.FirBlock
 import org.jetbrains.kotlin.fir.expressions.FirResolvable
 import org.jetbrains.kotlin.fir.expressions.impl.FirContractCallBlock
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
-import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
+import org.jetbrains.kotlin.fir.unwrapSubstitutionOverrides
 import org.jetbrains.kotlin.fir.visitors.FirDefaultVisitorVoid
 import org.jetbrains.kotlin.psi
-import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 
 /**
@@ -43,27 +40,22 @@ import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
  * in case if the declaration is compiled.
  *
  * Besides the file that owns the declaration, the visitor also recursively collects source files with called inline functions.
- * In addition, the visitor collects a list of inlined local classes. Such a list might be useful in [GenerationState.GenerateClassFilter]
- * to filter out class files unrelated to the current compilation.
  *
  * Note that compiled declarations are not analyzed, as the backend can inline them natively.
  */
 @KaImplementationDetail
 class CompilationPeerCollector private constructor(private val actualizer: LLPlatformActualizer?) {
+    @KaImplementationDetail
     companion object {
         fun process(files: Collection<FirFile>, actualizer: LLPlatformActualizer?): CompilationPeerData {
             val collector = CompilationPeerCollector(actualizer)
             files.forEach { collector.process(it) }
 
-            return CompilationPeerData(
-                peers = collector.peers,
-                inlinedClasses = collector.inlinedClasses
-            )
+            return CompilationPeerData(collector.peers)
         }
     }
 
     private val peers = LinkedHashMap<KaModule, MutableList<KtFile>>()
-    private val inlinedClasses = LinkedHashSet<KtClassOrObject>()
 
     private val visited = HashSet<FirFile>()
     private val moduleStack = ArrayDeque<KaModule>()
@@ -81,7 +73,7 @@ class CompilationPeerCollector private constructor(private val actualizer: LLPla
             // We cannot compile two or more modules together
             errorWithAttachment("Cyclic dependency between modules") {
                 withEntry("cycle") {
-                    (moduleStack + module).forEach { this@withEntry.println(it) }
+                    (moduleStack + module).forEach { this@withEntry.appendLine(it) }
                 }
             }
 
@@ -98,8 +90,6 @@ class CompilationPeerCollector private constructor(private val actualizer: LLPla
         // Avoid deep stacks by gathering callee files first
         val visitor = CompilationPeerCollectingVisitor(ktFile.project, actualizer)
         file.accept(visitor)
-
-        inlinedClasses.addAll(visitor.inlinedClasses)
 
         withModule(module) {
             visitor.files.forEach(::process)
@@ -141,9 +131,6 @@ class CompilationPeerData(
      * This list does not contain duplicated files.
      */
     val peers: Map<KaModule, List<KtFile>>,
-
-    /** Local classes inlined as a part of inline functions. */
-    val inlinedClasses: Set<KtClassOrObject>,
 )
 
 private class CompilationPeerCollectingVisitor(
@@ -152,13 +139,8 @@ private class CompilationPeerCollectingVisitor(
 ) : FirDefaultVisitorVoid() {
     private val collectedFunctions = HashSet<FirFunction>()
 
-    private var isInlineFunctionContext: Boolean = false
-
     val files: Set<FirFile>
         field = LinkedHashSet<FirFile>()
-
-    val inlinedClasses: Set<KtClassOrObject>
-        field = LinkedHashSet<KtClassOrObject>()
 
     override fun visitElement(element: FirElement) {
         if (element is FirResolvable) {
@@ -188,15 +170,7 @@ private class CompilationPeerCollectingVisitor(
     override fun visitNamedFunction(namedFunction: FirNamedFunction) {
         namedFunction.lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
 
-        withInlineFunctionContext(namedFunction) {
-            super.visitFunction(namedFunction)
-        }
-    }
-
-    override fun visitPropertyAccessor(propertyAccessor: FirPropertyAccessor) {
-        withInlineFunctionContext(propertyAccessor) {
-            super.visitPropertyAccessor(propertyAccessor)
-        }
+        super.visitFunction(namedFunction)
     }
 
     override fun visitProperty(property: FirProperty) {
@@ -205,15 +179,6 @@ private class CompilationPeerCollectingVisitor(
         super.visitProperty(property)
     }
 
-    override fun visitClass(klass: FirClass) {
-        super.visitClass(klass)
-
-        if (isInlineFunctionContext) {
-            inlinedClasses.addIfNotNull(klass.psi as? KtClassOrObject)
-        }
-    }
-
-    @OptIn(SymbolInternals::class)
     private fun processResolvable(element: FirResolvable) {
         val reference = element.calleeReference
         if (reference !is FirResolvedNamedReference) {
@@ -285,21 +250,6 @@ private class CompilationPeerCollectingVisitor(
                 val actualResolutionFacade = resolutionFacadeService.getResolutionFacade(actualModule)
                 val actualFile = actualResolutionFacade.getOrBuildFirFile(actualPsiFile)
                 files.add(actualFile)
-            }
-        }
-    }
-
-    private inline fun withInlineFunctionContext(function: FirFunction, block: () -> Unit) {
-        val needsInlineContext = !isInlineFunctionContext && function.isInline
-
-        try {
-            if (needsInlineContext) {
-                isInlineFunctionContext = true
-            }
-            block()
-        } finally {
-            if (needsInlineContext) {
-                isInlineFunctionContext = false
             }
         }
     }

@@ -1,7 +1,6 @@
 // RUN_PIPELINE_TILL: FRONTEND
 // WITH_STDLIB
 // LANGUAGE: +NoBuilderInferenceWithoutAnnotationRestriction
-// SKIP_TXT
 
 fun <R> a(lambda: List<R>.(R) -> Unit) {}
 
@@ -57,7 +56,7 @@ fun test5() {
     operator fun <T> T.invoke(): T = this
     <!CANNOT_INFER_PARAMETER_TYPE!>b<!> <!CANNOT_INFER_RECEIVER_PARAMETER_TYPE!>{
         extension()
-        <!CANNOT_INFER_PARAMETER_TYPE, CANNOT_INFER_PARAMETER_TYPE!><!CANNOT_INFER_RECEIVER_PARAMETER_TYPE!>this<!><!NO_VALUE_FOR_PARAMETER!>()<!><!>.<!CANNOT_INFER_PARAMETER_TYPE!>extension<!>()
+        <!CANNOT_INFER_PARAMETER_TYPE, CANNOT_INFER_PARAMETER_TYPE!><!CANNOT_INFER_RECEIVER_PARAMETER_TYPE, NO_VALUE_FOR_PARAMETER!>this<!>()<!>.<!CANNOT_INFER_PARAMETER_TYPE!>extension<!>()
         use(::extension)
     }<!>
 }

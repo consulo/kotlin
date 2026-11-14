@@ -1,11 +1,14 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import gradle.GradlePluginVariant
 import gradle.commonSourceSetName
 import org.gradle.api.Project
 import org.gradle.api.attributes.Usage
 import org.gradle.api.internal.project.ProjectInternal
+import org.gradle.jvm.tasks.Jar
+import org.gradle.kotlin.dsl.extra
 import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.named
-import org.gradle.kotlin.dsl.project
+import org.gradle.kotlin.dsl.repositories
 import org.gradle.testfixtures.ProjectBuilder
 import org.jetbrains.dokka.gradle.AbstractDokkaLeafTask
 import org.jetbrains.dokka.gradle.GradleDokkaSourceSetBuilder
@@ -17,11 +20,47 @@ import java.io.File
 import java.nio.file.Path
 import kotlin.io.path.pathString
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
 
 class GradlePluginTests {
 
     @TempDir
     lateinit var workingDir: File
+
+    @Test
+    fun `shadowed Gradle plugin variants reuse a common baseline jar`() {
+        val root = createFakeKotlinRoot()
+        val project = createKotlinSubproject("plugin", root)
+        project.beforeEvaluate {
+            plugins.apply(GRADLE_PLUGIN_COMMON_CONFIGURATION_CONVENTION_PLUGIN)
+        }
+        project.evaluate()
+
+        val middleVariantJarTaskName =
+            "embeddable${GradlePluginVariant.MIDDLE_GRADLE_VARIANT_FOR_TESTS.sourceSetName.replaceFirstChar { it.uppercase() }}Jar"
+        val baseline = project.tasks.getByName("embeddableBaselineJar")
+        val mainSpecific = project.tasks.getByName("embeddableJarSpecific")
+        val middleVariantSpecific = project.tasks.getByName("${middleVariantJarTaskName}Specific")
+        val mainJar = project.tasks.getByName("embeddableJar")
+        val middleVariantJar = project.tasks.getByName(middleVariantJarTaskName)
+
+        assertIs<ShadowJar>(baseline)
+        assertIs<ShadowJar>(mainSpecific)
+        assertIs<ShadowJar>(middleVariantSpecific)
+        assertIs<Jar>(mainJar)
+        assertFalse(mainJar is ShadowJar)
+        assertIs<Jar>(middleVariantJar)
+        assertFalse(middleVariantJar is ShadowJar)
+
+        val mainDependencies = mainJar.taskDependencies.getDependencies(mainJar)
+        val middleVariantDependencies = middleVariantJar.taskDependencies.getDependencies(middleVariantJar)
+        assertTrue(baseline in mainDependencies)
+        assertTrue(mainSpecific in mainDependencies)
+        assertTrue(baseline in middleVariantDependencies)
+        assertTrue(middleVariantSpecific in middleVariantDependencies)
+    }
 
     /**
      * This test checks that per Gradle variant source sets in "gradle-plugin-common-configuration" and "gradle-plugin-dependency-configuration"
@@ -35,6 +74,19 @@ class GradlePluginTests {
         producerPluginDependency.version = "1.0"
         producerPluginDependency.beforeEvaluate {
             plugins.apply(GRADLE_PLUGIN_DEPENDENCY_CONFIGURATION_CONVENTION_PLUGIN)
+            project.repositories {
+                exclusiveContent {
+                    forRepository {
+                        maven {
+                            name = "gradle-releases"
+                            setUrl("https://repo.gradle.org/gradle/libs-releases")
+                        }
+                    }
+                    filter {
+                        includeGroup("org.gradle.experimental")
+                    }
+                }
+            }
         }
 
         val producerPlugin = createKotlinSubproject("producerPlugin", root)
@@ -46,6 +98,19 @@ class GradlePluginTests {
         val consumerPlugin = createKotlinSubproject("consumerPlugin", root)
         consumerPlugin.beforeEvaluate {
             plugins.apply(GRADLE_PLUGIN_COMMON_CONFIGURATION_CONVENTION_PLUGIN)
+            project.repositories {
+                exclusiveContent {
+                    forRepository {
+                        maven {
+                            name = "gradle-releases"
+                            setUrl("https://repo.gradle.org/gradle/libs-releases")
+                        }
+                    }
+                    filter {
+                        includeGroup("org.gradle.experimental")
+                    }
+                }
+            }
             dependencies.add("commonImplementation", dependencies.project(":producerPlugin"))
             dependencies.add("commonImplementation", dependencies.project(":producerPluginDependency"))
         }
@@ -108,7 +173,7 @@ class GradlePluginTests {
         }
     }
 
-    @Disabled("KTI-2926: kotlin-build-gradle-plugin does not support configuring the state via extra properties")
+    @Disabled("KTI-2926: kotlin-build-helpers does not support configuring the state via extra properties")
     @Test
     fun `gradle variant source sets - dokka generation doesn't see main source set in variant source sets`() {
         val root = createFakeKotlinRoot()
@@ -175,15 +240,20 @@ class GradlePluginTests {
         }.build().also {
             it.tasks.register("mvnInstall")
             it.extraProperties.set("avoidSettingCompilerVersionForBTA", true)
+            it.extra.set("repo.tests.skipVersionCatalog", true)
         } as ProjectInternal
 
     private fun createFakeKotlinRoot(): Project {
+        workingDir.resolve("gradle.properties").writeText(
+            """
+            build.number=1.0
+            kotlinApiVersionForProjectsDependingOnStableStdlib=
+            """.trimIndent()
+        )
         val root = ProjectBuilder.builder().also {
             it.withProjectDir(workingDir)
         }.build()
-        root.extraProperties.set("buildNumber", "1.0")
-        root.extraProperties.set("projectsUsedInIntelliJKotlinPlugin", emptyArray<String>())
-        root.extraProperties.set("kotlinApiVersionForProjectsUsedInIntelliJKotlinPlugin", emptyArray<String>())
+        root.extraProperties.set("projectsDependingOnStableStdlib", emptyArray<String>())
         root.tasks.register("mvnInstall")
 
         createKotlinSubproject("kotlin-gradle-plugin-api", root).also {

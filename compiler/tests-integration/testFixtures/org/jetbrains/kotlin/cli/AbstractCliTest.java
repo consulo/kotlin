@@ -14,7 +14,6 @@ import kotlin.io.path.PathsKt;
 import kotlin.text.Charsets;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.checkers.ThirdPartyAnnotationPathsKt;
 import org.jetbrains.kotlin.cli.common.CLICompiler;
 import org.jetbrains.kotlin.cli.common.CompilerSystemProperties;
 import org.jetbrains.kotlin.cli.common.ExitCode;
@@ -23,24 +22,32 @@ import org.jetbrains.kotlin.cli.js.K2JSCompiler;
 import org.jetbrains.kotlin.cli.js.KotlinWasmCompiler;
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler;
 import org.jetbrains.kotlin.cli.metadata.KotlinMetadataCompiler;
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime;
 import org.jetbrains.kotlin.test.*;
 import org.jetbrains.kotlin.test.util.KtTestUtil;
 import org.jetbrains.kotlin.util.PerformanceManager;
 import org.jetbrains.kotlin.utils.ExceptionUtilsKt;
-import org.jetbrains.kotlin.utils.PathUtil;
+import org.jetbrains.kotlin.utils.KotlinNativePaths;
 import org.jetbrains.kotlin.utils.StringsKt;
-import org.junit.Assert;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Enumeration;
+import java.util.function.Supplier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import static org.jetbrains.kotlin.cli.common.arguments.PreprocessCommandLineArgumentsKt.ARGFILE_ARGUMENT;
+import static org.jetbrains.kotlin.konan.library.NativeLibraryConstantsKt.KONAN_STDLIB_NAME;
+import static org.jetbrains.kotlin.konan.library.NativeLibraryConstantsKt.konanCommonLibraryPath;
 import static org.jetbrains.kotlin.test.TestDataAssertions.assertValueAgnosticEqualsToFile;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public abstract class AbstractCliTest extends TestCaseWithTmpdir {
     private static final String TESTDATA_DIR = "$TESTDATA_DIR$";
@@ -88,7 +95,7 @@ public abstract class AbstractCliTest extends TestCaseWithTmpdir {
             @NotNull String testDataDir,
             @NotNull String tmpdir
     ) {
-        String testDataAbsoluteDir = new File(testDataDir).getAbsolutePath();
+        String testDataAbsoluteDir = ForTestCompileRuntime.transformTestDataPath(testDataDir).getAbsolutePath();
         String output = pureOutput
                 .replace(testDataAbsoluteDir, TESTDATA_DIR)
                 .replace(FileUtil.toSystemIndependentName(testDataAbsoluteDir), TESTDATA_DIR);
@@ -99,7 +106,7 @@ public abstract class AbstractCliTest extends TestCaseWithTmpdir {
 
     protected void doTest(@NotNull String fileName, @NotNull CLICompiler<?> compiler) {
         System.setProperty("java.awt.headless", "true");
-
+        fileName = ForTestCompileRuntime.transformTestDataPath(fileName).getAbsolutePath();
         File environmentTestConfig = new File(fileName.replaceFirst("\\.args$", ".env"));
         if (environmentTestConfig.exists()) {
             compiler.setReadingSettingsFromEnvironmentAllowed(true);
@@ -125,27 +132,126 @@ public abstract class AbstractCliTest extends TestCaseWithTmpdir {
         doComparePerformanceLogs(fileName, compiler);
     }
 
+    private static class ZipTarget {
+        final File zipFile;
+        final String entryPath;
+        final String rawZipPath;
+
+        ZipTarget(@NotNull File zipFile, @NotNull String entryPath, @NotNull String rawZipPath) {
+            this.zipFile = zipFile;
+            this.entryPath = entryPath;
+            this.rawZipPath = rawZipPath;
+        }
+    }
+
+    @Nullable
+    private ZipTarget parseZipTarget(@NotNull String fileName, @NotNull String argsFilePath) {
+        if (!fileName.contains("!")) return null;
+        String[] zipParts = fileName.split("!", 2);
+        String rawZipPath = zipParts[0].trim();
+        String entryPath = zipParts[1].trim();
+        File zipFile = checkedPathToFile(rawZipPath, argsFilePath);
+        return new ZipTarget(zipFile, entryPath, rawZipPath);
+    }
+
+    private static boolean zipHasEntry(@NotNull File zipFile, @NotNull String entryPath, @NotNull List<String> diagnostics) {
+        try (ZipFile zip = new ZipFile(zipFile)) {
+            if (zip.getEntry(entryPath) != null) return true;
+            for (Enumeration<? extends ZipEntry> e = zip.entries(); e.hasMoreElements(); ) {
+                ZipEntry entry = e.nextElement();
+                if (entry.getName().equals(entryPath) || (entryPath.endsWith("/") && entry.getName().startsWith(entryPath))) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (IOException e) {
+            diagnostics.add("Failed to read zip file " + zipFile.getName() + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    @Nullable
+    private static String readZipEntryText(@NotNull File zipFile, @NotNull String entryPath, @NotNull List<String> diagnostics) {
+        try (ZipFile zip = new ZipFile(zipFile)) {
+            ZipEntry entry = zip.getEntry(entryPath);
+            if (entry == null) {
+                diagnostics.add("Zip entry does not exist: " + entryPath + " in " + zipFile.getName());
+                return null;
+            }
+            try (InputStream is = zip.getInputStream(entry)) {
+                return new String(kotlin.io.ByteStreamsKt.readBytes(is), Charsets.UTF_8);
+            }
+        } catch (IOException e) {
+            diagnostics.add("Failed to read zip file " + zipFile.getName() + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void checkFileOrZipEntryExists(@NotNull String fileName, @NotNull String argsFilePath, @NotNull List<String> diagnostics) {
+        ZipTarget zipTarget = parseZipTarget(fileName, argsFilePath);
+        if (zipTarget != null) {
+            if (!zipTarget.zipFile.exists()) {
+                diagnostics.add("Zip file does not exist: " + zipTarget.rawZipPath);
+            } else if (!zipHasEntry(zipTarget.zipFile, zipTarget.entryPath, diagnostics)) {
+                diagnostics.add("Zip entry does not exist, but should: " + zipTarget.entryPath + " in " + zipTarget.rawZipPath);
+            }
+            return;
+        }
+        File file = checkedPathToFile(fileName, argsFilePath);
+        if (!file.exists()) {
+            diagnostics.add("File does not exist, but should: " + fileName);
+        } else if (!file.isFile()) {
+            diagnostics.add("File is a directory, but should be a normal file: " + fileName);
+        }
+    }
+
+    private void checkFileOrZipEntryAbsent(@NotNull String fileName, @NotNull String argsFilePath, @NotNull List<String> diagnostics) {
+        ZipTarget zipTarget = parseZipTarget(fileName, argsFilePath);
+        if (zipTarget != null) {
+            if (zipTarget.zipFile.exists() && zipHasEntry(zipTarget.zipFile, zipTarget.entryPath, diagnostics)) {
+                diagnostics.add("Zip entry exists, but shouldn't: " + zipTarget.entryPath + " in " + zipTarget.rawZipPath);
+            }
+            return;
+        }
+        File file = checkedPathToFile(fileName, argsFilePath);
+        if (file.exists() && file.isFile()) {
+            diagnostics.add("File exists, but shouldn't: " + fileName);
+        }
+    }
+
+    @Nullable
+    private String readFileOrZipEntryText(@NotNull String fileName, @NotNull String argsFilePath, @NotNull List<String> diagnostics) {
+        ZipTarget zipTarget = parseZipTarget(fileName, argsFilePath);
+        if (zipTarget != null) {
+            if (!zipTarget.zipFile.exists()) {
+                diagnostics.add("Zip file does not exist: " + zipTarget.rawZipPath);
+                return null;
+            }
+            return readZipEntryText(zipTarget.zipFile, zipTarget.entryPath, diagnostics);
+        }
+        File file = checkedPathToFile(fileName, argsFilePath);
+        if (!file.exists()) {
+            diagnostics.add("File does not exist: " + fileName);
+            return null;
+        } else if (file.isDirectory()) {
+            diagnostics.add("File is a directory: " + fileName);
+            return null;
+        }
+        return FilesKt.readText(file, Charsets.UTF_8);
+    }
+
     private void doTestAdditionalChecks(@NotNull File testConfigFile, @NotNull String argsFilePath) {
         List<String> diagnostics = new ArrayList<>(0);
         String content = FilesKt.readText(testConfigFile, Charsets.UTF_8);
 
         List<String> existsList = InTextDirectivesUtils.findListWithPrefixes(content, "// EXISTS: ");
         for (String fileName : existsList) {
-            File file = checkedPathToFile(fileName, argsFilePath);
-            if (!file.exists()) {
-                diagnostics.add("File does not exist, but should: " + fileName);
-            }
-            else if (!file.isFile()) {
-                diagnostics.add("File is a directory, but should be a normal file: " + fileName);
-            }
+            checkFileOrZipEntryExists(fileName, argsFilePath, diagnostics);
         }
 
         List<String> absentList = InTextDirectivesUtils.findListWithPrefixes(content, "// ABSENT: ");
         for (String fileName : absentList) {
-            File file = checkedPathToFile(fileName, argsFilePath);
-            if (file.exists() && file.isFile()) {
-                diagnostics.add("File exists, but shouldn't: " + fileName);
-            }
+            checkFileOrZipEntryAbsent(fileName, argsFilePath, diagnostics);
         }
 
         List<String> containsTextList = InTextDirectivesUtils.findLinesWithPrefixesRemoved(content, "// CONTAINS: ");
@@ -153,18 +259,9 @@ public abstract class AbstractCliTest extends TestCaseWithTmpdir {
             String[] parts = containsSpec.split(",", 2);
             String fileName = parts[0].trim();
             String contentToSearch = parts[1].trim();
-            File file = checkedPathToFile(fileName, argsFilePath);
-            if (!file.exists()) {
-                diagnostics.add("File does not exist: " + fileName);
-            }
-            else if (file.isDirectory()) {
-                diagnostics.add("File is a directory: " + fileName);
-            }
-            else {
-                String text = FilesKt.readText(file, Charsets.UTF_8);
-                if (!text.contains(contentToSearch)) {
-                    diagnostics.add("File " + fileName + " does not contain string: " + contentToSearch);
-                }
+            String text = readFileOrZipEntryText(fileName, argsFilePath, diagnostics);
+            if (text != null && !text.contains(contentToSearch)) {
+                diagnostics.add("File " + fileName + " does not contain string: " + contentToSearch);
             }
         }
 
@@ -173,24 +270,15 @@ public abstract class AbstractCliTest extends TestCaseWithTmpdir {
             String[] parts = notContainsSpec.split(",", 2);
             String fileName = parts[0].trim();
             String contentToSearch = parts[1].trim();
-            File file = checkedPathToFile(fileName, argsFilePath);
-            if (!file.exists()) {
-                diagnostics.add("File does not exist: " + fileName);
-            }
-            else if (file.isDirectory()) {
-                diagnostics.add("File is a directory: " + fileName);
-            }
-            else {
-                String text = FilesKt.readText(file, Charsets.UTF_8);
-                if (text.contains(contentToSearch)) {
-                    diagnostics.add("File " + fileName + " contains string: " + contentToSearch);
-                }
+            String text = readFileOrZipEntryText(fileName, argsFilePath, diagnostics);
+            if (text != null && text.contains(contentToSearch)) {
+                diagnostics.add("File " + fileName + " contains string: " + contentToSearch);
             }
         }
 
         if (!diagnostics.isEmpty()) {
             diagnostics.add(0, diagnostics.size() + " problem(s) found:");
-            Assert.fail(StringsKt.join(diagnostics, "\n"));
+            fail(StringsKt.join(diagnostics, "\n"));
         }
     }
 
@@ -213,7 +301,8 @@ public abstract class AbstractCliTest extends TestCaseWithTmpdir {
             dumpFormat = PerformanceManager.DumpFormat.PlainText;
         }
 
-        @NotNull String actualPerfReport = perfManager.createPerformanceReport(dumpFormat);
+        @NotNull String actualPerfReport = perfManager.createPerformanceReport(dumpFormat)
+                .replaceAll("(?m)^(GC time for ).+( is \\d+ ms, \\d+ collections)$", "$1<GC>$2");
 
         assertValueAgnosticEqualsToFile(expectedPerfLogFile, actualPerfReport);
     }
@@ -229,7 +318,7 @@ public abstract class AbstractCliTest extends TestCaseWithTmpdir {
     }
 
     @NotNull
-    private static List<String> readArgs(@NotNull String testArgsFilePath, @NotNull String tempDir) {
+    protected List<String> readArgs(@NotNull String testArgsFilePath, @NotNull String tempDir) {
         File testArgsFile = new File(testArgsFilePath);
         List<String> lines = FilesKt.readLines(testArgsFile, Charsets.UTF_8);
         return CollectionsKt.mapNotNull(lines, arg -> readArg(arg, testArgsFile.getParentFile(), tempDir));
@@ -298,31 +387,33 @@ public abstract class AbstractCliTest extends TestCaseWithTmpdir {
         }
     }
 
+    private static String replaceIfNeeded(String str, String placeholder, Supplier<String> valueSupplier) {
+        if (!str.contains(placeholder)) return str;
+        return str.replace(placeholder, valueSupplier.get());
+    }
+
     private static String replaceTestPaths(@NotNull String str, @NotNull File testDataDir, @NotNull String tempDir) {
-        return str
+        str = str
                 .replace("$TEMP_DIR$", tempDir)
-                .replace(TESTDATA_DIR, testDataDir.getAbsolutePath())
-                .replace(
-                        "$FOREIGN_ANNOTATIONS_DIR$",
-                        new File(ThirdPartyAnnotationPathsKt.FOREIGN_ANNOTATIONS_SOURCES_PATH).getPath()
-                )
-                .replace(
-                        "$JSR_305_DECLARATIONS$",
-                        new File(ThirdPartyAnnotationPathsKt.JSR_305_SOURCES_PATH).getPath()
-                )
-                .replace(
-                        "$FOREIGN_JAVA8_ANNOTATIONS_DIR$",
-                        new File(ThirdPartyAnnotationPathsKt.FOREIGN_JDK8_ANNOTATIONS_SOURCES_PATH).getPath()
-                ).replace(
-                        "$JDK_17$",
-                        KtTestUtil.getJdk17Home().getPath()
-                ).replace(
-                        "$STDLIB_JS$",
-                        PathUtil.getKotlinPathsForCompiler().getJsStdLibKlibPath().getAbsolutePath()
-                ).replace(
-                        "$STDLIB_WASM_JS$",
-                        PathUtil.getKotlinPathsForCompiler().getWasmJsStdLibKlibPath().getAbsolutePath()
-                );
+                .replace(TESTDATA_DIR, testDataDir.getAbsolutePath());
+
+        str = replaceIfNeeded(str, "$STDLIB_COMMON_PATH$", () -> ForTestCompileRuntime.stdlibCommonForTests().getAbsolutePath());
+        str = replaceIfNeeded(str, "$FOREIGN_ANNOTATIONS_DIR$", () -> ForTestCompileRuntime.thirdPartyAnnotations().getAbsolutePath());
+        str = replaceIfNeeded(str, "$JSR_305_DECLARATIONS$", () -> ForTestCompileRuntime.thirdPartyJsr305ForTests().getAbsolutePath());
+        str = replaceIfNeeded(str, "$FOREIGN_JAVA8_ANNOTATIONS_DIR$", () -> ForTestCompileRuntime.thirdPartyJava8AnnotationsForTests().getAbsolutePath());
+        str = replaceIfNeeded(str, "$JDK_17$", () -> KtTestUtil.getJdk17Home().getPath());
+        str = replaceIfNeeded(str, "$STDLIB_JS$", () -> ForTestCompileRuntime.stdlibJsForTests().getAbsolutePath());
+        str = replaceIfNeeded(str, "$STDLIB_WASM_JS$", () -> ForTestCompileRuntime.stdlibWasmJsForTests().getAbsolutePath());
+        str = replaceIfNeeded(str, "$DIST_STDLIB_WASM_JS$", () -> ForTestCompileRuntime.stdlibWasmJsFromDist().getAbsolutePath());
+        str = replaceIfNeeded(str, "$DIST_STDLIB_WASM_WASI$", () -> ForTestCompileRuntime.stdlibWasmWasiFromDist().getAbsolutePath());
+        str = replaceIfNeeded(str, "$STDLIB_NATIVE$", () -> FilesKt.resolve(KotlinNativePaths.INSTANCE.getHomePath(), konanCommonLibraryPath(KONAN_STDLIB_NAME)).getAbsolutePath());
+        str = replaceIfNeeded(str, "$STDLIB_JKLIB$", () -> ForTestCompileRuntime.jklibStdlibForTests().getAbsolutePath());
+        str = replaceIfNeeded(str, "$LOMBOK-COMPILER-PLUGIN-JAR$", () -> ForTestCompileRuntime.lombokCompilerPluginForTests().getAbsolutePath());
+        str = replaceIfNeeded(str, "$ALLOPEN-COMPILER-PLUGIN-JAR$", () -> ForTestCompileRuntime.allOpenCompilerPluginForTests().getAbsolutePath());
+        str = replaceIfNeeded(str, "$NOARG-COMPILER-PLUGIN-JAR$", () -> ForTestCompileRuntime.noArgCompilerPluginForTests().getAbsolutePath());
+        str = replaceIfNeeded(str, "$KOTLIN-REFLECT-JAR$", () -> ForTestCompileRuntime.reflectJarForTests().getAbsolutePath());
+
+        return str;
     }
 
     protected void doJvmTest(@NotNull String fileName) {

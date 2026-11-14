@@ -1,39 +1,43 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.konan.test.serialization
 
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.konan.test.KlibSerializerNativeCliFacade
 import org.jetbrains.kotlin.konan.test.configuration.commonConfigurationForNativeFirstStageUpToSerialization
 import org.jetbrains.kotlin.konan.test.converters.NativeDeserializerFacade
-import org.jetbrains.kotlin.test.FirParser
-import org.jetbrains.kotlin.test.TargetBackend
-import org.jetbrains.kotlin.test.backend.handlers.IrMangledNameAndSignatureDumpHandler
 import org.jetbrains.kotlin.test.backend.handlers.KlibAbiDumpHandler
 import org.jetbrains.kotlin.test.backend.handlers.KlibBackendDiagnosticsHandler
 import org.jetbrains.kotlin.test.backend.handlers.SerializedIrDumpHandler
-import org.jetbrains.kotlin.test.builders.*
+import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
+import org.jetbrains.kotlin.test.builders.deserializedIrHandlersStep
+import org.jetbrains.kotlin.test.builders.klibArtifactsHandlersStep
+import org.jetbrains.kotlin.test.builders.loweredIrHandlersStep
 import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives.DIAGNOSTICS
 import org.jetbrains.kotlin.test.directives.KlibBasedCompilerTestDirectives.IGNORE_IR_DESERIALIZATION_TEST
-import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.LANGUAGE
-import org.jetbrains.kotlin.test.directives.configureFirParser
+import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.ALLOW_KOTLIN_PACKAGE
 import org.jetbrains.kotlin.test.frontend.fir.FirMetaInfoDiffSuppressor
-import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerWithTargetBackendTest
+import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerNativeTest
 import org.jetbrains.kotlin.test.services.configuration.CommonEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.NativeFirstStageEnvironmentConfigurator
+import org.jetbrains.kotlin.test.services.configuration.NativeSecondStageEnvironmentConfigurator
 
 // Base class for IR serialization/deserialization test, configured with FIR frontend, in Native-specific way.
-open class AbstractNativeIrDeserializationTest : AbstractKotlinCompilerWithTargetBackendTest(TargetBackend.NATIVE) {
+open class AbstractNativeIrDeserializationTest : AbstractKotlinCompilerNativeTest() {
     override fun configure(builder: TestConfigurationBuilder) = with(builder) {
-        useConfigurators(::CommonEnvironmentConfigurator, ::NativeFirstStageEnvironmentConfigurator)
-        useAfterAnalysisCheckers(::FirMetaInfoDiffSuppressor)
+        useConfigurators(
+            ::CommonEnvironmentConfigurator,
+            ::NativeFirstStageEnvironmentConfigurator,
+            ::NativeSecondStageEnvironmentConfigurator,
+        )
+
+        useFailureSuppressors(::FirMetaInfoDiffSuppressor)
         commonConfigurationForNativeFirstStageUpToSerialization(
             customIgnoreDirective = IGNORE_IR_DESERIALIZATION_TEST,
         )
-        irHandlersStep { useHandlers({ SerializedIrDumpHandler(it, isAfterDeserialization = false) }) }
+        loweredIrHandlersStep { useHandlers({ SerializedIrDumpHandler(it, isAfterDeserialization = false) }) }
 
         facadeStep(::KlibSerializerNativeCliFacade)
         klibArtifactsHandlersStep {
@@ -47,9 +51,7 @@ open class AbstractNativeIrDeserializationTest : AbstractKotlinCompilerWithTarge
         deserializedIrHandlersStep { useHandlers({ SerializedIrDumpHandler(it, isAfterDeserialization = true) }) }
 
         defaultDirectives {
-            LANGUAGE with listOf(
-                "-${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-            )
+            +ALLOW_KOTLIN_PACKAGE
         }
         forTestsNotMatching(
             "compiler/testData/codegen/box/diagnostics/functions/tailRecursion/*" or
@@ -61,9 +63,5 @@ open class AbstractNativeIrDeserializationTest : AbstractKotlinCompilerWithTarge
         }
 
         enableMetaInfoHandler()
-
-        configureIrHandlersStep {
-            useHandlers(::IrMangledNameAndSignatureDumpHandler)
-        }
     }
 }

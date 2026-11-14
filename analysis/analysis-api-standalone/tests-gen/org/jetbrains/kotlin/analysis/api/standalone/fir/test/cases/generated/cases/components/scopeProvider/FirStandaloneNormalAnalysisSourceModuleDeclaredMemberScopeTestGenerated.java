@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.standalone.fir.test.configurators.Analy
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.scopeProvider.AbstractDeclaredMemberScopeTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.scopeProvider.AbstractDeclaredMemberScopeTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirStandaloneNormalAnalysisSourceModuleDeclaredMemberScopeTestGener
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirStandaloneModeTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.Source,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Standalone,
@@ -136,6 +134,18 @@ public class FirStandaloneNormalAnalysisSourceModuleDeclaredMemberScopeTestGener
   }
 
   @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassAbstract.kt")
+  public void testFullValueClassAbstract() {
+    run("fullValueClassAbstract.kt");
+  }
+
+  @Test
   @TestMetadata("innerClass.kt")
   public void testInnerClass() {
     run("innerClass.kt");
@@ -166,6 +176,12 @@ public class FirStandaloneNormalAnalysisSourceModuleDeclaredMemberScopeTestGener
   }
 
   @Test
+  @TestMetadata("memberDestructuringDeclarations.kt")
+  public void testMemberDestructuringDeclarations() {
+    run("memberDestructuringDeclarations.kt");
+  }
+
+  @Test
   @TestMetadata("properties.kt")
   public void testProperties() {
     run("properties.kt");
@@ -181,5 +197,11 @@ public class FirStandaloneNormalAnalysisSourceModuleDeclaredMemberScopeTestGener
   @TestMetadata("substitutionOverrideOfKotlinInJava.kt")
   public void testSubstitutionOverrideOfKotlinInJava() {
     run("substitutionOverrideOfKotlinInJava.kt");
+  }
+
+  @Test
+  @TestMetadata("unsignedAnnotationArgumentsCompiled.kt")
+  public void testUnsignedAnnotationArgumentsCompiled() {
+    run("unsignedAnnotationArgumentsCompiled.kt");
   }
 }

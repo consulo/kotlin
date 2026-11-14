@@ -9,6 +9,8 @@ import org.jetbrains.kotlin.fir.types.ConeFlexibleType
 import org.jetbrains.kotlin.fir.types.ConeIntegerLiteralType
 import org.jetbrains.kotlin.fir.types.ConeIntersectionType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.fir.types.ConeUnionType
+import org.jetbrains.kotlin.fir.types.isNothing
 
 open class ConeTypeRendererForDebugInfo protected constructor(
     renderCapturedDetails: Boolean = false,
@@ -37,9 +39,22 @@ open class ConeTypeRendererForDebugInfo protected constructor(
     }
 
     override fun render(type: ConeIntersectionType) {
-        for ((index, intersected) in type.intersectedTypes.withIndex()) {
+        for ([index, intersected] in type.intersectedTypes.withIndex()) {
             if (index > 0) {
                 builder.append(" & ")
+            }
+            this.render(intersected)
+        }
+    }
+
+    override fun render(type: ConeUnionType) {
+        type.primaryType.takeUnless { it.isNothing }?.let {
+            this.render(it)
+            builder.append(" | ")
+        }
+        for ([index, intersected] in type.richErrorTypes.withIndex()) {
+            if (index > 0) {
+                builder.append(" | ")
             }
             this.render(intersected)
         }

@@ -22,6 +22,8 @@ import org.jetbrains.kotlin.konan.target.TargetWithSanitizer
 import org.jetbrains.kotlin.tools.ToolExecutionTask
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("kotlin.native.build-tools-conventions")
     id("native")
 }
@@ -39,7 +41,7 @@ native {
             "-DLLVM_DISABLE_ABI_BREAKING_CHECKS_ENFORCING=1",
             *reproducibilityCompilerFlags,
     )
-    if (PlatformInfo.isMac()) {
+    if (PlatformInfo.isMac() || PlatformInfo.isLinux()) {
         cxxflags += "-DLIBCLANGEXT_ENABLE=1"
     }
     suffixes {
@@ -60,7 +62,7 @@ native {
     }
 }
 
-val cppApiElements by configurations.creating {
+val cppApiElements = configurations.create("cppApiElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     attributes {
@@ -69,7 +71,7 @@ val cppApiElements by configurations.creating {
     }
 }
 
-val cppLinkElements by configurations.creating {
+val cppLinkElements = configurations.create("cppLinkElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     attributes {

@@ -1,4 +1,5 @@
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: [
     kotlin/annotation/Target(allowedTargets = [kotlin.annotation.AnnotationTarget.FIELD])
       psi: KtAnnotationEntry
@@ -6,7 +7,6 @@ KaNamedClassSymbol:
   classId: Anno
   classKind: ANNOTATION_CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -15,10 +15,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: FINAL
   name: Anno
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -29,21 +32,25 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(explicitBackingFieldAnnotations.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: [FIELD]
-  deprecationStatus: null
+  applicableAnnotationTargets: [FIELD]
+  deprecation: null
   importableFqName: Anno
 
 KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
   annotations: []
   backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtBackingField
     annotations: [
       Anno()
         psi: KtAnnotationEntry
     ]
     callableId: null
-    compilerVisibility: Private
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -54,11 +61,14 @@ KaKotlinPropertySymbol:
     name: field
     origin: PROPERTY_BACKING_FIELD
     owningProperty: KaKotlinPropertySymbol(/Test.foo)
+    psi: KtBackingField
+    realPsi: KtBackingField
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/String
+    typeParameters: []
     visibility: PRIVATE
     getDispatchReceiver(): KaUsualClassType:
       annotations: []
@@ -67,19 +77,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(explicitBackingFieldAnnotations.kt)
     getContainingJvmClassName: Test
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   callableId: /Test.foo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -89,11 +100,14 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: FINAL
     origin: SOURCE
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/String
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getDispatchReceiver(): KaUsualClassType:
@@ -103,19 +117,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(explicitBackingFieldAnnotations.kt)
     getContainingJvmClassName: Test
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: getFoo
     importableFqName: null
   hasBackingField: true
   hasGetter: true
   hasSetter: false
   initializer: null
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: false
   isStatic: false
@@ -124,6 +139,9 @@ KaKotlinPropertySymbol:
   modality: FINAL
   name: foo
   origin: SOURCE
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -139,18 +157,16 @@ KaKotlinPropertySymbol:
   getContainingFileSymbol: KaFileSymbol(explicitBackingFieldAnnotations.kt)
   getContainingJvmClassName: Test
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
-  javaGetterName: getFoo
-  javaSetterName: null
+  deprecation: null
   isInline: false
   importableFqName: null
 
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: Test
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -159,10 +175,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: FINAL
   name: Test
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -173,6 +192,6 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(explicitBackingFieldAnnotations.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: Test

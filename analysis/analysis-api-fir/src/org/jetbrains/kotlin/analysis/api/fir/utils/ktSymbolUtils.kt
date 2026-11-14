@@ -1,26 +1,20 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.fir.utils
 
-import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
-import org.jetbrains.kotlin.analysis.api.KaSession
-import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
 import org.jetbrains.kotlin.analysis.api.fir.symbols.KaFirSymbol
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.LLResolutionFacade
 import org.jetbrains.kotlin.analysis.low.level.api.fir.projectStructure.llFirModuleData
-import org.jetbrains.kotlin.analysis.utils.errors.requireIsInstance
-import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
-import org.jetbrains.kotlin.fir.FirAnnotationContainer
-import org.jetbrains.kotlin.fir.analysis.checkers.getActualTargetList
 import org.jetbrains.kotlin.fir.dispatchReceiverClassLookupTagOrNull
 import org.jetbrains.kotlin.fir.resolve.toRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.*
+import org.jetbrains.kotlin.utils.addToStdlib.requireIsInstance
 
 internal val KaSymbol.firSymbol: FirBasedSymbol<*>
     get() {
@@ -51,18 +45,4 @@ internal fun FirBasedSymbol<*>.getContainingKtModule(resolutionFacade: LLResolut
         else -> this
     }
     return target.llFirModuleData.ktModule
-}
-
-internal fun KaSymbol.getContainingKtModule(resolutionFacade: LLResolutionFacade): KaModule = when (this) {
-    is KaFirSymbol<*> -> firSymbol.getContainingKtModule(resolutionFacade)
-    is KaReceiverParameterSymbol -> owningCallableSymbol.getContainingKtModule(resolutionFacade)
-    else -> TODO("${this::class}")
-}
-
-@KaImplementationDetail
-context(session: KaSession)
-fun KaSymbol.getActualAnnotationTargets(): List<KotlinTarget>? {
-    val firSymbol = this.firSymbol.fir as? FirAnnotationContainer ?: return null
-    val firSession = (session as? KaFirSession)?.firSession ?: return null
-    return getActualTargetList(firSymbol, firSession).defaultTargets
 }

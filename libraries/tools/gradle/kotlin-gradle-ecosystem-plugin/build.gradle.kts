@@ -1,6 +1,8 @@
 import kotlinx.validation.KotlinApiBuildTask
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("gradle-plugin-common-configuration")
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
 }
@@ -18,8 +20,9 @@ gradlePlugin {
 
 dependencies {
     commonApi(platform(project(":kotlin-gradle-plugins-bom")))
+    commonApi(project(":kotlin-gradle-plugin"))
 }
 
 tasks.named<KotlinApiBuildTask>("apiBuild") {
-    inputJar.value(tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    inputJar.value(tasks.named<org.gradle.jvm.tasks.Jar>("embeddableJar").flatMap { it.archiveFile })
 }

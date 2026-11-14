@@ -8,31 +8,34 @@ package org.jetbrains.kotlin.gradle.targets.js.ir
 import org.gradle.api.Action
 import org.gradle.api.DomainObjectSet
 import org.gradle.api.file.Directory
-import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Sync
 import org.gradle.language.base.plugins.LifecycleBasePlugin
-import org.jetbrains.kotlin.cli.common.arguments.K2JsArgumentConstants.ES_2015
 import org.jetbrains.kotlin.gradle.dsl.JsModuleKind
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.mpp.isMain
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBinaryMode
+import org.jetbrains.kotlin.gradle.targets.js.internal.jsToolingProject
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinBrowserJsIr.Companion.WEBPACK_TASK_NAME
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrSubTarget.Companion.DISTRIBUTION_TASK_NAME
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrSubTarget.Companion.RUN_TASK_NAME
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin.Companion.kotlinNodeJsRootExtension
 import org.jetbrains.kotlin.gradle.targets.js.npm.npmProject
+import org.jetbrains.kotlin.gradle.targets.js.targetVersion
 import org.jetbrains.kotlin.gradle.targets.js.webTargetVariant
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpack
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig.Mode
 import org.jetbrains.kotlin.gradle.targets.js.webpack.WebpackDevtool
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootExtension
+import org.jetbrains.kotlin.gradle.targets.web.nodejs.BaseNodeJsRootExtension
+import org.jetbrains.kotlin.gradle.targets.web.checkWebIsolatedProjectsSupportOff
 import org.jetbrains.kotlin.gradle.tasks.dependsOn
 import org.jetbrains.kotlin.gradle.utils.archivesName
 import org.jetbrains.kotlin.gradle.utils.domainObjectSet
 import org.jetbrains.kotlin.gradle.utils.withType
+import org.jetbrains.kotlin.js.config.supportsEsModules
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootPlugin.Companion.kotlinNodeJsRootExtension as wasmKotlinNodeJsRootExtension
 
@@ -40,10 +43,13 @@ class WebpackConfigurator(private val subTarget: KotlinJsIrSubTarget) : SubTarge
 
     private val project = subTarget.project
 
-    private val nodeJsRoot = subTarget.target.webTargetVariant(
-        { project.rootProject.kotlinNodeJsRootExtension },
-        { project.rootProject.wasmKotlinNodeJsRootExtension },
-    )
+    private val nodeJsRoot: BaseNodeJsRootExtension by lazy {
+        project.checkWebIsolatedProjectsSupportOff { "${subTarget.target.name} Webpack" }
+        subTarget.target.webTargetVariant(
+            { project.jsToolingProject().kotlinNodeJsRootExtension },
+            { project.jsToolingProject().wasmKotlinNodeJsRootExtension },
+        )
+    }
 
     internal val isWasm: Boolean = subTarget.target.webTargetVariant(
         jsVariant = false,
@@ -61,12 +67,7 @@ class WebpackConfigurator(private val subTarget: KotlinJsIrSubTarget) : SubTarge
 
         val assembleTaskProvider = project.tasks.named(LifecycleBasePlugin.ASSEMBLE_TASK_NAME)
 
-        val npmToolingDir: DirectoryProperty = project.objects.directoryProperty().fileProvider(
-            subTarget.target.webTargetVariant(
-                { compilation.npmProject.dir.map { it.asFile } },
-                { (nodeJsRoot as WasmNodeJsRootExtension).npmTooling.map { it.dir } },
-            )
-        )
+        val npmToolingDir: Provider<Directory> = compilation.npmToolingDir()
 
         compilation.binaries
             .withType<Executable>()
@@ -141,12 +142,7 @@ class WebpackConfigurator(private val subTarget: KotlinJsIrSubTarget) : SubTarge
         val target = compilation.target
         val project = target.project
 
-        val npmToolingDir: DirectoryProperty = project.objects.directoryProperty().fileProvider(
-            subTarget.target.webTargetVariant(
-                { compilation.npmProject.dir.map { it.asFile } },
-                { (nodeJsRoot as WasmNodeJsRootExtension).npmTooling.map { it.dir } },
-            )
-        )
+        val npmToolingDir: Provider<Directory> = compilation.npmToolingDir()
 
         compilation.binaries
             .withType<Executable>()
@@ -237,23 +233,19 @@ class WebpackConfigurator(private val subTarget: KotlinJsIrSubTarget) : SubTarge
         entryModuleName: Provider<String>,
         configurationActions: DomainObjectSet<Action<KotlinWebpack>>,
         defaultArchivesName: Property<String>,
-        npmToolingDir: DirectoryProperty,
+        npmToolingDir: Provider<Directory>,
     ) {
         val target = binary.target
 
         dependsOn(
             target.project.tasks.named(compilation.processResourcesTaskName)
         )
-
-        dependsOn(nodeJsRoot.npmInstallTaskProvider)
-
-        dependsOn(nodeJsRoot.packageManagerExtension.map { it.postInstallTasks })
-
         configureOptimization(mode)
 
         this.npmToolingEnvDir
             .value(npmToolingDir)
             .disallowChanges()
+        dependsOnNpmTooling(compilation)
 
         val isWasm = this@WebpackConfigurator.isWasm
 
@@ -272,8 +264,8 @@ class WebpackConfigurator(private val subTarget: KotlinJsIrSubTarget) : SubTarge
 
         val platformType = binary.compilation.platformType
         val moduleKind = binary.linkTask.flatMap { task ->
-            task.compilerOptions.moduleKind.orElse(task.compilerOptions.target.map {
-                if (it == ES_2015) JsModuleKind.MODULE_ES else JsModuleKind.MODULE_UMD
+            task.compilerOptions.moduleKind.orElse(task.compilerOptions.targetVersion.map {
+                if (it.supportsEsModules) JsModuleKind.MODULE_ES else JsModuleKind.MODULE_UMD
             })
         }
 

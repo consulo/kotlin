@@ -28,6 +28,24 @@ public class ArgumentParsingTestGenerated extends AbstractArgumentParsingTest {
   }
 
   @Test
+  @TestMetadata("classpathChanges.txt")
+  public void testClasspathChanges() {
+    run("classpathChanges.txt");
+  }
+
+  @Test
+  @TestMetadata("errorComma.txt")
+  public void testErrorComma() {
+    run("errorComma.txt");
+  }
+
+  @Test
+  @TestMetadata("errorCommaPath.txt")
+  public void testErrorCommaPath() {
+    run("errorCommaPath.txt");
+  }
+
+  @Test
   @TestMetadata("errorFlag.txt")
   public void testErrorFlag() {
     run("errorFlag.txt");
@@ -49,6 +67,18 @@ public class ArgumentParsingTestGenerated extends AbstractArgumentParsingTest {
   @TestMetadata("kotlincHelp.txt")
   public void testKotlincHelp() {
     run("kotlincHelp.txt");
+  }
+
+  @Test
+  @TestMetadata("oldLanguageVersion.txt")
+  public void testOldLanguageVersion() {
+    run("oldLanguageVersion.txt");
+  }
+
+  @Test
+  @TestMetadata("processorsComma.txt")
+  public void testProcessorsComma() {
+    run("processorsComma.txt");
   }
 
   @Test

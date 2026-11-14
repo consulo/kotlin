@@ -9,7 +9,6 @@ import com.google.gson.GsonBuilder
 import jetbrains.buildServer.messages.serviceMessages.BaseTestSuiteMessage
 import org.gradle.api.Project
 import org.gradle.api.file.Directory
-import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.internal.tasks.testing.TestResultProcessor
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
@@ -25,23 +24,22 @@ import org.jetbrains.kotlin.gradle.targets.js.NpmVersions
 import org.jetbrains.kotlin.gradle.targets.js.RequiredKotlinJsDependency
 import org.jetbrains.kotlin.gradle.targets.js.dsl.WebpackRulesDsl.Companion.webpackRulesContainer
 import org.jetbrains.kotlin.gradle.targets.js.internal.appendConfigsFromDir
+import org.jetbrains.kotlin.gradle.targets.js.ir.npmVersions
 import org.jetbrains.kotlin.gradle.targets.js.internal.parseNodeJsStackTraceAsJvm
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrCompilation
+import org.jetbrains.kotlin.gradle.targets.js.ir.npmToolingDir
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsPlugin.Companion.kotlinNodeJsEnvSpec
-import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin.Companion.kotlinNodeJsRootExtension
 import org.jetbrains.kotlin.gradle.targets.js.npm.NpmProject
 import org.jetbrains.kotlin.gradle.targets.js.npm.NpmProjectModules
 import org.jetbrains.kotlin.gradle.targets.js.npm.npmProject
 import org.jetbrains.kotlin.gradle.targets.js.testing.*
 import org.jetbrains.kotlin.gradle.targets.js.webTargetVariant
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
-import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootExtension
+import org.jetbrains.kotlin.gradle.targets.wasm.internal.isWasm
 import org.jetbrains.kotlin.gradle.targets.web.nodejs.BaseNodeJsEnvSpec
-import org.jetbrains.kotlin.gradle.targets.web.nodejs.BaseNodeJsRootExtension
 import org.jetbrains.kotlin.gradle.utils.appendLine
 import org.jetbrains.kotlin.gradle.utils.getFile
 import org.jetbrains.kotlin.gradle.utils.getValue
-import org.jetbrains.kotlin.gradle.utils.processes.ExecAsyncHandle
 import org.jetbrains.kotlin.gradle.utils.processes.ProcessLaunchOptions
 import org.jetbrains.kotlin.gradle.utils.property
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
@@ -49,7 +47,6 @@ import org.slf4j.Logger
 import java.io.File
 import java.io.PrintWriter
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsPlugin.Companion.kotlinNodeJsEnvSpec as wasmKotlinNodeJsEnvSpec
-import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootPlugin.Companion.kotlinNodeJsRootExtension as wasmKotlinNodeJsRootExtension
 
 class KotlinKarma internal constructor(
     @Transient
@@ -64,14 +61,8 @@ class KotlinKarma internal constructor(
 
     private val platformType: KotlinPlatformType = compilation.platformType
 
-    @Transient
-    private val nodeJsRoot: BaseNodeJsRootExtension = compilation.webTargetVariant(
-        { project.rootProject.kotlinNodeJsRootExtension },
-        { project.rootProject.wasmKotlinNodeJsRootExtension },
-    )
-
     private val versions: NpmVersions by lazy {
-        nodeJsRoot.versions
+        compilation.npmVersions()
     }
 
     @Transient
@@ -103,22 +94,16 @@ class KotlinKarma internal constructor(
 
     override val executable: Provider<String> = nodeJsEnvSpec.executable
 
+    @Deprecated("No longer used. Scheduled for removal in Kotlin 2.7.")
     override fun getPath() = "$basePath:kotlinKarma"
 
     override val settingsState: String
         get() = "KotlinKarma($config)"
 
-    internal val isWasm: Boolean = compilation.webTargetVariant(
-        jsVariant = false,
-        wasmVariant = true,
-    )
+    internal val isWasm: Boolean = compilation.isWasm
 
-    internal val npmToolingDir: DirectoryProperty = project.objects.directoryProperty().fileProvider(
-        compilation.webTargetVariant(
-            { npmProjectDir.map { it.asFile } },
-            { (nodeJsRoot as WasmNodeJsRootExtension).npmTooling.map { it.dir } },
-        )
-    )
+    internal val npmToolingDir: Provider<Directory> =
+        compilation.npmToolingDir()
 
     /**
      * Used by IntelliJ IDEA to determine which Karma URL should be opened in a browser when starting a debug session.
@@ -144,7 +129,8 @@ class KotlinKarma internal constructor(
         progressReporter = true,
         rules = project.objects.webpackRulesContainer(),
         experiments = mutableSetOf("topLevelAwait"),
-        resolveLoadersFromKotlinToolingDir = isWasm
+        resolveLoadersFromKotlinToolingDir = isWasm,
+        defineNonBrowserEnvironmentProperties = objects.property<Boolean>().convention(isWasm),
     )
 
     init {
@@ -201,11 +187,11 @@ class KotlinKarma internal constructor(
             it.appendLine(
                 """
                 config.plugins = config.plugins || [];
-                config.plugins.push('kotlin-web-helpers/dist/karma-kotlin-reporter.js');
+                config.plugins.push(require('kotlin-web-helpers/dist/karma-kotlin-reporter'));
                 
                 config.loggers = [
                     {
-                        type: 'kotlin-web-helpers/dist/tc-log-appender.js',
+                        type: require('kotlin-web-helpers/dist/tc-log-appender'),
                         //default layout
                         layout: { type: 'pattern', pattern: '%[%d{DATETIME}:%p [%c]: %]%m' }
                     }
@@ -225,7 +211,7 @@ class KotlinKarma internal constructor(
             it.appendLine(
                 """
                 config.plugins = config.plugins || [];
-                config.plugins.push('kotlin-web-helpers/dist/karma-webpack-output.js');
+                config.plugins.push(require('kotlin-web-helpers/dist/karma-webpack-output'));
             """.trimIndent()
             )
         }
@@ -538,9 +524,9 @@ class KotlinKarma internal constructor(
                             }
                     }
 
-                    override fun testFailedMessage(execHandle: ExecAsyncHandle, exitValue: Int): String {
+                    override fun testFailedMessage(displayName: String, exitValue: Int): String {
                         if (failedBrowsers.isEmpty()) {
-                            return super.testFailedMessage(execHandle, exitValue)
+                            return super.testFailedMessage(displayName, exitValue)
                         }
 
                         val failedBrowsers = failedBrowsers
@@ -670,7 +656,7 @@ internal fun writeConfig(
                 """
                         config.plugins = config.plugins || [];
                         
-                        config.plugins.push('kotlin-web-helpers/dist/karma-kotlin-debug-plugin.js');
+                        config.plugins.push(require('kotlin-web-helpers/dist/karma-kotlin-debug-plugin'));
                     """.trimIndent()
             )
         }

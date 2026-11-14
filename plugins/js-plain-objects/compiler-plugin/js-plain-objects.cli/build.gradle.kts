@@ -1,6 +1,8 @@
 description = "Kotlin JavaScript Plain Objects Compiler Plugin (CLI)"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
@@ -9,7 +11,7 @@ dependencies {
     compileOnly(project(":compiler:util"))
     compileOnly(project(":compiler:cli"))
     compileOnly(project(":compiler:plugin-api"))
-    compileOnly(project(":compiler:fir:entrypoint"))
+    compileOnly(project(":compiler:fir:plugin.api"))
     compileOnly(project(":compiler:ir.backend.common"))
 
     implementation(project(":plugins:js-plain-objects:compiler-plugin:js-plain-objects.backend"))

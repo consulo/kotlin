@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.symbols.AbstractSymbolByFqNameTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.symbols.AbstractSymbolByFqNameTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,7 +33,6 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByFqNameTestGenerated ext
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -83,6 +81,24 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByFqNameTestGenerated ext
   }
 
   @Test
+  @TestMetadata("enumEntryWithAnnotationsFromLibrary.kt")
+  public void testEnumEntryWithAnnotationsFromLibrary() {
+    run("enumEntryWithAnnotationsFromLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("expectFullValueClassWithNoConstructorFromCommonBinary.kt")
+  public void testExpectFullValueClassWithNoConstructorFromCommonBinary() {
+    run("expectFullValueClassWithNoConstructorFromCommonBinary.kt");
+  }
+
+  @Test
+  @TestMetadata("expectInlineValueClassWithNoConstructorFromCommonBinary.kt")
+  public void testExpectInlineValueClassWithNoConstructorFromCommonBinary() {
+    run("expectInlineValueClassWithNoConstructorFromCommonBinary.kt");
+  }
+
+  @Test
   @TestMetadata("explicitBackingField.kt")
   public void testExplicitBackingField() {
     run("explicitBackingField.kt");
@@ -95,9 +111,45 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByFqNameTestGenerated ext
   }
 
   @Test
+  @TestMetadata("explicitInlineValueClassFromBinary.kt")
+  public void testExplicitInlineValueClassFromBinary() {
+    run("explicitInlineValueClassFromBinary.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitInlineValueClassFromCommonBinary.kt")
+  public void testExplicitInlineValueClassFromCommonBinary() {
+    run("explicitInlineValueClassFromCommonBinary.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitInlineValueClassWithJvmInlineFromBinary.kt")
+  public void testExplicitInlineValueClassWithJvmInlineFromBinary() {
+    run("explicitInlineValueClassWithJvmInlineFromBinary.kt");
+  }
+
+  @Test
   @TestMetadata("fileWalkDirectionEnum.kt")
   public void testFileWalkDirectionEnum() {
     run("fileWalkDirectionEnum.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassFromBinary.kt")
+  public void testFullValueClassFromBinary() {
+    run("fullValueClassFromBinary.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassFromCommonBinary.kt")
+  public void testFullValueClassFromCommonBinary() {
+    run("fullValueClassFromCommonBinary.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueObjectFromBinary.kt")
+  public void testFullValueObjectFromBinary() {
+    run("fullValueObjectFromBinary.kt");
   }
 
   @Test
@@ -116,6 +168,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByFqNameTestGenerated ext
   @TestMetadata("getFirstJdk21.kt")
   public void testGetFirstJdk21() {
     run("getFirstJdk21.kt");
+  }
+
+  @Test
+  @TestMetadata("inlineClassFromBinary.kt")
+  public void testInlineClassFromBinary() {
+    run("inlineClassFromBinary.kt");
   }
 
   @Test
@@ -227,6 +285,18 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByFqNameTestGenerated ext
   }
 
   @Test
+  @TestMetadata("samConstructor.kt")
+  public void testSamConstructor() {
+    run("samConstructor.kt");
+  }
+
+  @Test
+  @TestMetadata("samConstructorAlias.kt")
+  public void testSamConstructorAlias() {
+    run("samConstructorAlias.kt");
+  }
+
+  @Test
   @TestMetadata("samConstructorFromInterface.kt")
   public void testSamConstructorFromInterface() {
     run("samConstructorFromInterface.kt");
@@ -267,6 +337,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByFqNameTestGenerated ext
     @TestMetadata("companionWithFoo_commonModule.kt")
     public void testCompanionWithFoo_commonModule() {
       run("companionWithFoo_commonModule.kt");
+    }
+
+    @Test
+    @TestMetadata("javaGetterImplementingKotlinProperty_MethodMode_Plugin.kt")
+    public void testJavaGetterImplementingKotlinProperty_MethodMode_Plugin() {
+      run("javaGetterImplementingKotlinProperty_MethodMode_Plugin.kt");
     }
 
     @Test

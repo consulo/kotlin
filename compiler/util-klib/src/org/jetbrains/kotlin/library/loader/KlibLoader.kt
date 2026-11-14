@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.library.loader
 
-import org.jetbrains.kotlin.konan.file.ZipFileSystemAccessor
-import org.jetbrains.kotlin.konan.file.ZipFileSystemInPlaceAccessor
+import org.jetbrains.kotlin.io.ZipFileSystemAccessor
+import org.jetbrains.kotlin.io.ZipFileSystemInPlaceAccessor
 import org.jetbrains.kotlin.library.KotlinAbiVersion
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.hasAbi
@@ -21,7 +21,6 @@ import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.exists
-import org.jetbrains.kotlin.konan.file.File as KFile
 
 /**
  * The [KlibLoader] component helps to load [KotlinLibrary]s based on the supplied
@@ -45,9 +44,12 @@ class KlibLoader(init: KlibLoaderSpec.() -> Unit) {
     private val libraryProviders = ArrayList<KlibLibraryProvider>()
     private val libraryPaths = ArrayList<String>()
     private var platformChecker: KlibPlatformChecker? = null
+    private var minPermittedAbiVersion: KotlinAbiVersion? = null
     private var maxPermittedAbiVersion: KotlinAbiVersion? = null
+    private var minSupportedCompilerVersionHint: String? = null
     private var zipFileSystemAccessor: ZipFileSystemAccessor? = null
     private var manifestTransformer: KlibManifestTransformer? = null
+    private var cancellationChecker: KlibLoadingCancellationChecker? = null
 
     init {
         object : KlibLoaderSpec {
@@ -79,6 +81,11 @@ class KlibLoader(init: KlibLoaderSpec.() -> Unit) {
                 platformChecker = checker
             }
 
+            override fun minPermittedAbiVersion(abiVersion: KotlinAbiVersion, compilerVersion: String?) {
+                minPermittedAbiVersion = abiVersion
+                minSupportedCompilerVersionHint = compilerVersion
+            }
+
             override fun maxPermittedAbiVersion(abiVersion: KotlinAbiVersion) {
                 maxPermittedAbiVersion = abiVersion
             }
@@ -89,6 +96,10 @@ class KlibLoader(init: KlibLoaderSpec.() -> Unit) {
 
             override fun manifestTransformer(transformer: KlibManifestTransformer) {
                 manifestTransformer = transformer
+            }
+
+            override fun cancellationChecker(checker: KlibLoadingCancellationChecker) {
+                cancellationChecker = checker
             }
         }.init()
     }
@@ -103,9 +114,12 @@ class KlibLoader(init: KlibLoaderSpec.() -> Unit) {
         return KlibLoaderImpl(
             libraryProviders = libraryProviders,
             platformChecker = platformChecker,
+            minPermittedAbiVersion = minPermittedAbiVersion,
             maxPermittedAbiVersion = maxPermittedAbiVersion,
+            minSupportedCompilerVersionHint = minSupportedCompilerVersionHint,
             zipFileSystemAccessor = zipFileSystemAccessor ?: ZipFileSystemInPlaceAccessor,
-            manifestTransformer = manifestTransformer
+            manifestTransformer = manifestTransformer,
+            cancellationChecker = cancellationChecker,
         ).loadLibraries()
     }
 }
@@ -120,35 +134,36 @@ interface KlibLoaderSpec {
     fun libraryPaths(vararg paths: Path)
 
     fun platformChecker(checker: KlibPlatformChecker)
+    fun minPermittedAbiVersion(abiVersion: KotlinAbiVersion, compilerVersion: String?)
     fun maxPermittedAbiVersion(abiVersion: KotlinAbiVersion)
     fun zipFileSystemAccessor(accessor: ZipFileSystemAccessor)
 
     fun manifestTransformer(transformer: KlibManifestTransformer)
+
+    fun cancellationChecker(checker: KlibLoadingCancellationChecker)
 }
 
 private class KlibLoaderImpl(
     private val libraryProviders: List<KlibLibraryProvider>,
     private val platformChecker: KlibPlatformChecker?,
+    private val minPermittedAbiVersion: KotlinAbiVersion?,
     private val maxPermittedAbiVersion: KotlinAbiVersion?,
+    private val minSupportedCompilerVersionHint: String?,
     private val zipFileSystemAccessor: ZipFileSystemAccessor,
     private val manifestTransformer: KlibManifestTransformer?,
+    private val cancellationChecker: KlibLoadingCancellationChecker?,
 ) {
     /**
-     * This is needed to avoid inspecting the same raw paths multiple times.
-     */
-    private val visitedRawPaths = HashSet<String>()
-
-    /**
-     * And this is needed to avoid inspecting the same canonical paths more than once.
+     * This is needed to avoid inspecting the same canonical path more than once.
      *
      * Note that transformation of a raw library path, which actually can be any form of
      * a relative path, to a canonical path happens after checking that the path is valid
      * and points to an existing file system object. That is why we have to keep both
-     * [visitedRawPaths] and [visitedCanonicalPaths] to have complete deduplication.
+     * [problematicLibraries] and [visitedCanonicalPaths] to have complete deduplication.
      *
      * N.B. The original order of paths is preserved!
      */
-    private val visitedCanonicalPaths = LinkedHashMap<Path, LibraryStatus>()
+    private val visitedCanonicalPaths = LinkedHashMap</* canonical path */ Path, LibraryStatus>()
 
     /**
      * Generally, all identified loading problems are stored in [visitedCanonicalPaths] as [LibraryStatus.FailedToLoad].
@@ -159,8 +174,10 @@ private class KlibLoaderImpl(
      * in exactly the same order as they were encountered during the loading process.
      *
      * So, we have to keep all loading problems as a separate list.
+     *
+     * N.B. The original order of paths is preserved!
      */
-    private val problematicLibraries = ArrayList<ProblematicLibrary>()
+    private val problematicLibraries = LinkedHashMap</* raw path */ String, ProblematicLibrary>()
 
     fun loadLibraries(): KlibLoaderResult {
         libraryProviders.forEach { libraryProvider -> loadLibrariesSuggestedByProvider(libraryProvider) }
@@ -181,26 +198,35 @@ private class KlibLoaderImpl(
                     loadedLibrariesStdlibFirst.add(library)
 
                 // Post-process all successfully loaded libraries.
-                status.suggestedByProviders.forEach { libraryProvider ->
-                    libraryProvider.postProcessLoadedLibrary(library)
+                libraryProviders.forEach { libraryProvider ->
+                    libraryProvider.postProcessLoadedLibrary(
+                        klib = library,
+                        wasLoadedByTheCurrentProvider = libraryProvider === status.firstProviderThatSuggestedTheLibrary
+                    )
                 }
             }
         }
 
-        return KlibLoaderResult(loadedLibrariesStdlibFirst, problematicLibraries)
+        return KlibLoaderResult(loadedLibrariesStdlibFirst, problematicLibraries.values.toList())
     }
 
     private fun loadLibrariesSuggestedByProvider(libraryProvider: KlibLibraryProvider) {
-        val rawPathsToProcess = ArrayList<String>()
+        cancellationChecker?.checkCanceled()
 
-        // Collect all raw paths that have not been visited yet.
-        libraryProvider.getLibraryPaths().forEach { rawPath ->
-            if (visitedRawPaths.add(rawPath)) {
-                rawPathsToProcess += rawPath
-            } // else: already visited, skip it.
-        }
+        val providedRawPaths = libraryProvider.getLibraryPaths()
+        if (providedRawPaths.isEmpty()) return
 
-        rawPathsToProcess.forEach { rawPath ->
+        // Use LinkedHashSet for deduplication of repeated raw paths. Preserve the order.
+        val deduplicatedRawPaths = LinkedHashSet(providedRawPaths)
+
+        deduplicatedRawPaths.forEach { rawPath ->
+            cancellationChecker?.checkCanceled()
+
+            if (rawPath in problematicLibraries) {
+                // We've already seen this raw path and identified it as problematic. No need to inspect again.
+                return@forEach
+            }
+
             val validPath: Path? = if (rawPath.isEmpty())
                 null
             else
@@ -211,16 +237,15 @@ private class KlibLoaderImpl(
                 }
 
             if (validPath == null || !validPath.exists()) {
-                problematicLibraries += ProblematicLibrary(rawPath, LibraryNotFound)
+                problematicLibraries[rawPath] = ProblematicLibrary(rawPath, LibraryNotFound)
                 return@forEach
             }
 
             val canonicalPath: Path = validPath.toRealPath()
 
-            when (val alreadyVisitedStatus = visitedCanonicalPaths[canonicalPath]) {
+            when (visitedCanonicalPaths[canonicalPath]) {
                 is LibraryStatus.SuccessfullyLoaded -> {
                     // Has been already successfully loaded.
-                    alreadyVisitedStatus.suggestedByProviders += libraryProvider // To keep track of all providers that suggested this path.
                 }
 
                 is LibraryStatus.FailedToLoad -> {
@@ -229,17 +254,17 @@ private class KlibLoaderImpl(
 
                 null -> {
                     // Has not been seen yet. Try to load it.
-                    val visitedStatus = loadSingleLibrary(rawPath, validPath)
+                    val visitedStatus = loadSingleLibrary(rawPath, validPath, canonicalPath)
                     visitedCanonicalPaths[canonicalPath] = visitedStatus
 
                     when (visitedStatus) {
                         is LibraryStatus.SuccessfullyLoaded -> {
                             // To keep track of all providers that suggested this path.
-                            visitedStatus.suggestedByProviders += libraryProvider
+                            visitedStatus.firstProviderThatSuggestedTheLibrary = libraryProvider
                         }
 
                         is LibraryStatus.FailedToLoad -> {
-                            problematicLibraries += visitedStatus.problem
+                            problematicLibraries[rawPath] = visitedStatus.problem
                         }
                     }
                 }
@@ -247,13 +272,16 @@ private class KlibLoaderImpl(
         }
     }
 
-    private fun loadSingleLibrary(rawPath: String, validPath: Path): LibraryStatus {
+    private fun loadSingleLibrary(rawPath: String, validPath: Path, canonicalPath: Path): LibraryStatus {
+        cancellationChecker?.checkCanceled()
+
         val library = try {
             // Important: Initialization of a KlibImpl instance always triggers reading and parsing
             // of the manifest file. If the manifest, which is the essential part of KLIB, is not available
             // or is corrupted, an exception is thrown. We immediately treat such library as problematic.
             KlibImpl(
-                location = KFile(validPath),
+                path = validPath,
+                canonicalPath = canonicalPath,
                 zipFileSystemAccessor = zipFileSystemAccessor,
                 manifestTransformer = manifestTransformer,
             )
@@ -265,16 +293,20 @@ private class KlibLoaderImpl(
             return LibraryStatus.FailedToLoad(ProblematicLibrary(rawPath, platformCheckMismatch))
         }
 
-        if (maxPermittedAbiVersion != null && library.hasAbi) {
+        if ((minPermittedAbiVersion != null || maxPermittedAbiVersion != null) && library.hasAbi) {
             val libraryAbiVersion: KotlinAbiVersion? = library.versions.abiVersion
-            if (libraryAbiVersion == null || !libraryAbiVersion.isAtMost(maxPermittedAbiVersion)) {
+            if (libraryAbiVersion == null
+                || (minPermittedAbiVersion != null && !libraryAbiVersion.isAtLeast(minPermittedAbiVersion))
+                || (maxPermittedAbiVersion != null && !libraryAbiVersion.isAtMost(maxPermittedAbiVersion))
+            ) {
                 return LibraryStatus.FailedToLoad(
                     ProblematicLibrary(
                         libraryPath = rawPath,
                         problemCase = IncompatibleAbiVersion(
                             libraryVersions = library.versions,
-                            minPermittedAbiVersion = null,
-                            maxPermittedAbiVersion = maxPermittedAbiVersion
+                            minPermittedAbiVersion = minPermittedAbiVersion,
+                            maxPermittedAbiVersion = maxPermittedAbiVersion,
+                            minSupportedCompilerVersionHint = minSupportedCompilerVersionHint,
                         )
                     )
                 )
@@ -285,10 +317,9 @@ private class KlibLoaderImpl(
     }
 
     private sealed interface LibraryStatus {
-        class SuccessfullyLoaded(
-            val library: KotlinLibrary,
-            val suggestedByProviders: LinkedHashSet<KlibLibraryProvider> = linkedSetOf(),
-        ) : LibraryStatus
+        class SuccessfullyLoaded(val library: KotlinLibrary) : LibraryStatus {
+            lateinit var firstProviderThatSuggestedTheLibrary: KlibLibraryProvider
+        }
 
         class FailedToLoad(val problem: ProblematicLibrary) : LibraryStatus
     }

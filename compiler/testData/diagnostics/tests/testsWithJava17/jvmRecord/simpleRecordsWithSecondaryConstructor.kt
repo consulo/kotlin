@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +JvmRecordSupport
+// RUN_PIPELINE_TILL: CODEGEN
 // FULL_JDK_17
 
 // FILE: MyRecord.java

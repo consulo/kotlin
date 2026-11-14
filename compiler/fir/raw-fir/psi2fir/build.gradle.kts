@@ -4,9 +4,12 @@
  */
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
+    id("test-coverage-convention")
+    id("require-explicit-types")
 }
 
 dependencies {
@@ -14,36 +17,45 @@ dependencies {
     implementation(project(":compiler:psi:psi-api"))
     implementation(project(":compiler:psi:psi-impl"))
     implementation(project(":compiler:psi:psi-frontend-utils"))
-    implementation(kotlinxCollectionsImmutable())
 
     compileOnly(intellijCore())
     compileOnly(libs.guava)
 
-    testFixturesApi(libs.junit4)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
+
     testFixturesApi(testFixtures(project(":compiler:tests-common")))
+    testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
+    testFixturesApi(testFixtures(project(":compiler:fir:raw-fir:raw-fir.common")))
     testFixturesApi(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
 
     testCompileOnly(kotlinTest("junit"))
-
-    testFixturesCompileOnly(intellijCore())
-    testImplementation(intellijCore())
 }
 
 sourceSets {
     "main" { projectDefault() }
-    "test" {
-        projectDefault()
-        generatedTestDir()
-    }
+    "test" { projectDefault() }
     "testFixtures" { projectDefault() }
 }
 
-projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit4) {
-        workingDir = rootDir
-    }
-
-    testGenerator("org.jetbrains.kotlin.fir.builder.TestGeneratorForPsi2FirKt")
+kotlin {
+    compilerOptions.optIn.addAll(
+        listOf(
+            "org.jetbrains.kotlin.fir.symbols.SymbolInternals",
+            "org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess",
+            "org.jetbrains.kotlin.types.model.K2Only",
+        )
+    )
 }
 
-testsJar()
+projectTests {
+    testTask()
+
+    testGenerator("org.jetbrains.kotlin.fir.builder.TestGeneratorForPsi2FirKt", generateTestsInBuildDirectory = true)
+
+    testData(project(":compiler:fir:raw-fir").isolated, "testData")
+    testData(project(":compiler").isolated, "testData")
+}
+

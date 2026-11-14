@@ -8,29 +8,22 @@ package org.jetbrains.kotlin.statistics.metrics
 import java.io.Serializable
 import java.util.*
 
+// This container is a value in a key/value pair such as MPP_PLATFORMS=...
 interface IMetricContainer<T> : Serializable {
     fun addValue(t: T, weight: Long? = null)
+
+    fun addValueFromStringPresentation(str: String)
 
     fun toStringRepresentation(): String
 
     fun getValue(): T?
 }
 
-interface IMetricContainerFactory<T> {
-    fun newMetricContainer(): IMetricContainer<T>
-
-    fun fromStringRepresentation(state: String): IMetricContainer<T>?
-}
-
-open class OverrideMetricContainer<T>() : IMetricContainer<T> {
+abstract class OverrideMetricContainer<T>() : IMetricContainer<T> {
     internal var myValue: T? = null
 
     override fun addValue(t: T, weight: Long?) {
         myValue = t
-    }
-
-    internal constructor(v: T?) : this() {
-        myValue = v
     }
 
     override fun toStringRepresentation(): String {
@@ -38,6 +31,24 @@ open class OverrideMetricContainer<T>() : IMetricContainer<T> {
     }
 
     override fun getValue() = myValue
+}
+
+open class OverrideStringMetricContainer() : OverrideMetricContainer<String>() {
+    override fun addValueFromStringPresentation(str: String) {
+        addValue(str, null)
+    }
+}
+
+open class OverrideLongMetricContainer() : OverrideMetricContainer<Long>() {
+    override fun addValueFromStringPresentation(str: String) {
+        str.toLongOrNull()?.also { addValue(it, null) }
+    }
+}
+
+open class OverrideBooleanMetricContainer(): OverrideMetricContainer<Boolean>() {
+    override fun addValueFromStringPresentation(str: String) {
+        str.toBooleanStrictOrNull()?.also { addValue(it, null) }
+    }
 }
 
 class OverrideVersionMetricContainer() : OverrideMetricContainer<String>() {
@@ -50,6 +61,10 @@ class OverrideVersionMetricContainer() : OverrideMetricContainer<String>() {
             myValue = t
         }
     }
+
+    override fun addValueFromStringPresentation(str: String) {
+        addValue(str, null)
+    }
 }
 
 class SumMetricContainer() : OverrideMetricContainer<Long>() {
@@ -59,6 +74,10 @@ class SumMetricContainer() : OverrideMetricContainer<Long>() {
 
     override fun addValue(t: Long, weight: Long?) {
         myValue = (myValue ?: 0) + t
+    }
+
+    override fun addValueFromStringPresentation(str: String) {
+        str.toLongOrNull()?.also { addValue(it, null) }
     }
 }
 
@@ -75,6 +94,10 @@ class AverageMetricContainer() : IMetricContainer<Long> {
         val w = weight ?: 1
         totalSum = (totalSum ?: 0) + t * w
         totalWeight += w
+    }
+
+    override fun addValueFromStringPresentation(str: String) {
+        str.toLongOrNull()?.also { addValue(it, null) }
     }
 
     override fun toStringRepresentation(): String {
@@ -94,26 +117,26 @@ class OrMetricContainer() : OverrideMetricContainer<Boolean>() {
     override fun addValue(t: Boolean, weight: Long?) {
         myValue = (myValue ?: false) || t
     }
+
+    override fun addValueFromStringPresentation(str: String) {
+        str.toBooleanStrictOrNull()?.also { addValue(it, null) }
+    }
 }
 
-class ConcatMetricContainer() : IMetricContainer<String> {
+class ConcatMetricContainer(val separator: String) : IMetricContainer<List<String>> {
     private val myValues = TreeSet<String>()
 
-    companion object {
-        const val SEPARATOR = ";"
+    override fun addValue(t: List<String>, weight: Long?) {
+        myValues.addAll(t)
     }
 
-    constructor(values: Collection<String>) : this() {
-        myValues.addAll(values)
-    }
-
-    override fun addValue(t: String, weight: Long?) {
-        myValues.add(t.replace(SEPARATOR, ","))
+    override fun addValueFromStringPresentation(str: String) {
+        addValue(str.split(separator), null)
     }
 
     override fun toStringRepresentation(): String {
-        return myValues.sorted().joinToString(SEPARATOR)
+        return myValues.sorted().joinToString(separator)
     }
 
-    override fun getValue() = toStringRepresentation()
+    override fun getValue() = myValues.toList()
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -7,11 +7,12 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators
 
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiManager
-import org.jetbrains.kotlin.analysis.api.impl.base.projectStructure.KaBuiltinsModuleImpl
+import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KaBuiltinsModuleImpl
 import org.jetbrains.kotlin.analysis.decompiler.psi.BuiltinsVirtualFileProvider
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.KtTestModule
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.KtTestModuleFactory
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind
+import org.jetbrains.kotlin.psi.KtPlatformInterface
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.targetPlatform
@@ -22,6 +23,7 @@ object AnalysisApiBuiltinsBinaryTestConfigurator : AnalysisApiFirBinaryTestConfi
 }
 
 private object KtBuiltinsBinaryTestModuleFactory : KtTestModuleFactory {
+    @OptIn(KtPlatformInterface::class)
     override fun createModule(
         testModule: TestModule,
         contextModule: KtTestModule?,

@@ -9,10 +9,10 @@ FILE fqName:<root> fileName:/exhaustiveWhenElseBranch.kt
         ENUM_CONSTRUCTOR_CALL 'public constructor <init> (name: kotlin.String, ordinal: kotlin.Int) declared in kotlin.Enum'
           TYPE_ARG E: <root>.A
         INSTANCE_INITIALIZER_CALL classDescriptor='CLASS ENUM_CLASS name:A modality:FINAL visibility:public superTypes:[kotlin.Enum<<root>.A>]' type=kotlin.Unit
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.A
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.A [companion]
       VALUE_PARAMETER kind:Regular name:value index:0 type:kotlin.String
       SYNTHETIC_BODY kind=ENUM_VALUEOF
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.A>
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.A> [companion]
       SYNTHETIC_BODY kind=ENUM_VALUES
     FUN FAKE_OVERRIDE name:compareTo visibility:public modality:FINAL returnType:kotlin.Int [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.A>
@@ -33,7 +33,7 @@ FILE fqName:<root> fileName:/exhaustiveWhenElseBranch.kt
       overridden:
         public open fun toString (): kotlin.String declared in kotlin.Enum
     PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
-      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.A>
+      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.A> [companion]
         correspondingProperty: PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
         SYNTHETIC_BODY kind=ENUM_ENTRIES
     PROPERTY FAKE_OVERRIDE name:name visibility:public modality:FINAL [fake_override,val]
@@ -69,7 +69,8 @@ FILE fqName:<root> fileName:/exhaustiveWhenElseBranch.kt
               then: CONST Int type=kotlin.Int value=1
             BRANCH
               if: CONST Boolean type=kotlin.Boolean value=true
-              then: CALL 'public final fun noWhenBranchMatchedException (): kotlin.Nothing declared in kotlin.internal.ir' type=kotlin.Nothing origin=null
+              then: CALL 'internal final fun throwNoWhenBranchMatchedException (subject: kotlin.Any): kotlin.Nothing declared in kotlin.internal' type=kotlin.Nothing origin=null
+                ARG subject: GET_VAR 'val tmp_0: <root>.A declared in <root>.testAnnotated_throwsJvm' type=<root>.A origin=null
   FUN name:testExpression_throws visibility:public modality:FINAL returnType:kotlin.Int
     VALUE_PARAMETER kind:Regular name:a index:0 type:<root>.A
     BLOCK_BODY
@@ -85,7 +86,8 @@ FILE fqName:<root> fileName:/exhaustiveWhenElseBranch.kt
               then: CONST Int type=kotlin.Int value=1
             BRANCH
               if: CONST Boolean type=kotlin.Boolean value=true
-              then: CALL 'public final fun noWhenBranchMatchedException (): kotlin.Nothing declared in kotlin.internal.ir' type=kotlin.Nothing origin=null
+              then: CALL 'internal final fun throwNoWhenBranchMatchedException (subject: kotlin.Any): kotlin.Nothing declared in kotlin.internal' type=kotlin.Nothing origin=null
+                ARG subject: GET_VAR 'val tmp_1: <root>.A declared in <root>.testExpression_throws' type=<root>.A origin=null
   FUN name:testIfTheElseAnnotated_throwsJvm visibility:public modality:FINAL returnType:kotlin.Unit
     VALUE_PARAMETER kind:Regular name:a index:0 type:<root>.A
     VALUE_PARAMETER kind:Regular name:flag index:1 type:kotlin.Boolean
@@ -108,7 +110,8 @@ FILE fqName:<root> fileName:/exhaustiveWhenElseBranch.kt
                   then: CONST Int type=kotlin.Int value=1
                 BRANCH
                   if: CONST Boolean type=kotlin.Boolean value=true
-                  then: CALL 'public final fun noWhenBranchMatchedException (): kotlin.Nothing declared in kotlin.internal.ir' type=kotlin.Nothing origin=null
+                  then: CALL 'internal final fun throwNoWhenBranchMatchedException (subject: kotlin.Any): kotlin.Nothing declared in kotlin.internal' type=kotlin.Nothing origin=null
+                    ARG subject: GET_VAR 'val tmp_2: <root>.A declared in <root>.testIfTheElseAnnotated_throwsJvm' type=<root>.A origin=null
   FUN name:testIfTheElseParenthesized_throwsJvm visibility:public modality:FINAL returnType:kotlin.Unit
     VALUE_PARAMETER kind:Regular name:a index:0 type:<root>.A
     VALUE_PARAMETER kind:Regular name:flag index:1 type:kotlin.Boolean
@@ -131,7 +134,8 @@ FILE fqName:<root> fileName:/exhaustiveWhenElseBranch.kt
                   then: CONST Int type=kotlin.Int value=1
                 BRANCH
                   if: CONST Boolean type=kotlin.Boolean value=true
-                  then: CALL 'public final fun noWhenBranchMatchedException (): kotlin.Nothing declared in kotlin.internal.ir' type=kotlin.Nothing origin=null
+                  then: CALL 'internal final fun throwNoWhenBranchMatchedException (subject: kotlin.Any): kotlin.Nothing declared in kotlin.internal' type=kotlin.Nothing origin=null
+                    ARG subject: GET_VAR 'val tmp_3: <root>.A declared in <root>.testIfTheElseParenthesized_throwsJvm' type=<root>.A origin=null
   FUN name:testIfTheElseStatement_empty visibility:public modality:FINAL returnType:kotlin.Unit
     VALUE_PARAMETER kind:Regular name:a index:0 type:<root>.A
     VALUE_PARAMETER kind:Regular name:flag index:1 type:kotlin.Boolean
@@ -154,7 +158,8 @@ FILE fqName:<root> fileName:/exhaustiveWhenElseBranch.kt
                   then: CONST Int type=kotlin.Int value=1
                 BRANCH
                   if: CONST Boolean type=kotlin.Boolean value=true
-                  then: CALL 'public final fun noWhenBranchMatchedException (): kotlin.Nothing declared in kotlin.internal.ir' type=kotlin.Nothing origin=null
+                  then: CALL 'internal final fun throwNoWhenBranchMatchedException (subject: kotlin.Any): kotlin.Nothing declared in kotlin.internal' type=kotlin.Nothing origin=null
+                    ARG subject: GET_VAR 'val tmp_4: <root>.A declared in <root>.testIfTheElseStatement_empty' type=<root>.A origin=null
   FUN name:testLambdaResultExpression_throws visibility:public modality:FINAL returnType:kotlin.Unit
     VALUE_PARAMETER kind:Regular name:a index:0 type:<root>.A
     BLOCK_BODY
@@ -175,7 +180,8 @@ FILE fqName:<root> fileName:/exhaustiveWhenElseBranch.kt
                         then: CONST Int type=kotlin.Int value=1
                       BRANCH
                         if: CONST Boolean type=kotlin.Boolean value=true
-                        then: CALL 'public final fun noWhenBranchMatchedException (): kotlin.Nothing declared in kotlin.internal.ir' type=kotlin.Nothing origin=null
+                        then: CALL 'internal final fun throwNoWhenBranchMatchedException (subject: kotlin.Any): kotlin.Nothing declared in kotlin.internal' type=kotlin.Nothing origin=null
+                          ARG subject: GET_VAR 'val tmp_5: <root>.A declared in <root>.testLambdaResultExpression_throws.<anonymous>' type=<root>.A origin=null
   FUN name:testParenthesized_throwsJvm visibility:public modality:FINAL returnType:kotlin.Unit
     VALUE_PARAMETER kind:Regular name:a index:0 type:<root>.A
     BLOCK_BODY
@@ -191,7 +197,8 @@ FILE fqName:<root> fileName:/exhaustiveWhenElseBranch.kt
               then: CONST Int type=kotlin.Int value=1
             BRANCH
               if: CONST Boolean type=kotlin.Boolean value=true
-              then: CALL 'public final fun noWhenBranchMatchedException (): kotlin.Nothing declared in kotlin.internal.ir' type=kotlin.Nothing origin=null
+              then: CALL 'internal final fun throwNoWhenBranchMatchedException (subject: kotlin.Any): kotlin.Nothing declared in kotlin.internal' type=kotlin.Nothing origin=null
+                ARG subject: GET_VAR 'val tmp_6: <root>.A declared in <root>.testParenthesized_throwsJvm' type=<root>.A origin=null
   FUN name:testStatement_empty visibility:public modality:FINAL returnType:kotlin.Unit
     VALUE_PARAMETER kind:Regular name:a index:0 type:<root>.A
     BLOCK_BODY
@@ -207,7 +214,8 @@ FILE fqName:<root> fileName:/exhaustiveWhenElseBranch.kt
               then: CONST Int type=kotlin.Int value=1
             BRANCH
               if: CONST Boolean type=kotlin.Boolean value=true
-              then: CALL 'public final fun noWhenBranchMatchedException (): kotlin.Nothing declared in kotlin.internal.ir' type=kotlin.Nothing origin=null
+              then: CALL 'internal final fun throwNoWhenBranchMatchedException (subject: kotlin.Any): kotlin.Nothing declared in kotlin.internal' type=kotlin.Nothing origin=null
+                ARG subject: GET_VAR 'val tmp_7: <root>.A declared in <root>.testStatement_empty' type=<root>.A origin=null
   FUN name:testVariableAssignment_throws visibility:public modality:FINAL returnType:kotlin.Unit
     VALUE_PARAMETER kind:Regular name:a index:0 type:<root>.A
     BLOCK_BODY
@@ -224,4 +232,5 @@ FILE fqName:<root> fileName:/exhaustiveWhenElseBranch.kt
               CONST Int type=kotlin.Int value=11
           BRANCH
             if: CONST Boolean type=kotlin.Boolean value=true
-            then: CALL 'public final fun noWhenBranchMatchedException (): kotlin.Nothing declared in kotlin.internal.ir' type=kotlin.Nothing origin=null
+            then: CALL 'internal final fun throwNoWhenBranchMatchedException (subject: kotlin.Any): kotlin.Nothing declared in kotlin.internal' type=kotlin.Nothing origin=null
+              ARG subject: GET_VAR 'val tmp_8: <root>.A declared in <root>.testVariableAssignment_throws' type=<root>.A origin=null

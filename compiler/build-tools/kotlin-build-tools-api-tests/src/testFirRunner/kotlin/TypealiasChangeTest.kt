@@ -2,27 +2,25 @@
  * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+package org.jetbrains.kotlin.buildtools.tests.compilation
 
 import org.jetbrains.kotlin.buildtools.tests.CompilerExecutionStrategyConfiguration
-import org.jetbrains.kotlin.buildtools.tests.compilation.BaseCompilationTest
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertCompiledSources
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.DefaultStrategyAgnosticCompilationTest
-import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.scenario
+import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.jvmScenario
 import org.jetbrains.kotlin.buildtools.tests.compilation.util.moduleWithFir
 import org.jetbrains.kotlin.test.TestMetadata
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 
 
 @DisplayName("Single module IC scenarios with typealiases")
 class TypealiasChangeTest : BaseCompilationTest() {
 
-    @Disabled("Broken, KT-28233")
     @DefaultStrategyAgnosticCompilationTest
     @DisplayName("Potential first-round errors: typealias change")
     @TestMetadata("empty")
     fun testTypealiasChange(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        scenario(strategyConfig) {
+        jvmScenario(strategyConfig) {
             val module = moduleWithFir("empty")
 
             module.createFile(

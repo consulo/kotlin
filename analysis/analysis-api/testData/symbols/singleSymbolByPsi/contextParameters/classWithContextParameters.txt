@@ -1,9 +1,9 @@
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: Foo
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: [
     KaContextReceiver:
       label: parameter1
@@ -30,10 +30,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: FINAL
   name: Foo
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -44,6 +47,6 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(classWithContextParameters.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: Foo

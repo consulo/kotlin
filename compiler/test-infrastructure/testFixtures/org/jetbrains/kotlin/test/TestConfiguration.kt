@@ -9,7 +9,9 @@ import com.intellij.openapi.Disposable
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.directives.model.RegisteredDirectives
 import org.jetbrains.kotlin.test.model.AfterAnalysisChecker
+import org.jetbrains.kotlin.test.model.GroupingTestIsolator
 import org.jetbrains.kotlin.test.model.ResultingArtifact
+import org.jetbrains.kotlin.test.model.TestFailureSuppressor
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.MetaTestConfigurator
 import org.jetbrains.kotlin.test.services.ModuleStructureExtractor
@@ -29,17 +31,19 @@ interface TestConfiguration<Step : TestStep<*, *>> {
     val preAnalysisHandlers: List<PreAnalysisHandler>
     val metaTestConfigurators: List<MetaTestConfigurator>
     val afterAnalysisCheckers: List<AfterAnalysisChecker>
+    val failureSuppressors: List<TestFailureSuppressor>
     val metaInfoHandlerEnabled: Boolean
 
     val steps: List<Step>
 }
 
-interface NonGroupingPhaseTestConfiguration : TestConfiguration<TestStep.NonGroupingStep<*, *>> {
+interface NonGroupingStageTestConfiguration : TestConfiguration<TestStep.NonGroupingStep<*, *>> {
     var startingArtifactFactory: (TestModule) -> ResultingArtifact<*>
+    val groupingTestIsolators: List<GroupingTestIsolator>
 }
 
-interface GroupingPhaseTestConfiguration : TestConfiguration<TestStep.GroupingPhaseStep<*, *>> {
-    val mergerWorkers: List<GroupingPhaseInputsMerger.Worker>
+interface GroupingStageTestConfiguration : TestConfiguration<TestStep.GroupingStageStep<*, *>> {
+    val mergerWorkers: List<GroupingStageInputsMerger.Worker>
 }
 
 // ---------------------------- Utils ----------------------------

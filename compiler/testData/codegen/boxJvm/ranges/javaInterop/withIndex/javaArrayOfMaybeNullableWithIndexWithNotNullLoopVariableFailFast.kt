@@ -1,6 +1,5 @@
-// LANGUAGE: +StrictJavaNullabilityAssertions
 // TARGET_BACKEND: JVM
-// IGNORE_BACKEND: JVM_IR
+// IGNORE_BACKEND: JVM
 // FIR status: not supported in JVM
 // WITH_STDLIB
 

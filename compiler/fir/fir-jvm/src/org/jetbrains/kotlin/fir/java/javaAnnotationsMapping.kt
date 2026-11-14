@@ -6,16 +6,13 @@
 package org.jetbrains.kotlin.fir.java
 
 import org.jetbrains.kotlin.KtSourceElement
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
-import org.jetbrains.kotlin.fir.FirAnnotationContainer
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirModuleData
 import org.jetbrains.kotlin.fir.FirSession
-import org.jetbrains.kotlin.fir.declarations.FirConstructor
-import org.jetbrains.kotlin.fir.declarations.FirRegularClass
-import org.jetbrains.kotlin.fir.declarations.FirValueParameter
-import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
+import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.diagnostics.ConeSimpleDiagnostic
 import org.jetbrains.kotlin.fir.diagnostics.DiagnosticKind
 import org.jetbrains.kotlin.fir.expressions.*
@@ -24,6 +21,7 @@ import org.jetbrains.kotlin.fir.expressions.impl.FirAnnotationArgumentMappingImp
 import org.jetbrains.kotlin.fir.expressions.impl.FirEmptyAnnotationArgumentMapping
 import org.jetbrains.kotlin.fir.java.declarations.buildJavaExternalAnnotation
 import org.jetbrains.kotlin.fir.java.declarations.buildJavaValueParameter
+import org.jetbrains.kotlin.fir.java.declarations.javaOrigin
 import org.jetbrains.kotlin.fir.java.enhancement.FirLazyJavaAnnotationList
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnresolvedReferenceError
 import org.jetbrains.kotlin.fir.resolve.toSymbol
@@ -32,7 +30,6 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.buildErrorTypeRef
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
-import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.fir.visitors.FirVisitor
 import org.jetbrains.kotlin.load.java.structure.*
@@ -44,6 +41,22 @@ import java.util.*
 internal fun Iterable<JavaAnnotation>.convertAnnotationsToFir(
     session: FirSession, source: KtSourceElement?,
 ): List<FirAnnotation> = map { it.toFirAnnotation(session, source) }
+
+/**
+ * Defers [getDeprecationsProviderFromAnnotations] until deprecations are queried,
+ * so lazy Java annotations are not forced eagerly (KT-74097).
+ */
+class FirJavaLazyDeprecationsProvider(
+    private val annotations: List<FirAnnotation>,
+    private val session: FirSession,
+) : DeprecationsProvider() {
+    private val delegate: DeprecationsProvider by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        annotations.getDeprecationsProviderFromAnnotations(session, fromJava = true)
+    }
+
+    override fun getDeprecationsInfo(languageVersionSettings: LanguageVersionSettings): DeprecationsPerUseSite? =
+        delegate.getDeprecationsInfo(languageVersionSettings)
+}
 
 internal fun Iterable<JavaAnnotation>.convertAnnotationsToFir(
     session: FirSession,
@@ -58,7 +71,7 @@ internal fun Iterable<JavaAnnotation>.convertAnnotationsToFir(
         this@convertAnnotationsToFir.mapTo(this) {
             if (it.isJavaDeprecatedAnnotation()) isDeprecated = true
             val firAnnotationCall = it.toFirAnnotation(session, source)
-            if (firAnnotationCall.toAnnotationClassId(session) == StandardClassIds.Annotations.Target) {
+            if (firAnnotationCall.resolvedType.classId == StandardClassIds.Annotations.Target) {
                 val unmappedKotlinAnnotation = it.classId == StandardClassIds.Annotations.Target
                 if (annotationWithJavaTarget == null && !unmappedKotlinAnnotation) {
                     annotationWithJavaTarget = firAnnotationCall
@@ -140,15 +153,6 @@ internal object DeprecatedInJavaDocAnnotation : JavaAnnotation {
     override fun resolve(): JavaClass? = null
 }
 
-internal fun FirAnnotationContainer.setAnnotationsFromJava(
-    session: FirSession, source: KtSourceElement?,
-    javaAnnotationOwner: JavaAnnotationOwner,
-) {
-    val annotations = mutableListOf<FirAnnotation>()
-    javaAnnotationOwner.annotations.mapTo(annotations) { it.toFirAnnotation(session, source) }
-    replaceAnnotations(annotations)
-}
-
 internal fun JavaValueParameter.toFirValueParameter(
     session: FirSession,
     functionSymbol: FirFunctionSymbol<*>,
@@ -156,7 +160,7 @@ internal fun JavaValueParameter.toFirValueParameter(
     index: Int,
 ): FirValueParameter = buildJavaValueParameter {
     source = toSourceElement()
-    isFromSource = this@toFirValueParameter.isFromSource
+    javaOrigin = javaOrigin(this@toFirValueParameter.isFromSource)
     this.moduleData = moduleData
     containingDeclarationSymbol = functionSymbol
     name = this@toFirValueParameter.nameOrGeneratedName ?: Name.identifier("p$index")
@@ -189,14 +193,24 @@ internal fun JavaAnnotationArgument.toFirExpression(
             }
         }
         is JavaEnumValueAnnotationArgument -> {
-            val classId = requireNotNull(enumClassId ?: expectedArrayElementTypeIfArray?.lowerBoundIfFlexible()?.classId)
-            buildEnumEntryDeserializedAccessExpression {
-                // enumClassId can be null when a java annotation uses a Kotlin enum as parameter and declares the default value using
-                // a static import. In this case, the parameter default initializer will not have its type set, which isn't usually an
-                // issue except in edge cases like KT-47702 where we do need to evaluate the default values of annotations.
-                // As a fallback, we use the expected type which should be the type of the enum.
-                enumClassId = classId
-                enumEntryName = entryName ?: SpecialNames.NO_NAME_PROVIDED
+            val classId = enumClassId ?: expectedArrayElementTypeIfArray?.lowerBoundIfFlexible()?.classId
+
+            if (classId != null) {
+                buildEnumEntryDeserializedAccessExpression {
+                    enumClassId = classId
+                    enumEntryName = entryName ?: SpecialNames.NO_NAME_PROVIDED
+                }
+            } else {
+                // Both `enumClassId` and the expected-type fallback are null (e.g. KT-47702:
+                // static-imported enum constant in an annotation default value). Produce a
+                // diagnosable error instead of the historic `requireNotNull` crash.
+                buildErrorExpression {
+                    this.source = source
+                    diagnostic = ConeSimpleDiagnostic(
+                        "Cannot resolve enum annotation argument: ${entryName?.asString() ?: "?"}",
+                        DiagnosticKind.Java,
+                    )
+                }
             }
         }
         is JavaClassObjectAnnotationArgument -> buildGetClassCall {

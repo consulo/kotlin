@@ -7,13 +7,13 @@ package org.jetbrains.kotlin.psi
 
 import com.intellij.lang.ASTNode
 import com.intellij.openapi.diagnostic.Logger
-import org.jetbrains.kotlin.KtStubBasedElementTypes
+import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.psi.stubs.KotlinPlaceHolderStub
 import org.jetbrains.kotlin.utils.exceptions.logErrorWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 /**
- * Represents a dot-qualified expression for member/extention access.
+ * Represents a dot-qualified expression for member/extension access.
  *
  * ### Example:
  *
@@ -22,10 +22,13 @@ import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
  * //        ^________^
  * ```
  */
+@OptIn(KtImplementationDetail::class)
 class KtDotQualifiedExpression : KtExpressionImplStub<KotlinPlaceHolderStub<KtDotQualifiedExpression>>, KtQualifiedExpression {
+    @KtImplementationDetail
     constructor(node: ASTNode) : super(node)
 
-    constructor(stub: KotlinPlaceHolderStub<KtDotQualifiedExpression>) : super(stub, KtStubBasedElementTypes.DOT_QUALIFIED_EXPRESSION)
+    @KtImplementationDetail
+    constructor(stub: KotlinPlaceHolderStub<KtDotQualifiedExpression>) : super(stub, KtNodeTypes.DOT_QUALIFIED_EXPRESSION)
 
     override fun <R, D> accept(visitor: KtVisitor<R, D>, data: D): R {
         return visitor.visitDotQualifiedExpression(this, data)
@@ -58,25 +61,16 @@ class KtDotQualifiedExpression : KtExpressionImplStub<KotlinPlaceHolderStub<KtDo
     }
 
     private fun getChildExpressionsByStub(stub: KotlinPlaceHolderStub<KtDotQualifiedExpression>): List<KtExpression>? {
-        if (stub.getParentStubOfType(KtImportDirective::class.java) == null &&
-            stub.getParentStubOfType(KtPackageDirective::class.java) == null &&
-            stub.getParentStubOfType(KtValueArgument::class.java) == null
-        ) {
-            LOG.error(
-                "KtDotQualifiedExpression should only have stubs inside import, argument or package directives.\n" +
-                        "Stubs were created for:\n$text\nFile text:\n${containingFile.text}"
-            )
-            return null
-        } else {
-            val expressions = stub.childrenStubs.mapNotNull { it.psi as? KtExpression }
-            if (expressions.size !in 1..2) {
-                LOG.logErrorWithAttachment("Invalid stub structure. DOT_QUALIFIED_EXPRESSION must have one or two children. Was: ${expressions.size}") {
-                    withPsiEntry("file", containingFile)
-                }
-                return null
+        val expressions = stub.childrenStubs.mapNotNull { it.psi as? KtExpression }
+        if (expressions.size !in 1..2) {
+            LOG.logErrorWithAttachment("Invalid stub structure. DOT_QUALIFIED_EXPRESSION must have one or two children. Was: ${expressions.size}") {
+                withPsiEntry("file", containingFile)
             }
-            return expressions
+
+            return null
         }
+
+        return expressions
     }
 
     companion object {

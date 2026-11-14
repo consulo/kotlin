@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * Copyright 2010-2026 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
 
@@ -11,6 +11,7 @@ import llvm.LLVMValueRef
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.backend.konan.objcexport.BlockPointerBridge
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
 import org.jetbrains.kotlin.ir.util.simpleFunctions
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
@@ -28,12 +29,16 @@ internal fun ObjCExportCodeGeneratorBase.generateBlockToKotlinFunctionConverter(
     val objectBodyType = if (useSeparateHolder) {
         ObjectBodyType(
                 llvm.structType(codegen.kObjHeader, llvm.pointerType),
-                objectFieldIndices = listOf(1)
+                mapOf(IrFieldSymbolImpl() to 1),
+                objectFieldIndices = listOf(1),
+                runtime.objectAlignment
         )
     } else {
         ObjectBodyType(
                 llvm.structType(codegen.kObjHeader),
-                objectFieldIndices = emptyList()
+                emptyMap(),
+                objectFieldIndices = emptyList(),
+                runtime.objectAlignment
         )
     }
     val bodyType = objectBodyType.llvmBodyType
@@ -94,7 +99,6 @@ internal fun ObjCExportCodeGeneratorBase.generateBlockToKotlinFunctionConverter(
             irInterface,
             mapOf(invokeMethod to invokeImpl.toConstPointer()),
             objectBodyType,
-            immutable = true
     )
     val functionSig = LlvmFunctionSignature(codegen.kObjHeaderPtrReturnType, listOf(LlvmParamType(llvm.pointerType), LlvmParamType(llvm.pointerType)))
     return functionGenerator(
@@ -131,7 +135,7 @@ private fun FunctionGenerationContext.loadBlockInvoke(
     val invokePtr = structGep(codegen.runtime.blockLiteralType, blockPtr, 3)
     val signature = bridge.blockType.toBlockInvokeLlvmType(llvm)
     val functionPointer = load(llvm.pointerType, invokePtr)
-    return LlvmCallable(functionPointer, signature)
+    return LlvmFunctionPointer(functionPointer, signature)
 }
 
 private fun FunctionGenerationContext.allocInstanceWithAssociatedObject(
@@ -322,7 +326,7 @@ internal class BlockGenerator(private val codegen: CodeGenerator) {
                 ret(llvm.kNull)
             }
 
-            val isa = codegen.importObjCGlobal("_NSConcreteStackBlock", llvm.pointerType)
+            val isa = codegen.importGlobal("_NSConcreteStackBlock", llvm.pointerType)
 
             val flags = llvm.int32((1 shl 25) or (1 shl 30) or (1 shl 31))
             val reserved = llvm.int32(0)

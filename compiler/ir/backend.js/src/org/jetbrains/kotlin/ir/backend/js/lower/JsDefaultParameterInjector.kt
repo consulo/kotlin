@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.ir.backend.js.utils.jsConstructorReference
 import org.jetbrains.kotlin.ir.builders.IrBlockBuilder
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
+import org.jetbrains.kotlin.ir.defaultArgumentsDispatchFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
@@ -45,10 +46,9 @@ class JsDefaultParameterInjector(context: JsIrBackendContext) :
 
     override fun shouldReplaceWithSyntheticFunction(functionAccess: IrFunctionAccessExpression): Boolean {
         return functionAccess.nonDispatchArguments.any { it == null } || functionAccess.symbol.owner.run {
-            origin == JsLoweredDeclarationOrigin.JS_SHADOWED_EXPORT &&
-                    !isTopLevel &&
+            !isTopLevel &&
                     functionAccess.origin != JsStatementOrigins.IMPLEMENTATION_DELEGATION_CALL &&
-                    (promisifiedWrapperFunction ?: this).isExported(context)
+                    (promisifiedWrapperFunction != null || (defaultArgumentsDispatchFunction ?: this).isExported(context))
         }
     }
 

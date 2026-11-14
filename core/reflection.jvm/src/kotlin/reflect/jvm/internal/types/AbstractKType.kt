@@ -14,18 +14,14 @@ import java.lang.reflect.Type
 import kotlin.jvm.internal.KTypeBase
 import kotlin.reflect.KClass
 import kotlin.reflect.KType
-import kotlin.reflect.jvm.internal.ReflectProperties
 import kotlin.reflect.jvm.internal.ReflectionObjectRenderer
 
 internal abstract class AbstractKType(
-    computeJavaType: (() -> Type)?,
+    protected val computeJavaType: Lazy<Type>?,
 ) : KTypeBase, FlexibleTypeMarker, SimpleTypeMarker, TypeArgumentListMarker,
     DefinitelyNotNullTypeMarker {
-    protected val computeJavaType =
-        computeJavaType as? ReflectProperties.LazySoftVal<Type> ?: computeJavaType?.let(ReflectProperties::lazySoft)
-
     override val javaType: Type?
-        get() = computeJavaType?.invoke()
+        get() = computeJavaType?.value
 
     abstract fun makeNullableAsSpecified(nullable: Boolean): AbstractKType
 
@@ -41,6 +37,11 @@ internal abstract class AbstractKType(
     abstract val mutableCollectionClass: KClass<*>?
     abstract fun lowerBoundIfFlexible(): AbstractKType?
     abstract fun upperBoundIfFlexible(): AbstractKType?
+
+    abstract val lazyAnnotations: Lazy<List<Annotation>>
+
+    override val annotations: List<Annotation>
+        get() = lazyAnnotations.value
 
     override fun equals(other: Any?): Boolean =
         other is AbstractKType && AbstractStrictEqualityTypeChecker.strictEqualTypes(ReflectTypeSystemContext, this, other)

@@ -1,13 +1,14 @@
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: test/C.foo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -22,6 +23,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: foo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -38,18 +41,23 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: test.C
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: foo
   importableFqName: null
 
 KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
   annotations: []
   backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Private
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -60,11 +68,14 @@ KaKotlinPropertySymbol:
     name: field
     origin: PROPERTY_BACKING_FIELD
     owningProperty: KaKotlinPropertySymbol(test/C.bar)
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/String
+    typeParameters: []
     visibility: PRIVATE
     getDispatchReceiver(): KaUsualClassType:
       annotations: []
@@ -73,19 +84,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(class.kt)
     getContainingJvmClassName: test.C
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   callableId: test/C.bar
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -95,11 +107,14 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: FINAL
     origin: SOURCE
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/String
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getDispatchReceiver(): KaUsualClassType:
@@ -109,19 +124,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(class.kt)
     getContainingJvmClassName: test.C
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: getBar
     importableFqName: null
   hasBackingField: true
   hasGetter: true
   hasSetter: false
   initializer: KaConstantInitializerValue("")
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: false
   isStatic: false
@@ -130,6 +146,9 @@ KaKotlinPropertySymbol:
   modality: FINAL
   name: bar
   origin: SOURCE
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -145,18 +164,170 @@ KaKotlinPropertySymbol:
   getContainingFileSymbol: KaFileSymbol(class.kt)
   getContainingJvmClassName: test.C
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
-  javaGetterName: getBar
-  javaSetterName: null
+  deprecation: null
   isInline: false
   importableFqName: null
 
+KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
+  annotations: []
+  callableId: test/C.cCompanionFunction
+  contextParameters: []
+  contextReceivers: []
+  contractEffects: []
+  hasStableParameterNames: true
+  isActual: false
+  isBuiltinFunctionInvoke: false
+  isCompanion: true
+  isExpect: false
+  isExtension: false
+  isExternal: false
+  isInfix: false
+  isInline: false
+  isOperator: false
+  isOverride: false
+  isStatic: false
+  isSuspend: false
+  isTailRec: false
+  location: CLASS
+  modality: FINAL
+  name: cCompanionFunction
+  origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
+  receiverParameter: null
+  returnType: KaUsualClassType:
+    annotations: []
+    typeArguments: []
+    type: kotlin/Unit
+  typeParameters: []
+  valueParameters: []
+  visibility: PUBLIC
+  getContainingFileSymbol: KaFileSymbol(class.kt)
+  getContainingJvmClassName: test.C
+  canBeOperator: false
+  getContainingModule: KaSourceModule "Sources of main"
+  deprecation: null
+  returnValueStatus: Unspecified
+  javaMethodName: cCompanionFunction
+  importableFqName: test.C.cCompanionFunction
+
+KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
+  annotations: []
+  backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtProperty
+    annotations: []
+    callableId: null
+    contextParameters: []
+    contextReceivers: []
+    isActual: false
+    isCompanion: false
+    isDelegated: false
+    isExpect: false
+    isExtension: false
+    isExternal: false
+    isNotDefault: false
+    isVal: true
+    location: PROPERTY
+    modality: FINAL
+    name: field
+    origin: PROPERTY_BACKING_FIELD
+    owningProperty: KaKotlinPropertySymbol(test/C.cCompanionProperty)
+    psi: null
+    realPsi: null
+    receiverParameter: null
+    returnType: KaUsualClassType:
+      annotations: []
+      typeArguments: []
+      type: kotlin/Int
+    typeParameters: []
+    visibility: PRIVATE
+    getContainingFileSymbol: KaFileSymbol(class.kt)
+    getContainingJvmClassName: test.C
+    getContainingModule: KaSourceModule "Sources of main"
+    deprecation: null
+    importableFqName: null
+  callableId: test/C.cCompanionProperty
+  contextParameters: []
+  contextReceivers: []
+  getter: KaPropertyGetterSymbol:
+    anchorPsi: KtProperty
+    annotations: []
+    callableId: null
+    contextParameters: []
+    contextReceivers: []
+    hasStableParameterNames: true
+    isActual: false
+    isCompanion: false
+    isExpect: false
+    isExtension: false
+    isExternal: false
+    isInline: false
+    isNotDefault: false
+    isOverride: false
+    location: PROPERTY
+    modality: FINAL
+    origin: SOURCE
+    psi: null
+    realPsi: null
+    receiverParameter: null
+    returnType: KaUsualClassType:
+      annotations: []
+      typeArguments: []
+      type: kotlin/Int
+    typeParameters: []
+    valueParameters: []
+    visibility: PUBLIC
+    getContainingFileSymbol: KaFileSymbol(class.kt)
+    getContainingJvmClassName: test.C
+    getContainingModule: KaSourceModule "Sources of main"
+    deprecation: null
+    javaMethodName: getCCompanionProperty
+    importableFqName: null
+  hasBackingField: true
+  hasGetter: true
+  hasSetter: false
+  initializer: KaConstantInitializerValue(0)
+  isActual: false
+  isCompanion: true
+  isConst: false
+  isDelegated: false
+  isExpect: false
+  isExtension: false
+  isExternal: false
+  isLateInit: false
+  isOverride: false
+  isStatic: false
+  isVal: true
+  location: CLASS
+  modality: FINAL
+  name: cCompanionProperty
+  origin: SOURCE
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
+  receiverParameter: null
+  returnType: KaUsualClassType:
+    annotations: []
+    typeArguments: []
+    type: kotlin/Int
+  setter: null
+  typeParameters: []
+  visibility: PUBLIC
+  getContainingFileSymbol: KaFileSymbol(class.kt)
+  getContainingJvmClassName: test.C
+  getContainingModule: KaSourceModule "Sources of main"
+  deprecation: null
+  isInline: false
+  importableFqName: test.C.cCompanionProperty
+
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: test/C.C2
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -165,10 +336,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: CLASS
   modality: FINAL
   name: C2
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -179,16 +353,16 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(class.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: test.C.C2
 
 KaNamedClassSymbol:
+  anchorPsi: KtObjectDeclaration
   annotations: []
   classId: test/C.O2
   classKind: OBJECT
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -197,10 +371,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: CLASS
   modality: FINAL
   name: O2
   origin: SOURCE
+  psi: KtObjectDeclaration
+  realPsi: KtObjectDeclaration
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -211,16 +388,16 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(class.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: test.C.O2
 
 KaNamedClassSymbol:
+  anchorPsi: KtObjectDeclaration
   annotations: []
   classId: test/C.Companion
   classKind: COMPANION_OBJECT
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -229,10 +406,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: CLASS
   modality: FINAL
   name: Companion
   origin: SOURCE
+  psi: KtObjectDeclaration
+  realPsi: KtObjectDeclaration
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -243,18 +423,20 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(class.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: test.C.Companion
 
 KaConstructorSymbol:
+  anchorPsi: KtClass
   annotations: []
   callableId: null
-  compilerVisibility: Public
   containingClassId: test/C
+  contextParameters: []
   contextReceivers: []
   hasStableParameterNames: true
   isActual: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -262,6 +444,8 @@ KaConstructorSymbol:
   location: CLASS
   modality: FINAL
   origin: SOURCE_MEMBER_GENERATED
+  psi: KtClass
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -273,5 +457,6 @@ KaConstructorSymbol:
   getContainingFileSymbol: KaFileSymbol(class.kt)
   getContainingJvmClassName: test.C
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
+  javaMethodName: null
   importableFqName: test.C

@@ -7,9 +7,9 @@ package org.jetbrains.kotlin.konan.test.blackbox;
 
 import com.intellij.testFramework.TestDataPath;
 import org.jetbrains.kotlin.test.util.KtTestUtil;
-import org.junit.jupiter.api.Tag;
 import org.jetbrains.kotlin.konan.test.blackbox.support.EnforcedProperty;
 import org.jetbrains.kotlin.konan.test.blackbox.support.ClassLevelProperty;
+import org.junit.jupiter.api.Tag;
 import org.jetbrains.kotlin.konan.test.blackbox.support.group.UseExtTestCaseGroupProvider;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
@@ -21,10 +21,9 @@ import java.util.regex.Pattern;
 @SuppressWarnings("all")
 @TestMetadata("plugins/kotlinx-serialization/testData/boxIr")
 @TestDataPath("$PROJECT_ROOT")
-@Tag("standalone")
-@EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE_NO_TR")
+@EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE")
 @Tag("serialization-native")
-@UseExtTestCaseGroupProvider()
+@UseExtTestCaseGroupProvider
 public class SerializationNativeTestGenerated extends AbstractNativeCodegenBoxTest {
   private void run(String fileName) {
     runTest("plugins/kotlinx-serialization/testData/boxIr/" + fileName);
@@ -72,6 +71,12 @@ public class SerializationNativeTestGenerated extends AbstractNativeCodegenBoxTe
   }
 
   @Test
+  @TestMetadata("companionBlocks.kt")
+  public void testCompanionBlocks() {
+    run("companionBlocks.kt");
+  }
+
+  @Test
   @TestMetadata("constValInSerialName.kt")
   public void testConstValInSerialName() {
     run("constValInSerialName.kt");
@@ -111,6 +116,12 @@ public class SerializationNativeTestGenerated extends AbstractNativeCodegenBoxTe
   @TestMetadata("delegatedProperty.kt")
   public void testDelegatedProperty() {
     run("delegatedProperty.kt");
+  }
+
+  @Test
+  @TestMetadata("encodeDefaultArrayContentEquals.kt")
+  public void testEncodeDefaultArrayContentEquals() {
+    run("encodeDefaultArrayContentEquals.kt");
   }
 
   @Test
@@ -156,6 +167,24 @@ public class SerializationNativeTestGenerated extends AbstractNativeCodegenBoxTe
   }
 
   @Test
+  @TestMetadata("externalSerializerWithConcreteSupertype.kt")
+  public void testExternalSerializerWithConcreteSupertype() {
+    run("externalSerializerWithConcreteSupertype.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassInPolymorphicHierarchy.kt")
+  public void testFullValueClassInPolymorphicHierarchy() {
+    run("fullValueClassInPolymorphicHierarchy.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassWithSuperclassDefaults.kt")
+  public void testFullValueClassWithSuperclassDefaults() {
+    run("fullValueClassWithSuperclassDefaults.kt");
+  }
+
+  @Test
   @TestMetadata("generatedClassifiersViaLibraryDependency.kt")
   public void testGeneratedClassifiersViaLibraryDependency() {
     run("generatedClassifiersViaLibraryDependency.kt");
@@ -174,9 +203,21 @@ public class SerializationNativeTestGenerated extends AbstractNativeCodegenBoxTe
   }
 
   @Test
+  @TestMetadata("genericWithClassUpperBoundMultiModule.kt")
+  public void testGenericWithClassUpperBoundMultiModule() {
+    run("genericWithClassUpperBoundMultiModule.kt");
+  }
+
+  @Test
   @TestMetadata("generics.kt")
   public void testGenerics() {
     run("generics.kt");
+  }
+
+  @Test
+  @TestMetadata("genericsExtended.kt")
+  public void testGenericsExtended() {
+    run("genericsExtended.kt");
   }
 
   @Test
@@ -246,9 +287,27 @@ public class SerializationNativeTestGenerated extends AbstractNativeCodegenBoxTe
   }
 
   @Test
+  @TestMetadata("JavaEnums.kt")
+  public void testJavaEnums() {
+    run("JavaEnums.kt");
+  }
+
+  @Test
   @TestMetadata("KeepGeneratedSerializer.kt")
   public void testKeepGeneratedSerializer() {
     run("KeepGeneratedSerializer.kt");
+  }
+
+  @Test
+  @TestMetadata("kt88571.kt")
+  public void testKt88571() {
+    run("kt88571.kt");
+  }
+
+  @Test
+  @TestMetadata("kt88571SerializerFunction.kt")
+  public void testKt88571SerializerFunction() {
+    run("kt88571SerializerFunction.kt");
   }
 
   @Test
@@ -273,12 +332,6 @@ public class SerializationNativeTestGenerated extends AbstractNativeCodegenBoxTe
   @TestMetadata("mppInheritance.kt")
   public void testMppInheritance() {
     run("mppInheritance.kt");
-  }
-
-  @Test
-  @TestMetadata("multiFieldValueClasses.kt")
-  public void testMultiFieldValueClasses() {
-    run("multiFieldValueClasses.kt");
   }
 
   @Test
@@ -315,6 +368,12 @@ public class SerializationNativeTestGenerated extends AbstractNativeCodegenBoxTe
   @TestMetadata("namedCompanions.kt")
   public void testNamedCompanions() {
     run("namedCompanions.kt");
+  }
+
+  @Test
+  @TestMetadata("pinnedBugSerializationGh2241.kt")
+  public void testPinnedBugSerializationGh2241() {
+    run("pinnedBugSerializationGh2241.kt");
   }
 
   @Test

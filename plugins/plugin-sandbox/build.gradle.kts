@@ -1,41 +1,44 @@
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
-import org.jetbrains.kotlin.konan.target.HostManager
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("d8-configuration")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
-// WARNING: Native target is host-dependent. Re-running the same build on another host OS may give a different result.
-val nativeTargetName = HostManager.host.name
-val sandboxAnnotationsNativeRuntimeForTests by configurations.creating {
+val sandboxAnnotationsNativeRuntimeForTests = configurations.create("sandboxAnnotationsNativeRuntimeForTests") {
     attributes {
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.native)
-        // WARNING: Native target is host-dependent. Re-running the same build on another host OS may give a different result.
-        attribute(KotlinNativeTarget.konanTargetAttribute, nativeTargetName)
+        hostKonanTargetAttribute()
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(KotlinUsages.KOTLIN_API))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.native)
     }
 }
 
-val sandboxPluginForTests by configurations.creating
+val sandboxPluginForTests = configurations.create("sandboxPluginForTests")
 
 dependencies {
-    compileOnly(project(":compiler:fir:cones"))
-    compileOnly(project(":compiler:fir:tree"))
-    compileOnly(project(":compiler:fir:resolve"))
-    compileOnly(project(":compiler:fir:plugin-utils"))
-    compileOnly(project(":compiler:fir:checkers"))
-    compileOnly(project(":compiler:fir:fir2ir"))
-    compileOnly(project(":compiler:ir.backend.common"))
-    compileOnly(project(":compiler:ir.tree"))
-    compileOnly(project(":compiler:fir:entrypoint"))
-    compileOnly(project(":compiler:plugin-api"))
+    implementation(project(":compiler:frontend.common.jvm"))
+    implementation(project(":compiler:frontend.common-psi"))
+    implementation(project(":compiler:psi:psi-api"))
+    implementation(project(":core:descriptors"))
+
+    implementation(project(":compiler:ir.backend.common"))
+    implementation(project(":compiler:ir.tree"))
+    implementation(project(":compiler:plugin-api"))
+    implementation(project(":compiler:fir:plugin.api"))
+    // Required for 'FirFunctionCallRefinementExtension' internal FIR extension.
+    implementation(project(":compiler:fir:resolve"))
+    // TODO(KT-90146): Required to access various utility functions.
+    implementation(project(":compiler:fir:checkers:checkers.common"))
+    // TODO(KT-90146): Required to access various utility functions.
+    implementation(project(":compiler:fir:fir-jvm"))
+    // TODO(KT-90146): Required to access various utility functions.
+    implementation(project(":compiler:fir:fir2ir"))
     compileOnly(intellijCore())
     compileOnly(libs.intellij.asm)
 
@@ -43,9 +46,9 @@ dependencies {
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
-    testFixturesApi(testFixtures(project(":compiler:fir:analysis-tests")))
+    testFixturesApi(testFixtures(project(":compiler:jvm.tests")))
     testFixturesApi(testFixtures(project(":js:js.tests")))
-    testFixturesApi(project(":compiler:fir:plugin-utils"))
+    testFixturesApi(project(":compiler:fir:plugin.api"))
     testFixturesImplementation(testFixtures(project(":tools:kotlinp-jvm")))
 
     testFixturesApi(testFixtures(project(":native:native.tests")))
@@ -68,7 +71,7 @@ sourceSets {
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5) {
+    testTask() {
         useJsIrBoxTests(buildDir = layout.buildDirectory)
         useJUnitPlatform {
             excludeTags("sandbox-native")
@@ -83,10 +86,11 @@ projectTests {
         compilerPluginDependencies = listOf(sandboxPluginForTests)
     )
 
-    testGenerator("org.jetbrains.kotlin.plugin.sandbox.TestGeneratorKt", generateTestsInBuildDirectory = true)
+    testGenerator("org.jetbrains.kotlin.plugin.sandbox.TestGeneratorKt", generateTestsInBuildDirectory = true) {
+        args("tolerateEmptyModels")
+    }
 
     withJvmStdlibAndReflect()
-    withScriptRuntime()
     withMockJdkAnnotationsJar()
     withMockJdkRuntime()
     withTestJar()

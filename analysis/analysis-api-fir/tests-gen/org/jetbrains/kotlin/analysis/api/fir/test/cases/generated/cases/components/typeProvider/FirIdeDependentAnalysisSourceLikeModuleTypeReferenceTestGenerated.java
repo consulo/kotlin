@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.typeProvider.AbstractTypeReferenceTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.typeProvider.AbstractTypeReferenceTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirIdeDependentAnalysisSourceLikeModuleTypeReferenceTestGenerated e
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Dependent,
         AnalysisApiMode.Ide,
@@ -70,9 +68,33 @@ public class FirIdeDependentAnalysisSourceLikeModuleTypeReferenceTestGenerated e
   }
 
   @Test
+  @TestMetadata("annotationEntryOnNonLocalDestructuringDeclaration.kt")
+  public void testAnnotationEntryOnNonLocalDestructuringDeclaration() {
+    run("annotationEntryOnNonLocalDestructuringDeclaration.kt");
+  }
+
+  @Test
+  @TestMetadata("annotationEntryOnNonLocalDestructuringEntry.kt")
+  public void testAnnotationEntryOnNonLocalDestructuringEntry() {
+    run("annotationEntryOnNonLocalDestructuringEntry.kt");
+  }
+
+  @Test
   @TestMetadata("annotationEntryOnParameter.kt")
   public void testAnnotationEntryOnParameter() {
     run("annotationEntryOnParameter.kt");
+  }
+
+  @Test
+  @TestMetadata("annotationEntryOnTopLevelDestructuringDeclaration.kt")
+  public void testAnnotationEntryOnTopLevelDestructuringDeclaration() {
+    run("annotationEntryOnTopLevelDestructuringDeclaration.kt");
+  }
+
+  @Test
+  @TestMetadata("annotationEntryOnTopLevelDestructuringEntry.kt")
+  public void testAnnotationEntryOnTopLevelDestructuringEntry() {
+    run("annotationEntryOnTopLevelDestructuringEntry.kt");
   }
 
   @Test
@@ -118,6 +140,24 @@ public class FirIdeDependentAnalysisSourceLikeModuleTypeReferenceTestGenerated e
   }
 
   @Test
+  @TestMetadata("danglingTypeConstraintBound.kt")
+  public void testDanglingTypeConstraintBound() {
+    run("danglingTypeConstraintBound.kt");
+  }
+
+  @Test
+  @TestMetadata("danglingTypeConstraintBoundTypeArgument.kt")
+  public void testDanglingTypeConstraintBoundTypeArgument() {
+    run("danglingTypeConstraintBoundTypeArgument.kt");
+  }
+
+  @Test
+  @TestMetadata("danglingTypeConstraintUsage.kt")
+  public void testDanglingTypeConstraintUsage() {
+    run("danglingTypeConstraintUsage.kt");
+  }
+
+  @Test
   @TestMetadata("functionReceiver.kt")
   public void testFunctionReceiver() {
     run("functionReceiver.kt");
@@ -127,6 +167,12 @@ public class FirIdeDependentAnalysisSourceLikeModuleTypeReferenceTestGenerated e
   @TestMetadata("functionReturn.kt")
   public void testFunctionReturn() {
     run("functionReturn.kt");
+  }
+
+  @Test
+  @TestMetadata("nonLocalDestructuringEntryType.kt")
+  public void testNonLocalDestructuringEntryType() {
+    run("nonLocalDestructuringEntryType.kt");
   }
 
   @Test
@@ -169,6 +215,12 @@ public class FirIdeDependentAnalysisSourceLikeModuleTypeReferenceTestGenerated e
   @TestMetadata("superTypeQualifierError.kt")
   public void testSuperTypeQualifierError() {
     run("superTypeQualifierError.kt");
+  }
+
+  @Test
+  @TestMetadata("typeAnnotationOnNonLocalDestructuringEntry.kt")
+  public void testTypeAnnotationOnNonLocalDestructuringEntry() {
+    run("typeAnnotationOnNonLocalDestructuringEntry.kt");
   }
 
   @Test

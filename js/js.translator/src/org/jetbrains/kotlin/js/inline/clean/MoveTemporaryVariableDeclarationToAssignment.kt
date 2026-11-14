@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.js.backend.ast.metadata.HasMetadata
 import org.jetbrains.kotlin.js.backend.ast.metadata.synthetic
 import org.jetbrains.kotlin.js.backend.ast.metadata.wasMovedFromItsDeclarationPlace
 import org.jetbrains.kotlin.js.translate.utils.JsAstUtils
-import java.util.LinkedHashSet
 
 /**
  * Moving a declaration of the temporary variable without an initializer to the closest assignment.
@@ -23,50 +22,61 @@ import java.util.LinkedHashSet
  *
  * The optimization algorithm does the following:
  * 1) Collects all temporary variables whose declarations do not have an initializer.
- * 2) Collects the JsBlock set of all blocks where the temporary variables are assigned and used.
+ * 2) Collects the JsLexicalScope set of all scopes where the temporary variables are assigned and used.
  * 3) Ignores the temporary variable if it is used between the declaration and the first assignment.
- * 4) Represents the collected JsBlocks as a tree.
- * 5) Searches for the Lowest Common Ancestor (LCA) among all JsBlocks where the temporary variables are assigned or used.
- * 6) If the LCA is found in the set of JsBlocks where the temporary variable is assigned, we can move the declaration to the assignment.
+ * 4) Represents the collected JsLexicalScopes as a tree.
+ * 5) Searches for the Lowest Common Ancestor (LCA) among all JsLexicalScopes where the temporary variables are assigned or used.
+ * 6) If the LCA is found in the set of JsLexicalScopes where the temporary variable is assigned, we can move the declaration to the assignment.
  */
-class MoveTemporaryVariableDeclarationToAssignment(private val body: JsBlock) {
-    private var hasChanges = false
+internal class MoveTemporaryVariableDeclarationToAssignment(private val body: JsBlock) : FunctionPostProcessorStep() {
 
-    private val varUsedInBlocks = hashMapOf<JsName, HashSet<JsBlock>>()
-    private val varAssignedInBlocks = hashMapOf<JsName, HashSet<JsBlock>>()
+    private val varUsedInBlocks = hashMapOf<JsName, HashSet<JsLexicalScope>>()
+    private val varAssignedInBlocks = hashMapOf<JsName, HashSet<JsLexicalScope>>()
 
-    private val blockParents = hashMapOf<JsBlock, JsBlock>()
+    private val blockParents = hashMapOf<JsLexicalScope, JsLexicalScope>()
 
     private val varWithoutInitDeclarations = hashSetOf<JsName>()
     private val varBeforeAssignmentUsages = hashSetOf<JsName>()
 
-    private val removedVarDeclarations = hashMapOf<JsName, JsVars.JsVar>()
+    private val removedVarDeclarations = hashMapOf<JsName, Pair<JsVars.JsVar, JsVars.Variant>>()
     private val HasMetadata.couldBeMovedToAssignment: Boolean
         get() = synthetic || wasMovedFromItsDeclarationPlace
 
 
-    fun apply(): Boolean {
+    override fun apply() {
         analyze()
         perform()
 
         require(removedVarDeclarations.isEmpty())
-
-        return hasChanges
     }
 
     private fun analyze() {
         val visitor = object : RecursiveJsVisitor() {
-            private val blockStack = mutableListOf<JsBlock>()
+            private val blockStack = mutableListOf<JsLexicalScope>()
 
             private val currentBlock
                 get() = blockStack.last()
 
             override fun visitBlock(x: JsBlock) {
+                visitScope(x) {
+                    super.visitBlock(x)
+                }
+            }
+
+            override fun visit(x: JsSwitch) {
+                visitScope(x) {
+                    super.visit(x)
+                }
+            }
+
+            private inline fun visitScope(x: JsLexicalScope, body: () -> Unit) {
+                if (x.isTransparent) return body()
+
                 if (blockStack.isNotEmpty()) {
                     blockParents[x] = currentBlock
                 }
                 blockStack += x
-                super.visitBlock(x)
+                body()
                 blockStack.removeLast()
             }
 
@@ -110,7 +120,7 @@ class MoveTemporaryVariableDeclarationToAssignment(private val body: JsBlock) {
             override fun visitExpressionStatement(x: JsExpressionStatement) {
                 val assignment = JsAstUtils.decomposeAssignmentToVariable(x.expression)
                 if (assignment != null) {
-                    val (name, _) = assignment
+                    val [name, _] = assignment
                     if (name in varWithoutInitDeclarations) {
                         varAssignedInBlocks.getOrPut(name) { hashSetOf() } += currentBlock
                     }
@@ -122,8 +132,8 @@ class MoveTemporaryVariableDeclarationToAssignment(private val body: JsBlock) {
         visitor.accept(body)
     }
 
-    private fun removeNonParentBlocks(block: JsBlock, parents: LinkedHashSet<JsBlock>) {
-        var blockParent: JsBlock? = block
+    private fun removeNonParentBlocks(block: JsLexicalScope, parents: LinkedHashSet<JsLexicalScope>) {
+        var blockParent: JsLexicalScope? = block
         while (blockParent != null) {
             if (blockParent !in parents) {
                 blockParent = blockParents[blockParent]
@@ -140,11 +150,11 @@ class MoveTemporaryVariableDeclarationToAssignment(private val body: JsBlock) {
         }
     }
 
-    private fun calculateLCA(blocks: Set<JsBlock>): JsBlock {
+    private fun calculateLCA(blocks: Set<JsLexicalScope>): JsLexicalScope {
         require(blocks.isNotEmpty())
 
-        val parents = LinkedHashSet<JsBlock>()
-        var firstBlockParent: JsBlock? = blocks.first()
+        val parents = LinkedHashSet<JsLexicalScope>()
+        var firstBlockParent: JsLexicalScope? = blocks.first()
         while (firstBlockParent != null) {
             parents += firstBlockParent
             firstBlockParent = blockParents[firstBlockParent]
@@ -160,6 +170,8 @@ class MoveTemporaryVariableDeclarationToAssignment(private val body: JsBlock) {
 
     private fun perform() {
         val visitor = object : JsVisitorWithContextImpl() {
+            private val varStack = mutableListOf<JsVars>()
+
             private fun canRemoveDeclarationWithoutInit(name: JsName): Boolean {
                 if (name !in varWithoutInitDeclarations || name in varBeforeAssignmentUsages) {
                     return false
@@ -175,7 +187,7 @@ class MoveTemporaryVariableDeclarationToAssignment(private val body: JsBlock) {
             override fun endVisit(x: JsVars.JsVar, ctx: JsContext<*>) {
                 val name = x.name
                 if (name != null && canRemoveDeclarationWithoutInit(name)) {
-                    removedVarDeclarations[name] = x
+                    removedVarDeclarations[name] = x to varStack.last().variant
                     ctx.removeMe()
                     hasChanges = true
                 } else {
@@ -183,7 +195,13 @@ class MoveTemporaryVariableDeclarationToAssignment(private val body: JsBlock) {
                 }
             }
 
+            override fun visit(x: JsVars, ctx: JsContext<*>): Boolean {
+                varStack.add(x)
+                return super.visit(x, ctx)
+            }
+
             override fun endVisit(x: JsVars, ctx: JsContext<*>) {
+                varStack.removeLast()
                 if (x.isEmpty) {
                     ctx.removeMe()
                     hasChanges = true
@@ -195,14 +213,13 @@ class MoveTemporaryVariableDeclarationToAssignment(private val body: JsBlock) {
             override fun endVisit(x: JsExpressionStatement, ctx: JsContext<JsNode>) {
                 val assignment = JsAstUtils.decomposeAssignmentToVariable(x.expression)
                 if (assignment != null) {
-                    val (name, initExpr) = assignment
-                    val removedVar = removedVarDeclarations.remove(name)
-                    if (removedVar != null) {
+                    val [name, initExpr] = assignment
+                    removedVarDeclarations.remove(name)?.let { [removedVar, variant] ->
                         val varDeclarationWithInit = JsVars.JsVar(name, initExpr).apply {
                             synthetic = removedVar.synthetic
                             source = x.expression.source
                         }
-                        val vars = JsVars(JsVars.Variant.Var, varDeclarationWithInit).apply { synthetic = removedVar.synthetic }
+                        val vars = JsVars(variant, varDeclarationWithInit).apply { synthetic = removedVar.synthetic }
                         ctx.replaceMe(vars)
                     }
                     accept(initExpr)

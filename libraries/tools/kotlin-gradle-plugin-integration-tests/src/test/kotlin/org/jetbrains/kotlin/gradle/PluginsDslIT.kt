@@ -2,13 +2,17 @@ package org.jetbrains.kotlin.gradle
 
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
-import org.jetbrains.kotlin.test.util.JUnit4Assertions.assertTrue
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
+import kotlin.test.assertTrue
 
 @DisplayName("Plugins DSL is working correctly")
 @OtherGradlePluginTests
+@MustRunOnChangesInGradle
 class PluginsDslIT : KGPBaseTest() {
 
+    @TestMetadata("pluginsDsl/allopenPluginsDsl")
     @DisplayName("Allopen plugin")
     @GradleTest
     fun testAllopenWithPluginsDsl(gradleVersion: GradleVersion) {
@@ -19,6 +23,7 @@ class PluginsDslIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("pluginsDsl/applyToSubprojects")
     @DisplayName("Apply plugin to subproject from root project")
     @GradleTest
     fun testApplyToSubprojects(gradleVersion: GradleVersion) {
@@ -34,6 +39,7 @@ class PluginsDslIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("pluginsDsl/applyAllPlugins")
     @DisplayName("All Kotlin plugins are applied to project")
     @GradleTest
     fun testApplyAllPlugins(gradleVersion: GradleVersion) {
@@ -56,9 +62,7 @@ class PluginsDslIT : KGPBaseTest() {
             build("build") {
                 val appliedPlugins = "applied plugin class:(.*)".toRegex().findAll(output).map { it.groupValues[1] }.toSet()
                 kotlinPluginClasses.forEach {
-                    assertTrue(it in appliedPlugins) {
-                        "Plugin class $it should be in applied plugins"
-                    }
+                    assertTrue(it in appliedPlugins, "Plugin class $it should be in applied plugins")
                 }
             }
         }

@@ -18,7 +18,6 @@ package org.jetbrains.kotlin.jps.build
 
 import com.intellij.testFramework.RunAll
 import com.intellij.testFramework.UsefulTestCase
-import com.intellij.util.ThrowableRunnable
 import org.jetbrains.jps.builders.BuildTarget
 import org.jetbrains.jps.builders.storage.BuildDataPaths
 import org.jetbrains.kotlin.config.IncrementalCompilation
@@ -26,9 +25,9 @@ import org.jetbrains.kotlin.incremental.KOTLIN_CACHE_DIRECTORY_NAME
 import org.jetbrains.kotlin.incremental.storage.BasicMapsOwner
 import org.jetbrains.kotlin.incremental.testingUtils.Modification
 import org.jetbrains.kotlin.incremental.testingUtils.ModifyContent
-import org.jetbrains.kotlin.jps.build.fixtures.EnableICFixture
 import org.jetbrains.kotlin.jps.incremental.KotlinDataContainerTarget
 import org.jetbrains.kotlin.jps.targets.KotlinModuleBuildTarget
+import org.jetbrains.kotlin.test.testFramework.KtUsefulTestCase.assertSameLinesWithFile
 import org.jetbrains.kotlin.utils.Printer
 import java.io.File
 
@@ -36,26 +35,12 @@ abstract class AbstractIncrementalLazyCachesTest : AbstractIncrementalJpsTest() 
     private val expectedCachesFileName: String
         get() = "expected-kotlin-caches.txt"
 
-    private val enableICFixture = EnableICFixture()
-
-    override fun setUp() {
-        super.setUp()
-        enableICFixture.setUp()
-    }
-
-    override fun tearDown() {
-        RunAll(
-            ThrowableRunnable { enableICFixture.tearDown() },
-            ThrowableRunnable { super.tearDown() }
-        ).run()
-    }
-
-    override fun doTest(testDataPath: String) {
-        super.doTest(testDataPath)
+    override fun runTest(testDataPath: String) {
+        super.runTest(testDataPath)
 
         val actual = dumpKotlinCachesFileNames()
         val expectedFile = File(testDataPath, expectedCachesFileName)
-        UsefulTestCase.assertSameLinesWithFile(expectedFile.canonicalPath, actual)
+        assertSameLinesWithFile(expectedFile.canonicalPath, actual)
     }
 
     override fun performAdditionalModifications(modifications: List<Modification>) {

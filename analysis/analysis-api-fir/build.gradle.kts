@@ -1,64 +1,56 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
-import org.jetbrains.kotlin.testFederation.TemporaryTestFederationApi
-import org.jetbrains.kotlin.testFederation.isSmokeTest
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("generated-sources")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-data-manager")
     id("test-inputs-check")
 }
 
+val jvmAbiGenPlugin = configurations.create("jvmAbiGenPlugin") {
+    isTransitive = false
+}
+
 dependencies {
-    api(project(":compiler:psi:psi-api"))
-    api(project(":compiler:fir:fir2ir"))
-    api(project(":compiler:ir.tree"))
-    api(project(":compiler:fir:resolve"))
-    api(project(":compiler:fir:providers"))
-    api(project(":compiler:fir:semantics"))
-    api(project(":compiler:fir:checkers"))
-    api(project(":compiler:fir:checkers:checkers.jvm"))
-    api(project(":compiler:fir:checkers:checkers.js"))
-    api(project(":compiler:fir:checkers:checkers.native"))
-    api(project(":compiler:fir:fir-jvm"))
+    jvmAbiGenPlugin(project(":plugins:jvm-abi-gen"))
+    implementation(project(":core:descriptors"))
+    implementation(project(":core:language.targets.jvm"))
+    implementation(project(":compiler:backend.common.jvm"))
+    implementation(project(":compiler:ir.tree"))
+    implementation(project(":compiler:cli-base"))
     api(project(":compiler:fir:entrypoint"))
     api(project(":analysis:low-level-api-fir"))
     api(project(":analysis:analysis-api"))
-    api(project(":analysis:analysis-api-impl-base"))
+    api(project(":analysis:analysis-api-platform-interface"))
     api(project(":analysis:light-classes-base"))
-    api(project(":compiler:backend.common.jvm"))
-    implementation(project(":compiler:cli-base"))
-    implementation(project(":compiler:backend"))
     implementation(project(":compiler:backend.jvm.entrypoint"))
-    implementation(project(":compiler:ir.backend.common"))
-    implementation(project(":compiler:ir.serialization.jvm"))
+    implementation(project(":core:descriptors.jvm"))
     api(intellijCore())
-    implementation(project(":analysis:analysis-api-platform-interface"))
     implementation(project(":analysis:analysis-internal-utils"))
-    implementation(project(":analysis:kt-references"))
+    implementation(project(":analysis:analysis-api-fir-diagnostics"))
     implementation(project(":analysis:symbol-light-classes"))
     implementation(project(":native:native.config"))
     implementation(libs.caffeine)
     implementation(libs.opentelemetry.api)
 
     testFixturesImplementation(testFixtures(project(":analysis:low-level-api-fir")))
-    testFixturesApi(project(":analysis:analysis-api-standalone:analysis-api-standalone-base"))
+    testFixturesApi(project(":analysis:analysis-api-standalone:analysis-api-standalone-fir"))
     testFixturesImplementation(testFixtures(project(":compiler:tests-common")))
     testFixturesApi(testFixtures(project(":compiler:test-infrastructure-utils")))
     testFixturesApi(testFixtures(project(":compiler:test-infrastructure")))
     testFixturesImplementation(testFixtures(project(":compiler:tests-common-new")))
-    testFixturesImplementation(testFixtures(project(":compiler:fir:analysis-tests:legacy-fir-tests")))
-    testFixturesApi(testFixtures(project(":analysis:analysis-api-impl-base")))
-    testFixturesImplementation(testFixtures(project(":analysis:decompiled:decompiler-to-file-stubs")))
-    testFixturesImplementation(project(":analysis:analysis-api-standalone:analysis-api-fir-standalone-base"))
-    testFixturesImplementation(project(":analysis:decompiled:decompiler-to-file-stubs"))
-    testFixturesImplementation(project(":analysis:decompiled:decompiler-to-psi"))
-    testFixturesImplementation(kotlinTest("junit"))
+    testFixturesImplementation(project(":core:error.handling"))
+    testFixturesImplementation(project(":compiler:psi:psi-utils"))
+    testFixturesImplementation(project(":analysis:decompiled:light-classes-for-decompiled"))
+
+    testFixturesImplementation(kotlinTest("junit5"))
     testFixturesApi(testFixtures(project(":analysis:analysis-test-framework")))
 
     testImplementation(testFixtures(project(":analysis:low-level-api-fir")))
+    testImplementation(testFixtures(project(":compiler:psi:psi-api")))
 
     testCompileOnly(toolsJarApi())
     testRuntimeOnly(toolsJar())
@@ -80,17 +72,17 @@ optInToUnsafeDuringIrConstructionAPI()
 
 projectTests {
     testTask(
-        jUnitMode = JUnitMode.JUnit5,
-        defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_11_0)
+        defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_11_0, JdkMajorVersion.JDK_21_0)
     ) {
         useJUnitPlatform()
 
-        @OptIn(TemporaryTestFederationApi::class)
-        isSmokeTest = true
-
-        extensions.configure<TestInputsCheckExtension> {
-            allowFlightRecorder = true
+        testFederation {
+            smokeTests {
+                includeAutoSamples(percentage = 3)
+            }
         }
+
+        addClasspathProperty(jvmAbiGenPlugin, "kotlin.jvm.abi.jar.path")
     }
 
     testGenerator("org.jetbrains.kotlin.analysis.api.fir.test.TestGeneratorKt")
@@ -106,43 +98,53 @@ projectTests {
     withAnnotations()
     withMockJdkRuntime()
     withMockJdkAnnotationsJar()
-    withScriptRuntime()
     withPluginSandboxAnnotations()
+    withPluginSandboxJar()
     withWasmRuntime()
 
     @OptIn(KotlinCompilerDistUsage::class)
     withDist()
-}
 
-testsJar()
-
-allprojects {
-    tasks.withType<KotlinJvmCompile>().configureEach {
-        compilerOptions.optIn.addAll(
-            listOf(
-                "org.jetbrains.kotlin.fir.symbols.SymbolInternals",
-                "org.jetbrains.kotlin.analysis.api.KaImplementationDetail",
-                "org.jetbrains.kotlin.analysis.api.KaExperimentalApi",
-                "org.jetbrains.kotlin.analysis.api.KaNonPublicApi",
-                "org.jetbrains.kotlin.analysis.api.KaIdeApi",
-                "org.jetbrains.kotlin.analysis.api.KaPlatformInterface",
-                "org.jetbrains.kotlin.analysis.api.permissions.KaAllowProhibitedAnalyzeFromWriteAction",
-                "org.jetbrains.kotlin.analysis.api.KaContextParameterApi",
-                "org.jetbrains.kotlin.analysis.api.components.KaSessionComponentImplementationDetail",
-                "org.jetbrains.kotlin.analysis.api.KaSpiExtensionPoint",
-            )
-        )
+    testCodebaseTask(dumpDirs = emptyList()) {
+        // Forward the source-code-update flag (used by the `analysis-api-mark-internal-apis` skill) from a Gradle property to the test
+        // JVM. Combine with `-Pkotlin.test.instrumentation.disable.inputs.check=true` so the test can write to source files.
+        val updateSourceCode = "kotlin.analysis.codebaseTest.internalApi.updateSourceCode"
+        systemProperty(updateSourceCode, project.providers.gradleProperty(updateSourceCode).orElse("false").get())
     }
 }
 
-generatedSourcesTask(
+kotlin {
+    compilerOptions.optIn.addAll(
+        listOf(
+            "org.jetbrains.kotlin.fir.symbols.SymbolInternals",
+            "org.jetbrains.kotlin.analysis.api.KaImplementationDetail",
+            "org.jetbrains.kotlin.analysis.api.KaExperimentalApi",
+            "org.jetbrains.kotlin.analysis.api.KaNonPublicApi",
+            "org.jetbrains.kotlin.analysis.api.KaIdeApi",
+            "org.jetbrains.kotlin.analysis.api.KaPlatformInterface",
+            "org.jetbrains.kotlin.analysis.api.permissions.KaAllowProhibitedAnalyzeFromWriteAction",
+            "org.jetbrains.kotlin.analysis.api.KaContextParameterApi",
+            "org.jetbrains.kotlin.analysis.api.components.KaSessionComponentImplementationDetail",
+            "org.jetbrains.kotlin.analysis.api.KaSpiExtensionPoint",
+        )
+    )
+}
+
+val generateDiagnostics = generatedSourcesTask(
     taskName = "generateDiagnostics",
-    generatorProject = ":analysis:analysis-api-fir:analysis-api-fir-generator",
+    generatorProject = ":analysis:analysis-api-fir-diagnostics:analysis-api-fir-diagnostics-generator",
     generatorMainClass = "org.jetbrains.kotlin.analysis.api.fir.generator.MainKt",
     argsProvider = { generationRoot ->
         listOf(
             "org.jetbrains.kotlin.analysis.api.fir.diagnostics",
             generationRoot.toString(),
+            "implementation",
         )
     }
 )
+
+generateDiagnostics.configure {
+//  The generated implementations implement the interfaces generated into 'analysis-api-fir-diagnostics'. Regenerating one half
+//  without the other yields red code in the IDE. For convenience, the interfaces are always regenerated together with them.
+    dependsOn(":analysis:analysis-api-fir-diagnostics:generateDiagnostics")
+}

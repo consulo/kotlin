@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.backend.jvm.ir
 
-import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.backend.common.lower.at
 import org.jetbrains.kotlin.backend.common.lower.irNot
 import org.jetbrains.kotlin.backend.jvm.*
@@ -14,59 +13,48 @@ import org.jetbrains.kotlin.codegen.AsmUtil
 import org.jetbrains.kotlin.codegen.inline.classFileContainsMethod
 import org.jetbrains.kotlin.codegen.inline.coroutines.FOR_INLINE_SUFFIX
 import org.jetbrains.kotlin.codegen.mangleNameIfNeeded
-import org.jetbrains.kotlin.codegen.state.JvmBackendConfig
 import org.jetbrains.kotlin.config.JvmDefaultMode
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.descriptors.ClassKind
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithSource
-import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
-import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.config.isKotlinValhallaValueClass
+import org.jetbrains.kotlin.config.isValhallaSupportEnabled
+import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.KotlinRetention
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.PsiIrFileEntry
-import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
+import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.buildField
 import org.jetbrains.kotlin.ir.builders.declarations.buildProperty
-import org.jetbrains.kotlin.ir.builders.irAnnotation
-import org.jetbrains.kotlin.ir.builders.irCall
-import org.jetbrains.kotlin.ir.builders.irExprBody
-import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrClassReferenceImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetFieldImpl
+import org.jetbrains.kotlin.ir.irAttribute
+import org.jetbrains.kotlin.ir.overrides.isEffectivelyPrivate
 import org.jetbrains.kotlin.ir.symbols.IrEnumEntrySymbol
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
-import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.util.getArrayElementType
 import org.jetbrains.kotlin.ir.util.isBoxedArray
-import org.jetbrains.kotlin.ir.util.isSubtypeOf
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.load.java.JavaDescriptorVisibilities
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.load.kotlin.FacadeClassSource
+import org.jetbrains.kotlin.load.kotlin.FileBasedKotlinClass
 import org.jetbrains.kotlin.load.kotlin.JvmPackagePartSource
-import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.load.kotlin.KotlinJvmBinarySourceElement
+import org.jetbrains.kotlin.load.kotlin.isValueClassCompiledAsIdentityClass
+import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.name.JvmStandardClassIds.JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME
 import org.jetbrains.kotlin.name.JvmStandardClassIds.JVM_SYNTHETIC_ANNOTATION_FQ_NAME
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.JVM_NAME_ANNOTATION_FQ_NAME
-import org.jetbrains.kotlin.resolve.deprecation.DeprecationResolver
 import org.jetbrains.kotlin.resolve.jvm.AsmTypes
-import org.jetbrains.kotlin.resolve.multiplatform.OptionalAnnotationUtil
-import org.jetbrains.kotlin.resolve.source.PsiSourceElement
 import org.jetbrains.kotlin.utils.DFS
 import org.jetbrains.kotlin.utils.addToStdlib.assignFrom
 import org.jetbrains.org.objectweb.asm.Type
@@ -74,9 +62,35 @@ import org.jetbrains.org.objectweb.asm.commons.Method
 import java.io.File
 import java.lang.annotation.RetentionPolicy
 
+// A full value class extending a value class compiled as an identity class is compiled as an identity class too, as a Valhalla value
+// class can't extend an identity class.
+fun IrClass.isKotlinValhallaValueClass(languageVersionSettings: LanguageVersionSettings): Boolean =
+    valueClassRepresentation.isKotlinValhallaValueClass(languageVersionSettings) &&
+            !extendsValueClassCompiledAsIdentityClass(languageVersionSettings)
+
+// A Kotlin value class that would be a Valhalla value class, but is compiled as an identity class because of its superclass.
+fun IrClass.isKotlinValueClassCompiledAsIdentityClassBySuperclass(languageVersionSettings: LanguageVersionSettings): Boolean =
+    valueClassRepresentation.isKotlinValhallaValueClass(languageVersionSettings) &&
+            extendsValueClassCompiledAsIdentityClass(languageVersionSettings)
+
+private var IrClass.cachedExtendsValueClassCompiledAsIdentityClass: Boolean? by irAttribute(copyByDefault = false)
+
+private fun IrClass.extendsValueClassCompiledAsIdentityClass(languageVersionSettings: LanguageVersionSettings): Boolean =
+    cachedExtendsValueClassCompiledAsIdentityClass
+        ?: superTypes.any { it.classOrNull?.owner?.isFullValueClassCompiledAsIdentityClass(languageVersionSettings) == true }
+            .also { cachedExtendsValueClassCompiledAsIdentityClass = it }
+
+private fun IrClass.isFullValueClassCompiledAsIdentityClass(languageVersionSettings: LanguageVersionSettings): Boolean {
+    if (valueClassRepresentation !is FullValueClassRepresentation) return false
+    val binaryClass = (source as? KotlinJvmBinarySourceElement)?.binaryClass as? FileBasedKotlinClass
+    return isValueClassCompiledAsIdentityClass(binaryClass, languageVersionSettings.isValhallaSupportEnabled()) {
+        extendsValueClassCompiledAsIdentityClass(languageVersionSettings)
+    }
+}
+
 fun IrDeclaration.getJvmNameFromAnnotation(): String? {
     // TODO lower @JvmName and @JvmExposeBoxed?
-    val value = (getAnnotation(DescriptorUtils.JVM_NAME)?.arguments[0] as? IrConst)?.value as? String
+    val value = getAnnotation(DescriptorUtils.JVM_NAME)?.getConstArgument<String>(JvmName::name.name)
         ?: getJvmNameFromJvmExposeBoxedAnnotation()
         ?: return null
     return when (origin) {
@@ -88,8 +102,9 @@ fun IrDeclaration.getJvmNameFromAnnotation(): String? {
 }
 
 fun IrDeclaration.getJvmNameFromJvmExposeBoxedAnnotation(): String? {
-    val value = getAnnotation(JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME)?.arguments[0] as? IrConst ?: return null
-    return if (value.value == "") null else value.value as? String
+    @OptIn(ExperimentalStdlibApi::class)
+    val value = getAnnotation(JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME)?.getConstArgument<String>(JvmExposeBoxed::jvmName.name) ?: return null
+    return value.ifEmpty { null }
 }
 
 fun IrFunction.getJvmVisibilityOfDefaultArgumentStub() =
@@ -101,24 +116,6 @@ fun IrFunction.getJvmVisibilityOfDefaultArgumentStub() =
 
 fun IrDeclaration.isInCurrentModule(): Boolean =
     getPackageFragment() is IrFile
-
-// Determine if the IrExpression is smartcast, and if so, if it is cast from higher than nullable target types.
-// This is needed to pinpoint exceptional treatment of IEEE754 floating point comparisons, where proper IEEE
-// comparisons are used "if values are statically known to be of primitive numeric types", taken to mean as
-// "not learned through smartcasting".
-fun IrExpression.isSmartcastFromHigherThanNullable(context: JvmBackendContext): Boolean {
-    return when (this) {
-        is IrTypeOperatorCall ->
-            operator == IrTypeOperator.IMPLICIT_CAST && !argument.type.isSubtypeOf(type.makeNullable(), context.typeSystem)
-        is IrGetValue -> {
-            // Check if the variable initializer is smartcast. In FIR, if the subject of a `when` is smartcast,
-            // the IMPLICIT_CAST is in the initializer of the variable for the subject.
-            val variable = (symbol as? IrVariableSymbol)?.owner ?: return false
-            !variable.isVar && variable.initializer?.isSmartcastFromHigherThanNullable(context) == true
-        }
-        else -> false
-    }
-}
 
 fun IrElement.replaceThisByStaticReference(
     cachedFields: CachedFieldsForObjectInstances,
@@ -228,28 +225,28 @@ fun IrSimpleFunction.copyCorrespondingPropertyFrom(source: IrSimpleFunction) {
     }.symbol
 }
 
-fun IrProperty.needsAccessor(accessor: IrSimpleFunction): Boolean = when {
+fun IrProperty.hasJvmFieldAnnotation(): Boolean = backingField?.hasAnnotation(JvmAbi.JVM_FIELD_ANNOTATION_FQ_NAME) == true
+
+private fun IrProperty.resolvesToPropertyWithJvmField(): Boolean = resolveFakeOverride()?.hasJvmFieldAnnotation() == true
+
+fun IrProperty.accessorShouldBeUsed(accessor: IrSimpleFunction): Boolean = when {
     // Properties in annotation classes become abstract methods named after the property.
     (parent as? IrClass)?.kind == ClassKind.ANNOTATION_CLASS -> true
-    // Multi-field value class accessors must always be added.
-    accessor.isGetter &&
-            accessor.nonDispatchParameters.isEmpty() &&
-            accessor.returnType.needsMfvcFlattening() -> true
-    accessor.isSetter &&
-            accessor.nonDispatchParameters.singleOrNull()?.type?.needsMfvcFlattening() == true -> true
     // @JvmField properties have no getters/setters
-    resolveFakeOverride()?.backingField?.hasAnnotation(JvmAbi.JVM_FIELD_ANNOTATION_FQ_NAME) == true -> false
+    resolvesToPropertyWithJvmField() -> false
     // We do not produce default accessors for private fields
     else -> accessor.origin != IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR || !DescriptorVisibilities.isPrivate(accessor.visibility)
 }
 
+fun IrProperty.shouldKeepAccessor(accessor: IrSimpleFunction): Boolean =
+    // @JvmField properties have no getters/setters.
+    // But if this is a fake override of a @JvmField property and some other property
+    // from interface(s), a bridge-accessor will need to be generated.
+    accessorShouldBeUsed(accessor) || (resolvesToPropertyWithJvmField() && overriddenSymbols.size >= 2)
+
 val IrDeclaration.isStaticInlineClassReplacement: Boolean
     get() = origin == JvmLoweredDeclarationOrigin.STATIC_INLINE_CLASS_REPLACEMENT
             || origin == JvmLoweredDeclarationOrigin.STATIC_INLINE_CLASS_CONSTRUCTOR
-
-val IrDeclaration.isStaticMultiFieldValueClassReplacement: Boolean
-    get() = origin == JvmLoweredDeclarationOrigin.STATIC_MULTI_FIELD_VALUE_CLASS_REPLACEMENT
-            || origin == JvmLoweredDeclarationOrigin.STATIC_MULTI_FIELD_VALUE_CLASS_CONSTRUCTOR
 
 fun IrDeclaration.shouldBeExposedByAnnotationOrFlag(context: JvmBackendContext): Boolean {
     val isPropagatedOrImplicit = propagatedOrImplicitJvmExposeBoxed(context)
@@ -268,13 +265,17 @@ private fun IrDeclaration.propagatedOrImplicitJvmExposeBoxed(context: JvmBackend
 
 // Do not duplicate function without inline classes in parameters, since it would lead to CONFLICTING_JVM_DECLARATIONS
 private fun IrDeclaration.isFunctionWhichCanBeExposed(isPropagatedOrImplicit: Boolean): Boolean {
-    if (this !is IrFunction || origin == IrDeclarationOrigin.GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER) return false
+    if (this !is IrFunction || origin == IrDeclarationOrigin.GENERATED_INLINE_CLASS_MEMBER) return false
     // No sense in exposing suspend functions - they cannot be called from Java in normal way anyway
     if (isSuspend) return false
     // Ditto for suspend lambda methods
     if (parentClassOrNull?.origin == JvmLoweredDeclarationOrigin.SUSPEND_LAMBDA) return false
+    // Ditto for private functions or methods of private classes
+    if (isEffectivelyPrivate()) return false
     // Cannot expose open or abstract - @JvmName problem
     if (isOverridable) return false
+    // Cannot expose sealed class constructors
+    if (this is IrConstructor && constructedClass.modality == Modality.SEALED) return false
     if (parameters.any { it.type.isInlineClassType() }) return true
     // If the function is annotated with @JvmName, it is unmangled, so, we cannot implicitly expose it.
     if (!returnType.isInlineClassType() || (isPropagatedOrImplicit && hasAnnotation(JVM_NAME_ANNOTATION_FQ_NAME))) return false
@@ -284,15 +285,8 @@ private fun IrDeclaration.isFunctionWhichCanBeExposed(isPropagatedOrImplicit: Bo
     return parentClassOrNull?.isFileClass == false || annotations.hasAnnotation(JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME)
 }
 
-val IrDeclaration.isStaticValueClassReplacement: Boolean
-    get() = isStaticMultiFieldValueClassReplacement || isStaticInlineClassReplacement
-
-// On the IR backend we represent raw types as star projected types with a special synthetic annotation.
-// See `TypeTranslator.translateTypeAnnotations`.
-private fun JvmBackendContext.makeRawTypeAnnotation() = generatorExtensions.generateRawTypeAnnotation()!!
-
-fun IrClass.rawType(context: JvmBackendContext): IrType =
-    defaultType.addAnnotations(listOf(context.makeRawTypeAnnotation()))
+fun IrClass.rawType(specialAnnotations: JvmIrSpecialAnnotationSymbolProvider): IrType =
+    defaultType.addAnnotations(listOf(specialAnnotations.generateRawTypeAnnotation()))
 
 fun IrSimpleType.isRawType(): Boolean =
     hasAnnotation(JvmSymbols.RAW_TYPE_ANNOTATION_FQ_NAME)
@@ -332,7 +326,7 @@ val IrClass.isSyntheticSingleton: Boolean
 
 fun IrSimpleFunction.suspendFunctionOriginal(): IrSimpleFunction =
     if (isSuspend &&
-        !isStaticValueClassReplacement &&
+        !isStaticInlineClassReplacement &&
         !isOrOverridesDefaultParameterStub() &&
         parentClassOrNull?.origin != JvmLoweredDeclarationOrigin.DEFAULT_IMPLS
     )
@@ -385,11 +379,6 @@ fun IrField.constantValue(): IrConst? {
     val implicitConst = isFinal && isStatic && origin == IrDeclarationOrigin.IR_EXTERNAL_JAVA_DECLARATION_STUB
     return if (implicitConst || correspondingPropertySymbol?.owner?.isConst == true) value else null
 }
-
-fun IrBuilderWithScope.kClassReference(classType: IrType): IrClassReference =
-    IrClassReferenceImpl(
-        startOffset, endOffset, context.irBuiltIns.kClassClass.starProjectedType, context.irBuiltIns.kClassClass, classType
-    )
 
 fun JvmIrBuilder.kClassToJavaClass(kClassReference: IrExpression): IrCall =
     irGet(irSymbols.javaLangClass.starProjectedType, null, irSymbols.kClassJavaPropertyGetter.symbol).apply {
@@ -485,7 +474,7 @@ private val IrClass.classId: ClassId?
 val IrClass.isOptionalAnnotationClass: Boolean
     get() = kind == ClassKind.ANNOTATION_CLASS &&
             isExpect &&
-            hasAnnotation(OptionalAnnotationUtil.OPTIONAL_EXPECTATION_FQ_NAME)
+            hasAnnotation(StandardClassIds.Annotations.OptionalExpectation)
 
 fun classFileContainsMethod(classId: ClassId, function: IrFunction, context: JvmBackendContext): Boolean? {
     val originalSignature = context.defaultMethodSignatureMapper.mapAsmMethod(function)
@@ -497,22 +486,7 @@ fun classFileContainsMethod(classId: ClassId, function: IrFunction, context: Jvm
     return classFileContainsMethod(classId, context.state, Method(originalSignature.name, descriptor))
 }
 
-val DeclarationDescriptorWithSource.psiElement: PsiElement?
-    get() = (source as? PsiSourceElement)?.psi
-
-@OptIn(ObsoleteDescriptorBasedAPI::class)
-val IrDeclaration.psiElement: PsiElement?
-    get() = (descriptor as? DeclarationDescriptorWithSource)?.psiElement
-
-@OptIn(ObsoleteDescriptorBasedAPI::class)
-val IrMemberAccessExpression<*>.psiElement: PsiElement?
-    get() = (symbol.descriptor.original as? DeclarationDescriptorWithSource)?.psiElement
-
-fun IrFunction.extensionReceiverName(config: JvmBackendConfig): String {
-    if (!config.languageVersionSettings.supportsFeature(LanguageFeature.NewCapturedReceiverFieldNamingConvention)) {
-        return AsmUtil.RECEIVER_PARAMETER_NAME
-    }
-
+fun IrFunction.extensionReceiverName(): String {
     parameters.singleOrNull { it.kind == IrParameterKind.ExtensionReceiver }?.let {
         if (it.name.asString().startsWith(AsmUtil.LABELED_THIS_PARAMETER)) {
             return it.name.asString()
@@ -568,7 +542,7 @@ fun IrClass.getJvmAnnotationRetention(): RetentionPolicy {
         return annotationRetentionMap[retention]!!
     }
     getAnnotation(FqName(java.lang.annotation.Retention::class.java.name))?.let { retentionAnnotation ->
-        val value = retentionAnnotation.arguments[0]
+        val value = retentionAnnotation.argumentMapping[Name.identifier(java.lang.annotation.Retention::value.name)]
         if (value is IrDeclarationReference) {
             val symbol = value.symbol
             if (symbol is IrEnumEntrySymbol) {
@@ -606,7 +580,17 @@ fun IrMutableAnnotationContainer.addJavaLangDeprecatedAnnotation() = copyAnnotat
 
 context(irBuilder: JvmIrBuilder)
 fun IrMutableAnnotationContainer.copyAnnotationsAndAddJavaLangDeprecated(source: IrAnnotationContainer) {
-    isJavaLangDeprecatedOnlyAddedByCompiler = !source.annotations.hasAnnotation(DeprecationResolver.JAVA_DEPRECATED)
-    annotations = filterOutAnnotations(DeprecationResolver.JAVA_DEPRECATED, source.annotations) +
+    isJavaLangDeprecatedOnlyAddedByCompiler = !source.annotations.hasAnnotation(JvmStandardClassIds.Annotations.Java.Deprecated)
+    annotations = filterOutAnnotations(JvmStandardClassIds.Annotations.Java.Deprecated, source.annotations) +
             irBuilder.irAnnotation(irBuilder.irSymbols.javaLangDeprecatedConstructorWithDeprecatedFlag)
 }
+
+@OptIn(ValueClassBackendAgnosticApi::class)
+val IrClass.isInlineClass: Boolean get() = isInlineClass(treatCompatibleFullValueClassesAsInline = false)
+
+@OptIn(ValueClassBackendAgnosticApi::class)
+val IrClass.inlineClassRepresentation get() = inlineClassRepresentation(treatCompatibleFullValueClassesAsInline = false)
+
+@OptIn(ValueClassBackendAgnosticApi::class)
+fun getInlineClassUnderlyingType(irClass: IrClass): IrSimpleType =
+    getInlineClassUnderlyingType(irClass, treatCompatibleFullValueClassesAsInline = false)

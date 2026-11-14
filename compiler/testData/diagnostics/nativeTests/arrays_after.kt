@@ -1,5 +1,5 @@
 // RUN_PIPELINE_TILL: FRONTEND
-// LANGUAGE: +BareArrayClassLiteral
+// IGNORE_FIR_DIAGNOSTICS
 
 val a01 = Array::class
 val a02 = <!CLASS_LITERAL_LHS_NOT_A_CLASS!>Array<<!WRONG_NUMBER_OF_TYPE_ARGUMENTS!>Array<!>>::class<!>

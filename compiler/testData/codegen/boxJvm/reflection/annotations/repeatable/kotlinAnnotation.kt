@@ -1,5 +1,4 @@
-// LANGUAGE: +RepeatableAnnotations
-// TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: JVM
 // JVM_TARGET: 1.8
 // FULL_JDK
 // WITH_REFLECT

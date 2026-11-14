@@ -8,13 +8,15 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.compiler.base
 import org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirOnlyReversedTestSuppressor
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.compiler.based.facades.LLFirAnalyzerFacadeFactoryWithPreresolveInReversedOrder
 import org.jetbrains.kotlin.test.Constructor
-import org.jetbrains.kotlin.test.model.AfterAnalysisChecker
+import org.jetbrains.kotlin.test.model.TestFailureSuppressor
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInAnalysisApi
 import org.jetbrains.kotlin.utils.bind
 
+@MustRunOnChangesInAnalysisApi
 abstract class AbstractLLReversedBlackBoxTest : AbstractLLBlackBoxTestBase() {
     override fun facade(): Constructor<LowLevelFirFrontendFacade> {
         return ::LowLevelFirFrontendFacade.bind(LLFirAnalyzerFacadeFactoryWithPreresolveInReversedOrder)
     }
 
-    override fun facadeSpecificSuppressor(): Constructor<AfterAnalysisChecker> = ::LLFirOnlyReversedTestSuppressor
+    override fun facadeSpecificSuppressor(): Constructor<TestFailureSuppressor> = ::LLFirOnlyReversedTestSuppressor
 }

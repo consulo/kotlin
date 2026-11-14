@@ -2,6 +2,8 @@ import plugins.configureDefaultPublishing
 import plugins.configureKotlinPomAttributes
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     `java-gradle-plugin`
     `maven-publish`

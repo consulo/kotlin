@@ -3,6 +3,8 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:Suppress("TYPEALIAS_EXPANSION_DEPRECATION")
+
 package org.jetbrains.kotlin.gradle.targets.js.npm
 
 import org.gradle.api.artifacts.Dependency
@@ -12,8 +14,17 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.internal.artifacts.dependencies.SelfResolvingDependencyInternal
 import org.gradle.api.model.ObjectFactory
 import org.jetbrains.kotlin.gradle.targets.js.npm.NpmProject.Companion.PACKAGE_JSON
+import org.jetbrains.kotlin.gradle.utils.normalizedAbsoluteFile
 import java.io.File
 
+@Suppress("DEPRECATION")
+internal typealias NpmDependencyDeprecated = NpmDependency
+
+@Suppress("DEPRECATION")
+internal typealias NpmDependencyScopeDeprecated = NpmDependency.Scope
+
+@Deprecated("Declare npm dependencies with npm, npmDev, npmOptional, or npmPeer, without passing them to the implementation(...) or api(...) calls")
+@Suppress("DEPRECATION") // the deprecated Scope is a part of this deprecated class
 data class NpmDependency(
     val objectFactory: ObjectFactory,
     val scope: Scope = Scope.NORMAL,
@@ -22,6 +33,7 @@ data class NpmDependency(
 ) : FileCollectionDependency,
     SelfResolvingDependencyInternal {
 
+    @Deprecated("Select the scope by declaring the dependency with npm, npmDev, npmOptional, or npmPeer")
     enum class Scope {
         NORMAL,
         DEV,
@@ -52,15 +64,15 @@ data class NpmDependency(
 
 internal fun directoryNpmDependency(
     objectFactory: ObjectFactory,
-    scope: NpmDependency.Scope,
+    scope: NpmDependencyScopeDeprecated,
     name: String,
     directory: File,
-): NpmDependency {
+): NpmDependencyDeprecated {
     check(directory.isDirectory) {
         "Dependency on local path should point on directory but $directory found"
     }
 
-    return NpmDependency(
+    return NpmDependencyDeprecated(
         objectFactory = objectFactory,
         scope = scope,
         name = name,
@@ -68,11 +80,12 @@ internal fun directoryNpmDependency(
     )
 }
 
+@Deprecated("Internal KGP utility. Scheduled for removal in Kotlin 2.7")
 fun String.isFileVersion() =
-    startsWith(FILE_VERSION_PREFIX)
+    startsWith(NPM_DEP_FILE_VERSION_PREFIX)
 
-internal fun fileVersion(directory: File): String =
-    "$FILE_VERSION_PREFIX${directory.absolutePath}"
+private fun fileVersion(directory: File): String =
+    "$NPM_DEP_FILE_VERSION_PREFIX${directory.normalizedAbsoluteFile()}"
 
 internal fun moduleName(directory: File): String {
     val packageJson = directory.resolve(PACKAGE_JSON)
@@ -84,4 +97,11 @@ internal fun moduleName(directory: File): String {
     return directory.name
 }
 
-const val FILE_VERSION_PREFIX = "file:"
+/**
+ * A version that starts with `file:` indicates that the dependency is a local file.
+ * https://docs.npmjs.com/cli/v11/configuring-npm/package-json#local-paths
+ */
+internal const val NPM_DEP_FILE_VERSION_PREFIX = "file:"
+
+@Deprecated("Internal KGP utility. Scheduled for removal in Kotlin 2.7")
+const val FILE_VERSION_PREFIX = NPM_DEP_FILE_VERSION_PREFIX

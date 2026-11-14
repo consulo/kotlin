@@ -14,6 +14,7 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.*
 import org.gradle.process.ExecOperations
 import org.gradle.work.DisableCachingByDefault
+import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeOutputKind
@@ -189,6 +190,7 @@ internal constructor(
     @get:PathSensitive(PathSensitivity.ABSOLUTE)
     @get:IgnoreEmptyDirectories
     @get:InputFiles
+    @get:NormalizeLineEndings
     @get:SkipWhenEmpty
     protected val inputFrameworkFiles: Iterable<FileTree>
         get() = frameworks.map { objectFactory.fileTree().from(it.file) }
@@ -196,6 +198,7 @@ internal constructor(
     @get:PathSensitive(PathSensitivity.ABSOLUTE)
     @get:IgnoreEmptyDirectories
     @get:InputFiles
+    @get:NormalizeLineEndings
     protected val inputDsymFiles: Iterable<FileTree>
         get() = frameworks.mapNotNull { framework ->
             framework.files.dSYM.takeIf {
@@ -303,7 +306,7 @@ internal constructor(
             is MACOS_X64, is MACOS_ARM64 -> "MacOSX"
             is IOS_ARM64, is IOS_X64, is IOS_SIMULATOR_ARM64 -> "iPhoneOS"
             is TVOS_ARM64, is TVOS_X64, is TVOS_SIMULATOR_ARM64 -> "AppleTVOS"
-            is WATCHOS_ARM32, is WATCHOS_ARM64, is WATCHOS_X64, is WATCHOS_SIMULATOR_ARM64, is WATCHOS_DEVICE_ARM64 -> "WatchOS"
+            is WATCHOS_ARM64, is WATCHOS_X64, is WATCHOS_SIMULATOR_ARM64, is WATCHOS_DEVICE_ARM64 -> "WatchOS"
             else -> error("Fat frameworks are not supported for platform `${target.visibleName}`")
         }
 
@@ -491,7 +494,7 @@ internal constructor(
     companion object {
         private val supportedTargets = listOf(
             IOS_ARM64, IOS_X64,
-            WATCHOS_ARM32, WATCHOS_ARM64, WATCHOS_X64, WATCHOS_DEVICE_ARM64,
+            WATCHOS_ARM64, WATCHOS_X64, WATCHOS_DEVICE_ARM64,
             TVOS_ARM64, TVOS_X64,
             MACOS_X64, MACOS_ARM64
         )

@@ -14,18 +14,16 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.targets.js.RequiredKotlinJsDependency
 import org.jetbrains.kotlin.gradle.targets.js.internal.parseNodeJsStackTraceAsJvm
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrCompilation
+import org.jetbrains.kotlin.gradle.targets.js.ir.npmVersions
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsPlugin.Companion.kotlinNodeJsEnvSpec
-import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin.Companion.kotlinNodeJsRootExtension
 import org.jetbrains.kotlin.gradle.targets.js.npm.NpmProjectModules
 import org.jetbrains.kotlin.gradle.targets.js.npm.npmProject
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTestFramework
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinTestRunnerCliArgs
-import org.jetbrains.kotlin.gradle.targets.js.webTargetVariant
 import org.jetbrains.kotlin.gradle.utils.getFile
 import org.jetbrains.kotlin.gradle.utils.getValue
 import org.jetbrains.kotlin.gradle.utils.processes.ProcessLaunchOptions
-import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootPlugin.Companion.kotlinNodeJsRootExtension as wasmKotlinNodeJsRootExtension
 
 class KotlinMocha internal constructor(
     @Transient
@@ -37,14 +35,8 @@ class KotlinMocha internal constructor(
     private val project: Project = compilation.target.project
     private val npmProject = compilation.npmProject
 
-    @Transient
-    private val nodeJsRoot = compilation.webTargetVariant(
-        { project.rootProject.kotlinNodeJsRootExtension },
-        { project.rootProject.wasmKotlinNodeJsRootExtension },
-    )
-
     private val versions by lazy {
-        nodeJsRoot.versions
+        compilation.npmVersions()
     }
 
     private val npmProjectDir by project.provider { npmProject.dir }
@@ -67,6 +59,7 @@ class KotlinMocha internal constructor(
             versions.kotlinWebHelpers,
         )
 
+    @Deprecated("No longer used. Scheduled for removal in Kotlin 2.7.")
     override fun getPath() = "$basePath:kotlinMocha"
 
     // https://mochajs.org/#-timeout-ms-t-ms

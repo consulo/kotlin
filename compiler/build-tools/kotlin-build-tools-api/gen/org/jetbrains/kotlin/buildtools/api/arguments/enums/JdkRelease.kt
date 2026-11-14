@@ -36,5 +36,8 @@ public enum class JdkRelease(
   JDK_23("23"),
   JDK_24("24"),
   JDK_25("25"),
+  JDK_26("26"),
+  JDK_27("27"),
+  JDK_28("28"),
   ;
 }

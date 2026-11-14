@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -20,11 +20,11 @@ import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassLikeSymbol
 import org.jetbrains.kotlin.analysis.api.types.*
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
-import org.jetbrains.kotlin.analysis.utils.errors.requireIsInstance
-import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
+import org.jetbrains.kotlin.fir.types.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.types.isSomeFunctionType
 import org.jetbrains.kotlin.fir.types.renderForDebugging
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.utils.addToStdlib.requireIsInstance
 
 internal class KaFirUsualClassType(
     override val coneType: ConeClassLikeTypeImpl,
@@ -51,13 +51,6 @@ internal class KaFirUsualClassType(
         get() = withValidityAssertion {
             KaFirAnnotationListForType.create(coneType, builder)
         }
-
-    @Deprecated(
-        "Use `isMarkedNullable`, `isNullable` or `hasFlexibleNullability` instead. See KDocs for the migration guide",
-        replaceWith = ReplaceWith("this.isMarkedNullable")
-    )
-    @Suppress("Deprecation")
-    override val nullability: KaTypeNullability get() = withValidityAssertion { KaTypeNullability.create(coneType.isMarkedNullable) }
 
     override val abbreviation: KaUsualClassType?
         get() = withValidityAssertion {

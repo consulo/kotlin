@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // FILE: A.kt
 @file:Suppress("OPT_IN_USAGE")
 package foo
@@ -11,4 +11,4 @@ package foo
 
 import kotlin.wasm.*
 
-<!EXPORTING_JS_NAME_WASM_EXPORT_CLASH!>@WasmExport("test") fun bar() = 2<!>
+<!WASM_EXPORT_EXPORTING_JS_NAME_CLASH!>@WasmExport("test") fun bar() = 2<!>

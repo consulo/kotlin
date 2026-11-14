@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // OPT_IN: kotlin.contracts.ExperimentalContracts
-// LANGUAGE: +UseReturnsEffect
 // Issue: KT-26386
 
 fun myRun(block: () -> Unit) {

@@ -1,22 +1,11 @@
 /*
- * Copyright 2010-2016 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.incremental
 
-import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
+import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.incremental.ProtoCompareGenerated.ProtoBufClassKind
 import org.jetbrains.kotlin.incremental.ProtoCompareGenerated.ProtoBufPackageKind
 import org.jetbrains.kotlin.incremental.storage.ProtoMapValue
@@ -25,11 +14,13 @@ import org.jetbrains.kotlin.metadata.ProtoBuf.Type
 import org.jetbrains.kotlin.metadata.deserialization.Flags
 import org.jetbrains.kotlin.metadata.deserialization.NameResolver
 import org.jetbrains.kotlin.metadata.deserialization.TypeTable
+import org.jetbrains.kotlin.metadata.deserialization.expandedType
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmProtoBufUtil
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.protobuf.MessageLite
 import org.jetbrains.kotlin.serialization.deserialization.ProtoEnumFlags
-import org.jetbrains.kotlin.serialization.deserialization.descriptorVisibility
 import org.jetbrains.kotlin.serialization.deserialization.getClassId
 
 data class Difference(
@@ -45,10 +36,10 @@ data class PackagePartProtoData(val proto: ProtoBuf.Package, val nameResolver: N
 
 fun ProtoMapValue.toProtoData(packageFqName: FqName): ProtoData =
     if (isPackageFacade) {
-        val (nameResolver, packageProto) = JvmProtoBufUtil.readPackageDataFrom(bytes, strings)
+        val [nameResolver, packageProto] = JvmProtoBufUtil.readPackageDataFrom(bytes, strings)
         PackagePartProtoData(packageProto, nameResolver, packageFqName)
     } else {
-        val (nameResolver, classProto) = JvmProtoBufUtil.readClassDataFrom(bytes, strings)
+        val [nameResolver, classProto] = JvmProtoBufUtil.readClassDataFrom(bytes, strings)
         ClassProtoData(classProto, nameResolver)
     }
 
@@ -62,7 +53,7 @@ internal val MessageLite.isPrivate: Boolean
             is ProtoBuf.EnumEntry -> return false // EnumEntry doesn't have a visibility flag
             else -> error("Unknown message: $this")
         }
-        return DescriptorVisibilities.isPrivate(ProtoEnumFlags.descriptorVisibility(visibility))
+        return Visibilities.isPrivate(ProtoEnumFlags.visibility(visibility))
     }
 
 private fun MessageLite.name(nameResolver: NameResolver): String {
@@ -184,8 +175,8 @@ class DifferenceCalculatorForClass(
     )
 
     override fun difference(): Difference {
-        val (oldProto, oldNameResolver) = oldData
-        val (newProto, newNameResolver) = newData
+        (val oldProto = proto, val oldNameResolver = nameResolver) = oldData
+        (val newProto = proto, val newNameResolver = nameResolver) = newData
 
         val diff = compareObject.difference(oldProto, newProto)
 
@@ -296,9 +287,6 @@ class DifferenceCalculatorForClass(
                     changedSupertypes.addAll(elements)
                 }
                 ProtoBufClassKind.JVM_EXT_CLASS_MODULE_NAME,
-                ProtoBufClassKind.JS_EXT_CLASS_CONTAINING_FILE_ID -> {
-                    // TODO
-                }
                 ProtoBufClassKind.JVM_EXT_CLASS_LOCAL_VARIABLE_LIST -> {
                     // Not affected, local variables are not accessible outside of a file
                 }
@@ -330,7 +318,6 @@ class DifferenceCalculatorForClass(
                     areSubclassesAffected = true
                 }
                 ProtoBufClassKind.ANNOTATION_LIST,
-                ProtoBufClassKind.JS_EXT_CLASS_ANNOTATION_LIST,
                 ProtoBufClassKind.KLIB_EXT_CLASS_ANNOTATION_LIST,
                 ProtoBufClassKind.BUILT_INS_EXT_CLASS_ANNOTATION_LIST -> {
                     isClassAffected = true
@@ -398,9 +385,6 @@ class DifferenceCalculatorForPackageFacade(
                     names.addAll(calcDifferenceForNonPrivateMembers(ProtoBuf.Package::getTypeAliasList))
                 ProtoBufPackageKind.VERSION_REQUIREMENT_TABLE,
                 ProtoBufPackageKind.JVM_EXT_PACKAGE_MODULE_NAME,
-                ProtoBufPackageKind.JS_EXT_PACKAGE_FQ_NAME -> {
-                    // TODO
-                }
                 ProtoBufPackageKind.JVM_EXT_PACKAGE_LOCAL_VARIABLE_LIST -> {
                     // Not affected, local variables are not accessible outside of a file
                 }
@@ -431,7 +415,23 @@ class DifferenceCalculatorForPackageFacade(
         }
 
         fun PackagePartProtoData.getVisibleTypeAliasFqNames(): List<FqName> {
-            return proto.typeAliasList.filterNot { it.isPrivate }.map { nameResolver.getClassId(it.name).asSingleFqName() }
+            return proto.typeAliasList.filterNot { it.isPrivate }
+                .map { packageFqName.child(Name.identifier(nameResolver.getString(it.name))) }
+        }
+
+        fun PackagePartProtoData.getVisibleTypeAliasExpansions(): List<Pair<ClassId, ClassId>> {
+            if (proto.typeAliasList.isEmpty()) return emptyList()
+            val typeTable = TypeTable(proto.typeTable)
+
+            return proto.typeAliasList.filterNot { it.isPrivate }.mapNotNull { alias ->
+                val expandedType = alias.expandedType(typeTable)
+                if (!expandedType.hasClassName()) {
+                    return@mapNotNull null
+                }
+
+                val aliasClassId = ClassId(packageFqName, Name.identifier(nameResolver.getString(alias.name)))
+                aliasClassId to nameResolver.getClassId(expandedType.className)
+            }
         }
     }
 }

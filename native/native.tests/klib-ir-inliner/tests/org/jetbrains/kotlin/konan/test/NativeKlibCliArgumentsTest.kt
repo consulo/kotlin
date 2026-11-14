@@ -5,10 +5,13 @@
 
 package org.jetbrains.kotlin.konan.test
 
+import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.cli.common.arguments.K2NativeCompilerArguments
 import org.jetbrains.kotlin.cli.common.arguments.cliArgument
+import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.incremental.createDirectory
 import org.jetbrains.kotlin.konan.test.blackbox.AbstractNativeSimpleTest
+import org.jetbrains.kotlin.konan.test.blackbox.asLibraryDependency
 import org.jetbrains.kotlin.konan.test.blackbox.buildDir
 import org.jetbrains.kotlin.konan.test.blackbox.compileToLibrary
 import org.jetbrains.kotlin.konan.test.blackbox.support.TestCompilerArgs
@@ -18,17 +21,21 @@ import org.jetbrains.kotlin.library.components.metadata
 import org.jetbrains.kotlin.library.loader.KlibLoader
 import org.jetbrains.kotlin.library.metadata.KlibMetadataProtoBuf
 import org.jetbrains.kotlin.library.metadata.parsePackageFragment
+import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.NameResolverImpl
 import org.jetbrains.kotlin.metadata.deserialization.getExtensionOrNull
+import org.jetbrains.kotlin.serialization.deserialization.getClassId
 import org.jetbrains.kotlin.serialization.deserialization.getName
 import org.jetbrains.kotlin.test.services.JUnit5Assertions.assertEquals
 import org.jetbrains.kotlin.test.services.JUnit5Assertions.assertTrue
 import org.jetbrains.kotlin.test.services.JUnit5Assertions.fail
+import org.jetbrains.kotlin.testFederation.HostDependent
+import org.jetbrains.kotlin.util.toMetadataVersion
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.io.File
-import kotlin.text.startsWith
 
+@HostDependent
 class NativeKlibCliArgumentsTest : AbstractNativeSimpleTest() {
     @Test
     @DisplayName("Test custom -Xabi-version CLI argument (KT-74467)")
@@ -140,8 +147,204 @@ class NativeKlibCliArgumentsTest : AbstractNativeSimpleTest() {
     }
 
     @Test
+    @DisplayName("Test manifest metadata version (KT-74417)")
+    fun testManifestMetadataVersion() {
+        val dir = buildDir.resolve("dir").apply { createDirectory() }
+        val sourceFile = dir.resolve("source.kt").apply { writeText("fun foo() = Unit") }
+        val currentLanguageVersion = LanguageVersion.LATEST_STABLE
+        val currentMetadataVersion = currentLanguageVersion.toMetadataVersion().toString()
+        val testData = arrayOf(
+            Pair(
+                TestCompilerArgs("-language-version", currentLanguageVersion.versionString, K2NativeCompilerArguments::nopack.cliArgument),
+                currentMetadataVersion,
+            ),
+            Pair(
+                TestCompilerArgs(
+                    "-language-version", currentLanguageVersion.versionString, K2NativeCompilerArguments::nopack.cliArgument,
+                    K2NativeCompilerArguments::metadataVersion.cliArgument + "=2.3.0",
+                ),
+                "2.3.0",
+            ),
+        )
+
+        for ([args, expectedVersion] in testData) {
+            val klibDir = compileToLibrary(
+                sourcesDir = sourceFile,
+                outputDir = dir,
+                freeCompilerArgs = args,
+                dependencies = emptyList(),
+            ).guessKlibArtifactFile()
+
+            val manifest = klibDir.resolve("default/manifest")
+            val metadataVersion = manifest.readLines()
+                .find { it.startsWith("metadata_version") }
+                ?.split("=")
+                ?.get(1)
+
+            assertEquals(expectedVersion, metadataVersion)
+        }
+    }
+
+    @Test
+    @DisplayName("Test compilation against dependencies with supported metadata versions (KT-55808)")
+    fun testCompileAgainstDependencyWithSupportedMetadataVersions() {
+        val currentLanguageVersionIndex = LanguageVersion.entries.indexOf(LanguageVersion.LATEST_STABLE)
+        val supportedDependencyMetadataVersions = listOf(
+            LanguageVersion.entries[currentLanguageVersionIndex - 2],
+            LanguageVersion.entries[currentLanguageVersionIndex - 1],
+            LanguageVersion.LATEST_STABLE,
+            LanguageVersion.entries[currentLanguageVersionIndex + 1],
+        ).map { it.toMetadataVersion().toString() }
+
+        val dependencySourceDir = buildDir.resolve("lib1").apply { createDirectory() }
+        dependencySourceDir.resolve("lib1.kt").writeText(
+            """
+            package lib1
+
+            fun foo() = "Hello"
+            """.trimIndent()
+        )
+        val usageSourceDir = buildDir.resolve("lib2").apply { createDirectory() }
+        usageSourceDir.resolve("lib2.kt").writeText(
+            """
+            package lib2
+
+            fun bar() = lib1.foo()
+            """.trimIndent()
+        )
+
+        for (metadataVersion in supportedDependencyMetadataVersions) {
+            val dependency = compileToLibrary(
+                sourcesDir = dependencySourceDir,
+                outputDir = buildDir,
+                freeCompilerArgs = TestCompilerArgs(
+                    K2NativeCompilerArguments::metadataVersion.cliArgument + "=" + metadataVersion,
+                    CommonCompilerArguments::skipMetadataVersionCheck.cliArgument,
+                ),
+                dependencies = emptyList(),
+            )
+
+            compileToLibrary(
+                sourcesDir = usageSourceDir,
+                outputDir = buildDir,
+                freeCompilerArgs = TestCompilerArgs.EMPTY,
+                dependencies = listOf(dependency.asLibraryDependency()),
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("Test compilation against dependencies with unsupported metadata versions (KT-55808)")
+    fun testCompileAgainstDependencyWithUnsupportedMetadataVersions() {
+        val currentLanguageVersionIndex = LanguageVersion.entries.indexOf(LanguageVersion.LATEST_STABLE)
+        val metadataVersion = LanguageVersion.entries[currentLanguageVersionIndex + 2].toMetadataVersion().toString()
+
+        val dependencySourceDir = buildDir.resolve("lib1").apply { createDirectory() }
+        dependencySourceDir.resolve("lib1.kt").writeText(
+            """
+            package lib1
+
+            fun foo() = "Hello"
+            """.trimIndent()
+        )
+        val dependency = compileToLibrary(
+            sourcesDir = dependencySourceDir,
+            outputDir = buildDir,
+            freeCompilerArgs = TestCompilerArgs(
+                K2NativeCompilerArguments::metadataVersion.cliArgument + "=" + metadataVersion,
+                CommonCompilerArguments::skipMetadataVersionCheck.cliArgument,
+            ),
+            dependencies = emptyList(),
+        )
+
+        val usageSourceDir = buildDir.resolve("lib2").apply { createDirectory() }
+        usageSourceDir.resolve("lib2.kt").writeText(
+            """
+            package lib2
+
+            fun bar() = lib1.foo()
+            """.trimIndent()
+        )
+
+        try {
+            compileToLibrary(
+                sourcesDir = usageSourceDir,
+                outputDir = buildDir,
+                freeCompilerArgs = TestCompilerArgs.EMPTY,
+                dependencies = listOf(dependency.asLibraryDependency()),
+            )
+            fail { "Compilation should fail" }
+        } catch (cte: CompilationToolException) {
+            assertTrue(cte.reason.contains("compiled with an incompatible version of Kotlin"))
+            assertTrue(cte.reason.contains("The actual metadata version is $metadataVersion"))
+        }
+    }
+
+    @Test
     @DisplayName("Test -Xexport-kdoc argument")
     fun testExportKdocArgument() {
+        val packageFragment = compileKdocSourceAndReadPackageFragment(exportKdoc = true)
+        val nameResolver = NameResolverImpl(packageFragment.strings, packageFragment.qualifiedNames)
+
+        val mainFunctionProto = packageFragment.`package`.functionList.single()
+        assertEquals("main", nameResolver.getName(mainFunctionProto.name).asString())
+
+        assertEquals(kdoc("I'm the main function!"), mainFunctionProto.getExtensionOrNull(KlibMetadataProtoBuf.functionKdoc))
+
+        val typeAliasProto = packageFragment.`package`.typeAliasList.single()
+        assertEquals("Alias", nameResolver.getName(typeAliasProto.name).asString())
+        assertEquals(kdoc("I'm a type alias!"), typeAliasProto.getExtensionOrNull(KlibMetadataProtoBuf.typeAliasKdoc))
+
+        val enumEntryProto = packageFragment.findClass(nameResolver, "Color").enumEntryList.single()
+        assertEquals("RED", nameResolver.getName(enumEntryProto.name).asString())
+        assertEquals(kdoc("I'm an enum entry!", indent = 4), enumEntryProto.getExtensionOrNull(KlibMetadataProtoBuf.enumEntryKdoc))
+
+        val propertyProto = packageFragment.`package`.findProperty(nameResolver, "prop")
+        assertEquals(kdoc("I'm a property!"), propertyProto.getExtensionOrNull(KlibMetadataProtoBuf.propertyKdoc))
+        assertEquals(kdoc("I'm a getter!", indent = 4), propertyProto.getExtensionOrNull(KlibMetadataProtoBuf.propertyGetterKdoc))
+        assertEquals(kdoc("I'm a setter!", indent = 4), propertyProto.getExtensionOrNull(KlibMetadataProtoBuf.propertySetterKdoc))
+
+        // The KDoc of the property is not attributed to its default accessors.
+        val defaultAccessorsProto = packageFragment.`package`.findProperty(nameResolver, "defaultAccessors")
+        assertEquals(
+            kdoc("I'm a property with default accessors!"),
+            defaultAccessorsProto.getExtensionOrNull(KlibMetadataProtoBuf.propertyKdoc)
+        )
+        assertEquals(null, defaultAccessorsProto.getExtensionOrNull(KlibMetadataProtoBuf.propertyGetterKdoc))
+        assertEquals(null, defaultAccessorsProto.getExtensionOrNull(KlibMetadataProtoBuf.propertySetterKdoc))
+
+        val constructorPropertyProto = packageFragment.findClass(nameResolver, "Holder").propertyList.single()
+        assertEquals("constructorProperty", nameResolver.getName(constructorPropertyProto.name).asString())
+        assertEquals(
+            kdoc("I'm a constructor property!", indent = 4),
+            constructorPropertyProto.getExtensionOrNull(KlibMetadataProtoBuf.propertyKdoc)
+        )
+        assertEquals(null, constructorPropertyProto.getExtensionOrNull(KlibMetadataProtoBuf.propertyGetterKdoc))
+        assertEquals(null, constructorPropertyProto.getExtensionOrNull(KlibMetadataProtoBuf.propertySetterKdoc))
+    }
+
+    @Test
+    @DisplayName("Test that KDoc is not exported without -Xexport-kdoc argument")
+    fun testNoExportKdocArgument() {
+        val packageFragment = compileKdocSourceAndReadPackageFragment(exportKdoc = false)
+        val nameResolver = NameResolverImpl(packageFragment.strings, packageFragment.qualifiedNames)
+
+        val mainFunctionProto = packageFragment.`package`.functionList.single()
+        assertEquals(null, mainFunctionProto.getExtensionOrNull(KlibMetadataProtoBuf.functionKdoc))
+
+        val typeAliasProto = packageFragment.`package`.typeAliasList.single()
+        assertEquals(null, typeAliasProto.getExtensionOrNull(KlibMetadataProtoBuf.typeAliasKdoc))
+
+        val enumEntryProto = packageFragment.findClass(nameResolver, "Color").enumEntryList.single()
+        assertEquals(null, enumEntryProto.getExtensionOrNull(KlibMetadataProtoBuf.enumEntryKdoc))
+
+        val propertyProto = packageFragment.`package`.findProperty(nameResolver, "prop")
+        assertEquals(null, propertyProto.getExtensionOrNull(KlibMetadataProtoBuf.propertyKdoc))
+        assertEquals(null, propertyProto.getExtensionOrNull(KlibMetadataProtoBuf.propertyGetterKdoc))
+        assertEquals(null, propertyProto.getExtensionOrNull(KlibMetadataProtoBuf.propertySetterKdoc))
+    }
+
+    private fun compileKdocSourceAndReadPackageFragment(exportKdoc: Boolean): ProtoBuf.PackageFragment {
         val sourcesDir = buildDir.resolve("sources").apply { createDirectory() }
 
         val packageName = "test"
@@ -155,6 +358,43 @@ class NativeKlibCliArgumentsTest : AbstractNativeSimpleTest() {
                      * I'm the main function!
                      */
                     fun main() {}
+
+                    /**
+                     * I'm a type alias!
+                     */
+                    typealias Alias = String
+
+                    enum class Color {
+                        /**
+                         * I'm an enum entry!
+                         */
+                        RED
+                    }
+
+                    /**
+                     * I'm a property!
+                     */
+                    var prop: Int
+                        /**
+                         * I'm a getter!
+                         */
+                        get() = 0
+                        /**
+                         * I'm a setter!
+                         */
+                        set(value) {}
+
+                    /**
+                     * I'm a property with default accessors!
+                     */
+                    var defaultAccessors: Int = 0
+
+                    class Holder(
+                        /**
+                         * I'm a constructor property!
+                         */
+                        var constructorProperty: Int,
+                    )
                 """.trimIndent()
             )
         }
@@ -164,7 +404,7 @@ class NativeKlibCliArgumentsTest : AbstractNativeSimpleTest() {
         val klibFile = compileToLibrary(
             sourcesDir = sourcesDir,
             outputDir = binariesDir,
-            freeCompilerArgs = TestCompilerArgs("-Xexport-kdoc"),
+            freeCompilerArgs = if (exportKdoc) TestCompilerArgs("-Xexport-kdoc") else TestCompilerArgs.EMPTY,
             dependencies = emptyList(),
         ).guessKlibArtifactFile()
 
@@ -174,22 +414,20 @@ class NativeKlibCliArgumentsTest : AbstractNativeSimpleTest() {
         val metadata = kotlinLibrary.metadata
 
         val packageFragmentName = kotlinLibrary.metadata.getPackageFragmentNames(packageName).single()
-        val packageFragment = parsePackageFragment(metadata.getPackageFragment(packageName, packageFragmentName))
-        val nameResolver = NameResolverImpl(packageFragment.strings, packageFragment.qualifiedNames)
-
-        val mainFunctionProto = packageFragment.`package`.functionList.single()
-        assertEquals("main", nameResolver.getName(mainFunctionProto.name).asString())
-
-        // Raw representation with the starting asterisks!
-        assertEquals(
-            """
-                /**
-                 * I'm the main function!
-                 */
-            """.trimIndent(),
-            mainFunctionProto.getExtensionOrNull(KlibMetadataProtoBuf.functionKdoc)
-        )
+        return parsePackageFragment(metadata.getPackageFragment(packageName, packageFragmentName))
     }
+
+    private fun ProtoBuf.PackageFragment.findClass(nameResolver: NameResolverImpl, name: String): ProtoBuf.Class =
+        class_List.single { nameResolver.getClassId(it.fqName).shortClassName.asString() == name }
+
+    // Raw representation with the starting asterisks!
+    private fun kdoc(text: String, indent: Int = 0): String {
+        val continuation = " ".repeat(indent)
+        return "/**\n$continuation * $text\n$continuation */"
+    }
+
+    private fun ProtoBuf.Package.findProperty(nameResolver: NameResolverImpl, name: String): ProtoBuf.Property =
+        propertyList.single { nameResolver.getName(it.name).asString() == name }
 
     companion object {
         private fun TestCompilationArtifact.KLIB.guessKlibArtifactFile(): File {

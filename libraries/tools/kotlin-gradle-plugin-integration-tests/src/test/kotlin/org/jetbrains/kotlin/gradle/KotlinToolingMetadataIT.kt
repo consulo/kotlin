@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.gradle.util.resolveRepoArtifactPath
 import org.jetbrains.kotlin.gradle.util.replaceText
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.jetbrains.kotlin.tooling.KotlinToolingMetadata
 import org.jetbrains.kotlin.tooling.parseJsonOrThrow
 import org.junit.jupiter.api.DisplayName
@@ -22,6 +23,7 @@ import kotlin.io.path.readText
 import kotlin.test.assertEquals
 
 @MppGradlePluginTests
+@MustRunOnChangesInGradle
 @DisplayName("Multiplatform metadata for tooling")
 class KotlinToolingMetadataMppIT : KGPBaseTest() {
     private val TestProject.defaultKotlinToolingMetadataJsonPath
@@ -35,6 +37,7 @@ class KotlinToolingMetadataMppIT : KGPBaseTest() {
         // KT-75899 Support Gradle Project Isolation in KGP JS & Wasm
         get() = super.defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899()
 
+    @TestMetadata("new-mpp-published")
     @GradleTest
     @DisplayName("Check published metadata contains right data")
     fun checkPublishedMetadata(
@@ -86,13 +89,13 @@ class KotlinToolingMetadataMppIT : KGPBaseTest() {
             }
 
             // Adding macos target
-            buildGradleKts.replaceText("linuxX64()", "linuxX64()\nmacosX64()")
+            buildGradleKts.replaceText("linuxX64()", "linuxX64()\nmacosArm64()")
 
             build("publish") {
                 assertTasksExecuted(":$buildKotlinToolingMetadataTaskName")
                 val metadata = KotlinToolingMetadata.parseJsonOrThrow(defaultKotlinToolingMetadataJsonPath.readText())
                 assertEquals(
-                    listOf(KonanTarget.LINUX_X64.name, KonanTarget.MACOS_X64.name).sorted(),
+                    listOf(KonanTarget.LINUX_X64.name, KonanTarget.MACOS_ARM64.name).sorted(),
                     metadata.projectTargets.mapNotNull { it.extras.native?.konanTarget }.sorted()
                 )
             }

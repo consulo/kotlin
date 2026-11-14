@@ -1,6 +1,8 @@
 // TARGET_BACKEND: NATIVE
 // FILECHECK_STAGE: CStubs
 // FREE_COMPILER_ARGS: -Xbinary=genericSafeCasts=true
+// IGNORE_NATIVE: optimizationMode=OPT && cacheMode=STATIC_ONLY_DIST
+// IGNORE_NATIVE: optimizationMode=OPT && cacheMode=STATIC_EVERYWHERE
 
 value class Foo(val value: Int)
 // CHECK-LABEL: define ptr @"kfun:Foo#$<bridge-NU>toString(){}kotlin.String(){}kotlin.String
@@ -18,7 +20,7 @@ fun foo(x: Any) = x as Int
 // CHECK-DEBUG-NOT: {{call|call zeroext}} i1 @IsSubtype
 // CHECK-OPT-NOT: {{call|call zeroext}} i1 @IsSubclassFast
 // CHECK-DEBUG: call i32 @"kfun:kotlin#<Int-unbox>(kotlin.Any){}kotlin.Int
-// CHECK-OPT: getelementptr inbounds nuw %"kclassbody:kotlin.Int#internal", ptr {{%[0-9]+}}, i32 0, i32 1
+// CHECK-OPT: getelementptr inbounds nuw %"kclassbody:kotlin.Int", ptr {{%[0-9]+}}, i32 0, i32 1
 // CHECK-LABEL: epilogue:
 
 open class A(val x: Int)

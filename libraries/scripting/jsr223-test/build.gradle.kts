@@ -1,22 +1,23 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
 }
 
-val embeddableTestRuntime by configurations.creating {
+val embeddableTestRuntime = configurations.create("embeddableTestRuntime") {
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
         attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
     }
 }
 
-val testJsr223Runtime by configurations.creating {
+val testJsr223Runtime = configurations.create("testJsr223Runtime") {
     extendsFrom(configurations["testRuntimeClasspath"])
 }
 
-val testCompilationClasspath by configurations.creating
+val testCompilationClasspath = configurations.create("testCompilationClasspath")
 
 dependencies {
     testImplementation(platform(libs.junit.bom))
@@ -25,12 +26,13 @@ dependencies {
     testImplementation(libs.junit.platform.launcher)
     testImplementation(intellijCore())
     testCompileOnly(project(":kotlin-scripting-jvm-host-unshaded"))
+    testCompileOnly(project(":kotlin-scripting-jsr223-unshaded"))
     testCompileOnly(project(":compiler:cli"))
     testCompileOnly(project(":compiler:cli-jvm"))
     testCompileOnly(project(":core:util.runtime"))
 
     testImplementation(testFixtures(project(":compiler:test-infrastructure-utils")))
-    testImplementation(projectTests(":kotlin-scripting-compiler"))
+    testImplementation(testFixtures(project(":plugins:scripting:scripting-tests")))
 
     testRuntimeOnly(project(":kotlin-scripting-jsr223-unshaded"))
     testRuntimeOnly(project(":kotlin-compiler"))
@@ -56,7 +58,7 @@ tasks.withType<KotlinJvmCompile>().configureEach {
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5, defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_17_0)) {
+    testTask(defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_17_0)) {
         dependsOn(":dist")
         workingDir = rootDir
         val testRuntimeProvider = project.provider { testJsr223Runtime.asPath }
@@ -64,7 +66,7 @@ projectTests {
         configureProperties(testRuntimeProvider, testCompilationClasspathProvider)
     }
 
-    testTask("embeddableTest", jUnitMode = JUnitMode.JUnit5, skipInLocalBuild = false) {
+    testTask("embeddableTest", skipInLocalBuild = false) {
         workingDir = rootDir
         classpath = embeddableTestRuntime
         val testRuntimeProvider = project.provider { embeddableTestRuntime.asPath }

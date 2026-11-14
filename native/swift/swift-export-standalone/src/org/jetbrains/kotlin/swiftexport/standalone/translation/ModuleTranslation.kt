@@ -5,10 +5,11 @@
 
 package org.jetbrains.kotlin.swiftexport.standalone.translation
 
-import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.klib.reader.getAllClassifiers
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaLibraryModule
+import org.jetbrains.kotlin.analysis.api.session.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassLikeSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.containingModule
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.sir.*
 import org.jetbrains.kotlin.sir.builder.buildModule
@@ -20,12 +21,14 @@ import org.jetbrains.kotlin.sir.providers.utils.updateImport
 import org.jetbrains.kotlin.sir.providers.withSessions
 import org.jetbrains.kotlin.sir.util.allParameters
 import org.jetbrains.kotlin.sir.util.conflictsWith
+import org.jetbrains.kotlin.sir.util.isUnavailable
 import org.jetbrains.kotlin.sir.util.returnType
 import org.jetbrains.kotlin.swiftexport.standalone.InputModule
 import org.jetbrains.kotlin.swiftexport.standalone.SwiftExportLogger
 import org.jetbrains.kotlin.swiftexport.standalone.SwiftExportModule
 import org.jetbrains.kotlin.swiftexport.standalone.builders.KaModules
 import org.jetbrains.kotlin.swiftexport.standalone.builders.buildSirSession
+import org.jetbrains.kotlin.swiftexport.standalone.builders.reexportedObjCModuleNames
 import org.jetbrains.kotlin.swiftexport.standalone.builders.translateModule
 import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftExportConfig
 import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftModuleConfig
@@ -46,14 +49,14 @@ internal fun translateModulePublicApi(module: InputModule, kaModules: KaModules,
             symbolContainingModule?.let { libraryName ->
                 externalTypeDeclarationReferences
                     .getOrPut(libraryName) { mutableListOf() }
-                    .addIfNotNull(symbol.classId?.asSingleFqName())
+                    .addIfNotNull(symbol.translationRootFqName)
             }
         }
         buildSirSession(module.name, kaModules, config, module.config, externalTypeReferenceHandler).withSessions {
             val sirModule = translateModule(
                 module = kaModules.mainModules.single { it.libraryName == module.name }
             )
-            createTranslationResult(sirModule, config, module.config, externalTypeDeclarationReferences)
+            createTranslationResult(sirModule, config, module.config, kaModules, externalTypeDeclarationReferences)
         }
     }
 }
@@ -85,7 +88,7 @@ internal fun translateCrossReferencingModulesTransitively(
     config: SwiftExportConfig,
 ): List<TranslationResult> {
     val translationStates = typeDeclarationReferences
-        .map { (module, references) ->
+        .map { [module, references] ->
             ModuleTransitiveTranslationState(
                 kaModule = module,
                 moduleConfig = kaModules.configFor(module),
@@ -98,7 +101,7 @@ internal fun translateCrossReferencingModulesTransitively(
         analyze(kaModules.useSiteModule) {
             val libraryName = (symbol.containingModule as? KaLibraryModule)?.libraryName
             translationStates.find { it.kaModule.libraryName == libraryName }?.let {
-                val fqName = symbol.classId?.asSingleFqName()
+                val fqName = symbol.translationRootFqName
                     ?: return@analyze
                 if (fqName !in it.processedReferences && fqName !in it.currentlyProcessing) {
                     it.unprocessedReferences += fqName
@@ -141,17 +144,22 @@ internal fun translateCrossReferencingModulesTransitively(
                 sirModule,
                 config,
                 it.moduleConfig,
+                kaModules,
                 emptyMap(),
             )
         }
     }
 }
 
+private val KaClassLikeSymbol.translationRootFqName: FqName?
+    get() = classId?.let { generateSequence(it) { id -> id.outerClassId }.last().asSingleFqName() }
+
 context(sir: SirSession)
 private fun createTranslationResult(
     sirModule: SirModule,
     config: SwiftExportConfig,
     moduleConfig: SwiftModuleConfig,
+    kaModules: KaModules,
     externalTypeDeclarationReferences: Map<KaLibraryModule, List<FqName>>,
 ): TranslationResult {
     // Assume that parts of the KotlinRuntimeSupport and KotlinRuntime module are used.
@@ -169,13 +177,14 @@ private fun createTranslationResult(
 
     val printer = SirPrinter(
         config.stableDeclarationsOrder,
-        config.renderDocComments,
     )
     val bridgeSources = generateModuleBridges(printer, sirModule, bridgeModuleName)
     // Serialize SirModule to sources to avoid leakage of SirSession (and KaSession, likely) outside the analyze call.
     val swiftSourceCode = printer.print(sirModule).swiftSource.joinToString("\n")
 
-    val knownModuleNames = setOf(KotlinRuntimeModule.name, bridgeModuleName) + config.platformLibsInputModule.map { it.name }
+    val knownModuleNames = setOf(KotlinRuntimeModule.name, bridgeModuleName) +
+            kaModules.platformLibraries.map { it.libraryName } +
+            kaModules.cinteropReexportLibraries.flatMap { it.reexportedObjCModuleNames() }
     val referencedSwiftModules = sirModule.imports
         .filter { it.moduleName !in knownModuleNames }
         .map { SwiftExportModule.Reference(it.moduleName) }
@@ -266,7 +275,10 @@ private fun SirMutableDeclarationContainer.removeConflicts(logger: SwiftExportLo
             .indexOfFirst { decl.conflictsWith(it) } // We assume that `conflictsWith` is transitive
             .takeIf { it in 0..<iterator.previousIndex() }
             ?.let { i ->
-                val expelled = decl.takeIf { decl.priority < declarations[i].priority } ?: declarations[i].also { declarations[i] = decl }
+                val earlier = declarations[i]
+                val expelled = decl
+                    .takeIf { conflictOrder.compare(decl, earlier) < 0 }
+                    ?: earlier.also { declarations[i] = decl }
                 iterator.remove()
                 expelled.parent = trashBin
                 logger?.report(
@@ -274,16 +286,14 @@ private fun SirMutableDeclarationContainer.removeConflicts(logger: SwiftExportLo
                     "Exported declaration $expelled was removed from export due to conflicts")
             }
     }
+
+    declarations.filterIsInstance<SirExtension>().forEach { it.removeConflicts(logger) }
 }
 
-private val SirDeclaration.priority: Int get() = when (this) {
-        is SirVariable -> 10
-        is SirFunction -> 20
-        is SirScopeDefiningDeclaration -> 30
-        else -> 0
-    }.let {
-        if (this.origin is SirOrigin.Trampoline)
-            it - 50
-        else
-            it
-    }
+private val conflictOrder: Comparator<SirDeclaration> = compareBy(
+    { it is SirScopeDefiningDeclaration },
+    { it is SirFunction },
+    { it is SirVariable },
+    { !it.isUnavailable },
+    { it.origin !is SirOrigin.Trampoline },
+)

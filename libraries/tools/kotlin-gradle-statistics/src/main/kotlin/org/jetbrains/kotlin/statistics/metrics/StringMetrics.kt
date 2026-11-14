@@ -6,8 +6,8 @@
 package org.jetbrains.kotlin.statistics.metrics
 
 import org.jetbrains.kotlin.statistics.metrics.StringAnonymizationPolicy.*
-import org.jetbrains.kotlin.statistics.metrics.StringOverridePolicy.*
-
+import org.jetbrains.kotlin.statistics.metrics.StringOverridePolicy.OVERRIDE
+import org.jetbrains.kotlin.statistics.metrics.StringOverridePolicy.OVERRIDE_VERSION_IF_NOT_SET
 
 enum class StringMetrics(val type: StringOverridePolicy, val anonymization: StringAnonymizationPolicy, val perProject: Boolean = false) {
 
@@ -17,44 +17,6 @@ enum class StringMetrics(val type: StringOverridePolicy, val anonymization: Stri
 
     OS_TYPE(OVERRIDE, RegexControlled("(Windows|Windows |Windows Server |Mac|Linux|FreeBSD|Solaris|Other|Mac OS X)\\d*", false)),
     OS_VERSION(OVERRIDE, ComponentVersionAnonymizer()),
-
-    IDES_INSTALLED(CONCAT, AllowedListAnonymizer(listOf("AS", "OC", "CL", "IU", "IC", "WC"))),
-
-    // Build script
-    MPP_PLATFORMS(
-        CONCAT, AllowedListAnonymizer(
-            listOf(
-                "common",
-                "native",
-                "jvm",
-                "js",
-                "android_x64",
-                "android_x86",
-                "androidJvm",
-                "android_arm32",
-                "android_arm64",
-                "ios_arm64",
-                "ios_simulator_arm64",
-                "ios_x64",
-                "watchos_arm32",
-                "watchos_arm64",
-                "watchos_x64",
-                "watchos_simulator_arm64",
-                "watchos_device_arm64",
-                "tvos_arm64",
-                "tvos_x64",
-                "tvos_simulator_arm64",
-                "linux_arm32_hfp",
-                "linux_arm64",
-                "linux_x64",
-                "macos_x64",
-                "macos_arm64",
-                "mingw_x64",
-                "wasm"
-            )
-        )
-    ),
-    JS_COMPILER_MODE(CONCAT, AllowedListAnonymizer(listOf("ir", "legacy", "both", "UNKNOWN"))),
 
     // Component versions
     LIBRARY_SPRING_VERSION(OVERRIDE_VERSION_IF_NOT_SET, ComponentVersionAnonymizer()),
@@ -76,23 +38,51 @@ enum class StringMetrics(val type: StringOverridePolicy, val anonymization: Stri
     // Features
     KOTLIN_LANGUAGE_VERSION(OVERRIDE, ComponentVersionAnonymizer()),
     KOTLIN_API_VERSION(OVERRIDE, ComponentVersionAnonymizer()),
-    JS_GENERATE_EXECUTABLE_DEFAULT(CONCAT, AllowedListAnonymizer(listOf("true", "false"))),
-    JS_TARGET_MODE(CONCAT, AllowedListAnonymizer(listOf("both", "browser", "nodejs", "none"))),
-    JS_BINARY_TYPE(CONCAT, AllowedListAnonymizer(listOf("both", "library", "executable", "none"))),
     JS_OUTPUT_GRANULARITY(OVERRIDE, RegexControlled("(whole_program|per_module|per_file)", false)),
-    JS_ES_TARGET(OVERRIDE, AllowedListAnonymizer(listOf("es5", "es2015", "default"))),
+    JS_ES_TARGET(OVERRIDE, AllowedListAnonymizer(listOf("es5", "es2015", "es2020", "default"))),
     JS_MODULE_SYSTEM(OVERRIDE, AllowedListAnonymizer(listOf("plain", "amd", "commonjs", "umd", "es", "default"))),
 
-    // Compiler parameters
-    JVM_DEFAULTS(CONCAT, AllowedListAnonymizer(listOf("enable", "no-compatibility", "disable"))),
-    USE_OLD_BACKEND(CONCAT, AllowedListAnonymizer(listOf("true", "false"))),
-    USE_FIR(CONCAT, AllowedListAnonymizer(listOf("true", "false"))),
-
-    KOTLIN_COMPILER_EXECUTION_POLICY(CONCAT, AllowedListAnonymizer(listOf("in-process", "daemon"))),
-    JS_PROPERTY_LAZY_INITIALIZATION(CONCAT, AllowedListAnonymizer(listOf("true", "false")));
-
+    // CLI arguments
+    CLI_EXPLICIT_RETURN_TYPES_MODE(OVERRIDE, AllowedListAnonymizer(listOf("strict", "warning", "disable"))),
+    CLI_ANNOTATION_DEFAULT_TARGET(OVERRIDE, AllowedListAnonymizer(listOf("first-only", "first-only-warn", "param-property"))),
+    CLI_EXPLICIT_API_MODE(OVERRIDE, AllowedListAnonymizer(listOf("strict", "warning", "disable"))),
+    CLI_HEADER_MODE_TYPE(OVERRIDE, AllowedListAnonymizer(listOf("any", "compilation"))),
+    CLI_METADATA_VERSION(OVERRIDE, ComponentVersionAnonymizer()),
+    CLI_NAME_BASED_DESTRUCTURING_MODE(OVERRIDE, AllowedListAnonymizer(listOf("only-syntax", "name-mismatch", "complete"))),
+    CLI_RETURN_VALUE_CHECKER_MODE(OVERRIDE, AllowedListAnonymizer(listOf("check", "full", "disable", "default"))),
+    CLI_VERIFY_IR_MODE(OVERRIDE, AllowedListAnonymizer(listOf("none", "warning", "error"))),
+    CLI_ABI_STABILITY_MODE(OVERRIDE, AllowedListAnonymizer(listOf("stable", "unstable"))),
+    CLI_ASSERTIONS_MODE(OVERRIDE, AllowedListAnonymizer(listOf("always-enable", "always-disable", "jvm", "legacy"))),
+    CLI_JDK_RELEASE_VERSION(OVERRIDE, AllowedListAnonymizer(listOf("1.8") + (9..27).map { it.toString() })),
+    CLI_JSPECIFY_ANNOTATIONS_MODE(OVERRIDE, AllowedListAnonymizer(listOf("ignore", "strict", "warn"))),
+    CLI_LAMBDAS_CODEGEN_MODE(OVERRIDE, AllowedListAnonymizer(listOf("class", "indy"))),
+    CLI_SAM_CONVERSIONS_CODEGEN_MODE(OVERRIDE, AllowedListAnonymizer(listOf("class", "indy"))),
+    CLI_STRING_CONCAT_CODEGEN_MODE(OVERRIDE, AllowedListAnonymizer(listOf("indy-with-constants", "indy", "inline"))),
+    CLI_COMPATQUAL_CHECKER_FRAMEWORK_ANNOTATIONS_MODE(OVERRIDE, AllowedListAnonymizer(listOf("enable", "disable"))),
+    CLI_WHEN_EXPRESSIONS_CODEGEN_MODE(OVERRIDE, AllowedListAnonymizer(listOf("indy", "inline"))),
+    CLI_JVM_TARGET_VERSION(OVERRIDE, AllowedListAnonymizer(listOf("1.8") + (9..27).map { it.toString() })),
+    CLI_KLIB_ABI_VERSION(OVERRIDE, RegexControlled("\\d+(\\.\\d+)*", false)),
+    CLI_KLIB_DUPLICATED_UNIQUE_NAME_STRATEGY(OVERRIDE, AllowedListAnonymizer(listOf("deny", "allow-all-with-warning", "allow-first-with-warning"))),
+    CLI_KLIB_IR_INLINER_MODE(OVERRIDE, AllowedListAnonymizer(listOf("intra-module", "full", "disabled", "default"))),
+    CLI_PARTIAL_LINKAGE_MODE(OVERRIDE, AllowedListAnonymizer(listOf("enable", "disable"))),
+    CLI_PARTIAL_LINKAGE_LOG_LEVEL(OVERRIDE, AllowedListAnonymizer(listOf("silent", "info", "warning", "error"))),
+    CLI_IR_DCE_RUNTIME_DIAGNOSTIC_MODE(OVERRIDE, AllowedListAnonymizer(listOf("log", "exception"))),
+    CLI_MAIN_FUNCTION_EXECUTION_MODE(OVERRIDE, AllowedListAnonymizer(listOf("call", "noCall"))),
+    CLI_SOURCE_MAP_EMBED_SOURCES_MODE(OVERRIDE, AllowedListAnonymizer(listOf("always", "never", "inlining"))),
+    CLI_SOURCE_MAP_NAMES_POLICY(OVERRIDE, AllowedListAnonymizer(listOf("no", "simple-names", "fully-qualified-names"))),
+    CLI_WASM_TARGET_MODE(OVERRIDE, AllowedListAnonymizer(listOf("wasm-js", "wasm-wasi"))),
+    CLI_JS_IR_SAFE_EXTERNAL_BOOLEAN_DIAGNOSTIC_MODE(OVERRIDE, AllowedListAnonymizer(listOf("log", "exception"))),
+    CLI_NATIVE_LIGHT_DEBUG_MODE(OVERRIDE, AllowedListAnonymizer(listOf("disable", "enable"))),
+    CLI_NATIVE_ALLOCATOR(OVERRIDE, AllowedListAnonymizer(listOf("std", "mimalloc", "custom"))),
+    CLI_NATIVE_DEBUG_INFO_FORMAT_VERSION(OVERRIDE, AllowedListAnonymizer(listOf("1", "2"))),
+    CLI_NATIVE_DEBUG_TRAMPOLINE_MODE(OVERRIDE, AllowedListAnonymizer(listOf("disable", "enable"))),
+    CLI_NATIVE_IR_PROPERTY_LAZY_INITIALIZATION_MODE(OVERRIDE, AllowedListAnonymizer(listOf("disable", "enable"))),
+    CLI_NATIVE_PRE_LINK_CACHES_MODE(OVERRIDE, AllowedListAnonymizer(listOf("disable", "enable"))),
+    CLI_NATIVE_MEMORY_MODEL(OVERRIDE, AllowedListAnonymizer(listOf("strict", "experimental"))),
+    CLI_NATIVE_PRODUCE_OUTPUT_KIND(OVERRIDE, AllowedListAnonymizer(listOf("program", "static", "dynamic", "framework", "library", "bitcode")))
+    ;
 
     companion object {
-        const val VERSION = 10
+        const val VERSION = 14
     }
 }

@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.fir.checkers.generator.diagnostics
 
 import com.intellij.psi.PsiElement
+import org.jetbrains.kotlin.config.LanguageFeature.*
 import org.jetbrains.kotlin.fir.checkers.generator.diagnostics.model.DiagnosticList
 import org.jetbrains.kotlin.fir.checkers.generator.diagnostics.model.PositioningStrategy
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
@@ -17,8 +18,26 @@ import org.jetbrains.kotlin.util.PrivateForInline
 object WEB_COMMON_DIAGNOSTICS_LIST : DiagnosticList("FirWebCommonErrors") {
     val ANNOTATIONS by object : DiagnosticGroup("Annotations") {
         val WRONG_JS_QUALIFIER by error<KtElement>()
-        val JS_MODULE_PROHIBITED_ON_VAR by error<KtElement>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT)
-        val NESTED_JS_MODULE_PROHIBITED by error<KtElement>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT)
+        val JS_MODULE_PROHIBITED_ON_VAR by error<KtElement>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT) {
+            parameter<ConeKotlinType>("annotation")
+        }
+        val JS_MODULE_PROHIBITED_ON_NON_EXTERNAL by error<KtElement> {
+            parameter<ConeKotlinType>("annotation")
+        }
+        val NESTED_JS_MODULE_PROHIBITED by error<KtElement> {
+            parameter<ConeKotlinType>("annotation")
+        }
+        val JS_MODULE_PROHIBITED_ON_MEMBER by error<KtElement> {
+            parameter<ConeKotlinType>("annotation")
+        }
+        val JS_MODULE_PROHIBITED_ON_EXTERNAL_INTERFACE by error<KtElement> {
+            parameter<ConeKotlinType>("annotation")
+        }
+        val JS_MODULE_PROHIBITED_IN_FILE_WITH_JS_QUALIFIER by error<KtElement>()
+        val INAPPLICABLE_EAGER_INITIALIZATION by deprecationError<KtElement>(ForbidNonTopLevelEagerInitialization)
+        val NATIVE_ANNOTATIONS_ALLOWED_ONLY_ON_MEMBER_FUN by error<KtElement> {
+            parameter<ConeKotlinType>("type")
+        }
     }
 
     val EXTERNALS by object : DiagnosticGroup("Externals") {
@@ -27,6 +46,7 @@ object WEB_COMMON_DIAGNOSTICS_LIST : DiagnosticList("FirWebCommonErrors") {
             parameter<String>("classKind")
         }
         val NESTED_CLASS_IN_EXTERNAL_INTERFACE by error<KtExpression>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT)
+        val COMPANION_OBJECT_IN_EXTERNAL_INTERFACE by error<KtExpression>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT)
         val INLINE_EXTERNAL_DECLARATION by error<KtDeclaration>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT)
         val NON_ABSTRACT_MEMBER_OF_EXTERNAL_INTERFACE by error<KtExpression>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT)
         val EXTERNAL_CLASS_CONSTRUCTOR_PROPERTY_PARAMETER by error<KtParameter>()
@@ -61,6 +81,12 @@ object WEB_COMMON_DIAGNOSTICS_LIST : DiagnosticList("FirWebCommonErrors") {
         val NESTED_JS_EXPORT by error<KtElement>()
         val MULTIPLE_JS_EXPORT_DEFAULT_IN_ONE_FILE by error<KtElement>()
         val WRONG_JS_EXPORT_TARGET_VISIBILITY by warning<KtElement>()
+        val WRONG_EXPORTED_DECLARATION by error<KtElement>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT) {
+            parameter<String>("kind")
+        }
+        val NOT_EXPORTED_OR_EXTERNAL_ACTUAL_DECLARATION_WHILE_EXPECT_IS_EXPORTED by error<KtElement>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT) {
+            parameter<String>("fixSuggestion")
+        }
     }
 
     val JSCODE by object : DiagnosticGroup("JsCode") {

@@ -15,8 +15,10 @@ import org.jetbrains.kotlin.fir.builder.buildPackageDirective
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.builder.FirFileBuilder
 import org.jetbrains.kotlin.fir.declarations.builder.buildFile
-import org.jetbrains.kotlin.fir.declarations.utils.isInlineOrValue
+import org.jetbrains.kotlin.fir.declarations.utils.isExpect
+import org.jetbrains.kotlin.fir.declarations.utils.isValue
 import org.jetbrains.kotlin.fir.resolve.providers.impl.syntheticFunctionInterfacesSymbolProvider
+import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationParent
@@ -127,6 +129,40 @@ fun Fir2IrComponents.createWhenForSafeFall(
     }
 }
 
+
+fun Fir2IrComponents.createErrorSafeCallConstruction(
+    receiverVariable: IrVariable,
+    receiverVariableSymbol: IrValueSymbol,
+    expressionOnNotError: IrExpression,
+    resultType: IrType,
+): IrExpression {
+    val startOffset = expressionOnNotError.startOffset
+    val endOffset = expressionOnNotError.endOffset
+
+    return IrBlockImpl(startOffset, endOffset, resultType, ERROR_SAFE_CALL).apply {
+        statements += receiverVariable
+
+        val startOffset = expressionOnNotError.startOffset
+        val endOffset = expressionOnNotError.endOffset
+
+        statements += IrWhenImpl(startOffset, endOffset, resultType).apply {
+            val condition = IrTypeOperatorCallImpl(
+                startOffset, endOffset, builtins.booleanType,
+                INSTANCEOF,
+                StandardTypes.RichError.toIrType(),
+                IrGetValueImpl(startOffset, endOffset, receiverVariableSymbol)
+            )
+            branches += IrBranchImpl(
+                condition, IrGetValueImpl(startOffset, endOffset, receiverVariableSymbol)
+            )
+            branches += IrElseBranchImpl(
+                IrConstImpl.boolean(startOffset, endOffset, builtins.booleanType, true),
+                expressionOnNotError
+            )
+        }
+    }
+}
+
 fun Fir2IrConversionScope.createTemporaryVariable(
     receiverExpression: IrExpression,
     nameHint: String? = null
@@ -143,10 +179,19 @@ fun Fir2IrConversionScope.createTemporaryVariableForSafeCallConstruction(
     createTemporaryVariable(receiverExpression, "safe_receiver")
 
 fun Fir2IrComponents.computeValueClassRepresentation(klass: FirRegularClass): ValueClassRepresentation<IrSimpleType>? {
-    require((klass.valueClassRepresentation != null) == klass.isInlineOrValue) {
-        "Value class has no representation: ${klass.render()}"
+    val valueClassRepresentation = klass.valueClassRepresentation
+    if (valueClassRepresentation == null) {
+        require(!klass.isValue || klass.isExpect) {
+            "Value class has no representation: ${klass.render()}"
+        }
+        return null
     }
-    return klass.valueClassRepresentation?.mapUnderlyingType {
+    /*
+     * In debugger annotations on the primary constructor (or parameters/their types in it) of a value class might be not resolved yet,
+     * so it's required to call lazy resolve to resolve them (and so underlying type in the valueClassRepresentation).
+     */
+    klass.primaryConstructorIfAny(session)?.lazyResolveToPhase(FirResolvePhase.ANNOTATION_ARGUMENTS)
+    return valueClassRepresentation.mapUnderlyingType {
         it.toIrType() as? IrSimpleType ?: error("Value class underlying type is not a simple type: ${klass.render()}")
     }
 }
@@ -163,7 +208,7 @@ fun FirSession.createFilesWithBuiltinsSyntheticDeclarationsIfNeeded(): List<FirF
     }
     val symbolProvider = syntheticFunctionInterfacesSymbolProvider
 
-    return symbolProvider.generatedClassIds.groupBy { it.packageFqName }.map { (packageFqName, classIds) ->
+    return symbolProvider.generatedClassIds.groupBy { it.packageFqName }.map { [packageFqName, classIds] ->
         createSyntheticFirFileForFir2Ir(
             fileName = generatedBuiltinsDeclarationsFileName,
             packageFqName = packageFqName,

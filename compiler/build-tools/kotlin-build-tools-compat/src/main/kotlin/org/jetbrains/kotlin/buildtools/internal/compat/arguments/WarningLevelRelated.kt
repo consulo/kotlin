@@ -16,14 +16,17 @@ internal fun CommonCompilerArguments.applyWarningLevels(levels: List<WarningLeve
 }
 
 @OptIn(ExperimentalCompilerArgument::class)
+@Suppress("EnumValuesSoftDeprecate")
 internal fun applyWarningLevels(
     currentValue: List<WarningLevel>,
     compilerArgs: CommonCompilerArguments,
 ): List<WarningLevel> =
     compilerArgs.warningLevels.mapOrEmpty { item ->
         val parts = item.split(":", limit = 2)
-        require(parts.size == 2) { "Invalid -Xwarning-level format: $item" }
-        val severity = WarningLevel.Severity.entries.firstOrNull { entry -> entry.stringValue == parts[1] }
+        if (parts.size != 2) {
+            throw CompilerArgumentsParseException("Invalid -Xwarning-level format: $item")
+        }
+        val severity = WarningLevel.Severity.values().firstOrNull { entry -> entry.stringValue == parts[1] }
             ?: throw CompilerArgumentsParseException("Unknown -Xwarning-level level: $item")
         WarningLevel(parts[0], severity)
     }

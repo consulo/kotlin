@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.konan.test.irText
 
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.konan.test.*
 import org.jetbrains.kotlin.konan.test.converters.NativeDeserializerFacade
 import org.jetbrains.kotlin.platform.konan.NativePlatforms
@@ -19,14 +18,14 @@ import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.configuration.additionalK2ConfigurationForIrTextTest
 import org.jetbrains.kotlin.test.directives.ConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.KlibAbiConsistencyDirectives.CHECK_SAME_ABI_AFTER_INLINING
-import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.LANGUAGE
+import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.ALLOW_KOTLIN_PACKAGE
 import org.jetbrains.kotlin.test.frontend.fir.FirOutputArtifact
 import org.jetbrains.kotlin.test.model.*
 import org.jetbrains.kotlin.test.runners.codegen.FirPsiCodegenTest
 import org.jetbrains.kotlin.test.runners.ir.AbstractNonJvmIrTextTest
-import org.jetbrains.kotlin.test.services.LibraryProvider
 import org.jetbrains.kotlin.test.services.configuration.CommonEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.NativeFirstStageEnvironmentConfigurator
+import org.jetbrains.kotlin.test.services.configuration.NativeSecondStageEnvironmentConfigurator
 
 abstract class AbstractNativeIrTextTestBase(private val parser: FirParser) :
     AbstractNonJvmIrTextTest<FirOutputArtifact>(NativePlatforms.unspecifiedNativePlatform, TargetBackend.NATIVE) {
@@ -55,9 +54,8 @@ abstract class AbstractNativeIrTextTestBase(private val parser: FirParser) :
         useConfigurators(
             ::CommonEnvironmentConfigurator,
             ::NativeFirstStageEnvironmentConfigurator,
+            ::NativeSecondStageEnvironmentConfigurator,
         )
-
-        useAdditionalService(::LibraryProvider)
     }
 
     override fun configure(builder: TestConfigurationBuilder) {
@@ -69,10 +67,7 @@ abstract class AbstractNativeIrTextTestBase(private val parser: FirParser) :
                 // `Any`, `String`, `println`, etc.
                 +ConfigurationDirectives.WITH_STDLIB
                 +CHECK_SAME_ABI_AFTER_INLINING
-                LANGUAGE with listOf(
-                    "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                    "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-                )
+                +ALLOW_KOTLIN_PACKAGE
             }
         }
     }

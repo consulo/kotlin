@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.buildtools.api.*
 import org.jetbrains.kotlin.buildtools.api.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.buildtools.api.arguments.CommonToolArguments
 import org.jetbrains.kotlin.buildtools.api.arguments.JvmCompilerArguments
+import org.jetbrains.kotlin.buildtools.api.cri.CompilerRefIndexConfiguration
 import org.jetbrains.kotlin.buildtools.api.jvm.ClasspathEntrySnapshot
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmPlatformToolchain
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmSnapshotBasedIncrementalCompilationConfiguration
@@ -33,8 +34,10 @@ import kotlin.io.path.Path
  */
 @Suppress("ClassName")
 internal class KotlinWrapperPre2_3_20(
-    private val base: KotlinToolchains,
-) : KotlinToolchains by base {
+    override val base: KotlinToolchains,
+) : KotlinToolchains by base, KotlinToolchainsWrapper {
+
+    override val implClassloader: ClassLoader by lazy { getImplClassloader() }
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : KotlinToolchains.Toolchain> getToolchain(type: Class<T>): T = when (type) {
@@ -194,7 +197,7 @@ internal class KotlinWrapperPre2_3_20(
             @Deprecated(
                 "The shrunkClasspathSnapshot parameter is no longer required",
                 replaceWith = ReplaceWith("snapshotBasedIcConfigurationBuilder(workingDirectory, sourcesChanges, dependenciesSnapshotFiles)"),
-                level = DeprecationLevel.WARNING
+                level = DeprecationLevel.ERROR
             )
             override fun snapshotBasedIcConfigurationBuilder(
                 workingDirectory: Path,
@@ -210,6 +213,10 @@ internal class KotlinWrapperPre2_3_20(
                     shrunkClasspathSnapshot,
                     options
                 )
+            }
+
+            override fun compilerRefIndexConfigurationBuilder(outputDirectory: Path): CompilerRefIndexConfiguration.Builder {
+                error("The compiler reference index configuration is supported from compiler version 2.5.20.")
             }
 
             inner class JvmSnapshotBasedIncrementalCompilationConfigurationWrapper(
@@ -299,7 +306,7 @@ internal class KotlinWrapperPre2_3_20(
             }
 
             override fun <V> set(key: BaseCompilationOperation.Option<V>, value: V) {
-                val oldOption = JvmCompilationOperation.Option<V>(key.id)
+                val oldOption = JvmCompilationOperation.Option<V>(key.id, key.availableSinceVersion)
                 this[oldOption] = value
             }
 
@@ -323,12 +330,12 @@ internal class KotlinWrapperPre2_3_20(
     }
 
     private class JvmCompilerArgumentsWrapper(
-        private val baseCompilerArguments: JvmCompilerArguments,
+        private val base: JvmCompilerArguments,
         private val argumentsFactory: () -> JvmCompilerArguments,
     ) :
-        JvmCompilerArguments by baseCompilerArguments, JvmCompilerArguments.Builder {
+        JvmCompilerArguments by base, JvmCompilerArguments.Builder {
         override fun <V> set(key: JvmCompilerArguments.JvmCompilerArgument<V>, value: V) {
-            baseCompilerArguments.set(key, value)
+            base.set(key, value)
         }
 
         override fun build(): JvmCompilerArguments {
@@ -342,15 +349,25 @@ internal class KotlinWrapperPre2_3_20(
             key: CommonCompilerArguments.CommonCompilerArgument<V>,
             value: V,
         ) {
-            baseCompilerArguments.set(key, value)
+            base.set(key, value)
         }
 
         override fun <V> set(key: CommonToolArguments.CommonToolArgument<V>, value: V) {
-            baseCompilerArguments.set(key, value)
+            base.set(key, value)
         }
 
+        @Deprecated(
+            "This method is deprecated. Use applyCommandLineArguments instead.",
+            replaceWith = ReplaceWith("applyCommandLineArguments(arguments)")
+        )
         override fun applyArgumentStrings(arguments: List<String>) {
-            baseCompilerArguments.applyArgumentStrings(arguments)
+            base.applyArgumentStrings(arguments)
+        }
+
+        @OptIn(DelicateBuildToolsApi::class)
+        override fun applyCommandLineArguments(arguments: List<String>) {
+            // this will never get called because KotlinWrapperPre2_5_0 will provide this functionality for all lower versions
+            TODO("Not implemented")
         }
     }
 }

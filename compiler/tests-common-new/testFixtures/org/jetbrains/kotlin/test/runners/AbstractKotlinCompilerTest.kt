@@ -6,18 +6,21 @@
 package org.jetbrains.kotlin.test.runners
 
 import com.intellij.testFramework.TestDataFile
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
+import org.jetbrains.kotlin.konan.test.blackbox.support.EnforcedHostTarget
 import org.jetbrains.kotlin.test.Constructor
 import org.jetbrains.kotlin.test.ExecutionListenerBasedDisposableProvider
-import org.jetbrains.kotlin.test.TestInfrastructureInternals
 import org.jetbrains.kotlin.test.NonGroupingTestRunner
+import org.jetbrains.kotlin.test.TestInfrastructureInternals
 import org.jetbrains.kotlin.test.backend.handlers.IrValidationErrorChecker
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilderBase
-import org.jetbrains.kotlin.test.builders.nonGroupingPhaseTestRunner
+import org.jetbrains.kotlin.test.builders.nonGroupingStageTestRunner
 import org.jetbrains.kotlin.test.directives.ConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives
 import org.jetbrains.kotlin.test.frontend.classic.handlers.ClassicUnstableAndK2LanguageFeaturesSkipConfigurator
 import org.jetbrains.kotlin.test.model.ResultingArtifact
+import org.jetbrains.kotlin.test.preprocessors.BackendUnderTestSourcePreprocessor
 import org.jetbrains.kotlin.test.preprocessors.JvmInlineSourceTransformer
 import org.jetbrains.kotlin.test.preprocessors.MetaInfosCleanupPreprocessor
 import org.jetbrains.kotlin.test.services.*
@@ -38,6 +41,7 @@ abstract class AbstractKotlinCompilerTest {
         val defaultPreprocessors: List<Constructor<SourceFilePreprocessor>> = listOf(
             ::MetaInfosCleanupPreprocessor,
             ::JvmInlineSourceTransformer,
+            ::BackendUnderTestSourcePreprocessor,
         )
 
         private fun configureDebugFlags() {
@@ -47,6 +51,8 @@ abstract class AbstractKotlinCompilerTest {
 
         val defaultConfiguration: TestConfigurationBuilderBase<*, *>.() -> Unit = {
             assertions = JUnit5Assertions
+            @OptIn(TestInfrastructureInternals::class)
+            useCustomCompilerConfigurationProvider(::CompilerConfigurationProviderImpl) // default provider initialization
             useAdditionalService<TemporaryDirectoryManager>(::TemporaryDirectoryManagerImpl)
             useAdditionalService<TargetPlatformProvider>(::TargetPlatformProviderForCompilerTests)
             useSourcePreprocessor(*defaultPreprocessors.toTypedArray())
@@ -56,6 +62,7 @@ abstract class AbstractKotlinCompilerTest {
                 ::ClassicUnstableAndK2LanguageFeaturesSkipConfigurator,
                 ::TargetBackendTestSkipper,
             )
+            useFailureSuppressors(::IrValidationErrorChecker)
             configureDebugFlags()
         }
     }
@@ -68,7 +75,6 @@ abstract class AbstractKotlinCompilerTest {
         testInfo = this@AbstractKotlinCompilerTest.testInfo
         @OptIn(TestInfrastructureInternals::class)
         configureInternal(this)
-        useAfterAnalysisCheckers(::IrValidationErrorChecker)
     }
 
     private lateinit var testInfo: KotlinTestInfo
@@ -116,11 +122,11 @@ abstract class AbstractKotlinCompilerTest {
     }
 
     open fun runTest(@TestDataFile filePath: String) {
-        initTestRunner(filePath).runTest(filePath)
+        initTestRunner(ForTestCompileRuntime.transformTestDataPath(filePath).path).runTest(filePath)
     }
 
     fun initTestRunner(@TestDataFile filePath: String): NonGroupingTestRunner {
-        return nonGroupingPhaseTestRunner(filePath, configuration).also {
+        return nonGroupingStageTestRunner(filePath, configuration).also {
             testRunner = it
         }
     }
@@ -131,9 +137,11 @@ abstract class AbstractKotlinCompilerTest {
 }
 
 fun TestInfo.toKotlinTestInfo(): KotlinTestInfo {
+    val testClass = this.testClass.getOrNull()
     return KotlinTestInfo(
-        className = this.testClass.getOrNull()?.name ?: "_undefined_",
+        className = testClass?.name ?: "_undefined_",
         methodName = this.testMethod.getOrNull()?.name ?: "_testUndefined_",
-        tags = this.tags
+        tags = this.tags,
+        enforcedHostTarget = testClass?.isAnnotationPresent(EnforcedHostTarget::class.java) ?: false,
     )
 }

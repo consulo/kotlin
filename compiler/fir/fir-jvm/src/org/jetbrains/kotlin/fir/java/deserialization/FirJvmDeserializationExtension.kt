@@ -14,7 +14,7 @@ import org.jetbrains.kotlin.fir.deserialization.FirDeserializationExtension
 import org.jetbrains.kotlin.fir.languageVersionSettings
 import org.jetbrains.kotlin.fir.types.ConeTypeProjection
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
-import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
+import org.jetbrains.kotlin.fir.types.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.types.toLookupTag
 import org.jetbrains.kotlin.load.kotlin.KotlinJvmBinarySourceElement
 import org.jetbrains.kotlin.metadata.ProtoBuf
@@ -58,13 +58,6 @@ class FirJvmDeserializationExtension(session: FirSession) : FirDeserializationEx
 
     override fun loadHasBackingFieldFlag(propertyProto: ProtoBuf.Property): Boolean? =
         propertyProto.getExtensionOrNull(JvmProtoBuf.propertySignature)?.hasField()
-
-    override fun isMaybeMultiFieldValueClass(containerSource: DeserializedContainerSource?): Boolean {
-        val binaryClass = (containerSource as? KotlinJvmBinarySourceElement)?.binaryClass ?: return false
-        // Before metadata version 1.5.1, classes did not have inline_class_underlying_type/inline_class_underlying_property_name in the
-        // metadata. So we can only treat value classes without those fields in metadata as MFVC starting from version 1.5.1.
-        return binaryClass.classHeader.metadataVersion.isAtLeast(1, 5, 1)
-    }
 
     override val isLoadingOfAnnotationsOnAnnotationPropertiesEnabled: Boolean
         get() = session.languageVersionSettings.supportsFeature(LanguageFeature.JvmLoadAnnotationsOnAnnotationProperties)

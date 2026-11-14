@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +PartiallySpecifiedTypeArguments
+// RUN_PIPELINE_TILL: CODEGEN
 package test
 
 class Box<T>(val value: T)

@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.gradle.plugin.extraProperties
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.uklibs.include
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -19,45 +20,31 @@ import kotlin.io.path.appendText
 import kotlin.test.assertEquals
 
 @DisplayName("Tasks configuration avoidance")
+@MustRunOnChangesInGradle
 class ConfigurationAvoidanceIT : KGPBaseTest() {
 
+    @TestMetadata("simpleProject")
     @JvmGradlePluginTests
     @DisplayName("JVM unrelated tasks are not configured")
     @GradleTest
     fun testUnrelatedTaskNotConfigured(gradleVersion: GradleVersion) {
         project("simpleProject", gradleVersion) {
             val compilationConfiguredTasks = configuredTasks().buildAndReturn("compileKotlin")
-            if (gradleVersion < GradleVersion.version(TestVersions.Gradle.G_8_0)) {
-                assertEquals(
-                    mapOf(
-                        ":" to setOf(
-                            "checkKotlinGradlePluginConfigurationErrors",
-                            "clean",
-                            "compileDeployJava",
-                            "compileJava",
-                            "compileKotlin",
-                            "compileTestJava",
-                            "jar"
-                        )
-                    ),
-                    compilationConfiguredTasks,
-                )
-            } else {
-                assertEquals(
-                    mapOf(
-                        ":" to setOf(
-                            "checkKotlinGradlePluginConfigurationErrors",
-                            "clean",
-                            "compileJava",
-                            "compileKotlin",
-                        )
-                    ),
-                    compilationConfiguredTasks,
-                )
-            }
+            assertEquals(
+                mapOf(
+                    ":" to setOf(
+                        "checkKotlinGradlePluginConfigurationErrors",
+                        "clean",
+                        "compileJava",
+                        "compileKotlin",
+                    )
+                ),
+                compilationConfiguredTasks,
+            )
         }
     }
 
+    @TestMetadata("simpleProject")
     @JvmGradlePluginTests
     @DisplayName("KGP/Jvm does not eagerly configure any tasks")
     @GradleTest
@@ -70,11 +57,12 @@ class ConfigurationAvoidanceIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kapt/simple")
     @OtherGradlePluginTests
     @DisplayName("KGP/Kapt does not eagerly configure any tasks")
     @GradleTest
     fun testKaptConfigurationAvoidance(gradleVersion: GradleVersion) {
-        project("kapt2/simple", gradleVersion) {
+        project("kapt/simple", gradleVersion) {
             assertEquals(
                 mapOf(":" to setOf("clean", "help")),
                 configuredTasks().buildAndReturn("--dry-run"),
@@ -82,9 +70,11 @@ class ConfigurationAvoidanceIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("AndroidProject")
     @AndroidGradlePluginTests
     @DisplayName("Android unrelated tasks are not configured")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testAndroidUnrelatedTaskNotConfigured(
         gradleVersion: GradleVersion,
         agpVersion: String,
@@ -93,7 +83,11 @@ class ConfigurationAvoidanceIT : KGPBaseTest() {
         project(
             "AndroidProject",
             gradleVersion,
-            buildOptions = defaultBuildOptions.copy(androidVersion = agpVersion),
+            buildOptions = defaultBuildOptions
+                .copy(
+                    androidVersion = agpVersion,
+                    isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED,
+                ),
             buildJdk = providedJdk.location
         ) {
             gradleProperties.appendText("android.defaults.buildfeatures.aidl=true")
@@ -106,14 +100,13 @@ class ConfigurationAvoidanceIT : KGPBaseTest() {
                     ":Test" to setOf("clean"),
                 ),
                 configuredTasks()
-                    .buildAndReturn(
-                        "--dry-run",
-                    ),
+                    .buildAndReturn("--dry-run"),
             )
             build("help")
         }
     }
 
+    @TestMetadata("kotlin-js-plugin-project")
     @JsGradlePluginTests
     @DisplayName("JS unrelated tasks are not configured")
     @GradleTest
@@ -126,6 +119,7 @@ class ConfigurationAvoidanceIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("new-mpp-lib-and-app/sample-app")
     @MppGradlePluginTests
     @DisplayName("MPP unrelated tasks are not configured")
     @GradleTest
@@ -161,7 +155,11 @@ class ConfigurationAvoidanceIT : KGPBaseTest() {
             }
         }
 
-        val configuredTasks = project("empty", gradleVersion) {
+        val configuredTasks = project(
+            "empty",
+            gradleVersion,
+            buildOptions = defaultBuildOptions.copy(isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED),
+        ) {
             settingsBuildScriptInjection {
                 settings.rootProject.name = "root"
             }
@@ -189,6 +187,7 @@ class ConfigurationAvoidanceIT : KGPBaseTest() {
         return@buildScriptReturn configuredTasks
     }
 
+    @TestMetadata("kotlinProject")
     @JvmGradlePluginTests
     @DisplayName("JVM early configuration resolution")
     @GradleTest
@@ -269,7 +268,11 @@ class ConfigurationAvoidanceIT : KGPBaseTest() {
             }
         }
 
-        val resolvedConfigurations = project("empty", gradleVersion) {
+        val resolvedConfigurations = project(
+            "empty",
+            gradleVersion,
+            buildOptions = defaultBuildOptions.copy(isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED),
+        ) {
             settingsBuildScriptInjection {
                 settings.rootProject.name = "root"
             }

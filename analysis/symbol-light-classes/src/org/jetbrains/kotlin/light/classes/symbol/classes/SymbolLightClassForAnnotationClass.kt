@@ -1,45 +1,40 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.light.classes.symbol.classes
 
-import com.intellij.psi.*
+import com.intellij.psi.CommonClassNames
+import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiReferenceList
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
+import org.jetbrains.kotlin.analysis.api.scopes.declaredMemberScope
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
-import org.jetbrains.kotlin.light.classes.symbol.cachedValue
-import org.jetbrains.kotlin.psi.KtClass
+import org.jetbrains.kotlin.light.classes.symbol.utils.cachedValue
 import org.jetbrains.kotlin.psi.KtClassOrObject
 
 internal open class SymbolLightClassForAnnotationClass : SymbolLightClassForInterfaceOrAnnotationClass {
     constructor(
-        ktModule: KaModule,
+        useSiteModule: KaModule,
         classSymbol: KaNamedClassSymbol,
-        manager: PsiManager
     ) : super(
-        ktModule = ktModule,
+        useSiteModule = useSiteModule,
         classSymbol = classSymbol,
-        manager = manager,
     ) {
         require(classSymbol.classKind == KaClassKind.ANNOTATION_CLASS)
-    }
-
-    constructor(classOrObject: KtClassOrObject, ktModule: KaModule) : super(classOrObject, ktModule) {
-        require(classOrObject is KtClass && classOrObject.isAnnotation())
     }
 
     constructor(
         classOrObjectDeclaration: KtClassOrObject?,
         classSymbolPointer: KaSymbolPointer<KaNamedClassSymbol>,
-        ktModule: KaModule,
-        manager: PsiManager,
+        useSiteModule: KaModule,
     ) : super(
         classOrObjectDeclaration = classOrObjectDeclaration,
         classSymbolPointer = classSymbolPointer,
-        ktModule = ktModule,
-        manager = manager,
+        useSiteModule = useSiteModule,
     )
 
     override fun classKind(): KaClassKind = KaClassKind.ANNOTATION_CLASS
@@ -51,6 +46,7 @@ internal open class SymbolLightClassForAnnotationClass : SymbolLightClassForInte
             .filterNot { it is KaConstructorSymbol }
 
         createMethods(this@SymbolLightClassForAnnotationClass, visibleDeclarations, result)
+        addMethodsFromCompanionIfNeeded(result, classSymbol)
         result
     }
 
@@ -67,8 +63,7 @@ internal open class SymbolLightClassForAnnotationClass : SymbolLightClassForInte
 
     override fun copy(): SymbolLightClassForAnnotationClass = SymbolLightClassForAnnotationClass(
         classOrObjectDeclaration = classOrObjectDeclaration,
-        classSymbolPointer = classSymbolPointer,
-        ktModule = ktModule,
-        manager = manager,
+        classSymbolPointer = symbolPointer,
+        useSiteModule = useSiteModule,
     )
 }

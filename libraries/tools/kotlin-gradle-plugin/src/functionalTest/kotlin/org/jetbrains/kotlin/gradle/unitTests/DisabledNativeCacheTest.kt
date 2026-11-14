@@ -3,7 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
 @file:OptIn(KotlinNativeCacheApi::class)
 
 package org.jetbrains.kotlin.gradle.unitTests
@@ -11,12 +10,10 @@ package org.jetbrains.kotlin.gradle.unitTests
 import org.gradle.api.Project
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.provider.Provider
-import org.gradle.kotlin.dsl.extra
 import org.gradle.testfixtures.ProjectBuilder
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.NativeCacheKind
 import org.jetbrains.kotlin.gradle.internal.properties.NativeProperties
-import org.jetbrains.kotlin.gradle.internal.properties.nativeProperties
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.extraProperties
 import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
@@ -33,6 +30,7 @@ import org.jetbrains.kotlin.gradle.util.buildProjectWithMPP
 import org.jetbrains.kotlin.gradle.util.kotlin
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.statistics.metrics.BooleanMetrics
+import org.jetbrains.kotlin.gradle.utils.NativeCompilerDownloader
 import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -51,7 +49,7 @@ class DisabledNativeCacheTest {
         with(
             buildProjectWithMPP(
                 preApplyCode = {
-                    project.extra.set("kotlin.native.cacheKind", NativeCacheKind.NONE.name)
+                    project.extraProperties.set("kotlin.native.cacheKind", NativeCacheKind.NONE.name)
                 }
             )
         ) {
@@ -72,7 +70,7 @@ class DisabledNativeCacheTest {
         with(
             buildProjectWithMPP(
                 preApplyCode = {
-                    project.extra.set("kotlin.native.cacheKind.linuxX64", NativeCacheKind.NONE.name)
+                    project.extraProperties.set("kotlin.native.cacheKind.linuxX64", NativeCacheKind.NONE.name)
                 }
             )
         ) {
@@ -147,7 +145,7 @@ class DisabledNativeCacheTest {
     @Test
     fun `test native cache is disabled`() {
         Assumptions.assumeTrue(!HostManager.hostIsMingw) // No cacheable targets on Windows
-        with(mppProjectWithFakeKonan(mockKonan)) {
+        with(mppProjectWithFakeKonan(mockKonan, nativeVersion = disableCacheVersionString)) {
             kotlin {
                 createCacheableTargets().forEach { target ->
                     target.binaries.staticLib {
@@ -211,7 +209,7 @@ class DisabledNativeCacheTest {
     @Test
     fun `test native cache is disabled for particular buildType`() {
         Assumptions.assumeTrue(!HostManager.hostIsMingw) // No cacheable targets on Windows
-        with(mppProjectWithFakeKonan(mockKonan)) {
+        with(mppProjectWithFakeKonan(mockKonan, nativeVersion = disableCacheVersionString)) {
             kotlin {
                 val target = if (HostManager.hostIsMac) macosArm64() else linuxX64()
                 target.binaries.staticLib {
@@ -255,7 +253,7 @@ class DisabledNativeCacheTest {
 
     @Test
     fun `test disable native cache FUS event present`() {
-        with(mppProjectWithFakeKonan(mockKonan, preApplyCode = { enableFusOnCI() })) {
+        with(mppProjectWithFakeKonan(mockKonan, nativeVersion = disableCacheVersionString, preApplyCode = { enableFusOnCI() })) {
             kotlin {
                 linuxX64().binaries.staticLib {
                     disableNativeCache(
@@ -267,6 +265,9 @@ class DisabledNativeCacheTest {
             }
 
             evaluate()
+
+            //init task to ensure configuration time metrics are collected
+            tasks.named(LINUX_X64_LINK_DEBUG_TASK_NAME, KotlinNativeLink::class.java).get()
 
             assertNotNull(
                 collectedFusConfigurationTimeMetrics.booleanMetrics.entries.singleOrNull {
@@ -307,11 +308,6 @@ class DisabledNativeCacheTest {
     }
 }
 
-//    cacheableTargets.macos_x64 = \
-//    macos_x64 \
-//    ios_x64 \
-//    ios_arm64
-//
 //    cacheableTargets.linux_x64 = \
 //    linux_x64
 //
@@ -321,7 +317,7 @@ class DisabledNativeCacheTest {
 //    macos_arm64 \
 //    ios_simulator_arm64 \
 //    ios_arm64
-@Suppress("DEPRECATION")
+// fixme: KT-89587 Clean up tests after iosX64 target deprecation
 private fun KotlinMultiplatformExtension.createCacheableTargets(): List<KotlinNativeTarget> {
     val isArm64 = HostManager.hostArch() == "aarch64"
 
@@ -334,7 +330,6 @@ private fun KotlinMultiplatformExtension.createCacheableTargets(): List<KotlinNa
         HostManager.hostIsMac && !isArm64 -> listOf(
             iosArm64(),
             iosX64(),
-            macosX64()
         )
         HostManager.hostIsLinux -> listOf(
             linuxX64()
@@ -343,19 +338,29 @@ private fun KotlinMultiplatformExtension.createCacheableTargets(): List<KotlinNa
     }
 }
 
-private val ProjectInternal.currentVersionForDisableCache: DisableCacheInKotlinVersion
-    get() {
-        val allInstances: List<DisableCacheInKotlinVersion> =
-            DisableCacheInKotlinVersion::class.sealedSubclasses.mapNotNull { it.objectInstance }
-        val kotlinNativeVersion = nativeProperties.kotlinNativeVersion.get()
-        val nativeToolingVersion = KotlinToolingVersion(kotlinNativeVersion)
+/**
+ * Selects the appropriate [DisableCacheInKotlinVersion] for the default native version.
+ *
+ * [KotlinNativeLink.disableCache] performs an exact major.minor.patch comparison between the native version
+ * and the [DisableCacheInKotlinVersion]. Snapshot versions (e.g. `2.4.255-SNAPSHOT`) have a different patch
+ * number than release versions (e.g. `2.4.0`), so the match would fail.
+ * To avoid this, the test project's `kotlin.native.version` is set to the exact version string
+ * of the selected [DisableCacheInKotlinVersion].
+ */
+private val currentVersionForDisableCache: DisableCacheInKotlinVersion by lazy {
+    val allInstances: List<DisableCacheInKotlinVersion> =
+        DisableCacheInKotlinVersion::class.sealedSubclasses.mapNotNull { it.objectInstance }
+    val nativeToolingVersion = KotlinToolingVersion(NativeCompilerDownloader.DEFAULT_KONAN_VERSION)
 
-        return allInstances.last { releaseVersion ->
-            releaseVersion.major < nativeToolingVersion.major ||
-                    (releaseVersion.major == nativeToolingVersion.major && releaseVersion.minor < nativeToolingVersion.minor) ||
-                    (releaseVersion.major == nativeToolingVersion.major && releaseVersion.minor == nativeToolingVersion.minor && releaseVersion.patch <= nativeToolingVersion.patch)
-        }
+    allInstances.last { releaseVersion ->
+        releaseVersion.major < nativeToolingVersion.major ||
+                (releaseVersion.major == nativeToolingVersion.major && releaseVersion.minor < nativeToolingVersion.minor) ||
+                (releaseVersion.major == nativeToolingVersion.major && releaseVersion.minor == nativeToolingVersion.minor && releaseVersion.patch <= nativeToolingVersion.patch)
     }
+}
+
+private val disableCacheVersionString: String
+    get() = "${currentVersionForDisableCache.major}.${currentVersionForDisableCache.minor}.${currentVersionForDisableCache.patch}"
 
 private fun ProjectInternal.konanCacheKind(linkTask: String): Provider<NativeCacheKind> =
     tasks.named(linkTask, KotlinNativeLink::class.java).flatMap { it.konanCacheKind }
@@ -363,6 +368,7 @@ private fun ProjectInternal.konanCacheKind(linkTask: String): Provider<NativeCac
 private fun mppProjectWithFakeKonan(
     fakeKonanRule: MockKonanHomeExtension,
     copyKonanProperties: Boolean = true,
+    nativeVersion: String? = null,
     projectBuilder: ProjectBuilder.() -> Unit = { },
     preApplyCode: Project.() -> Unit = {},
     code: Project.() -> Unit = {},
@@ -374,6 +380,10 @@ private fun mppProjectWithFakeKonan(
             NativeProperties.NATIVE_HOME.name,
             fakeKonanRule.konanHome.absolutePath
         )
+
+        if (nativeVersion != null) {
+            project.extraProperties.set("kotlin.native.version", nativeVersion)
+        }
 
         preApplyCode()
     },

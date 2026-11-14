@@ -6,10 +6,14 @@
 package org.jetbrains.kotlin.backend.konan.optimizations
 
 import org.jetbrains.kotlin.backend.common.BodyLoweringPass
+import org.jetbrains.kotlin.backend.common.LoweringContext
 import org.jetbrains.kotlin.backend.common.ir.isUnconditional
+import org.jetbrains.kotlin.backend.common.lower.FinallyBlocksLowering
 import org.jetbrains.kotlin.backend.common.lower.at
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
-import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.common.phaser.PhasePrerequisites
+import org.jetbrains.kotlin.backend.konan.NativeBackendContext
+import org.jetbrains.kotlin.backend.konan.getInlinedClassNative
 import org.jetbrains.kotlin.backend.konan.logMultiple
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -61,7 +65,8 @@ import org.jetbrains.kotlin.utils.forEachBit
 import org.jetbrains.kotlin.utils.mapEachBit
 import java.util.BitSet
 
-internal class ComputeTypesPass(val context: Context) : BodyLoweringPass {
+@PhasePrerequisites(FinallyBlocksLowering::class)
+internal class ComputeTypesPass(val context: LoweringContext) : BodyLoweringPass {
     private val unitType = context.irBuiltIns.unitType
 
     private fun IrClass.superClassesHierarchy(): List<IrClass> {
@@ -81,6 +86,8 @@ internal class ComputeTypesPass(val context: Context) : BodyLoweringPass {
 
     private fun leastCommonAncestor(types: List<IrType>): IrType? {
         if (types.isEmpty()) return null
+        if (types.size == 1) return types[0]
+
         val isNullable = types.any { it.isNullable() }
         val classes = types.map { it.erasedUpperBound }
         // Since the analysis is local, nothing we can do about interfaces: if an interface is written to a variable,
@@ -153,8 +160,7 @@ internal class ComputeTypesPass(val context: Context) : BodyLoweringPass {
 
     private data class VariableWrite(val variable: IrElement, val value: IrExpression)
 
-    private class ControlFlowMergePointInfo(val variable: IrElement) {
-        val needValues = variable is IrExpression && !variable.type.erasedUpperBound.isFinalClass
+    private class ControlFlowMergePointInfo(val variable: IrElement, val needValues: Boolean) {
         val variablesValues = BitSet()
         val variableWrites = if (needValues) BitSet() else null
     }
@@ -172,6 +178,14 @@ internal class ComputeTypesPass(val context: Context) : BodyLoweringPass {
         val variableWrites = mutableMapOf<IrVariable, BitSet>()
 
         fun BitSet.computeType() = this.mapEachBit { allVariablesWrites[it].value }.computeType()
+
+        fun IrType.trySwitchVariableType(variable: IrVariable) =
+                this.takeUnless {
+                    // Conservatively handle source code defined variables: if changing the type also alters the boxing,
+                    // this might be surprising for the programmer. See KT-86678 and KT-87165 for examples.
+                    (variable.origin == IrDeclarationOrigin.DEFINED
+                            && this.getInlinedClassNative() != variable.type.getInlinedClassNative())
+                }
 
         irBody.accept(object : IrVisitor<BitSet, BitSet>() {
             fun getVariableWriteId(variable: IrElement, value: IrExpression) = VariableWrite(variable, value).let { write ->
@@ -211,6 +225,18 @@ internal class ComputeTypesPass(val context: Context) : BodyLoweringPass {
             val continuesCFMPInfos = mutableMapOf<IrLoop, ControlFlowMergePointInfo>()
             val getValueVariablesWrites = mutableMapOf<IrGetValue, BitSet>()
             val doWhileLoopForWhileLoops = mutableMapOf<IrWhileLoop, IrDoWhileLoop>()
+
+            // A merge point's `needValues` must be derived from a node's original type. Otherwise,
+            // once a merge point's type becomes a final class, it can never be widened (KT-86949).
+            // (The types may iteratively change while handling loops).
+            val cfmpNeedValues = mutableMapOf<IrExpression, Boolean>()
+
+            // A factory mimicking the constructor.
+            fun ControlFlowMergePointInfo(variable: IrElement) = ControlFlowMergePointInfo(
+                    variable,
+                    needValues = variable is IrExpression
+                            && cfmpNeedValues.getOrPut(variable) { !variable.type.erasedUpperBound.isFinalClass }
+            )
 
             fun controlFlowMergePoint(cfmpInfo: ControlFlowMergePointInfo, value: IrExpression, variablesValues: BitSet): BitSet {
                 val result = if (!cfmpInfo.needValues)
@@ -335,8 +361,10 @@ internal class ComputeTypesPass(val context: Context) : BodyLoweringPass {
                     breaksCFMPInfos[loop] = breaksCFMPInfo
                     continuesCFMPInfos[loop] = continuesCFMPInfo
                     val vvAtBodyEnd = loop.body?.accept(this, vvAtLoopStart) ?: vvAtLoopStart
-                    val vvAtConditionStart =
-                            controlFlowMergePoint(continuesCFMPInfo, dummyUnitExpression, vvAtBodyEnd)
+                    controlFlowMergePoint(continuesCFMPInfo, dummyUnitExpression, vvAtBodyEnd)
+                    // The condition is reached both by falling through the body and by every continue,
+                    // so the merged values must be taken here, not just the fall-through ones.
+                    val vvAtConditionStart = continuesCFMPInfo.variablesValues
                     val vvAtConditionEnd = loop.condition.accept(this, vvAtConditionStart)
                     vvAtLoopStart = vvAtConditionEnd
                     if (iter > 1) // Merge starting with the second iteration since the first is always executed.
@@ -347,7 +375,10 @@ internal class ComputeTypesPass(val context: Context) : BodyLoweringPass {
                     if (vvAtLoopStart == prevVVAtLoopStart) {
                         breaksCFMPInfos.remove(loop)
                         continuesCFMPInfos.remove(loop)
-                        return controlFlowMergePoint(breaksCFMPInfo, dummyUnitExpression, vvAtConditionEnd)
+                        // Same goes for the loop's exit: it is reached both by the condition becoming false
+                        // and by every break.
+                        controlFlowMergePoint(breaksCFMPInfo, dummyUnitExpression, vvAtConditionEnd)
+                        return breaksCFMPInfo.variablesValues
                     }
                 }
             }
@@ -377,7 +408,7 @@ internal class ComputeTypesPass(val context: Context) : BodyLoweringPass {
                         ?: error("A use of uninitialized variable ${variable.render()}")
                 val mergedVariableWrites = getValueVariablesWrites.getOrPut(expression) { BitSet() }
                 mergedVariableWrites.or(variableWrites)
-                expression.type = mergedVariableWrites.computeType() ?: variable.type
+                expression.type = mergedVariableWrites.computeType()?.trySwitchVariableType(variable) ?: variable.type
 
                 context.logMultiple {
                     +expression.render()
@@ -421,7 +452,7 @@ internal class ComputeTypesPass(val context: Context) : BodyLoweringPass {
                 declaration.transformChildrenVoid(this)
 
                 val values = variableWrites[declaration]?.mapEachBit { allVariablesWrites[it].value }
-                val actualType = values?.computeType()
+                val actualType = values?.computeType()?.trySwitchVariableType(declaration)
                 if (actualType != null) {
                     declaration.type = if (declaration.origin == IrDeclarationOrigin.DEFINED && declaration.type.isNullable()) {
                         // For `DEFINED` variables, if the original type is nullable, preserve this:

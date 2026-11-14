@@ -19,7 +19,9 @@ package org.jetbrains.kotlin.codegen.inline
 import org.jetbrains.kotlin.codegen.ClassBuilder
 import org.jetbrains.kotlin.codegen.InsnSequence
 import org.jetbrains.kotlin.codegen.state.GenerationState
-import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin
+import org.jetbrains.kotlin.config.isKotlinValhallaValueClass
+import org.jetbrains.kotlin.config.isValhallaSupportEnabled
+import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.org.objectweb.asm.*
 import org.jetbrains.org.objectweb.asm.tree.AbstractInsnNode
 import org.jetbrains.org.objectweb.asm.tree.FieldInsnNode
@@ -35,7 +37,7 @@ abstract class ObjectTransformer<out T : TransformationInfo>(@JvmField val trans
 
     protected fun createRemappingClassBuilderViaFactory(inliningContext: InliningContext): ClassBuilder {
         val classBuilder = state.factory.newVisitor(
-            JvmDeclarationOrigin.NO_ORIGIN,
+            null,
             Type.getObjectType(transformationInfo.newClassName),
             listOfNotNull(inliningContext.callSiteInfo.file)
         )
@@ -48,13 +50,23 @@ abstract class ObjectTransformer<out T : TransformationInfo>(@JvmField val trans
 
     fun createClassReader(): ClassReader =
         ClassReader(loadClassBytesByInternalName(state, transformationInfo.oldClassName))
+
+    // Like the classes of this compilation, a regenerated object lists the Kotlin value classes of a library compiled without Valhalla
+    // value classes, which is expected to be recompiled with them like this compilation.
+    protected fun Type.isRecompiledKotlinValueClass(): Boolean {
+        val languageVersionSettings = state.config.languageVersionSettings
+        if (sort != Type.OBJECT || !languageVersionSettings.isValhallaSupportEnabled()) return false
+        return state.jvmBackendClassResolver.resolveToClasses(this).any { irClass ->
+            irClass.modality == Modality.FINAL && irClass.valueClassRepresentation.isKotlinValhallaValueClass(languageVersionSettings)
+        }
+    }
 }
 
 class WhenMappingTransformer(
+    state: GenerationState,
     whenObjectRegenerationInfo: WhenMappingTransformationInfo,
     private val inliningContext: InliningContext
-) : ObjectTransformer<WhenMappingTransformationInfo>(whenObjectRegenerationInfo, inliningContext.state) {
-
+) : ObjectTransformer<WhenMappingTransformationInfo>(whenObjectRegenerationInfo, state) {
     override fun doTransform(parentRemapper: FieldRemapper): InlineResult {
         val classReader = createClassReader()
         //TODO add additional check that class is when mapping
@@ -66,13 +78,13 @@ class WhenMappingTransformer(
         classReader.accept(object : ClassVisitor(Opcodes.API_VERSION, classBuilder.visitor) {
             override fun visit(version: Int, access: Int, name: String, signature: String?, superName: String, interfaces: Array<String>) {
                 classBuilder.defineClass(
-                    null, maxOf(version, state.config.classFileVersion), access, name, signature, superName, interfaces
+                    regeneratedClassVersion(version, state.config.classFileVersion), access, name, signature, superName, interfaces,
                 )
             }
 
             override fun visitField(access: Int, name: String, desc: String, signature: String?, value: Any?): FieldVisitor? {
                 return if (name == fieldNode.name) {
-                    classBuilder.newField(JvmDeclarationOrigin.NO_ORIGIN, access, name, desc, signature, value)
+                    classBuilder.newField(null, access, name, desc, signature, value)
                 } else {
                     null
                 }
@@ -92,7 +104,7 @@ class WhenMappingTransformer(
                 // but that would require modification of both the inner (recreated) and the outer (caller-side) classes.
                 // The latter would require a lot of work without any clear benefits.
             }
-        }, ClassReader.SKIP_FRAMES)
+        }, LOADABLE_DESCRIPTORS_ATTRIBUTE_PROTOTYPES, ClassReader.SKIP_FRAMES)
 
         assert(methodNodes.size == 1) {
             "When mapping ${fieldNode.owner} class should contain only one method but: " + methodNodes.joinToString { it.name }
@@ -102,7 +114,7 @@ class WhenMappingTransformer(
 
         val transformedClinit = cutOtherMappings(clinit)
         val result = classBuilder.newMethod(
-            JvmDeclarationOrigin.NO_ORIGIN, transformedClinit.access, transformedClinit.name, transformedClinit.desc,
+            null, transformedClinit.access, transformedClinit.name, transformedClinit.desc,
             transformedClinit.signature, transformedClinit.exceptions.toTypedArray()
         )
         transformedClinit.accept(result)

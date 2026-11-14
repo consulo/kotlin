@@ -34,12 +34,6 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   }
 
   @Test
-  @TestMetadata("classInitializerRepl.repl.kts")
-  public void testClassInitializerRepl_repl() {
-    run("classInitializerRepl.repl.kts");
-  }
-
-  @Test
   @TestMetadata("classInitializerScript.kts")
   public void testClassInitializerScript() {
     run("classInitializerScript.kts");
@@ -58,21 +52,9 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   }
 
   @Test
-  @TestMetadata("deeplyNestedMemberPropertyRepl.repl.kts")
-  public void testDeeplyNestedMemberPropertyRepl_repl() {
-    run("deeplyNestedMemberPropertyRepl.repl.kts");
-  }
-
-  @Test
   @TestMetadata("deeplyNestedMemberPropertyScript.kts")
   public void testDeeplyNestedMemberPropertyScript() {
     run("deeplyNestedMemberPropertyScript.kts");
-  }
-
-  @Test
-  @TestMetadata("deeplyNestedMemberRepl.repl.kts")
-  public void testDeeplyNestedMemberRepl_repl() {
-    run("deeplyNestedMemberRepl.repl.kts");
   }
 
   @Test
@@ -82,15 +64,51 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   }
 
   @Test
-  @TestMetadata("memberFunction.kt")
-  public void testMemberFunction() {
-    run("memberFunction.kt");
+  @TestMetadata("destructuringEntryCompanionBlock.kt")
+  public void testDestructuringEntryCompanionBlock() {
+    run("destructuringEntryCompanionBlock.kt");
   }
 
   @Test
-  @TestMetadata("memberFunctionRepl.repl.kts")
-  public void testMemberFunctionRepl_repl() {
-    run("memberFunctionRepl.repl.kts");
+  @TestMetadata("destructuringEntryMember.kt")
+  public void testDestructuringEntryMember() {
+    run("destructuringEntryMember.kt");
+  }
+
+  @Test
+  @TestMetadata("destructuringEntryScript.kts")
+  public void testDestructuringEntryScript() {
+    run("destructuringEntryScript.kts");
+  }
+
+  @Test
+  @TestMetadata("destructuringEntryTopLevel.kt")
+  public void testDestructuringEntryTopLevel() {
+    run("destructuringEntryTopLevel.kt");
+  }
+
+  @Test
+  @TestMetadata("destructuringMember.kt")
+  public void testDestructuringMember() {
+    run("destructuringMember.kt");
+  }
+
+  @Test
+  @TestMetadata("destructuringScript.kts")
+  public void testDestructuringScript() {
+    run("destructuringScript.kts");
+  }
+
+  @Test
+  @TestMetadata("destructuringTopLevel.kt")
+  public void testDestructuringTopLevel() {
+    run("destructuringTopLevel.kt");
+  }
+
+  @Test
+  @TestMetadata("memberFunction.kt")
+  public void testMemberFunction() {
+    run("memberFunction.kt");
   }
 
   @Test
@@ -106,12 +124,6 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   }
 
   @Test
-  @TestMetadata("memberPropertyRepl.repl.kts")
-  public void testMemberPropertyRepl_repl() {
-    run("memberPropertyRepl.repl.kts");
-  }
-
-  @Test
   @TestMetadata("memberPropertyScript.kts")
   public void testMemberPropertyScript() {
     run("memberPropertyScript.kts");
@@ -121,12 +133,6 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   @TestMetadata("nestedClass.kt")
   public void testNestedClass() {
     run("nestedClass.kt");
-  }
-
-  @Test
-  @TestMetadata("nestedClassRepl.repl.kts")
-  public void testNestedClassRepl_repl() {
-    run("nestedClassRepl.repl.kts");
   }
 
   @Test
@@ -142,27 +148,9 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   }
 
   @Test
-  @TestMetadata("primaryConstructorRepl.repl.kts")
-  public void testPrimaryConstructorRepl_repl() {
-    run("primaryConstructorRepl.repl.kts");
-  }
-
-  @Test
   @TestMetadata("primaryConstructorScript.kts")
   public void testPrimaryConstructorScript() {
     run("primaryConstructorScript.kts");
-  }
-
-  @Test
-  @TestMetadata("replResult.repl.kts")
-  public void testReplResult_repl() {
-    run("replResult.repl.kts");
-  }
-
-  @Test
-  @TestMetadata("replWithResult.repl.kts")
-  public void testReplWithResult_repl() {
-    run("replWithResult.repl.kts");
   }
 
   @Test
@@ -175,18 +163,6 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   @TestMetadata("scriptInitializer.kts")
   public void testScriptInitializer() {
     run("scriptInitializer.kts");
-  }
-
-  @Test
-  @TestMetadata("scriptInitializerRepl.repl.kts")
-  public void testScriptInitializerRepl_repl() {
-    run("scriptInitializerRepl.repl.kts");
-  }
-
-  @Test
-  @TestMetadata("scriptRepl.repl.kts")
-  public void testScriptRepl_repl() {
-    run("scriptRepl.repl.kts");
   }
 
   @Test
@@ -208,12 +184,6 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   }
 
   @Test
-  @TestMetadata("secondaryConstructorRepl.repl.kts")
-  public void testSecondaryConstructorRepl_repl() {
-    run("secondaryConstructorRepl.repl.kts");
-  }
-
-  @Test
   @TestMetadata("secondaryConstructorScript.kts")
   public void testSecondaryConstructorScript() {
     run("secondaryConstructorScript.kts");
@@ -223,12 +193,6 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   @TestMetadata("topLevelClass.kt")
   public void testTopLevelClass() {
     run("topLevelClass.kt");
-  }
-
-  @Test
-  @TestMetadata("topLevelClassRepl.repl.kts")
-  public void testTopLevelClassRepl_repl() {
-    run("topLevelClassRepl.repl.kts");
   }
 
   @Test
@@ -244,12 +208,6 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   }
 
   @Test
-  @TestMetadata("topLevelFunctionRepl.repl.kts")
-  public void testTopLevelFunctionRepl_repl() {
-    run("topLevelFunctionRepl.repl.kts");
-  }
-
-  @Test
   @TestMetadata("topLevelFunctionScript.kts")
   public void testTopLevelFunctionScript() {
     run("topLevelFunctionScript.kts");
@@ -259,12 +217,6 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   @TestMetadata("topLevelFunctionWithPackage.kt")
   public void testTopLevelFunctionWithPackage() {
     run("topLevelFunctionWithPackage.kt");
-  }
-
-  @Test
-  @TestMetadata("topLevelFunctionWithPackageRepl.repl.kts")
-  public void testTopLevelFunctionWithPackageRepl_repl() {
-    run("topLevelFunctionWithPackageRepl.repl.kts");
   }
 
   @Test
@@ -280,12 +232,6 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   }
 
   @Test
-  @TestMetadata("topLevelPropertyRepl.repl.kts")
-  public void testTopLevelPropertyRepl_repl() {
-    run("topLevelPropertyRepl.repl.kts");
-  }
-
-  @Test
   @TestMetadata("topLevelPropertyScript.kts")
   public void testTopLevelPropertyScript() {
     run("topLevelPropertyScript.kts");
@@ -295,12 +241,6 @@ public class SourceLikeDesignationByPsiTestGenerated extends AbstractSourceLikeD
   @TestMetadata("typeAlias.kt")
   public void testTypeAlias() {
     run("typeAlias.kt");
-  }
-
-  @Test
-  @TestMetadata("typeAliasRepl.repl.kts")
-  public void testTypeAliasRepl_repl() {
-    run("typeAliasRepl.repl.kts");
   }
 
   @Test

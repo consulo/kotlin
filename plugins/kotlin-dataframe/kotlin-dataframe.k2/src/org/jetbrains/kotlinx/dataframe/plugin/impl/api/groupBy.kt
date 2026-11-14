@@ -1,5 +1,6 @@
 package org.jetbrains.kotlinx.dataframe.plugin.impl.api
 
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
@@ -17,6 +18,7 @@ import org.jetbrains.kotlinx.dataframe.plugin.impl.*
 import org.jetbrains.kotlinx.dataframe.plugin.impl.data.ColumnWithPathApproximation
 import org.jetbrains.kotlinx.dataframe.plugin.interpret
 import org.jetbrains.kotlinx.dataframe.plugin.loadInterpreter
+import org.jetbrains.kotlinx.dataframe.plugin.utils.Names
 
 class GroupBy(val keys: PluginDataFrameSchema, val groups: PluginDataFrameSchema) {
     companion object {
@@ -76,7 +78,25 @@ class AggregateDslInto : AbstractInterpreter<Unit>() {
     val Arguments.name: String by arg()
 
     override fun Arguments.interpret() {
-        dsl.columns.add(NamedValue(name, receiver.resolvedType))
+        val receiverType = receiver.resolvedType
+        val typeArgument = receiverType.typeArguments.singleOrNull()
+        // https://github.com/Kotlin/dataframe/blob/23046d82fbf28a355d6e916cd343e780b86b835f/core/src/main/kotlin/org/jetbrains/kotlinx/dataframe/impl/aggregation/GroupByReceiverImpl.kt#L36
+        val yieldedType = when (receiverType.classId) {
+            Names.DATA_COLUMN_CLASS_ID, Names.VALUE_COLUMN_CLASS_ID ->
+                typeArgument?.let { Names.LIST.constructClassLikeType(arrayOf(it)) }
+
+            Names.COLUM_GROUP_CLASS_ID ->
+                typeArgument?.let { Names.DF_CLASS_ID.constructClassLikeType(arrayOf(it)) }
+
+            Names.FRAME_COLUMN_CLASS_ID -> typeArgument?.let {
+                val frameType = Names.DF_CLASS_ID.constructClassLikeType(arrayOf(it))
+                Names.LIST.constructClassLikeType(arrayOf(frameType))
+            }
+
+            // GroupByReceiverImpl is handled by simpleColumnOf
+            else -> null
+        } ?: receiverType
+        dsl.columns.add(NamedValue(name, yieldedType))
     }
 }
 
@@ -475,7 +495,7 @@ abstract class GroupByAggregator2(val defaultName: String, val aggregator: Aggre
                 ).toConeKotlinType() ?: returnType
 
             else -> returnType
-        } ?: session.builtinTypes.nullableAnyType.coneType
+        } ?: StandardTypes.NullableAny
 
         val newColumn = simpleColumnOf(newColumnName, newColumnType)
         return PluginDataFrameSchema(receiver.keys.columns() + newColumn)

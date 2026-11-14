@@ -1,5 +1,4 @@
 library {
-  // module name: <kt56018_value_parameters_annotations.kt>
 
   library fragment {
     // package name: test

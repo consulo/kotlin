@@ -213,7 +213,7 @@ class CocoaPodsGitIT : KGPBaseTest() {
             val anotherPodName = "SSZipArchive"
             val anotherPodRepo = "https://github.com/ZipArchive/ZipArchive"
             buildGradleKts.addPod(anotherPodName, produceGitBlock(anotherPodRepo, tagName = "2.5.5"))
-            buildGradleKts.addCocoapodsBlock("ios.deploymentTarget = \"16.0\"")
+            buildGradleKts.addCocoapodsBlock("ios.deploymentTarget = \"17.6\"")
             testImport(repos = listOf(defaultPodRepo, anotherPodRepo)) {
 
                 assertTasksExecuted(
@@ -252,7 +252,7 @@ class CocoaPodsGitIT : KGPBaseTest() {
 
             testImport()
 
-            buildGradleKts.addCocoapodsBlock("osx.deploymentTarget = \"10.15\"")
+            buildGradleKts.addCocoapodsBlock("osx.deploymentTarget = \"12.1\"")
             testImport()
 
             val tasks = listOf(
@@ -262,7 +262,7 @@ class CocoaPodsGitIT : KGPBaseTest() {
                 defaultBuildTaskName,
                 defaultCinteropTaskName
             )
-            val anotherTarget = "MacosX64"
+            val anotherTarget = "MacosArm64"
             val anotherAppleTarget = "macos"
             val anotherFamily = "macos"
             buildGradleKts.addKotlinBlock(anotherTarget.replaceFirstChar { it.lowercase(Locale.getDefault()) } + "()")
@@ -298,10 +298,10 @@ class CocoaPodsGitIT : KGPBaseTest() {
                 assertTasksExecuted(defaultBuildTaskName)
             }
 
-            val anotherTarget = "MacosX64"
+            val anotherTarget = "MacosArm64"
             val anotherAppleTarget = "macos"
             val anotherTargetDefaultPodTaskName = podBuildFullTaskName(appleTarget = anotherAppleTarget)
-            buildGradleKts.addCocoapodsBlock("osx.deploymentTarget = \"10.15\"")
+            buildGradleKts.addCocoapodsBlock("osx.deploymentTarget = \"12.1\"")
             buildGradleKts.addKotlinBlock(anotherTarget.replaceFirstChar { it.lowercase(Locale.getDefault()) } + "()")
 
             testImport {

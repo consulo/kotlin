@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.sir.SirBridged
 import org.jetbrains.kotlin.sir.SirDeclarationContainer
 import org.jetbrains.kotlin.sir.SirFunctionBody
 import org.jetbrains.kotlin.sir.SirModule
+import org.jetbrains.kotlin.sir.SirReverseFunctionBridge
 import org.jetbrains.kotlin.sir.SirSubscript
 import org.jetbrains.kotlin.sir.SirVariable
 import org.jetbrains.kotlin.sir.util.Comparators
@@ -20,20 +21,25 @@ import org.jetbrains.sir.printer.impl.SirAsSwiftSourcesPrinter
 
 public class SirPrinter(
     private val stableDeclarationsOrder: Boolean = true,
-    private val renderDocComments: Boolean = false,
     private val renderDeclarationOrigins: Boolean = false,
     private val emptyBodyStub: SirFunctionBody = fatalErrorBodyStub
 ) {
     public inner class Printout(private val module: SirModule) {
         public val swiftSource: Sequence<String> by lazy {
-            val result = SirAsSwiftSourcesPrinter.print(
+            val sirTree = SirAsSwiftSourcesPrinter.print(
                 module,
                 stableDeclarationsOrder = this@SirPrinter.stableDeclarationsOrder,
-                renderDocComments = this@SirPrinter.renderDocComments,
                 renderDeclarationOrigins = this@SirPrinter.renderDeclarationOrigins,
                 emptyBodyStub = this@SirPrinter.emptyBodyStub,
             )
-            listOf(result).asSequence()
+            val reverseBridgeLines = bridges
+                .filterIsInstance<SirReverseFunctionBridge>()
+                .flatMap { it.swiftFunctionBridge.lines + "" }
+            if (reverseBridgeLines.isEmpty()) {
+                listOf(sirTree).asSequence()
+            } else {
+                listOf(sirTree + "\n" + reverseBridgeLines.joinToString("\n")).asSequence()
+            }
         }
 
         public val cSource: Sequence<String> by lazy {

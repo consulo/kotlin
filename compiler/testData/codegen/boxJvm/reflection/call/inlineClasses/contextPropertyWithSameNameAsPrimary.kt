@@ -1,7 +1,6 @@
 // TARGET_BACKEND: JVM
 // WITH_REFLECT
 // OPT_IN: kotlin.ExperimentalContextParameters
-// LANGUAGE: +ContextParameters
 
 import kotlin.reflect.KParameter
 
@@ -11,14 +10,20 @@ value class Z(val value: String) {
     val value: Int get() = x
 }
 
+fun boxZ(z: Z): Z? = z
+fun unboxZ(z: Z?): Z = z!!
+
 fun box(): String {
+    if ((::boxZ).call(Z("ok")) != Z("ok")) return "fail: boxZ"
+    if ((::unboxZ).call(Z("ok")) != Z("ok")) return "fail: unboxZ"
+
     val withContext = Z::class.members.single { p ->
-        p.name == "value" && p.parameters.filter { it.kind == KParameter.Kind.CONTEXT }.isNotEmpty()
+        p.name == "value" && p.parameters.any { it.kind == KParameter.Kind.CONTEXT }
     }
     if (withContext.call(Z(""), 42) != 42) return "Fail"
 
     val primary = Z::class.members.single { p ->
-        p.name == "value" && p.parameters.filter { it.kind == KParameter.Kind.CONTEXT }.isEmpty()
+        p.name == "value" && p.parameters.any { it.kind == KParameter.Kind.INSTANCE } && p.parameters.none { it.kind == KParameter.Kind.CONTEXT }
     }
     return primary.call(Z("OK")) as String
 }

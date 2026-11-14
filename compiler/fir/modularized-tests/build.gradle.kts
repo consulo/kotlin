@@ -4,16 +4,13 @@
  */
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
     id("java-test-fixtures")
 }
 
-repositories {
-    mavenLocal()
-}
-
-val composeCompilerPlugin by configurations.creating
+val composeCompilerPlugin = configurations.create("composeCompilerPlugin")
 
 dependencies {
     testFixturesImplementation(intellijCore())
@@ -23,23 +20,25 @@ dependencies {
 
     testFixturesApi(testFixtures(project(":compiler:tests-common")))
 
-    testFixturesApi(testFixtures(project(":compiler:fir:analysis-tests:legacy-fir-tests")))
+    testFixturesApi(testFixtures(project(":compiler:fir:analysis-tests")))
     testFixturesApi(project(":compiler:fir:resolve"))
-    testFixturesApi(project(":compiler:fir:providers"))
-    testFixturesApi(project(":compiler:fir:semantics"))
-    testFixturesApi(project(":compiler:fir:dump"))
+    testFixturesApi(project(":compiler:fir:semantics.api"))
+    testFixturesImplementation(project(":compiler:config.jvm"))
+    testImplementation(testFixtures(project(":compiler:test-infrastructure-utils.common")))
+    testImplementation(project(":compiler:fir:plugin.api"))
+
     testFixturesApi(platform(libs.junit.bom))
     testFixturesApi(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testRuntimeOnly(libs.junit.platform.launcher)
 
-    testRuntimeOnly(project(":compiler:fir:plugin-utils"))
 
     composeCompilerPlugin(project(":plugins:compose-compiler-plugin:compiler-hosted")) { isTransitive = false }
 
-    val asyncProfilerClasspath = project.findProperty("fir.bench.async.profiler.classpath") as? String
-    if (asyncProfilerClasspath != null) {
-        testRuntimeOnly(files(*asyncProfilerClasspath.split(File.pathSeparatorChar).toTypedArray()))
+    // Used by modularized-tests
+    val asyncProfilerClasspath = project.providers.gradleProperty("fir.bench.async.profiler.classpath")
+    if (asyncProfilerClasspath.isPresent) {
+        testRuntimeOnly(files(*asyncProfilerClasspath.get().split(File.pathSeparatorChar).toTypedArray()))
     }
 }
 
@@ -55,17 +54,25 @@ sourceSets {
 optInToK1Deprecation()
 
 projectTests {
-    testTask(minHeapSizeMb = 8192, maxHeapSizeMb = 8192, reservedCodeCacheSizeMb = 512, jUnitMode = JUnitMode.JUnit5) {
+    testTask(
+        minHeapSize = testMaxHeapSizeHuge,
+        maxHeapSize = testMaxHeapSizeHuge,
+        reservedCodeCacheSize = 512.MiB,
+        garbageCollector = null // explicitly not selecting any GC as the 'fir.modularized.jvm.args' is expected to provide such settings
+    ) {
         dependsOn(":dist", ":plugins:compose-compiler-plugin:compiler-hosted:jar")
         systemProperties(providers.gradlePropertiesPrefixedBy("fir.").get())
         this.workingDir = rootDir
         systemProperty("fir.bench.compose.plugin.classpath", composeCompilerPlugin.asPath)
-        val argsExt = this.project.findProperty("fir.modularized.jvm.args") as? String
-        if (argsExt != null) {
+        // Used by modularized-tests kotlin-compiler-modularized-tests-teamcity/files/mt2025/.teamcity/projects/infrastructure/ModularizedTestStep.kt
+        val modularizedJvmArgs = project.providers.gradleProperty("fir.modularized.jvm.args")
+        if (modularizedJvmArgs.isPresent) {
             val paramRegex = "([^\"]\\S*|\".+?\")\\s*".toRegex()
-            this.jvmArgs(paramRegex.findAll(argsExt).map<MatchResult, String> { it.groupValues[1] }.toList<String>())
+            this.jvmArgs(paramRegex.findAll(modularizedJvmArgs.get()).map<MatchResult, String> { it.groupValues[1] }.toList<String>())
         }
         systemProperties["junit.jupiter.execution.parallel.enabled"] = true
+        // Allow accessing `ManagementFactoryHelper` because we're accessing some HotSpot-specific stuff.
+        jvmArgs("--add-opens=java.management/sun.management=ALL-UNNAMED")
     }
 
     testGenerator(
@@ -81,4 +88,3 @@ projectTests {
     }
 }
 
-testsJar()

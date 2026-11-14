@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.analysis.api.fir.scopes
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
 import org.jetbrains.kotlin.analysis.api.lifetime.KaLifetimeToken
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
-import org.jetbrains.kotlin.analysis.api.scopes.KaScope
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassifierSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaConstructorSymbol
@@ -20,7 +19,7 @@ import org.jetbrains.kotlin.name.Name
 internal class KaFirPackageScope(
     private val fqName: FqName,
     private val analysisSession: KaFirSession,
-) : KaScope {
+) : KaFirScope() {
     override val token: KaLifetimeToken get() = analysisSession.token
 
     private val firScope: FirPackageMemberScope by lazy(LazyThreadSafetyMode.PUBLICATION) {

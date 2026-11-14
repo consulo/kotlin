@@ -95,23 +95,20 @@ abstract class FirWebCommonExternalChecker(
 
         val container = context.containingDeclarations.lastOrNull()
 
-        if (
-            declaration is FirClass &&
-            !declaration.classKind.isInterface && (!allowCompanionInInterface || !declaration.status.isCompanion) &&
-            container is FirClassSymbol<*> && container.classKind.isInterface
-        ) {
-            reporter.reportOn(declaration.source, FirWebCommonErrors.NESTED_CLASS_IN_EXTERNAL_INTERFACE)
-        }
-
-        if (
-            allowCompanionInInterface &&
-            declaration is FirClass &&
-            declaration.status.isCompanion &&
+        if (declaration is FirClass &&
             container is FirClassSymbol<*> &&
-            container.isInterface &&
-            declaration.nameOrSpecialName != DEFAULT_NAME_FOR_COMPANION_OBJECT
+            container.isInterface
         ) {
-            reporter.reportOn(declaration.source, FirWebCommonErrors.NAMED_COMPANION_IN_EXTERNAL_INTERFACE)
+            if (declaration.status.isCompanion) {
+                if (!allowCompanionInInterface) {
+                    // KT-87862 K/Wasm: introduce a separate diagnostic ID for companion object inside external interface
+                    reporter.reportOn(declaration.source, FirWebCommonErrors.COMPANION_OBJECT_IN_EXTERNAL_INTERFACE)
+                } else if (declaration.nameOrSpecialName != DEFAULT_NAME_FOR_COMPANION_OBJECT) {
+                    reporter.reportOn(declaration.source, FirWebCommonErrors.NAMED_COMPANION_IN_EXTERNAL_INTERFACE)
+                }
+            } else if (!declaration.isInterface) {
+                reporter.reportOn(declaration.source, FirWebCommonErrors.NESTED_CLASS_IN_EXTERNAL_INTERFACE)
+            }
         }
 
 
@@ -198,7 +195,7 @@ abstract class FirWebCommonExternalChecker(
                 }
             }
 
-            for ((superType, delegate) in collectSupertypesWithDelegates()) {
+            for ([superType, delegate] in collectSupertypesWithDelegates()) {
                 when {
                     delegate != null -> {
                         reporter.reportOn(superType.source, FirWebCommonErrors.EXTERNAL_DELEGATION)
@@ -259,7 +256,8 @@ abstract class FirWebCommonExternalChecker(
                 && this !is FirPropertyAccessor
     }
 
-    private fun FirCallableDeclaration.isNullableProperty() = this is FirProperty && returnTypeRef.coneType.isMarkedOrFlexiblyNullable
+    private fun FirCallableDeclaration.isNullableProperty(): Boolean =
+        this is FirProperty && returnTypeRef.coneType.isMarkedOrFlexiblyNullable
 
     private fun FirDeclaration.hasValidExternalBody(): Boolean {
         val body = when (this) {

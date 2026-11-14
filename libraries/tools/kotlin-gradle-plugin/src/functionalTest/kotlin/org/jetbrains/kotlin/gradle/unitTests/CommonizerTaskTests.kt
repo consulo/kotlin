@@ -3,23 +3,21 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName", "DuplicatedCode")
+@file:Suppress("DuplicatedCode")
 
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.testfixtures.ProjectBuilder
+import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames.KOTLIN_NATIVE_COMMONIZE_CINTEROP_MAX_WORKERS
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeCompilation
+import org.jetbrains.kotlin.gradle.targets.native.internal.CInteropCommonizerTask
 import org.jetbrains.kotlin.gradle.targets.native.internal.cInteropCommonizationEnabled
 import org.jetbrains.kotlin.gradle.targets.native.internal.copyCommonizeCInteropForIdeTask
 import org.jetbrains.kotlin.gradle.util.*
 import kotlin.test.*
 
 class CommonizerTaskTests {
-
-    companion object {
-        const val JVM_ECOSYSTEM_PLUGIN_ID = "jvm-ecosystem"
-    }
 
     private val rootProject = ProjectBuilder.builder().build() as ProjectInternal
     private val subproject = ProjectBuilder.builder().withName("subproject").withParent(rootProject).build() as ProjectInternal
@@ -88,6 +86,23 @@ class CommonizerTaskTests {
         val commonizeCInteropTask = subproject.assertContainsTaskWithName(commonizeCInteropTaskName)
         subproject.tasks.getByName("commonize").assertDependsOn(commonizeCInteropTask)
         rootProject.assertContainsNoTaskWithName(commonizeCInteropTaskName)
+    }
+
+    @Test
+    fun `test commonizeCInteropTask configures the parallelism limit service using the KOTLIN_NATIVE_COMMONIZE_CINTEROP_MAX_WORKERS property, when set`() {
+        subproject.propertiesExtension.set(KOTLIN_NATIVE_COMMONIZE_CINTEROP_MAX_WORKERS, "3")
+        configureDefaultTestProjects()
+        subproject.assertContainsTaskWithName("commonizeCInterop")
+
+        assertEquals(3, subproject.maxParallelUsagesOf<CInteropCommonizerTask>())
+    }
+
+    @Test
+    fun `test commonizeCInteropTask does not register the parallelism limit service when the KOTLIN_NATIVE_COMMONIZE_CINTEROP_MAX_WORKERS property is not set`() {
+        configureDefaultTestProjects()
+        subproject.assertContainsTaskWithName("commonizeCInterop")
+
+        assertFalse(subproject.isParallelismLimitServiceRegistered<CInteropCommonizerTask>())
     }
 
     @Test
@@ -178,6 +193,17 @@ class CommonizerTaskTests {
         }
         subprojectWithoutNativeTarget.runLifecycleAwareTest {
             assertContainsNoTaskWithName("commonizeCInterop")
+        }
+    }
+
+    @Test
+    fun testNewKmpCompilationSchemeEnablesCommonization() {
+        val rootProject = ProjectBuilder.builder().build() as ProjectInternal
+        rootProject.applyMultiplatformPlugin()
+        rootProject.enableKmpSeparateCompilation()
+
+        rootProject.runLifecycleAwareTest {
+            assertTrue(rootProject.cInteropCommonizationEnabled())
         }
     }
 }

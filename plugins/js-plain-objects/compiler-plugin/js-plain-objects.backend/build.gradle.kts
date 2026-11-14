@@ -1,10 +1,13 @@
 description = "Kotlin JavaScript Plain Objects Compiler Plugin (Backend)"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
 dependencies {
+    compileOnly(project(":core:descriptors"))
     compileOnly(project(":compiler:backend"))
     compileOnly(project(":compiler:backend.js"))
     compileOnly(project(":compiler:ir.backend.common"))

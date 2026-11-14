@@ -1,9 +1,13 @@
+import org.gradle.kotlin.dsl.support.serviceOf
+
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("d8-configuration")
     id("nodejs-configuration")
     id("java-test-fixtures")
-    id("project-tests-convention")
+    id("test-inputs-check")
 }
 
 dependencies {
@@ -12,11 +16,12 @@ dependencies {
     testFixturesApi(testFixtures(project(":js:js.tests")))
     testFixturesApi(testFixtures(project(":wasm:wasm.tests")))
     testFixturesApi(testFixtures(project(":compiler:incremental-compilation-impl")))
+    testFixturesImplementation(project(":wasm:wasm.frontend"))
     testFixturesApi(libs.junit.jupiter.api)
 
     testCompileOnly(intellijCore())
 
-    testRuntimeOnly(project(":compiler:fir:plugin-utils"))
+    testRuntimeOnly(project(":compiler:fir:plugin.api"))
 
     testRuntimeOnly(commonDependency("org.lz4:lz4-java"))
     testRuntimeOnly(commonDependency("org.jetbrains.intellij.deps.jna:jna"))
@@ -24,31 +29,30 @@ dependencies {
     testRuntimeOnly(libs.intellij.fastutil)
 
     testRuntimeOnly(toolsJar())
-    testRuntimeOnly(libs.junit.vintage.engine)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(project(":compiler:cli-base"))
 }
 
 sourceSets {
-    "main" { none() }
-    "test" { generatedTestDir() }
-    "testFixtures" { projectDefault() }
+    main { none() }
+    test {
+        projectDefault()
+        generatedTestDir()
+    }
+    testFixtures { projectDefault() }
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5, maxHeapSizeMb = 3072) {
-        dependsOn(":dist")
-        workingDir = rootDir
-        dependsOn(":plugins:plugin-sandbox:jar")
-        dependsOn(":plugins:plugin-sandbox:plugin-annotations:distAnnotations")
+    testTask(maxHeapSize = testMaxHeapSizeLarge) {
         useJsIrBoxTests(buildDir = layout.buildDirectory)
-        with(wasmNodeJsKotlinBuild) {
-            setupNodeJs(nodejsVersion)
+        val buildFeatures = project.serviceOf<BuildFeatures>()
+        if (!buildFeatures.isolatedProjects.active.get()) {
+            wasmNodeJsKotlinBuild {
+                setupNodeJs(nodejsVersion)
+            }
         }
-        jvmArgumentProviders += objects.newInstance<AbsolutePathArgumentProvider>().apply {
-            property.set("kotlin.wasm.test.root.out.dir")
-            buildDirectory.set(layout.buildDirectory)
-        }
+        addAbsoluteDirectoryProperty(layout.buildDirectory, "kotlin.wasm.test.root.out.dir")
     }
 
     testGenerator("org.jetbrains.kotlin.incremental.TestGeneratorForPluginSandboxICTestsKt")
@@ -56,8 +60,11 @@ projectTests {
     withJvmStdlibAndReflect()
     withJsRuntime()
     withWasmRuntime()
-    withStdlibWeb()
-    withStdlibCommon()
+    withMockJdkAnnotationsJar()
+    withPluginSandboxJar()
+    withPluginSandboxAnnotations()
+
+    testData(project.isolated, "testData")
+    testData(project(":js:js.translator").isolated, "testData/moduleEmulation.js")
 }
 
-testsJar()

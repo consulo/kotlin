@@ -4,10 +4,11 @@
  */
 
 import com.github.gradle.node.NodeExtension
+import org.gradle.api.configuration.BuildFeatures
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.testing.Test
-import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.newInstance
+import org.gradle.kotlin.dsl.support.serviceOf
 import org.gradle.kotlin.dsl.the
 import org.jetbrains.kotlin.build.d8.D8Extension
 
@@ -20,25 +21,21 @@ fun ProjectTestsExtension.jsTestTask(
     taskName: String = "test",
     tag: String? = null,
     skipInLocalBuild: Boolean = false,
+    enableGroupingTestEngine: Boolean = false,
     body: Test.() -> Unit = {},
 ): TaskProvider<Test> = testTask(
     taskName = taskName,
-    jUnitMode = JUnitMode.JUnit5,
     skipInLocalBuild = skipInLocalBuild,
+    enableGroupingTestEngine = enableGroupingTestEngine,
+    maxHeapSize = testMaxHeapSizeLarge
 ) {
-    extensions.configure<TestInputsCheckExtension> {
-        allowFlightRecorder.set(true)
-    }
 
     val project = this@jsTestTask.project
-
-    with(project.the<D8Extension>()) {
-        setupV8()
-    }
-
-    jvmArgumentProviders += project.objects.newInstance<SystemPropertyClasspathProvider>().apply {
-        classpath.from(project.rootDir.resolve("js/js.tests/testFixtures/org/jetbrains/kotlin/js/engine/repl.js"))
-        property.set("javascript.engine.path.repl")
+    val buildFeatures = project.serviceOf<BuildFeatures>()
+    if (!buildFeatures.isolatedProjects.active.get()) {
+        with(project.the<D8Extension>()) {
+            setupV8()
+        }
     }
 
     val node = project.the<NodeExtension>()

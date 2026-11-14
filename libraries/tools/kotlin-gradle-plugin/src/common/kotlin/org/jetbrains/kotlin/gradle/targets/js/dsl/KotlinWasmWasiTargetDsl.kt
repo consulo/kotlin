@@ -5,8 +5,11 @@
 
 package org.jetbrains.kotlin.gradle.targets.js.dsl
 
+import org.gradle.api.Action
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.plugin.mpp.HasBinaries
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsBinaryContainer
+import org.jetbrains.kotlin.gradle.targets.wasm.dsl.KotlinWasmtimeDsl
 
 /**
  * Base configuration options for the compilation of Kotlin WasmWasi targets.
@@ -27,4 +30,65 @@ import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsBinaryContainer
 interface KotlinWasmWasiTargetDsl :
     KotlinWasmTargetDsl,
     KotlinTargetWithNodeJsDsl,
-    HasBinaries<KotlinJsBinaryContainer>
+    HasBinaries<KotlinJsBinaryContainer> {
+
+    /**
+     * Enable [Wasmtime](https://wasmtime.dev) as the execution environment for this target.
+     *
+     * When enabled, Kotlin Gradle plugin will download and install
+     * the required environment and dependencies for running and testing
+     * using Wasmtime.
+     *
+     * @see org.jetbrains.kotlin.gradle.targets.wasm.dsl.KotlinWasmtimeDsl
+     */
+    @ExperimentalWasmDsl
+    fun wasmtime() = wasmtime { }
+
+    /**
+     * Enable [Wasmtime](https://wasmtime.dev) as the execution environment for this target.
+     *
+     * When enabled, Kotlin Gradle plugin will download and install
+     * the required environment and dependencies for running and testing
+     * using Wasmtime.
+     *
+     * The target can be configured using [body].
+     *
+     * @see org.jetbrains.kotlin.gradle.targets.wasm.dsl.KotlinWasmtimeDsl
+     */
+    @ExperimentalWasmDsl
+    fun wasmtime(body: KotlinWasmtimeDsl.() -> Unit)
+
+    /**
+     * [Action] based version of [wasmtime] above.
+     */
+    @ExperimentalWasmDsl
+    fun wasmtime(fn: Action<KotlinWasmtimeDsl>) {
+        wasmtime {
+            fn.execute(this)
+        }
+    }
+
+    @Deprecated(
+        "Node.js does not support Wasm component model. Use wasmtime instead. Scheduled for removal in Kotlin 2.7.",
+        ReplaceWith("wasmtime()"),
+    )
+    override fun nodejs() {
+        super.nodejs()
+    }
+
+    @Deprecated(
+        "Node.js does not support Wasm component model. Use wasmtime instead. Scheduled for removal in Kotlin 2.7.",
+        ReplaceWith("wasmtime(body)"),
+    )
+    override fun nodejs(body: KotlinJsNodeDsl.() -> Unit) {
+        super.nodejs(body)
+    }
+
+    @Deprecated(
+        "Node.js does not support Wasm component model. Use wasmtime instead. Scheduled for removal in Kotlin 2.7.",
+        ReplaceWith("wasmtime(fn)"),
+    )
+    override fun nodejs(fn: Action<KotlinJsNodeDsl>) {
+        super.nodejs(fn)
+    }
+}

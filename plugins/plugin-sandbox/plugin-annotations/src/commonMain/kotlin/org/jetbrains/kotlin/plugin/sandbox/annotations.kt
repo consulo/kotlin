@@ -13,9 +13,20 @@ annotation class AddSupertype(val value: KClass<*>)
 
 annotation class DummyFunction(val fileName: String = "")
 
-@Target(AnnotationTarget.FUNCTION)
+@Target(
+    AnnotationTarget.CLASS,
+    AnnotationTarget.ANNOTATION_CLASS,
+    AnnotationTarget.CONSTRUCTOR,
+    AnnotationTarget.FUNCTION,
+    AnnotationTarget.PROPERTY,
+    AnnotationTarget.PROPERTY_GETTER,
+    AnnotationTarget.FIELD,
+    AnnotationTarget.TYPEALIAS,
+)
 annotation class TestTopLevelPrivateSuspendFun
 annotation class ExternalClassWithNested
+annotation class JavaClassWithHiddenNested
+annotation class JavaClassWithGeneratedGetter
 annotation class NestedClassAndMaterializeMember
 annotation class MyInterfaceSupertype
 annotation class CompanionWithFoo
@@ -91,3 +102,8 @@ annotation class CallSpecifiedFunction(val functionName: String)
 
 annotation class GenerateFunctionWithAnnotatedParameters
 annotation class AnnotationWithStringValue(val value: String)
+
+@Target(AnnotationTarget.CLASS)
+annotation class GenerateSamInterfaceFunction
+
+annotation class GenerateClassFamily

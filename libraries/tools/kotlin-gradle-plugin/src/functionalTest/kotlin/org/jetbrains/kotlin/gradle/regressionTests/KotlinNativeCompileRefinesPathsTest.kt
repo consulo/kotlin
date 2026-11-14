@@ -3,13 +3,10 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.regressionTests
 
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinSharedNativeCompilation
-import org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile
 import org.jetbrains.kotlin.gradle.util.buildProjectWithMPP
 import org.jetbrains.kotlin.gradle.util.main
 import org.jetbrains.kotlin.gradle.util.relativeTo
@@ -50,7 +47,7 @@ class KotlinNativeCompileRefinesPathsTest {
         /* Check linuxX64Main platform compilation */
         run {
             val compilation = kotlin.linuxX64().compilations.main
-            val compileTask = compilation.compileTaskProvider.get() as KotlinNativeCompile
+            val compileTask = compilation.compileTaskProvider.get()
 
             /* Platform compilation will compile all sources together, no refinesModules has to be set */
             assertEquals(

@@ -30,6 +30,8 @@ import org.jetbrains.kotlin.gradle.testbase.plugins
 import org.jetbrains.kotlin.gradle.testbase.project
 import org.jetbrains.kotlin.gradle.uklibs.applyMultiplatform
 import org.jetbrains.kotlin.gradle.util.runProcess
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInNative
 import org.junit.jupiter.api.condition.OS
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
@@ -42,14 +44,13 @@ import kotlin.test.assertEquals
     supportedOn = [OS.MAC],
     enabledOnCI = [OS.MAC],
 )
-@GradleTestVersions(
-    minVersion = TestVersions.Gradle.G_8_0
-)
 @OptIn(EnvironmentalVariablesOverride::class)
 @SwiftPMImportGradlePluginTests
 class SwiftPMImportBinaryTargetsIT : KGPBaseTest() {
 
+    @TestMetadata("emptyxcode")
     @GradleTest
+    @MustRunOnChangesInNative
     fun `local package with binaryTarget static framework xcframework`(version: GradleVersion) {
         testLocalPackageWithBinaryTargetXcframework(
             version,
@@ -58,7 +59,9 @@ class SwiftPMImportBinaryTargetsIT : KGPBaseTest() {
         )
     }
 
+    @TestMetadata("emptyxcode")
     @GradleTest
+    @MustRunOnChangesInNative
     fun `local package with binaryTarget dynamic framework xcframework`(version: GradleVersion) {
         testLocalPackageWithBinaryTargetXcframework(
             version,
@@ -67,7 +70,9 @@ class SwiftPMImportBinaryTargetsIT : KGPBaseTest() {
         )
     }
 
+    @TestMetadata("emptyxcode")
     @GradleTest
+    @MustRunOnChangesInNative
     fun `local package with binaryTarget static library xcframework`(version: GradleVersion) {
         testLocalPackageWithBinaryTargetXcframework(
             version,
@@ -76,6 +81,7 @@ class SwiftPMImportBinaryTargetsIT : KGPBaseTest() {
         )
     }
 
+    @TestMetadata("emptyxcode")
     @GradleTest
     fun `shared xcframework consumed from both kotlin and swift sides with dynamic framework`(version: GradleVersion) {
         project("emptyxcode", version) {
@@ -103,7 +109,7 @@ class SwiftPMImportBinaryTargetsIT : KGPBaseTest() {
 
             swiftConsumerDir.resolve("Package.swift").writeText(
                 """
-                    // swift-tools-version: 5.9
+                    // swift-tools-version: 6.1
                     import PackageDescription
 
                     let package = Package(
@@ -206,6 +212,7 @@ class SwiftPMImportBinaryTargetsIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("emptyxcode")
     @GradleTest
     fun `test apple target without macosArm64 slice in swift package with binary target`(version: GradleVersion) {
         project("emptyxcode", version) {
@@ -245,6 +252,7 @@ class SwiftPMImportBinaryTargetsIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("emptyxcode")
     @GradleTest
     fun `test apple target without macosArm64 slice in swift package with binary target and product filter`(version: GradleVersion) {
         project("emptyxcode", version) {
@@ -375,16 +383,16 @@ class SwiftPMImportBinaryTargetsIT : KGPBaseTest() {
 
             assertEquals(
                 """
-                    swiftPMImport.emptyxcode/LocalHelper.<init>|objc:init#Constructor[1]
-                    swiftPMImport.emptyxcode/LocalHelper.Companion|null[1]
-                    swiftPMImport.emptyxcode/LocalHelper.init|objc:init[1]
-                    swiftPMImport.emptyxcode/LocalHelperMeta.<init>|<init>(){}[1]
-                    swiftPMImport.emptyxcode/LocalHelperMeta.allocWithZone|objc:allocWithZone:[1]
-                    swiftPMImport.emptyxcode/LocalHelperMeta.alloc|objc:alloc[1]
-                    swiftPMImport.emptyxcode/LocalHelperMeta.greeting|objc:greeting[1]
-                    swiftPMImport.emptyxcode/LocalHelperMeta.new|objc:new[1]
-                    swiftPMImport.emptyxcode/LocalHelperMeta|null[1]
-                    swiftPMImport.emptyxcode/LocalHelper|null[1]
+                    public open expect class swiftPMImport/emptyxcode/LocalHelper : platform/darwin/NSObject
+                    public /* secondary */ constructor swiftPMImport/emptyxcode/LocalHelper.<init>()
+                    public open expect fun swiftPMImport/emptyxcode/LocalHelper.init(): swiftPMImport/emptyxcode/LocalHelper
+                    public final expect companion object swiftPMImport/emptyxcode/LocalHelper.Companion : swiftPMImport/emptyxcode/LocalHelperMeta, kotlinx/cinterop/ObjCClassOf<swiftPMImport/emptyxcode/LocalHelper>
+                    public open expect class swiftPMImport/emptyxcode/LocalHelperMeta : platform/darwin/NSObjectMeta
+                    protected /* secondary */ constructor swiftPMImport/emptyxcode/LocalHelperMeta.<init>()
+                    public open expect fun swiftPMImport/emptyxcode/LocalHelperMeta.alloc(): swiftPMImport/emptyxcode/LocalHelper?
+                    public open expect fun swiftPMImport/emptyxcode/LocalHelperMeta.allocWithZone(zone: kotlinx/cinterop/CPointer<cnames/structs/_NSZone>?): swiftPMImport/emptyxcode/LocalHelper?
+                    public open expect fun swiftPMImport/emptyxcode/LocalHelperMeta.greeting(): kotlin/String
+                    public open expect fun swiftPMImport/emptyxcode/LocalHelperMeta.new(): swiftPMImport/emptyxcode/LocalHelper?
                 """.trimIndent(),
                 commonizeAndDumpCinteropSignatures().filterOutNoiseSignatures(),
                 message = "Cinterop signatures should match expected output for linkage=$linkage, buildType=$buildType"

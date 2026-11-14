@@ -14,14 +14,16 @@ fun copyK2JKlibCompilerArguments(from: K2JKlibCompilerArguments, to: K2JKlibComp
     to.compileIr = from.compileIr
     to.destination = from.destination
     to.enhanceTypeParameterTypesToDefNotNull = from.enhanceTypeParameterTypesToDefNotNull
-    to.expectBuiltinsAsPartOfStdlib = from.expectBuiltinsAsPartOfStdlib
     to.friendModules = from.friendModules
     to.friendPaths = from.friendPaths?.copyOf()
     to.inheritMultifileParts = from.inheritMultifileParts
     to.jspecifyAnnotations = from.jspecifyAnnotations
     to.jsr305 = from.jsr305?.copyOf()
     to.jvmDefault = from.jvmDefault
+    to.jvmTarget = from.jvmTarget
     to.klibLibraries = from.klibLibraries
+    to.klibManifestProperties = from.klibManifestProperties?.copyOf()
+    to.klibZipFileAccessorCacheLimit = from.klibZipFileAccessorCacheLimit
     to.moduleName = from.moduleName
     to.noJdk = from.noJdk
     to.noReflect = from.noReflect

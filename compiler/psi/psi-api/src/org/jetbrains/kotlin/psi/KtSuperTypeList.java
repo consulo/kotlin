@@ -6,14 +6,12 @@
 package org.jetbrains.kotlin.psi;
 
 import com.intellij.lang.ASTNode;
-import com.intellij.psi.PsiComment;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiWhiteSpace;
-import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.IncorrectOperationException;
+import kotlin.DeprecationLevel;
+import kotlin.ReplaceWith;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.KtStubBasedElementTypes;
-import org.jetbrains.kotlin.lexer.KtTokens;
+import org.jetbrains.kotlin.KtNodeTypes;
 import org.jetbrains.kotlin.psi.stubs.KotlinPlaceHolderStub;
 import org.jetbrains.kotlin.psi.stubs.elements.KtTokenSets;
 
@@ -30,15 +28,18 @@ import java.util.concurrent.atomic.AtomicLong;
  * //          ^________^
  * }</pre>
  */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public class KtSuperTypeList extends KtElementImplStub<KotlinPlaceHolderStub<KtSuperTypeList>> {
     private final AtomicLong modificationStamp = new AtomicLong();
 
+    @KtImplementationDetail
     public KtSuperTypeList(@NotNull ASTNode node) {
         super(node);
     }
 
+    @KtImplementationDetail
     public KtSuperTypeList(@NotNull KotlinPlaceHolderStub<KtSuperTypeList> stub) {
-        super(stub, KtStubBasedElementTypes.SUPER_TYPE_LIST);
+        super(stub, KtNodeTypes.SUPER_TYPE_LIST);
     }
 
     @Override
@@ -46,25 +47,54 @@ public class KtSuperTypeList extends KtElementImplStub<KotlinPlaceHolderStub<KtS
         return visitor.visitSuperTypeList(this, data);
     }
 
+    /**
+     * @deprecated Use {@code org.jetbrains.kotlin.idea.base.psi.KotlinPsiModificationUtils.addSuperType(this, entry)}
+     * instead.
+     */
     @NotNull
+    @kotlin.Deprecated(
+            message = "Use 'org.jetbrains.kotlin.idea.base.psi.KotlinPsiModificationUtils.addSuperType(this, entry)' instead.",
+            replaceWith = @ReplaceWith(
+                    expression = "this.addSuperType(entry)",
+                    imports = "org.jetbrains.kotlin.idea.base.psi.addSuperType"
+            ),
+            level = DeprecationLevel.HIDDEN
+    )
+    @Deprecated
     public KtSuperTypeListEntry addEntry(@NotNull KtSuperTypeListEntry entry) {
-        return EditCommaSeparatedListHelper.INSTANCE.addItem(this, getEntries(), entry);
+        return KtPsiMutationService.getInstance().addSuperType(this, entry);
     }
 
+    /**
+     * @deprecated Use {@code org.jetbrains.kotlin.idea.base.psi.KotlinPsiModificationUtils.removeSuperType(this, entry)}
+     * instead.
+     */
+    @kotlin.Deprecated(
+            message = "Use 'org.jetbrains.kotlin.idea.base.psi.KotlinPsiModificationUtils.removeSuperType(this, entry)' instead.",
+            replaceWith = @ReplaceWith(
+                    expression = "this.removeSuperType(entry)",
+                    imports = "org.jetbrains.kotlin.idea.base.psi.removeSuperType"
+            ),
+            level = DeprecationLevel.HIDDEN
+    )
+    @Deprecated
     public void removeEntry(@NotNull KtSuperTypeListEntry entry) {
-        EditCommaSeparatedListHelper.INSTANCE.removeItem(entry);
-        if (getEntries().isEmpty()) {
-            delete();
-        }
+        KtPsiMutationService.getInstance().removeSuperType(this, entry);
     }
 
+    /**
+     * Deletes this super type list.
+     * <p>
+     * When {@link KtPsiMutationService} is registered, as in the IntelliJ Kotlin plugin, the deletion may also adjust the surrounding code,
+     * e.g., delete the colon before the list. Without the service, it performs only the plain platform deletion, which leaves the colon in
+     * place.
+     */
     @Override
     public void delete() throws IncorrectOperationException {
-        PsiElement left = PsiTreeUtil.skipSiblingsBackward(this, PsiWhiteSpace.class, PsiComment.class);
-        if (left == null || left.getNode().getElementType() != KtTokens.COLON) left = this;
-        getParent().deleteChildRange(left, this);
+        KtPsiMutationServiceKt.deleteWithMutationService(this, mutationService -> mutationService.deleteSuperTypeList(this));
     }
 
+    /** Returns the entries of the super type list, in source order; empty if there are none. */
     public List<KtSuperTypeListEntry> getEntries() {
         return Arrays.asList(getStubOrPsiChildren(KtTokenSets.SUPER_TYPE_LIST_ENTRIES, KtSuperTypeListEntry.ARRAY_FACTORY));
     }
@@ -76,6 +106,7 @@ public class KtSuperTypeList extends KtElementImplStub<KotlinPlaceHolderStub<KtS
         modificationStamp.getAndIncrement();
     }
 
+    /** Returns a stamp that is incremented whenever this super type list's subtree changes, allowing callers to detect modifications. */
     public long getModificationStamp() {
         return modificationStamp.get();
     }

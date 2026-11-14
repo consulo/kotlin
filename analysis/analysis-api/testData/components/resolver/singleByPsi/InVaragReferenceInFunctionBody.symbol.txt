@@ -1,5 +1,8 @@
 KtNameReferenceExpression(64,65): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       vararg a: test.A
     ]

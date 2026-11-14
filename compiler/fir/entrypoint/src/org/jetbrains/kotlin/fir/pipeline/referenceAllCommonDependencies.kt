@@ -5,36 +5,70 @@
 
 package org.jetbrains.kotlin.fir.pipeline
 
-import org.jetbrains.kotlin.config.AnalysisFlags
+import org.jetbrains.kotlin.config.hmppProvidersEnabled
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
+import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirQualifiedAccessExpression
 import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
+import org.jetbrains.kotlin.fir.expressions.impl.FirExpressionStub
 import org.jetbrains.kotlin.fir.expressions.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.languageVersionSettings
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
+import org.jetbrains.kotlin.fir.resolve.providers.impl.FirCommonDeclarationsMappingCollectingSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.visitors.FirDefaultVisitorVoid
+import org.jetbrains.kotlin.name.CallableId
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.StandardClassIds
 
+/**
+ * Used only for separate compilation mode (HMPP) only!
+ *
+ * This function goes over all resolved references to all classes and top-level callables in the non-leaf
+ * sources and references them from the leaf (platform) symbol provider, so the
+ * [FirCommonDeclarationsMappingCollectingSymbolProvider] could record the mapping between the platform and
+ * common dependency in case this declaration was not searched from the platform session before.
+ */
 fun referenceAllCommonDependencies(outputs: List<SingleModuleFrontendOutput>) {
     val platformSession = outputs.last().session
-    if (!platformSession.languageVersionSettings.getFlag(AnalysisFlags.hierarchicalMultiplatformCompilation)) return
+    if (!platformSession.languageVersionSettings.hmppProvidersEnabled) return
     val visitor = Visitor(platformSession)
 
     val dependantFragments = outputs.dropLast(1)
-    for ((_, _, files) in dependantFragments) {
+    for ((val _ = session, val _ = scopeSession, val files = fir) in dependantFragments) {
         for (file in files) {
             file.accept(visitor)
         }
     }
+
+    for (id in builtinTopLevelCallables) {
+        platformSession.symbolProvider.getTopLevelCallableSymbols(id.packageName, id.callableName)
+    }
 }
 
+/*
+ * FIR2IR could inject calls to some functions from the stdlib during conversion
+ * (e.g. call to `kotlin.internal.throwNoWhenBranchMatchedException()` for when expressions).
+ * And it references it using the symbol provider of the converted module. If the reference
+ * doesn't happen also during conversion of the leaf module (e.g. there is no `when` expression
+ * in the platform code), the corresponding `FirCommonDeclarationsMappingSymbolProvider` wouldn't
+ * record this function and so IR actualizer wouldn't actualize it.
+ */
+private val builtinTopLevelCallables: List<CallableId> = listOf(
+    StandardClassIds.Callables.throwNoWhenBranchMatchedException
+)
+
 private class Visitor(val session: FirSession) : FirDefaultVisitorVoid() {
+    private val visitedClasses = mutableSetOf<FirClassLikeSymbol<*>>()
+
     override fun visitElement(element: FirElement) {
-        if (element is FirExpression) {
+        if (element is FirExpression && element !is FirExpressionStub) {
             lookupInType(element.resolvedType)
         }
         element.acceptChildren(this)
@@ -55,8 +89,9 @@ private class Visitor(val session: FirSession) : FirDefaultVisitorVoid() {
     }
 
     override fun visitResolvedQualifier(resolvedQualifier: FirResolvedQualifier) {
-        lookupInType(resolvedQualifier.resolvedType)
-        visitElement(resolvedQualifier)
+        resolvedQualifier.qualifierSymbol?.classId?.let(::lookupClass)
+        resolvedQualifier.accessedObjectSymbol?.classId?.let(::lookupClass)
+        resolvedQualifier.acceptChildren(this)
     }
 
     override fun visitResolvedTypeRef(resolvedTypeRef: FirResolvedTypeRef) {
@@ -67,7 +102,15 @@ private class Visitor(val session: FirSession) : FirDefaultVisitorVoid() {
         type.forEachType l@{
             val lookupTag = it.classLikeLookupTagIfAny ?: return@l
             if (lookupTag is ConeClassLikeLookupTagWithFixedSymbol) return@l
-            session.symbolProvider.getClassLikeSymbolByClassId(lookupTag.classId)
+            lookupClass(lookupTag.classId)
+        }
+    }
+
+    private fun lookupClass(classId: ClassId) {
+        val classSymbol = session.symbolProvider.getClassLikeSymbolByClassId(classId) ?: return
+        if (classSymbol.origin != FirDeclarationOrigin.Source && visitedClasses.add(classSymbol)) {
+            @OptIn(SymbolInternals::class)
+            classSymbol.fir.accept(this)
         }
     }
 }

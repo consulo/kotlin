@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.fir.backend
 import org.jetbrains.kotlin.builtins.PrimitiveType
 import org.jetbrains.kotlin.builtins.UnsignedType
 import org.jetbrains.kotlin.fir.backend.utils.ConversionTypeOrigin
-import org.jetbrains.kotlin.fir.backend.utils.defaultTypeWithoutArguments
 import org.jetbrains.kotlin.fir.backend.utils.toIrSymbol
 import org.jetbrains.kotlin.fir.backend.utils.unsubstitutedScope
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
@@ -16,6 +15,8 @@ import org.jetbrains.kotlin.fir.declarations.utils.isExpect
 import org.jetbrains.kotlin.fir.resolve.calls.overloads.ConeEquivalentCallConflictResolver
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
+import org.jetbrains.kotlin.fir.resolve.scope
+import org.jetbrains.kotlin.fir.scopes.CallableCopyTypeCalculator
 import org.jetbrains.kotlin.fir.scopes.getDeclaredConstructors
 import org.jetbrains.kotlin.fir.scopes.getFunctions
 import org.jetbrains.kotlin.fir.scopes.getProperties
@@ -24,6 +25,8 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
+import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.fir.types.classId
 import org.jetbrains.kotlin.fir.types.isBoolean
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.expressions.IrAnnotation
@@ -244,7 +247,11 @@ class Fir2IrBuiltinSymbolsContainer(
 
     @OptIn(UnsafeDuringIrConstructionAPI::class)
     val unsignedArraysElementTypes: Map<IrClassSymbol, IrType?> by lazy {
-        unsignedTypesToUnsignedArrays.map { (k, v) -> v to loadClass(k.classId).owner.defaultType }.toMap()
+        unsignedTypesToUnsignedArrays.map { [k, v] -> v to loadClass(k.classId).owner.defaultType }.toMap()
+    }
+
+    private val cinteropConvertFunctions: List<FirNamedFunctionSymbol> by lazy {
+        session.symbolProvider.getTopLevelFunctionSymbols(FqName("kotlinx.cinterop"), Name.identifier("convert"))
     }
 
     // --------------------------- synthetic symbols ---------------------------
@@ -278,7 +285,7 @@ class Fir2IrBuiltinSymbolsContainer(
         syntheticMap: Map<PrimitiveType, IrSimpleFunctionSymbol>
     ): Map<IrClassifierSymbol, IrSimpleFunctionSymbol> {
         return buildMap {
-            for ((classSymbol, type) in primitiveSymbolToPrimitiveType) {
+            for ([classSymbol, type] in primitiveSymbolToPrimitiveType) {
                 val functionSymbol = syntheticMap[type] ?: continue
                 put(classSymbol, functionSymbol)
             }
@@ -297,6 +304,29 @@ class Fir2IrBuiltinSymbolsContainer(
             mapKey = { symbol -> symbol.resolvedReceiverTypeRef?.toIrType()?.classifierOrNull },
             mapValue = { firSymbol, irSymbol -> firSymbol to irSymbol }
         )
+    }
+
+    fun getCinteropConvertFunctionOver(type: ConeKotlinType): Pair<FirNamedFunctionSymbol, IrSimpleFunctionSymbol>? {
+        val relevantFunction = cinteropConvertFunctions.find { it.resolvedReceiverType == type } ?: return null
+        return relevantFunction to findFunction(relevantFunction)
+    }
+
+    fun getMemberConversionFunction(
+        fromType: ConeKotlinType,
+        toType: ConeKotlinType,
+    ): IrSimpleFunctionSymbol? {
+        val expectedClassName = toType.classId?.shortClassName ?: return null
+
+        val argumentScope = fromType.scope(
+            useSiteSession = session,
+            scopeSession = scopeSession,
+            callableCopyTypeCalculator = CallableCopyTypeCalculator.DoNothing,
+            requiredMembersPhase = FirResolvePhase.STATUS,
+        ) ?: return null
+
+        val conversionFunctions = argumentScope.getFunctions(Name.identifier("to${expectedClassName}"))
+        val relevantFunction = conversionFunctions.find { it.resolvedReturnType == toType } ?: return null
+        return builtins.findFunction(relevantFunction)
     }
 
     // --------------------------- utilities for declaration loading ---------------------------

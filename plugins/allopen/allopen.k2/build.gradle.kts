@@ -1,16 +1,15 @@
 description = "Kotlin AllOpen Compiler Plugin (K2)"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
 dependencies {
-    compileOnly(project(":compiler:fir:cones"))
-    compileOnly(project(":compiler:fir:tree"))
-    compileOnly(project(":compiler:fir:resolve"))
-    compileOnly(project(":compiler:fir:checkers"))
-    compileOnly(project(":compiler:ir.backend.common"))
-    compileOnly(project(":compiler:fir:entrypoint"))
+    implementation(project(":core:compiler.common.jvm"))
+    implementation(project(":compiler:ir.backend.common"))
+    implementation(project(":compiler:fir:plugin.api"))
 
     compileOnly(intellijCore())
     runtimeOnly(kotlinStdlib())

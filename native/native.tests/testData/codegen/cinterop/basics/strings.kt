@@ -1,3 +1,5 @@
+// KT-86026 TODO: Rework testdata to move functions/globals definitions from .def/.h into separate source files
+
 // FREE_COMPILER_ARGS: -Xbinary=latin1Strings=false
 // MODULE: cinterop
 // FILE: cinterop.def

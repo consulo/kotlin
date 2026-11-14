@@ -1,5 +1,4 @@
-// LANGUAGE: +CompanionBlocksAndExtensions
-// IGNORE_FIR_METADATA_LOADING_K1
+// LANGUAGE: +CompanionBlocks +CompanionExtensions
 
 package test
 

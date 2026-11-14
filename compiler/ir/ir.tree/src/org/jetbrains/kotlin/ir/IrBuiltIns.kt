@@ -7,24 +7,16 @@ package org.jetbrains.kotlin.ir
 
 import org.jetbrains.kotlin.builtins.PrimitiveType
 import org.jetbrains.kotlin.builtins.UnsignedType
-import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.descriptors.ClassKind
-import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.ir.builders.declarations.addConstructor
-import org.jetbrains.kotlin.ir.builders.declarations.buildClass
-import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOriginImpl
-import org.jetbrains.kotlin.ir.declarations.IrExternalPackageFragment
-import org.jetbrains.kotlin.ir.declarations.IrFactory
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
-import org.jetbrains.kotlin.ir.util.addFakeOverrides
-import org.jetbrains.kotlin.ir.util.createThisReceiverParameter
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.StandardClassIds
+
+@RequiresOptIn(level = RequiresOptIn.Level.ERROR, message = "This is temporary API to be removed soon")
+@Target(AnnotationTarget.PROPERTY)
+annotation class UnstableBuiltInsApi
 
 /**
  * Symbols for builtins that are available without any context and are not specific to any backend
@@ -33,6 +25,9 @@ import org.jetbrains.kotlin.name.StandardClassIds
 @OptIn(InternalSymbolFinderAPI::class)
 abstract class IrBuiltIns : SymbolFinderHolder {
     abstract val irFactory: IrFactory
+
+    @UnstableBuiltInsApi
+    open var functionFactory: IrBasedFunctionFactory? = null
 
     abstract val anyType: IrType
     abstract val anyClass: IrClassSymbol
@@ -189,20 +184,9 @@ abstract class IrBuiltIns : SymbolFinderHolder {
     abstract fun getKPropertyClass(mutable: Boolean, n: Int): IrClassSymbol
 
     abstract val operatorsPackageFragment: IrExternalPackageFragment
-    abstract val kotlinInternalPackageFragment: IrExternalPackageFragment
 
-    protected fun createIntrinsicConstEvaluationClass(): IrClass {
-        return irFactory.buildClass {
-            name = StandardClassIds.Annotations.IntrinsicConstEvaluation.shortClassName
-            kind = ClassKind.ANNOTATION_CLASS
-            modality = Modality.FINAL
-        }.apply {
-            parent = kotlinInternalPackageFragment
-            createThisReceiverParameter()
-            addConstructor { isPrimary = true }
-            addFakeOverrides(IrTypeSystemContextImpl(this@IrBuiltIns))
-        }
-    }
+    val moduleFragment: IrModuleFragment
+        get() = operatorsPackageFragment.module
 
     companion object {
         val KOTLIN_INTERNAL_IR_FQN = FqName("kotlin.internal.ir")

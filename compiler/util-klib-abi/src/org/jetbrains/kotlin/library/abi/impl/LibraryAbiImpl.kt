@@ -105,25 +105,30 @@ internal class AbiConstructorImpl(
     override val signatures: AbiSignatures,
     annotations: AbiAnnotationListImpl,
     isInline: Boolean,
-    override val valueParameters: List<AbiValueParameter>
+    override val valueParameters: List<AbiValueParameter>,
+    declarationOrigin: AbiDeclarationOrigin,
 ) : AbiFunction, AbiAnnotatedEntity by annotations {
-    private val flags = IS_INLINE.toFlags(isInline)
+    private val flags = IS_INLINE.toFlags(isInline) or
+            DECLARATION_ORIGIN.toFlags(declarationOrigin)
 
     override val modality get() = AbiModality.FINAL // No need to render modality for constructors.
     override val isConstructor get() = true
     override val isInline get() = IS_INLINE.get(flags)
     override val isSuspend get() = false
+    override val declarationOrigin get() = DECLARATION_ORIGIN.get(flags)
 
     @Suppress("OVERRIDE_DEPRECATION")
     override val hasExtensionReceiverParameter get() = false
 
     @Suppress("OVERRIDE_DEPRECATION")
     override val contextReceiverParametersCount get() = valueParameters.count { it.kind == AbiValueParameterKind.CONTEXT }
+    override val companionExtensionsClass: AbiClassifierReference.ClassReference? = null
     override val returnType get() = null // No need to render return type for constructors.
     override val typeParameters get() = emptyList<AbiTypeParameter>()
 
     companion object {
         private val IS_INLINE = FlagField.booleanFirst()
+        private val DECLARATION_ORIGIN = FlagFieldEx.after<AbiDeclarationOrigin>(IS_INLINE)
     }
 }
 
@@ -135,18 +140,22 @@ internal class AbiFunctionImpl(
     modality: AbiModality,
     isInline: Boolean,
     isSuspend: Boolean,
+    override val companionExtensionsClass: AbiClassifierReference.ClassReference?,
     override val typeParameters: List<AbiTypeParameter>,
     override val valueParameters: List<AbiValueParameter>,
-    override val returnType: AbiType?
+    override val returnType: AbiType?,
+    declarationOrigin: AbiDeclarationOrigin,
 ) : AbiFunction, AbiAnnotatedEntity by annotations {
     private val flags = IS_INLINE.toFlags(isInline) or
             IS_SUSPEND.toFlags(isSuspend) or
-            MODALITY.toFlags(modality)
+            MODALITY.toFlags(modality) or
+            DECLARATION_ORIGIN.toFlags(declarationOrigin)
 
     override val modality get() = MODALITY.get(flags)
     override val isConstructor get() = false
     override val isInline get() = IS_INLINE.get(flags)
     override val isSuspend get() = IS_SUSPEND.get(flags)
+    override val declarationOrigin get() = DECLARATION_ORIGIN.get(flags)
 
     @Deprecated("Use annotatedWith instead.", replaceWith = ReplaceWith("annotatedWith"), level = DeprecationLevel.WARNING)
 
@@ -163,6 +172,7 @@ internal class AbiFunctionImpl(
         private val IS_INLINE = FlagField.booleanFirst()
         private val IS_SUSPEND = FlagField.booleanAfter(IS_INLINE)
         private val MODALITY = FlagFieldEx.after<AbiModality>(IS_SUSPEND)
+        private val DECLARATION_ORIGIN = FlagFieldEx.after<AbiDeclarationOrigin>(MODALITY)
     }
 }
 

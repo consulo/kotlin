@@ -1,21 +1,15 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     application
 }
 
-val runtimeOnly by configurations
-val compileOnly by configurations
-runtimeOnly.extendsFrom(compileOnly)
-
 dependencies {
     implementation(project(":generators"))
-    implementation(project(":core:compiler.common"))
+    implementation(project(":compiler:config"))
     implementation(project(":compiler:arguments"))
-    implementation(project(":compiler:plugin-api"))
 
-    compileOnly(intellijCore())
-
-    runtimeOnly(intellijJDom())
     runtimeOnly(commonDependency("org.jetbrains.kotlin:kotlin-reflect"))
 }
 

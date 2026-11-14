@@ -13,9 +13,11 @@ import org.gradle.process.ExecOperations
 import org.jetbrains.kotlin.gradle.internal.execWithProgress
 import org.jetbrains.kotlin.gradle.internal.newBuildOpLogger
 import org.jetbrains.kotlin.gradle.targets.js.npm.resolved.PreparedKotlinCompilationNpmResolution
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 import org.jetbrains.kotlin.gradle.utils.getFile
 import java.io.File
 
+@ObsoleteNpmDependencyModel
 class Npm internal constructor(
     private val execOps: ExecOperations,
     private val objects: ObjectFactory,
@@ -109,17 +111,22 @@ class Npm internal constructor(
                 if (environment.ignoreScripts) add("--ignore-scripts")
             }
 
+            val nodeExecutable = nodeJs.nodeExecutable
             if (!environment.standalone) {
-                val nodeExecutable = nodeJs.nodeExecutable
                 val nodePath = File(nodeExecutable).parent
                 execSpec.environment["PATH"] =
                     "$nodePath${File.pathSeparator}${System.getenv("PATH")}"
             }
 
             val command = environment.executable
+            if (environment.standalone) {
+                execSpec.executable = command
+                execSpec.setArgs(arguments)
+            } else {
+                execSpec.executable = nodeExecutable
+                execSpec.setArgs(listOf(command) + arguments)
+            }
 
-            execSpec.executable = command
-            execSpec.setArgs(arguments)
             execSpec.workingDir = dir.get()
         }
     }

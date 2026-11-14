@@ -10,6 +10,7 @@
 
 #if KONAN_OBJC_INTEROP
 
+#include <algorithm>
 #include <cstdlib>
 #include <map>
 #import <mutex>
@@ -33,9 +34,18 @@
 #import "Natives.h"
 #import "TypeInfoObjCExportAddition.hpp"
 #import "WritableTypeInfo.hpp"
+#include "ExternalRCRef.hpp"
 #include "swiftExportRuntime/SwiftExport.hpp"
 
 using namespace kotlin;
+
+@interface NSObject (KotlinBaseExtensions)
+// Implemented for KotlinBase
++ (instancetype)createRetainedWrapper:(struct ObjHeader*)obj;
+// Implemented for KotlinBase
++ (id)_createProtocolWrapperForExternalRCRef:(void*)ref
+                                  conformsTo:(NS_NOESCAPE BOOL (^)(Class candidate))conformsTo NS_RETURNS_RETAINED;
+@end
 
 namespace {
 
@@ -112,7 +122,16 @@ extern "C" id Kotlin_ObjCExport_convertUnitToRetained(ObjHeader* unitInstance) {
   static id instance = nullptr;
   dispatch_once(&onceToken, ^{
     Class unitClass = getOrCreateClass(unitInstance->type_info());
-    instance = [unitClass createRetainedWrapper:unitInstance];
+
+    if (compiler::swiftExport()) {
+      kotlin::AssertThreadState(kotlin::ThreadState::kRunnable);
+      void* ref = kotlin::mm::createRetainedExternalRCRef(unitInstance);
+      kotlin::ThreadStateGuard guard(kotlin::ThreadState::kNative);
+      instance = [unitClass _createProtocolWrapperForExternalRCRef:ref
+                                                       conformsTo:^BOOL(Class) { return YES; }];
+    } else {
+      instance = [unitClass createRetainedWrapper:unitInstance];
+    }
   });
   return Kotlin_objc_retain_inNative(instance);
 }
@@ -176,6 +195,9 @@ __attribute__((weak)) int Kotlin_ObjCExport_sortedClassAdaptersNum = 0;
 __attribute__((weak)) const ObjCTypeAdapter** Kotlin_ObjCExport_sortedProtocolAdapters = nullptr;
 __attribute__((weak)) int Kotlin_ObjCExport_sortedProtocolAdaptersNum = 0;
 
+__attribute__((weak)) const ObjCTypeAdapter** Kotlin_ObjCExport_sortedCategoryAdapters = nullptr;
+__attribute__((weak)) int Kotlin_ObjCExport_sortedCategoryAdaptersNum = 0;
+
 __attribute__((weak)) bool Kotlin_ObjCExport_initTypeAdapters = false;
 
 static const ObjCTypeAdapter* findClassAdapter(Class clazz) {
@@ -183,6 +205,34 @@ static const ObjCTypeAdapter* findClassAdapter(Class clazz) {
         Kotlin_ObjCExport_sortedClassAdapters,
         Kotlin_ObjCExport_sortedClassAdaptersNum
   );
+}
+
+template <typename F>
+static void forEachCategoryAdapter(const char* className, F&& action) {
+  const ObjCTypeAdapter** begin = Kotlin_ObjCExport_sortedCategoryAdapters;
+  const ObjCTypeAdapter** end = begin + Kotlin_ObjCExport_sortedCategoryAdaptersNum;
+  auto it = std::lower_bound(begin, end, className, [](const ObjCTypeAdapter* adapter, const char* name) {
+    return strcmp(adapter->objCName, name) < 0;
+  });
+  for (; it != end && strcmp((*it)->objCName, className) == 0; ++it) {
+    action(*it);
+  }
+}
+
+static void addMethods(Class clazz, const ObjCToKotlinMethodAdapter* adapters, int adapterNum) {
+  for (int i = 0; i < adapterNum; ++i) {
+    const ObjCToKotlinMethodAdapter* adapter = adapters + i;
+    SEL selector = sel_registerName(adapter->selector);
+    class_addMethod(clazz, selector, adapter->imp, adapter->encoding);
+    // The method above may fail if there is a matching Swift/Obj-C extension method for this Kotlin class.
+    // This is pretty much ok, and we shouldn't replace that method with our own.
+  }
+}
+
+static void addCategoryMethods(Class clazz) {
+  forEachCategoryAdapter(class_getName(clazz), [clazz](const ObjCTypeAdapter* adapter) {
+    addMethods(clazz, adapter->directAdapters, adapter->directAdapterNum);
+  });
 }
 
 static const ObjCTypeAdapter* findProtocolAdapter(Protocol* prot) {
@@ -229,11 +279,11 @@ extern "C" const TypeInfo* Kotlin_ObjCInterop_getTypeInfoForProtocol(Protocol* p
   return (typeAdapter != nullptr) ? typeAdapter->kotlinTypeInfo : nullptr;
 }
 
-static const TypeInfo* getOrCreateTypeInfo(Class clazz);
+extern "C" const TypeInfo* Kotlin_ObjCExport_getOrCreateTypeInfo(Class clazz);
 
 extern "C" const TypeInfo* Kotlin_ObjCInterop_getTypeInfoForObjCClassPtr(Class* clazz) {
   RuntimeAssert(clazz != nullptr, "Cannot be null");
-  return getOrCreateTypeInfo(*clazz);
+  return Kotlin_ObjCExport_getOrCreateTypeInfo(*clazz);
 }
 
 extern "C" void Kotlin_ObjCExport_initializeClass(Class clazz) {
@@ -245,7 +295,7 @@ extern "C" void Kotlin_ObjCExport_initializeClass(Class clazz) {
 
   const ObjCTypeAdapter* typeAdapter = findClassAdapter(clazz);
   if (typeAdapter == nullptr) {
-    getOrCreateTypeInfo(clazz);
+    Kotlin_ObjCExport_getOrCreateTypeInfo(clazz);
     return;
   }
 
@@ -260,20 +310,9 @@ extern "C" void Kotlin_ObjCExport_initializeClass(Class clazz) {
     setAssociatedTypeInfo(clazz, typeInfo);
   }
 
-  for (int i = 0; i < typeAdapter->directAdapterNum; ++i) {
-    const ObjCToKotlinMethodAdapter* adapter = typeAdapter->directAdapters + i;
-    SEL selector = sel_registerName(adapter->selector);
-    class_addMethod(clazz, selector, adapter->imp, adapter->encoding);
-    // The method above may fail if there is a matching Swift/Obj-C extension method for this Kotlin class.
-    // This is pretty much ok, and we shouldn't replace that method with our own.
-  }
-
-  Class metaClazz = object_getClass(clazz);
-  for (int i = 0; i < typeAdapter->classAdapterNum; ++i) {
-    const ObjCToKotlinMethodAdapter* adapter = typeAdapter->classAdapters + i;
-    SEL selector = sel_registerName(adapter->selector);
-    class_addMethod(metaClazz, selector, adapter->imp, adapter->encoding);
-  }
+  addMethods(clazz, typeAdapter->directAdapters, typeAdapter->directAdapterNum);
+  addMethods(object_getClass(clazz), typeAdapter->classAdapters, typeAdapter->classAdapterNum);
+  addCategoryMethods(clazz);
 
   if (isClassForPackage) return;
 
@@ -284,7 +323,7 @@ extern "C" void Kotlin_ObjCExport_initializeClass(Class clazz) {
 }
 
 extern "C" PERFORMANCE_INLINE OBJ_GETTER(Kotlin_ObjCExport_convertUnmappedObjCObject, id obj) {
-  const TypeInfo* typeInfo = getOrCreateTypeInfo(object_getClass(obj));
+  const TypeInfo* typeInfo = Kotlin_ObjCExport_getOrCreateTypeInfo(object_getClass(obj));
   RETURN_RESULT_OF(AllocInstanceWithAssociatedObject, typeInfo, Kotlin_objc_retain_inNative(obj));
 }
 
@@ -524,7 +563,16 @@ extern "C" OBJ_GETTER(Kotlin_ObjCExport_refFromObjC, id obj) {
 static id convertKotlinObjectToRetained(ObjHeader* obj) {
   Class clazz = objCExport(obj->type_info()).objCClass;
   RuntimeAssert(clazz != nullptr, "");
-  return [clazz createRetainedWrapper:obj];
+
+  if (compiler::swiftExport()) {
+    kotlin::AssertThreadState(kotlin::ThreadState::kRunnable);
+    void* ref = kotlin::mm::createRetainedExternalRCRef(obj);
+    kotlin::ThreadStateGuard guard(kotlin::ThreadState::kNative);
+    return [clazz _createProtocolWrapperForExternalRCRef:ref
+                                             conformsTo:^BOOL(Class) { return YES; }];
+  } else {
+    return [clazz createRetainedWrapper:obj];
+  }
 }
 
 static convertReferenceToRetainedObjC findConvertToRetainedFromInterfaces(const TypeInfo* typeInfo) {
@@ -665,10 +713,7 @@ static const TypeInfo* createTypeInfo(
     result->instanceSize_ = superType->instanceSize_;
     result->instanceAlignment_ = superType->instanceAlignment_;
     result->objOffsets_ = superType->objOffsets_;
-    result->objOffsetsCount_ = superType->objOffsetsCount_; // So TF_IMMUTABLE can also be inherited:
-    if ((superType->flags_ & TF_IMMUTABLE) != 0) {
-      result->flags_ |= TF_IMMUTABLE;
-    }
+    result->objOffsetsCount_ = superType->objOffsetsCount_;
     result->processObjectInMark = superType->processObjectInMark;
   } else {
     result->instanceSize_ = fieldsInfo->instanceSize_;
@@ -727,14 +772,14 @@ static void addDefinedSelectors(Class clazz, std::unordered_set<SEL>& result) {
   if (objcMethods != nullptr) free(objcMethods);
 }
 
-static std::vector<const TypeInfo*> getProtocolsAsInterfaces(Class clazz) {
+static std::vector<const TypeInfo*> getProtocolsAsInterfaces(Class clazz, Class stopBeforeClass) {
   std::vector<const TypeInfo*> result;
   std::unordered_set<Protocol*> handledProtocols;
   std::vector<Protocol*> protocolsToHandle;
 
-  {
+  for (Class current = clazz; current != nullptr && current != stopBeforeClass; current = class_getSuperclass(current)) {
     unsigned int protocolCount;
-    Protocol** protocols = class_copyProtocolList(clazz, &protocolCount);
+    Protocol** protocols = class_copyProtocolList(current, &protocolCount);
     if (protocols != nullptr) {
       protocolsToHandle.insert(protocolsToHandle.end(), protocols, protocols + protocolCount);
       free(protocols);
@@ -785,13 +830,15 @@ static void throwIfCantBeOverridden(Class clazz, const KotlinToObjCMethodAdapter
   }
 }
 
-static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, const TypeInfo* fieldsInfo) {
+static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, const TypeInfo* fieldsInfo, Class protocolSearchStopClass = nil) {
   kotlin::NativeOrUnregisteredThreadGuard threadStateGuard(/* reentrant = */ true);
 
-  if (compiler::swiftExport() && compiler::runtimeAssertsEnabled()) {
+  bool isSwiftExportSubclass = false;
+  if (compiler::swiftExport()) {
       auto kotlinBase = objc_getClass("KotlinBase");
       RuntimeAssert(kotlinBase != nullptr, "Couldn't find KotlinBase when Swift Export is enabled");
-      RuntimeAssert(![clazz isSubclassOfClass:kotlinBase], "Trying to createTypeInfo for KotlinBase-descendant with Swift Export");
+      isSwiftExportSubclass = [clazz isSubclassOfClass:kotlinBase];
+      // Swift Export subclasses are allowed when they have reverse bridge adapters.
   }
 
   std::unordered_set<SEL> definedSelectors;
@@ -841,7 +888,7 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, co
     }
   }
 
-  std::vector<const TypeInfo*> addedInterfaces = getProtocolsAsInterfaces(clazz);
+  std::vector<const TypeInfo*> addedInterfaces = getProtocolsAsInterfaces(clazz, protocolSearchStopClass ?: class_getSuperclass(clazz));
 
   std::vector<const TypeInfo*> supers(
         superType->implementedInterfaces_,
@@ -875,15 +922,13 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, co
     }
   };
 
-  // Compiler relies on using reverse adapters here from all supertypes
-  // in [ObjCExportCodeGenerator.createReverseAdapters].
-  for (const TypeInfo* t : supers) {
-    const ObjCTypeAdapter* typeAdapter = getTypeAdapter(t);
-    if (typeAdapter == nullptr) continue;
-
+  auto applyReverseAdapters = [&](const TypeInfo* t, const ObjCTypeAdapter* typeAdapter) {
     for (int i = 0; i < typeAdapter->reverseAdapterNum; ++i) {
       const KotlinToObjCMethodAdapter* adapter = &typeAdapter->reverseAdapters[i];
-      if (definedSelectors.find(sel_registerName(adapter->selector)) == definedSelectors.end()) continue;
+      // Swift Export subclasses patch unconditionally — Swift dynamic dispatch
+      // handles whether the method is actually overridden.
+      if ((!isSwiftExportSubclass || t == theAnyTypeInfo) &&
+          definedSelectors.find(sel_registerName(adapter->selector)) == definedSelectors.end()) continue;
 
       throwIfCantBeOverridden(clazz, adapter);
 
@@ -893,6 +938,24 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, co
       if (adapter->itableIndex != -1 && superITable != nullptr)
         addToITable(adapter->interfaceId, adapter->itableIndex, adapter->kotlinImpl);
     }
+  };
+
+  // Compiler relies on using reverse adapters here from all supertypes
+  // in [ObjCExportCodeGenerator.createReverseAdapters].
+  for (const TypeInfo* t : supers) {
+    const ObjCTypeAdapter* typeAdapter = getTypeAdapter(t);
+    if (typeAdapter == nullptr) continue;
+
+    applyReverseAdapters(t, typeAdapter);
+  }
+
+  for (const TypeInfo* t = superType; t != nullptr; t = t->superType_) {
+    const ObjCTypeAdapter* typeAdapter = getTypeAdapter(t);
+    if (typeAdapter == nullptr) continue;
+
+    forEachCategoryAdapter(typeAdapter->objCName, [&](const ObjCTypeAdapter* categoryAdapter) {
+      applyReverseAdapters(t, categoryAdapter);
+    });
   }
 
   // Compiler relies on using reverse adapters here from all supertypes
@@ -932,12 +995,18 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, co
 
   // TODO: it will probably never be requested, since such a class can't be instantiated in Kotlin.
   objCExport(result).objCClass = clazz;
+
+  // Propagate the super's typeAdapter so that protocolWrapperFor / classWrapperFor resolve to the
+  // bound-public wrapper class rather than falling through to an anonymous existential.
+  if (isSwiftExportSubclass && objCExport(result).typeAdapter == nullptr) {
+    objCExport(result).typeAdapter = objCExport(superType).typeAdapter;
+  }
   return result;
 }
 
 static kotlin::ThreadStateAware<kotlin::SpinLock> typeInfoCreationMutex;
 
-static const TypeInfo* getOrCreateTypeInfo(Class clazz) {
+extern "C" const TypeInfo* Kotlin_ObjCExport_getOrCreateTypeInfo(Class clazz) {
   const TypeInfo* result = Kotlin_ObjCExport_getAssociatedTypeInfo(clazz);
   if (result != nullptr) {
     return result;
@@ -947,7 +1016,7 @@ static const TypeInfo* getOrCreateTypeInfo(Class clazz) {
 
   const TypeInfo* superType = superClass == nullptr ?
     theForeignObjCObjectTypeInfo :
-    getOrCreateTypeInfo(superClass);
+    Kotlin_ObjCExport_getOrCreateTypeInfo(superClass);
 
   std::lock_guard lockGuard(typeInfoCreationMutex);
 
@@ -960,11 +1029,40 @@ static const TypeInfo* getOrCreateTypeInfo(Class clazz) {
   return result;
 }
 
+extern "C" const TypeInfo* Kotlin_SwiftExport_getOrCreateTypeInfoForSwiftSubclass(Class swiftSubclass, Class boundClass, const TypeInfo* kotlinSuperTypeInfo) {
+  const TypeInfo* result = Kotlin_ObjCExport_getAssociatedTypeInfo(swiftSubclass);
+  if (result != nullptr) {
+    return result;
+  }
+
+  std::lock_guard lockGuard(typeInfoCreationMutex);
+
+  result = Kotlin_ObjCExport_getAssociatedTypeInfo(swiftSubclass); // double-checking.
+  if (result == nullptr) {
+    result = createTypeInfo(swiftSubclass, kotlinSuperTypeInfo, nullptr, boundClass);
+    setAssociatedTypeInfo(swiftSubclass, result);
+  }
+
+  return result;
+}
+
+extern "C" const TypeInfo* Kotlin_SwiftExport_getBoundKotlinTypeInfoForClass(Class clazz) {
+  // objc_getClass below may instantiate Swift metadata and trigger +initialize.
+  kotlin::AssertThreadState(kotlin::ThreadState::kNative);
+  for (int i = 0; i < Kotlin_ObjCExport_sortedClassAdaptersNum; ++i) {
+    const ObjCTypeAdapter* adapter = Kotlin_ObjCExport_sortedClassAdapters[i];
+    if (adapter->objCName != nullptr && objc_getClass(adapter->objCName) == clazz) {
+      return adapter->kotlinTypeInfo;
+    }
+  }
+  return nullptr;
+}
+
 const TypeInfo* Kotlin_ObjCExport_createTypeInfoWithKotlinFieldsFrom(Class clazz, const TypeInfo* fieldsInfo) {
   Class superClass = class_getSuperclass(clazz);
   RuntimeCheck(superClass != nullptr, "");
 
-  const TypeInfo* superType = getOrCreateTypeInfo(superClass);
+  const TypeInfo* superType = Kotlin_ObjCExport_getOrCreateTypeInfo(superClass);
 
   return createTypeInfo(clazz, superType, fieldsInfo);
 }
@@ -973,21 +1071,16 @@ static kotlin::ThreadStateAware<kotlin::SpinLock> classCreationMutex;
 static int anonymousClassNextId = 0;
 
 static void addVirtualAdapters(Class clazz, const ObjCTypeAdapter* typeAdapter) {
-  for (int i = 0; i < typeAdapter->virtualAdapterNum; ++i) {
-    const ObjCToKotlinMethodAdapter* adapter = typeAdapter->virtualAdapters + i;
-    SEL selector = sel_registerName(adapter->selector);
-
-    class_addMethod(clazz, selector, adapter->imp, adapter->encoding);
-  }
+  addMethods(clazz, typeAdapter->virtualAdapters, typeAdapter->virtualAdapterNum);
 }
 
-static Class createClass(const TypeInfo* typeInfo, Class superClass) {
+static Class createClass(const TypeInfo* typeInfo, Class superClass, const TypeInfo* objCSuperType) {
   // NOTE: in swift export, the generated class isn't used for direct instantiation, but rather serves the purpose of marker type
   // - for kotlin existentials (_KotlinExistential, KotlinRuntimeSupport.swift). This relies on generated class conformance to
   // - objc protocol counterparsts bound trough kotlin interface TypeInfo's
   RuntimeAssert(typeInfo->superType_ != nullptr, "");
 
-  kotlin::NativeOrUnregisteredThreadGuard threadStateGuard(/* reentrant = */ true);
+  kotlin::AssertThreadState(kotlin::ThreadState::kNative);
 
   int classIndex = (anonymousClassNextId++);
   std::string className = Kotlin_ObjCInterop_getUniquePrefix();
@@ -1011,8 +1104,8 @@ static Class createClass(const TypeInfo* typeInfo, Class superClass) {
   }
 
   std::unordered_set<const TypeInfo*> superImplementedInterfaces(
-          typeInfo->superType_->implementedInterfaces_,
-          typeInfo->superType_->implementedInterfaces_ + typeInfo->superType_->implementedInterfacesCount_
+          objCSuperType->implementedInterfaces_,
+          objCSuperType->implementedInterfaces_ + objCSuperType->implementedInterfacesCount_
   );
 
   for (int i = 0; i < typeInfo->implementedInterfacesCount_; ++i) {
@@ -1040,9 +1133,8 @@ static void setClassEnsureInitialized(const TypeInfo* typeInfo, Class cls) {
   RuntimeAssert(cls != nullptr, "");
 
   // ObjC runtime calls +initialize under a global lock on the first access to an object.
-  // `[result self]` below will ensure ahead of time initialization
-  // we only have to make it happen in the native state
-  kotlin::NativeOrUnregisteredThreadGuard threadStateGuard(true);
+  // `[result self]` below will ensure ahead of time initialization but it has to happen in the native state.
+  kotlin::AssertThreadState(kotlin::ThreadState::kNative);
   [cls self];
 
   objCExport(typeInfo).objCClass = cls;
@@ -1055,18 +1147,24 @@ static Class getOrCreateClass(const TypeInfo* typeInfo) {
     return result;
   }
 
+  kotlin::NativeOrUnregisteredThreadGuard threadStateGuard(true);
+
   const ObjCTypeAdapter* typeAdapter = getTypeAdapter(typeInfo);
   if (typeAdapter != nullptr) {
     result = objc_getClass(typeAdapter->objCName);
     setClassEnsureInitialized(typeInfo, result);
   } else {
-    Class superClass = getOrCreateClass(typeInfo->superType_);
+    // Swift Export only: make sure a synthesized marker never inherits from a Swift class
+    const bool detachFromSwiftSuper = compiler::swiftExport() && getTypeAdapter(typeInfo->superType_) != nullptr;
+
+    const TypeInfo* objCSuperType = detachFromSwiftSuper ? theAnyTypeInfo : typeInfo->superType_;
+    Class superClass = getOrCreateClass(objCSuperType);
 
     std::lock_guard lockGuard(classCreationMutex); // Note: non-recursive
 
     result = objCExport(typeInfo).objCClass; // double-checking.
     if (result == nullptr) {
-        result = createClass(typeInfo, superClass);
+        result = createClass(typeInfo, superClass, objCSuperType);
         // Don't have to be a release store –
         // the operations above are synchronized and thus might not be reordered after this store.
         setClassEnsureInitialized(typeInfo, result);

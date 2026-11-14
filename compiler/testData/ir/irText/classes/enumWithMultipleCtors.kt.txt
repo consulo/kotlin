@@ -17,9 +17,6 @@ open enum class A : Enum<A> {
 
   Z = A(x = 5)
 
-  val prop1: String
-    get
-
   val prop2: String
     field = "const2"
     get
@@ -49,16 +46,19 @@ open enum class A : Enum<A> {
     <this>.<set-prop3>(<set-?> = "int")
   }
 
-  /* static */ fun valueOf(value: String): A /* Synthetic body for ENUM_VALUEOF */
+  companion fun valueOf(value: String): A /* Synthetic body for ENUM_VALUEOF */
 
-  /* static */ fun values(): Array<A> /* Synthetic body for ENUM_VALUES */
+  companion fun values(): Array<A> /* Synthetic body for ENUM_VALUES */
 
   open fun f(): String {
     return <this>.<get-prop1>() + "#" + <this>.<get-prop2>() + "#" + <this>.<get-prop3>()
   }
 
-  /* static */ val entries: EnumEntries<A>
-    get(): EnumEntries<A> /* Synthetic body for ENUM_ENTRIES */
+  companion val entries: EnumEntries<A>
+    companion get(): EnumEntries<A> /* Synthetic body for ENUM_ENTRIES */
+
+  val prop1: String
+    get
 
 }
 

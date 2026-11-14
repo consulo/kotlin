@@ -6,19 +6,19 @@
 package org.jetbrains.kotlin.fir
 
 import com.intellij.openapi.util.Disposer
-import com.intellij.psi.PsiElementFinder
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.search.ProjectScope
+import org.jetbrains.kotlin.jvm.environment.JvmClasspath
 import com.sun.management.HotSpotDiagnosticMXBean
+import org.jetbrains.kotlin.CoreEnvironmentDeprecation
 import org.jetbrains.kotlin.KtPsiSourceFile
 import org.jetbrains.kotlin.KtSourceFile
 import org.jetbrains.kotlin.ObsoleteTestInfrastructure
-import org.jetbrains.kotlin.asJava.finder.JavaElementFinder
 import org.jetbrains.kotlin.cli.common.collectSources
 import org.jetbrains.kotlin.cli.common.toBooleanLenient
 import org.jetbrains.kotlin.cli.jvm.compiler.*
 import org.jetbrains.kotlin.config.LanguageVersion
+import org.jetbrains.kotlin.config.ParserMode
 import org.jetbrains.kotlin.config.languageVersionSettings
+import org.jetbrains.kotlin.config.parserMode
 import org.jetbrains.kotlin.diagnostics.impl.DiagnosticsCollectorImpl
 import org.jetbrains.kotlin.diagnostics.impl.PendingDiagnosticsReporterImpl
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
@@ -26,7 +26,6 @@ import org.jetbrains.kotlin.fir.analysis.collectors.AbstractDiagnosticCollector
 import org.jetbrains.kotlin.fir.analysis.collectors.components.DiagnosticComponentsFactory
 import org.jetbrains.kotlin.fir.builder.PsiRawFirBuilder
 import org.jetbrains.kotlin.fir.declarations.FirFile
-import org.jetbrains.kotlin.fir.dump.MultiModuleHtmlFirDump
 import org.jetbrains.kotlin.fir.lightTree.LightTree2Fir
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.resolve.providers.firProvider
@@ -43,12 +42,9 @@ import java.lang.management.ManagementFactory
 
 private const val FAIL_FAST = true
 
-private const val FIR_DUMP_PATH = "tmp/firDump"
-private const val FIR_HTML_DUMP_PATH = "tmp/firDump-html"
 const val FIR_LOGS_PATH = "tmp/fir-logs"
 private const val FIR_MEMORY_DUMPS_PATH = "tmp/memory-dumps"
 
-private val DUMP_FIR = System.getProperty("fir.bench.dump", "true").toBooleanLenient()!!
 internal val PASSES = System.getProperty("fir.bench.passes")?.toInt() ?: 3
 internal val SEPARATE_PASS_DUMP = System.getProperty("fir.bench.dump.separate_pass", "false").toBooleanLenient()!!
 private val APPEND_ERROR_REPORTS = System.getProperty("fir.bench.report.errors.append", "false").toBooleanLenient()!!
@@ -60,7 +56,6 @@ private val DUMP_MEMORY = System.getProperty("fir.bench.dump.memory", "false").t
 
 class FirResolveModularizedTotalKotlinTestPure(config: ModularizedTestConfig) : AbstractFrontendModularizedTest(config) {
 
-    private lateinit var dump: MultiModuleHtmlFirDump
     private lateinit var bench: FirResolveBench
     private var bestStatistics: FirResolveBench.TotalStatistics? = null
     private var bestPass: Int = 0
@@ -71,26 +66,22 @@ class FirResolveModularizedTotalKotlinTestPure(config: ModularizedTestConfig) : 
     private fun runAnalysis(moduleData: ModuleData, environment: KotlinCoreEnvironment) {
 
         val projectEnvironment = environment.toVfsBasedProjectEnvironment()
-        val project = environment.project
 
-        val (sourceFiles: Collection<KtSourceFile>, scope) =
-            if (USE_LIGHT_TREE) {
-                val (platformSources, _) = collectSources(environment.configuration, projectEnvironment)
-                platformSources to projectEnvironment.getSearchScopeForProjectJavaSources()
-            } else {
-                val ktFiles = environment.getSourceFiles()
-                ktFiles.map { KtPsiSourceFile(it) } to
-                        GlobalSearchScope.filesScope(project, ktFiles.map { it.virtualFile })
-                            .uniteWith(AllJavaSourcesInProjectScope(project))
-                            .toAbstractProjectFileSearchScope()
+        val sourceFiles: Collection<KtSourceFile> = when (environment.configuration.parserMode) {
+            Psi -> {
+                environment.getSourceFiles().map { KtPsiSourceFile(it) }
             }
-        val librariesScope = ProjectScope.getLibrariesScope(project)
+            LightTree -> {
+                collectSources(environment.configuration, projectEnvironment).platformSources
+            }
+            KmpTree -> TODO("KT-91322")
+        }
 
         val session =
             FirTestSessionFactoryHelper.createSessionForTests(
                 projectEnvironment,
-                scope,
-                librariesScope.toAbstractProjectFileSearchScope(),
+                environment.configuration,
+                JvmClasspath.ProjectLibraries(),
                 moduleData.qualifiedName,
                 moduleData.friendDirs.map { it.toPath() },
                 environment.configuration.languageVersionSettings
@@ -119,50 +110,20 @@ class FirResolveModularizedTotalKotlinTestPure(config: ModularizedTestConfig) : 
         bench.processFiles(firFiles, processors)
 
         createMemoryDump(moduleData)
-
-        val disambiguatedName = moduleData.disambiguatedName()
-        dumpFir(disambiguatedName, firFiles)
-        dumpFirHtml(disambiguatedName, firFiles)
-    }
-
-    private fun dumpFir(disambiguatedName: String, firFiles: List<FirFile>) {
-        if (!DUMP_FIR) return
-        val dumpRoot = File(FIR_DUMP_PATH).resolve(disambiguatedName)
-        firFiles.forEach {
-            val directory = it.packageFqName.pathSegments().fold(dumpRoot) { file, name -> file.resolve(name.asString()) }
-            directory.mkdirs()
-            directory.resolve(it.name + ".fir").writeText(it.render())
-        }
     }
 
     private val dumpedModules = mutableSetOf<String>()
-    private fun ModuleData.disambiguatedName(): String {
-        val baseName = qualifiedName
-        var disambiguatedName = baseName
-        var counter = 1
-        while (!dumpedModules.add(disambiguatedName)) {
-            disambiguatedName = "$baseName.${counter++}"
-        }
-        return disambiguatedName
-    }
-
-    private fun dumpFirHtml(disambiguatedName: String, firFiles: List<FirFile>) {
-        if (!DUMP_FIR) return
-        dump.module(disambiguatedName) {
-            firFiles.forEach(dump::indexFile)
-            firFiles.forEach(dump::generateFile)
-        }
-    }
 
     override fun processModule(moduleData: ModuleData): ProcessorAction {
         val disposable = Disposer.newDisposable("Disposable for ${FirResolveModularizedTotalKotlinTestPure::class.simpleName}.processModule")
 
         val configuration = createDefaultConfiguration(moduleData)
         configureLanguageVersionSettings(configuration, moduleData, LanguageVersion.fromVersionString(LANGUAGE_VERSION_K2)!!)
+        configuration.parserMode = if (USE_LIGHT_TREE) ParserMode.LightTree else ParserMode.Psi
+
+        @OptIn(CoreEnvironmentDeprecation::class)
         val environment = KotlinCoreEnvironment.createForTests(disposable, configuration, EnvironmentConfigFiles.JVM_CONFIG_FILES)
         try {
-            PsiElementFinder.EP.getPoint(environment.project)
-                .unregisterExtension(JavaElementFinder::class.java)
             runAnalysis(moduleData, environment)
         } finally {
             environment.projectEnvironment.environment.application.runWriteAction {
@@ -175,7 +136,6 @@ class FirResolveModularizedTotalKotlinTestPure(config: ModularizedTestConfig) : 
     }
 
     override fun beforePass(pass: Int) {
-        if (DUMP_FIR) dump = MultiModuleHtmlFirDump(File(FIR_HTML_DUMP_PATH))
         System.gc()
         asyncProfilerControl.beforePass(pass, reportDateStr)
     }
@@ -207,7 +167,6 @@ class FirResolveModularizedTotalKotlinTestPure(config: ModularizedTestConfig) : 
     }
 
     private fun saveReport(pass: Int, statistics: FirResolveBench.TotalStatistics) {
-        if (DUMP_FIR) dump.finish()
         printStatistics(statistics, "PASS $pass")
     }
 

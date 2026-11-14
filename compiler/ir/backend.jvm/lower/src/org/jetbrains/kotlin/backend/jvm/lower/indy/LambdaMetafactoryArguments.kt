@@ -7,28 +7,35 @@ package org.jetbrains.kotlin.backend.jvm.lower.indy
 
 import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
+import org.jetbrains.kotlin.backend.jvm.ir.getInlineClassUnderlyingType
 import org.jetbrains.kotlin.backend.jvm.ir.getJvmAnnotationRetention
 import org.jetbrains.kotlin.backend.jvm.ir.isCompiledToJvmDefault
-import org.jetbrains.kotlin.backend.jvm.needsMfvcFlattening
+import org.jetbrains.kotlin.backend.jvm.ir.isInlineClass
+import org.jetbrains.kotlin.backend.jvm.ir.isInlineClassType
 import org.jetbrains.kotlin.builtins.functions.BuiltInFunctionArity
+import org.jetbrains.kotlin.codegen.AsmUtil
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.builders.declarations.buildClass
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.IrGetValue
-import org.jetbrains.kotlin.ir.expressions.IrRichFunctionReference
+import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.impl.IrTypeOperatorCallImpl
 import org.jetbrains.kotlin.ir.overrides.buildFakeOverrideMember
+import org.jetbrains.kotlin.ir.symbols.IrValueParameterSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.util.isNullable
+import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
+import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.load.java.JvmAnnotationNames
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.JvmStandardClassIds.JVM_SERIALIZABLE_LAMBDA_ANNOTATION_FQ_NAME
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.Variance
+import org.jetbrains.org.objectweb.asm.Type
 import java.lang.annotation.RetentionPolicy
 
 internal sealed class MetafactoryArgumentsResult {
@@ -125,7 +132,7 @@ internal class LambdaMetafactoryArgumentsBuilder(
         // corresponding synthetic class, which doesn't look like a binary compatible change.
         // If 'indyAllowAnnotatedLambdas' is set to true, we can lift this restriction and use indy
         if (!context.config.indyAllowAnnotatedLambdas && reference.origin.isLambda && implFun.annotations.any { annotation ->
-                annotation.symbol.owner.constructedClass.getJvmAnnotationRetention() == RetentionPolicy.RUNTIME
+                annotation.classSymbol.owner.getJvmAnnotationRetention() == RetentionPolicy.RUNTIME
             }) {
             abiHazard = true
         }
@@ -270,7 +277,8 @@ internal class LambdaMetafactoryArgumentsBuilder(
 
         adaptFakeInstanceMethodSignature(fakeInstanceMethod, signatureAdaptationConstraints)
         if (implFun.isAdaptable()) {
-            adaptLambdaSignature(implFun, fakeInstanceMethod, signatureAdaptationConstraints, reference.boundValues.size)
+            if (!adaptLambdaSignature(implFun, fakeInstanceMethod, signatureAdaptationConstraints, reference.boundValues.size))
+                return null
         } else if (
             !checkMethodSignatureCompliance(implFun, fakeInstanceMethod, signatureAdaptationConstraints, reference)
         ) {
@@ -302,9 +310,13 @@ internal class LambdaMetafactoryArgumentsBuilder(
 
         val methodParameters = fakeInstanceMethod.nonDispatchParameters
         validateMethodParameters(implParameters, methodParameters, implFun, fakeInstanceMethod)
-        for ((implParameter, methodParameter) in implParameters.zip(methodParameters)) {
+        for ([implParameter, methodParameter] in implParameters.zip(methodParameters)) {
             val constraint = constraints.parameters[methodParameter]
             if (!checkTypeCompliesWithConstraint(implParameter.type, constraint))
+                return false
+            // A non-adaptable function's signature cannot be changed, so the instantiated method parameter must
+            // already be adaptable to it by LambdaMetafactory's own rules.
+            if (!isJdkAdaptableParameter(instantiatedType = methodParameter.type, implType = implParameter.type))
                 return false
         }
         if (!checkTypeCompliesWithConstraint(implFun.returnType, constraints.returnType))
@@ -333,23 +345,48 @@ internal class LambdaMetafactoryArgumentsBuilder(
             else -> false
         }
 
+    /**
+     * Adapt an implementation function's signature to the instantiated method type derived from [fakeInstanceMethod].
+     * Returns false without mutating the function if no correct adaptation exists.
+     *
+     * Since the SAM conversion argument selection no longer requires the invoke function's signature to match the
+     * SAM's function type exactly (an implicit cast to the approximated SAM function type is dropped for SAM types
+     * with `in` projections, see JvmUpgradeCallableReferences.getSamConversionArgument and KT-57995), the
+     * implementation function's parameter types can now be strictly narrower than the instantiated method's ones
+     * (e.g. a `(String) -> Unit` lambda converted to `Consumer<in String>`, approximated to `Consumer<Any?>`).
+     * LambdaMetafactory rejects such an implementation method, so its parameters are widened to the instantiated
+     * types, keeping the original type at each use site with a cast.
+     */
     private fun adaptLambdaSignature(
         implFun: IrSimpleFunction,
         fakeInstanceMethod: IrSimpleFunction,
         constraints: SignatureAdaptationConstraints,
         capturedParametersCount: Int,
-    ) {
-        if (!implFun.isAdaptable()) {
-            throw AssertionError("Function origin should be adaptable: ${implFun.dump()}")
-        }
-
+    ): Boolean {
         val implParameters = implFun.nonDispatchParameters.drop(capturedParametersCount)
         val methodParameters = fakeInstanceMethod.nonDispatchParameters
         validateMethodParameters(implParameters, methodParameters, implFun, fakeInstanceMethod)
-        for ((implParameter, methodParameter) in implParameters.zip(methodParameters)) {
-            val parameterConstraint = constraints.parameters[methodParameter]
-            if (parameterConstraint.requiresImplLambdaBoxing()) {
+        val parametersWithWrites by lazy(LazyThreadSafetyMode.NONE) { collectParametersWithWrites(implFun) }
+
+        // Validate every parameter before changing any of them. This method is called once as a feasibility probe
+        // and again when the invokedynamic call is emitted, so failed adaptation must not leave partial changes.
+        for ([implParameter, methodParameter] in implParameters.zip(methodParameters)) {
+            val makeNullable = constraints.parameters[methodParameter].requiresImplLambdaBoxing()
+            val implType = if (makeNullable) implParameter.type.makeNullable() else implParameter.type
+            if (!isJdkAdaptableParameter(instantiatedType = methodParameter.type, implType = implType) &&
+                !canWidenLambdaParameter(implParameter, implType, methodParameter.type, parametersWithWrites)
+            ) return false
+        }
+
+        for ([implParameter, methodParameter] in implParameters.zip(methodParameters)) {
+            if (constraints.parameters[methodParameter].requiresImplLambdaBoxing()) {
                 makeLambdaParameterNullable(implFun, implParameter)
+            }
+            if (!isJdkAdaptableParameter(instantiatedType = methodParameter.type, implType = implParameter.type)) {
+                // Preserve nullability so codegen retains the implementation parameter's null assertion.
+                val widenedType = if (implParameter.type.isNullable()) methodParameter.type.makeNullable()
+                else methodParameter.type.makeNotNull()
+                widenLambdaParameterType(implFun, implParameter, widenedType)
             }
         }
         if (constraints.returnType.requiresImplLambdaBoxing() ||
@@ -357,6 +394,41 @@ internal class LambdaMetafactoryArgumentsBuilder(
         ) {
             implFun.returnType = implFun.returnType.makeNullable()
         }
+        return true
+    }
+
+    private fun canWidenLambdaParameter(
+        parameter: IrValueParameter,
+        implType: IrType,
+        methodType: IrType,
+        parametersWithWrites: Set<IrValueParameterSymbol>,
+    ): Boolean {
+        if (parameter.varargElementType != null) return false
+        if (parameter.symbol in parametersWithWrites) return false
+        if (implType.isNothing() || implType.isNullableNothing()) return false
+        if (implType.isInlineClassType() || methodType.isInlineClassType()) return false
+        // The widened parameter still holds values of the original type at run time, and every use site casts it
+        // back to the original type. That is only correct if the original type is (possibly after boxing) a plain
+        // reference-widening away from the instantiated method parameter type.
+        return isErasedReferenceWidening(subType = implType, superType = methodType)
+    }
+
+    private fun collectParametersWithWrites(function: IrFunction): Set<IrValueParameterSymbol> {
+        val result = HashSet<IrValueParameterSymbol>()
+        function.body?.accept(object : IrVisitorVoid() {
+            override fun visitElement(element: IrElement) {
+                element.acceptChildren(this, null)
+            }
+
+            override fun visitSetValue(expression: IrSetValue) {
+                val symbol = expression.symbol
+                if (symbol is IrValueParameterSymbol) {
+                    result.add(symbol)
+                }
+                super.visitSetValue(expression)
+            }
+        }, null)
+        return result
     }
 
     private fun makeLambdaParameterNullable(function: IrFunction, parameter: IrValueParameter) {
@@ -373,6 +445,75 @@ internal class LambdaMetafactoryArgumentsBuilder(
                 super.visitGetValue(expression)
             }
         }, null)
+    }
+
+    /**
+     * Mirror of the strict parameter adaptation check performed at run time by
+     * `java.lang.invoke.AbstractValidatingLambdaMetafactory.isAdaptableTo` (with `strict = true`): a parameter of
+     * the instantiated method type is adaptable to the corresponding implementation method parameter only via
+     * reference widening, boxing to the exact wrapper type (or a wider reference type), or unboxing from the exact
+     * wrapper type. JDK 1.8 does not enforce every one of these cases, but JDK 9+ and D8 do, so emitting an
+     * adaptation this check rejects produces a LambdaConversionException at run time on modern JDKs.
+     *
+     * The comparison is done on mapped JVM types because those are what LambdaMetafactory validates. This also
+     * keeps the decision stable when the same reference is processed again after local declarations lowering has
+     * replaced type parameters with copies: the mapped erasures do not change, while IrType equality would.
+     */
+    private fun isJdkAdaptableParameter(instantiatedType: IrType, implType: IrType): Boolean {
+        if (implType.isInlineClassType() && implType.erasedUpperBound != instantiatedType.erasedUpperBound) return false
+        val instantiatedAsmType = context.defaultTypeMapper.mapType(instantiatedType)
+        val implAsmType = context.defaultTypeMapper.mapType(implType)
+        if (instantiatedAsmType == implAsmType) return true
+        val instantiatedIsPrimitive = AsmUtil.isPrimitive(instantiatedAsmType)
+        val implIsPrimitive = AsmUtil.isPrimitive(implAsmType)
+        return when {
+            // Two different JVM primitives: don't rely on implicit primitive widening conversions.
+            instantiatedIsPrimitive && implIsPrimitive -> false
+            // Boxing: the primitive value is boxed to its wrapper class, which must then widen to the impl type.
+            // Making the type nullable is how the wrapper class is spelled in Kotlin: 'Int' maps to 'I', 'Int?' to
+            // 'Ljava/lang/Integer;'.
+            instantiatedIsPrimitive -> isErasedReferenceWidening(instantiatedType.makeNullable(), implType)
+            // Unboxing: only possible from the exact wrapper type.
+            implIsPrimitive -> instantiatedAsmType == AsmUtil.boxType(implAsmType)
+            // Reference widening: the impl parameter type must be a supertype of the instantiated parameter type.
+            else -> isErasedReferenceWidening(subType = instantiatedType, superType = implType)
+        }
+    }
+
+    // Check reference widening on erased classes, as LambdaMetafactory does at run time.
+    private fun isErasedReferenceWidening(subType: IrType, superType: IrType): Boolean {
+        val subAsmType = context.defaultTypeMapper.mapType(subType)
+        val superAsmType = context.defaultTypeMapper.mapType(superType)
+        if (subAsmType == superAsmType) return true
+        // Different array types share an erased class; conservatively allow only widening to Object.
+        if (subAsmType.sort == Type.ARRAY || superAsmType.sort == Type.ARRAY)
+            return superAsmType.internalName == "java/lang/Object"
+        if (subType.isInlineClassType() || superType.isInlineClassType()) return false
+        if (subType !is IrSimpleType || superType !is IrSimpleType) return false
+        return getErasedClassForSignatureAdaptation(subType).isSubclassOf(getErasedClassForSignatureAdaptation(superType))
+    }
+
+    private fun widenLambdaParameterType(function: IrFunction, parameter: IrValueParameter, methodType: IrType) {
+        val originalType = parameter.type
+        parameter.type = methodType
+        // LambdaMetafactory passes a value of the instantiated method parameter type to the implementation method,
+        // so the implementation method must declare exactly that type in its signature. The passed value still has
+        // the lambda's original (narrower) type at run time; retain that type at every use site with an implicit
+        // cast, which materializes as the required checkcast/unboxing during codegen.
+        function.body?.transformChildrenVoid(object : IrElementTransformerVoid() {
+            override fun visitGetValue(expression: IrGetValue): IrExpression {
+                if (expression.symbol != parameter.symbol) return super.visitGetValue(expression)
+                expression.type = methodType
+                return IrTypeOperatorCallImpl(
+                    startOffset = expression.startOffset,
+                    endOffset = expression.endOffset,
+                    type = originalType,
+                    operator = IrTypeOperator.IMPLICIT_CAST,
+                    typeOperand = originalType,
+                    argument = expression,
+                )
+            }
+        })
     }
 
     private fun validateMethodParameters(
@@ -400,7 +541,7 @@ internal class LambdaMetafactoryArgumentsBuilder(
     }
 
     private fun adaptFakeInstanceMethodSignature(fakeInstanceMethod: IrSimpleFunction, constraints: SignatureAdaptationConstraints) {
-        for ((valueParameter, constraint) in constraints.parameters) {
+        for ([valueParameter, constraint] in constraints.parameters) {
             if (valueParameter.parent != fakeInstanceMethod)
                 throw AssertionError(
                     "Unexpected value parameter: ${valueParameter.render()}; fakeInstanceMethod:\n" +
@@ -456,7 +597,7 @@ internal class LambdaMetafactoryArgumentsBuilder(
                         "expected: ${expectedFun.render()}\n" +
                         "  ${expectedParameters.size} value parameters."
             )
-        for ((adapteeParameter, expectedParameter) in adapteeParameters.zip(expectedParameters)) {
+        for ([adapteeParameter, expectedParameter] in adapteeParameters.zip(expectedParameters)) {
             val parameterConstraint = computeParameterTypeAdaptationConstraint(adapteeParameter.type, expectedParameter.type)
                 ?: continue
             if (parameterConstraint == TypeAdaptationConstraint.CONFLICT)
@@ -498,7 +639,7 @@ internal class LambdaMetafactoryArgumentsBuilder(
         // All Kotlin inline classes are final,
         // and their supertypes are trivially mapped to reference types.
         val erasedAdapteeClass = getErasedClassForSignatureAdaptation(adapteeType)
-        if (erasedAdapteeClass.isSingleFieldValueClass) {
+        if (erasedAdapteeClass.isInlineClass) {
             // Inline classes mapped to non-null reference types are a special case because they can't be boxed trivially.
             // TODO consider adding a special type annotation to force boxing on an inline class type regardless of its underlying type.
             val underlyingAdapteeType = getInlineClassUnderlyingType(erasedAdapteeClass)
@@ -507,7 +648,7 @@ internal class LambdaMetafactoryArgumentsBuilder(
             }
 
             val erasedExpectedClass = getErasedClassForSignatureAdaptation(expectedType)
-            return if (erasedExpectedClass.isSingleFieldValueClass) {
+            return if (erasedExpectedClass.isInlineClass) {
                 // LambdaMetafactory doesn't know about method mangling.
                 TypeAdaptationConstraint.CONFLICT
             } else {
@@ -515,13 +656,6 @@ internal class LambdaMetafactoryArgumentsBuilder(
                 // => box it
                 TypeAdaptationConstraint.FORCE_BOXING
             }
-        }
-
-        // ** Value classes **
-        // All Kotlin inline classes are final,
-        // and their supertypes are trivially mapped to reference types.
-        if (adapteeType.needsMfvcFlattening()) {
-            return TypeAdaptationConstraint.CONFLICT
         }
 
         // Other cases don't enforce type adaptation
@@ -569,7 +703,7 @@ internal class LambdaMetafactoryArgumentsBuilder(
                 else -> {
                     val joined = HashMap<IrValueParameter, TypeAdaptationConstraint>()
                     joined.putAll(sig1.parameters)
-                    for ((vp2, t2) in sig2.parameters.entries) {
+                    for ([vp2, t2] in sig2.parameters.entries) {
                         val tx = composeTypeAdaptationConstraints(joined[vp2], t2) ?: continue
                         if (tx == TypeAdaptationConstraint.CONFLICT)
                             return null

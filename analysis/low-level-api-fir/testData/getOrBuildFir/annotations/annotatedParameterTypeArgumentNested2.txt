@@ -27,13 +27,13 @@ FILE: [ResolvedTo(IMPORTS)] first.kt
             public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Wrapper] get(): T
 
     }
-    public final [ResolvedTo(CONTRACTS)] class Foo<[ResolvedTo(CONTRACTS)] T> : R|kotlin/Any| {
-        public [ResolvedTo(CONTRACTS)] [ContainingClassKey=Foo] constructor<[ResolvedTo(CONTRACTS)] T>([ResolvedTo(CONTRACTS)] [CorrespondingProperty=/Foo.wrapper] wrapper: R|Wrapper<T>|): R|Foo<T>| {
+    public final [ResolvedTo(STATUS)] class Foo<[ResolvedTo(STATUS)] T> : R|kotlin/Any| {
+        public [ResolvedTo(STATUS)] [ContainingClassKey=Foo] constructor<[ResolvedTo(STATUS)] T>([ResolvedTo(STATUS)] [CorrespondingProperty=/Foo.wrapper] wrapper: R|Wrapper<T>|): R|Foo<T>| {
             LAZY_super<R|kotlin/Any|>
         }
 
-        public final [ResolvedTo(CONTRACTS)] [IsFromPrimaryConstructor=true] val wrapper: R|Wrapper<T>| = R|<local>/wrapper|
-            public [ResolvedTo(CONTRACTS)] [ContainingClassKey=Foo] get(): R|Wrapper<T>|
+        public final [ResolvedTo(STATUS)] [IsFromPrimaryConstructor=true] val wrapper: R|Wrapper<T>| = R|<local>/wrapper|
+            public [ResolvedTo(STATUS)] [ContainingClassKey=Foo] get(): R|Wrapper<T>|
 
     }
     public? final? [ResolvedTo(RAW_FIR)] fun test([ResolvedTo(RAW_FIR)] foo: Foo<@Anno[Unresolved]() String>): R|kotlin/Unit| { LAZY_BLOCK }
@@ -57,7 +57,7 @@ FIR element rendered:
 
 FIR FILE:
 FILE: [ResolvedTo(IMPORTS)] anno.kt
-    @R|kotlin/annotation/Target|[Types](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[Types](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
         public [ResolvedTo(STATUS)] [ContainingClassKey=Anno] constructor(): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -74,13 +74,13 @@ FILE: [ResolvedTo(IMPORTS)] first.kt
             public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Wrapper] get(): T
 
     }
-    public final [ResolvedTo(CONTRACTS)] class Foo<[ResolvedTo(CONTRACTS)] T> : R|kotlin/Any| {
-        public [ResolvedTo(CONTRACTS)] [ContainingClassKey=Foo] constructor<[ResolvedTo(CONTRACTS)] T>([ResolvedTo(CONTRACTS)] [CorrespondingProperty=/Foo.wrapper] wrapper: R|Wrapper<T>|): R|Foo<T>| {
+    public final [ResolvedTo(STATUS)] class Foo<[ResolvedTo(STATUS)] T> : R|kotlin/Any| {
+        public [ResolvedTo(STATUS)] [ContainingClassKey=Foo] constructor<[ResolvedTo(STATUS)] T>([ResolvedTo(STATUS)] [CorrespondingProperty=/Foo.wrapper] wrapper: R|Wrapper<T>|): R|Foo<T>| {
             LAZY_super<R|kotlin/Any|>
         }
 
-        public final [ResolvedTo(CONTRACTS)] [IsFromPrimaryConstructor=true] val wrapper: R|Wrapper<T>| = R|<local>/wrapper|
-            public [ResolvedTo(CONTRACTS)] [ContainingClassKey=Foo] get(): R|Wrapper<T>|
+        public final [ResolvedTo(STATUS)] [IsFromPrimaryConstructor=true] val wrapper: R|Wrapper<T>| = R|<local>/wrapper|
+            public [ResolvedTo(STATUS)] [ContainingClassKey=Foo] get(): R|Wrapper<T>|
 
     }
     public final [ResolvedTo(BODY_RESOLVE)] fun test([ResolvedTo(BODY_RESOLVE)] foo: R|Foo<@R|Anno|()  kotlin/String>|): R|kotlin/Unit| {

@@ -1,9 +1,10 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
 dependencies {
-    api(project(":js:js.serializer"))
     api(project(":js:typescript-export-model"))
 
     implementation(project(":core:util.runtime"))

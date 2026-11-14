@@ -13,7 +13,6 @@ repositories {
 kotlin {
     applyDefaultHierarchyTemplate()
     linuxX64()
-    macosX64()
     macosArm64()
     mingwX64()
     androidNativeX64()

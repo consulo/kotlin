@@ -5,11 +5,11 @@
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir
 
-import org.jetbrains.kotlin.analysis.api.analyzeCopy
 import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProviderBase
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResolutionMode
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResolutionModeProvider
 import org.jetbrains.kotlin.analysis.api.projectStructure.copyOrigin
+import org.jetbrains.kotlin.analysis.api.session.analyzeCopy
 import org.jetbrains.kotlin.analysis.low.level.api.fir.AbstractFirLazyDeclarationResolveTestCase.Directives.LAZY_MODE
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.LLResolutionFacade
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators.AnalysisApiFirCustomScriptDefinitionTestConfigurator
@@ -28,9 +28,8 @@ import org.jetbrains.kotlin.test.directives.model.SimpleDirectivesContainer
 import org.jetbrains.kotlin.test.directives.model.singleOrZeroValue
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.moduleStructure
-import org.jetbrains.kotlin.testFederation.SmokeTest
+import org.jetbrains.kotlin.testFederation.MustRunAlways
 
-@SmokeTest
 abstract class AbstractFirLazyDeclarationResolveTest : AbstractFirLazyDeclarationResolveOverAllPhasesTest() {
     override val additionalDirectives: List<DirectivesContainer>
         get() = super.additionalDirectives + Directives
@@ -107,10 +106,10 @@ abstract class AbstractFirLazyDeclarationResolveTest : AbstractFirLazyDeclaratio
      * for lazy resolve tests with [KaDanglingFileResolutionMode.IGNORE_SELF] mode if the copy file differs from the original one.
      * That's why we need to use outer [analyzeCopy] call to manually set the dangling file resolution mode.
      */
-    private inline fun <R> wrapWithAnalyzeCopyIfNeeded(
+    private inline fun wrapWithAnalyzeCopyIfNeeded(
         file: KtFile,
         danglingFileResolutionMode: KaDanglingFileResolutionMode?,
-        crossinline action: () -> R
+        crossinline action: () -> Unit
     ) {
         if (file.copyOrigin != null && danglingFileResolutionMode != null) {
             analyzeCopy(file, danglingFileResolutionMode) {
@@ -158,6 +157,7 @@ abstract class AbstractFirLazyDeclarationResolveTest : AbstractFirLazyDeclaratio
     }
 }
 
+@MustRunAlways
 abstract class AbstractFirSourceLikeLazyDeclarationResolveTest : AbstractFirLazyDeclarationResolveTest() {
     override val configurator = LLSourceLikeTestConfigurator()
 }

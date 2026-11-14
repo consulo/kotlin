@@ -1,6 +1,9 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
+    id("test-inputs-check")
 }
 
 description = "Kotlin/Native utils"
@@ -10,7 +13,6 @@ dependencies {
     compileOnly(kotlin("stdlib", coreDepsVersion))
     api(project(":kotlin-util-io"))
     api(project(":kotlin-util-klib"))
-    api(platform(project(":kotlin-gradle-plugins-bom")))
 
     testImplementation(kotlin("stdlib", coreDepsVersion))
     testImplementation(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }

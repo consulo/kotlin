@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.load.java
 
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.StandardClassIds
 
 // old JSpecify annotations
 
@@ -38,6 +39,16 @@ val JSPECIFY_NULL_MARKED_ANNOTATION_FQ_NAME = FqName("org.jspecify.annotations.N
 val JSPECIFY_NULLNESS_UNSPECIFIED_ANNOTATION_FQ_NAME = FqName("org.jspecify.annotations.NullnessUnspecified")
 
 val JSPECIFY_NULL_UNMARKED_ANNOTATION_FQ_NAME = FqName("org.jspecify.annotations.NullUnmarked")
+
+// Chromium annotations
+
+val CHROMIUM_NON_NULL_ANNOTATION_FQ_NAME = FqName("org.chromium.build.annotations.NonNull")
+
+val CHROMIUM_NULLABLE_ANNOTATION_FQ_NAME = FqName("org.chromium.build.annotations.Nullable")
+
+val CHROMIUM_NULL_MARKED_ANNOTATION_FQ_NAME = FqName("org.chromium.build.annotations.NullMarked")
+
+val CHROMIUM_NULL_UNMARKED_ANNOTATION_FQ_NAME = FqName("org.chromium.build.annotations.NullUnmarked")
 
 // JSR-305 annotations
 
@@ -88,6 +99,8 @@ val NOT_NULL_ANNOTATIONS: Set<FqName> = setOf(
     FqName("lombok.NonNull"),
     // Jakarta
     FqName("jakarta.annotation.Nonnull"),
+    // Chromium
+    CHROMIUM_NON_NULL_ANNOTATION_FQ_NAME,
 )
 
 val NULLABLE_ANNOTATIONS: Set<FqName> = setOf(
@@ -121,6 +134,8 @@ val NULLABLE_ANNOTATIONS: Set<FqName> = setOf(
     FqName("jakarta.annotation.Nullable"),
     // vertx
     FqName("io.vertx.codegen.annotations.Nullable"),
+    // Chromium
+    CHROMIUM_NULLABLE_ANNOTATION_FQ_NAME,
 )
 
 val FORCE_FLEXIBILITY_ANNOTATIONS: Set<FqName> = setOf(
@@ -135,7 +150,9 @@ val NULLABILITY_ANNOTATIONS: Set<FqName> = mutableSetOf<FqName>() +
         JAVAX_NONNULL_ANNOTATION_FQ_NAME +
         JSPECIFY_OLD_NULL_MARKED_ANNOTATION_FQ_NAME +
         JSPECIFY_NULL_MARKED_ANNOTATION_FQ_NAME +
-        JSPECIFY_NULL_UNMARKED_ANNOTATION_FQ_NAME
+        JSPECIFY_NULL_UNMARKED_ANNOTATION_FQ_NAME +
+        CHROMIUM_NULL_MARKED_ANNOTATION_FQ_NAME +
+        CHROMIUM_NULL_UNMARKED_ANNOTATION_FQ_NAME
 
 // mutability annotations
 
@@ -163,3 +180,6 @@ val javaToKotlinNameMap: Map<FqName, FqName> = mapOf(
 // other
 
 val UNDER_MIGRATION_ANNOTATION_FQ_NAME = FqName("kotlin.annotations.jvm.UnderMigration")
+
+val FqName.isCompilerInternalSyntheticAnnotation: Boolean
+    get() = this == JvmAnnotationNames.ENHANCED_NULLABILITY_ANNOTATION || parent() == StandardClassIds.BASE_INTERNAL_IR_PACKAGE

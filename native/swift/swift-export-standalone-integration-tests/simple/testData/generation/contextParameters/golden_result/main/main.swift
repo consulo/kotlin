@@ -3,56 +3,52 @@ import KotlinRuntime
 import KotlinRuntimeSupport
 
 public final class Bar: KotlinRuntime.KotlinBase {
-    public init() {
-        if Self.self != main.Bar.self { fatalError("Inheritance from exported Kotlin classes is not supported yet: \(String(reflecting: Self.self)) inherits from main.Bar ") }
+    public override init() {
         let __kt = __root___Bar_init_allocate()
         super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
         { __root___Bar_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
     }
 }
 public final class Context: KotlinRuntime.KotlinBase {
-    public init() {
-        if Self.self != main.Context.self { fatalError("Inheritance from exported Kotlin classes is not supported yet: \(String(reflecting: Self.self)) inherits from main.Context ") }
+    public override init() {
         let __kt = __root___Context_init_allocate()
         super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
         { __root___Context_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
     }
 }
 public final class ContextA: KotlinRuntime.KotlinBase {
-    public init() {
-        if Self.self != main.ContextA.self { fatalError("Inheritance from exported Kotlin classes is not supported yet: \(String(reflecting: Self.self)) inherits from main.ContextA ") }
+    public override init() {
         let __kt = __root___ContextA_init_allocate()
         super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
         { __root___ContextA_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
     }
 }
 public final class ContextB: KotlinRuntime.KotlinBase {
-    public init() {
-        if Self.self != main.ContextB.self { fatalError("Inheritance from exported Kotlin classes is not supported yet: \(String(reflecting: Self.self)) inherits from main.ContextB ") }
+    public override init() {
         let __kt = __root___ContextB_init_allocate()
         super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
         { __root___ContextB_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -64,11 +60,11 @@ public final class Foo: KotlinRuntime.KotlinBase {
             return main.Foo.__createClassWrapper(externalRCRef: __root___Foo_get())
         }
     }
-    private init() {
+    private override init() {
         fatalError()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -78,7 +74,7 @@ public final class Foo: KotlinRuntime.KotlinBase {
         arg: any KotlinRuntimeSupport._KotlinBridgeable
     ) -> any KotlinRuntimeSupport._KotlinBridgeable {
         let (ctx) = context
-        return KotlinRuntime.KotlinBase.__createBridgeable(externalRCRef: Foo_bar__TypesOfArgumentsC1__anyU20KotlinRuntimeSupport__KotlinBridgeable_main_Context__(self.__externalRCRef(), arg.__externalRCRef(), ctx.__externalRCRef()))
+        return KotlinRuntime.KotlinBase.__createBridgeable(externalRCRef: Foo_bar__TypesOfArgumentsC1__main_Context_anyU20KotlinRuntimeSupport__KotlinBridgeable__(self.__externalRCRef(), ctx.__externalRCRef(), arg.__externalRCRef()))
     }
     public func complexContextFunction(
         _ context: (contextA: main.ContextA, context: main.Context, contextB: main.ContextB),
@@ -86,7 +82,7 @@ public final class Foo: KotlinRuntime.KotlinBase {
         count: Swift.Int32
     ) -> Swift.Bool {
         let (contextA, context, contextB) = context
-        return Foo_complexContextFunction__TypesOfArgumentsEC3__Swift_String_Swift_Int32_main_ContextA_main_Context_main_ContextB__(self.__externalRCRef(), receiver, count, contextA.__externalRCRef(), context.__externalRCRef(), contextB.__externalRCRef())
+        return Foo_complexContextFunction__TypesOfArgumentsEC3__main_ContextA_main_Context_main_ContextB_Swift_String_Swift_Int32__(self.__externalRCRef(), contextA.__externalRCRef(), context.__externalRCRef(), contextB.__externalRCRef(), receiver, count)
     }
     public func foo(
         _ context: main.Context
@@ -105,7 +101,7 @@ public final class Foo: KotlinRuntime.KotlinBase {
         _ receiver: Swift.String
     ) -> Swift.Int32 {
         let (contextB, contextA) = context
-        return Foo_complexContextProperty_get__TypesOfArgumentsEC2__Swift_String_main_ContextB_main_ContextA__(self.__externalRCRef(), receiver, contextB.__externalRCRef(), contextA.__externalRCRef())
+        return Foo_complexContextProperty_get__TypesOfArgumentsEC2__main_ContextB_main_ContextA_Swift_String__(self.__externalRCRef(), contextB.__externalRCRef(), contextA.__externalRCRef(), receiver)
     }
     public func getUnnamedContextParametersProperty(
         _ context: (ctx: main.ContextA, main.Context)
@@ -119,14 +115,14 @@ public final class Foo: KotlinRuntime.KotlinBase {
         value: Swift.Int32
     ) -> Swift.Void {
         let (contextB, contextA) = context
-        return { Foo_complexContextProperty_set__TypesOfArgumentsEC2__Swift_String_Swift_Int32_main_ContextB_main_ContextA__(self.__externalRCRef(), receiver, value, contextB.__externalRCRef(), contextA.__externalRCRef()); return () }()
+        return { Foo_complexContextProperty_set__TypesOfArgumentsEC2__main_ContextB_main_ContextA_Swift_String_Swift_Int32__(self.__externalRCRef(), contextB.__externalRCRef(), contextA.__externalRCRef(), receiver, value); return () }()
     }
     public func setUnnamedContextParametersProperty(
         _ context: (ctx: main.ContextA, main.Context),
         value: Swift.String
     ) -> Swift.Void {
-        let (ctx, _2) = context
-        return { Foo_unnamedContextParametersProperty_set__TypesOfArgumentsC2__Swift_String_main_ContextA_main_Context__(self.__externalRCRef(), value, ctx.__externalRCRef(), _2.__externalRCRef()); return () }()
+        let (ctx, _1) = context
+        return { Foo_unnamedContextParametersProperty_set__TypesOfArgumentsC2__main_ContextA_main_Context_Swift_String__(self.__externalRCRef(), ctx.__externalRCRef(), _1.__externalRCRef(), value); return () }()
     }
     public func unnamedContextParametersFunction(
         _ context: (main.Context, ctx: main.ContextB)
@@ -140,14 +136,14 @@ public func bar(
     arg: any KotlinRuntimeSupport._KotlinBridgeable
 ) -> any KotlinRuntimeSupport._KotlinBridgeable {
     let (ctx) = context
-    return KotlinRuntime.KotlinBase.__createBridgeable(externalRCRef: __root___bar__TypesOfArgumentsC1__anyU20KotlinRuntimeSupport__KotlinBridgeable_main_Context__(arg.__externalRCRef(), ctx.__externalRCRef()))
+    return KotlinRuntime.KotlinBase.__createBridgeable(externalRCRef: __root___bar__TypesOfArgumentsC1__main_Context_anyU20KotlinRuntimeSupport__KotlinBridgeable__(ctx.__externalRCRef(), arg.__externalRCRef()))
 }
 public func combine(
     _ context: main.Bar,
     bar2: main.Bar
 ) -> main.Bar {
     let (bar) = context
-    return main.Bar.__createClassWrapper(externalRCRef: __root___combine__TypesOfArgumentsC1__main_Bar_main_Bar__(bar2.__externalRCRef(), bar.__externalRCRef()))
+    return main.Bar.__createClassWrapper(externalRCRef: __root___combine__TypesOfArgumentsC1__main_Bar_main_Bar__(bar.__externalRCRef(), bar2.__externalRCRef()))
 }
 public func combine(
     _ receiver: main.Bar,
@@ -167,34 +163,28 @@ public func complexContextFunction(
     yes: Swift.Bool
 ) -> Swift.Int32 {
     let (context, contextA, contextB) = context
-    return __root___complexContextFunction__TypesOfArgumentsEC3__Swift_String_Swift_Bool_main_Context_main_ContextA_main_ContextB__(receiver, yes, context.__externalRCRef(), contextA.__externalRCRef(), contextB.__externalRCRef())
+    return __root___complexContextFunction__TypesOfArgumentsEC3__main_Context_main_ContextA_main_ContextB_Swift_String_Swift_Bool__(context.__externalRCRef(), contextA.__externalRCRef(), contextB.__externalRCRef(), receiver, yes)
 }
 public func contextBlockA(
     block: @escaping ((main.ContextA, main.ContextB), Swift.Int32, Swift.String) -> Swift.Void
 ) -> Swift.Void {
-    return { __root___contextBlockA__TypesOfArguments__U28Swift_Int32_U20Swift_StringU29202D_U20Swift_Void__({
-        let originalBlock = block
-        return { (ctx0: Swift.UnsafeMutableRawPointer, ctx1: Swift.UnsafeMutableRawPointer, arg0: Swift.Int32, arg1: Swift.String) in return { originalBlock((main.ContextA.__createClassWrapper(externalRCRef: ctx0),main.ContextB.__createClassWrapper(externalRCRef: ctx1)), arg0, arg1); return true }() }
-    }()); return () }()
+    return { __root___contextBlockA__TypesOfArguments__U2828main_ContextA_U20main_ContextBU29_U20Swift_Int32_U20Swift_StringU29202D_U20Swift_Void__(Unmanaged.passRetained((block as ((main.ContextA, main.ContextB), Swift.Int32, Swift.String) -> Swift.Void) as AnyObject).toOpaque()); return () }()
 }
 public func contextBlockB() -> ((main.ContextB, main.ContextA), Swift.String, Swift.Int32) -> Swift.Void {
     return {
-        let pointerToBlock = KotlinRuntime.KotlinBase(__externalRCRefUnsafe: __root___contextBlockB(), options: .asBestFittingWrapper)!
-        return { context, _3, _4 in let (ctx0, ctx1) = context;return { main_internal_functional_type_caller_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_ContextB_main_ContextA_Swift_String_Swift_Int32__(pointerToBlock.__externalRCRef()!, ctx0.__externalRCRef(), ctx1.__externalRCRef(), _3, _4); return () }() }
+        let pointerToBlock = KotlinRuntime.KotlinBase(__externalRCRefUnsafe: __root___contextBlockB(), options: .asBestFittingWrapper)
+        return { context, _3, _4 in let (ctx0, ctx1) = context;return { main_internal_functional_type_caller_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_ContextB_main_ContextA_Swift_String_Swift_Int32__(pointerToBlock.__externalRCRef(), ctx0.__externalRCRef(), ctx1.__externalRCRef(), _3, _4); return () }() }
     }()
 }
 public func contextBlockC(
     block: @escaping (main.Context, Swift.String) -> Swift.Void
 ) -> Swift.Void {
-    return { __root___contextBlockC__TypesOfArguments__U28Swift_StringU29202D_U20Swift_Void__({
-        let originalBlock = block
-        return { (ctx0: Swift.UnsafeMutableRawPointer, arg0: Swift.String) in return { originalBlock((main.Context.__createClassWrapper(externalRCRef: ctx0)), arg0); return true }() }
-    }()); return () }()
+    return { __root___contextBlockC__TypesOfArguments__U28main_Context_U20Swift_StringU29202D_U20Swift_Void__(Unmanaged.passRetained((block as (main.Context, Swift.String) -> Swift.Void) as AnyObject).toOpaque()); return () }()
 }
 public func contextBlockD() -> (main.Context, Swift.Int32) -> Swift.Void {
     return {
-        let pointerToBlock = KotlinRuntime.KotlinBase(__externalRCRefUnsafe: __root___contextBlockD(), options: .asBestFittingWrapper)!
-        return { context, _2 in let (ctx0) = context;return { main_internal_functional_type_caller_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_Context_Swift_Int32__(pointerToBlock.__externalRCRef()!, ctx0.__externalRCRef(), _2); return () }() }
+        let pointerToBlock = KotlinRuntime.KotlinBase(__externalRCRefUnsafe: __root___contextBlockD(), options: .asBestFittingWrapper)
+        return { context, _2 in let (ctx0) = context;return { main_internal_functional_type_caller_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_Context_Swift_Int32__(pointerToBlock.__externalRCRef(), ctx0.__externalRCRef(), _2); return () }() }
     }()
 }
 public func foo(
@@ -214,7 +204,7 @@ public func getComplexContextProperty(
     _ receiver: Swift.String
 ) -> Swift.Bool {
     let (contextA, contextB) = context
-    return __root___complexContextProperty_get__TypesOfArgumentsEC2__Swift_String_main_ContextA_main_ContextB__(receiver, contextA.__externalRCRef(), contextB.__externalRCRef())
+    return __root___complexContextProperty_get__TypesOfArgumentsEC2__main_ContextA_main_ContextB_Swift_String__(contextA.__externalRCRef(), contextB.__externalRCRef(), receiver)
 }
 public func getUnnamedContextParametersProperty(
     _ context: (main.ContextA, ctx: main.Context)
@@ -228,18 +218,63 @@ public func setComplexContextProperty(
     value: Swift.Bool
 ) -> Swift.Void {
     let (contextA, contextB) = context
-    return { __root___complexContextProperty_set__TypesOfArgumentsEC2__Swift_String_Swift_Bool_main_ContextA_main_ContextB__(receiver, value, contextA.__externalRCRef(), contextB.__externalRCRef()); return () }()
+    return { __root___complexContextProperty_set__TypesOfArgumentsEC2__main_ContextA_main_ContextB_Swift_String_Swift_Bool__(contextA.__externalRCRef(), contextB.__externalRCRef(), receiver, value); return () }()
 }
 public func setUnnamedContextParametersProperty(
     _ context: (main.ContextA, ctx: main.Context),
     value: Swift.Int32
 ) -> Swift.Void {
-    let (_1, ctx) = context
-    return { __root___unnamedContextParametersProperty_set__TypesOfArgumentsC2__Swift_Int32_main_ContextA_main_Context__(value, _1.__externalRCRef(), ctx.__externalRCRef()); return () }()
+    let (_0, ctx) = context
+    return { __root___unnamedContextParametersProperty_set__TypesOfArgumentsC2__main_ContextA_main_Context_Swift_Int32__(_0.__externalRCRef(), ctx.__externalRCRef(), value); return () }()
 }
 public func unnamedContextParametersFunction(
     _ context: (ctx: main.Context, main.ContextB)
 ) -> Swift.Void {
     let (ctx, _1) = context
     return { __root___unnamedContextParametersFunction__TypesOfArgumentsC2__main_Context_main_ContextB__(ctx.__externalRCRef(), _1.__externalRCRef()); return () }()
+}
+extension main.Bar {
+    public func combine(
+        bar: main.Bar
+    ) -> main.Bar {
+        let receiver = self
+        return main.combine(receiver, bar: bar)
+    }
+}
+extension Swift.String {
+    public func getComplexContextProperty(
+        _ context: (contextA: main.ContextA, contextB: main.ContextB)
+    ) -> Swift.Bool {
+        let receiver = self
+        return main.getComplexContextProperty(context, receiver)
+    }
+}
+extension Swift.String {
+    public func setComplexContextProperty(
+        _ context: (contextA: main.ContextA, contextB: main.ContextB),
+        value: Swift.Bool
+    ) -> Swift.Void {
+        let receiver = self
+        return main.setComplexContextProperty(context, receiver, value: value)
+    }
+}
+extension Swift.String {
+    public func complexContextFunction(
+        _ context: (context: main.Context, contextA: main.ContextA, contextB: main.ContextB),
+        yes: Swift.Bool
+    ) -> Swift.Int32 {
+        let receiver = self
+        return main.complexContextFunction(context, receiver, yes: yes)
+    }
+}
+@_cdecl("main_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_ContextA_main_ContextB_Swift_Int32_Swift_String__")
+package func main_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_ContextA_main_ContextB_Swift_Int32_Swift_String__(_ pointerToClosure: Swift.UnsafeMutableRawPointer, _ ctx0: Swift.UnsafeMutableRawPointer, _ ctx1: Swift.UnsafeMutableRawPointer, _ _3: Swift.Int32, _ _4: Swift.String) -> Swift.Bool {
+    let _result: Swift.Void = (Unmanaged<AnyObject>.fromOpaque(pointerToClosure).takeUnretainedValue() as! ((main.ContextA, main.ContextB), Swift.Int32, Swift.String) -> Swift.Void)((main.ContextA.__createClassWrapper(externalRCRef: ctx0), main.ContextB.__createClassWrapper(externalRCRef: ctx1)), _3, _4)
+    return { _result; return true }()
+}
+
+@_cdecl("main_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_Context_Swift_String__")
+package func main_internal_functional_type_callee_SwiftU2EVoid__TypesOfArguments__Swift_UnsafeMutableRawPointer_main_Context_Swift_String__(_ pointerToClosure: Swift.UnsafeMutableRawPointer, _ ctx0: Swift.UnsafeMutableRawPointer, _ _2: Swift.String) -> Swift.Bool {
+    let _result: Swift.Void = (Unmanaged<AnyObject>.fromOpaque(pointerToClosure).takeUnretainedValue() as! (main.Context, Swift.String) -> Swift.Void)((main.Context.__createClassWrapper(externalRCRef: ctx0)), _2)
+    return { _result; return true }()
 }

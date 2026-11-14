@@ -1,16 +1,15 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-data-manager")
 }
 
 dependencies {
     testFixturesApi(project(":analysis:low-level-api-fir"))
-    testFixturesApi(project(":analysis:analysis-api-standalone:analysis-api-fir-standalone-base"))
     testFixturesApi(testFixtures(project(":compiler:tests-common")))
     testFixturesApi(testFixtures(project(":analysis:analysis-test-framework")))
-    testFixturesApi(testFixtures(project(":analysis:analysis-api-impl-base")))
     testFixturesApi(testFixtures(project(":analysis:low-level-api-fir")))
     testFixturesApi(testFixtures(project(":analysis:low-level-api-fir:low-level-api-fir-compiler-tests")))
 
@@ -26,7 +25,7 @@ sourceSets {
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5) {
+    testTask(maxHeapSize = testMaxHeapSizeLarge) {
         dependsOn(":dist")
         workingDir = rootDir
     }
@@ -36,7 +35,6 @@ projectTests {
     nativeTestTask("llFirNativeTests", "llFirNative", requirePlatformLibs = true)
 }
 
-testsJar()
 
 if (kotlinBuildProperties.isKotlinNativeEnabled.get()) {
     tasks.named("check") {

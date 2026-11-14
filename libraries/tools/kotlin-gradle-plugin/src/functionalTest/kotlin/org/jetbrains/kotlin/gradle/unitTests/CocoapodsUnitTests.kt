@@ -3,11 +3,9 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
-import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames
 import org.jetbrains.kotlin.gradle.plugin.cocoapods.KotlinCocoapodsPlugin
 import org.jetbrains.kotlin.gradle.plugin.cocoapods.KotlinCocoapodsPlugin.Companion.CFLAGS_PROPERTY
 import org.jetbrains.kotlin.gradle.plugin.cocoapods.KotlinCocoapodsPlugin.Companion.FRAMEWORK_PATHS_PROPERTY
@@ -19,12 +17,36 @@ import org.jetbrains.kotlin.gradle.targets.native.cocoapods.CocoapodsPluginDiagn
 import org.jetbrains.kotlin.gradle.tasks.FatFrameworkTask
 import org.jetbrains.kotlin.gradle.util.*
 import org.jetbrains.kotlin.gradle.util.assertContainsDiagnostic
+import org.jetbrains.kotlin.gradle.utils.withType
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.junit.jupiter.api.Assumptions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class CocoapodsUnitTests {
+    @Test
+    fun `migration warning is reported when cocoapods plugin is applied`() {
+        buildProjectWithCocoapods {
+            assertContainsDiagnostic(CocoapodsPluginDiagnostics.SwiftPMMigrationSuggested)
+        }
+    }
+
+    @Test
+    fun `migration warning is not reported when cocoapods plugin is not applied`() {
+        buildProjectWithMPP {
+            assertNoDiagnostics(CocoapodsPluginDiagnostics.SwiftPMMigrationSuggested)
+        }
+    }
+
+    @Test
+    fun `migration warning is not reported when suppressed via property`() {
+        buildProjectWithMPP {
+            propertiesExtension.set(PropertyNames.KOTLIN_NATIVE_COCOAPODS_SWIFTPM_MIGRATION_NOWARN, "true")
+            applyCocoapodsPlugin()
+            assertNoDiagnostics(CocoapodsPluginDiagnostics.SwiftPMMigrationSuggested)
+        }
+    }
+
     @Test
     fun `warning is reported on non-mac machines`() {
         Assumptions.assumeTrue(!HostManager.hostIsMac)
@@ -76,7 +98,7 @@ class CocoapodsUnitTests {
             applyCocoapodsPlugin()
             kotlin {
                 iosSimulatorArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
 
                 cocoapods {

@@ -8,11 +8,14 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import org.jetbrains.kotlin.konan.target.*
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("native-dependencies")
+    id("test-inputs-check")
 }
 
-val testCppRuntime by configurations.creating {
+val testCppRuntime = configurations.create("testCppRuntime") {
     isCanBeConsumed = false
     isCanBeResolved = true
     attributes {
@@ -27,8 +30,10 @@ dependencies {
     api(project(":kotlin-native:Interop:Runtime"))
     api(project(":kotlin-native:libclangInterop"))
     implementation(project(":native:kotlin-native-utils"))
+    implementation(libs.jackson.dataformat.yaml)
+    implementation(libs.jackson.module.kotlin)
 
-    testImplementation(kotlin("test-junit"))
+    testImplementation(kotlin("test-junit5"))
     testImplementation(project(":native:unsafe-mem"))
     testCppRuntime(project(":kotlin-native:libclangInterop"))
     testCppRuntime(project(":kotlin-native:Interop:Runtime"))
@@ -63,6 +68,10 @@ open class TestArgumentProvider @Inject constructor(
     override fun asArguments(): Iterable<String> = listOf(
             "-Djava.library.path=${nativeLibraries.files.joinToString(File.pathSeparator) { it.parentFile.absolutePath }}"
     )
+}
+
+projectTests {
+    testTask()
 }
 
 tasks.withType<Test>().configureEach {

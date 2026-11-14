@@ -1,7 +1,6 @@
-// IGNORE_BACKEND: ANY
-//  ^ TODO decide if we want to fix KT-42020 for FIR as well
-
-// KT-61141: IrSimpleFunctionSymbolImpl for /Derived.foo|foo(kotlin.String){}[0] is already bound
+// DUMP_IR_DIFFERENCE: JVM
+//   KT-65504 KT-42020: Fake overrides for `Derived` are built differently on JVM and non-JVM, see comment to [FakeOverrideBuilderStrategy.isGenericClashFromSameSupertypeAllowed]
+// KOTLIN_REFLECT_DUMP_MISMATCH
 
 open class Base<T> {
     fun foo(x: T) {}

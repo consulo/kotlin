@@ -3,10 +3,12 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("org.jetbrains.kotlin.jvm")
     id("org.jetbrains.kotlin.plugin.serialization")
-    id("project-tests-convention")
     `jvm-test-suite`
+    id("test-inputs-check")
 }
 
 description = "Contains a unified representation of Kotlin compiler arguments for current and old Kotlin releases."
@@ -35,6 +37,10 @@ dependencies {
     embedded(project(":compiler:arguments.common")) {
         isTransitive = false
     }
+    compileOnly(project(":generators"))
+    embedded(project(":generators")) {
+        isTransitive = false
+    }
 
     testImplementation(kotlinTest("junit5"))
     testImplementation(project(":compiler:config.jvm"))
@@ -43,16 +49,12 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
     testRuntimeOnly(libs.junit.platform.launcher)
 
-    testImplementation(project(":compiler:util"))
-    testImplementation(testFixtures(project(":compiler:tests-common-new")))
     testImplementation(project(":compiler:cli-base"))
     testImplementation(libs.junit.jupiter.params)
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5) {
-        javaLauncher.value(project.getToolchainLauncherFor(JdkMajorVersion.JDK_11_0))
-    }
+    testTask()
 }
 
 val generateJson = tasks.register<JavaExec>("generateJson") {
@@ -69,13 +71,14 @@ val generateJson = tasks.register<JavaExec>("generateJson") {
         listOf(outputJsonInResources.get().path)
     }
 
+    systemProperties["teamcity"] = kotlinBuildProperties.isTeamcityBuild.get()
 }
 
-tasks.named("processResources") {
-    dependsOn(generateJson)
-}
-tasks.named("sourcesJar") {
-    dependsOn(generateJson)
+sourceSets.named("main") {
+    val generatedResourcesDir = file("resources")
+    // generatedResourcesDir are commited to be reviewed, but we need to declare the dependency to generateJson
+    resources.setSrcDirs(resources.srcDirs - generatedResourcesDir)
+    resources.srcDir(objects.fileCollection().from(generatedResourcesDir).builtBy(generateJson))
 }
 
 val stableReleaseSsotDecl = configurations.dependencyScope("stableReleaseCompilerArguments")

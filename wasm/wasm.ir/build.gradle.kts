@@ -1,20 +1,15 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     kotlin("plugin.serialization")
-    id("project-tests-convention")
+    id("test-inputs-check")
 }
 
-repositories {
-    githubCommit("webassembly", "testsuite")
-    githubRelease("webassembly", "wabt", revisionPrefix = "")
-}
-
-val wabtDir = File(layout.buildDirectory.get().asFile, "wabt")
 val wabtVersion = "1.0.19"
 val testSuiteRevision = "18f8340"
-val testSuiteDir = File(layout.buildDirectory.get().asFile, "testsuite")
 
 val gradleOs = org.gradle.internal.os.OperatingSystem.current()
 val wabtOS = when {
@@ -24,12 +19,12 @@ val wabtOS = when {
     else -> error("Unsupported OS: $gradleOs")
 }
 
-val wabt by configurations.creating {
+val wabt = configurations.create("wabt") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }
 
-val testSuite by configurations.creating {
+val testSuite = configurations.create("testSuite") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }
@@ -40,8 +35,10 @@ dependencies {
 
     implementation(kotlinStdlib())
     implementation(kotlinxCollectionsImmutable())
-    testImplementation(libs.junit4)
-    testCompileOnly(kotlinTest("junit"))
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
     testImplementation(testFixtures(project(":compiler:tests-common")))
     testImplementation(libs.kotlinx.serialization.json)
 
@@ -53,24 +50,25 @@ dependencies {
     implicitDependencies("webassembly:wabt:$wabtVersion:macos@tar.gz")
 }
 
-val unzipTestSuite by task<Copy> {
-    dependsOn(testSuite)
-
-    from(provider {
-        zipTree(testSuite.singleFile)
-    })
-
-    into(testSuiteDir)
+fun CopySpec.removeFirstLevel() {
+    eachFile { relativePath = RelativePath(!isDirectory, *relativePath.segments.drop(1).toTypedArray()) }
+    includeEmptyDirs = false
 }
 
-val unzipWabt by task<Copy> {
+val unzipTestSuite = tasks.register<Sync>("unzipTestSuite") {
+    dependsOn(testSuite)
+    from({ zipTree(testSuite.singleFile) }) {
+        removeFirstLevel()
+    }
+    into(layout.buildDirectory.dir("testsuite"))
+}
+
+val unzipWabt = tasks.register<Sync>("unzipWabt") {
     dependsOn(wabt)
-
-    from(provider {
-        tarTree(resources.gzip(wabt.singleFile))
-    })
-
-    into(wabtDir)
+    from({ tarTree(resources.gzip(wabt.singleFile)) }) {
+        removeFirstLevel()
+    }
+    into(layout.buildDirectory.dir("wabt"))
 }
 
 sourceSets {
@@ -84,13 +82,13 @@ tasks.withType<KotlinJvmCompile>().configureEach {
 }
 
 projectTests {
-    testTask(parallel = true, jUnitMode = JUnitMode.JUnit4) {
-        dependsOn(unzipWabt)
-        dependsOn(unzipTestSuite)
-        systemProperty("wabt.bin.path", "$wabtDir/wabt-$wabtVersion/bin")
-        systemProperty("wasm.testsuite.path", "$testSuiteDir/WebAssembly-testsuite-$testSuiteRevision")
-        workingDir = projectDir
+    testTask {
+        addDirectoryProperty("wabt.bin.path") {
+            fileProvider(unzipWabt.map { it.destinationDir.resolve("bin") })
+        }
+        addDirectoryProperty("wasm.testsuite.path") {
+            fileProvider(unzipTestSuite.map { it.destinationDir })
+        }
     }
 }
 
-testsJar()

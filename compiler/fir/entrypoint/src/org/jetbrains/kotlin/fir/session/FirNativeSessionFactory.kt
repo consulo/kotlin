@@ -7,9 +7,9 @@ package org.jetbrains.kotlin.fir.session
 
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.fir.FirBinaryDependenciesModuleData
-import org.jetbrains.kotlin.fir.analysis.checkers.FirPlatformSpecificCastChecker
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.SessionConfiguration
+import org.jetbrains.kotlin.fir.analysis.checkers.FirPlatformSpecificCastChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.PlatformConflictDeclarationsDiagnosticDispatcher
 import org.jetbrains.kotlin.fir.analysis.native.checkers.FirNativeCastChecker
 import org.jetbrains.kotlin.fir.analysis.native.checkers.NativeConflictDeclarationsDiagnosticDispatcher
@@ -25,7 +25,7 @@ import org.jetbrains.kotlin.fir.scopes.FirOverrideChecker
 import org.jetbrains.kotlin.fir.scopes.FirPlatformClassMapper
 import org.jetbrains.kotlin.fir.scopes.impl.FirEnumEntriesSupport
 import org.jetbrains.kotlin.library.KotlinLibrary
-import org.jetbrains.kotlin.library.metadata.impl.KlibResolvedModuleDescriptorsFactoryImpl.Companion.FORWARD_DECLARATIONS_MODULE_NAME
+import org.jetbrains.kotlin.library.metadata.FORWARD_DECLARATIONS_MODULE_NAME
 import org.jetbrains.kotlin.resolve.konan.platform.NativeDefaultImportsProvider
 
 @OptIn(SessionConfiguration::class)
@@ -35,6 +35,18 @@ abstract class FirNativeSessionFactory : AbstractFirKlibSessionFactory<Nothing?>
     object ForMetadata : FirNativeSessionFactory() {
         override val requiresSpecialSetupOfSourceProvidersInHmppCompilation: Boolean
             get() = false
+
+        override fun FirSessionConfigurator.registerPlatformCheckers() {
+            withOnlyPlatformSpecificCheckersEnabledInMetadataCompilation {
+                registerNativeCheckers()
+            }
+        }
+
+        override fun FirSessionConfigurator.registerExtraPlatformCheckers() {
+            withOnlyPlatformSpecificCheckersEnabledInMetadataCompilation {
+                registerExtraNativeCheckers()
+            }
+        }
     }
 
 

@@ -73,6 +73,7 @@ class FirRenderer(
             propertyAccessorRenderer = null,
             callArgumentsRenderer = FirCallNoArgumentsRenderer(),
             lineBreakAfterContextParameters = false,
+            declarationRenderer = FirDeclarationRendererWithSpecificAttributes(setOf("EqualityBoundType"))
         )
 
         fun withResolvePhase(): FirRenderer = FirRenderer(
@@ -559,6 +560,7 @@ class FirRenderer(
 
         private fun renderTypeParameter(typeParameter: FirTypeParameter, forOuterTypeRef: Boolean = false) {
             annotationRenderer?.render(typeParameter)
+            annotationRenderer?.renderAnnotations(typeParameter.constraintAnnotations)
             modifierRenderer?.renderModifiers(typeParameter)
             renderPhaseAndAttributes(typeParameter)
             typeParameter.variance.renderVariance()
@@ -584,7 +586,10 @@ class FirRenderer(
 
         override fun visitSafeCallExpression(safeCallExpression: FirSafeCallExpression) {
             safeCallExpression.receiver.accept(this)
-            print("?.{ ")
+            when (safeCallExpression.kind) {
+                FirSafeCallKind.NullSafe -> print("?.{ ")
+                FirSafeCallKind.ErrorSafe -> print("|.{ ")
+            }
             safeCallExpression.selector.accept(this)
             print(" }")
         }
@@ -620,6 +625,15 @@ class FirRenderer(
             }
             print(" ")
             returnExpression.result.accept(this)
+        }
+
+        override fun visitNumericClassConversion(numericClassConversion: FirNumericClassConversion) {
+            annotationRenderer?.render(numericClassConversion)
+            print("NumericConversion<")
+            print(numericClassConversion.resolvedType)
+            print(">(")
+            numericClassConversion.originalExpression.accept(this)
+            print(")")
         }
 
         override fun visitWhenBranch(whenBranch: FirWhenBranch) {
@@ -926,7 +940,7 @@ class FirRenderer(
             }
 
             printer.print("(")
-            for ((index, parameter) in functionTypeRef.parameters.withIndex()) {
+            for ([index, parameter] in functionTypeRef.parameters.withIndex()) {
                 if (index > 0) {
                     printer.print(", ")
                 }
@@ -944,6 +958,22 @@ class FirRenderer(
             visitUnresolvedTypeRef(functionTypeRef)
         }
 
+        override fun visitUnionTypeRef(unionTypeRef: FirUnionTypeRef) {
+            val markedNullable = unionTypeRef.isMarkedNullable
+
+            if (markedNullable) print("(")
+
+            var isFirst = true
+            for (typeRef in unionTypeRef.types) {
+                if (!isFirst) print(" | ")
+                isFirst = false
+
+                typeRef.accept(this)
+            }
+
+            if (markedNullable) print(")?")
+        }
+
         @OptIn(AllowedToUsedOnlyInK1::class)
         override fun visitResolvedTypeRef(resolvedTypeRef: FirResolvedTypeRef) {
             typeRenderer.renderAsPossibleFunctionType(
@@ -958,7 +988,7 @@ class FirRenderer(
 
         override fun visitUserTypeRef(userTypeRef: FirUserTypeRef) {
             annotationRenderer?.render(userTypeRef)
-            for ((index, qualifier) in userTypeRef.qualifier.withIndex()) {
+            for ([index, qualifier] in userTypeRef.qualifier.withIndex()) {
                 if (index != 0) {
                     print(".")
                 }
@@ -1099,7 +1129,7 @@ class FirRenderer(
             annotationRenderer?.render(callableReferenceAccess)
             contextArgumentRenderer?.renderContextArguments(callableReferenceAccess)
             callableReferenceAccess.explicitReceiver?.accept(this)
-            if (callableReferenceAccess.hasQuestionMarkAtLHS && callableReferenceAccess.explicitReceiver !is FirResolvedQualifier) {
+            if (callableReferenceAccess.hasQuestionMarkAtLhs && callableReferenceAccess.explicitReceiver !is FirResolvedQualifier) {
                 print("?")
             }
             print("::")

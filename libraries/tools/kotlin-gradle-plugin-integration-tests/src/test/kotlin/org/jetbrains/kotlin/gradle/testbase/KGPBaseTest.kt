@@ -6,14 +6,12 @@
 package org.jetbrains.kotlin.gradle.testbase
 
 import com.intellij.testFramework.TestDataPath
-import org.jetbrains.kotlin.gradle.BrokenMacosTestInterceptor
 import org.jetbrains.kotlin.gradle.util.isTeamCityRun
-import org.jetbrains.kotlin.test.WithMuteInDatabase
-import org.junit.jupiter.api.AfterAll
+import org.jetbrains.kotlin.test.mutes.WithMuteInDatabase
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -35,15 +33,14 @@ import java.nio.file.Paths
 @WithMuteInDatabase
 @TagsCountValidator
 @TestDataPath("\$CONTENT_ROOT/resources/testProject")
-@ExtendWith(BrokenMacosTestInterceptor::class)
 @OsCondition(allowRunningOnMacosOnCI = true)
 abstract class KGPBaseTest {
-    open val defaultBuildOptions = BuildOptions()
+    open val defaultBuildOptions = BuildOptions(fusReportDirectory = { workingDir.resolve("fus-report") })
 
     @TempDir
-    lateinit var workingDir: Path
+    open lateinit var workingDir: Path
 
-    @AfterAll
+    @AfterEach
     fun checkThatDefaultKonanHasNotBeenCreated() {
         if (isTeamCityRun) {
             val userHomeDir = System.getProperty("user.home")

@@ -3,14 +3,13 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.dependencyResolutionTests.tcs
 
 import org.jetbrains.kotlin.gradle.util.mockGenerateProjectStructureMetadataTaskOutputs
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaLibraryPlugin
 import org.jetbrains.kotlin.gradle.dependencyResolutionTests.mavenCentralCacheRedirector
+import org.jetbrains.kotlin.gradle.dependencyResolutionTests.kotlinBuildDeps
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.idea.tcs.IdeaKotlinBinaryDependency
 import org.jetbrains.kotlin.gradle.idea.tcs.IdeaKotlinResolvedBinaryDependency
@@ -40,7 +39,7 @@ class IdeJvmAndAndroidDependencyResolutionTest {
         applyMultiplatformPlugin()
         plugins.apply("com.android.library")
         androidExtension.configureDefaults()
-        if (enableDefaultStdlib) repositories.mavenLocal()
+        repositories.kotlinBuildDeps()
         repositories.mavenCentralCacheRedirector()
 
         project.multiplatformExtension.applyHierarchyTemplate {
@@ -105,8 +104,8 @@ class IdeJvmAndAndroidDependencyResolutionTest {
         producer.mockGenerateProjectStructureMetadataTaskOutputs()
 
         root.allprojects { project ->
-            project.repositories.mavenLocal()
-            project.repositories.mavenCentral()
+            project.repositories.kotlinBuildDeps()
+            project.repositories.mavenCentralCacheRedirector()
         }
 
         consumer.multiplatformExtension.sourceSets.getByName("commonMain").dependencies {

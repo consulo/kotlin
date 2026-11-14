@@ -19,12 +19,14 @@
 package kotlin.reflect.jvm
 
 import org.jetbrains.kotlin.descriptors.runtime.components.ReflectKotlinClass
+import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.load.kotlin.header.KotlinClassHeader
 import java.lang.reflect.*
 import kotlin.reflect.*
 import kotlin.reflect.full.companionObject
 import kotlin.reflect.full.functions
 import kotlin.reflect.full.memberProperties
+import kotlin.reflect.full.staticProperties
 import kotlin.reflect.jvm.internal.*
 import kotlin.reflect.javaType as stdlibJavaType
 
@@ -57,7 +59,10 @@ val KMutableProperty<*>.javaSetter: Method?
  * or `null` if this function is a constructor or cannot be represented by a Java [Method].
  */
 val KFunction<*>.javaMethod: Method?
-    get() = this.asReflectCallable()?.caller?.member as? Method
+    get() {
+        val callable = this.asReflectCallable()
+        return (callable as? JavaKNamedFunction)?.jMethod ?: callable?.caller?.member as? Method
+    }
 
 /**
  * Returns a Java [Constructor] instance corresponding to the given Kotlin function,
@@ -89,22 +94,32 @@ val Field.kotlinProperty: KProperty<*>?
     get() {
         if (isSynthetic) return null
 
+        val declaringKClass by lazy(LazyThreadSafetyMode.NONE) { declaringClass.kotlin }
+
         if (Modifier.isStatic(modifiers)) {
             val kotlinPackage = getKPackage()
             if (kotlinPackage != null) {
                 return kotlinPackage.members.findKProperty(this)
             }
 
-            val companionKClass = declaringClass.kotlin.companionObject
+            val companionKClass = declaringKClass.companionObject
             if (companionKClass != null) {
-                val companionField = declaringClass.getDeclaredFieldOrNull(name)
+                val companionField = declaringClass.getDeclaredFieldOrNull(name, false)
                 if (companionField != null) {
                     companionKClass.memberProperties.findKProperty(companionField)?.let { return it }
                 }
             }
+
+            if (declaringClass.simpleName == JvmAbi.INTERFACE_PRIVATE_FIELDS1_CLASS_NAME || declaringClass.simpleName == JvmAbi.INTERFACE_PRIVATE_FIELDS2_CLASS_NAME) {
+                val interfaceClass = declaringClass.enclosingClass
+                    ?: throw KotlinReflectionInternalError("${declaringClass.simpleName} must have enclosing class")
+                interfaceClass.kotlin.staticProperties.findKProperty(this)?.let { return it }
+            }
+
+            declaringKClass.staticProperties.findKProperty(this)?.let { return it }
         }
 
-        return declaringClass.kotlin.memberProperties.findKProperty(this)
+        return declaringKClass.memberProperties.findKProperty(this)
     }
 
 

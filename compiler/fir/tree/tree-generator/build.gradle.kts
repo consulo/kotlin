@@ -1,11 +1,9 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     application
 }
-
-val runtimeOnly by configurations
-val compileOnly by configurations
-runtimeOnly.extendsFrom(compileOnly)
 
 dependencies {
     implementation(project(":generators"))
@@ -14,8 +12,7 @@ dependencies {
     implementation(project(":compiler:frontend.common"))
     implementation(project(":compiler:fir:cones"))
 
-    compileOnly(intellijCore())
-
+    implementation(intellijCore())
     runtimeOnly(intellijJDom())
 }
 

@@ -77,4 +77,21 @@ public sealed interface SirAttribute {
         override val identifier: String get() = "objc"
         override val arguments: List<SirArgument> get() = listOfNotNull(name?.let { SirArgument(name) })
     }
+
+    object DisfavoredOverload : SirAttribute {
+        override val identifier: String get() = "_disfavoredOverload"
+        override val arguments: List<SirArgument>? get() = null
+    }
+
+    class Documentation(
+        val visibility: SirVisibility
+    ) : SirAttribute {
+        override val identifier: String get() = "_documentation"
+        override val arguments: List<SirArgument> get() = listOf(SirArgument("visibility", visibility.value))
+    }
+
+    object DiscardableResult : SirAttribute {
+        override val identifier: String get() = "discardableResult"
+        override val arguments: List<SirArgument>? get() = null
+    }
 }

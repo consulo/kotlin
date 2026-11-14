@@ -21,6 +21,35 @@ object AnalysisApiTestDirectives : SimpleDirectivesContainer() {
     val IGNORE_STANDALONE by directive("Standalone implementation test should not be run")
 
     /**
+     * Forces the [main file][org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiBasedTest.findMainFileAndModule]
+     * into a stub-based state: its AST is unloaded and the file is served from its stub.
+     *
+     * This makes it possible to reproduce problems that only manifest for stub-based files (files without a loaded AST), such as
+     * code paths that unexpectedly require AST loading. Whether AST loading should additionally be forbidden is left to the test:
+     * it can guard the relevant logic with
+     * [withAstLoadingAssertion][org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiBasedTest.withAstLoadingAssertion].
+     *
+     * @see org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiBasedTest.forceStubTree
+     */
+    val STUB_BASED by directive("Run the test against a stub-based main file")
+
+    /**
+     * A test module normally holds nothing but sources, and a file that is neither Kotlin nor Java is a mistake
+     * worth failing on. Some compiler plugins are configured by a resource carried in the module instead - the
+     * Lombok tests declare a `lombok.config` that only `LombokEnvironmentConfigurator` reads - and such a file has
+     * no PSI to contribute.
+     *
+     * Opt in per test rather than skipping unknown files everywhere, so that a misspelled source file keeps
+     * failing where no resource is expected.
+     *
+     * @see org.jetbrains.kotlin.analysis.test.framework.projectStructure.TestModuleStructureFactory.createSourcePsiFiles
+     */
+    val IGNORE_UNKNOWN_FILES by directive(
+        description = "Ignore unknown files (for instance, config) that are neither Kotlin nor Java instead of failing on them",
+        applicability = DirectiveApplicability.Module,
+    )
+
+    /**
      * @see org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiBasedTest.findMainFile
      */
     val MAIN_FILE_NAME by stringDirective(
@@ -38,16 +67,6 @@ object AnalysisApiTestDirectives : SimpleDirectivesContainer() {
 
     val CONTEXT_MODULE by stringDirective(
         description = "Specifies the module name used to find the 'context psi element' for this module",
-        applicability = DirectiveApplicability.Module
-    )
-
-    /*
-    Note: the 'contextElement' can be different from the 'contextModule'.
-    E.g., consider a multiplatform project where the contextElement is in 'commonMain', but the contextModule can be
-    configured as 'jvmMain'
-    */
-    val ANALYSIS_CONTEXT_MODULE by stringDirective(
-        description = "Specifies the module name which should be treated as a context module for the current one (can overwrite 'CONTEXT_MODULE')",
         applicability = DirectiveApplicability.Module
     )
 

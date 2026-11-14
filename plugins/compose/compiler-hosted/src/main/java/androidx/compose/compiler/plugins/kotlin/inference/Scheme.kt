@@ -23,7 +23,20 @@ sealed class Item {
     internal abstract val isAnonymous: Boolean
     internal open val isUnspecified: Boolean get() = false
     internal abstract fun toBinding(bindings: Bindings, context: MutableList<Binding>): Binding
-    internal abstract fun serializeTo(writer: SchemeStringSerializationWriter)
+
+    /**
+     * @param schemeWriter A writer that will be used to write a string in the format expected by
+     *   the `scheme` parameter of `ComposableInferredTarget`.
+     * @param positionalWriter A writer that will be used to write a string in the format expected
+     *   by the `positional` parameter of `ComposableInferredTargetConstraints`.
+     * @param indexed An out-parameter that will become a string in the format expected by the
+     *   `indexed` parameter of `ComposableInferredTargetConstraints` when serialized to JSON.
+     */
+    internal abstract fun serializeTo(
+        schemeWriter: SchemeStringSerializationWriter,
+        positionalWriter: SchemeStringSerializationWriter,
+        indexed: MutableList<Constraints>,
+    )
 }
 
 /**
@@ -37,35 +50,88 @@ class Token(val value: String) : Item() {
     override fun toString() = value
     override fun equals(other: Any?) = other is Token && other.value == value
     override fun hashCode(): Int = value.hashCode() * 31
-    override fun serializeTo(writer: SchemeStringSerializationWriter) {
-        writer.writeToken(value)
+    override fun serializeTo(
+        schemeWriter: SchemeStringSerializationWriter,
+        positionalWriter: SchemeStringSerializationWriter,
+        indexed: MutableList<Constraints>,
+    ) {
+        schemeWriter.writeToken(value)
+        positionalWriter.writeUnderscore()
     }
 }
 
 /**
- * An open part of a [Scheme]. All [Open] items with the same non-negative index should be bound
- * together to the  same applier. [Open] items with a negative index are considered anonymous and
- * are treated as independent.
+ * An open part of a [Scheme]. [constraints] dictates what tokens this part may be bound to. All
+ * [Open] items with the same non-negative index should be bound together to the same applier.
+ * [Open] items with a negative index are considered anonymous and are treated as independent.
  */
-class Open(val index: Int, override val isUnspecified: Boolean = false) : Item() {
+class Open(
+    val index: Int,
+    val constraints: Constraints = Constraints.UNRESTRICTED,
+    override val isUnspecified: Boolean = false,
+) : Item() {
     override val isAnonymous: Boolean get() = index < 0
     override fun toBinding(bindings: Bindings, context: MutableList<Binding>): Binding {
-        if (index < 0) return bindings.open()
+        if (index < 0) return bindings.open(constraints)
         while (index >= context.size) {
             context.add(bindings.open())
         }
-        return context[index]
+        val result = context[index]
+        if (!constraints.allowsAllTokens) {
+            bindings.unify(result, bindings.open(constraints))
+        }
+        return result
     }
 
-    override fun toString() = if (index < 0) "_" else "$index"
+    override fun toString(): String {
+        val sb = StringBuilder()
+        sb.append("Open(")
+        sb.append(if (index < 0) '_' else index)
+        if (!constraints.allowsAllTokens) {
+            sb.append(", constrainedTo = $constraints")
+        }
+        sb.append(")")
+        return sb.toString()
+    }
+
     override fun equals(other: Any?) =
-        other is Open && (other.index == index || (other.index < 0 && index < 0))
+        other is Open && (other.index == index || (other.index < 0 && index < 0)) && other.constraints == constraints
 
     override fun hashCode(): Int = if (index < 0) -31 else index * 31
-    override fun serializeTo(writer: SchemeStringSerializationWriter) {
-        writer.writeNumber(index)
+
+    override fun serializeTo(
+        schemeWriter: SchemeStringSerializationWriter,
+        positionalWriter: SchemeStringSerializationWriter,
+        indexed: MutableList<Constraints>,
+    ) {
+        schemeWriter.writeNumber(index)
+
+        if (index < 0) {
+            positionalWriter.writeConstraints(constraints)
+        } else {
+            positionalWriter.writeUnderscore()
+            while (indexed.size <= index) {
+                indexed.add(Constraints.UNRESTRICTED)
+            }
+            indexed[index] = constraints
+        }
     }
 }
+
+/**
+ * An object whose fields are jointly the serialization of a [Scheme].
+ *
+ * @param scheme a string that encodes all details about a scheme, except what `constraints` are on
+ *   items. This string is in the format expected by the `scheme` parameter of
+ *   `ComposableInferredTarget`.
+ * @param positional a string that encodes what `constraints` are on each negative-indexed [Open]
+ *   item in a scheme. This string is in the format expected by the `positional` parameter of
+ *   `ComposableInferredTargetConstraints`.
+ * @param indexed a string that encodes what `constraints` are on each non-negative-indexed [Open]
+ *   item in a scheme. This string is in the format expected by the `indexed` parameter of
+ *   `ComposableInferredTargetConstraints`.
+ */
+data class SerializedScheme(val scheme: String, val positional: String, val indexed: String)
 
 /**
  * A [Scheme] declares the applier the type expects and which appliers are expected of the
@@ -92,10 +158,35 @@ class Scheme(
     }
 
     /**
-     * Produce a string serialization of the scheme. This is not necessarily readable, use
-     * [toString] for debugging instead.
+     * Returns a [SerializedScheme] whose fields are jointly the serialization of this scheme.
+     *
+     * [toString] should be used for debugging instead of this method because its output is easier
+     * for a human to read.
      */
-    fun serialize(): String = buildString { serializeTo(SchemeStringSerializationWriter(this)) }
+    fun serialize(): SerializedScheme {
+        val schemeWriter = SchemeStringSerializationWriter(StringBuilder())
+        val positionalWriter = SchemeStringSerializationWriter(StringBuilder())
+        val indexed = mutableListOf<Constraints>()
+
+        serializeTo(schemeWriter, positionalWriter, indexed)
+        var indexedWriter: SchemeStringSerializationWriter? = null
+        if (indexed.any { !it.allowsAllTokens }) {
+            indexedWriter = SchemeStringSerializationWriter(StringBuilder())
+            indexedWriter.writeOpen()
+            indexed.forEachIndexed { i, constraints ->
+                indexedWriter.writeConstraints(constraints)
+                if (i < indexed.size - 1) {
+                    indexedWriter.writeComma()
+                }
+            }
+            indexedWriter.writeClose()
+        }
+        return SerializedScheme(
+            scheme = schemeWriter.toString(),
+            positional = if (positionalWriter.hasWrittenToken) positionalWriter.toString() else "",
+            indexed = indexedWriter?.toString() ?: ""
+        )
+    }
 
     override fun toString(): String = "[$target$parametersStr$resultStr]"
 
@@ -126,7 +217,7 @@ class Scheme(
             target is Open && other.target.index == target.index
         } else {
             target.isUnspecified || target == other.target
-        } && parameters.zip(other.parameters).all { (a, b) -> a.simpleCanOverride(b) } &&
+        } && parameters.zip(other.parameters).all { [a, b] -> a.simpleCanOverride(b) } &&
                 (
                         result == other.result ||
                                 (other.result != null && result != null && result.canOverride((other.result)))
@@ -134,7 +225,7 @@ class Scheme(
     }
 
     private fun simpleEquals(other: Scheme) =
-        target == other.target && parameters.zip(other.parameters).all { (a, b) -> a == b } &&
+        target == other.target && parameters.zip(other.parameters).all { [a, b] -> a == b } &&
                 result == result
 
     private fun simpleHashCode(): Int =
@@ -143,20 +234,38 @@ class Scheme(
     private fun List<Scheme>.hashOfElements() = if (isEmpty()) 0 else
         map { it.simpleHashCode() }.reduceRight { h, acc -> h + acc * 31 }
 
-    private fun serializeTo(writer: SchemeStringSerializationWriter) {
-        writer.writeOpen()
-        target.serializeTo(writer)
+    /**
+     * @param schemeWriter A writer that will be used to write a string in the format expected by
+     *   the `scheme` parameter of `ComposableInferredTarget`.
+     * @param positionalWriter A writer that will be used to write a string in the format expected
+     *   by the `positional` parameter of `ComposableInferredTargetConstraints`.
+     * @param indexed An out-parameter that will become a string in the format expected by the
+     *   `indexed` parameter of `ComposableInferredTargetConstraints` when serialized to JSON.
+     */
+    private fun serializeTo(
+        schemeWriter: SchemeStringSerializationWriter,
+        positionalWriter: SchemeStringSerializationWriter,
+        indexed: MutableList<Constraints>,
+    ) {
+        schemeWriter.writeOpen()
+        positionalWriter.writeOpen()
+
+        target.serializeTo(schemeWriter, positionalWriter, indexed)
+
         if (anyParameters) {
-            writer.writeAnyParameters()
+            schemeWriter.writeAnyParameters()
         } else {
-            parameters.forEach { it.serializeTo(writer) }
+            parameters.forEach { it.serializeTo(schemeWriter, positionalWriter, indexed) }
         }
         if (result != null) {
-            writer.writeResultPrefix()
-            result.serializeTo(writer)
+            schemeWriter.writeResultPrefix()
+            positionalWriter.writeResultPrefix()
+            result.serializeTo(schemeWriter, positionalWriter, indexed)
         }
-        writer.writeClose()
+        schemeWriter.writeClose()
+        positionalWriter.writeClose()
     }
+
 
     /**
      * Both hashCode and equals are in terms of alpha rename equivalents. That means that the scheme
@@ -202,7 +311,7 @@ class Scheme(
             val newParameters = parameters.map { rename(it) }
             val newResult = result?.let { rename(it) }
             return if (
-                target !== newTarget || newParameters.zip(parameters).any { (a, b) ->
+                target !== newTarget || newParameters.zip(parameters).any { [a, b] ->
                     a !== b
                 } || newResult != result
             ) Scheme(newTarget, newParameters, newResult)
@@ -219,15 +328,58 @@ private fun schemeParseError(): Nothing {
 }
 
 /**
- * Given a string produce a [Scheme] if the string is a valid serialization of a [Scheme] or null
- * otherwise.
+ * Given the fields of a [SerializedScheme], produce a [Scheme] if the fields are jointly a valid
+ * serialization of a [Scheme], or null otherwise.
  */
-fun deserializeScheme(value: String): Scheme? {
-    val reader = SchemeStringSerializationReader(value)
+fun deserializeScheme(scheme: String, positional: String? = null, indexed: String? = null): Scheme? {
+    val reader = SchemeStringSerializationReader(scheme)
+    val positionalReader = if (positional?.isNotEmpty() == true) {
+        SchemeStringSerializationReader(positional)
+    } else {
+        null
+    }
+    val indexedList = run {
+        if (indexed?.isNotEmpty() != true) {
+            return@run null
+        }
+        val result = mutableListOf<Set<String>?>()
+        val indexedStringReader = SchemeStringSerializationReader(indexed)
+        try {
+            indexedStringReader.expect(ItemKind.Open)
+            while (true) {
+                val allowedTokens = indexedStringReader.tokenSet()
+                result.add(allowedTokens)
+                if (indexedStringReader.kind == ItemKind.Comma) {
+                    indexedStringReader.expect(ItemKind.Comma)
+                } else {
+                    indexedStringReader.expect(ItemKind.Close)
+                    break
+                }
+            }
+            return@run result
+        } catch (_: SchemeParseError) {
+            return@deserializeScheme null
+        }
+    }
 
-    fun item(): Item = when (reader.kind) {
+    fun allowedTokensFromPositional(): Set<String>? {
+        if (positionalReader == null) {
+            return null
+        }
+
+        return positionalReader.tokenSet()
+    }
+
+    fun item(allowedTokensFromPositional: Set<String>?): Item = when (reader.kind) {
         ItemKind.Token -> Token(reader.token())
-        ItemKind.Number -> Open(reader.number())
+        ItemKind.Number -> {
+            val index = reader.number()
+            if (indexedList != null && index in indexedList.indices) {
+                Open(index, indexedList[index]?.let { Constraints.restrictedTo(it) } ?: Constraints.UNRESTRICTED)
+            } else {
+                Open(index, allowedTokensFromPositional?.let { Constraints.restrictedTo(it) } ?: Constraints.UNRESTRICTED)
+            }
+        }
         else -> schemeParseError()
     }
 
@@ -246,8 +398,10 @@ fun deserializeScheme(value: String): Scheme? {
         content: () -> T,
     ) = run {
         reader.expect(prefix)
+        positionalReader?.expect(prefix)
         content().also {
             reader.expect(postfix)
+            positionalReader?.expect(postfix)
         }
     }
 
@@ -268,7 +422,7 @@ fun deserializeScheme(value: String): Scheme? {
 
     fun scheme(): Scheme =
         delimited(ItemKind.Open, ItemKind.Close) {
-            val target = item()
+            val target = item(allowedTokensFromPositional())
             val anyParameters = isItem(ItemKind.AnyParameters)
             val parameters = if (anyParameters) emptyList() else list { scheme() }
             val result = optional(ItemKind.ResultPrefix) { scheme() }
@@ -283,6 +437,12 @@ fun deserializeScheme(value: String): Scheme? {
 }
 
 internal class SchemeStringSerializationWriter(private val builder: StringBuilder) {
+    /**
+     * Returns true if since the instantiation of this object, its [writeToken] or [writeTokenSet]
+     * method has been called.
+     */
+    var hasWrittenToken = false
+        private set
 
     fun writeToken(token: String) {
         if (isNormal(token)) {
@@ -292,6 +452,7 @@ internal class SchemeStringSerializationWriter(private val builder: StringBuilde
             builder.append(token.replace("\\", "\\\\").replace("\"", "\\\""))
             builder.append('"')
         }
+        hasWrittenToken = true
     }
 
     fun writeNumber(number: Int) {
@@ -318,6 +479,35 @@ internal class SchemeStringSerializationWriter(private val builder: StringBuilde
         builder.append('*')
     }
 
+    fun writeBraceOpen() {
+        builder.append('{')
+    }
+
+    fun writeBraceClose() {
+        builder.append('}')
+    }
+
+    fun writeComma() {
+        builder.append(",")
+    }
+
+    fun writeUnderscore() {
+        builder.append('_')
+    }
+
+    fun writeTokenSet(tokenSet: Set<String>) {
+        builder.append(tokenSet.joinToString(separator = ",", prefix = "{", postfix = "}"))
+        hasWrittenToken = true
+    }
+
+    fun writeConstraints(constraints: Constraints) {
+        if (!constraints.allowsAllTokens) {
+            writeTokenSet(constraints.allowedTokens)
+        } else {
+            writeUnderscore()
+        }
+    }
+
     override fun toString(): String = builder.toString()
 
     private fun isNormal(value: String) = value.all { it == '.' || it.isLetter() }
@@ -330,6 +520,9 @@ private enum class ItemKind {
     AnyParameters,
     Token,
     Number,
+    BraceOpen,
+    BraceClose,
+    Comma,
     End,
     Invalid
 }
@@ -348,6 +541,9 @@ private class SchemeStringSerializationReader(private val value: String) {
                 ':' -> ItemKind.ResultPrefix
                 '*' -> ItemKind.AnyParameters
                 '"' -> ItemKind.Token
+                '{' -> ItemKind.BraceOpen
+                '}' -> ItemKind.BraceClose
+                ',' -> ItemKind.Comma
                 else -> {
                     when {
                         ch.isLetter() -> ItemKind.Token
@@ -420,9 +616,40 @@ private class SchemeStringSerializationReader(private val value: String) {
                 ItemKind.AnyParameters -> expect('*')
                 ItemKind.Token -> token()
                 ItemKind.Number -> number()
+                ItemKind.BraceOpen -> expect('{')
+                ItemKind.BraceClose -> expect('}')
+                ItemKind.Comma -> expect(',')
                 ItemKind.End -> end()
                 else -> schemeParseError()
             }
+        }
+    }
+
+    fun tokenSet(): Set<String>? {
+        if (kind == ItemKind.Number) {
+            if (number() == -1) {
+                // An empty token set is serialized as '_', which is interpreted by the reader as
+                // -1.
+                return null
+            } else {
+                schemeParseError()
+            }
+        } else {
+            expect(ItemKind.BraceOpen)
+            val tokens = mutableSetOf<String>()
+            while (true) {
+                if (kind != ItemKind.Token) {
+                    schemeParseError()
+                }
+                tokens.add(token())
+                if (kind == ItemKind.Comma) {
+                    expect(ItemKind.Comma)
+                } else {
+                    expect(ItemKind.BraceClose)
+                    break
+                }
+            }
+            return tokens
         }
     }
 
@@ -445,7 +672,7 @@ internal fun Scheme.mergeWith(schemes: List<Scheme>): Scheme {
 
     fun unifySchemes(a: LazyScheme, b: LazyScheme) {
         bindings.unify(a.target, b.target)
-        for ((ap, bp) in a.parameters.zip(b.parameters)) {
+        for ([ap, bp] in a.parameters.zip(b.parameters)) {
             unifySchemes(ap, bp)
         }
     }

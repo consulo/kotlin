@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// NI_EXPECTED_FILE
+// RUN_PIPELINE_TILL: CODEGEN
 
 interface In<in E>
 class A : In<A>

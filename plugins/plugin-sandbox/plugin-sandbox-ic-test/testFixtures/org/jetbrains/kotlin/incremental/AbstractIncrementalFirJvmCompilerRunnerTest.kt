@@ -6,21 +6,23 @@
 package org.jetbrains.kotlin.incremental
 
 import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime.pluginSandboxAnnotationsJvmForTests
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime.pluginSandboxJarForTests
 import org.jetbrains.kotlin.incremental.testingUtils.BuildLogFinder
-import org.jetbrains.kotlin.incremental.utils.findAnnotationsRuntimeJar
-import org.jetbrains.kotlin.incremental.utils.findPluginJar
+import org.jetbrains.kotlin.incremental.storage.FileLocations
 import java.io.File
 
-abstract class AbstractIncrementalK2JvmWithPluginCompilerRunnerTest : AbstractIncrementalK2JvmCompilerRunnerTest() {
+abstract class AbstractIncrementalJvmWithPluginCompilerRunnerTest : AbstractIncrementalJvmCompilerRunnerTest() {
     override fun createCompilerArguments(destinationDir: File, testDir: File): K2JVMCompilerArguments =
         super.createCompilerArguments(destinationDir, testDir).apply {
-            val annotationsJar = findAnnotationsRuntimeJar()
-            val pluginJar = findPluginJar()
+            val annotationsJar = pluginSandboxAnnotationsJvmForTests().path
+            val pluginJar = pluginSandboxJarForTests().path
 
             classpath += "${File.pathSeparator}$annotationsJar"
             pluginClasspaths = arrayOf(pluginJar)
         }
+}
 
-    override val buildLogFinder: BuildLogFinder
-        get() = BuildLogFinder(isGradleEnabled = true, isFirEnabled = true) // TODO: investigate cases that need isGradleEnabled - the combination looks fragile
+abstract class AbstractIncrementalJvmWithPluginRelocatableCachesCompilerRunnerTest : AbstractIncrementalJvmWithPluginCompilerRunnerTest() {
+    override val fileLocations: FileLocations get() = FileLocations(workingDir, workingDir)
 }

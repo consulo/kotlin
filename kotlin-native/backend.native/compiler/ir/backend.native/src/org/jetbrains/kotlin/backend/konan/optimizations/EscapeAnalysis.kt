@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.backend.common.peek
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.backend.konan.*
-import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.NativeBackendContext
 import org.jetbrains.kotlin.backend.konan.DirectedGraphCondensationBuilder
 import org.jetbrains.kotlin.backend.konan.DirectedGraphMultiNode
 import org.jetbrains.kotlin.backend.konan.ir.annotations.Escapes
@@ -20,7 +20,6 @@ import org.jetbrains.kotlin.backend.konan.ir.isBuiltInOperator
 import org.jetbrains.kotlin.backend.konan.llvm.Lifetime
 import org.jetbrains.kotlin.backend.konan.logMultiple
 import org.jetbrains.kotlin.backend.konan.lower.originalConstructor
-import org.jetbrains.kotlin.config.nativeBinaryOptions.GC
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrClass
@@ -343,7 +342,7 @@ internal object EscapeAnalysis {
     }
 
     private class InterproceduralAnalysis(
-            val context: Context,
+            val context: NativeBackendContext,
             val generationState: NativeGenerationState,
             val callGraph: CallGraph,
             val moduleDFG: ModuleDFG,
@@ -358,15 +357,20 @@ internal object EscapeAnalysis {
         fun analyze() {
             context.logMultiple {
                 +"CALL GRAPH"
-                callGraph.directEdges.forEach { (t, u) ->
+                callGraph.directEdges.forEach { [t, u] ->
                     +"    FUN $t"
-                    u.callSites.forEach {
-                        val label = when {
-                            it.isVirtual -> "VIRTUAL"
-                            callGraph.directEdges.containsKey(it.actualCallee) -> "LOCAL"
-                            else -> "EXTERNAL"
+                    u.callSites.forEach { callSite ->
+                        when (callSite) {
+                            is CallGraphNode.CallSite.Virtual ->
+                                +"        CALLS VIRTUAL ${callSite.callee}"
+                            is CallGraphNode.CallSite.Static -> callSite.forEachCallee {
+                                val label = when {
+                                    callGraph.directEdges.containsKey(it) -> "LOCAL"
+                                    else -> "EXTERNAL"
+                                }
+                                +"        CALLS $label $it"
+                            }
                         }
-                        +"        CALLS $label ${it.actualCallee}"
                     }
                     callGraph.reversedEdges[t]!!.forEach { +"        CALLED BY $it" }
                 }
@@ -388,8 +392,18 @@ internal object EscapeAnalysis {
                     multiNode.nodes.forEach {
                         +"        $it"
                         callGraph.directEdges[it]!!.callSites
-                                .filter { callGraph.directEdges.containsKey(it.actualCallee) }
-                                .forEach { +"            CALLS ${it.actualCallee}" }
+                                .forEach { callSite ->
+                                    when (callSite) {
+                                        is CallGraphNode.CallSite.Virtual -> {
+                                            if (callGraph.directEdges.containsKey(callSite.callee))
+                                                +"            CALLS ${callSite.callee}"
+                                        }
+                                        is CallGraphNode.CallSite.Static -> callSite.forEachCallee { callee ->
+                                            if (callGraph.directEdges.containsKey(callee))
+                                                +"            CALLS $callee"
+                                        }
+                                    }
+                                }
                         callGraph.reversedEdges[it]!!.forEach { +"            CALLED BY $it" }
                     }
                 }
@@ -454,10 +468,19 @@ internal object EscapeAnalysis {
                 nodes.forEach { from ->
                     +"DataFlowIR"
                     moduleDFG.functions[from]!!.debugOutput()
-                    callGraph.directEdges[from]!!.callSites.forEach { to ->
-                        +"CALL"
-                        +"   from $from"
-                        +"   to ${to.actualCallee}"
+                    callGraph.directEdges[from]!!.callSites.forEach { callSite ->
+                        when (callSite) {
+                            is CallGraphNode.CallSite.Virtual -> {
+                                +"VIRTUAL CALL"
+                                +"   from $from"
+                                +"   to ${callSite.callee}"
+                            }
+                            is CallGraphNode.CallSite.Static -> callSite.forEachCallee { to ->
+                                +"CALL"
+                                +"   from $from"
+                                +"   to $to"
+                            }
+                        }
                     }
                 }
             }
@@ -506,7 +529,7 @@ internal object EscapeAnalysis {
                 pointsToGraphs = analyzeComponentPessimistically(callGraph, multiNode)
             }
 
-            pointsToGraphs.forEach { (function, graph) ->
+            pointsToGraphs.forEach { [function, graph] ->
                 val eaResult = escapeAnalysisResults[function]!!
                 stats.totalEAResultSize += eaResult.numberOfDrains + eaResult.escapes.size + eaResult.pointsTo.edges.size
 
@@ -561,23 +584,23 @@ internal object EscapeAnalysis {
                     ComputationState.NEW -> {
                         computationStates[function] = ComputationState.PENDING
                         for (callSite in callSites) {
-                            val callee = callSite.actualCallee
-                            val calleeComputationState = computationStates[callee]
-                            if (callSite.isVirtual
-                                    || callee !is DataFlowIR.FunctionSymbol.Declared // An external call.
-                                    || calleeComputationState == null // A call to a function from other component.
-                                    || calleeComputationState == ComputationState.DONE // Already analyzed.
-                            ) {
-                                continue
-                            }
+                            (callSite as? CallGraphNode.CallSite.Static)?.forEachCallee { callee ->
+                                val calleeComputationState = computationStates[callee]
+                                if (callee !is DataFlowIR.FunctionSymbol.Declared // An external call.
+                                        || calleeComputationState == null // A call to a function from other component.
+                                        || calleeComputationState == ComputationState.DONE // Already analyzed.
+                                ) {
+                                    return@forEachCallee
+                                }
 
-                            if (calleeComputationState == ComputationState.PENDING) {
-                                // A cycle - break it by assuming nothing about the callee.
-                                // This is not the callee's final result - it will be recomputed later in the loop.
-                                escapeAnalysisResults[callee] = FunctionEscapeAnalysisResult.pessimistic(callee.parameters.size)
-                            } else {
-                                computationStates[callee] = ComputationState.NEW
-                                toAnalyze.push(callee)
+                                if (calleeComputationState == ComputationState.PENDING) {
+                                    // A cycle - break it by assuming nothing about the callee.
+                                    // This is not the callee's final result - it will be recomputed later in the loop.
+                                    escapeAnalysisResults[callee] = FunctionEscapeAnalysisResult.pessimistic(callee.parameters.size)
+                                } else {
+                                    computationStates[callee] = ComputationState.NEW
+                                    toAnalyze.push(callee)
+                                }
                             }
                         }
                     }
@@ -667,17 +690,26 @@ internal object EscapeAnalysis {
             pointsToGraph.log()
             pointsToGraph.logDigraph(false)
 
-            callSites.forEach {
-                val callee = it.actualCallee
-                val calleeEAResult = if (it.isVirtual)
-                    getExternalFunctionEAResult(it)
-                else
-                    callGraph.directEdges[callee]?.let { escapeAnalysisResults[it.symbol]!! }
-                            ?: getExternalFunctionEAResult(it)
-                pointsToGraph.processCall(it, calleeEAResult)
+            callSites.forEach { callSite ->
+                when (callSite) {
+                    is CallGraphNode.CallSite.Virtual ->
+                        pointsToGraph.processCall(
+                                callSite = callSite,
+                                actualCallee = callSite.callee,
+                                calleeEscapeAnalysisResult = getExternalFunctionEAResult(callSite, callSite.callee)
+                        )
+                    is CallGraphNode.CallSite.Static -> callSite.forEachCallee { callee ->
+                        pointsToGraph.processCall(
+                                callSite = callSite,
+                                actualCallee = callee,
+                                calleeEscapeAnalysisResult = callGraph.directEdges[callee]?.let { escapeAnalysisResults[it.symbol]!! }
+                                        ?: getExternalFunctionEAResult(callSite, callee)
+                        )
 
-                if (pointsToGraph.allNodes.size > maxAllowedGraphSize)
-                    return false
+                        if (pointsToGraph.allNodes.size > maxAllowedGraphSize)
+                            return false
+                    }
+                }
             }
 
             context.log { "After calls analysis" }
@@ -696,10 +728,8 @@ internal object EscapeAnalysis {
             return true
         }
 
-        private fun getExternalFunctionEAResult(callSite: CallGraphNode.CallSite): FunctionEscapeAnalysisResult {
-            val callee = callSite.actualCallee
-
-            val calleeEAResult = if (callSite.isVirtual) {
+        private fun getExternalFunctionEAResult(callSite: CallGraphNode.CallSite, callee: DataFlowIR.FunctionSymbol): FunctionEscapeAnalysisResult {
+            val calleeEAResult = if (callSite is CallGraphNode.CallSite.Virtual) {
                 context.log { "A virtual call: $callee" }
                 FunctionEscapeAnalysisResult.pessimistic(callee.parameters.size)
             } else {
@@ -1045,12 +1075,12 @@ internal object EscapeAnalysis {
                 +"}"
             }
 
-            fun processCall(callSite: CallGraphNode.CallSite, calleeEscapeAnalysisResult: FunctionEscapeAnalysisResult) {
+            fun processCall(callSite: CallGraphNode.CallSite, actualCallee: DataFlowIR.FunctionSymbol, calleeEscapeAnalysisResult: FunctionEscapeAnalysisResult) {
                 val call = callSite.call
                 context.logMultiple {
                     +"Processing callSite"
                     +nodeToStringWhole(call)
-                    +"Actual callee: ${callSite.actualCallee}"
+                    +"Actual callee: $actualCallee"
                     +"Callee escape analysis result:"
                     +calleeEscapeAnalysisResult.toString()
                 }
@@ -1060,7 +1090,7 @@ internal object EscapeAnalysis {
                 val calleeDrains = Array(calleeEscapeAnalysisResult.numberOfDrains) { newNode() }
 
                 fun mapNode(compressedNode: CompressedPointsToGraph.Node): Pair<DataFlowIR.Node?, PointsToGraphNode?> {
-                    val (arg, rootNode) = when (val kind = compressedNode.kind) {
+                    val [arg, rootNode] = when (val kind = compressedNode.kind) {
                         CompressedPointsToGraph.NodeKind.Return -> arguments.last() to nodes[arguments.last()]
                         is CompressedPointsToGraph.NodeKind.Param -> arguments[kind.index] to nodes[arguments[kind.index]]
                         is CompressedPointsToGraph.NodeKind.Drain -> null to calleeDrains[kind.index]
@@ -1079,7 +1109,7 @@ internal object EscapeAnalysis {
                 }
 
                 calleeEscapeAnalysisResult.escapes.forEach { escapingNode ->
-                    val (arg, node) = mapNode(escapingNode)
+                    val [arg, node] = mapNode(escapingNode)
                     if (node == null) {
                         context.log { "WARNING: There is no node ${nodeToString(arg!!)}" }
                         return@forEach
@@ -1089,12 +1119,12 @@ internal object EscapeAnalysis {
                 }
 
                 calleeEscapeAnalysisResult.pointsTo.edges.forEach { edge ->
-                    val (fromArg, fromNode) = mapNode(edge.from)
+                    val [fromArg, fromNode] = mapNode(edge.from)
                     if (fromNode == null) {
                         context.log { "WARNING: There is no node ${nodeToString(fromArg!!)}" }
                         return@forEach
                     }
-                    val (toArg, toNode) = mapNode(edge.to)
+                    val [toArg, toNode] = mapNode(edge.to)
                     if (toNode == null) {
                         context.log { "WARNING: There is no node ${nodeToString(toArg!!)}" }
                         return@forEach
@@ -1130,7 +1160,7 @@ internal object EscapeAnalysis {
                  * Let us call nodes that will be part of the result "interesting", and, obviously,
                  * "interesting drains" - drains that are going to be in the result.
                  */
-                val (numberOfDrains, nodeIds) = paintInterestingNodes()
+                val [numberOfDrains, nodeIds] = paintInterestingNodes()
 
                 logDigraph(true, { nodeIds[it] != null }, { nodeIds[it].toString() })
 
@@ -1435,7 +1465,7 @@ internal object EscapeAnalysis {
                 fun addAdditionalEscapeOrigins(escapingNodes: List<PointsToGraphNode>, direction: EdgeDirection) {
                     escapingNodes
                             .groupBy { it.drain }
-                            .forEach { (drain, nodes) ->
+                            .forEach { [drain, nodes] ->
                                 val tempNode = newNode()
                                 nodeIds[tempNode] = drainFactory()
                                 tempNode.drain = drain
@@ -1649,7 +1679,7 @@ internal object EscapeAnalysis {
                 // TODO: To a setting?
                 val allowedToAlloc = 65536
                 val stackArrayCandidates = mutableListOf<ArrayStaticAllocation>()
-                for ((node, ptgNode) in nodes) {
+                for ([node, ptgNode] in nodes) {
                     if (node.ir == null) continue
 
                     val computedLifetime = lifetimeOf(node)
@@ -1696,7 +1726,7 @@ internal object EscapeAnalysis {
 
                 stackArrayCandidates.sortBy { it.sizeInBytes }
                 var remainedToAlloc = allowedToAlloc
-                for ((ptgNode, irClass, length, sizeInBytes) in stackArrayCandidates) {
+                for ((val ptgNode = node, val irClass, val length, val sizeInBytes) in stackArrayCandidates) {
                     if (lifetimeOf(ptgNode) != Lifetime.STACK) continue
                     if (sizeInBytes <= remainedToAlloc) {
                         remainedToAlloc -= sizeInBytes
@@ -1791,7 +1821,7 @@ internal object EscapeAnalysis {
     }
 
     fun computeLifetimes(
-            context: Context,
+            context: NativeBackendContext,
             generationState: NativeGenerationState,
             moduleDFG: ModuleDFG,
             callGraph: CallGraph,
@@ -1802,10 +1832,7 @@ internal object EscapeAnalysis {
         try {
             InterproceduralAnalysis(context, generationState, callGraph,
                     moduleDFG, lifetimes,
-                    // The GC must be careful not to scan exiled objects, that have already became dead,
-                    // as they may reference other already destroyed stack-allocated objects.
-                    // TODO somehow tag these object, so that GC could handle them properly.
-                    propagateExiledToHeapObjects = context.config.gc == GC.CONCURRENT_MARK_AND_SWEEP
+                    propagateExiledToHeapObjects = context.config.escapeAnalysisPropagateExiledToHeapObjects
             ).analyze()
         } catch (t: Throwable) {
             val extraUserInfo =

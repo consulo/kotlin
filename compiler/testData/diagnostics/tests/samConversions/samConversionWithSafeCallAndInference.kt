@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // FULL_JDK
-// SKIP_TXT
 // ISSUE: KT-56663
 
 import java.util.function.Supplier

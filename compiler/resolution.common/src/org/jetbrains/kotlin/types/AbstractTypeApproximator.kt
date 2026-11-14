@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.resolve.calls.NewCommonSuperTypeCalculator.commonSuperType
 import org.jetbrains.kotlin.resolve.calls.inference.model.AssertionsOnly
 import org.jetbrains.kotlin.types.model.*
+import org.jetbrains.kotlin.util.OnlyForDefaultLanguageFeatureDisabled
 import org.jetbrains.kotlin.utils.addToStdlib.applyIf
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import java.util.concurrent.ConcurrentHashMap
@@ -100,12 +101,10 @@ abstract class AbstractTypeApproximator(
         caches: TypeApproximatorCachesPerConfiguration?,
         approximateTo: context(TypeApproximatorConfiguration, Cache) (KotlinTypeMarker, Int) -> KotlinTypeMarker?,
     ): KotlinTypeMarker? {
-        return context(conf, caches?.getOrPut(conf, ::Cache) ?: Cache()) {
-            try {
-                approximateTo(type, -type.typeDepthForApproximation())
-            } catch (e: StackOverflowError) {
-                throw RuntimeException("StackOverflowError during type approximation for ${type.renderForDebugInfo()}", e)
-            }
+        return try {
+            approximateTo(conf, caches?.getOrPut(conf, ::Cache) ?: Cache(), type, -type.typeDepthForApproximation())
+        } catch (e: StackOverflowError) {
+            throw RuntimeException("StackOverflowError during type approximation for ${type.renderForDebugInfo()}", e)
         }
     }
 
@@ -147,6 +146,7 @@ abstract class AbstractTypeApproximator(
         // Approximator depends on a configuration, so cache should take it into account
         // Here, we cache only types for configuration "from incorporation", which is used most intensively
         // More predictable caches are used since capturedTypeApproximationReworked
+        @OptIn(OnlyForDefaultLanguageFeatureDisabled::class) // EliminateSecondKindIncorporation
         if (capturedTypeApproximationReworked || conf !is TypeApproximatorConfiguration.IncorporationConfiguration) return approximate()
 
         val cache = if (toSuper) cacheForIncorporationConfigToSuperDirection else cacheForIncorporationConfigToSubtypeDirection
@@ -409,7 +409,6 @@ abstract class AbstractTypeApproximator(
             } else {
                 intersectTypes(newTypes, upperBoundForApproximation, toSuper, depth)
             }
-            TypeApproximatorConfiguration.IntersectionStrategy.TO_FIRST -> if (toSuper) newTypes.first() else return type.defaultResult(toSuper = false)
             // commonSupertypeCalculator should handle flexible types correctly
             TypeApproximatorConfiguration.IntersectionStrategy.TO_COMMON_SUPERTYPE,
 
@@ -819,7 +818,8 @@ abstract class AbstractTypeApproximator(
                         if (!AbstractTypeChecker.equalTypes(
                                 this,
                                 argumentType,
-                                toSubType
+                                toSubType,
+                                stubTypesEqualToAnything = conf.stubTypesEqualToAnything,
                             )
                         ) return type.defaultResult(toSuper)
 
@@ -860,7 +860,10 @@ abstract class AbstractTypeApproximator(
                         isTrivialSuper && approximatedToSubType?.isTrivialSub() == false ->
                             createTypeArgument(approximatedToSubType!!, TypeVariance.IN)
 
-                        AbstractTypeChecker.equalTypes(this, argumentType, approximatedToSuperType) ->
+                        AbstractTypeChecker.equalTypes(
+                            this, argumentType, approximatedToSuperType,
+                            stubTypesEqualToAnything = conf.stubTypesEqualToAnything,
+                        ) ->
                             approximatedToSuperType.asTypeArgument()
 
                         else ->

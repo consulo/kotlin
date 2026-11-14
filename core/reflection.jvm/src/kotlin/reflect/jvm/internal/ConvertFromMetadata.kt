@@ -7,11 +7,14 @@ package kotlin.reflect.jvm.internal
 
 import org.jetbrains.kotlin.builtins.jvm.JavaToKotlinClassMap
 import org.jetbrains.kotlin.descriptors.runtime.structure.parameterizedTypeArguments
+import org.jetbrains.kotlin.descriptors.runtime.structure.primitiveByWrapper
 import org.jetbrains.kotlin.load.java.JvmAbi
+import org.jetbrains.kotlin.load.java.isCompilerInternalSyntheticAnnotation
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmProtoBufUtil
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.NameUtils
+import org.jetbrains.kotlin.types.model.TypeConstructorMarker
 import java.lang.reflect.GenericArrayType
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
@@ -20,19 +23,13 @@ import kotlin.LazyThreadSafetyMode.PUBLICATION
 import kotlin.coroutines.Continuation
 import kotlin.jvm.internal.CallableReference
 import kotlin.metadata.*
-import kotlin.metadata.jvm.annotations
-import kotlin.metadata.jvm.fieldSignature
-import kotlin.metadata.jvm.getterSignature
-import kotlin.metadata.jvm.isRaw
-import kotlin.metadata.jvm.signature
+import kotlin.metadata.jvm.*
 import kotlin.reflect.*
 import kotlin.reflect.jvm.internal.calls.createAnnotationInstance
 import kotlin.reflect.jvm.internal.types.AbstractKType
 import kotlin.reflect.jvm.internal.types.FlexibleKType
 import kotlin.reflect.jvm.internal.types.MutableCollectionKClass
 import kotlin.reflect.jvm.internal.types.SimpleKType
-import kotlin.reflect.jvm.internal.types.getMutableCollectionKClass
-import kotlin.reflect.jvm.jvmErasure
 
 internal fun ClassName.toClassId(): ClassId {
     val isLocal = startsWith(".")
@@ -49,8 +46,8 @@ internal fun ClassName.toNonLocalSimpleName(): String {
     return substringAfterLast('/').substringAfterLast('.')
 }
 
-internal fun ClassLoader.loadKClass(name: ClassName): KClass<*>? =
-    loadClass(name.toClassId())?.kotlin
+internal fun ClassLoader.loadKClass(name: ClassName, forceWrapperClass: Boolean = false): KClass<*>? =
+    loadClass(name.toClassId())?.let { if (forceWrapperClass) it else it.primitiveByWrapper ?: it }?.kotlin
 
 /**
  * Provides the access to the type parameters of a Kotlin declaration, and allows to obtain a type parameter given its id.
@@ -83,14 +80,20 @@ internal class TypeParameterTable private constructor(
             classLoader: ClassLoader,
         ): TypeParameterTable {
             val kTypeParameters = kmTypeParameters.map { km ->
-                val unbound = (container as? ReflectKCallable<*>)?.unbindAllReceivers() ?: container
+                val unbound = (container as? ReflectKCallable<*>)?.unbind() ?: container
                 KTypeParameterImpl(unbound, km.name, km.variance.toKVariance(), km.isReified)
             }
             val map = kmTypeParameters.withIndex().associate { (index, km) -> km.id to kTypeParameters[index] }
+            // If we're creating type parameters of a callable that is a fake override, their upper bounds should be substituted with the
+            // callable's type substitutor.
+            val substitutor = (container as? ReflectKCallable<*>)?.overriddenStorage?.getTypeSubstitutor(kTypeParameters, container.name)
             return TypeParameterTable(kTypeParameters, map, parent).also { table ->
                 for ((i, typeParameter) in kTypeParameters.withIndex()) {
-                    typeParameter.upperBounds = kmTypeParameters[i].upperBounds.map { it.toKType(classLoader, table) }
-                        .ifEmpty { listOf(StandardKTypes.NULLABLE_ANY) }
+                    typeParameter.upperBounds = kmTypeParameters[i].upperBounds.map {
+                        // Upper bounds of type parameters should always have underlying wrapper (not primitive) classes.
+                        val type = it.toKType(classLoader, table, forceWrapperClass = true)
+                        substitutor?.substituteTopLevelType(type) ?: type
+                    }.ifEmpty { listOf(StandardKTypes.NULLABLE_ANY) }
                 }
             }
         }
@@ -100,39 +103,58 @@ internal class TypeParameterTable private constructor(
 internal fun KmType.toKType(
     classLoader: ClassLoader,
     typeParameterTable: TypeParameterTable,
+    forceWrapperClass: Boolean = false,
     computeJavaType: (() -> Type)? = null,
-): KType {
+): AbstractKType {
     lateinit var result: SimpleKType
     val arguments = generateSequence(this) { it.outerType }
         .flatMap { it.arguments }
         .mapIndexed { i, typeArgument ->
-            typeArgument.toKTypeProjection(
-                classLoader, typeParameterTable,
-                if (computeJavaType == null) null else convertTypeArgumentToJavaType({ result }, i)
-            )
+            if (typeArgument == KmTypeProjection.STAR)
+                KTypeProjection.STAR
+            else {
+                // Non-null type `kotlin/Int` should have a `KClass` with a primitive class (`int.class` or `Integer.TYPE`), except for the
+                // case when it's a generic type argument, where it should be a `KClass` over the wrapper class.
+                val argumentType = typeArgument.type?.toKType(
+                    classLoader,
+                    typeParameterTable,
+                    forceWrapperClass = true,
+                    if (computeJavaType == null) null else convertTypeArgumentToJavaType({ result }, i),
+                )
+                KTypeProjection(typeArgument.variance?.toKVariance(), argumentType)
+            }
         }
         .toList()
-    val kClassifier = classifier.toClassifier(classLoader, typeParameterTable, arguments)
+
+    // Nullable type `kotlin/Int?` should always have a `KClass` with underlying wrapper class (`Integer.class` in Java syntax).
+    val kClassifier = classifier.toClassifier(classLoader, typeParameterTable, arguments, isNullable || forceWrapperClass)
+
     result = SimpleKType(
         kClassifier,
         arguments,
         isNullable,
-        annotations.map { it.toAnnotation(classLoader) },
+        lazy(PUBLICATION) {
+            annotations
+                .filter { !it.className.toClassId().asSingleFqName().isCompilerInternalSyntheticAnnotation }
+                .map { it.toAnnotation(classLoader) }
+        },
         abbreviatedType?.toKType(classLoader, typeParameterTable),
         isDefinitelyNonNull,
         (classifier as? KmClassifier.Class)?.name == "kotlin/Nothing",
         isSuspend,
         classifier.toMutableCollectionKClass(kClassifier),
-        computeJavaType,
+        computeJavaType?.let { lazy(PUBLICATION, it) },
     )
     if (isSuspend) {
         // Suspend function types are represented in metadata in a non-trivial way, see kdoc on [KmType.isSuspend].
         result = unwrapSuspendFunctionType(result, computeJavaType)
             ?: throw KotlinReflectionInternalError("Invalid suspend function type: $result")
     }
-    flexibleTypeUpperBound?.let {
-        if (it.typeFlexibilityId == JvmProtoBufUtil.PLATFORM_TYPE_ID) {
-            return FlexibleKType.create(result, it.type.toKType(classLoader, typeParameterTable) as SimpleKType, isRaw, computeJavaType)
+    flexibleTypeUpperBound?.let { upperBound ->
+        if (upperBound.typeFlexibilityId == JvmProtoBufUtil.PLATFORM_TYPE_ID) {
+            return FlexibleKType.create(
+                result, upperBound.type.toKType(classLoader, typeParameterTable), isRaw, computeJavaType?.let { lazy(PUBLICATION, it) },
+            )
         }
     }
     return result
@@ -147,13 +169,13 @@ private fun unwrapSuspendFunctionType(type: SimpleKType, computeJavaType: (() ->
         type.classifier,
         type.arguments.dropLast(2) + KTypeProjection.invariant(returnType),
         type.isMarkedNullable,
-        type.annotations,
+        type.lazyAnnotations,
         type.abbreviation,
         type.isDefinitelyNotNullType,
         type.isNothingType,
         isSuspendFunctionType = true,
         type.mutableCollectionClass,
-        computeJavaType,
+        computeJavaType?.let { lazy(PUBLICATION, it) },
     )
 }
 
@@ -181,13 +203,17 @@ internal fun convertTypeArgumentToJavaType(computeType: () -> AbstractKType, ind
 }
 
 private fun KmClassifier.toClassifier(
-    classLoader: ClassLoader, typeParameterTable: TypeParameterTable, typeArguments: List<KTypeProjection>,
+    classLoader: ClassLoader,
+    typeParameterTable: TypeParameterTable,
+    typeArguments: List<KTypeProjection>,
+    forceWrapperClass: Boolean,
 ): KClassifier = when (this) {
     is KmClassifier.Class ->
         if (name == "kotlin/Array")
-            (typeArguments.single().type ?: StandardKTypes.ANY).jvmErasure.java.createArrayType().kotlin
+            computeArrayClassifier(typeArguments)
         else
-            classLoader.loadKClass(name) ?: throw KotlinReflectionInternalError("Class not found: $name")
+            classLoader.loadKClass(name, forceWrapperClass)
+                ?: throw KotlinReflectionInternalError("Class not found: $name")
     is KmClassifier.TypeAlias ->
         KTypeAliasImpl(name.toClassId().asSingleFqName())
     is KmClassifier.TypeParameter ->
@@ -197,19 +223,9 @@ private fun KmClassifier.toClassifier(
         }
 }
 
-internal class ErrorTypeParameter(private val id: Int) : KClassifier {
+internal class ErrorTypeParameter(private val id: Int) : KClassifier, TypeConstructorMarker {
     override fun toString(): String = "[Error type parameter $id]"
 }
-
-private fun KmTypeProjection.toKTypeProjection(
-    classLoader: ClassLoader,
-    typeParameterTable: TypeParameterTable,
-    computeJavaType: (() -> Type)?,
-): KTypeProjection =
-    if (this == KmTypeProjection.STAR)
-        KTypeProjection.STAR
-    else
-        KTypeProjection(variance?.toKVariance(), type?.toKType(classLoader, typeParameterTable, computeJavaType))
 
 internal fun KmVariance.toKVariance(): KVariance = when (this) {
     KmVariance.IN -> KVariance.IN
@@ -220,7 +236,7 @@ internal fun KmVariance.toKVariance(): KVariance = when (this) {
 private fun KmClassifier.toMutableCollectionKClass(kClassifier: KClassifier): MutableCollectionKClass<*>? {
     val classId = (this as? KmClassifier.Class)?.name?.toClassId() ?: return null
     if (!JavaToKotlinClassMap.isMutable(classId)) return null
-    return getMutableCollectionKClass(classId.asSingleFqName(), kClassifier as KClass<*>)
+    return getMutableCollectionKClass(kClassifier as KClass<*>)
 }
 
 internal fun KmAnnotation.toAnnotation(classLoader: ClassLoader): Annotation =
@@ -283,10 +299,13 @@ internal fun Visibility.toKVisibility(): KVisibility? = when (this) {
     Visibility.LOCAL -> null
 }
 
-internal fun KmProperty.computeJvmSignature(container: KDeclarationContainerImpl): String? =
-    getterSignature?.toString() ?: fieldSignature?.let { fieldSignature ->
-        JvmAbi.getterName(fieldSignature.name) + getManglingSuffix(container) + "()" + fieldSignature.descriptor
-    }
+internal fun KmProperty.computeJvmSignature(container: KDeclarationContainerImpl): JvmMethodSignature {
+    getterSignature?.let { return it }
+    val fieldSignature = mapSignature((container as? MemberContainer<*>)?.kmClass)
+    val getterName = getBuiltinSpecialPropertyGetterName(name, container)
+        ?: (JvmAbi.getterName(fieldSignature.name) + getManglingSuffix(container))
+    return JvmMethodSignature(getterName, "()" + fieldSignature.descriptor)
+}
 
 // For the complete set of mangling required to compute JVM signatures correctly, see the JVM backend implementation in
 // `MethodSignatureMapper.mapFunctionName`. However, note that there are cases which are not applicable to kotlin-reflect.
@@ -304,25 +323,29 @@ private fun KmProperty.getManglingSuffix(container: KDeclarationContainerImpl): 
 }
 
 internal fun createUnboundProperty(property: KmProperty, container: KDeclarationContainerImpl): KotlinKProperty<*> {
+    @OptIn(ExperimentalCompanionBlocks::class)
     val receiverCount = when {
         property.contextParameters.isNotEmpty() -> -1
-        property.receiverParameterType != null -> 1
-        else -> 0
+        property.isCompanionBlockMember -> 0
+        else ->
+            (if (property.receiverParameterType != null) 1 else 0) +
+                    (if (container is MemberContainer<*>) 1 else 0)
     }
-    val signature = property.computeJvmSignature(container)
-        ?: throw KotlinReflectionInternalError("No field or getter signature for property: ${property.name}")
+    val signature = property.computeJvmSignature(container).toString()
     val boundReceiver = CallableReference.NO_RECEIVER
     return when {
         !property.isVar -> when (receiverCount) {
             -1 -> KotlinKPropertyN(container, signature, boundReceiver, property, KCallableOverriddenStorage.EMPTY)
-            0 -> KotlinKProperty0(container, signature, boundReceiver, property, KCallableOverriddenStorage.EMPTY)
-            1 -> KotlinKProperty1<Any?, Any?>(container, signature, boundReceiver, property, KCallableOverriddenStorage.EMPTY)
+            0 -> KotlinKProperty0(container, signature, boundReceiver, rawBoundContextArguments = emptyList(), property, KCallableOverriddenStorage.EMPTY)
+            1 -> KotlinKProperty1<Any?, Any?>(container, signature, boundReceiver, rawBoundContextArguments = emptyList(), property, KCallableOverriddenStorage.EMPTY)
+            2 -> KotlinKProperty2<Any?, Any?, Any?>(container, signature, boundReceiver, property, KCallableOverriddenStorage.EMPTY)
             else -> null
         }
         else -> when (receiverCount) {
             -1 -> KotlinKMutablePropertyN(container, signature, boundReceiver, property, KCallableOverriddenStorage.EMPTY)
-            0 -> KotlinKMutableProperty0(container, signature, boundReceiver, property, KCallableOverriddenStorage.EMPTY)
-            1 -> KotlinKMutableProperty1<Any?, Any?>(container, signature, boundReceiver, property, KCallableOverriddenStorage.EMPTY)
+            0 -> KotlinKMutableProperty0(container, signature, boundReceiver, rawBoundContextArguments = emptyList(), property, KCallableOverriddenStorage.EMPTY)
+            1 -> KotlinKMutableProperty1<Any?, Any?>(container, signature, boundReceiver, rawBoundContextArguments = emptyList(), property, KCallableOverriddenStorage.EMPTY)
+            2 -> KotlinKMutableProperty2<Any?, Any?, Any?>(container, signature, boundReceiver, property, KCallableOverriddenStorage.EMPTY)
             else -> null
         }
     } ?: throw KotlinReflectionInternalError(
@@ -330,10 +353,22 @@ internal fun createUnboundProperty(property: KmProperty, container: KDeclaration
     )
 }
 
+internal fun KmFunction.computeJvmSignature(container: KDeclarationContainerImpl): JvmMethodSignature {
+    val mapped = mapSignature((container as? MemberContainer<*>)?.kmClass)
+    // When builtins metadata is read by kotlin-metadata-jvm, JVM signatures are computed and stored by
+    // `JvmMetadataExtensions.readFunctionExtensions`, but this happens only in the case when they can be easily computed
+    // (see `JvmProtoBufUtil.getJvmMethodSignature`). This lightweight computation doesn't support special builtin names, so it uses,
+    // for example, `get` instead of `charAt` for `kotlin.CharSequence.get`. So, we need to manually fix the name here.
+    val specialName = getBuiltinSpecialFunctionJvmName(name, mapped.descriptor, container) ?: return mapped
+    return JvmMethodSignature(specialName, mapped.descriptor)
+}
+
 internal fun createUnboundFunction(function: KmFunction, container: KDeclarationContainerImpl): KotlinKFunction {
-    val signature = function.signature?.toString()
-        ?: throw KotlinReflectionInternalError("No signature for function: ${function.name}")
-    return KotlinKNamedFunction(container, signature, CallableReference.NO_RECEIVER, function, KCallableOverriddenStorage.EMPTY)
+    val signature = function.computeJvmSignature(container)
+    return KotlinKNamedFunction(
+        container, signature.toString(), CallableReference.NO_RECEIVER, rawBoundContextArguments = emptyList(), function,
+        KCallableOverriddenStorage.EMPTY,
+    )
 }
 
 internal fun createUnboundConstructor(constructor: KmConstructor, container: KDeclarationContainerImpl): KotlinKFunction {

@@ -9,50 +9,63 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 import java.lang.Boolean.getBoolean
-import kotlin.test.fail
 
 private val toolLogsEnabled: Boolean = getBoolean("kotlin.js.test.verbose")
 
+/** The export that runs box(). This function's behavior changes depending on the grouping test infrastructure. */
+internal const val WASI_BOX_ENTRY_EXPORT = "startTest"
+
+/** The compiler exports the unit test runner under this name. */
+internal const val WASI_UNIT_TESTS_ENTRY_EXPORT = "startUnitTests"
+
 internal sealed class WasmVM(
-    val shortName: String,
     val property: String,
     val entryPointIsJsFile: Boolean
 ) {
     protected val tool = ExternalTool(System.getProperty(property))
+    val vmName: String
+        get() = javaClass.simpleName
 
     abstract fun run(
         entryFile: String,
         jsFiles: List<String>,
         workingDirectory: File?,
         useNewExceptionHandling: Boolean = false,
+        useStackSwitching: Boolean = false,
         toolArgs: List<String> = emptyList(),
+        wasiEntryExport: String = WASI_BOX_ENTRY_EXPORT,
     ): String
 
-    object V8 : WasmVM(shortName = "V8", property = "javascript.engine.path.V8", entryPointIsJsFile = true) {
+    object V8 : WasmVM(property = "javascript.engine.path.V8", entryPointIsJsFile = true) {
         override fun run(
             entryFile: String,
             jsFiles: List<String>,
             workingDirectory: File?,
             useNewExceptionHandling: Boolean,
+            useStackSwitching: Boolean,
             toolArgs: List<String>,
+            wasiEntryExport: String,
         ) =
             tool.run(
                 *toolArgs.toTypedArray(),
                 *jsFiles.toTypedArray(),
                 "--module",
-                *if (useNewExceptionHandling) arrayOf("--no-experimental-wasm-legacy-eh", "--experimental-wasm-exnref") else emptyArray(),
+                *if (useNewExceptionHandling) arrayOf("--no-experimental-wasm-legacy-eh") else emptyArray(),
+                *if (useStackSwitching) arrayOf("--experimental-wasm-wasmfx") else emptyArray(),
                 entryFile,
                 workingDirectory = workingDirectory,
             )
     }
 
-    object SpiderMonkey : WasmVM(shortName = "SM", property = "javascript.engine.path.SpiderMonkey", entryPointIsJsFile = true) {
+    object SpiderMonkey : WasmVM(property = "javascript.engine.path.SpiderMonkey", entryPointIsJsFile = true) {
         override fun run(
             entryFile: String,
             jsFiles: List<String>,
             workingDirectory: File?,
             useNewExceptionHandling: Boolean,
+            useStackSwitching: Boolean,
             toolArgs: List<String>,
+            wasiEntryExport: String,
         ) =
             tool.run(
                 *toolArgs.toTypedArray(),
@@ -63,13 +76,15 @@ internal sealed class WasmVM(
             )
     }
 
-    object JavaScriptCore : WasmVM(shortName = "JSC", property = "javascript.engine.path.JavaScriptCore", entryPointIsJsFile = true) {
+    object JavaScriptCore : WasmVM(property = "javascript.engine.path.JavaScriptCore", entryPointIsJsFile = true) {
         override fun run(
             entryFile: String,
             jsFiles: List<String>,
             workingDirectory: File?,
             useNewExceptionHandling: Boolean,
-            toolArgs: List<String>
+            useStackSwitching: Boolean,
+            toolArgs: List<String>,
+            wasiEntryExport: String,
         ) =
             tool.run(
                 *toolArgs.toTypedArray(),
@@ -79,48 +94,35 @@ internal sealed class WasmVM(
             )
     }
 
-    object WasmEdge : WasmVM(shortName = "WasmEdge", property = "wasm.engine.path.WasmEdge", entryPointIsJsFile = false) {
+    object Wasmtime : WasmVM(property = "wasm.engine.path.Wasmtime", entryPointIsJsFile = false) {
         override fun run(
             entryFile: String,
             jsFiles: List<String>,
             workingDirectory: File?,
             useNewExceptionHandling: Boolean,
+            useStackSwitching: Boolean,
             toolArgs: List<String>,
+            wasiEntryExport: String,
         ) =
             tool.run(
                 *toolArgs.toTypedArray(),
-                entryFile,
-                "startTest",
-                workingDirectory = workingDirectory,
-            )
-    }
-
-    object Wasmtime : WasmVM(shortName = "Wasmtime", property = "wasm.engine.path.Wasmtime", entryPointIsJsFile = false) {
-        override fun run(
-            entryFile: String,
-            jsFiles: List<String>,
-            workingDirectory: File?,
-            useNewExceptionHandling: Boolean,
-            toolArgs: List<String>,
-        ) =
-            tool.run(
-                *toolArgs.toTypedArray(),
-                "-W",
-                "gc,function-references,exceptions",
+                *if (useStackSwitching) arrayOf("-W", "stack-switching") else emptyArray(),
                 "--invoke",
-                "startTest",
+                wasiEntryExport,
                 entryFile,
                 workingDirectory = workingDirectory,
             )
     }
 
-    object NodeJs : WasmVM(shortName = "NodeJs", property = "javascript.engine.path.NodeJs", entryPointIsJsFile = true) {
+    object NodeJs : WasmVM(property = "wasm.javascript.engine.path.NodeJs", entryPointIsJsFile = true) {
         override fun run(
             entryFile: String,
             jsFiles: List<String>,
             workingDirectory: File?,
             useNewExceptionHandling: Boolean,
-            toolArgs: List<String>
+            useStackSwitching: Boolean,
+            toolArgs: List<String>,
+            wasiEntryExport: String,
         ) =
             tool.run(
                 *toolArgs.toTypedArray(),
@@ -166,7 +168,10 @@ internal class ExternalTool(val path: String) {
 
         val exitValue = process.waitFor()
         if (exitValue != 0) {
-            fail("Command \"$commandString\" terminated with exit code $exitValue in working dir \"$workingDirectory\"\nOUTPUT:\n$stdout\n---")
+            throw ExternalToolFailure(
+                "Command \"$commandString\" terminated with exit code $exitValue in working dir \"$workingDirectory\"\nOUTPUT:\n$stdout\n---",
+                output = stdout.toString(),
+            )
         }
 
         return stdout.toString()
@@ -175,3 +180,9 @@ internal class ExternalTool(val path: String) {
 
 internal fun escapeShellArgument(arg: String): String =
     "'${arg.replace("'", "'\\''")}'"
+
+/**
+ * A process that exited with a non-zero code. [output] is what it printed before, as captured: a crashed VM's output is
+ * still evidence of what ran, so it is kept apart from the message instead of having to be cut out of it again.
+ */
+internal class ExternalToolFailure(message: String, val output: String) : AssertionError(message)

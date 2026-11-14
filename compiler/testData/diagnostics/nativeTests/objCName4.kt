@@ -1,4 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
+// ALLOW_KOTLIN_PACKAGE
 // FILE: kotlin.kt
 @file:OptIn(ExperimentalObjCName::class)
 

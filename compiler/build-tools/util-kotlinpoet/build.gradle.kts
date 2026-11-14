@@ -1,4 +1,5 @@
 plugins {
+    id("common-configuration")
     kotlin("jvm")
 }
 

@@ -1,4 +1,4 @@
-// !!! On native, the exception inside try does not seem to be cought and exits the application.
+// !!! KT-86794: NATIVE: stepping over at throw exception doesn't stop at enclosing catch clause and runs to program completion
 // FILE: test.kt
 fun box() {
     val a = 1
@@ -16,7 +16,7 @@ fun throwIfLess(a: Int, b: Int) {
         throw IllegalStateException()
 }
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:4 box
 // test.kt:5 box
 // test.kt:6 box
@@ -43,7 +43,6 @@ fun throwIfLess(a: Int, b: Int) {
 // test.kt:7 box
 // test.kt:15 throwIfLess
 // test.kt:16 throwIfLess
-// test.kt:8 box
 // test.kt:8 box
 // test.kt:9 box
 // test.kt:15 throwIfLess

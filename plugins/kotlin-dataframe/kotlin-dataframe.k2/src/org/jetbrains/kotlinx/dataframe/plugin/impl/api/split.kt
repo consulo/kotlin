@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlinx.dataframe.plugin.impl.api
 
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.plugin.createConeType
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.name.StandardClassIds
@@ -68,7 +69,7 @@ abstract class ByDelimiters : AbstractInterpreter<SplitWithTransformApproximatio
         return SplitWithTransformApproximation(
             receiver.df,
             receiver.columns,
-            targetType = session.builtinTypes.stringType.coneType.wrap(),
+            targetType = StandardTypes.String.wrap(),
             default = null
         )
     }
@@ -88,7 +89,7 @@ class ByRegex : AbstractInterpreter<SplitWithTransformApproximation>() {
         return SplitWithTransformApproximation(
             receiver.df,
             receiver.columns,
-            targetType = session.builtinTypes.stringType.coneType.wrap(),
+            targetType = StandardTypes.String.wrap(),
             default = null
         )
     }
@@ -102,7 +103,7 @@ abstract class AbstractMatch : AbstractInterpreter<SplitWithTransformApproximati
         return SplitWithTransformApproximation(
             receiver.df,
             receiver.columns,
-            targetType = session.builtinTypes.stringType.coneType.wrap(),
+            targetType = StandardTypes.String.wrap(),
             default = null
         )
     }
@@ -256,7 +257,7 @@ class SplitAnyFrameIntoColumns : AbstractSchemaModificationInterpreter() {
 
     override fun Arguments.interpret(): PluginDataFrameSchema {
         val schemaArgument = typeArg1.coneType.typeArguments.getOrNull(0) ?: return PluginDataFrameSchema.EMPTY
-        val columns = pluginDataFrameSchema(schemaArgument)
+        val columns = schemaArgument.pluginDataFrameSchema()
             .columns()
             .map { implode(it) }
 

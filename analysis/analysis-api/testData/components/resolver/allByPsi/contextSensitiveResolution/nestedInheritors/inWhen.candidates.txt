@@ -67,7 +67,23 @@ KtUserType(130,137): 'MyClass'
   NO_CANDIDATES
 
 KtNameReferenceExpression(130,137): 'MyClass'
-  NO_CANDIDATES
+  KaApplicableCallCandidate:
+    candidate = KaDelegatedConstructorCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      kind = SUPER_CALL
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = MyClass
+        symbol = <constructor>(): MyClass
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
+    isInBestCandidates = true
 
 KtValueArgumentList(137,139): '()'
   NO_CANDIDATES
@@ -511,7 +527,7 @@ KtBlockExpression(587,737): '{'
   NO_CANDIDATES
 
 KtCallExpression(593,735): 'receiveMyClass('
-  KaApplicableCallCandidate:
+  KaInapplicableCallCandidate:
     candidate = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -546,10 +562,11 @@ KtCallExpression(593,735): 'receiveMyClass('
           contextParameters = []
           callableId = null)
       }
+    diagnostic = ERROR<INAPPLICABLE_CANDIDATE: Inapplicable candidate(s): fun receiveMyClass(m: MyClass): Unit>
     isInBestCandidates = true
 
 KtNameReferenceExpression(593,607): 'receiveMyClass'
-  KaApplicableCallCandidate:
+  KaInapplicableCallCandidate:
     candidate = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -584,6 +601,7 @@ KtNameReferenceExpression(593,607): 'receiveMyClass'
           contextParameters = []
           callableId = null)
       }
+    diagnostic = ERROR<INAPPLICABLE_CANDIDATE: Inapplicable candidate(s): fun receiveMyClass(m: MyClass): Unit>
     isInBestCandidates = true
 
 KtValueArgumentList(607,735): '('
@@ -749,7 +767,23 @@ KtUserType(791,801): 'OtherClass'
   NO_CANDIDATES
 
 KtNameReferenceExpression(791,801): 'OtherClass'
-  NO_CANDIDATES
+  KaApplicableCallCandidate:
+    candidate = KaDelegatedConstructorCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      kind = SUPER_CALL
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = OtherClass
+        symbol = <constructor>(): OtherClass
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
+    isInBestCandidates = true
 
 KtValueArgumentList(801,803): '()'
   NO_CANDIDATES
@@ -805,7 +839,23 @@ KtUserType(819,823): 'Base'
   NO_CANDIDATES
 
 KtNameReferenceExpression(819,823): 'Base'
-  NO_CANDIDATES
+  KaApplicableCallCandidate:
+    candidate = KaDelegatedConstructorCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      kind = SUPER_CALL
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = OtherClass.Base
+        symbol = <constructor>(): OtherClass.Base
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
+    isInBestCandidates = true
 
 KtValueArgumentList(823,825): '()'
   NO_CANDIDATES
@@ -861,7 +911,23 @@ KtUserType(840,844): 'Base'
   NO_CANDIDATES
 
 KtNameReferenceExpression(840,844): 'Base'
-  NO_CANDIDATES
+  KaApplicableCallCandidate:
+    candidate = KaDelegatedConstructorCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      kind = SUPER_CALL
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = OtherClass.Base
+        symbol = <constructor>(): OtherClass.Base
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
+    isInBestCandidates = true
 
 KtValueArgumentList(844,846): '()'
   NO_CANDIDATES
@@ -917,7 +983,23 @@ KtUserType(863,873): 'OtherClass'
   NO_CANDIDATES
 
 KtNameReferenceExpression(863,873): 'OtherClass'
-  NO_CANDIDATES
+  KaApplicableCallCandidate:
+    candidate = KaDelegatedConstructorCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      kind = SUPER_CALL
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = OtherClass
+        symbol = <constructor>(): OtherClass
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
+    isInBestCandidates = true
 
 KtValueArgumentList(873,875): '()'
   NO_CANDIDATES
@@ -1263,7 +1345,23 @@ KtUserType(1206,1215): 'OpenClass'
   NO_CANDIDATES
 
 KtNameReferenceExpression(1206,1215): 'OpenClass'
-  NO_CANDIDATES
+  KaApplicableCallCandidate:
+    candidate = KaDelegatedConstructorCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      kind = SUPER_CALL
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = OpenClass
+        symbol = <constructor>(): OpenClass
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
+    isInBestCandidates = true
 
 KtValueArgumentList(1215,1217): '()'
   NO_CANDIDATES
@@ -1637,4 +1735,20 @@ KtWhenEntry(1583,1617): 'else -> NestedInheritorOfOpenClass'
   NO_CANDIDATES
 
 KtNameReferenceExpression(1591,1617): 'NestedInheritorOfOpenClass'
-  NO_CANDIDATES
+  KaInapplicableCallCandidate:
+    candidate = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = OpenClass.NestedInheritorOfOpenClass
+        symbol = <constructor>(): OpenClass.NestedInheritorOfOpenClass
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
+    diagnostic = ERROR<OTHER_ERROR: Inapplicable candidate>
+    isInBestCandidates = false

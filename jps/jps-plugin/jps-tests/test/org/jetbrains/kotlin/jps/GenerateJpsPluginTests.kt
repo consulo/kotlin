@@ -6,24 +6,34 @@
 package org.jetbrains.kotlin.jps
 
 import org.jetbrains.kotlin.generators.dsl.TestGroup
-import org.jetbrains.kotlin.generators.dsl.junit4.generateTestGroupSuiteWithJUnit4
+import org.jetbrains.kotlin.generators.dsl.junit5.generateTestGroupSuiteWithJUnit5
 import org.jetbrains.kotlin.jps.build.*
 import org.jetbrains.kotlin.jps.incremental.AbstractJvmProtoComparisonTest
-import org.jetbrains.kotlin.test.TargetBackend
 
 fun main(args: Array<String>) {
     System.setProperty("java.awt.headless", "true")
 
-    generateTestGroupSuiteWithJUnit4(args) {
+    generateTestGroupSuiteWithJUnit5(args) {
+        testGroup("jps/jps-plugin/jps-tests/tests-gen", "jps/jps-plugin/testData") {
+            testClass<AbstractJvmLookupTrackerTest> {
+                modelForDirectoryBasedTest("incremental/lookupTracker", "jvm", extension = null, recursive = false)
+            }
+        }
+
+        testGroup("jps/jps-plugin/jps-tests/tests-gen", "jps/jps-plugin/testData") {
+            testClass<AbstractJvmProtoComparisonTest> {
+                commonProtoComparisonTests()
+                modelForDirectoryBasedTest("comparison", "jvmOnly", extension = null, excludeParentDirs = true)
+            }
+        }
+
         testGroup("jps/jps-plugin/jps-tests/tests-gen", "jps/jps-plugin/testData") {
             fun incrementalJvmTestData(): TestGroup.TestClass.() -> Unit = {
-                val targetBackend = TargetBackend.JVM_IR
-                val excludePattern = "(^.*Expect.*)|(^companionConstantChanged)|(.*NoJps.*)"
+                val excludePattern = "(^.*Expect.*)"
                 modelForDirectoryBasedTest(
                     "incremental", "pureKotlin",
                     extension = null,
                     recursive = false,
-                    targetBackend = targetBackend,
                     excludedPattern = excludePattern
                 )
                 modelForDirectoryBasedTest(
@@ -31,41 +41,36 @@ fun main(args: Array<String>) {
                     "classHierarchyAffected",
                     extension = null,
                     recursive = false,
-                    targetBackend = targetBackend,
                     excludedPattern = excludePattern
                 )
-                modelForDirectoryBasedTest("incremental", "inlineFunCallSite", extension = null, excludeParentDirs = true, targetBackend = targetBackend)
-                modelForDirectoryBasedTest("incremental", "withJava", extension = null, excludeParentDirs = true, targetBackend = targetBackend)
+                modelForDirectoryBasedTest("incremental", "inlineFunCallSite", extension = null, excludeParentDirs = true)
+                modelForDirectoryBasedTest("incremental", "withJava", extension = null, excludeParentDirs = true)
                 modelForDirectoryBasedTest(
                     "incremental",
                     "incrementalJvmCompilerOnly",
                     extension = null,
                     excludeParentDirs = true,
-                    targetBackend = targetBackend
                 )
                 modelForDirectoryBasedTest(
                     "incremental/multiModule",
                     "withJavaUsedInKotlin",
                     extension = null,
                     excludeParentDirs = true,
-                    targetBackend = targetBackend
                 )
+                modelForDirectoryBasedTest(
+                    "incremental",
+                    "scopeExpansion",
+                    extension = null,
+                    excludeParentDirs = true,
+                    excludedPattern = "^protectedBecomesPublicAccessedTroughChild" // fixed in IJ 262.4852
+                )
+                modelForDirectoryBasedTest("incremental", "sealed", extension = null, excludeParentDirs = true)
+                modelForDirectoryBasedTest("incremental", "resolution", extension = null, excludeParentDirs = true)
             }
 
-            // K2
-            testClass<AbstractIncrementalK2JvmJpsTest>(
+            testClass<AbstractIncrementalJvmJpsTest>(
                 init = incrementalJvmTestData()
             )
-            testClass<AbstractIncrementalK2LightTreeJvmJpsTest>(
-                init = incrementalJvmTestData()
-            )
-            testClass<AbstractIncrementalK2FirICLightTreeJvmJpsTest>(
-                init = incrementalJvmTestData()
-            )
-
-            testClass<AbstractJvmLookupTrackerTest> {
-                modelForDirectoryBasedTest("incremental/lookupTracker", "jvm", extension = null, recursive = false)
-            }
 
             testClass<AbstractIncrementalLazyCachesTest> {
                 modelForDirectoryBasedTest("incremental", "lazyKotlinCaches", extension = null, excludeParentDirs = true)
@@ -80,20 +85,13 @@ fun main(args: Array<String>) {
                 modelForDirectoryBasedTest("incremental", "cacheVersionChanged", extension = null, excludeParentDirs = true)
             }
         }
-
-        testGroup("jps/jps-plugin/jps-tests/tests-gen", "jps/jps-plugin/testData") {
-            fun TestGroup.TestClass.commonProtoComparisonTests() {
-                modelForDirectoryBasedTest("comparison", "classSignatureChange", extension = null, excludeParentDirs = true)
-                modelForDirectoryBasedTest("comparison", "classPrivateOnlyChange", extension = null, excludeParentDirs = true)
-                modelForDirectoryBasedTest("comparison", "classMembersOnlyChanged", extension = null, excludeParentDirs = true)
-                modelForDirectoryBasedTest("comparison", "packageMembers", extension = null, excludeParentDirs = true)
-                modelForDirectoryBasedTest("comparison", "unchanged", extension = null, excludeParentDirs = true)
-            }
-
-            testClass<AbstractJvmProtoComparisonTest> {
-                commonProtoComparisonTests()
-                modelForDirectoryBasedTest("comparison", "jvmOnly", extension = null, excludeParentDirs = true)
-            }
-        }
     }
+}
+
+private fun TestGroup.TestClass.commonProtoComparisonTests() {
+    modelForDirectoryBasedTest("comparison", "classSignatureChange", extension = null, excludeParentDirs = true)
+    modelForDirectoryBasedTest("comparison", "classPrivateOnlyChange", extension = null, excludeParentDirs = true)
+    modelForDirectoryBasedTest("comparison", "classMembersOnlyChanged", extension = null, excludeParentDirs = true)
+    modelForDirectoryBasedTest("comparison", "packageMembers", extension = null, excludeParentDirs = true)
+    modelForDirectoryBasedTest("comparison", "unchanged", extension = null, excludeParentDirs = true)
 }

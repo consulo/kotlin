@@ -11,10 +11,13 @@ fun copyK2JSCompilerArguments(from: K2JSCompilerArguments, to: K2JSCompilerArgum
     copyK2WasmCompilerArguments(from, to)
 
     to.allowExportingSuspendFunctions = from.allowExportingSuspendFunctions
+    to.allowExportingSuspendLambdas = from.allowExportingSuspendLambdas
     to.allowImplementableInterfacesExporting = from.allowImplementableInterfacesExporting
     to.compileLongAsBigInt = from.compileLongAsBigInt
+    to.exportKDoc = from.exportKDoc
     to.extensionFunctionsInExternals = from.extensionFunctionsInExternals
     to.generatePolyfills = from.generatePolyfills
+    to.integerDivisionCheck = from.integerDivisionCheck
     to.irBuildCache = from.irBuildCache
     to.irGenerateInlineAnonymousFunctions = from.irGenerateInlineAnonymousFunctions
     to.irKeep = from.irKeep
@@ -25,13 +28,13 @@ fun copyK2JSCompilerArguments(from: K2JSCompilerArguments, to: K2JSCompilerArgum
     to.irSafeExternalBooleanDiagnostic = from.irSafeExternalBooleanDiagnostic
     to.moduleKind = from.moduleKind
     to.optimizeGeneratedJs = from.optimizeGeneratedJs
-    @Suppress("DEPRECATION")
-    to.outputFile = from.outputFile
     to.platformArgumentsProviderJsExpression = from.platformArgumentsProviderJsExpression
     to.target = from.target
+    to.useEs6ConstLet = from.useEs6ConstLet
     to.useEsArrowFunctions = from.useEsArrowFunctions
     to.useEsClasses = from.useEsClasses
     to.useEsGenerators = from.useEsGenerators
+    to.useUnknownInsteadAny = from.useUnknownInsteadAny
 
     return to
 }

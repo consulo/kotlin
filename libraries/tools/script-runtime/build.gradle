@@ -1,8 +1,15 @@
+plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
+}
+
 description = 'Kotlin Script Runtime'
 
 apply plugin: 'kotlin'
 
-JvmToolchain.configureJvmToolchain(project, JdkMajorVersion.JDK_1_8)
+jvmToolchains {
+    targetBytecodeVersion.set(JdkMajorVersion.JDK_1_8)
+}
 
 RepoArtifacts.publish(project)
 

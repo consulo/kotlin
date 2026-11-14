@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -68,6 +68,9 @@ object JsStandardClassIds {
         val JsImplicitExport = "JsImplicitExport".jsId()
 
         @JvmField
+        val JsDontExportDefaultImplementation = "JsDontExportDefaultImplementation".jsId()
+
+        @JvmField
         val JsNoDispatchReceiver = "JsNoDispatchReceiver".jsId()
 
         @JvmField
@@ -78,6 +81,9 @@ object JsStandardClassIds {
 
         @JvmField
         val JsExternalArgument = "JsExternalArgument".jsId()
+
+        @JvmField
+        val EagerInitialization = "EagerInitialization".jsId()
 
         @JvmField
         val JsExportIgnore = JsExport.createNestedClassId(Name.identifier("Ignore"))
@@ -105,6 +111,9 @@ object JsStandardClassIds {
 
         @JvmField
         val JsNoRuntime = "JsNoRuntime".jsId()
+
+        @JvmField
+        val JsFileName = "JsFileName".jsId()
     }
 
     object Callables {

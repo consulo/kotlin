@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.fir.backend.utils.setThisReceiver
 import org.jetbrains.kotlin.fir.backend.utils.unsubstitutedScope
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.*
+import org.jetbrains.kotlin.fir.deserialization.registeredInSerializationPluginMetadataExtension
 import org.jetbrains.kotlin.fir.hasEnumEntries
 import org.jetbrains.kotlin.fir.isNewPlaceForBodyGeneration
 import org.jetbrains.kotlin.fir.originalOrSelf
@@ -106,7 +107,7 @@ class Fir2IrLazyClass(
         set(_) = mutationNotSupported()
 
     override var isValue: Boolean
-        get() = fir.isInlineOrValue
+        get() = fir.isValue
         set(_) = mutationNotSupported()
 
     override var isExpect: Boolean
@@ -235,7 +236,9 @@ class Fir2IrLazyClass(
                 this.fir.symbol,
                 fir
             )
-            else -> !Visibilities.isPrivate(fir.visibility)
+            else -> !Visibilities.isPrivate(fir.visibility) ||
+                    configuration.propagateLazyIrPrivateMembers ||
+                    (fir is FirProperty && fir.symbol.registeredInSerializationPluginMetadataExtension)
         }
     }
 

@@ -2,15 +2,15 @@
  * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.analysis.decompiler
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiManager
-import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.KaPlatformInterface
-import org.jetbrains.kotlin.analysis.api.impl.base.projectStructure.KaBuiltinsModuleImpl
+import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KaBuiltinsModuleImpl
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators.AnalysisApiFirBinaryTestConfigurator
 import org.jetbrains.kotlin.analysis.stubs.CompiledStubsTestEngine
 import org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiExecutionTest
@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisA
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind
 import org.jetbrains.kotlin.metadata.builtins.BuiltInsBinaryVersion
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtImplementationDetail
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.assertions
@@ -45,7 +46,7 @@ class BuiltinsDecompilerTest : AbstractAnalysisApiExecutionTest("testData/builti
                 val psiFile = PsiManager.getInstance(project).findFile(virtualFile)
                     ?: error("PsiFile not found for $virtualFile")
 
-                @OptIn(KaImplementationDetail::class, KaPlatformInterface::class)
+                @OptIn(KaPlatformInterface::class)
                 return KtTestModule(
                     TestModuleKind.LibraryBinary,
                     testModule,

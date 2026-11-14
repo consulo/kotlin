@@ -1,10 +1,8 @@
 // CHECK_BYTECODE_LISTING
-// LANGUAGE: +GenericInlineClassParameter
-// DIAGNOSTICS: -INLINE_CLASS_DEPRECATED
 
-inline class ICInt<T: Int>(val value: T)
+inline value class ICInt<T: Int>(val value: T)
 
-inline class ICIcInt<T: ICInt<Int>>(val value: T)
+inline value class ICIcInt<T: ICInt<Int>>(val value: T)
 
 fun box(): String {
     var res = ICInt(1).value

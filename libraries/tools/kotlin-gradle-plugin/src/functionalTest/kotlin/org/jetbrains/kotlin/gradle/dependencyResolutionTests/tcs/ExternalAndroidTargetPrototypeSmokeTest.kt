@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.dependencyResolutionTests.tcs
 
 import org.gradle.api.publish.PublishingExtension
@@ -12,6 +10,7 @@ import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin
 import org.jetbrains.kotlin.gradle.android.androidTargetPrototype
 import org.jetbrains.kotlin.gradle.dependencyResolutionTests.mavenCentralCacheRedirector
+import org.jetbrains.kotlin.gradle.dependencyResolutionTests.kotlinBuildDeps
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.idea.testFixtures.tcs.anyDependency
 import org.jetbrains.kotlin.gradle.idea.testFixtures.tcs.assertMatches
@@ -54,7 +53,7 @@ class ExternalAndroidTargetPrototypeSmokeTest {
         project.androidLibrary { compileSdk = 31 }
 
         val androidTargetPrototype = project.multiplatformExtension.androidTargetPrototype()
-        project.repositories.mavenLocal()
+        project.repositories.kotlinBuildDeps()
         project.repositories.mavenCentralCacheRedirector()
         project.evaluate()
 
@@ -85,6 +84,7 @@ class ExternalAndroidTargetPrototypeSmokeTest {
             enableDefaultStdlibDependency(false)
             enableDependencyVerification(false)
             applyMultiplatformPlugin()
+            repositories.kotlinBuildDeps()
             repositories.mavenCentralCacheRedirector()
         }
         setAndroidSdkDirProperty(project)
@@ -106,7 +106,7 @@ class ExternalAndroidTargetPrototypeSmokeTest {
             enableDefaultStdlibDependency(false)
             enableDependencyVerification(false)
             applyMultiplatformPlugin()
-            repositories.mavenLocal()
+            repositories.kotlinBuildDeps()
             repositories.mavenCentralCacheRedirector()
         }
         setAndroidSdkDirProperty(project)
@@ -126,7 +126,7 @@ class ExternalAndroidTargetPrototypeSmokeTest {
             enableDefaultStdlibDependency(false)
             enableDependencyVerification(false)
             applyMultiplatformPlugin()
-            repositories.mavenLocal()
+            repositories.kotlinBuildDeps()
             repositories.mavenCentralCacheRedirector()
         }
         setAndroidSdkDirProperty(project)
@@ -140,6 +140,6 @@ class ExternalAndroidTargetPrototypeSmokeTest {
 
         val compileTask = unitTest.compileTaskProvider.get() as KotlinCompile
         val args = compileTask.createCompilerArguments(default)
-        if (file.absolutePath !in args.friendPaths!!) fail("File $file was not found int the friend paths ${args.friendPaths!!.toList()}")
+        if (file.absolutePath !in args.friendPaths) fail("File $file was not found int the friend paths ${args.friendPaths.toList()}")
     }
 }

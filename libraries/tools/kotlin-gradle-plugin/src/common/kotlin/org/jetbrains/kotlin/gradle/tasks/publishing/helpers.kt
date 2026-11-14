@@ -13,15 +13,15 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.api.publish.maven.tasks.GenerateMavenPom
-import org.gradle.kotlin.dsl.register
-import org.gradle.kotlin.dsl.withType
 import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
-import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.plugin.KOTLIN_BOUNCY_CASTLE_CONFIGURATION_NAME
 import org.jetbrains.kotlin.gradle.plugin.getExtension
+import org.jetbrains.kotlin.gradle.tasks.withType
+import org.jetbrains.kotlin.gradle.utils.loadPropertyFromResources
 import org.jetbrains.kotlin.gradle.utils.maybeCreateResolvable
 import org.jetbrains.kotlin.gradle.utils.named
+import org.jetbrains.kotlin.gradle.utils.withType
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.capitalizeAsciiOnly
 import java.io.File
 
@@ -58,13 +58,13 @@ internal fun Project.addPgpSignatureHelpers() {
 internal fun Project.addSigningValidationHelpers() {
     project.pluginManager.withPlugin("signing") {
         val bcConfiguration = maybeCreateBcConfiguration()
-        val signingTask = project.tasks.register<CheckSigningTask>("checkSigningConfiguration") {
-            group = "validation"
-            description = "Checks that a signing configuration is set up correctly."
-            gradleHomePath.set(project.gradle.gradleUserHomeDir.absolutePath)
-            bouncyCastleClasspath.from(bcConfiguration)
-            offlineMode.set(gradle.startParameter.isOffline)
-            keyservers.convention(
+        val signingTask = project.tasks.register("checkSigningConfiguration", CheckSigningTask::class.java) {
+            it.group = "validation"
+            it.description = "Checks that a signing configuration is set up correctly."
+            it.gradleHomePath.set(project.gradle.gradleUserHomeDir.absolutePath)
+            it.bouncyCastleClasspath.from(bcConfiguration)
+            it.offlineMode.set(gradle.startParameter.isOffline)
+            it.keyservers.convention(
                 listOf(
                     "https://keys.openpgp.org",
                     "https://keyserver.ubuntu.com",
@@ -85,9 +85,6 @@ internal fun Project.addSigningValidationHelpers() {
                 }
                 if (signatory != null) {
                     task.signatory.set(signatory)
-                }
-                if (GradleVersion.current() < GradleVersion.version("8.1")) {
-                    task.notCompatibleWithConfigurationCache("checkSigningConfiguration task is not compatible with configuration cache on Gradle versions < 8.1.")
                 }
                 task.keyId.set(providers.gradleProperty("signing.keyId"))
                 task.keyringPath.set(layout.file(providers.gradleProperty("signing.secretKeyRingFile").map { File(it) }))
@@ -115,10 +112,10 @@ internal fun Project.addPomValidationHelpers() {
                 val capitalizedPublicationName = "${publication.name.capitalizeAsciiOnly()}Publication"
                 val generatePomTaskName = "generatePomFileFor$capitalizedPublicationName"
                 val generatePomTask = tasks.withType<GenerateMavenPom>().named(generatePomTaskName)
-                project.tasks.register<CheckPomTask>("checkPomFileFor${publication.name.capitalizeAsciiOnly()}Publication") {
-                    dependsOn(generatePomTask)
-                    group = "validation"
-                    pom.set(generatePomTask.map { it.destination })
+                project.tasks.register("checkPomFileFor${publication.name.capitalizeAsciiOnly()}Publication", CheckPomTask::class.java) {
+                    it.dependsOn(generatePomTask)
+                    it.group = "validation"
+                    it.pom.set(generatePomTask.map { it.destination })
                 }
             }
         }
@@ -130,6 +127,7 @@ internal fun keyIdToHex(keyId: Long) =
         .padStart(16, '0')
 
 
+private object Helpers
 private fun Project.maybeCreateBcConfiguration(): Configuration {
     return project.configurations.maybeCreateResolvable(KOTLIN_BOUNCY_CASTLE_CONFIGURATION_NAME) {
         attributes.attribute(Category.CATEGORY_ATTRIBUTE, project.objects.named(Category.LIBRARY))
@@ -137,11 +135,12 @@ private fun Project.maybeCreateBcConfiguration(): Configuration {
         attributes.attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, project.objects.named(LibraryElements.JAR))
         description = "Bouncy Castle dependencies used internally for library publishing validation tasks. Not used during compilation."
         defaultDependencies {
+            val bouncyCastleVersion = Helpers.loadPropertyFromResources("project.properties", "bouncyCastleVersion")
             it.add(
-                project.dependencies.create("org.bouncycastle:bcpkix-jdk18on:1.80")
+                project.dependencies.create("org.bouncycastle:bcpkix-jdk18on:${bouncyCastleVersion}")
             )
             it.add(
-                project.dependencies.create("org.bouncycastle:bcpg-jdk18on:1.80")
+                project.dependencies.create("org.bouncycastle:bcpg-jdk18on:${bouncyCastleVersion}")
             )
         }
     }

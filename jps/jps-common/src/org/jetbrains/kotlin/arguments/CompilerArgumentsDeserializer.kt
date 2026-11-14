@@ -3,7 +3,6 @@ package org.jetbrains.kotlin.arguments
 
 import org.jdom.Element
 import org.jdom.Text
-import org.jetbrains.kotlin.cli.common.arguments.ArgumentParseErrors
 import org.jetbrains.kotlin.cli.common.arguments.CommonToolArguments
 import org.jetbrains.kotlin.cli.common.arguments.LanguageSettingsParser
 import org.jetbrains.kotlin.cli.common.arguments.ManualLanguageFeatureSetting
@@ -21,7 +20,7 @@ class CompilerArgumentsDeserializerV5<T : CommonToolArguments>(override val comp
         val flagArgumentsByName = readFlagArguments(element)
         val flagArgumentsPropertiesMap = CompilerArgumentsContentProspector.getFlagCompilerArgumentProperties(compilerArguments::class)
             .associateBy { it.name }
-        flagArgumentsByName.forEach { (name, value) ->
+        flagArgumentsByName.forEach { [name, value] ->
             val mutableProp = flagArgumentsPropertiesMap[name].safeAs<KMutableProperty1<T, Boolean>>() ?: return@forEach
             mutableProp.set(compilerArguments, value)
         }
@@ -29,14 +28,14 @@ class CompilerArgumentsDeserializerV5<T : CommonToolArguments>(override val comp
         val stringArgumentsByName = readStringArguments(element)
         val stringArgumentPropertiesMap = CompilerArgumentsContentProspector.getStringCompilerArgumentProperties(compilerArguments::class)
             .associateBy { it.name }
-        stringArgumentsByName.forEach { (name, arg) ->
+        stringArgumentsByName.forEach { [name, arg] ->
             val mutableProp = stringArgumentPropertiesMap[name].safeAs<KMutableProperty1<T, String?>>() ?: return@forEach
             mutableProp.set(compilerArguments, arg)
         }
         val arrayArgumentsByName = readArrayArguments(element)
         val arrayArgumentPropertiesMap = CompilerArgumentsContentProspector.getArrayCompilerArgumentProperties(compilerArguments::class)
             .associateBy { it.name }
-        arrayArgumentsByName.forEach { (name, arr) ->
+        arrayArgumentsByName.forEach { [name, arr] ->
             val mutableProp = arrayArgumentPropertiesMap[name].safeAs<KMutableProperty1<T, Array<String>?>>() ?: return@forEach
             mutableProp.set(compilerArguments, arr)
         }
@@ -103,7 +102,7 @@ class CompilerArgumentsDeserializerV5<T : CommonToolArguments>(override val comp
 
         private fun parseInternalArgument(argument: String): ManualLanguageFeatureSetting? {
             val parser = LanguageSettingsParser
-            return parser.parseInternalArgument(argument, ArgumentParseErrors())
+            return parser.parseInternalArgument(argument, diagnostics = mutableListOf())
         }
     }
 }

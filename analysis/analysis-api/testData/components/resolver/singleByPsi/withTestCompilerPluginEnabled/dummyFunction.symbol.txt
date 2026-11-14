@@ -1,5 +1,8 @@
 KtNameReferenceExpression(127,136): 'dummyTest'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       test/dummyTest(value: test.Test): kotlin.String
     ]

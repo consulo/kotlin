@@ -1,22 +1,19 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.gradle.targets.js.ir
 
 import org.gradle.api.Action
-import org.jetbrains.kotlin.cli.common.arguments.K2JsArgumentConstants.ES_2015
 import org.jetbrains.kotlin.gradle.dsl.KotlinJsCompilerOptions
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
-import org.jetbrains.kotlin.gradle.targets.js.swc.SwcExec
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBinaryMode
+import org.jetbrains.kotlin.gradle.targets.js.swc.GenerateSwcConfig
+import org.jetbrains.kotlin.gradle.targets.js.swc.SwcExec
 import org.jetbrains.kotlin.gradle.targets.js.webTargetVariant
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig.Mode
-import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin.Companion.kotlinNodeJsRootExtension
-import org.jetbrains.kotlin.gradle.targets.js.swc.GenerateSwcConfig
 import org.jetbrains.kotlin.gradle.tasks.Kotlin2JsCompile
-import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootPlugin.Companion.kotlinNodeJsRootExtension as wasmKotlinNodeJsRootExtension
 import org.jetbrains.kotlin.gradle.utils.withType
 import org.jetbrains.kotlin.platform.js.JsPlatforms
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
@@ -25,11 +22,6 @@ internal class SwcConfigurator(private val subTarget: KotlinJsIrSubTarget) :
     SubTargetConfigurator<SwcExec, SwcExec> {
     private val project = subTarget.project
     private val propertiesProvider = PropertiesProvider(project)
-
-    private val nodeJsRoot = subTarget.target.webTargetVariant(
-        { project.rootProject.kotlinNodeJsRootExtension },
-        { project.rootProject.wasmKotlinNodeJsRootExtension },
-    )
 
     internal val isWasm: Boolean = subTarget.target.webTargetVariant(
         jsVariant = false,
@@ -55,8 +47,8 @@ internal class SwcConfigurator(private val subTarget: KotlinJsIrSubTarget) :
 
         // Add @swc/helpers dependency to minify the result output by swc
         compilation.defaultSourceSet.dependencies {
-            with(nodeJsRoot.versions) {
-                implementation(npm(swcHelpers.name, swcHelpers.version))
+            with(compilation.npmVersions()) {
+                npm(swcHelpers.name, swcHelpers.version)
             }
         }
     }
@@ -120,7 +112,11 @@ internal class SwcConfigurator(private val subTarget: KotlinJsIrSubTarget) :
 
             // TODO(KT-83097): think to move this setup to JsIrBinary
             // Override the 'from' of the linkSync task to consume JS files post-processed by SWC, instead of the files from link task
-            task.from.setFrom(swcOrLinkTaskOutputs, binary.linkSyncTaskRegisteredResources)
+            task.from.setFrom(
+                swcOrLinkTaskOutputs,
+                binary.linkSyncTaskRegisteredResources,
+                binary.typeScriptDeclarations,
+            )
         }
     }
 

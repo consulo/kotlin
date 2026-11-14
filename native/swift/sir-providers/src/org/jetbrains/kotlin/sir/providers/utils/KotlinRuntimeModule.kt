@@ -35,11 +35,18 @@ public object KotlinRuntimeModule : SirModule() {
 
     public val kotlinBaseDesignatedInit: SirInit = buildKotlinBaseDesignatedInit()
 
+    public val kotlinBaseNoArgInit: SirInit = buildInit {
+        origin = KotlinRuntimeElement()
+        isFailable = false
+        isOverride = false
+    }
+
     public val kotlinBase: SirClass by lazy {
         buildClass {
             name = "KotlinBase"
             origin = KotlinRuntimeElement()
 
+            declarations += kotlinBaseNoArgInit
             declarations += kotlinBaseDesignatedInit
 
             declarations += buildVariable {
@@ -49,7 +56,7 @@ public object KotlinRuntimeModule : SirModule() {
                 getter = buildGetter {
                     origin = KotlinRuntimeElement()
                 }
-            }.also { it.getter.parent = it }
+            }.also { it.getter?.parent = it }
         }.initializeParentForSelfAndChildren(KotlinRuntimeModule)
     }
 }
@@ -61,7 +68,9 @@ public object KotlinRuntimeSupportModule : SirModule() {
     override val declarations: MutableList<SirDeclaration> by lazy {
         mutableListOf(
             kotlinError,
+            sealedType,
             kotlinBridgeable,
+            kotlinExistentialPenBox,
             kotlinExistential,
         )
     }
@@ -72,12 +81,18 @@ public object KotlinRuntimeSupportModule : SirModule() {
         visibility = SirVisibility.PUBLIC
     }
 
+    public val sealedType: SirProtocol = buildProtocol {
+        origin = KotlinRuntimeElement()
+        name = "SealedType"
+        visibility = SirVisibility.PUBLIC
+    }.initializeParentForSelfAndChildren(KotlinRuntimeSupportModule)
+
     public val kotlinBridgeableInit: SirInit = buildKotlinBaseDesignatedInit()
 
     public val kotlinBridgeableExternalRcRef: SirFunction = buildFunction {
         origin = KotlinRuntimeElement()
         name = "__externalRCRef"
-        returnType = SirNominalType(SirSwiftModule.unsafeMutableRawPointer).optional()
+        returnType = SirNominalType(SirSwiftModule.unsafeMutableRawPointer)
     }
 
     public val kotlinBridgeable: SirProtocol by lazy {
@@ -92,11 +107,18 @@ public object KotlinRuntimeSupportModule : SirModule() {
 
     public val kotlinBridgeableType: SirExistentialType = SirExistentialType(kotlinBridgeable)
 
+    public val kotlinExistentialPenBox: SirClass = buildClass {
+        origin = KotlinRuntimeElement()
+        name = "_KotlinExistentialPenBox"
+        visibility = SirVisibility.PUBLIC
+        superClass = SirNominalType(KotlinRuntimeModule.kotlinBase)
+    }.initializeParentForSelfAndChildren(KotlinRuntimeSupportModule)
+
     public val kotlinExistential: SirClass = buildClass {
         origin = KotlinRuntimeElement()
         name = "_KotlinExistential"
         visibility = SirVisibility.PUBLIC
-        superClass = SirNominalType(KotlinRuntimeModule.kotlinBase)
+        superClass = SirNominalType(kotlinExistentialPenBox)
         protocols.add(kotlinBridgeable)
     }.initializeParentForSelfAndChildren(KotlinRuntimeSupportModule)
 }
@@ -226,7 +248,7 @@ private fun buildKotlinBaseDesignatedInit(): SirInit = buildInit {
         listOf(
             SirParameter(
                 argumentName = "__externalRCRefUnsafe",
-                type = SirNominalType(SirSwiftModule.unsafeMutableRawPointer).optional()
+                type = SirNominalType(SirSwiftModule.unsafeMutableRawPointer)
             ),
             SirParameter(
                 argumentName = "options",

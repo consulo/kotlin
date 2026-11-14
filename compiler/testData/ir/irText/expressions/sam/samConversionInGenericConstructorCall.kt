@@ -1,5 +1,7 @@
-// IGNORE_BACKEND: JKLIB
 // TARGET_BACKEND: JVM
+
+// K1 reflection bug: KT-86178
+// KOTLIN_REFLECT_DUMP_MISMATCH
 
 // FILE: samConversionInGenericConstructorCall.kt
 fun test3(

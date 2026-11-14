@@ -10,8 +10,7 @@ import org.jetbrains.kotlin.config.nativeBinaryOptions.GC
 import org.jetbrains.kotlin.config.nativeBinaryOptions.GCSchedulerType
 import org.jetbrains.kotlin.config.nativeBinaryOptions.parseBinaryOptions
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
-import org.jetbrains.kotlin.config.LanguageVersion
-import org.jetbrains.kotlin.konan.properties.resolvablePropertyList
+import org.jetbrains.kotlin.io.resolvablePropertyList
 import org.jetbrains.kotlin.konan.target.Distribution
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.test.blackbox.support.ClassLevelProperty
@@ -232,19 +231,11 @@ sealed class CacheMode {
     }
 
     class WithStaticCache(
-        optimizationMode: OptimizationMode,
         override val useStaticCacheForUserLibraries: Boolean,
         override val makePerFileCaches: Boolean,
         override val useHeaders: Boolean,
         override val alias: Alias,
     ) : CacheMode() {
-        init {
-            assertFalse (optimizationMode == OptimizationMode.OPT) {
-                "Static caches are incompatible with `-P${ClassLevelProperty.OPTIMIZATION_MODE.propertyName}=${OptimizationMode.OPT.name}`.\n" +
-                "To test in ${OptimizationMode.OPT.name} mode, either don't specify `-P${ClassLevelProperty.CACHE_MODE.propertyName}`, or set it to ${Alias.NO.name}."
-            }
-        }
-
         override val useStaticCacheForDistributionLibraries: Boolean = true
 
         companion object {
@@ -257,7 +248,7 @@ sealed class CacheMode {
     companion object {
         fun defaultForTestTarget(distribution: Distribution, kotlinNativeTargets: KotlinNativeTargets): Alias {
             val cacheableTargets = distribution.properties
-                .resolvablePropertyList("cacheableTargets", kotlinNativeTargets.hostTarget.name)
+                .resolvablePropertyList("cacheableTargets", suffix = kotlinNativeTargets.hostTarget.name)
                 .map { KonanTarget.predefinedTargets.getValue(it) }
                 .toSet()
 
@@ -273,8 +264,21 @@ sealed class CacheMode {
             testTarget: KonanTarget,
             cacheKind: String,
             debuggable: Boolean,
+            optimized: Boolean,
             checkStateAtExternalCalls: Boolean,
-        ) = "$testTarget${if (debuggable) "-g" else ""}${cacheKind}${if (checkStateAtExternalCalls) "-check_state_at_external_calls" else ""}-user-pl"
+            sanitizer: String? = null,
+            stackProtector: String? = null,
+        ) = buildString {
+            append(testTarget)
+            if (debuggable) append("-g")
+            if (optimized) append("-opt")
+            append(cacheKind)
+            if (sanitizer != null) append("-sanitizer$sanitizer")
+            if (checkStateAtExternalCalls) append("-check_state_at_external_calls")
+            if (stackProtector != null) append("-stack_protector$stackProtector")
+            append("-user")
+            append("-pl")
+        }
     }
 }
 
@@ -312,7 +316,10 @@ internal enum class CInterfaceMode(val compilerFlag: String) {
     NONE("-Xbinary=cInterfaceMode=none")
 }
 
-internal class XCTestRunner(val isEnabled: Boolean, private val nativeTargets: KotlinNativeTargets) {
+internal class XCTestRunner(
+    val isEnabled: Boolean,
+    private val nativeTargets: KotlinNativeTargets,
+    private val isMacabi: Boolean) {
     /**
      * Path to the developer frameworks directory.
      */
@@ -335,11 +342,18 @@ internal class XCTestRunner(val isEnabled: Boolean, private val nativeTargets: K
     }
 
     private fun targetPlatform(): String {
-        val xcodeTarget = when (val target = nativeTargets.testTarget) {
-            KonanTarget.MACOS_X64, KonanTarget.MACOS_ARM64 -> "macosx"
-            KonanTarget.IOS_X64, KonanTarget.IOS_SIMULATOR_ARM64 -> "iphonesimulator"
-            KonanTarget.IOS_ARM64 -> "iphoneos"
-            else -> error("Target $target is not supported buy the executor")
+        val xcodeTarget = when {
+            isMacabi -> "macosx"
+            else -> when (val target = nativeTargets.testTarget) {
+                KonanTarget.MACOS_X64, KonanTarget.MACOS_ARM64 -> "macosx"
+                KonanTarget.IOS_X64, KonanTarget.IOS_SIMULATOR_ARM64 -> "iphonesimulator"
+                KonanTarget.IOS_ARM64 -> "iphoneos"
+                KonanTarget.WATCHOS_SIMULATOR_ARM64, KonanTarget.WATCHOS_X64 -> "watchsimulator"
+                KonanTarget.WATCHOS_ARM64, KonanTarget.WATCHOS_DEVICE_ARM64 -> "watchos"
+                KonanTarget.TVOS_SIMULATOR_ARM64, KonanTarget.TVOS_X64 -> "appletvsimulator"
+                KonanTarget.TVOS_ARM64 -> "appletvos"
+                else -> error("Target $target is not supported buy the executor")
+            }
         }
 
         val result = try {
@@ -381,4 +395,9 @@ internal class CustomNativeCompiler(private val lazyNativeHome: Lazy<KotlinNativ
 
         URLClassLoader(nativeClassPath, null).apply { setDefaultAssertionStatus(true) }
     }
+}
+
+enum class PlatformLibs(val compilerFlag: String?) {
+    DEFAULT(null),
+    NO_DEFAULT_LIBS("-no-default-libs")
 }

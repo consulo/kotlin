@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.internal
 
+import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
@@ -14,13 +15,14 @@ import org.jetbrains.kotlin.konan.target.Distribution
 import org.jetbrains.kotlin.swiftexport.standalone.*
 import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftExportConfig
 import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftModuleConfig
-import java.time.Instant
+import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftModuleExportMode
 import java.util.logging.Level
 import java.util.logging.Logger
 
 internal abstract class SwiftExportAction : WorkAction<SwiftExportAction.SwiftExportWorkParameters> {
     internal interface SwiftExportWorkParameters : SwiftExportTaskParameters, WorkParameters {
         val konanDistribution: Property<Distribution>
+        val swiftModules: ListProperty<SwiftExportedModule>
     }
 
     private val swiftExportLogger = object : SwiftExportLogger {
@@ -43,8 +45,8 @@ internal abstract class SwiftExportAction : WorkAction<SwiftExportAction.SwiftEx
             modules.map { module ->
                 module.toInputModule(
                     createModuleConfig(
-                        module.flattenPackage,
-                        module.shouldBeFullyExported,
+                        module.rootPackage,
+                        module.exportMode,
                         settings
                     )
                 )
@@ -52,24 +54,28 @@ internal abstract class SwiftExportAction : WorkAction<SwiftExportAction.SwiftEx
         }.get()
 
         val modules = GradleSwiftExportModules(
-            runSwiftExport(exportModules, createSwiftExportConfig()).getOrThrow().toPlainList(),
-            Instant.now().toEpochMilli()
+            runSwiftExport(exportModules, createSwiftExportConfig()).getOrThrow().toPlainList()
         )
 
-        val json = SerializationTools.writeToJson(modules)
-        parameters.swiftModulesFile.getFile().writeText(json)
+        val modulesFile = parameters.swiftModulesFile.getFile()
+        modulesFile.parentFile.mkdirs()
+        modulesFile.writeText(SerializationTools.writeToJson(modules, baseDirectory = modulesFile.parentFile))
     }
 
     private fun createModuleConfig(
         flattenPackage: String?,
-        shouldBeFullyExported: Boolean,
+        exportMode: SwiftExportedModuleMode,
         settings: Map<String, String>,
     ): SwiftModuleConfig {
         return SwiftModuleConfig(
             bridgeModuleName = parameters.bridgeModuleName.getOrElse(SwiftModuleConfig.DEFAULT_BRIDGE_MODULE_NAME),
             rootPackage = flattenPackage,
             experimentalFeatures = settings,
-            shouldBeFullyExported = shouldBeFullyExported,
+            exportMode = when (exportMode) {
+                SwiftExportedModuleMode.FULL -> SwiftModuleExportMode.Full
+                SwiftExportedModuleMode.TRANSITIVE -> SwiftModuleExportMode.Transitive
+                SwiftExportedModuleMode.HIDDEN -> SwiftModuleExportMode.Excluded
+            },
         )
     }
 
@@ -78,7 +84,6 @@ internal abstract class SwiftExportAction : WorkAction<SwiftExportAction.SwiftEx
             outputPath = parameters.outputPath.getFile().toPath(),
             stableDeclarationsOrder = parameters.stableDeclarationsOrder.getOrElse(true),
             distribution = parameters.konanDistribution.get(),
-            renderDocComments = parameters.renderDocComments.getOrElse(false),
             logger = swiftExportLogger,
             konanTarget = parameters.konanTarget.get(),
         )

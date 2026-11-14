@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.gradle.api.Project
@@ -33,7 +31,7 @@ class XCFrameworkCocoaPodsTest {
         val project = buildProjectWithMPP {
             applyCocoapodsPlugin()
             kotlin {
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 listOf(
                     iosSimulatorArm64(),
                     iosX64(),

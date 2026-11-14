@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.jvm.abi
 
 import com.intellij.openapi.util.io.FileUtil
-import junit.framework.TestCase
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.common.messages.MessageCollectorImpl
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
@@ -15,23 +14,25 @@ import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.config.Services
 import org.jetbrains.kotlin.test.InTextDirectivesUtils
 import org.jetbrains.kotlin.test.compileJavaFiles
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.BeforeEach
 import java.io.File
 import kotlin.io.path.createTempDirectory
 
-abstract class BaseJvmAbiTest : TestCase() {
+abstract class BaseJvmAbiTest {
     protected lateinit var workingDir: File
 
-    override fun setUp() {
-        super.setUp()
+    @BeforeEach
+    fun setUp() {
         workingDir = createTempDirectory(javaClass.simpleName).toFile().apply { deleteOnExit() }
     }
 
-    override fun tearDown() {
+    @AfterEach
+    fun tearDown() {
         workingDir.deleteRecursively()
-        super.tearDown()
     }
 
-    private val abiPluginJar = File("dist/kotlinc/lib/jvm-abi-gen.jar")
+    private val abiPluginJar = ForTestCompileRuntime.getFileFromProperty("kotlin.jvm.abi.jar.path")
     private fun abiOption(option: String, value: String): String =
         "plugin:${JvmAbiCommandLineProcessor.COMPILER_PLUGIN_ID}:$option=$value"
 
@@ -55,6 +56,9 @@ abstract class BaseJvmAbiTest : TestCase() {
         val directives: File
             get() = projectDir.resolve("directives.txt")
 
+        val moduleDirectives: File
+            get() = srcDir.resolve("directives.txt")
+
         override fun toString(): String =
             "compilation '$name'"
     }
@@ -68,11 +72,15 @@ abstract class BaseJvmAbiTest : TestCase() {
             dep.abiDir
         }
 
-        val directives = if (compilation.directives.exists()) compilation.directives.readText() else ""
+        val directives = listOf(compilation.directives, compilation.moduleDirectives)
+            .distinct()
+            .filter { it.exists() }
+            .joinToString("\n") { it.readText() }
 
         val messageCollector = MessageCollectorImpl()
         val compiler = K2JVMCompiler()
         val args = compiler.createArguments().apply {
+            noStdlib = true
             freeArgs = listOf(compilation.srcDir.canonicalPath)
             classpath = (abiDependencies + kotlinJvmStdlib).joinToString(File.pathSeparator) { it.canonicalPath }
             pluginClasspaths = arrayOf(abiPluginJar.canonicalPath)
@@ -99,6 +107,20 @@ abstract class BaseJvmAbiTest : TestCase() {
             destination = compilation.destinationDir.canonicalPath
             noSourceDebugExtension = InTextDirectivesUtils.findStringWithPrefixes(directives, "// NO_SOURCE_DEBUG_EXTENSION") != null
 
+            if (InTextDirectivesUtils.findStringWithPrefixes(directives, "// VALHALLA_VALUE_CLASSES") != null) {
+                valhallaValueClasses = true
+                jvmTarget = "28"
+                enableJvmPreview = true
+            }
+
+            if (InTextDirectivesUtils.findStringWithPrefixes(directives, "// FULL_VALUE_CLASSES") != null) {
+                fullValueClasses = true
+            }
+
+            if (InTextDirectivesUtils.findStringWithPrefixes(directives, "// SKIP_PRERELEASE_CHECK") != null) {
+                skipPrereleaseCheck = true
+            }
+
             if (InTextDirectivesUtils.findStringWithPrefixes(directives, "// INHERIT_MULTIFILE_PARTS") != null) {
                 inheritMultifileParts = true
             }
@@ -118,7 +140,7 @@ abstract class BaseJvmAbiTest : TestCase() {
             val javacOptions = listOf(
                 "-classpath",
                 (abiDependencies + compilation.destinationDir).joinToString(File.pathSeparator) { it.canonicalPath }
-                        + File.pathSeparator + ForTestCompileRuntime.runtimeJarForTests(),
+                        + File.pathSeparator + kotlinJvmStdlib,
                 "-d",
                 compilation.javaDestinationDir.canonicalPath
             )
@@ -128,7 +150,7 @@ abstract class BaseJvmAbiTest : TestCase() {
         }
     }
 
-    protected val kotlinJvmStdlib = File("dist/kotlinc/lib/kotlin-stdlib.jar").also {
+    protected val kotlinJvmStdlib = ForTestCompileRuntime.runtimeJarForTests().also {
         check(it.exists()) { "Stdlib file '$it' does not exist" }
     }
 }

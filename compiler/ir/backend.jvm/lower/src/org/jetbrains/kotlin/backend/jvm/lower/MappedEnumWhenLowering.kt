@@ -11,8 +11,8 @@ import org.jetbrains.kotlin.backend.common.lower.irCatch
 import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
 import org.jetbrains.kotlin.backend.jvm.ir.findEnumValuesFunction
-import org.jetbrains.kotlin.backend.jvm.ir.isInPublicInlineScope
 import org.jetbrains.kotlin.backend.jvm.isPublicAbi
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.*
@@ -79,6 +79,7 @@ internal class MappedEnumWhenLowering(override val context: JvmBackendContext) :
             context.irFactory.buildClass {
                 name = Name.identifier("WhenMappings")
                 origin = JvmLoweredDeclarationOrigin.ENUM_MAPPINGS_FOR_WHEN
+                visibility = DescriptorVisibilities.LOCAL
             }.apply {
                 createThisReceiverParameter()
             }
@@ -122,13 +123,13 @@ internal class MappedEnumWhenLowering(override val context: JvmBackendContext) :
         state = mappingState
         super.visitClassNew(declaration)
 
-        for ((enum, mapping) in mappingState.mappings) {
+        for ([enum, mapping] in mappingState.mappings) {
             val enumValues = enum.findEnumValuesFunction(context)
             val builder = context.createIrBuilder(mapping.field.symbol)
             mapping.field.initializer = builder.irExprBody(builder.irBlock {
                 val enumSize = irCall(refArraySize).apply { dispatchReceiver = irCall(enumValues) }
                 val result = irTemporary(irCall(intArrayConstructor).apply { arguments[0] = enumSize })
-                for ((entry, index) in mapping.ordinals) {
+                for ([entry, index] in mapping.ordinals) {
                     val runtimeEntry = IrGetEnumValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, enum.defaultType, entry.symbol)
                     val writeToMapping = irCall(intArraySet).apply {
                         arguments[0] = irGet(result)

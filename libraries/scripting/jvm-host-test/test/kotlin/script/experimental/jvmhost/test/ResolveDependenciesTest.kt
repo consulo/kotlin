@@ -5,19 +5,19 @@
 
 package kotlin.script.experimental.jvmhost.test
 
-import java.io.File
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
+import org.junit.jupiter.api.Disabled
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.toScriptSource
+import kotlin.script.experimental.jvm.JvmDependency
 import kotlin.script.experimental.jvm.JvmDependencyFromClassLoader
 import kotlin.script.experimental.jvm.baseClassLoader
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.updateClasspath
 import kotlin.script.experimental.jvm.util.classpathFromClass
 import kotlin.script.experimental.jvmhost.BasicJvmScriptingHost
-import kotlin.script.experimental.jvmhost.test.ReplTest.Companion.checkEvaluateInRepl
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ResolveDependenciesTest {
 
@@ -29,7 +29,27 @@ class ResolveDependenciesTest {
         updateClasspath(classpathFromClass(ShouldBeVisibleFromScript::class))
     }
 
+    private val classLoaderOnlyCompilationConfiguration = ScriptCompilationConfiguration {
+        dependencies.append(JvmDependencyFromClassLoader { ShouldBeVisibleFromScript::class.java.classLoader })
+    }
+
+    private val mixedJvmAndClassLoaderDependenciesCompilationConfiguration = ScriptCompilationConfiguration {
+        dependencies.append(
+            JvmDependency(classpathFromClass(ShouldBeVisibleFromScript::class) ?: error("Test classpath is unavailable"))
+        )
+        dependencies.append(JvmDependencyFromClassLoader { ShouldBeVisibleFromScript::class.java.classLoader })
+    }
+
+    private val evaluationConfigurationWithTestClassLoader = ScriptEvaluationConfiguration {
+        jvm {
+            baseClassLoader(ShouldBeVisibleFromScript::class.java.classLoader)
+        }
+    }
+
     private val thisPackage = ShouldBeVisibleFromScript::class.java.`package`.name
+
+    private val classLoaderDependencyScript =
+        """hashMapOf(1 to "a")[1]!! + $thisPackage.ShouldBeVisibleFromScript().x""".toScriptSource()
 
     private val classAccessScript = "${thisPackage}.ShouldBeVisibleFromScript().x".toScriptSource()
     private val classImportScript = "import ${thisPackage}.ShouldBeVisibleFromScript\nShouldBeVisibleFromScript().x".toScriptSource()
@@ -47,7 +67,8 @@ class ResolveDependenciesTest {
 
     // All tests with dependencies from classloader are expected to fail until the KT-60443 is implemented
     @Test
-    fun testResolveClassFromClassloader() = expectTestToFailOnK2 {
+    @Disabled("KT-60443")
+    fun testResolveClassFromClassloader() {
         runScriptAndCheckResult(classAccessScript, configurationWithDependenciesFromClassloader, null, 42)
         runScriptAndCheckResult(classImportScript, configurationWithDependenciesFromClassloader, null, 42)
     }
@@ -59,23 +80,29 @@ class ResolveDependenciesTest {
     }
 
     @Test
-    fun testResolveFunAndValFromClassloader() = expectTestToFailOnK2 {
-        runScriptAndCheckResult(funAndValAccessScript, configurationWithDependenciesFromClassloader, null, 42)
-        runScriptAndCheckResult(funAndValImportScript, configurationWithDependenciesFromClassloader, null, 42)
+    fun testClassLoaderOnlyDependency() {
+        runScriptAndCheckResult(
+            classLoaderDependencyScript,
+            classLoaderOnlyCompilationConfiguration,
+            evaluationConfigurationWithTestClassLoader,
+            "a42"
+        )
     }
 
     @Test
-    fun testReplResolveFunAndValFromClassloader() = expectTestToFailOnK2 {
-        checkEvaluateInRepl(
-            sequenceOf(funAndValAccessScriptText, funAndValAccessScriptText), sequenceOf(42, 42),
-            configurationWithDependenciesFromClassloader,
-            null
+    fun testMixedJvmAndClassLoaderDependencies() {
+        runScriptAndCheckResult(
+            classLoaderDependencyScript,
+            mixedJvmAndClassLoaderDependenciesCompilationConfiguration,
+            evaluationConfigurationWithTestClassLoader,
+            "a42"
         )
-        checkEvaluateInRepl(
-            funAndValImportScriptText.split('\n').asSequence(), sequenceOf(null, null, 42),
-            configurationWithDependenciesFromClassloader,
-            null
-        )
+    }
+
+    @Test
+    @Disabled("KT-60443")
+    fun testResolveFunAndValFromClassloader() {
+        runScriptAndCheckResult(funAndValAccessScript, configurationWithDependenciesFromClassloader, null, 42)
         runScriptAndCheckResult(funAndValImportScript, configurationWithDependenciesFromClassloader, null, 42)
     }
 
@@ -86,7 +113,8 @@ class ResolveDependenciesTest {
     }
 
     @Test
-    fun testResolveClassFromClassloaderIsolated() = expectTestToFailOnK2 {
+    @Disabled("KT-60443")
+    fun testResolveClassFromClassloaderIsolated() {
         val evaluationConfiguration = ScriptEvaluationConfiguration {
             jvm {
                 baseClassLoader(null)
@@ -96,15 +124,14 @@ class ResolveDependenciesTest {
     }
 
     @Test
-    fun testResolveClassesFromClassloaderAndClassPath() = expectTestToFailOnK2 {
+    @Disabled("KT-60443")
+    fun testResolveClassesFromClassloaderAndClassPath() {
         val script = """
             org.jetbrains.kotlin.mainKts.MainKtsConfigurator()
             ${thisPackage}.ShouldBeVisibleFromScript().x
         """.trimIndent().toScriptSource()
         val classpath = listOf(
-            File("dist/kotlinc/lib/kotlin-main-kts.jar").also {
-                assertTrue(it.exists(), "kotlin-main-kts.jar not found, run dist task: ${it.absolutePath}")
-            }
+            ForTestCompileRuntime.mainKtsJar(),
         )
         val compilationConfiguration = configurationWithDependenciesFromClassloader.with {
             updateClasspath(classpath)
@@ -118,9 +145,7 @@ class ResolveDependenciesTest {
         evaluationConfiguration: ScriptEvaluationConfiguration?,
         expectedResult: T
     ) {
-        val host =
-            if (isRunningTestOnK2) BasicJvmScriptingHost()
-            else BasicJvmScriptingHost.createLegacy()
+        val host = BasicJvmScriptingHost()
         val res = host.eval(script, compilationConfiguration, evaluationConfiguration).valueOrThrow().returnValue
         when (res) {
             is ResultValue.Value -> assertEquals(expectedResult, res.value)

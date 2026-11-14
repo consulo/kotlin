@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: FRONTEND
+// RUN_PIPELINE_TILL: CODEGEN
 // OPT_IN: kotlin.js.ExperimentalJsExport
 // LANGUAGE: +NestedTypeAliases
 @JsExport
@@ -8,7 +8,7 @@ class B
 
 @JsExport
 interface I {
-    <!WRONG_EXPORTED_DECLARATION!>typealias Foo = A<!>
-    <!WRONG_EXPORTED_DECLARATION!>typealias Bar = B<!>
-    <!WRONG_EXPORTED_DECLARATION!>typealias Baz = Int<!>
+    typealias Foo = A
+    typealias Bar = <!NON_EXPORTABLE_TYPE!>B<!>
+    typealias Baz = Int
 }

@@ -6,19 +6,15 @@
 package org.jetbrains.kotlin.incremental.dirtyFiles
 
 import org.jetbrains.kotlin.build.report.BuildReporter
+import org.jetbrains.kotlin.build.report.events.ScopeExpansionReason
 import org.jetbrains.kotlin.build.report.info
 import org.jetbrains.kotlin.build.report.metrics.*
 import org.jetbrains.kotlin.build.report.metrics.measure
-import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.incremental.*
 import org.jetbrains.kotlin.incremental.ChangedFiles.DeterminableFiles
 import org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.CompilationMode
 import org.jetbrains.kotlin.incremental.javaInterop.JavaInteropCoordinator
-import org.jetbrains.kotlin.incremental.multiproject.ModulesApiHistory
 import org.jetbrains.kotlin.incremental.snapshots.LazyClasspathSnapshot
-import java.io.File
-
 
 internal interface ImpactedFilesDeterminer {
     fun determineChangedAndImpactedSymbols(): ChangesEither
@@ -33,10 +29,11 @@ internal class JvmSourcesToCompileCalculator(
     private val dirtyFilesProvider: DirtyFilesProvider,
     private val reporter: BuildReporter<BuildTimeMetric, BuildPerformanceMetric>,
 ) {
-
     private fun calculateSourcesToCompileImpl(
         impactedFilesDeterminer: ImpactedFilesDeterminer,
     ): CompilationMode {
+        changedFiles.findRebuildReasonByFileName()?.let { return CompilationMode.Rebuild(it) }
+
         val changedAndImpactedSymbols = impactedFilesDeterminer.determineChangedAndImpactedSymbols()
 
         return when (changedAndImpactedSymbols) {
@@ -52,6 +49,9 @@ internal class JvmSourcesToCompileCalculator(
             }
         }
     }
+
+    private fun DeterminableFiles.Known.findRebuildReasonByFileName(): BuildAttribute? =
+        (modified + removed).firstNotNullOfOrNull { rebuildReasonsByFileName[it.name] }
 
     private fun calculateSourcesToCompileWithKnownChanges(
         changedFiles: DeterminableFiles.Known,
@@ -76,10 +76,10 @@ internal class JvmSourcesToCompileCalculator(
             getRemovedClassesChanges(caches, changedFiles, kotlinSourceFilesExtensions, reporter)
         }
 
-        dirtyFiles.addByDirtySymbols(androidLayoutChanges)
-        dirtyFiles.addByDirtySymbols(removedClassesChanges.dirtyLookupSymbols)
-        dirtyFiles.addByDirtyClasses(removedClassesChanges.dirtyClassesFqNames)
-        dirtyFiles.addByDirtyClasses(removedClassesChanges.dirtyClassesFqNamesForceRecompile)
+        dirtyFiles.addByDirtySymbols(androidLayoutChanges, ScopeExpansionReason.ANDROID_LAYOUT_USED)
+        dirtyFiles.addByDirtySymbols(removedClassesChanges.dirtyLookupSymbols, ScopeExpansionReason.REMOVED_CLASS_USED)
+        dirtyFiles.addByDirtyClasses(removedClassesChanges.dirtyClassesFqNames, ScopeExpansionReason.REMOVED_CLASS_SUPERTYPE)
+        dirtyFiles.addByDirtyClasses(removedClassesChanges.dirtyClassesFqNamesForceRecompile, ScopeExpansionReason.REMOVED_CLASS_SUPERTYPE)
         return CompilationMode.Incremental(dirtyFiles)
     }
 
@@ -98,31 +98,10 @@ internal class JvmSourcesToCompileCalculator(
         )
     }
 
-    fun calculateWithBuildHistory(
-        args: K2JVMCompilerArguments,
-        abiSnapshots: Map<String, AbiSnapshot>,
-        modulesApiHistory: ModulesApiHistory,
-
-        buildHistoryFile: File?,
-        lastBuildInfoFile: File,
-
-        icFeatures: IncrementalCompilationFeatures,
-        messageCollector: MessageCollector,
-    ): CompilationMode {
-        val impactedFilesDeterminer = HistoryFilesBasedImpactDeterminer(
-            args,
-            caches,
-            changedFiles,
-            abiSnapshots,
-            modulesApiHistory,
-            buildHistoryFile = buildHistoryFile,
-            lastBuildInfoFile = lastBuildInfoFile,
-            icFeatures,
-            reporter,
-            messageCollector,
-        )
-        return calculateSourcesToCompileImpl(
-            impactedFilesDeterminer,
+    companion object {
+        private val rebuildReasonsByFileName: Map<String, BuildAttribute> = mapOf(
+            "module-info.java" to BuildAttribute.MODULE_INFO_CHANGED,
+            "package-info.java" to BuildAttribute.PACKAGE_INFO_CHANGED,
         )
     }
 }

@@ -103,14 +103,16 @@ internal val jvmCallbacksDisposeHelper = ThreadSafeDisposableHelper(
         }
 )
 
+val callbacksLibName = listOf("kotlinx", "cinterop", "jvmcallbacks").joinToString("")
+
 inline fun <R> usingJvmCInteropCallbacks(konanHome: String? = null, block: () -> R): R {
-    loadKonanLibrary("callbacks", konanHome)
+    loadKonanLibrary(callbacksLibName, konanHome)
     return jvmCallbacksDisposeHelper.usingDisposable(block)
 }
 
 object JvmCInteropCallbacks {
     fun init() {
-        loadKonanLibrary("callbacks")
+        loadKonanLibrary(callbacksLibName)
         jvmCallbacksDisposeHelper.create()
     }
 
@@ -156,7 +158,7 @@ private fun getStructCType(structClass: KClass<*>): CType<*> = caches.structType
         }
     }
 
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION_ERROR")
     val structType = structClass.companionObjectInstance as CVariable.Type
 
     Struct(structType.size, structType.align, fieldCTypes)

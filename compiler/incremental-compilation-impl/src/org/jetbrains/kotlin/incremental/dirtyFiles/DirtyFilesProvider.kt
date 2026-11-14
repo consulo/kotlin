@@ -6,11 +6,11 @@
 package org.jetbrains.kotlin.incremental.dirtyFiles
 
 import org.jetbrains.kotlin.build.report.ICReporter
+import org.jetbrains.kotlin.incremental.*
+import org.jetbrains.kotlin.build.report.events.ScopeExpansionReason
 import org.jetbrains.kotlin.incremental.ChangedFiles.DeterminableFiles
-import org.jetbrains.kotlin.incremental.CompilationTransaction
-import org.jetbrains.kotlin.incremental.IncrementalCachesManager
 import org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.Companion.DIRTY_SOURCES_FILE_NAME
-import org.jetbrains.kotlin.incremental.writeText
+import org.jetbrains.kotlin.name.FqName
 import java.io.File
 
 /**
@@ -23,7 +23,7 @@ internal class DirtyFilesCachedHistory(workingDir: File) {
     private val dirtySourcesSinceLastTimeFile = File(workingDir, DIRTY_SOURCES_FILE_NAME)
 
     fun store(withTransaction: CompilationTransaction, allDirtySources: Collection<File>) {
-        val text = allDirtySources.joinToString(separator = System.lineSeparator()) { it.normalize().absolutePath }
+        val text = allDirtySources.joinToString(separator = System.lineSeparator()) { it.normalize().path }
         withTransaction.writeText(dirtySourcesSinceLastTimeFile.toPath(), text)
     }
 
@@ -48,12 +48,65 @@ internal class DirtyFilesProvider(
 
     fun getInitializedDirtyFiles(
         caches: IncrementalCachesManager<*>,
-        changedFiles: DeterminableFiles.Known
+        changedFiles: DeterminableFiles.Known,
     ): DirtyFilesContainer {
         val dirtyFiles = DirtyFilesContainer(caches, reporter, kotlinSourceFileExtensions)
-        dirtyFiles.add(changedFiles.modified, "was modified since last time")
-        dirtyFiles.add(changedFiles.removed, "was removed since last time")
-        dirtyFiles.add(cachedHistory.read(), "was not compiled last time")
+        dirtyFiles.add(changedFiles.modified, ScopeExpansionReason.SOURCE_FILE_CHANGED)
+        dirtyFiles.add(changedFiles.removed, ScopeExpansionReason.SOURCE_FILE_REMOVED)
+        dirtyFiles.add(cachedHistory.read(), ScopeExpansionReason.PENDING_FROM_PREVIOUS_BUILD)
+        dirtyFiles.add(
+            findSupertypeSourcesReferencingTypesFromChangedFiles(caches, changedFiles.modified + changedFiles.removed),
+            reason = ScopeExpansionReason.SUPERTYPE_REFERENCING_CHANGED_TYPES
+        )
         return dirtyFiles
+    }
+
+    /**
+     * Returns source files of transitive supertypes of classes declared in [changedSources]
+     * that reference classes or typealiases declared in [changedSources]. This over-approximates:
+     * any change in such a file counts, even if the declarations themselves did not change.
+     * Inferred types in these supertypes may depend on the changed files.
+     */
+    private fun findSupertypeSourcesReferencingTypesFromChangedFiles(
+        caches: IncrementalCachesManager<*>,
+        changedSources: List<File>,
+    ): List<File> {
+        val platformCache = caches.platformCache
+        val changedKotlinFiles = changedSources.filter { it.isKotlinFile(kotlinSourceFileExtensions) }.toSet()
+        val classesFromChangedFiles = platformCache.classesFqNamesBySources(changedKotlinFiles).toSet()
+
+        val supertypeSourceFiles =
+            classesFromChangedFiles
+                .asSequence()
+                .flatMap { collectTransitiveSupertypes(it, platformCache) }
+                .filter { it !in classesFromChangedFiles }
+                .mapNotNull { platformCache.getSourceFileIfClass(it) }
+                .filter { it !in changedKotlinFiles }
+                .toSet()
+
+        if (supertypeSourceFiles.isEmpty()) return emptyList()
+
+        val typesFromChangedFiles = buildSet {
+            addAll(classesFromChangedFiles)
+            addAll(platformCache.typealiasesFqNamesBySources(changedKotlinFiles))
+        }
+
+        return typesFromChangedFiles
+            .flatMap { caches.lookupCache.get(LookupSymbol(it.shortName().asString(), it.parent().asString())) }
+            .map(::File)
+            .filter { it in supertypeSourceFiles }
+    }
+
+    private fun collectTransitiveSupertypes(typeFqName: FqName, cache: IncrementalCacheCommon): Set<FqName> {
+        val supertypes = LinkedHashSet<FqName>()
+        val typesToProcess = ArrayDeque(listOf(typeFqName))
+
+        while (typesToProcess.isNotEmpty()) {
+            cache.getSupertypesOf(typesToProcess.removeFirst())
+                .filter { supertypes.add(it) }
+                .forEach(typesToProcess::addLast)
+        }
+
+        return supertypes
     }
 }

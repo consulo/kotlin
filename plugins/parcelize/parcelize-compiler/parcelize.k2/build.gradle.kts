@@ -1,23 +1,21 @@
 description = "Parcelize compiler plugin (Backend)"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
 dependencies {
     implementation(project(":plugins:parcelize:parcelize-compiler:parcelize.common"))
+    implementation(project(":compiler:frontend.common-psi"))
 
     compileOnly(intellijCore())
-    compileOnly(project(":compiler:fir:cones"))
-    compileOnly(project(":compiler:fir:tree"))
-    compileOnly(project(":compiler:fir:resolve"))
-    compileOnly(project(":compiler:fir:plugin-utils"))
-    compileOnly(project(":compiler:fir:checkers"))
-    compileOnly(project(":compiler:fir:checkers:checkers.jvm"))
-    compileOnly(project(":compiler:fir:diagnostic-renderers"))
-    compileOnly(project(":compiler:ir.backend.common"))
-    compileOnly(project(":compiler:ir.tree"))
-    compileOnly(project(":compiler:fir:entrypoint"))
+    implementation(project(":compiler:fir:plugin.api"))
+    // Required for JVM specific utility functions.
+    implementation(project(":compiler:fir:fir-jvm"))
+    // TODO(KT-90146): Required to access various utility functions.
+    implementation(project(":compiler:fir:checkers:checkers.common"))
 }
 
 sourceSets {

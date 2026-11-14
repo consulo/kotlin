@@ -1,6 +1,8 @@
 import plugins.KotlinBuildPublishingPlugin
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("gradle-plugin-common-configuration")
 }
 
@@ -9,7 +11,6 @@ dependencies {
     commonApi(project(":kotlin-gradle-plugin-api"))
     commonCompileOnly(project(":kotlin-gradle-compiler-types"))
     commonCompileOnly(project(":kotlin-gradle-plugin"))
-    commonCompileOnly(gradleKotlinDsl())
 }
 
 

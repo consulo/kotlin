@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -10,9 +10,9 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.LLFirResolveT
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.asResolveTarget
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.throwUnexpectedFirElementError
 import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.FirLazyBodiesCalculator
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkAnalysisReadiness
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkDeprecationProviderIsResolved
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.expressionGuard
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkAnalysisReadiness
 import org.jetbrains.kotlin.fir.FirAnnotationContainer
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.declarations.*
@@ -103,7 +103,9 @@ private class LLFirCompilerRequiredAnnotationsTargetResolver(
         /**
          * Annotation arguments should be calculated even if they are not from
          * [org.jetbrains.kotlin.fir.declarations.FirAnnotationsPlatformSpecificSupportComponent.requiredAnnotationsWithArguments]
-         * as compiler plugins still may access unresolved arguments for some computations (like to get a class literal)
+         * as
+         *  - compiler plugins still may access unresolved arguments for some computations (like to get a class literal)
+         *  - argument of `EqualityBound` is accessed not immediately, but in [FirResolvePhase.TYPES] phase
          */
         override fun annotationResolved(annotation: FirAnnotationCall) {
             FirLazyBodiesCalculator.calculateAnnotation(annotation, resolveTargetSession)
@@ -167,9 +169,11 @@ private class LLFirCompilerRequiredAnnotationsTargetResolver(
             is FirCallableDeclaration -> resolve(target, CompilerAnnotationsStateKeepers.CALLABLE_DECLARATION)
             is FirClassLikeDeclaration -> resolve(target, CompilerAnnotationsStateKeepers.CLASS_LIKE_DECLARATION)
             is FirCodeFragment -> {}
-            is FirFile, is FirScript, is FirAnonymousInitializer, is FirDanglingModifierList -> {
-                resolve(target, CompilerAnnotationsStateKeepers.ANNOTATION_CONTAINER)
-            }
+            is FirFile,
+            is FirScript,
+            is FirAnonymousInitializer,
+            is FirDanglingModifierList,
+                -> resolve(target, CompilerAnnotationsStateKeepers.ANNOTATION_CONTAINER)
 
             else -> throwUnexpectedFirElementError(target)
         }

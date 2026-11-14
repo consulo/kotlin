@@ -8,14 +8,23 @@ package org.jetbrains.kotlin.gradle
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
-import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.target.HostManager
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInNative
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.condition.OS
 
+@OsCondition(
+    supportedOn = [OS.LINUX, OS.MAC, OS.WINDOWS],
+    enabledOnCI = [OS.LINUX, OS.MAC, OS.WINDOWS])
 @DisplayName("K/N tests for hierarchical commonizer")
 @NativeGradlePluginTests
+@MustRunOnChangesInGradle
+@MustRunOnChangesInNative
 open class CommonizerHierarchicalIT : KGPBaseTest() {
 
+    @TestMetadata("commonizeHierarchically")
     @DisplayName("Commonize hierarchically metadata compilations")
     @GradleTest
     fun testCommonizeHierarchicallyMetadataCompilations(gradleVersion: GradleVersion) {
@@ -57,6 +66,7 @@ open class CommonizerHierarchicalIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("commonizeHierarchically")
     @DisplayName("Commonize hierarchically Klibrary compilations")
     @GradleTest
     fun testCommonizeHierarchicallyKlibraryCompilations(gradleVersion: GradleVersion) {
@@ -65,10 +75,9 @@ open class CommonizerHierarchicalIT : KGPBaseTest() {
             gradleVersion,
         ) {
             if (HostManager.hostIsMac) {
-                build(":p1:iosArm64MainKlibrary", ":p1:iosX64MainKlibrary", ":p1:macosX64MainKlibrary", ":p1:macosArm64MainKLibrary") {
+                build(":p1:iosArm64MainKlibrary", ":p1:iosX64MainKlibrary", ":p1:macosArm64MainKLibrary") {
                     assertDirectoryInProjectExists("p1/build/classes/kotlin/iosArm64/main/klib/p1")
                     assertDirectoryInProjectExists("p1/build/classes/kotlin/iosX64/main/klib/p1")
-                    assertDirectoryInProjectExists("p1/build/classes/kotlin/macosX64/main/klib/p1")
                     assertDirectoryInProjectExists("p1/build/classes/kotlin/macosArm64/main/klib/p1")
                     assertNoDuplicateLibraryWarning()
                 }
@@ -87,6 +96,7 @@ open class CommonizerHierarchicalIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("commonizeHierarchicallyMultiModule")
     @DisplayName("Commonize hierarchically multi module")
     @GradleTest
     fun testCommonizeHierarchicallyMultiModule(gradleVersion: GradleVersion) {
@@ -114,6 +124,7 @@ open class CommonizerHierarchicalIT : KGPBaseTest() {
     // FIXME: Does "testCommonizationOfNonPlatformShouldWorkOnlyForSupportedTargets" have the same coverage as
     // "commonizeHierarchicallyPlatformDependencies"? Do we need to add a separate test with only 2 targets one of which is unsupported?
 
+    @TestMetadata("commonize-withJvmSubproject")
     @DisplayName("jvm subproject should not have commonization task")
     @GradleTest
     fun testJvmSubprojectShouldNotHaveCommonizationTask(gradleVersion: GradleVersion) {
@@ -125,6 +136,7 @@ open class CommonizerHierarchicalIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("optimisticCommonization")
     @DisplayName("KT-51332 - optimistic commonization")
     @GradleTest
     fun testOptimisticCommonization(gradleVersion: GradleVersion) {
@@ -135,6 +147,7 @@ open class CommonizerHierarchicalIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("commonize-kt-52050-DIR-supertype")
     @DisplayName("KT-52050 - DIR retains CPointed supertype")
     @GradleTest
     fun testDIRRetainsCPointedSupertype(gradleVersion: GradleVersion) {

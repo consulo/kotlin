@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.gradle.targets.native.internal
 
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
-import org.gradle.api.file.ProjectLayout
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -15,12 +14,14 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
+import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.build.report.metrics.BuildMetricsReporter
 import org.jetbrains.kotlin.build.report.metrics.BuildPerformanceMetric
 import org.jetbrains.kotlin.build.report.metrics.BuildTimeMetric
 import org.jetbrains.kotlin.commonizer.*
 import org.jetbrains.kotlin.compilerRunner.*
 import org.jetbrains.kotlin.internal.compilerRunner.native.KotlinNativeToolRunner
+import org.jetbrains.kotlin.internal.compilerRunner.native.UsesKotlinNativeToolParallelismProbe
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtensionOrNull
 import org.jetbrains.kotlin.gradle.internal.UsesClassLoadersCachingBuildService
@@ -51,11 +52,11 @@ private typealias GroupedCommonizerDependencies = Map<CInteropCommonizerGroup, L
 internal abstract class CInteropCommonizerTask
 @Inject constructor(
     private val objectFactory: ObjectFactory,
-    private val projectLayout: ProjectLayout,
     providerFactory: ProviderFactory,
 ) : AbstractCInteropCommonizerTask(),
     UsesClassLoadersCachingBuildService,
-    UsesKotlinNativeBundleBuildService {
+    UsesKotlinNativeBundleBuildService,
+    UsesKotlinNativeToolParallelismProbe {
 
     internal class CInteropGist(
         @get:Input val identifier: CInteropIdentifier,
@@ -63,9 +64,11 @@ internal abstract class CInteropCommonizerTask
         sourceSets: Provider<Set<KotlinSourceSet>>,
 
         @get:Classpath
+        @get:NormalizeLineEndings
         val libraryFile: Provider<File>,
 
         @get:Classpath
+        @get:NormalizeLineEndings
         val dependencies: FileCollection,
     ) {
         @Suppress("unused") // Used for UP-TO-DATE check
@@ -101,8 +104,6 @@ internal abstract class CInteropCommonizerTask
 
     }
 
-    override val outputDirectory: File get() = projectLayout.buildDirectory.get().asFile.resolve("classes/kotlin/commonizer")
-
     @get:Nested
     internal val kotlinNativeProvider: Property<KotlinNativeProvider> =
 
@@ -126,6 +127,7 @@ internal abstract class CInteropCommonizerTask
         .chainedDisallowChanges()
 
     @get:Classpath
+    @get:NormalizeLineEndings
     internal val commonizerClasspath: ConfigurableFileCollection = objectFactory.fileCollection()
 
     @get:Input
@@ -206,6 +208,7 @@ internal abstract class CInteropCommonizerTask
 
     @Suppress("unused") // Used for UP-TO-DATE check
     @get:Classpath
+    @get:NormalizeLineEndings
     protected val commonizerDependenciesClasspath: FileCollection = project.filesProvider {
         groupedCommonizerDependencies.getOrThrow().values.flatten().map { it.dependencies }
     }
@@ -238,10 +241,20 @@ internal abstract class CInteropCommonizerTask
         outputDirectory.deleteRecursively()
         if (cinteropsForTarget.isEmpty()) return
 
-        GradleCliCommonizer(
-            commonizerToolRunner.get(),
-            kotlinCompilerArgumentsLogLevel.get(),
-        ).commonizeLibraries(
+        val runner = commonizerToolRunner.get()
+        val compilerArgumentsLogLevel = kotlinCompilerArgumentsLogLevel.get()
+
+        CliCommonizer { arguments ->
+            runner.runToolWithWorkers(
+                KotlinNativeToolRunner.ToolArguments(
+                    shouldRunInProcessMode = false,
+                    compilerArgumentsLogLevel = compilerArgumentsLogLevel,
+                    arguments = arguments,
+                ),
+                taskPath = path,
+                parallelismProbe = kotlinNativeToolParallelismProbe,
+            )
+        }.commonizeLibraries(
             konanHome = konanHome.get(),
             outputTargets = group.targets,
             inputLibraries = cinteropsForTarget.map { it.libraryFile.get() }.filter { it.exists() }.toSet(),

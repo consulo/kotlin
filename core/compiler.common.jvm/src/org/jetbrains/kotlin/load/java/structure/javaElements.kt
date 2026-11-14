@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.load.java.structure
 
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -71,8 +72,11 @@ fun JavaAnnotationOwner.buildLazyValueForMap() = lazy {
 
 interface JavaPackage : JavaElement, JavaAnnotationOwner {
     val fqName: FqName
+
+    @K1Deprecation
     val subPackages: Collection<JavaPackage>
 
+    @K1Deprecation
     fun getClasses(nameFilter: (Name) -> Boolean): Collection<JavaClass>
 }
 
@@ -90,6 +94,7 @@ interface JavaClass : JavaClassifier, JavaTypeParameterListOwner, JavaModifierLi
     val isAnnotationType: Boolean
     val isEnum: Boolean
     val isRecord: Boolean
+    val isValue: Boolean
     val isSealed: Boolean
     val permittedTypes: Sequence<JavaClassifierType>
     val lightClassOriginKind: LightClassOriginKind?
@@ -134,6 +139,15 @@ interface JavaField : JavaMember {
     val type: JavaType
     val initializerValue: Any?
     val hasConstantNotNullInitializer: Boolean
+
+    /**
+     * Whether the source/binary declaration carries any initializer expression (constant or not).
+     * Broader than [hasConstantNotNullInitializer].
+     * Used by the lombok plugin's `@RequiredArgsConstructor`/`@AllArgsConstructor` generation to
+     * exclude fields that already have an initializer (`RequiredArgsConstructorGeneratorPart`,
+     * `AllArgsConstructorGeneratorPart` in `plugins/lombok`).
+     */
+    val hasInitializer: Boolean
 }
 
 interface JavaConstructor : JavaMember, JavaTypeParameterListOwner {

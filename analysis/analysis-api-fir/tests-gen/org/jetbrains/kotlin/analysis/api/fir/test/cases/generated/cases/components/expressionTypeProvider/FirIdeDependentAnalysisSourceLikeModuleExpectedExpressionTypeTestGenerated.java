@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.expressionTypeProvider.AbstractExpectedExpressionTypeTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.expressionTypeProvider.AbstractExpectedExpressionTypeTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirIdeDependentAnalysisSourceLikeModuleExpectedExpressionTypeTestGe
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Dependent,
         AnalysisApiMode.Ide,
@@ -88,6 +86,18 @@ public class FirIdeDependentAnalysisSourceLikeModuleExpectedExpressionTypeTestGe
   }
 
   @Test
+  @TestMetadata("arrayOfInAnnotationArrayType.kt")
+  public void testArrayOfInAnnotationArrayType() {
+    run("arrayOfInAnnotationArrayType.kt");
+  }
+
+  @Test
+  @TestMetadata("arrayOfInAnnotationJavaArray.kt")
+  public void testArrayOfInAnnotationJavaArray() {
+    run("arrayOfInAnnotationJavaArray.kt");
+  }
+
+  @Test
   @TestMetadata("callableReference_consumer.kt")
   public void testCallableReference_consumer() {
     run("callableReference_consumer.kt");
@@ -103,6 +113,24 @@ public class FirIdeDependentAnalysisSourceLikeModuleExpectedExpressionTypeTestGe
   @TestMetadata("collectionLiteralInAnnotation.kt")
   public void testCollectionLiteralInAnnotation() {
     run("collectionLiteralInAnnotation.kt");
+  }
+
+  @Test
+  @TestMetadata("collectionLiteralInAnnotationArrayType.kt")
+  public void testCollectionLiteralInAnnotationArrayType() {
+    run("collectionLiteralInAnnotationArrayType.kt");
+  }
+
+  @Test
+  @TestMetadata("collectionLiteralInAnnotationIntArray.kt")
+  public void testCollectionLiteralInAnnotationIntArray() {
+    run("collectionLiteralInAnnotationIntArray.kt");
+  }
+
+  @Test
+  @TestMetadata("collectionLiteralInAnnotationJavaArray.kt")
+  public void testCollectionLiteralInAnnotationJavaArray() {
+    run("collectionLiteralInAnnotationJavaArray.kt");
   }
 
   @Test
@@ -271,6 +299,12 @@ public class FirIdeDependentAnalysisSourceLikeModuleExpectedExpressionTypeTestGe
   @TestMetadata("infixFunctionTypeParameter.kt")
   public void testInfixFunctionTypeParameter() {
     run("infixFunctionTypeParameter.kt");
+  }
+
+  @Test
+  @TestMetadata("intArrayOfInAnnotation.kt")
+  public void testIntArrayOfInAnnotation() {
+    run("intArrayOfInAnnotation.kt");
   }
 
   @Test

@@ -6,9 +6,11 @@
 package org.jetbrains.kotlin.sir.providers.source
 
 import org.jetbrains.kotlin.analysis.api.symbols.*
+import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.sir.SirDeclaration
 import org.jetbrains.kotlin.sir.SirOrigin
 import org.jetbrains.kotlin.sir.SirParameter
+import org.jetbrains.kotlin.sir.SirType
 
 public open class KotlinSource(
     public val symbol: KaSymbol,
@@ -32,6 +34,8 @@ public class KotlinRuntimeElement : SirOrigin.Foreign.SourceCode
 
 public class KotlinMarkerProtocol(symbol: KaNamedClassSymbol) : KotlinSource(symbol)
 
+public class KotlinImplementationMarkerProtocol(symbol: KaNamedClassSymbol) : KotlinSource(symbol)
+
 public sealed class KotlinParameterOrigin : SirParameter.Origin {
     public class ValueParameter(public val parameter: KaValueParameterSymbol) : KotlinParameterOrigin()
     public class ReceiverParameter(public val parameter: KaReceiverParameterSymbol) : KotlinParameterOrigin()
@@ -45,3 +49,7 @@ public inline fun <reified T : KaSymbol> SirDeclaration.kaSymbolOrNull(): T? {
         ?: return null
     return kotlinOrigin.symbol as? T
 }
+
+public class KotlinType(
+    public val type: KaType
+) : SirType.Origin.Foreign

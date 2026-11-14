@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -7,54 +7,84 @@ package org.jetbrains.kotlin.gradle.targets.js.ir
 
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
+import org.gradle.api.file.Directory
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.gradle.api.file.FileCollection
+import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.*
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation.Companion.MAIN_COMPILATION_NAME
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
+import org.jetbrains.kotlin.gradle.plugin.mpp.archive.KotlinTargetWithKotlinArchiveSupport
 import org.jetbrains.kotlin.gradle.plugin.mpp.resources.publication.setUpResourcesVariant
 import org.jetbrains.kotlin.gradle.targets.js.*
 import org.jetbrains.kotlin.gradle.targets.js.dsl.*
+import org.jetbrains.kotlin.gradle.targets.js.internal.jsToolingProject
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTargetConfigurator.Companion.configureJsDefaultOptions
-import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
-import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin.Companion.kotlinNodeJsRootExtension
+import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsPlugin
 import org.jetbrains.kotlin.gradle.targets.js.npm.NpmResolverPlugin
+import org.jetbrains.kotlin.gradle.targets.js.typescript.KotlinJsDtsGenerationTask
 import org.jetbrains.kotlin.gradle.targets.js.typescript.TypeScriptValidationTask
-import org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenExec
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsPlugin
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootPlugin
 import org.jetbrains.kotlin.gradle.targets.wasm.npm.WasmNpmResolverPlugin
+import org.jetbrains.kotlin.gradle.targets.web.WebIsolatedProjectsSupport
+import org.jetbrains.kotlin.gradle.targets.web.webIsolatedProjectsSupport
+import org.jetbrains.kotlin.gradle.tasks.locateOrRegisterTask
 import org.jetbrains.kotlin.gradle.tasks.registerTask
 import org.jetbrains.kotlin.gradle.utils.*
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.capitalizeAsciiOnly
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
 import org.jetbrains.kotlin.utils.addIfNotNull
 import javax.inject.Inject
-import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmNodeJsRootPlugin.Companion.kotlinNodeJsRootExtension as wasmKotlinNodeJsRootExtension
 
 internal fun ObjectFactory.KotlinJsIrTarget(
     project: Project,
     platformType: KotlinPlatformType,
-    isMpp: Boolean,
-): KotlinJsIrTarget = newInstance(project, platformType, isMpp)
+): KotlinJsIrTarget = newInstance(project, platformType)
 
 abstract class KotlinJsIrTarget
 @Inject
-constructor(
+internal constructor(
     project: Project,
     platformType: KotlinPlatformType,
-    internal val isMpp: Boolean,
 ) :
     KotlinTargetWithBinaries<KotlinJsIrCompilation, KotlinJsBinaryContainer>(project, platformType),
     KotlinTargetWithTests<JsAggregatingExecutionSource, KotlinJsReportAggregatingTestRun>,
     KotlinJsTargetDsl,
-    KotlinWasmJsTargetDsl,
-    KotlinWasmWasiTargetDsl,
+    KotlinWasmTargetDsl,
     KotlinJsSubTargetContainerDsl,
-    KotlinWasmSubTargetContainerDsl {
+    KotlinTargetWithKotlinArchiveSupport {
+
+    @InternalKotlinGradlePluginApi
+    override val isStoredInKotlinArchive: Provider<Boolean> =
+        project.multiplatformExtension.publishing.publicationFormat.map { it == KotlinPublicationFormat.KOTLIN_ARCHIVE }
+
+    @InternalKotlinGradlePluginApi
+    override val platformNameInKotlinArchive: String
+        get() = targetPreset?.name ?: error("Name in kotlin archive in unknown for $targetName")
+
+    @InternalKotlinGradlePluginApi
+    override val platformKlibFiles: FileCollection
+        get() = project.files(project.tasks.named(artifactsTaskName))
+
+    @InternalKotlinGradlePluginApi
+    override val doesPlatformKlibRequireUnpacking: Boolean
+        get() = true
+
+    @Deprecated(
+        "Creating new KotlinJsIrTarget instances outside of Kotlin Gradle plugin is deprecated. Scheduled for removal in Kotlin 2.7.",
+        level = DeprecationLevel.ERROR,
+    )
+    constructor(
+        project: Project,
+        platformType: KotlinPlatformType,
+        @Suppress("UNUSED_PARAMETER")
+        isMpp: Boolean,
+    ) : this(project, platformType)
 
     private val propertiesProvider = PropertiesProvider(project)
     internal val shouldGenerateTypeScriptDefinitions: Property<Boolean> = project.objects.property<Boolean>(false)
@@ -108,26 +138,6 @@ constructor(
         }
     }
 
-    override fun createUsageContexts(producingCompilation: KotlinCompilation<*>): Set<DefaultKotlinUsageContext> {
-        val usageContexts = super.createUsageContexts(producingCompilation)
-
-        if (isMpp) return usageContexts
-
-        return usageContexts +
-                DefaultKotlinUsageContext(
-                    compilation = compilations.getByName(MAIN_COMPILATION_NAME),
-                    mavenScope = KotlinUsageContext.MavenScope.COMPILE,
-                    dependencyConfigurationName = commonFakeApiElementsConfigurationName,
-                    overrideConfigurationArtifacts = project.setProperty { emptyList() }
-                )
-    }
-
-    internal val commonFakeApiElementsConfigurationName: String
-        get() = lowerCamelCaseName(
-            disambiguationClassifier,
-            "commonFakeApiElements"
-        )
-
     override val binaries: KotlinJsBinaryContainer
         get() = compilations.withType(KotlinJsIrCompilation::class.java)
             .named(MAIN_COMPILATION_NAME)
@@ -153,17 +163,28 @@ constructor(
             }
     }
 
-    private fun <T : KotlinJsIrSubTargetWithBinary> addSubTarget(type: Class<T>, configure: T.() -> Unit): T {
+    internal fun <T : KotlinJsIrSubTargetWithBinary> addSubTarget(type: Class<T>, configure: T.() -> Unit): T {
         val subTarget = project.objects.newInstance(type, this).also(configure)
         subTargets.add(subTarget)
         return subTarget
     }
 
     private val commonLazyDelegate = lazy {
-        webTargetVariant(
-            { NpmResolverPlugin.apply(project) },
-            { WasmNpmResolverPlugin.apply(project) },
-        )
+        when (project.webIsolatedProjectsSupport) {
+            WebIsolatedProjectsSupport.Off ->
+                webTargetVariant(
+                    { NpmResolverPlugin.apply(project) },
+                    { WasmNpmResolverPlugin.apply(project) },
+                )
+
+            WebIsolatedProjectsSupport.Preview ->
+                // Per-project Node.js provisioning (`kotlinNodeJsSpec`) is compatible with Isolated Projects.
+                // With Off it is applied transitively by the resolver plugins, so apply it directly.
+                webTargetVariant(
+                    { NodeJsPlugin.apply(project) },
+                    { WasmNodeJsPlugin.apply(project) },
+                )
+        }
         compilations.all { compilation ->
             compilation.binaries
                 .withType(JsIrBinary::class.java)
@@ -180,17 +201,14 @@ constructor(
 
     private val commonLazy by commonLazyDelegate
 
-    private fun registerTypeScriptCheckTask(binary: JsIrBinary): TaskProvider<TypeScriptValidationTask> {
-        val linkTask = binary.linkTask
+    private fun registerTypeScriptCheckTask(
+        binary: JsIrBinary,
+        inputDirectory: Provider<Directory>,
+    ): TaskProvider<TypeScriptValidationTask> {
         val compilation = binary.compilation
         return project.registerTask(binary.validateGeneratedTsTaskName, listOf(compilation)) {
-            it.versions.value(
-                compilation.webTargetVariant(
-                    { project.rootProject.kotlinNodeJsRootExtension.versions },
-                    { project.rootProject.wasmKotlinNodeJsRootExtension.versions },
-                )
-            ).disallowChanges()
-            it.inputDir.set(linkTask.flatMap { it.destinationDirectory })
+            it.versions.value(compilation.npmVersions()).disallowChanges()
+            it.inputDir.set(inputDirectory)
             it.validationStrategy.set(
                 when (binary.mode) {
                     KotlinJsBinaryMode.DEVELOPMENT -> propertiesProvider.jsIrGeneratedTypeScriptValidationDevStrategy
@@ -200,21 +218,18 @@ constructor(
         }
     }
 
-    @Deprecated(
-        "Binaryen is enabled by default. This call is redundant. Scheduled for removal in Kotlin 2.3.",
-        level = DeprecationLevel.ERROR
-    )
-    override fun applyBinaryen(body: BinaryenExec.() -> Unit) {
+    internal open fun KotlinBrowserJsIr.bundleConfigurator() {
+        subTargetConfigurators.add(WebpackConfigurator(this))
     }
 
-    //Browser
+    //region Browser
     private val browserLazyDelegate = lazy {
         commonLazy
         addSubTarget(KotlinBrowserJsIr::class.java) {
             configureSubTarget()
             subTargetConfigurators.add(SwcConfigurator(this))
             subTargetConfigurators.add(LibraryConfigurator(this))
-            subTargetConfigurators.add(WebpackConfigurator(this))
+            bundleConfigurator()
         }
     }
 
@@ -223,14 +238,17 @@ constructor(
     override fun browser(body: KotlinJsBrowserDsl.() -> Unit) {
         body(browser)
     }
+    //endregion
 
-    //node.js
+    //region node.js
     private val nodejsLazyDelegate = lazy {
         if (wasmTargetType != KotlinWasmTargetType.WASI) {
             commonLazy
         } else {
             WasmNodeJsPlugin.apply(project)
-            WasmNodeJsRootPlugin.apply(project.rootProject)
+            if (project.webIsolatedProjectsSupport == WebIsolatedProjectsSupport.Off) {
+                WasmNodeJsRootPlugin.apply(project.jsToolingProject())
+            }
         }
 
         addSubTarget(KotlinNodeJsIr::class.java) {
@@ -246,30 +264,10 @@ constructor(
     override fun nodejs(body: KotlinJsNodeDsl.() -> Unit) {
         body(nodejs)
     }
+    //endregion
 
-    //d8
-    @OptIn(ExperimentalWasmDsl::class)
-    private val d8LazyDelegate = lazy {
-        webTargetVariant(
-            { NodeJsRootPlugin.apply(project.rootProject) },
-            { WasmNodeJsRootPlugin.apply(project.rootProject) },
-        )
-
-        addSubTarget(KotlinD8Ir::class.java) {
-            configureSubTarget()
-            subTargetConfigurators.add(LibraryConfigurator(this))
-            subTargetConfigurators.add(D8EnvironmentConfigurator(this))
-        }
-    }
-
-    override val d8: KotlinWasmD8Dsl by d8LazyDelegate
-
-    private fun KotlinJsIrSubTarget.configureSubTarget() {
+    internal fun KotlinJsIrSubTarget.configureSubTarget() {
         configure()
-    }
-
-    override fun d8(body: KotlinWasmD8Dsl.() -> Unit) {
-        body(d8)
     }
 
     override fun useCommonJs() {
@@ -335,18 +333,55 @@ constructor(
     override fun generateTypeScriptDefinitions() {
         shouldGenerateTypeScriptDefinitions.set(true)
         compilations
-            .all {
-                it.binaries
+            .all { compilation ->
+                compilation.binaries
                     .withType(JsIrBinary::class.java)
                     .all { binary ->
-                        val tsValidationTask = registerTypeScriptCheckTask(binary)
+                        if (binary.target.wasmTargetType == null && propertiesProvider.jsGenerateRichTypeScriptDeclarations) {
+                            val dtsTask = registerDtsGenerationTask(binary)
 
-                        binary.linkTask.configure { linkTask ->
-                            linkTask.compilerOptions.freeCompilerArgs.add(GENERATE_D_TS)
-                            linkTask.finalizedBy(tsValidationTask)
+                            val tsValidationTask = registerTypeScriptCheckTask(
+                                binary,
+                                dtsTask.flatMap { it.outputDirectory },
+                            )
+                            dtsTask.configure { it.finalizedBy(tsValidationTask) }
+                            binary.typeScriptDeclarations.from(dtsTask)
+                            binary.linkSyncTask.configure { it.from.from(dtsTask) }
+                        } else {
+                            val tsValidationTask = registerTypeScriptCheckTask(
+                                binary,
+                                binary.linkTask.flatMap { it.destinationDirectory },
+                            )
+                            binary.linkTask.configure { linkTask ->
+                                linkTask.compilerOptions.freeCompilerArgs.add(GENERATE_D_TS)
+                                linkTask.finalizedBy(tsValidationTask)
+                            }
+                            binary.typeScriptDeclarations.from(
+                                binary.defaultLinkSyncTaskInput.map { dir ->
+                                    dir.asFileTree.matching { it.include("**/*.d.ts", "**/*.d.mts") }
+                                }
+                            )
                         }
                     }
             }
+    }
+
+    private fun registerDtsGenerationTask(binary: JsIrBinary): TaskProvider<KotlinJsDtsGenerationTask> {
+        val linkTask = binary.linkTask
+        val configurations = project.configurations
+
+        return project.locateOrRegisterTask<KotlinJsDtsGenerationTask>(binary.dtsGenerationTaskName) { task ->
+            task.klibs.from(
+                binary.compilation.compileTaskProvider.flatMap { it.libraries.elements },
+                binary.compilation.compileTaskProvider.map { it.destinationDirectory }
+            )
+            KotlinJsCompilerOptionsHelper.syncOptionsAsConvention(linkTask.get().compilerOptions, task.linkCompilerOptions)
+            task.linkFreeCompilerArgs.set(linkTask.flatMap { it.enhancedFreeCompilerArgs })
+            task.entryModule.set(linkTask.flatMap { it.entryModule })
+            task.granularity.set(propertiesProvider.jsIrOutputGranularity)
+            task.kotlinBuildToolsApiClasspath.from(configurations.named(BUILD_TOOLS_API_CLASSPATH_CONFIGURATION_NAME))
+            task.outputDirectory.set(binary.outputDirBase.map { it.dir(KotlinJsDtsGenerationTask.OUTPUT_DIRECTORY_NAME) })
+        }
     }
 
     override val compilerOptions: KotlinJsCompilerOptions = project.objects
@@ -363,28 +398,27 @@ constructor(
             targetName: String,
             defaultTargetName: String,
         ): String {
-            val rootProjectName = project.rootProject.name
+            return buildString {
+                if (project.isRootProject()) {
+                    append(project.rootProjectName())
+                } else {
+                    append(project.rootProjectName().replace(":", "-"))
+                    append(project.path.replace(":", "-"))
+                }
 
-            val localName = if (project != project.rootProject) {
-                (rootProjectName + project.path).replace(":", "-")
-            } else rootProjectName
-
-            val targetPartName = if (targetName.isNotEmpty() && targetName != defaultTargetName) {
-                targetName
-                    .replace(DECAMELIZE_REGEX) {
-                        it.groupValues
-                            .drop(1)
-                            .joinToString(prefix = "-", separator = "-")
-                    }
-                    .toLowerCaseAsciiOnly()
-            } else null
-
-            return sequenceOf(
-                localName,
-                targetPartName
-            )
-                .filterNotNull()
-                .joinToString("-")
+                if (targetName.isNotEmpty() && targetName != defaultTargetName) {
+                    append("-")
+                    append(
+                        targetName
+                            .replace(DECAMELIZE_REGEX) {
+                                it.groupValues
+                                    .drop(1)
+                                    .joinToString(prefix = "-", separator = "-")
+                            }
+                            .toLowerCaseAsciiOnly()
+                    )
+                }
+            }
         }
     }
 }

@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.regressionTests
 
 import org.gradle.api.internal.project.ProjectInternal
@@ -43,7 +41,6 @@ class KT69330StableFriendPathsArchiveTaskDependencyTest {
         val project = buildProject()
         project.plugins.apply("java-library")
         project.applyKotlinJvmPlugin()
-        project.repositories.mavenLocal()
         project.repositories.mavenCentralCacheRedirector()
         return project
     }

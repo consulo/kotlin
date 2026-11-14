@@ -5,12 +5,16 @@
 
 package org.jetbrains.kotlin.analysis.api.klib.reader
 
-import org.jetbrains.kotlin.analysis.api.analyze
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager.getApplication
+import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.util.Disposer.dispose
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaLibraryModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaSourceModule
+import org.jetbrains.kotlin.analysis.api.session.analyze
 import org.jetbrains.kotlin.analysis.api.standalone.buildStandaloneAnalysisAPISession
-import org.jetbrains.kotlin.analysis.project.structure.builder.KtModuleProviderBuilder
+import org.jetbrains.kotlin.analysis.project.structure.builder.KaModuleContainerBuilder
 import org.jetbrains.kotlin.analysis.project.structure.builder.buildKtLibraryModule
 import org.jetbrains.kotlin.analysis.project.structure.builder.buildKtSourceModule
 import org.jetbrains.kotlin.library.metadata.KlibInputModule
@@ -19,12 +23,19 @@ import org.jetbrains.kotlin.platform.TargetPlatform
 /**
  * @property useSiteModule A target for creating Analysis API session via [analyze].
  * @property platformLibraries Platform libraries from the Kotlin Native distribution, if any.
+ * @property cinteropReexportLibraries User cinterop klibs whose types originate from an externally-defined
+ *   ObjC module; treated as platform-like (no generated Swift module), but distinguished from distribution
+ *   platform libs since they are opted in by the caller.
+ *
+ * The underlying standalone Analysis API project should be disposed with [close] after the modules have been used.
  */
 public class KaModules<Config> internal constructor(
+    private val projectDisposable: Disposable,
     public val useSiteModule: KaModule,
     private val modulesToInputs: Map<KaLibraryModule, KlibInputModule<Config>>,
     public val platformLibraries: List<KaLibraryModule>,
-) {
+    public val cinteropReexportLibraries: List<KaLibraryModule>,
+) : AutoCloseable {
     public val inputsToModules: Map<KlibInputModule<Config>, KaLibraryModule> = modulesToInputs.map { it.value to it.key }.toMap()
     public val mainModules: List<KaLibraryModule> = modulesToInputs.keys.toList()
 
@@ -33,21 +44,37 @@ public class KaModules<Config> internal constructor(
 
     public fun configFor(module: KaLibraryModule): Config =
         inputModuleFor(module)?.config ?: error("No config for module ${module.libraryName}")
+
+    public override fun close() {
+        val application = getApplication()
+        if (application.isWriteAccessAllowed) {
+            dispose(projectDisposable)
+        } else {
+            application.runWriteAction {
+                dispose(projectDisposable)
+            }
+        }
+    }
 }
 
 public fun <Config> createKaModulesForStandaloneAnalysis(
     inputs: Collection<KlibInputModule<Config>>,
     targetPlatform: TargetPlatform,
     platformLibraries: Collection<KlibInputModule<Config>> = emptyList(),
+    cinteropReexportLibraries: Collection<KlibInputModule<Config>> = emptyList(),
 ): KaModules<Config> {
+    val projectDisposable = Disposer.newDisposable("KaModules.project")
     lateinit var binaryModules: Map<KaLibraryModule, KlibInputModule<Config>>
     lateinit var fakeSourceModule: KaSourceModule
     var platformLibraryModules: List<KaLibraryModule> = emptyList()
-    buildStandaloneAnalysisAPISession {
+    var cinteropReexportLibraryModules: List<KaLibraryModule> = emptyList()
+
+    buildStandaloneAnalysisAPISession(projectDisposable) {
         buildKtModuleProvider {
             platform = targetPlatform
             binaryModules = inputs.associateBy { inputModuleIntoKaLibraryModule(it, targetPlatform) }
             platformLibraryModules = platformLibraries.map { inputModuleIntoKaLibraryModule(it, targetPlatform) }
+            cinteropReexportLibraryModules = cinteropReexportLibraries.map { inputModuleIntoKaLibraryModule(it, targetPlatform) }
             // It's a pure hack: Analysis API does not properly work without root source modules.
             fakeSourceModule = addModule(
                 buildKtSourceModule {
@@ -55,14 +82,15 @@ public fun <Config> createKaModulesForStandaloneAnalysis(
                     moduleName = "fakeSourceModule"
                     binaryModules.keys.forEach(::addRegularDependency)
                     platformLibraryModules.forEach(::addRegularDependency)
+                    cinteropReexportLibraryModules.forEach(::addRegularDependency)
                 }
             )
         }
     }
-    return KaModules(fakeSourceModule, binaryModules, platformLibraryModules)
+    return KaModules(projectDisposable, fakeSourceModule, binaryModules, platformLibraryModules, cinteropReexportLibraryModules)
 }
 
-private fun <Config> KtModuleProviderBuilder.inputModuleIntoKaLibraryModule(
+private fun <Config> KaModuleContainerBuilder.inputModuleIntoKaLibraryModule(
     input: KlibInputModule<Config>,
     targetPlatform: TargetPlatform,
 ): KaLibraryModule = addModule(

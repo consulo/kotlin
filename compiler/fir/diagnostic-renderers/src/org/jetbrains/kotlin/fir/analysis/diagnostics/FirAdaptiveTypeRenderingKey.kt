@@ -16,12 +16,15 @@ import org.jetbrains.kotlin.fir.renderer.ConeIdShortRenderer
 import org.jetbrains.kotlin.fir.renderer.ConeTypeRendererForReadability
 import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.resolve.toSymbol
-import org.jetbrains.kotlin.fir.symbols.ConeTypeParameterLookupTag
+import org.jetbrains.kotlin.fir.resolve.typeParameterSymbol
+import org.jetbrains.kotlin.fir.types.ConeTypeParameterLookupTag
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.types.ConeClassLikeErrorLookupTag
 import org.jetbrains.kotlin.fir.types.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.types.ConeIntersectionType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.fir.types.ConeReceiverInfo
+import org.jetbrains.kotlin.fir.types.ConeUnionType
 import org.jetbrains.kotlin.fir.types.forEachType
 import org.jetbrains.kotlin.fir.types.getConstructor
 import org.jetbrains.kotlin.fir.types.lowerBoundIfFlexible
@@ -40,15 +43,18 @@ import org.jetbrains.kotlin.types.model.TypeConstructorMarker
  */
 object FirAdaptiveTypeRenderingKey : RenderingContext.Key<Map<ConeKotlinType, String>>("ADAPTIVE_RENDERED_TYPES") {
     override fun compute(objectsToRender: Collection<Any?>, diagnosticContext: DiagnosticBaseContext): Map<ConeKotlinType, String> {
-        val coneTypes = objectsToRender.filterIsInstance<ConeKotlinType>() +
-                objectsToRender.filterIsInstance<Iterable<*>>().flatMap { it.filterIsInstance<ConeKotlinType>() }
+        val coneTypes = buildList {
+            objectsToRender.filterIsInstanceTo<ConeKotlinType, _>(this)
+            objectsToRender.filterIsInstance<Iterable<*>>().flatMapTo(this) { it.filterIsInstance<ConeKotlinType>() }
+            objectsToRender.filterIsInstance<ConeReceiverInfo>().mapTo(this) { it.type }
+        }
 
         val constructors = buildSet {
             coneTypes.forEach {
                 it.forEachType { typeWithinIt ->
                     val lowerBound = typeWithinIt.lowerBoundIfFlexible()
 
-                    if (lowerBound !is ConeIntersectionType) {
+                    if (lowerBound !is ConeIntersectionType && lowerBound !is ConeUnionType) {
                         add(lowerBound.getConstructor())
                     }
                 }
@@ -93,14 +99,14 @@ object FirAdaptiveTypeRenderingKey : RenderingContext.Key<Map<ConeKotlinType, St
 
             if (isClassLike) {
                 if (isAmbiguous) {
-                    append(if (classId.packageFqName.isRoot) "<root>" else classId.packageFqName.asString())
+                    appendSafe(if (classId.packageFqName.isRoot) "<root>" else classId.packageFqName.asString())
                     append(".")
                 }
 
                 val symbol = toSymbol(session) ?: return null
                 appendClassLikeTemplate(symbol)
             } else {
-                append(representation)
+                appendSafe(representation)
             }
 
             if (!isClassLike && !isError && isAmbiguous) {
@@ -122,8 +128,8 @@ object FirAdaptiveTypeRenderingKey : RenderingContext.Key<Map<ConeKotlinType, St
 
             if (typeParameterSymbol != null) {
                 append(" (of ")
-                append(FirDiagnosticRenderers.TYPE_PARAMETER_OWNER_SYMBOL.render(typeParameterSymbol.containingDeclarationSymbol))
-                append(')')
+                appendSafe(FirDiagnosticRenderers.TYPE_PARAMETER_OWNER_SYMBOL.render(typeParameterSymbol.containingDeclarationSymbol))
+                append(")")
             }
         }
     }
@@ -163,7 +169,7 @@ object FirAdaptiveTypeRenderingKey : RenderingContext.Key<Map<ConeKotlinType, St
         }
 
         for ((symbol, genericsStartingIndex, typeArgumentCount) in stack.asReversed()) {
-            append(symbol.classId.shortClassName)
+            appendSafe(symbol.classId.shortClassName.toString())
             if (typeArgumentCount != 0) {
                 append("<")
                 for (i in 0..<typeArgumentCount) {
@@ -177,6 +183,12 @@ object FirAdaptiveTypeRenderingKey : RenderingContext.Key<Map<ConeKotlinType, St
                 append(".")
             }
         }
+    }
+
+    private fun StringBuilder.appendSafe(obj: String) {
+        append('\'')
+        append(obj.replace("'", "''"))
+        append('\'')
     }
 
     private fun TypeConstructorMarker.delegatedConstructorOrSelf(): TypeConstructorMarker {

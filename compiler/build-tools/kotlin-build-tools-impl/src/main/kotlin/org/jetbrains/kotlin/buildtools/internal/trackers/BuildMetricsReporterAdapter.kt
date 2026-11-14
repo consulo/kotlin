@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.buildtools.internal.trackers
 import org.jetbrains.kotlin.build.report.metrics.*
 import org.jetbrains.kotlin.buildtools.api.trackers.BuildMetricsCollector
 import org.jetbrains.kotlin.buildtools.internal.BuildOperationImpl
-import org.jetbrains.kotlin.buildtools.internal.BuildOperationImpl.Companion.METRICS_COLLECTOR
 
 internal class BuildMetricsReporterAdapter(private val collector: BuildMetricsCollector) :
     BuildMetricsReporter<BuildTimeMetric, BuildPerformanceMetric> {
@@ -71,16 +70,16 @@ internal class BuildMetricsReporterAdapter(private val collector: BuildMetricsCo
     }
 
     override fun addMetrics(metrics: BuildMetrics<out BuildTimeMetric, out BuildPerformanceMetric>) {
-        metrics.buildAttributes.asMap().forEach { (attribute, value) ->
+        metrics.buildAttributes.asMap().forEach { [attribute, value] ->
             repeat(value) { addAttribute(attribute) }
         }
-        metrics.buildTimes.buildTimesMapMs().forEach { (time, value) ->
+        metrics.buildTimes.buildTimesMapMs().forEach { [time, value] ->
             addTimeMetricNs(time, value * 1_000_000)
         }
-        metrics.buildPerformanceMetrics.asMap().forEach { (metric, value) ->
+        metrics.buildPerformanceMetrics.asMap().forEach { [metric, value] ->
             addMetric(metric, value)
         }
-        metrics.gcMetrics.asMap().forEach { (metric, value) ->
+        metrics.gcMetrics.asMap().forEach { [metric, value] ->
             addGcMetric(metric, value)
         }
     }
@@ -97,7 +96,7 @@ private fun ValueType.toMetricsReporterType(): BuildMetricsCollector.ValueType {
 }
 
 internal fun BuildOperationImpl<*>.getMetricsReporter(): BuildMetricsReporter<BuildTimeMetric, BuildPerformanceMetric> =
-    this[METRICS_COLLECTOR]?.let { BuildMetricsReporterAdapter(it) } ?: if (this[BuildOperationImpl.XX_KGP_METRICS_COLLECTOR]) {
+    metricsCollector?.let { BuildMetricsReporterAdapter(it) } ?: if (kgpMetricsCollector) {
         BuildMetricsReporterImpl()
     } else {
         DoNothingBuildMetricsReporter

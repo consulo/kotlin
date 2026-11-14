@@ -15,8 +15,8 @@ import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.FirTypeAlias
 import org.jetbrains.kotlin.fir.declarations.comparators.FirMemberDeclarationComparator
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
-import org.jetbrains.kotlin.fir.resolve.providers.firProvider
 import org.jetbrains.kotlin.fir.resolve.providers.impl.FirCloneableSymbolProvider
+import org.jetbrains.kotlin.fir.resolve.providers.impl.FirNonErrorSymbolProvider
 import org.jetbrains.kotlin.fir.scopes.kotlinScopeProvider
 import org.jetbrains.kotlin.fir.serialization.FirAdditionalMetadataProvider
 import org.jetbrains.kotlin.fir.serialization.FirElementSerializer
@@ -55,13 +55,19 @@ class FirBuiltInsSerializer(val session: FirSession, val scopeSession: ScopeSess
             }
         }
 
-        @OptIn(SymbolInternals::class)
-        contentPerPackage.getOrPut(StandardNames.BUILT_INS_PACKAGE_FQ_NAME) { PackageContent() }.classes +=
-            FirCloneableSymbolProvider(session, session.moduleData, session.kotlinScopeProvider)
+        contentPerPackage.getOrPut(StandardNames.BUILT_INS_PACKAGE_FQ_NAME) { PackageContent() }.run {
+            classes += FirCloneableSymbolProvider(session, session.moduleData, session.kotlinScopeProvider)
                 .getClassLikeSymbolByClassId(StandardClassIds.Cloneable)!!.fir as FirRegularClass
 
+            val valueSymbolProvider =
+                FirNonErrorSymbolProvider.createIfRichErrorsEnabled(session, session.moduleData, session.kotlinScopeProvider)
+            if (valueSymbolProvider != null) {
+                classes += valueSymbolProvider.getClassLikeSymbolByClassId(StandardClassIds.NonError)!!.fir as FirRegularClass
+            }
+        }
+
         return contentPerPackage.map { packageWithContent ->
-            val (packageFqName, content) = packageWithContent
+            val [packageFqName, content] = packageWithContent
             val serializer = PackageSerializer(packageFqName, content.classes, content.members, session, scopeSession)
             Pair(packageFqName, serializer.serialize())
         }.toList()
@@ -105,8 +111,7 @@ class FirBuiltInsSerializer(val session: FirSession, val scopeSession: ScopeSess
                     serializeClasses(nestedClasses, nestedSerializer)
                 }
 
-                val file = session.firProvider.getFirClassifierContainerFileIfAny(klass.symbol)
-                val classProto = parentSerializer.classProto(klass, file)
+                val classProto = parentSerializer.classProto(klass)
                 proto.addClass_(classProto.build())
             }
         }
@@ -122,7 +127,7 @@ class FirBuiltInsSerializer(val session: FirSession, val scopeSession: ScopeSess
         }
 
         private fun serializeStringTable() {
-            val (strings, qualifiedNames) = extension.stringTable.buildProto()
+            val [strings, qualifiedNames] = extension.stringTable.buildProto()
             proto.strings = strings
             proto.qualifiedNames = qualifiedNames
         }

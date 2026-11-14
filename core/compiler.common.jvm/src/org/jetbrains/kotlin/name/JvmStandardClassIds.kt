@@ -19,6 +19,8 @@ object JvmStandardClassIds {
     val JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME = FqName("kotlin.jvm.JvmExposeBoxed")
     val JVM_EXPOSE_BOXED_ANNOTATION_CLASS_ID = ClassId.topLevel(JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME)
 
+    val JVM_EXPOSE_BOXED_NON_EXPOSED_CONSTRUCTOR_MARKER_FQ_NAME = FqName("kotlin.jvm.internal.BoxingConstructorMarker")
+
     val JVM_MULTIFILE_CLASS: FqName = FqName("kotlin.jvm.JvmMultifileClass")
     val JVM_MULTIFILE_CLASS_ID: ClassId = ClassId.topLevel(JVM_MULTIFILE_CLASS)
     val JVM_MULTIFILE_CLASS_SHORT = JVM_MULTIFILE_CLASS.shortName().asString()
@@ -41,6 +43,9 @@ object JvmStandardClassIds {
 
     @JvmField
     val JVM_SERIALIZABLE_LAMBDA_ANNOTATION_FQ_NAME = FqName("kotlin.jvm.JvmSerializableLambda")
+
+    @JvmField
+    val JVM_SERIALIZABLE_LAMBDA_ANNOTATION_CLASS_ID = ClassId.topLevel(JVM_SERIALIZABLE_LAMBDA_ANNOTATION_FQ_NAME)
 
     @JvmField
     val JVM_SYNTHETIC_ANNOTATION_FQ_NAME = FqName("kotlin.jvm.JvmSynthetic")
@@ -163,6 +168,7 @@ object JvmStandardClassIds {
             val ElementType = "ElementType".javaAnnotationId()
             val RetentionPolicy = "RetentionPolicy".javaAnnotationId()
             val Inherited = "Inherited".javaAnnotationId()
+            val Annotation = "Annotation".javaAnnotationId()
         }
 
         object ParameterNames {
@@ -171,6 +177,7 @@ object JvmStandardClassIds {
     }
 
     object Java {
+        val Object = "Object".javaLangId()
         val Record = "Record".javaLangId()
     }
 

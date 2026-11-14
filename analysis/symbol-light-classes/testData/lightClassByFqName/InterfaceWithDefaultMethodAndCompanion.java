@@ -4,7 +4,7 @@ public abstract interface Test /* Test*/ {
 
   public static final int y = 2 /* initializer type: int */ /* constant value 2 */;
 
-  public abstract void bar();//  bar()
+  public default void bar();//  bar()
 
   public static final class Companion /* Test.Companion*/ {
     private static final int x = 1 /* initializer type: int */;
@@ -19,6 +19,7 @@ public abstract interface Test /* Test*/ {
   }
 
   public static final class DefaultImpls /* Test.DefaultImpls*/ {
+    @java.lang.Deprecated()
     public static void bar(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() Test);//  bar(@org.jetbrains.annotations.NotNull() Test)
   }
 }

@@ -5,30 +5,28 @@
 
 package kotlin.script.experimental.jsr223
 
-import org.jetbrains.kotlin.cli.common.repl.KOTLIN_SCRIPT_ENGINE_BINDINGS_KEY
-import org.jetbrains.kotlin.cli.common.repl.KOTLIN_SCRIPT_STATE_BINDINGS_KEY
 import javax.script.Bindings
 import javax.script.ScriptEngine
 import kotlin.script.experimental.annotations.KotlinScript
-import kotlin.script.experimental.api.ScriptCompilationConfiguration
-import kotlin.script.experimental.api.ScriptEvaluationConfiguration
-import kotlin.script.experimental.api.refineConfiguration
-import kotlin.script.experimental.api.refineConfigurationBeforeEvaluate
+import kotlin.script.experimental.api.*
+import kotlin.script.experimental.jvm.jsr223.configureExposedJsr223Context
+import kotlin.script.experimental.jvm.jsr223.generateBindingSnippetIfNeeded
+import kotlin.script.experimental.jvm.jsr223.importAllBindings
+import kotlin.script.experimental.jvm.jsr223.jsr223
 import kotlin.script.experimental.jvm.jvm
 import kotlin.script.experimental.jvm.jvmTarget
-import kotlin.script.experimental.jvmhost.jsr223.configureProvidedPropertiesFromJsr223Context
-import kotlin.script.experimental.jvmhost.jsr223.importAllBindings
-import kotlin.script.experimental.jvmhost.jsr223.jsr223
-import kotlin.script.templates.standard.ScriptTemplateWithBindings
+
+const val KOTLIN_SCRIPT_STATE_BINDINGS_KEY = "kotlin.script.state"
+const val KOTLIN_SCRIPT_ENGINE_BINDINGS_KEY = "kotlin.script.engine"
 
 @Suppress("unused")
 @KotlinScript(
     compilationConfiguration = KotlinJsr223DefaultScriptCompilationConfiguration::class,
     evaluationConfiguration = KotlinJsr223DefaultScriptEvaluationConfiguration::class
 )
-abstract class KotlinJsr223DefaultScript(val jsr223Bindings: Bindings) : ScriptTemplateWithBindings(jsr223Bindings) {
+open class KotlinJsr223DefaultScript(val jsr223Bindings: Bindings) {
 
-    private val myEngine: ScriptEngine? get() = bindings[KOTLIN_SCRIPT_ENGINE_BINDINGS_KEY]?.let { it as? ScriptEngine }
+    private val myEngine: ScriptEngine? get() = jsr223Bindings[KOTLIN_SCRIPT_ENGINE_BINDINGS_KEY]?.let { it as? ScriptEngine }
 
     private inline fun <T> withMyEngine(body: (ScriptEngine) -> T): T =
         myEngine?.let(body) ?: throw IllegalStateException("Script engine for `eval` call is not found")
@@ -63,7 +61,8 @@ abstract class KotlinJsr223DefaultScript(val jsr223Bindings: Bindings) : ScriptT
 object KotlinJsr223DefaultScriptCompilationConfiguration : ScriptCompilationConfiguration(
     {
         refineConfiguration {
-            beforeCompiling(::configureProvidedPropertiesFromJsr223Context)
+            beforeCompiling(::configureExposedJsr223Context)
+            prependSyntheticSnippets(::generateBindingSnippetIfNeeded)
         }
         jsr223 {
             importAllBindings(true)
@@ -78,6 +77,6 @@ object KotlinJsr223DefaultScriptCompilationConfiguration : ScriptCompilationConf
 
 object KotlinJsr223DefaultScriptEvaluationConfiguration : ScriptEvaluationConfiguration(
     {
-        refineConfigurationBeforeEvaluate(::configureProvidedPropertiesFromJsr223Context)
+        refineConfigurationBeforeEvaluate(::configureExposedJsr223Context)
     }
 )

@@ -6,6 +6,7 @@
 package kotlin.metadata.test
 
 import kotlin.metadata.KmClass
+import kotlin.metadata.KmPackage
 import kotlin.metadata.jvm.KotlinClassMetadata
 
 internal fun Class<*>.getMetadata(): Metadata {
@@ -17,8 +18,20 @@ internal fun Metadata.readAsKmClass(): KmClass {
     return clazz?.kmClass ?: error("Not a KotlinClassMetadata.Class: $clazz")
 }
 
+internal fun Class<*>.readMetadataAsKmPackage(): KmPackage {
+    val classMetadata = KotlinClassMetadata.readStrict(getMetadata())
+    return when (classMetadata) {
+        is KotlinClassMetadata.FileFacade -> classMetadata.kmPackage
+        is KotlinClassMetadata.MultiFileClassPart -> classMetadata.kmPackage
+        else -> error("Can't extract KmPackage from $classMetadata")
+    }
+}
+
 internal fun Class<*>.readMetadataAsKmClass(): KmClass = getMetadata().readAsKmClass()
 
 internal fun Class<*>.readMetadataAsClass(): KotlinClassMetadata.Class = getMetadata().readMetadataAsClass()
+internal fun Class<*>.readMetadataAsSyntheticClass(): KotlinClassMetadata.SyntheticClass = getMetadata().readMetadataAsSyntheticClass()
 
 internal fun Metadata.readMetadataAsClass(): KotlinClassMetadata.Class = KotlinClassMetadata.readStrict(this) as KotlinClassMetadata.Class
+
+internal fun Metadata.readMetadataAsSyntheticClass(): KotlinClassMetadata.SyntheticClass = KotlinClassMetadata.readStrict(this) as KotlinClassMetadata.SyntheticClass

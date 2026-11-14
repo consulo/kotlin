@@ -2,6 +2,7 @@
  * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.stubBased.deserialization
 
@@ -10,6 +11,7 @@ import org.jetbrains.kotlin.KtRealPsiSourceElement
 import org.jetbrains.kotlin.constant.*
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
@@ -22,6 +24,7 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.KtImplementationDetail
 import org.jetbrains.kotlin.psi.stubs.impl.KotlinAnnotationEntryStubImpl
 import org.jetbrains.kotlin.psi.stubs.impl.KotlinPropertyStubImpl
 import org.jetbrains.kotlin.types.ConstantValueKind
@@ -47,6 +50,30 @@ internal class StubBasedAnnotationDeserializer(private val session: FirSession) 
             it == AnnotationUseSiteTarget.RECEIVER
         }
 
+        /**
+         * A folded constructor parameter carries the annotations of the property it declares as well as its own,
+         * so each of these filters picks the declaration an annotation was written on.
+         */
+        val VALUE_PARAMETER_ANNOTATIONS_FILTER: (AnnotationUseSiteTarget?) -> Boolean = {
+            it == null || it == AnnotationUseSiteTarget.CONSTRUCTOR_PARAMETER
+        }
+
+        val PROPERTY_ANNOTATIONS_FILTER: (AnnotationUseSiteTarget?) -> Boolean = {
+            it == AnnotationUseSiteTarget.PROPERTY
+        }
+
+        val GETTER_ANNOTATIONS_FILTER: (AnnotationUseSiteTarget?) -> Boolean = {
+            it == AnnotationUseSiteTarget.PROPERTY_GETTER
+        }
+
+        val SETTER_ANNOTATIONS_FILTER: (AnnotationUseSiteTarget?) -> Boolean = {
+            it == AnnotationUseSiteTarget.PROPERTY_SETTER
+        }
+
+        val BACKING_FIELD_ANNOTATIONS_FILTER: (AnnotationUseSiteTarget?) -> Boolean = {
+            it == AnnotationUseSiteTarget.FIELD || it == AnnotationUseSiteTarget.PROPERTY_DELEGATE_FIELD
+        }
+
         val TYPE_ANNOTATIONS_FILTER: (AnnotationUseSiteTarget?) -> Boolean = {
             it == null
         }
@@ -54,6 +81,7 @@ internal class StubBasedAnnotationDeserializer(private val session: FirSession) 
 
     fun loadAnnotations(
         ktAnnotated: KtAnnotated,
+        preserveUseSiteTarget: Boolean = true,
         useSiteTargetFilter: ((AnnotationUseSiteTarget?) -> Boolean)? = null,
     ): List<FirAnnotation> {
         val annotations = ktAnnotated.annotationEntries
@@ -61,7 +89,13 @@ internal class StubBasedAnnotationDeserializer(private val session: FirSession) 
             return emptyList()
         }
 
-        return annotations.mapNotNull { deserializeAnnotation(it, useSiteTargetFilter = useSiteTargetFilter) }
+        return annotations.mapNotNull {
+            deserializeAnnotation(
+                ktAnnotation = it,
+                preserveUseSiteTarget = preserveUseSiteTarget,
+                useSiteTargetFilter = useSiteTargetFilter,
+            )
+        }
     }
 
     fun loadConstant(property: KtProperty, type: ConeKotlinType, isFromAnnotation: Boolean): FirExpression? {
@@ -69,6 +103,13 @@ internal class StubBasedAnnotationDeserializer(private val session: FirSession) 
         if (!property.hasModifier(KtTokens.CONST_KEYWORD) && !isFromAnnotation) return null
         val propertyStub: KotlinPropertyStubImpl = property.compiledStub
         val constantValue = propertyStub.constantInitializer ?: return null
+        return resolveConstant(property, constantValue, type)
+    }
+
+    /**
+     * Builds the expression [constantValue] stands for, as it is written at [sourceElement].
+     */
+    fun resolveConstant(sourceElement: PsiElement, constantValue: ConstantValue<*>, type: ConeKotlinType): FirExpression {
         val resultValue = when {
             !type.isUnsignedType -> constantValue
             type.isUByte -> UByteValue((constantValue.value as Number).toByte())
@@ -78,11 +119,12 @@ internal class StubBasedAnnotationDeserializer(private val session: FirSession) 
             else -> constantValue
         }
 
-        return resolveValue(property, resultValue)
+        return resolveValue(sourceElement, resultValue)
     }
 
     private fun deserializeAnnotation(
         ktAnnotation: KtAnnotationEntry,
+        preserveUseSiteTarget: Boolean,
         useSiteTargetFilter: ((AnnotationUseSiteTarget?) -> Boolean)? = null,
     ): FirAnnotation? {
         val useSiteTarget = ktAnnotation.useSiteTarget?.getAnnotationUseSiteTarget()
@@ -94,10 +136,10 @@ internal class StubBasedAnnotationDeserializer(private val session: FirSession) 
         val valueArguments = annotationStub.valueArguments
 
         return deserializeAnnotation(
-            ktAnnotation,
-            getAnnotationClassId(ktAnnotation),
-            valueArguments,
-            useSiteTarget,
+            ktAnnotation = ktAnnotation,
+            classId = getAnnotationClassId(ktAnnotation),
+            valueArguments = valueArguments,
+            useSiteTarget = if (preserveUseSiteTarget) useSiteTarget else null,
         )
     }
 
@@ -113,7 +155,7 @@ internal class StubBasedAnnotationDeserializer(private val session: FirSession) 
                 coneType = classId.toLookupTag().constructClassType()
             }
             this.argumentMapping = buildAnnotationArgumentMapping {
-                valueArguments?.forEach { (name, constantValue) ->
+                valueArguments?.forEach { [name, constantValue] ->
                     mapping[name] = resolveValue(ktAnnotation, constantValue)
                 }
             }
@@ -146,7 +188,7 @@ internal class StubBasedAnnotationDeserializer(private val session: FirSession) 
                 buildCollectionLiteral {
                     source = KtRealPsiSourceElement(sourceElement)
                     // Not quite precise, yet doesn't require annotation resolution
-                    coneTypeOrNull = (inferArrayValueType(value.value) ?: session.builtinTypes.anyType.coneType).createArrayType()
+                    coneTypeOrNull = (inferArrayValueType(value.value) ?: StandardTypes.Any).createArrayType()
 
                     argumentList = buildArgumentList {
                         value.value.mapTo(arguments) { resolveValue(sourceElement, it) }
@@ -160,20 +202,20 @@ internal class StubBasedAnnotationDeserializer(private val session: FirSession) 
                     value.value.argumentsMapping
                 )
             }
-            is BooleanValue -> const(ConstantValueKind.Boolean, value.value, session.builtinTypes.booleanType, sourceElement)
-            is ByteValue -> const(ConstantValueKind.Byte, value.value, session.builtinTypes.byteType, sourceElement)
-            is CharValue -> const(ConstantValueKind.Char, value.value, session.builtinTypes.charType, sourceElement)
-            is ShortValue -> const(ConstantValueKind.Short, value.value, session.builtinTypes.shortType, sourceElement)
-            is LongValue -> const(ConstantValueKind.Long, value.value, session.builtinTypes.longType, sourceElement)
-            is FloatValue -> const(ConstantValueKind.Float, value.value, session.builtinTypes.floatType, sourceElement)
-            is DoubleValue -> const(ConstantValueKind.Double, value.value, session.builtinTypes.doubleType, sourceElement)
-            is UByteValue -> const(ConstantValueKind.UnsignedByte, value.value, session.builtinTypes.uByteType, sourceElement)
-            is UShortValue -> const(ConstantValueKind.UnsignedShort, value.value, session.builtinTypes.uShortType, sourceElement)
-            is UIntValue -> const(ConstantValueKind.UnsignedInt, value.value, session.builtinTypes.uIntType, sourceElement)
-            is ULongValue -> const(ConstantValueKind.UnsignedLong, value.value, session.builtinTypes.uLongType, sourceElement)
-            is IntValue -> const(ConstantValueKind.Int, value.value, session.builtinTypes.intType, sourceElement)
-            NullValue -> const(ConstantValueKind.Null, null, session.builtinTypes.nullableAnyType, sourceElement)
-            is StringValue -> const(ConstantValueKind.String, value.value, session.builtinTypes.stringType, sourceElement)
+            is BooleanValue -> const(ConstantValueKind.Boolean, value.value, sourceElement)
+            is ByteValue -> const(ConstantValueKind.Byte, value.value, sourceElement)
+            is CharValue -> const(ConstantValueKind.Char, value.value, sourceElement)
+            is ShortValue -> const(ConstantValueKind.Short, value.value, sourceElement)
+            is LongValue -> const(ConstantValueKind.Long, value.value, sourceElement)
+            is FloatValue -> const(ConstantValueKind.Float, value.value, sourceElement)
+            is DoubleValue -> const(ConstantValueKind.Double, value.value, sourceElement)
+            is UByteValue -> const(ConstantValueKind.UnsignedByte, value.value, sourceElement)
+            is UShortValue -> const(ConstantValueKind.UnsignedShort, value.value, sourceElement)
+            is UIntValue -> const(ConstantValueKind.UnsignedInt, value.value, sourceElement)
+            is ULongValue -> const(ConstantValueKind.UnsignedLong, value.value, sourceElement)
+            is IntValue -> const(ConstantValueKind.Int, value.value, sourceElement)
+            NullValue -> const(ConstantValueKind.Null, null, sourceElement)
+            is StringValue -> const(ConstantValueKind.String, value.value, sourceElement)
             else -> errorWithAttachment("Unexpected value ${value::class}") {
                 withEntry("value", value.toString())
             }
@@ -191,24 +233,24 @@ internal class StubBasedAnnotationDeserializer(private val session: FirSession) 
             }
 
             return when (firstValue) {
-                is BooleanValue -> session.builtinTypes.booleanType.coneType
-                is ByteValue -> session.builtinTypes.byteType.coneType
-                is CharValue -> session.builtinTypes.charType.coneType
-                is ShortValue -> session.builtinTypes.shortType.coneType
-                is IntValue -> session.builtinTypes.intType.coneType
-                is LongValue -> session.builtinTypes.longType.coneType
-                is UByteValue -> session.builtinTypes.byteType.coneType
-                is UShortValue -> session.builtinTypes.shortType.coneType
-                is UIntValue -> session.builtinTypes.intType.coneType
-                is ULongValue -> session.builtinTypes.longType.coneType
-                is DoubleValue -> session.builtinTypes.doubleType.coneType
-                is FloatValue -> session.builtinTypes.floatType.coneType
+                is BooleanValue -> StandardTypes.Boolean
+                is ByteValue -> StandardTypes.Byte
+                is CharValue -> StandardTypes.Char
+                is ShortValue -> StandardTypes.Short
+                is IntValue -> StandardTypes.Int
+                is LongValue -> StandardTypes.Long
+                is UByteValue -> StandardTypes.Byte
+                is UShortValue -> StandardTypes.Short
+                is UIntValue -> StandardTypes.Int
+                is ULongValue -> StandardTypes.Long
+                is DoubleValue -> StandardTypes.Double
+                is FloatValue -> StandardTypes.Float
                 is AnnotationValue -> session.builtinTypes.annotationType.coneType
-                is StringValue -> session.builtinTypes.stringType.coneType
+                is StringValue -> StandardTypes.String
                 is EnumValue -> firstValue.enumClassId.constructClassLikeType(ConeTypeProjection.EMPTY_ARRAY, isMarkedNullable = false)
                 is ArrayValue -> values.firstNotNullOfOrNull { inferArrayValueType((it as ArrayValue).value) }?.createArrayType()
                 is KClassValue -> {
-                    val kClassType = session.builtinTypes.anyType.coneType
+                    val kClassType = StandardTypes.Any
                     StandardClassIds.KClass.constructClassLikeType(arrayOf(kClassType), isMarkedNullable = false)
                 }
                 else -> null
@@ -218,19 +260,8 @@ internal class StubBasedAnnotationDeserializer(private val session: FirSession) 
         return null
     }
 
-    private fun const(
-        kind: ConstantValueKind,
-        value: Any?,
-        typeRef: FirResolvedTypeRef,
-        sourceElement: PsiElement
-    ): FirLiteralExpression {
-        return buildLiteralExpression(
-            KtRealPsiSourceElement(sourceElement),
-            kind,
-            value,
-            setType = true
-        ).apply { this.replaceConeTypeOrNull(typeRef.coneType) }
-    }
+    private fun const(kind: ConstantValueKind, value: Any?, sourceElement: PsiElement): FirLiteralExpression =
+        buildLiteralExpression(KtRealPsiSourceElement(sourceElement), kind, value, setType = true)
 
     private fun PsiElement.toEnumEntryReferenceExpression(classId: ClassId, entryName: Name): FirExpression =
         buildEnumEntryDeserializedAccessExpression {

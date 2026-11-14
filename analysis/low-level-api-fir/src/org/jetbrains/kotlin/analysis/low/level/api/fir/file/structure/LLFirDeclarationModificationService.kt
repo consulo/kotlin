@@ -15,6 +15,8 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiRecursiveElementWalkingVisitor
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.impl.source.tree.LeafPsiElement
+import com.intellij.psi.util.parentOfType
+import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.platform.analysisMessageBus
 import org.jetbrains.kotlin.analysis.api.platform.modification.KaElementModificationType
 import org.jetbrains.kotlin.analysis.api.platform.modification.KaSourceModificationLocality
@@ -30,7 +32,6 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirResolvableM
 import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.llFirResolvableSession
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.codeFragment
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
-import org.jetbrains.kotlin.analysis.utils.printer.parentOfType
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.declarations.FirCodeFragment
@@ -56,7 +57,7 @@ import org.jetbrains.kotlin.psi.psiUtil.isContractDescriptionCallPsiCheck
  * @see LLFirDeclarationModificationTopics.IN_BLOCK_MODIFICATION
  * @see org.jetbrains.kotlin.analysis.api.platform.modification.KaSourceModificationService
  */
-@LLFirInternals
+@KaImplementationDetail
 class LLFirDeclarationModificationService(val project: Project) : Disposable {
     init {
         ApplicationManager.getApplication().addApplicationListener(
@@ -333,6 +334,7 @@ class LLFirDeclarationModificationService(val project: Project) : Disposable {
 
     override fun dispose() {}
 
+    @KaImplementationDetail
     companion object {
         fun getInstance(project: Project): LLFirDeclarationModificationService =
             project.getService(LLFirDeclarationModificationService::class.java)

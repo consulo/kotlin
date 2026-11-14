@@ -5,16 +5,17 @@
 
 package org.jetbrains.kotlin.fir.lightTree
 
-import org.jetbrains.kotlin.generators.dsl.junit4.generateTestGroupSuiteWithJUnit4
+import org.jetbrains.kotlin.generators.dsl.junit5.generateTestGroupSuiteWithJUnit5
 import org.jetbrains.kotlin.generators.util.TestGeneratorUtil
 
 fun main(args: Array<String>) {
     val mainClassName = TestGeneratorUtil.getMainClassName()
-    generateTestGroupSuiteWithJUnit4(args, mainClassName) {
-        testGroup("compiler/fir/raw-fir/light-tree2fir/tests-gen", "compiler/fir/raw-fir/psi2fir/testData") {
+    val testRoot = args[0]
+
+    generateTestGroupSuiteWithJUnit5(args, mainClassName) {
+        testGroup(testRoot, "compiler/fir/raw-fir/testData") {
             testClass<AbstractLightTree2FirConverterTestCase> {
-                // TODO(KT-77583): support REPL snippets in light tree parser.
-                model("rawBuilder", pattern = TestGeneratorUtil.KT_OR_KTS, excludedPattern = TestGeneratorUtil.REPL_KTS)
+                model("rawBuilder", pattern = TestGeneratorUtil.KT_OR_KTS)
             }
         }
     }

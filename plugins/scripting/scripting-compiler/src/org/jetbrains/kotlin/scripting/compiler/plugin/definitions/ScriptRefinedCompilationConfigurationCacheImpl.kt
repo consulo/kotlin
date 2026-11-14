@@ -5,13 +5,14 @@
 
 package org.jetbrains.kotlin.scripting.compiler.plugin.definitions
 
+import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.scripting.compiler.plugin.dependencies.toSystemIndependentScriptPath
+import org.jetbrains.kotlin.scripting.definitions.K1SpecificScriptingServiceAccessor
 import org.jetbrains.kotlin.scripting.definitions.ScriptConfigurationsProvider
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptCompilationConfiguration
 import kotlin.script.experimental.api.SourceCode
 import kotlin.script.experimental.api.asSuccess
-import kotlin.script.experimental.api.onSuccess
 import kotlin.script.experimental.api.valueOrNull
 
 class ScriptRefinedCompilationConfigurationCacheImpl : ScriptRefinedCompilationConfigurationCache {
@@ -36,13 +37,22 @@ class ScriptRefinedCompilationConfigurationCacheImpl : ScriptRefinedCompilationC
 
 class ScriptRefinedCompilationConfigurationCacheOverConfigurationsProvider(
     private val legacyConfigurationsProvider: ScriptConfigurationsProvider,
-    private val definitionsProvider: ScriptCompilationConfigurationProvider?
+    private val definitionsProvider: ScriptCompilationConfigurationProvider?,
+    private val project: Project,
 ) : ScriptRefinedCompilationConfigurationCache {
 
     override fun getRefinedCompilationConfiguration(sourceCode: SourceCode): ResultWithDiagnostics<ScriptCompilationConfiguration>? =
         definitionsProvider?.findBaseCompilationConfiguration(sourceCode).let { providedConfiguration ->
+            @OptIn(K1SpecificScriptingServiceAccessor::class)
+            legacyConfigurationsProvider.project = project
             legacyConfigurationsProvider.getScriptCompilationConfiguration(sourceCode, providedConfiguration?.valueOrNull())
-                ?.onSuccess { it.configuration?.asSuccess() ?: return@getRefinedCompilationConfiguration null }
+                ?.let { result ->
+                    when (result) {
+                        // a successful result without a configuration means that the configuration is not available (yet)
+                        is ResultWithDiagnostics.Success -> result.value.configuration?.asSuccess(result.reports)
+                        is ResultWithDiagnostics.Failure -> result
+                    }
+                }
         }
 
     override fun storeRefinedCompilationConfiguration(

@@ -8,7 +8,7 @@ import org.gradle.api.artifacts.ConfigurablePublishArtifact
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.PublishArtifact
-import org.gradle.api.artifacts.component.ProjectComponentIdentifier
+import org.gradle.api.artifacts.result.ResolvedArtifactResult
 import org.gradle.api.attributes.Usage
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.file.ArchiveOperations
@@ -24,29 +24,14 @@ import org.gradle.api.publish.tasks.GenerateModuleMetadata
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.internal.component.external.model.TestFixturesSupport
+import org.gradle.jvm.JvmLibrary
 import org.gradle.jvm.tasks.Jar
 import org.gradle.kotlin.dsl.*
 import org.gradle.kotlin.dsl.support.serviceOf
+import org.gradle.language.base.artifact.SourcesArtifact
 import plugins.KotlinBuildPublishingPlugin
 import plugins.mainPublicationName
 
-
-private const val MAGIC_DO_NOT_CHANGE_TEST_JAR_TASK_NAME = "testJar"
-
-fun Project.testsJar(body: Jar.() -> Unit = {}): TaskProvider<Jar> {
-    val testsJarCfg = configurations.getOrCreate("tests-jar").extendsFrom(configurations["testApi"])
-
-    return tasks.register<Jar>(MAGIC_DO_NOT_CHANGE_TEST_JAR_TASK_NAME) {
-        dependsOn("testClasses")
-        pluginManager.withPlugin("java") {
-            from(testSourceSet.output)
-        }
-        archiveClassifier.set("tests")
-        body()
-    }.also {
-        project.addArtifact(testsJarCfg.name, it)
-    }
-}
 
 /**
  * This is a dirty hack that allows depending both on tests and test-fixture
@@ -56,13 +41,13 @@ fun Project.testsJar(body: Jar.() -> Unit = {}): TaskProvider<Jar> {
  */
 fun Project.testsJarToBeUsedAlongWithFixtures() {
     // Define a test jar task.
-    val testsJar by tasks.registering(Jar::class) {
+    val testsJar = tasks.register("testsJar", Jar::class) {
         archiveClassifier.set("tests")
         from(sourceSets["test"].output)
     }
 
     // Create a consumable, non-resolvable configuration with a unique capability.
-    val testsJarConfig by configurations.creating {
+    val testsJarConfig = configurations.create("testsJarConfig") {
         isCanBeConsumed = true
         isCanBeResolved = false
         attributes {
@@ -81,6 +66,7 @@ fun Project.testsJarToBeUsedAlongWithFixtures() {
 fun Project.setPublishableArtifact(
     jarTask: TaskProvider<out Jar>
 ) {
+    noDefaultJar()
     addArtifact("runtimeElements", jarTask)
     addArtifact("apiElements", jarTask)
     tasks.named("assemble").configure { dependsOn(jarTask) }
@@ -186,39 +172,57 @@ fun Project.sourcesJar(body: Jar.() -> Unit = {}): TaskProvider<Jar> {
 }
 
 /**
+ * Empty jar, no public sources
+ */
+fun Project.emptySourcesJar() {
+    sourcesJar {
+        includeEmptyDirs = false
+        eachFile { exclude() }
+    }
+}
+
+/**
+ * Empty jar, no public Javadoc
+ */
+fun Project.emptyJavadocJar() {
+    javadocJar {
+        includeEmptyDirs = false
+        eachFile { exclude() }
+    }
+}
+
+/**
  * Also embeds into final '-sources.jar' file source files from embedded dependencies.
  */
 fun Project.sourcesJarWithSourcesFromEmbedded(
-    vararg embeddedDepSourcesJarTasks: TaskProvider<out Jar>,
     body: Jar.() -> Unit = {},
-): TaskProvider<Jar> {
-    val sourcesJarTask = sourcesJar(body)
+): TaskProvider<Jar> = sourcesJar(body)
 
-    sourcesJarTask.configure {
-        val archiveOperations = serviceOf<ArchiveOperations>()
-        embeddedDepSourcesJarTasks.forEach { embeddedSourceJarTask ->
-            dependsOn(embeddedSourceJarTask)
-            from(embeddedSourceJarTask.map { archiveOperations.zipTree(it.archiveFile) })
-        }
+
+
+/**
+ * Adds the resolved `-sources.jar` artifacts of every component resolved through [configuration] to this
+ * (sources) jar. Unlike [addEmbeddedSources], which embeds the sources of included *projects*, this embeds
+ * the sources of external Maven *libraries*.
+ */
+fun Jar.addEmbeddedLibrarySources(configuration: Configuration) {
+    val archiveOperations = project.serviceOf<ArchiveOperations>()
+    val dependencyHandler = project.dependencies
+    val allLibrarySources by lazy {
+        val moduleComponentIds = configuration.incoming.resolutionResult.allComponents.map { it.id }
+
+        // Resolve Maven artifacts directly as for non-Gradle artifacts, metadata isn't available
+        dependencyHandler.createArtifactResolutionQuery()
+            .forComponents(moduleComponentIds)
+            .withArtifacts(JvmLibrary::class.java, SourcesArtifact::class.java)
+            .execute()
+            .resolvedComponents
+            .flatMap { it.getArtifacts(SourcesArtifact::class.java) }
+            .filterIsInstance<ResolvedArtifactResult>()
+            .map { archiveOperations.zipTree(it.file) }
     }
 
-    return sourcesJarTask
-}
-
-@JvmOverloads
-fun Jar.addEmbeddedSources(configurationName: String = "embedded") {
-    project.configurations.findByName(configurationName)?.let { embedded ->
-        val allSources by lazy {
-            embedded.resolvedConfiguration
-                .resolvedArtifacts
-                .map { it.id.componentIdentifier }
-                .filterIsInstance<ProjectComponentIdentifier>()
-                .mapNotNull {
-                    project.project(it.projectPath).sources()
-                }
-        }
-        from({ allSources })
-    }
+    from({ allLibrarySources })
 }
 
 @JvmOverloads
@@ -234,6 +238,7 @@ fun Project.javadocJar(body: Jar.() -> Unit = {}): TaskProvider<Jar> {
             dependsOn(it)
             from(it.destinationDir)
         }
+        addEmbeddedJavadoc()
         body()
     }
 
@@ -250,22 +255,8 @@ fun Project.javadocJar(body: Jar.() -> Unit = {}): TaskProvider<Jar> {
  * Also embeds into final '-javadoc.jar' file javadoc files from embedded dependencies.
  */
 fun Project.javadocJarWithJavadocFromEmbedded(
-    vararg embeddedDepJavadocJarTasks: TaskProvider<out Jar>,
     body: Jar.() -> Unit = {},
-): TaskProvider<Jar> {
-    val javadocJarTask = javadocJar(body)
-
-    javadocJarTask.configure {
-        val archiveOperations = serviceOf<ArchiveOperations>()
-        embeddedDepJavadocJarTasks.forEach { embeddedJavadocJarTask ->
-            dependsOn(embeddedJavadocJarTask)
-            from(embeddedJavadocJarTask.map { archiveOperations.zipTree(it.archiveFile) })
-        }
-    }
-
-    return javadocJarTask
-}
-
+): TaskProvider<Jar> = javadocJar(body)
 
 fun Project.standardPublicJars() {
     runtimeJar()
@@ -292,8 +283,12 @@ fun Project.publish(moduleMetadata: Boolean = false, sbom: Boolean = true, confi
     }
 }
 
-fun Project.idePluginDependency(block: () -> Unit) {
-    val shouldActivate = rootProject.findProperty("publish.ide.plugin.dependencies")?.toString()?.toBoolean() == true
+fun Project.idePluginPublishingLatch(block: () -> Unit) {
+    specialPublishingLatch("publish.ide.plugin.dependencies", block)
+}
+
+private fun Project.specialPublishingLatch(latchPropertyName: String, block: () -> Unit) {
+    val shouldActivate = project.kotlinBuildProperties.booleanProperty(latchPropertyName).getOrElse(false)
     if (shouldActivate) {
         block()
     }
@@ -304,29 +299,19 @@ fun Project.publishJarsForIde(
     libraryDependencies: List<String> = emptyList(),
     jarTaskConfiguration: Jar.() -> Unit = {},
 ) {
-    val projectsUsedInIntelliJKotlinPlugin: Array<String> by rootProject.extra
-
     for (projectName in projects) {
-        check(projectName in projectsUsedInIntelliJKotlinPlugin) {
-            "`$projectName` is used in IntelliJ Kotlin Plugin, it should be added to `extra[\"projectsUsedInIntelliJKotlinPlugin\"]`"
+        check(projectName in CompilerModules.projectsDependingOnStableStdlib) {
+            "`$projectName` is used in IntelliJ Kotlin Plugin, it should be added to `CompilerModules.projectsDependingOnStableStdlib`"
         }
     }
 
-    idePluginDependency {
+    idePluginPublishingLatch {
         publishProjectJars(projects, libraryDependencies, jarTaskConfiguration)
     }
     configurations.all {
         // Don't allow `ideaIC` from compiler to leak into Kotlin plugin modules. Compiler and
         // plugin may depend on different versions of IDEA and it will lead to version conflict
         exclude(module = ideModuleName())
-    }
-    dependencies {
-        projects.forEach {
-            jpsLikeJarDependency(project(it), JpsDepScope.COMPILE, { isTransitive = false }, exported = true)
-        }
-        libraryDependencies.forEach {
-            jpsLikeJarDependency(it, JpsDepScope.COMPILE, exported = true)
-        }
     }
 }
 
@@ -336,16 +321,14 @@ fun Project.publishJarsForIde(
  * - pass `xyz` both to [projectWithFixturesNames] and [projectWithRenamedTestJarNames]
  */
 fun Project.publishTestJarsForIde(
-    projectNames: List<String>,
     projectWithFixturesNames: List<String> = emptyList(),
     projectWithRenamedTestJarNames: List<String> = emptyList(),
 ) {
-    idePluginDependency {
+    idePluginPublishingLatch {
         // Compiler test infrastructure should not affect test running in IDE.
         // If required, the components should be registered on the IDE plugin side.
         val excludedPaths = listOf("junit-platform.properties", "META-INF/services/**/*")
         publishTestJar(
-            projectNames,
             projectWithFixturesNames,
             projectWithRenamedTestJarNames,
             excludedPaths,
@@ -356,21 +339,6 @@ fun Project.publishTestJarsForIde(
         // plugin may depend on different versions of IDEA and it will lead to version conflict
         exclude(module = ideModuleName())
     }
-    dependencies {
-        fun declareDependency(notation: Any) {
-            jpsLikeJarDependency(notation, JpsDepScope.COMPILE, exported = true)
-        }
-
-        for (projectName in projectNames) {
-            declareDependency(projectTests(projectName))
-        }
-        for (projectName in projectWithFixturesNames) {
-            declareDependency(testFixtures(project(projectName)))
-        }
-        for (projectName in projectWithRenamedTestJarNames) {
-            declareDependency(project(projectName, "testsJarConfig"))
-        }
-    }
 }
 
 fun Project.publishProjectJars(
@@ -380,7 +348,7 @@ fun Project.publishProjectJars(
 ) {
     apply<JavaPlugin>()
 
-    val fatJarContents by configurations.creating
+    val fatJarContents = configurations.create("fatJarContents")
 
     dependencies {
         for (projectName in projects) {
@@ -394,7 +362,7 @@ fun Project.publishProjectJars(
 
     publish()
 
-    val jar: Jar by tasks
+    val jar = tasks.getByName<Jar>("jar")
 
     jar.apply {
         dependsOn(fatJarContents)
@@ -407,38 +375,22 @@ fun Project.publishProjectJars(
     }
 
     sourcesJar {
-        for (projectPath in projects) {
-            val projectTasks = project(projectPath).tasks
-            if (projectTasks.names.any { it == "compileKotlin" }) {
-                // this is needed in order to declare explicit dependency on code generation tasks
-                dependsOn(projectTasks.named("compileKotlin").map { it.dependsOn })
-            }
-        }
-        from {
-            projects.map {
-                project(it).mainSourceSet.allSource
-            }
-        }
+        addEmbeddedSources("fatJarContents")
     }
 
     javadocJar()
 }
 
 private fun Project.publishTestJar(
-    projects: List<String>,
     projectWithFixturesNames: List<String>,
     projectWithRenamedTestJarNames: List<String>,
     excludedPaths: List<String>,
 ) {
     apply<JavaPlugin>()
 
-    val fatJarContents by configurations.creating
+    val fatJarContents = configurations.create("fatJarContents")
 
     dependencies {
-        for (projectName in projects) {
-            fatJarContents(project(projectName, configuration = "tests-jar")) { isTransitive = false }
-        }
-
         for (projectName in projectWithFixturesNames) {
             fatJarContents(testFixtures(project(projectName)) as ModuleDependency) { isTransitive = false }
         }
@@ -450,7 +402,7 @@ private fun Project.publishTestJar(
 
     publish(sbom = false)
 
-    val jar: Jar by tasks
+    val jar = tasks.getByName<Jar>("jar")
 
     jar.apply {
         dependsOn(fatJarContents)
@@ -469,7 +421,6 @@ private fun Project.publishTestJar(
             }
         }
 
-        registerTestSources(projects)
         registerTestSources(projectWithRenamedTestJarNames)
 
         from {
@@ -511,5 +462,8 @@ fun Project.cleanArtifacts() {
     }
 }
 
-fun Project.configurePublishedComponent(configure: AdhocComponentWithVariants.() -> Unit) =
-    (components.findByName(KotlinBuildPublishingPlugin.ADHOC_COMPONENT_NAME) as AdhocComponentWithVariants?)?.apply(configure)
+fun Project.configurePublishedComponent(configure: AdhocComponentWithVariants.() -> Unit) {
+    components.withType(AdhocComponentWithVariants::class.java).matching { it.name == KotlinBuildPublishingPlugin.ADHOC_COMPONENT_NAME }.all {
+        configure()
+    }
+}

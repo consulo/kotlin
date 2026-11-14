@@ -29,7 +29,7 @@ fun <F : FirClassLikeDeclaration> F.runAllPhasesForLocalClassLikeDeclarations(
 
     val localClassesNavigationInfo = collectLocalClassesNavigationInfo()
 
-    for ((nested, outer) in localClassesNavigationInfo.parentForClass) {
+    for ([nested, outer] in localClassesNavigationInfo.parentForClass) {
         if (outer == null) continue
         components.context.outerLocalClassForNested[nested.symbol] = outer.symbol
     }
@@ -40,7 +40,6 @@ fun <F : FirClassLikeDeclaration> F.runAllPhasesForLocalClassLikeDeclarations(
         localClassesNavigationInfo,
         components.file,
         components.containingDeclarations,
-        components.context,
     )
     runCompanionGenerationPhaseForLocalClass(components.session)
     runSupertypeResolvePhaseForLocalClass(
@@ -56,7 +55,8 @@ fun <F : FirClassLikeDeclaration> F.runAllPhasesForLocalClassLikeDeclarations(
         components.scopeSession,
         components.createCurrentScopeList(),
         components.file,
-        components.containingDeclarations
+        components.containingDeclarations,
+        components.context.lastCompanionBlockOwner,
     )
     runStatusResolveForLocalClass(
         components.session,

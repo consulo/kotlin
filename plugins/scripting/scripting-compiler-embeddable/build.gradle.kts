@@ -1,6 +1,8 @@
 description = "Kotlin Scripting Compiler Plugin for embeddable compiler"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     `java-library`
 }
 

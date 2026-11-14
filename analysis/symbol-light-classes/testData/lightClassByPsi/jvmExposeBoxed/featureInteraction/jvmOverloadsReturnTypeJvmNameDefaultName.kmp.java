@@ -2,7 +2,7 @@ public final class Baz /* Baz*/ {
   public  Baz();//  .ctor()
 }
 
-@<error>()
+@kotlin.jvm.JvmInline()
 public final class IntWrapper /* IntWrapper*/ {
   private final int s;
 

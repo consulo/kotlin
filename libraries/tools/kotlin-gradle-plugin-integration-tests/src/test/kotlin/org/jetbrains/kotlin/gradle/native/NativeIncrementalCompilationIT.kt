@@ -8,6 +8,8 @@ package org.jetbrains.kotlin.gradle.native
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.dsl.NativeCacheKind
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.gradle.utils.normalizedAbsolutePath
+import org.jetbrains.kotlin.test.TestMetadata
 import org.junit.jupiter.api.condition.OS
 import org.junit.jupiter.api.DisplayName
 import kotlin.io.path.appendText
@@ -30,6 +32,7 @@ class NativeIncrementalCompilationIT : KGPBaseTest() {
         )
     )
 
+    @TestMetadata("native-incremental-simple")
     @DisplayName("KT-63742: Check that kotlinNativeLink task passes all required args for cache orchestration and ic")
     @GradleTest
     fun checkArgumentsForIncrementalCache(gradleVersion: GradleVersion) {
@@ -43,7 +46,7 @@ class NativeIncrementalCompilationIT : KGPBaseTest() {
             val icCacheDir = projectPath.toRealPath().resolve("build").resolve("kotlin-native-ic-cache").resolve("debugExecutable")
             val incrementalCacheArgs = arrayOf(
                 "-Xenable-incremental-compilation",
-                "-Xic-cache-dir=${icCacheDir.toFile().absolutePath}"
+                "-Xic-cache-dir=${icCacheDir.toFile().normalizedAbsolutePath().toString()}"
             )
 
             // disabled incremental cache parameter
@@ -63,6 +66,7 @@ class NativeIncrementalCompilationIT : KGPBaseTest() {
             // enabled incremental cache parameter, disabled configuration cache
             val withIncrementalCacheBuildOptions = defaultBuildOptions.copy(
                 configurationCache = BuildOptions.ConfigurationCacheValue.DISABLED,
+                isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED,
                 nativeOptions = defaultBuildOptions.nativeOptions.copy(
                     incremental = true,
                 )
@@ -87,6 +91,7 @@ class NativeIncrementalCompilationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-incremental-simple")
     @DisplayName("Smoke test")
     @GradleTest
     fun checkIncrementalCacheIsCreated(gradleVersion: GradleVersion) {
@@ -99,6 +104,7 @@ class NativeIncrementalCompilationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-incremental-simple")
     @DisplayName("Custom binary option")
     @GradleTest
     fun customBinaryOption(gradleVersion: GradleVersion) {
@@ -122,6 +128,7 @@ class NativeIncrementalCompilationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-incremental-multifile")
     @DisplayName("IC works after compilation error (test 1)")
     @GradleTest
     fun compilationError1(gradleVersion: GradleVersion) {
@@ -155,6 +162,7 @@ class NativeIncrementalCompilationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-incremental-multifile")
     @DisplayName("IC works after compilation error (test 2)")
     @GradleTest
     fun compilationError2(gradleVersion: GradleVersion) {
@@ -188,6 +196,45 @@ class NativeIncrementalCompilationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-incremental-multifile")
+    @DisplayName("KT-86798: stale IC cache from a different compiler version is invalidated")
+    @GradleTest
+    fun staleCacheInvalidatedOnCompilerFingerprintMismatch(gradleVersion: GradleVersion) {
+        nativeProject("native-incremental-multifile", gradleVersion) {
+            val mainKtCache = getFileCache("native-incremental-multifile", "src/hostMain/kotlin/main.kt")
+            val fooKtCache = getFileCache("native-incremental-multifile", "src/hostMain/kotlin/foo.kt")
+            build("linkDebugExecutableHost") {
+                assertDirectoryExists(mainKtCache)
+                assertDirectoryExists(fooKtCache)
+            }
+
+            // Simulate switching to a different Kotlin/Native version without running `clean`:
+            // rewrite the recorded compilerFingerprint in every cached file's metadata to a bogus value.
+            val bogusFingerprint = "stale-compiler-fingerprint-4242"
+            val icCacheRoot = projectPath.resolve("build").resolve("kotlin-native-ic-cache").toFile()
+            val tamperedMetadataFiles = icCacheRoot.walkTopDown().filter { it.name == "metadata.properties" }.toList()
+            assert(tamperedMetadataFiles.isNotEmpty()) { "No cache metadata.properties found under $icCacheRoot" }
+            tamperedMetadataFiles.forEach { metadata ->
+                val patched = metadata.readText().lines().joinToString("\n") { line ->
+                    if (line.startsWith("compilerFingerprint=")) "compilerFingerprint=$bogusFingerprint" else line
+                }
+                metadata.writeText(patched)
+            }
+
+            // A real version switch makes the compile task non-up-to-date, so the compiler re-runs
+            // and re-reads the IC cache. Reproduce that by touching a source file.
+            kotlinSourcesDir("hostMain").resolve("main.kt").appendText("\n// force recompile\n")
+
+            build("linkDebugExecutableHost") {
+                // foo.kt is otherwise unchanged, so its content hash still matches. Before the fix its
+                // cache is reused as-is and the bogus fingerprint survives; after the fix the mismatch is
+                // detected, the stale cache is dropped and rebuilt with the real compiler fingerprint.
+                assertFileDoesNotContain(fooKtCache.resolve("metadata.properties"), bogusFingerprint)
+            }
+        }
+    }
+
+    @TestMetadata("native-incremental-multi-project")
     @DisplayName("Check dependencies on project level")
     @GradleTest
     fun inProjectDependencies(gradleVersion: GradleVersion) {

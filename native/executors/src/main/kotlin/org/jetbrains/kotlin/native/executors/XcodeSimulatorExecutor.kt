@@ -14,9 +14,9 @@ import kotlin.jvm.Volatile
 import kotlin.jvm.Synchronized
 
 private fun defaultDeviceId(target: KonanTarget) = when (target.family) {
-    Family.TVOS -> "com.apple.CoreSimulator.SimDeviceType.Apple-TV-4K-4K"
+    Family.TVOS -> "com.apple.CoreSimulator.SimDeviceType.Apple-TV-4K-3rd-generation-4K"
     Family.IOS -> "com.apple.CoreSimulator.SimDeviceType.iPhone-14"
-    Family.WATCHOS -> "com.apple.CoreSimulator.SimDeviceType.Apple-Watch-Series-6-40mm"
+    Family.WATCHOS -> "com.apple.CoreSimulator.SimDeviceType.Apple-Watch-Series-10-42mm"
     else -> error("Unexpected simulation target: $target")
 }
 
@@ -120,7 +120,7 @@ class XcodeSimulatorExecutor(
             getSimulatorRuntimesFor(
                     json = simctl("list", "runtimes", "--json"),
                     family = target.family,
-                    osMinVersion = configurables.osVersionMin
+                    osMinVersion = configurables.sdkVersion
             ).firstOrNull {
                 it.supportedDeviceTypes.any { deviceType -> deviceType.identifier == deviceId }
             }
@@ -135,7 +135,7 @@ class XcodeSimulatorExecutor(
         return checkNotNull(simulatorRuntimeOrNull()) {
             """
             |Runtime is not available for the selected $deviceId. Check Xcode installation.
-            |osMinVersion = ${configurables.osVersionMin}
+            |sdkVersion = ${configurables.sdkVersion}
             |$ xcrun simctl list runtimes --json
             |_____
             |${simctl("list", "runtimes", "--json")}

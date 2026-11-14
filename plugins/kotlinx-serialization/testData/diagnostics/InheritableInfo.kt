@@ -1,16 +1,15 @@
 // WITH_STDLIB
-// SKIP_TXT
 // FILE: test.kt
 
 import kotlinx.serialization.*
 import kotlin.reflect.KClass
 
-@InheritableSerialInfo
+<!INHERITABLE_SERIALINFO_INAPPLICABLE_TARGET!>@InheritableSerialInfo<!>
 annotation class I(val value: String)
 
 enum class E { A, B }
 
-@InheritableSerialInfo
+<!INHERITABLE_SERIALINFO_INAPPLICABLE_TARGET!>@InheritableSerialInfo<!>
 annotation class I2(val e: E, val k: KClass<*>)
 
 @Serializable

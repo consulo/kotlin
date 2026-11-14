@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -13,43 +13,41 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.SearchScope
 import com.intellij.psi.stubs.IStubElementType
 import com.intellij.psi.stubs.StubElement
+import com.intellij.psi.tree.IElementType
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.javaInterop.asFacadePsiClass
+import org.jetbrains.kotlin.analysis.api.javaInterop.asPsiClass
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 import org.jetbrains.kotlin.asJava.classes.lazyPub
 import org.jetbrains.kotlin.asJava.elements.KtLightIdentifier
-import org.jetbrains.kotlin.asJava.toLightClass
-import org.jetbrains.kotlin.light.classes.symbol.*
 import org.jetbrains.kotlin.light.classes.symbol.annotations.hasDeprecatedAnnotation
 import org.jetbrains.kotlin.light.classes.symbol.parameters.SymbolLightTypeParameterList
+import org.jetbrains.kotlin.light.classes.symbol.utils.*
 import org.jetbrains.kotlin.load.java.structure.LightClassOriginKind
 import org.jetbrains.kotlin.psi.KtClassOrObject
-import org.jetbrains.kotlin.psi.KtScript
 import org.jetbrains.kotlin.psi.stubs.KotlinClassOrObjectStub
 import org.jetbrains.kotlin.utils.addToStdlib.ifTrue
 
 internal abstract class SymbolLightClassForClassLike<SType : KaClassSymbol> protected constructor(
     val classOrObjectDeclaration: KtClassOrObject?,
-    val classSymbolPointer: KaSymbolPointer<SType>,
-    ktModule: KaModule,
-    manager: PsiManager,
-) : SymbolLightClassBase(ktModule, manager),
+    override val symbolPointer: KaSymbolPointer<SType>,
+    override val useSiteModule: KaModule,
+) : SymbolLightClassBaseImpl<SType>(PsiManager.getInstance(useSiteModule.project)),
     StubBasedPsiElement<KotlinClassOrObjectStub<out KtClassOrObject>> {
     @Suppress("RemoveRedundantQualifierName") // KTIJ-33595
     constructor(
-        ktModule: KaModule,
+        useSiteModule: KaModule,
         classSymbol: SType,
-        manager: PsiManager,
     ) : this(
         classOrObjectDeclaration = classSymbol.sourcePsiSafe(),
-        classSymbolPointer = kotlin.run {
+        symbolPointer = kotlin.run {
             @Suppress("UNCHECKED_CAST")
             classSymbol.createPointer() as KaSymbolPointer<SType>
         },
-        ktModule = ktModule,
-        manager = manager,
+        useSiteModule = useSiteModule,
     )
 
     override fun contentModificationTrackers(): List<ModificationTracker> {
@@ -58,8 +56,8 @@ internal abstract class SymbolLightClassForClassLike<SType : KaClassSymbol> prot
 
     override val kotlinOrigin: KtClassOrObject? get() = classOrObjectDeclaration
 
-    internal inline fun <T> withClassSymbol(crossinline action: KaSession.(SType) -> T): T =
-        classSymbolPointer.withSymbol(ktModule, action)
+    internal inline fun <T> withClassSymbol(crossinline action: context(KaSession) (SType) -> T): T =
+        symbolPointer.withSymbol(useSiteModule, action)
 
     /**
      * Psi-based [KtClassOrObject.isTopLevel] is needed to properly handle classes inside scripts
@@ -83,17 +81,17 @@ internal abstract class SymbolLightClassForClassLike<SType : KaClassSymbol> prot
     abstract override fun getImplementsList(): PsiReferenceList?
 
     private val _typeParameterList: PsiTypeParameterList? by lazyPub {
-        hasTypeParameters().ifTrue {
+        withClassSymbol { it.typeParameters.isNotEmpty() }.ifTrue {
             SymbolLightTypeParameterList(
                 owner = this,
-                symbolWithTypeParameterPointer = classSymbolPointer,
-                ktModule = ktModule,
+                symbolWithTypeParameterPointer = symbolPointer,
+                useSiteModule = useSiteModule,
                 ktDeclaration = classOrObjectDeclaration,
             )
         }
     }
 
-    override fun hasTypeParameters(): Boolean = withClassSymbol { it.typeParameters.isNotEmpty() }
+    override fun hasTypeParameters(): Boolean = _typeParameterList != null
 
     override fun getTypeParameterList(): PsiTypeParameterList? = _typeParameterList
 
@@ -101,7 +99,7 @@ internal abstract class SymbolLightClassForClassLike<SType : KaClassSymbol> prot
 
     override fun getOwnInnerClasses(): List<PsiClass> = cachedValue {
         withClassSymbol {
-            createInnerClasses(it, manager, this@SymbolLightClassForClassLike, classOrObjectDeclaration)
+            createInnerClasses(it, this@SymbolLightClassForClassLike)
         }
     }
 
@@ -123,7 +121,7 @@ internal abstract class SymbolLightClassForClassLike<SType : KaClassSymbol> prot
 
         if (other == null ||
             this::class != other::class ||
-            (other as SymbolLightClassForClassLike<*>).ktModule != ktModule ||
+            (other as SymbolLightClassForClassLike<*>).useSiteModule != useSiteModule ||
             other.manager != manager
         ) {
             return false
@@ -133,7 +131,7 @@ internal abstract class SymbolLightClassForClassLike<SType : KaClassSymbol> prot
             return other.classOrObjectDeclaration == classOrObjectDeclaration
         }
 
-        return compareSymbolPointers(classSymbolPointer, other.classSymbolPointer)
+        return compareSymbolPointers(symbolPointer, other.symbolPointer)
     }
 
     override fun hashCode(): Int = classOrObjectDeclaration.hashCode()
@@ -151,13 +149,18 @@ internal abstract class SymbolLightClassForClassLike<SType : KaClassSymbol> prot
     override fun isAnnotationType(): Boolean = classKind() == KaClassKind.ANNOTATION_CLASS
     override fun isEnum(): Boolean = classKind() == KaClassKind.ENUM_CLASS
 
-    override fun isValid(): Boolean = classOrObjectDeclaration?.isValid ?: classSymbolPointer.isValid(ktModule)
+    override fun isValid(): Boolean = classOrObjectDeclaration?.isValid ?: symbolPointer.isValid(useSiteModule)
 
     override fun getUseScope(): SearchScope = classOrObjectDeclaration?.useScope ?: GlobalSearchScope.projectScope(project)
 
-    @Deprecated("Deprecated stub API")
-    @Suppress("DEPRECATION") // KT-78356
+    /**
+     * Kotlin element types are not [IStubElementType]s anymore, so this deprecated accessor cannot be implemented.
+     * The call is delegated to the declaration to fail with the platform diagnostic pointing at [getIElementType].
+     */
+    @Deprecated("Deprecated stub API", ReplaceWith("iElementType"))
+    @Suppress("DEPRECATION")
     override fun getElementType(): IStubElementType<out StubElement<*>, *>? = classOrObjectDeclaration?.elementType
+    override fun getIElementType(): IElementType? = classOrObjectDeclaration?.iElementType
     override fun getStub(): KotlinClassOrObjectStub<out KtClassOrObject>? = classOrObjectDeclaration?.stub
 
     override val originKind: LightClassOriginKind get() = LightClassOriginKind.SOURCE
@@ -167,8 +170,10 @@ internal abstract class SymbolLightClassForClassLike<SType : KaClassSymbol> prot
      * with the class inside a script.
      * In this case the qualified name has to include the script name.
      */
-    override fun getQualifiedName(): String? {
-        return classOrObjectDeclaration?.fqName?.asString() ?: withClassSymbol { it.classId?.asFqNameString() }
+    override fun getQualifiedName(): String? = _qualifiedName
+
+    private val _qualifiedName: String? by lazyPub {
+        classOrObjectDeclaration?.fqName?.asString() ?: withClassSymbol { it.classId?.asFqNameString() }
     }
 
     override fun getInterfaces(): Array<PsiClass> = PsiClassImplUtil.getInterfaces(this)
@@ -177,14 +182,12 @@ internal abstract class SymbolLightClassForClassLike<SType : KaClassSymbol> prot
     override fun getSuperTypes(): Array<PsiClassType> = PsiClassImplUtil.getSuperTypes(this)
 
     private val _containingClass: PsiClass? by lazyPub {
-        val containingBody = classOrObjectDeclaration?.parent
-        when (val parent = containingBody?.parent) {
-            is KtClassOrObject -> parent.toLightClass()
-            is KtScript -> parent.toLightClass()
-            null -> withClassSymbol { s ->
-                (s.containingDeclaration as? KaNamedClassSymbol)?.let { createLightClassNoCache(it, ktModule, manager) }
+        withClassSymbol { classSymbol ->
+            when (val containingSymbol = classSymbol.containingSymbol) {
+                is KaClassSymbol -> containingSymbol.asPsiClass()
+                is KaScriptSymbol -> containingSymbol.asFacadePsiClass()
+                else -> null
             }
-            else -> null
         }
     }
 

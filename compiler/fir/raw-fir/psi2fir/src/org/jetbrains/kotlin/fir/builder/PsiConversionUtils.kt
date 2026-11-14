@@ -24,8 +24,10 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirLocalPropertySymbol
 import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitTypeRefImplWithoutSource
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.psi
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.psiUtil.containingScript
 import org.jetbrains.kotlin.toKtPsiSourceElement
 
 internal fun KtWhenCondition.toFirWhenCondition(
@@ -107,10 +109,9 @@ internal fun generateTemporaryVariable(
         (source.psi as? KtAnnotated)?.extractAnnotationsTo(this)
     }
 
-internal fun generateTemporaryVariable(
+internal fun generateDestructuringContainerVariable(
     moduleData: FirModuleData,
     source: KtSourceElement?,
-    specialName: String,
     initializer: FirExpression,
     origin: FirDeclarationOrigin = FirDeclarationOrigin.Source,
     extractAnnotationsTo: (KtAnnotated.(FirAnnotationContainerBuilder) -> Unit),
@@ -118,7 +119,7 @@ internal fun generateTemporaryVariable(
     generateTemporaryVariable(
         moduleData,
         source,
-        Name.special("<$specialName>"),
+        SpecialNames.DESTRUCT,
         initializer,
         typeRef = null,
         origin,
@@ -126,7 +127,7 @@ internal fun generateTemporaryVariable(
     )
 
 context(c: DestructuringContext<KtDestructuringDeclarationEntry>)
-internal fun AbstractRawFirBuilder<*>.generateDestructuringBlock(
+internal fun AbstractRawFirBuilder<*, *>.generateDestructuringBlock(
     moduleData: FirModuleData,
     multiDeclaration: KtDestructuringDeclaration,
     container: FirVariable,
@@ -146,23 +147,45 @@ internal fun AbstractRawFirBuilder<*>.generateDestructuringBlock(
 }
 
 context(c: DestructuringContext<KtDestructuringDeclarationEntry>)
-internal fun AbstractRawFirBuilder<*>.addDestructuringVariables(
+internal fun AbstractRawFirBuilder<*, *>.addDestructuringVariables(
     destination: MutableList<in FirVariable>,
     moduleData: FirModuleData,
     multiDeclaration: KtDestructuringDeclaration,
     container: FirVariable,
     tmpVariable: Boolean,
     forceLocal: Boolean,
+    isMember: Boolean = false,
+    isCompanionBlockMember: Boolean = false,
     configure: (FirVariable) -> Unit = {}
 ) {
     addDestructuringVariables(
         destination,
+        context,
         moduleData,
         container,
         multiDeclaration.entries,
-        isNameBased = !multiDeclaration.hasSquareBrackets() && (multiDeclaration.isFullForm || nameBasedDestructuringShortForm),
+        kind = destructuringKindOf(hasSquareBrackets = multiDeclaration.hasSquareBrackets(), isFullForm = multiDeclaration.isFullForm),
         isTmpVariable = tmpVariable,
         forceLocal = forceLocal,
+        isMember = isMember,
+        isCompanionBlockMember = isCompanionBlockMember,
         configure,
     )
 }
+
+/**
+ * Whether this declaration is declared directly in a script.
+ *
+ * Unlike [com.intellij.psi.PsiElement.getParent]-based checks, it doesn't force AST loading for script declarations.
+ */
+@OptIn(KtExperimentalApi::class)
+internal val KtDeclaration.isScriptMember: Boolean
+    get() = containingScript != null
+
+/**
+ * Whether this declaration is declared directly in a class body.
+ *
+ * The script check goes first as [com.intellij.psi.PsiElement.getParent] forces AST loading for script declarations.
+ */
+internal val KtDeclaration.isClassBodyMember: Boolean
+    get() = !isScriptMember && parent is KtClassBody

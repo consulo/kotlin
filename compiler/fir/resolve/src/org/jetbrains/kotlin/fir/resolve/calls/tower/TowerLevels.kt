@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.fir.resolve.calls.tower
 
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.config.LanguageFeature
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.hasAnnotationWithClassId
@@ -112,7 +111,7 @@ class DispatchReceiverMemberScopeTowerLevel(
                 // with two exceptions:
                 // - When the smart-casted type is always null, we want to return it and report UNSAFE_CALL.
                 // - When the original type can be null, in this case the smart-case either makes it not-null or the call is red anyway.
-                if (existing == null || dispatchReceiverValue.type.isNullableNothing || receiverTypeWithoutSmartCast.canBeNull(session)) {
+                if (existing == null || dispatchReceiverValue.type.isNullableNothing || receiverTypeWithoutSmartCast.isUnsafeAsDispatchReceiver()) {
                     map[memberFromSmartcast] = MemberFromSmartcastScope(
                         MemberWithBaseScope(memberFromSmartcast, scope),
                         DispatchReceiverToUse.SmartcastWithoutUnwrapping
@@ -260,7 +259,7 @@ class DispatchReceiverMemberScopeTowerLevel(
         candidatesWithSmartcast: Map<T, MemberFromSmartcastScope<T>>,
     ) {
         for (scopeWithSmartcast in candidatesWithSmartcast.values) {
-            val (candidate, scope) = scopeWithSmartcast.memberWithBaseScope
+            (val candidate = member, val scope = baseScope) = scopeWithSmartcast.memberWithBaseScope
 
             if (candidate.hasConsistentExtensionReceiver(givenExtensionReceiver)) {
                 val dispatchReceiverToUse = scopeWithSmartcast.dispatchReceiverToUse
@@ -291,7 +290,7 @@ class DispatchReceiverMemberScopeTowerLevel(
         }
     }
 
-    private fun getOriginalReceiverExpressionIfStableSmartCast() =
+    private fun getOriginalReceiverExpressionIfStableSmartCast(): FirExpression? =
         (dispatchReceiverValue.receiverExpression as? FirSmartCastExpression)
             ?.takeIf { it.isStable }
             ?.originalExpression

@@ -1,6 +1,8 @@
 description = "Kotlin Assignment Compiler Plugin (Common)"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 

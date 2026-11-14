@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.gradle.targets.wasm
 
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.attributes.Category
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.categoryByName
@@ -27,12 +26,11 @@ import org.jetbrains.kotlin.gradle.utils.maybeCreateConsumable
 import org.jetbrains.kotlin.gradle.utils.maybeCreateResolvable
 import org.jetbrains.kotlin.gradle.utils.setInvisibleIfSupported
 
-@OptIn(ExperimentalWasmDsl::class)
 internal val WasmBinaryPreparationSetupAction = KotlinTargetSideEffect { target ->
     if (target !is KotlinJsIrTarget || target.wasmTargetType != KotlinWasmTargetType.JS) return@KotlinTargetSideEffect
 
     val project = target.project
-    if (!project.kotlinPropertiesProvider.wasmPerModule) return@KotlinTargetSideEffect
+    if (!project.kotlinPropertiesProvider.wasmCompilationMode.isOpenWorld()) return@KotlinTargetSideEffect
 
     val main = target.compilations.getByName(KotlinCompilation.MAIN_COMPILATION_NAME)
 
@@ -68,7 +66,6 @@ internal val WasmBinaryPreparationSetupAction = KotlinTargetSideEffect { target 
     }
 }
 
-@ExperimentalWasmDsl
 private fun createWasmBinaryResolvableConfiguration(
     binary: WasmBinary,
     attributeValue: String,
@@ -89,10 +86,9 @@ private fun createWasmBinaryResolvableConfiguration(
         usesPlatformOf(target)
     }
 
-    wasmBinaryConfiguration.extendsFrom(runtimeDependencyConfiguration)
+    runtimeDependencyConfiguration?.let { wasmBinaryConfiguration.extendsFrom(it) }
 }
 
-@ExperimentalWasmDsl
 private fun createWasmBinaryOutputConsumableConfiguration(
     binary: WasmBinary,
     attributeValue: String,
@@ -119,7 +115,7 @@ private fun createWasmBinaryOutputConsumableConfiguration(
         )
     }
 
-    wasmBinaryOutputConfiguration.extendsFrom(runtimeDependencyConfiguration)
+    runtimeDependencyConfiguration?.let { wasmBinaryOutputConfiguration.extendsFrom(it) }
 }
 
 private fun configureLinkTask(

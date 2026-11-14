@@ -12,9 +12,10 @@ import org.jetbrains.kotlin.buildtools.api.SourcesChanges
 import org.jetbrains.kotlin.buildtools.api.arguments.CommonCompilerArguments.Companion.COMPILER_PLUGINS
 import org.jetbrains.kotlin.buildtools.tests.CompilerExecutionStrategyConfiguration
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertLogContainsPatterns
+import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.expectedLogLevelForRebuildReason
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.BtaV2StrategyAgnosticCompilationTest
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.LogLevel
-import org.jetbrains.kotlin.buildtools.tests.compilation.model.project
+import org.jetbrains.kotlin.buildtools.tests.compilation.model.jvmProject
 import org.jetbrains.kotlin.test.TestMetadata
 import org.junit.jupiter.api.DisplayName
 
@@ -22,10 +23,10 @@ class CompilerPluginsConfigurationInputsTrackingTest : BaseCompilationTest() {
 
     @BtaV2StrategyAgnosticCompilationTest
     @DisplayName("Adding a compiler plugin triggers non-incremental rebuild")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testCompilerPluginsChangeTriggersNonIncrementalRebuild(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        project(strategyConfig) {
-            val module = module("jvm-module-1")
+        jvmProject(strategyConfig) {
+            val module = module("basic-multimodule-project/module-1")
             module.compileIncrementally(
                 SourcesChanges.ToBeCalculated,
                 icOptionsConfigAction = { it[TRACK_CONFIGURATION_INPUTS] = true },
@@ -38,7 +39,7 @@ class CompilerPluginsConfigurationInputsTrackingTest : BaseCompilationTest() {
                 },
             ) {
                 assertLogContainsPatterns(
-                    expectedLogLevel(strategyConfig),
+                    expectedLogLevelForRebuildReason(strategyConfig),
                     ".*Non-incremental compilation will be performed: ${BuildAttribute.COMPILER_ARGS_CHANGED.readableString}".toRegex(),
                 )
             }
@@ -47,10 +48,10 @@ class CompilerPluginsConfigurationInputsTrackingTest : BaseCompilationTest() {
 
     @BtaV2StrategyAgnosticCompilationTest
     @DisplayName("Changing compiler plugin options triggers non-incremental rebuild")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testCompilerPluginOptionsChangeTriggersNonIncrementalRebuild(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        project(strategyConfig) {
-            val module = module("jvm-module-1")
+        jvmProject(strategyConfig) {
+            val module = module("basic-multimodule-project/module-1")
             module.compileIncrementally(
                 SourcesChanges.ToBeCalculated,
                 icOptionsConfigAction = { it[TRACK_CONFIGURATION_INPUTS] = true },
@@ -66,7 +67,7 @@ class CompilerPluginsConfigurationInputsTrackingTest : BaseCompilationTest() {
                 },
             ) {
                 assertLogContainsPatterns(
-                    expectedLogLevel(strategyConfig),
+                    expectedLogLevelForRebuildReason(strategyConfig),
                     ".*Non-incremental compilation will be performed: ${BuildAttribute.COMPILER_ARGS_CHANGED.readableString}".toRegex(),
                 )
             }
@@ -75,10 +76,10 @@ class CompilerPluginsConfigurationInputsTrackingTest : BaseCompilationTest() {
 
     @BtaV2StrategyAgnosticCompilationTest
     @DisplayName("Removing a compiler plugin triggers non-incremental rebuild")
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testCompilerPluginRemovalTriggersNonIncrementalRebuild(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        project(strategyConfig) {
-            val module = module("jvm-module-1")
+        jvmProject(strategyConfig) {
+            val module = module("basic-multimodule-project/module-1")
             module.compileIncrementally(
                 SourcesChanges.ToBeCalculated,
                 icOptionsConfigAction = { it[TRACK_CONFIGURATION_INPUTS] = true },
@@ -91,13 +92,10 @@ class CompilerPluginsConfigurationInputsTrackingTest : BaseCompilationTest() {
                 icOptionsConfigAction = { it[TRACK_CONFIGURATION_INPUTS] = true },
             ) {
                 assertLogContainsPatterns(
-                    expectedLogLevel(strategyConfig),
+                    expectedLogLevelForRebuildReason(strategyConfig),
                     ".*Non-incremental compilation will be performed: ${BuildAttribute.COMPILER_ARGS_CHANGED.readableString}".toRegex(),
                 )
             }
         }
     }
-
-    private fun expectedLogLevel(strategyConfig: CompilerExecutionStrategyConfiguration): LogLevel =
-        if (strategyConfig.second is ExecutionPolicy.WithDaemon) LogLevel.DEBUG else LogLevel.INFO // TODO: KT-85024
 }

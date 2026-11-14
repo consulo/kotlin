@@ -26,13 +26,25 @@ KtParameter(38,46): 'other: A'
   null
 
 KtTypeReference(45,46): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(45,46): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(45,46): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtBlockExpression(48,50): '{}'
   null
@@ -50,13 +62,25 @@ KtParameter(80,88): 'other: A'
   null
 
 KtTypeReference(87,88): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(87,88): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(87,88): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtBlockExpression(90,92): '{}'
   null
@@ -74,13 +98,25 @@ KtParameter(122,130): 'other: A'
   null
 
 KtTypeReference(129,130): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(129,130): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(129,130): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtBlockExpression(132,134): '{}'
   null
@@ -98,13 +134,25 @@ KtParameter(162,170): 'other: A'
   null
 
 KtTypeReference(169,170): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(169,170): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(169,170): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtBlockExpression(172,174): '{}'
   null
@@ -122,13 +170,25 @@ KtParameter(202,210): 'other: A'
   null
 
 KtTypeReference(209,210): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(209,210): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(209,210): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtBlockExpression(212,214): '{}'
   null
@@ -146,15 +206,18 @@ KtProperty(235,246): 'val a = A()'
   null
 
 KtCallExpression(243,246): 'A()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): A
     ]
 
 KtNameReferenceExpression(243,244): 'A'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(): A
+      /A
     ]
 
 KtValueArgumentList(244,246): '()'
@@ -164,136 +227,184 @@ KtProperty(251,262): 'val b = A()'
   null
 
 KtCallExpression(259,262): 'A()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): A
     ]
 
 KtNameReferenceExpression(259,260): 'A'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(): A
+      /A
     ]
 
 KtValueArgumentList(260,262): '()'
   null
 
 KtBinaryExpression(267,273): 'a += b'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.plusAssign(<dispatch receiver>: A, other: A): kotlin.Unit
     ]
 
 KtNameReferenceExpression(267,268): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val a: A
     ]
 
 KtOperationReferenceExpression(269,271): '+='
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.plusAssign(<dispatch receiver>: A, other: A): kotlin.Unit
     ]
 
 KtNameReferenceExpression(272,273): 'b'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val b: A
     ]
 
 KtBinaryExpression(278,284): 'a -= b'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.minusAssign(<dispatch receiver>: A, other: A): kotlin.Unit
     ]
 
 KtNameReferenceExpression(278,279): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val a: A
     ]
 
 KtOperationReferenceExpression(280,282): '-='
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.minusAssign(<dispatch receiver>: A, other: A): kotlin.Unit
     ]
 
 KtNameReferenceExpression(283,284): 'b'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val b: A
     ]
 
 KtBinaryExpression(289,295): 'a *= b'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.timesAssign(<dispatch receiver>: A, other: A): kotlin.Unit
     ]
 
 KtNameReferenceExpression(289,290): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val a: A
     ]
 
 KtOperationReferenceExpression(291,293): '*='
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.timesAssign(<dispatch receiver>: A, other: A): kotlin.Unit
     ]
 
 KtNameReferenceExpression(294,295): 'b'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val b: A
     ]
 
 KtBinaryExpression(300,306): 'a /= b'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.divAssign(<dispatch receiver>: A, other: A): kotlin.Unit
     ]
 
 KtNameReferenceExpression(300,301): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val a: A
     ]
 
 KtOperationReferenceExpression(302,304): '/='
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.divAssign(<dispatch receiver>: A, other: A): kotlin.Unit
     ]
 
 KtNameReferenceExpression(305,306): 'b'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val b: A
     ]
 
 KtBinaryExpression(311,317): 'a %= b'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.remAssign(<dispatch receiver>: A, other: A): kotlin.Unit
     ]
 
 KtNameReferenceExpression(311,312): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val a: A
     ]
 
 KtOperationReferenceExpression(313,315): '%='
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.remAssign(<dispatch receiver>: A, other: A): kotlin.Unit
     ]
 
 KtNameReferenceExpression(316,317): 'b'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val b: A
     ]

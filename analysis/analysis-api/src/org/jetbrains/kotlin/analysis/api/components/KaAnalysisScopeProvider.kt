@@ -34,7 +34,11 @@ public interface KaAnalysisScopeProvider : KaSessionComponent {
  *
  * For example, [KaSymbol]s can only be built for declarations which are in the analysis scope.
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
+@Deprecated(
+    message = "Use the 'org.jetbrains.kotlin.analysis.api.session' endpoint instead.",
+    replaceWith = ReplaceWith("analysisScope", "org.jetbrains.kotlin.analysis.api.session.analysisScope"),
+    level = DeprecationLevel.HIDDEN,
+)
 @KaContextParameterApi
 context(session: KaSession)
 public val analysisScope: GlobalSearchScope
@@ -45,7 +49,11 @@ public val analysisScope: GlobalSearchScope
  *
  * For example, a [KaSymbol] can only be built for this [PsiElement] if it can be analyzed.
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
+@Deprecated(
+    message = "Use the 'org.jetbrains.kotlin.analysis.api.session' endpoint instead.",
+    replaceWith = ReplaceWith("this.canBeAnalysed()", "org.jetbrains.kotlin.analysis.api.session.canBeAnalysed"),
+    level = DeprecationLevel.HIDDEN,
+)
 @KaContextParameterApi
 context(session: KaSession)
 public fun PsiElement.canBeAnalysed(): Boolean {

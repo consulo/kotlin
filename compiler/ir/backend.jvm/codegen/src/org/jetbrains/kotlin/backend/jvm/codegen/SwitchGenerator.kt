@@ -65,7 +65,7 @@ class SwitchGenerator(private val expression: IrWhen, private val data: BlockInf
         return when {
             subject is IrCall && subject.isCoerceFromUIntToInt() ->
                 generateUIntSwitch(subject.arguments[0]!! as? IrGetValue, calls, callToLabels, expressionToLabels, elseExpression)
-            subject is IrGetValue || subject is IrConst && subject.type.isString() -> // also generate tableswitch for literal string subject
+            subject is IrGetValue || subject is IrConst && subject.kind == IrConstKind.String -> // also generate tableswitch for literal string subject
                 generatePrimitiveSwitch(subject, calls, callToLabels, expressionToLabels, elseExpression)
             else ->
                 null
@@ -300,7 +300,7 @@ class SwitchGenerator(private val expression: IrWhen, private val data: BlockInf
             with(codegen) {
                 val endLabel = Label()
 
-                for ((thenExpression, label) in expressionToLabels) {
+                for ((val thenExpression = expression, val label) in expressionToLabels) {
                     mv.visitLabel(label)
                     thenExpression.accept(this, data).also {
                         if (elseExpression != null) {
@@ -470,9 +470,9 @@ class SwitchGenerator(private val expression: IrWhen, private val data: BlockInf
 
                 // Multiple strings can be hashed into the same bucket.
                 // Generate an if cascade to resolve that for each bucket.
-                for ((hash, switchLabel) in hashAndSwitchLabels) {
+                for ((val hash = value, val switchLabel = label) in hashAndSwitchLabels) {
                     mv.visitLabel(switchLabel)
-                    for ((string, label) in hashToStringAndExprLabels[hash]!!) {
+                    for ((val string = value, val label) in hashToStringAndExprLabels[hash]!!) {
                         noLineNumberScope {
                             subject.accept(this, data).materialize()
                         }

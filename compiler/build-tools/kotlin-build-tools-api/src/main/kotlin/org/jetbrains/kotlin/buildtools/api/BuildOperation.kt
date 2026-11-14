@@ -54,7 +54,7 @@ public interface BuildOperation<R> {
      * @see get
      * @see set
      */
-    public class Option<V> internal constructor(id: String) : BaseOption<V>(id)
+    public class Option<V> internal constructor(id: String, public val availableSinceVersion: KotlinReleaseVersion) : BaseOption<V>(id)
 
     /**
      * Get the value for option specified by [key] if it was previously [set] or if it has a default value.
@@ -69,10 +69,19 @@ public interface BuildOperation<R> {
          * A collector for various metrics emitted by the compilation operation.
          */
         @JvmField
-        public val METRICS_COLLECTOR: Option<BuildMetricsCollector?> = Option("METRICS_COLLECTOR")
+        public val METRICS_COLLECTOR: Option<BuildMetricsCollector?> = Option("METRICS_COLLECTOR", KotlinReleaseVersion(2, 3, 0))
+
+        /**
+         * Whether to enable caching of classloaders used for loading compiler plugins and annotation processors between build sessions.
+         *
+         * Additionally, the size of the classloader cache can be controlled by setting the "kotlin.buildtools.classloaders.cache.size"
+         * system property *before* calling the [KotlinToolchains.loadImplementation] method. The default number of entries in the cache is 10.
+         */
+        @JvmField
+        public val ENABLE_CLASSLOADER_CACHE: Option<Boolean> = Option("ENABLE_CLASSLOADER_CACHE", KotlinReleaseVersion(2, 5, 0))
 
         @Deprecated("Internal use only for the migration period. Will be removed soon.", level = DeprecationLevel.ERROR)
-        public fun <V> createCustomOption(id: String): Option<V> = Option(id)
+        public fun <V> createCustomOption(id: String): Option<V> = Option(id, KotlinReleaseVersion(1, 0, 0))
     }
 }
 

@@ -1,4 +1,5 @@
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: [
     org/jetbrains/kotlin/plugin/sandbox/MyInterfaceSupertype()
       psi: KtAnnotationEntry
@@ -6,7 +7,6 @@ KaNamedClassSymbol:
   classId: foo/Foo
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -15,10 +15,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: FINAL
   name: Foo
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -33,6 +36,6 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(supertypeCompilerPlugin.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: foo.Foo

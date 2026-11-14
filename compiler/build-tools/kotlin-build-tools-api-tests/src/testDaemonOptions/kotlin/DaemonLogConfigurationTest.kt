@@ -6,7 +6,7 @@ package org.jetbrains.kotlin.buildtools.tests.compilation
 
 import org.jetbrains.kotlin.buildtools.api.ExecutionPolicy
 import org.jetbrains.kotlin.buildtools.api.KotlinToolchains
-import org.jetbrains.kotlin.buildtools.tests.compilation.model.project
+import org.jetbrains.kotlin.buildtools.tests.compilation.model.jvmProject
 import org.jetbrains.kotlin.buildtools.tests.compilation.util.btaClassloader
 import org.jetbrains.kotlin.daemon.common.COMPILE_DAEMON_CMDLINE_OPTIONS_PREFIX
 import org.junit.jupiter.api.Test
@@ -19,13 +19,14 @@ class DaemonLogConfigurationTest : BaseCompilationTest() {
     fun testDaemonDefaultLogsPath() {
         val kotlinToolchains = KotlinToolchains.loadImplementation(btaClassloader)
         runSingleShotDaemonTest(kotlinToolchains) { daemonPolicy, _ ->
-            project(kotlinToolchains to daemonPolicy) {
-                val module = module("jvm-module-1")
+            jvmProject(kotlinToolchains to daemonPolicy) {
+                val module = module("basic-multimodule-project/module-1")
                 val logsPath = daemonPolicy[ExecutionPolicy.WithDaemon.LOGS_PATH]
                 module.compile {
-                    logsPath.useDirectoryEntries {
+                    val hasDaemonLogFile = logsPath.useDirectoryEntries {
                         it.any { entry -> entry.name.startsWith("kotlin-daemon") && entry.name.endsWith(".log") }
                     }
+                    assert(hasDaemonLogFile) { "Expected a kotlin-daemon log file in $logsPath" }
                 }
             }
         }
@@ -37,13 +38,14 @@ class DaemonLogConfigurationTest : BaseCompilationTest() {
         runSingleShotDaemonTest(kotlinToolchains, additionalDaemonConfiguration = {
             this[ExecutionPolicy.WithDaemon.LOGS_PATH] = workingDirectory.resolve("daemon-logs")
         }) { daemonPolicy, _ ->
-            project(kotlinToolchains to daemonPolicy) {
-                val module = module("jvm-module-1")
+            jvmProject(kotlinToolchains to daemonPolicy) {
+                val module = module("basic-multimodule-project/module-1")
                 val logsPath = daemonPolicy[ExecutionPolicy.WithDaemon.LOGS_PATH]
                 module.compile {
-                    logsPath.useDirectoryEntries {
+                    val hasDaemonLogFile = logsPath.useDirectoryEntries {
                         it.any { entry -> entry.name.startsWith("kotlin-daemon") && entry.name.endsWith(".log") }
                     }
+                    assert(hasDaemonLogFile) { "Expected a kotlin-daemon log file in $logsPath" }
                 }
             }
         }
@@ -60,8 +62,8 @@ class DaemonLogConfigurationTest : BaseCompilationTest() {
             this[ExecutionPolicy.WithDaemon.LOGS_FILE_COUNT_LIMIT] = expectedLogFileCount
             this[ExecutionPolicy.WithDaemon.LOGS_FILE_SIZE_LIMIT] = expectedLogFileSize
         }) { daemonPolicy, _ ->
-            project(kotlinToolchains to daemonPolicy) {
-                val module = module("jvm-module-1")
+            jvmProject(kotlinToolchains to daemonPolicy) {
+                val module = module("basic-multimodule-project/module-1")
                 module.compile {
                     val logFile = logsPath.useDirectoryEntries {
                         it.single { entry -> entry.name.startsWith("kotlin-daemon") && entry.name.endsWith(".log") }

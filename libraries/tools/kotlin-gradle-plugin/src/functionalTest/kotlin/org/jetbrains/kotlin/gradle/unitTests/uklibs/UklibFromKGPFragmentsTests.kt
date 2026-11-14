@@ -3,19 +3,13 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-@file:OptIn(ExperimentalWasmDsl::class)
-
 package org.jetbrains.kotlin.gradle.unitTests.uklibs
 
-import org.gradle.kotlin.dsl.creating
-import org.gradle.kotlin.dsl.getValue
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
-import org.jetbrains.kotlin.gradle.plugin.diagnostics.ToolingDiagnostic.Severity.ERROR
-import org.jetbrains.kotlin.gradle.plugin.diagnostics.ToolingDiagnostic.Severity.WARNING
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnosticsSeverity.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.external.createCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.external.createExternalKotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.uklibs.publication.validateKgpModelIsUklibCompliantAndCreateKgpFragments
@@ -62,7 +56,7 @@ class UklibFromKGPFragmentsTests {
         ) {
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
 
@@ -129,7 +123,7 @@ class UklibFromKGPFragmentsTests {
         ) {
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
 
@@ -143,6 +137,7 @@ class UklibFromKGPFragmentsTests {
         )
     }
 
+    @OptIn(ExperimentalWasmDsl::class)
     @Test
     fun `uklib fragments - all supported targets`() {
         buildProjectWithMPP(
@@ -153,7 +148,7 @@ class UklibFromKGPFragmentsTests {
             androidLibrary { compileSdk = 31 }
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -244,7 +239,7 @@ class UklibFromKGPFragmentsTests {
         ) {
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 iosSimulatorArm64()
 
@@ -277,7 +272,7 @@ class UklibFromKGPFragmentsTests {
                 linuxArm64()
                 linuxX64()
 
-                val customLinuxMain by sourceSets.creating
+                val customLinuxMain = sourceSets.create("customLinuxMain")
                 sourceSets.linuxArm64Main.get().dependsOn(customLinuxMain)
                 sourceSets.linuxX64Main.get().dependsOn(customLinuxMain)
             }
@@ -308,7 +303,7 @@ class UklibFromKGPFragmentsTests {
                 linuxX64()
                 linuxArm64()
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
             }
         }.evaluate().assertNoDiagnostics(

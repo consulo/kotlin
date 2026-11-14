@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.gradle.mpp
 
+import org.gradle.api.initialization.ConfigurableIncludedBuild
 import org.gradle.api.logging.configuration.WarningMode
 import org.gradle.internal.os.OperatingSystem
 import org.gradle.util.GradleVersion
@@ -15,22 +16,34 @@ import org.jetbrains.kotlin.gradle.idea.testFixtures.tcs.*
 import org.jetbrains.kotlin.gradle.idea.testFixtures.utils.*
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.testbase.BuildOptions.ConfigurationCacheValue
+import org.jetbrains.kotlin.gradle.uklibs.applyMultiplatform
+import org.jetbrains.kotlin.gradle.uklibs.include
+import org.jetbrains.kotlin.gradle.uklibs.includeBuild
 import org.jetbrains.kotlin.gradle.util.*
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.jetbrains.kotlin.utils.addToStdlib.countOccurrencesOf
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.OS
 import kotlin.io.path.appendText
+import kotlin.io.path.createDirectories
+import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.name
+import kotlin.io.path.writeText
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 
 @MppGradlePluginTests
+@MustRunOnChangesInGradle
 @DisplayName("Tests for multiplatform with composite builds")
 class MppCompositeBuildIT : KGPBaseTest() {
     override val defaultBuildOptions: BuildOptions
         // FIXME: KT-81095 these tests fail with OOM when CC is enabled
-        get() = super.defaultBuildOptions.copy(configurationCache = ConfigurationCacheValue.DISABLED)
+        get() = super.defaultBuildOptions.copy(
+            configurationCache = ConfigurationCacheValue.DISABLED,
+            isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED,
+        )
 
     @GradleTest
     fun `test - sample0 - ide dependencies`(gradleVersion: GradleVersion) {
@@ -147,10 +160,11 @@ class MppCompositeBuildIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("mpp-composite-build/sample1")
     @GradleTest
     fun `test - sample1 - ide dependencies`(gradleVersion: GradleVersion) {
         project("mpp-composite-build/sample1", gradleVersion) {
-            projectPath.resolve("included-build").addDefaultSettingsToSettingsGradle(gradleVersion)
+            projectPath.resolve("included-build").addDefaultSettingsToSettingsGradle()
             buildGradleKts.replaceText("<kgp_version>", KOTLIN_VERSION)
             projectPath.resolve("included-build/build.gradle.kts").replaceText("<kgp_version>", KOTLIN_VERSION)
 
@@ -174,10 +188,11 @@ class MppCompositeBuildIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("mpp-composite-build/sample1")
     @GradleTest
     fun `test - sample1 - assemble and execute`(gradleVersion: GradleVersion) {
-        var buildOptions = defaultBuildOptions.disableConfigurationCacheForGradle7(gradleVersion)
-        if (gradleVersion < GradleVersion.version("9.1")) {
+        var buildOptions = defaultBuildOptions
+        if (gradleVersion < GradleVersion.version(TestVersions.Gradle.G_9_1)) {
             // FIXME: KT-74795
             buildOptions = buildOptions.disableIsolatedProjects()
         }
@@ -186,7 +201,7 @@ class MppCompositeBuildIT : KGPBaseTest() {
             gradleVersion,
             buildOptions = buildOptions,
         ) {
-            projectPath.resolve("included-build").addDefaultSettingsToSettingsGradle(gradleVersion)
+            projectPath.resolve("included-build").addDefaultSettingsToSettingsGradle()
             buildGradleKts.replaceText("<kgp_version>", KOTLIN_VERSION)
             projectPath.resolve("included-build/build.gradle.kts").replaceText("<kgp_version>", KOTLIN_VERSION)
 
@@ -212,6 +227,7 @@ class MppCompositeBuildIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("mpp-composite-build/sample1")
     @GradleTestVersions(maxVersion = TestVersions.Gradle.G_8_14) // Used old Kotlin version is not compatible with Gradle 9.+
     @GradleTest
     fun `test - sample1 - assemble and execute - included build using older version of Kotlin`(gradleVersion: GradleVersion) {
@@ -219,12 +235,13 @@ class MppCompositeBuildIT : KGPBaseTest() {
             "mpp-composite-build/sample1",
             gradleVersion,
             buildOptions = defaultBuildOptions
-                .suppressDeprecationWarningsOn(
-                    reason = "KGP 1.7.21 produces deprecation warnings with Gradle 8.4"
-                ) { gradleVersion >= GradleVersion.version(TestVersions.Gradle.G_8_4) }
-                .copy(configurationCache = ConfigurationCacheValue.DISABLED)
+                .suppressDeprecationWarnings("KGP 1.7.21 produces deprecation warnings")
+                .copy(
+                    configurationCache = ConfigurationCacheValue.DISABLED,
+                    isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED,
+                )
         ) {
-            projectPath.resolve("included-build").addDefaultSettingsToSettingsGradle(gradleVersion)
+            projectPath.resolve("included-build").addDefaultSettingsToSettingsGradle()
             buildGradleKts.replaceText("<kgp_version>", KOTLIN_VERSION)
             projectPath.resolve("included-build/build.gradle.kts").replaceText("<kgp_version>", "1.7.21")
             projectPath.resolve("included-build/included/build.gradle.kts").replaceText(
@@ -346,6 +363,138 @@ class MppCompositeBuildIT : KGPBaseTest() {
             build(":consumerA:assemble") {
                 assertTasksExecuted(":consumerA:compileKotlinLinuxX64")
                 assertOutputDoesNotContain("w: duplicate library")
+            }
+        }
+    }
+
+    private fun TestProject.includedBuildName(): String = projectPath.listDirectoryEntries("included_*").single().name
+
+    /**
+     * Included build with `producerA` (has `clib` cinterop) and `producerB` (exposes `producerA` as `api`).
+     */
+    private fun cinteropProducerBuild(gradleVersion: GradleVersion): TestProject {
+        val producerA = project("empty", gradleVersion) {
+            projectPath.resolve("src/nativeInterop/cinterop").createDirectories().resolve("clib.def").writeText("")
+            projectPath.resolve("src/clib.h").writeText("int myCFunction();")
+            buildScriptInjection {
+                project.group = "org.jetbrains.sample"
+                project.version = "1.0.0-SNAPSHOT"
+                project.applyMultiplatform {
+                    jvm()
+                    listOf(linuxX64(), linuxArm64()).forEach { target ->
+                        target.compilations.getByName("main").cinterops.create("clib") { it.header(project.file("src/clib.h")) }
+                    }
+                }
+            }
+        }
+
+        val producerB = project("empty", gradleVersion) {
+            buildScriptInjection {
+                project.group = "org.jetbrains.sample"
+                project.version = "1.0.0-SNAPSHOT"
+                project.applyMultiplatform {
+                    jvm()
+                    linuxX64()
+                    linuxArm64()
+                    sourceSets.commonMain.dependencies {
+                        api(project(":producerA"))
+                    }
+                }
+            }
+        }
+
+        return project("empty", gradleVersion) {
+            addKgpToBuildScriptCompilationClasspath()
+            include(producerA, "producerA")
+            include(producerB, "producerB")
+            gradleProperties.append("kotlin.mpp.enableCInteropCommonization=true")
+        }
+    }
+
+    /**
+     * Consumer that uses `clib` from `nativeMain`, which is shared between linuxX64 and linuxArm64.
+     * So the cinterop is only visible through the commonized cinterop.
+     */
+    private fun cinteropConsumer(
+        gradleVersion: GradleVersion,
+        producerBuild: TestProject,
+        producerDependency: String,
+        configureIncludedBuild: ConfigurableIncludedBuild.() -> Unit = {},
+        test: TestProject.() -> Unit,
+    ) {
+        project(
+            "empty", gradleVersion,
+            buildOptions = defaultBuildOptions.copy(warningMode = WarningMode.Fail),
+        ) {
+            addKgpToBuildScriptCompilationClasspath()
+            includeBuild(producerBuild, configureIncludedBuild)
+            gradleProperties.append("kotlin.mpp.enableCInteropCommonization=true")
+            buildScriptInjection {
+                project.applyMultiplatform {
+                    linuxX64()
+                    linuxArm64()
+                    sourceSets.commonMain.dependencies {
+                        implementation(producerDependency)
+                    }
+                    sourceSets.matching { it.name == "nativeMain" }.configureEach {
+                        it.compileSource(
+                            """
+                            @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+
+                            import clib.myCFunction
+
+                            fun callMyCFunction() = myCFunction()
+                            """.trimIndent()
+                        )
+                    }
+                }
+            }
+            test()
+        }
+    }
+
+    @GradleTest
+    fun `test - KT-77589 - cinterop of transitive included build project with auto substitution`(gradleVersion: GradleVersion) {
+        cinteropConsumer(
+            gradleVersion,
+            cinteropProducerBuild(gradleVersion),
+            producerDependency = "org.jetbrains.sample:producerB:1.0.0-SNAPSHOT",
+        ) {
+            build(":compileNativeMainKotlinMetadata") {
+                assertTasksExecuted(":${includedBuildName()}:producerA:commonizeCInterop")
+            }
+        }
+    }
+
+    @GradleTest
+    fun `test - KT-77589 - cinterop of included build with substituted module id different from project coordinates`(
+        gradleVersion: GradleVersion,
+    ) {
+        cinteropConsumer(
+            gradleVersion,
+            cinteropProducerBuild(gradleVersion),
+            producerDependency = "org.jetbrains.sample:producer-a-published:1.0.0-SNAPSHOT",
+            configureIncludedBuild = {
+                dependencySubstitution { substitutions ->
+                    // The substituted module id intentionally differs from the producer project coordinates (org.jetbrains.sample:producerA)
+                    substitutions.substitute(substitutions.module("org.jetbrains.sample:producer-a-published"))
+                        .using(substitutions.project(":producerA"))
+                }
+            },
+        ) {
+            build(":compileNativeMainKotlinMetadata")
+        }
+    }
+
+    @GradleTest
+    fun `test - KT-77589 - configuring consumer does not run commonizer of included build`(gradleVersion: GradleVersion) {
+        cinteropConsumer(
+            gradleVersion,
+            cinteropProducerBuild(gradleVersion),
+            producerDependency = "org.jetbrains.sample:producerB:1.0.0-SNAPSHOT",
+        ) {
+            build("help") {
+                assertTasksAreNotInTaskGraph(":${includedBuildName()}:producerA:commonizeCInterop")
             }
         }
     }
@@ -509,7 +658,7 @@ class MppCompositeBuildIT : KGPBaseTest() {
             "mpp-composite-build/kt65315_with_resources_in_metadata_klib/consumer",
             gradleVersion,
             buildOptions = buildOptions
-                .suppressWarningForOldKotlinVersion(gradleVersion),
+                .suppressDeprecationWarnings("Old Kotlin versions produces deprecation warnings with latest Gradle release"),
         ) {
             settingsGradleKts.toFile().replaceText("<producer_path>", producer.projectPath.toUri().path)
             defaultKotlinNativeVersion?.let { gradleProperties.appendText("\nkotlin.native.version=$it") }

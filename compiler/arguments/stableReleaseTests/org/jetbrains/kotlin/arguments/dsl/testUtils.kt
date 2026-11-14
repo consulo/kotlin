@@ -13,21 +13,43 @@ import kotlin.reflect.KClass
 
 // Should be removed in the scope of KT-81552 Introduce compiler arguments categories
 // Really experimental compiler arguments should have a special handling in tests
-private val temporaryExceptions = setOf(
-    "Xuse-javac",
-    "Xcompile-java",
-    "Xjavac-arguments",
-    "Xserialize-ir",
-    "Xwasm-preserve-ic-order",
-    "Xwasm-ic-cache-readonly"
+private val temporaryExceptions: Set<String> = setOf(
+    // Add here argument name to ignore from checks
+    "Xfragment-incremental-classpath",
+    "Xklib-normalize-absolute-path",
+    "Xklib",
+    "Xcontext-receivers",
+    "Xsuppress-deprecated-jvm-target-warning",
+    "Xdestroy-runtime-mode",
+    "Xsuppress-api-version-greater-than-language-version-error",
+    "Xbundle-id",
+    "Xfake-override-validator",
+    "Xpurge-user-libs",
+    "Xcommon-fragments-metadata-destination",
+    "Xinline-classes",
+    "Xnew-inference",
+    "Xunrestricted-builder-inference",
+    "Xtype-enhancement-improvements-strict-mode",
+    "Xenhance-type-parameter-types-to-def-not-null",
+    "Xsuppress-warning",
+    "Xuse-fir-experimental-checkers",
+    "Xuse-fir-lt",
+    "Xintellij-plugin-root",
+    "Xno-check-actual",
+    "Xignore-const-optimization-errors",
+    "Xir-do-not-clear-binding-context",
+    "Xdirect-java-actualization",
+    "Xallow-pre-17-runtime-jdk",
+    "Xrepl",
+    "Xjava-direct",
 )
 
 internal fun Set<StableKotlinCompilerArgument>.filterNonDeprecated() = filter {
-    !it.isObsolete && it.releaseVersionsMetadata.deprecatedVersion == null && it.name !in temporaryExceptions
+    it.releaseVersionsMetadata.deprecatedVersion == null && it.name !in temporaryExceptions
 }
 
 internal fun Set<StableKotlinCompilerArgument>.filterDeprecated() = filter {
-    !it.isObsolete && it.releaseVersionsMetadata.deprecatedVersion != null && it.name !in temporaryExceptions
+    it.releaseVersionsMetadata.deprecatedVersion != null && it.name !in temporaryExceptions
 }
 
 internal val StableKotlinReleaseVersion.asCurrent: KotlinReleaseVersion

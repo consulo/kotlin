@@ -68,14 +68,12 @@ open class CompareDistributionSignatures @Inject constructor(
     @get:PathSensitive(PathSensitivity.NONE)
     protected val oldDistributionRoot: DirectoryProperty = objectFactory.directoryProperty()
 
-    @Internal
     private val oldDistribution: Provider<NativeDistribution> = oldDistributionRoot.asNativeDistribution()
 
     @get:InputDirectory
     @get:PathSensitive(PathSensitivity.NONE)
     protected val newDistributionRoot: DirectoryProperty = objectFactory.directoryProperty()
 
-    @Internal
     private val newDistribution: Provider<NativeDistribution> = newDistributionRoot.asNativeDistribution()
 
     enum class OnMismatchMode {
@@ -191,7 +189,7 @@ open class CompareDistributionSignatures @Inject constructor(
     )
 
     private fun getKlibSignatures(klib: File): List<String> {
-        val args = listOf("dump-metadata-signatures", klib.absolutePath, "-signature-version", "1")
+        val args = listOf("dump-signatures", klib.absolutePath, "-signature-version", "1")
         ByteArrayOutputStream().use { stdout ->
             execOperations.exec {
                 commandLine(newDistribution.get().klib.asFile, *args.toTypedArray())

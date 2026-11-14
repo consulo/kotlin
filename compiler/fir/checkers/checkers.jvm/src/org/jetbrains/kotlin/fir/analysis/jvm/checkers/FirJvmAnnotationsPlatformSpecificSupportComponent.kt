@@ -5,24 +5,44 @@
 
 package org.jetbrains.kotlin.fir.analysis.jvm.checkers
 
+import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.AnnotationsPosition
 import org.jetbrains.kotlin.fir.declarations.FirAnnotationsPlatformSpecificSupportComponent
+import org.jetbrains.kotlin.fir.declarations.FirCompilerRequiredParameterDescription
+import org.jetbrains.kotlin.fir.declarations.FirCraParameterKind
 import org.jetbrains.kotlin.fir.declarations.FirProperty
+import org.jetbrains.kotlin.fir.declarations.LegacyJvmInlineHandling
 import org.jetbrains.kotlin.fir.declarations.toAnnotationClassIdSafe
 import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.JvmStandardClassIds
+import org.jetbrains.kotlin.name.StandardClassIds
+import org.jetbrains.kotlin.types.ConstantValueKind
 
 object FirJvmAnnotationsPlatformSpecificSupportComponent : FirAnnotationsPlatformSpecificSupportComponent() {
-    override val requiredAnnotationsWithArguments: Set<ClassId> = setOf(
-        JvmStandardClassIds.Annotations.Java.Target,
-        JvmStandardClassIds.Annotations.JvmName,
-    )
+    override val requiredAnnotationsWithArguments: CompilerRequiredParametersMap = buildMap {
+        this[JvmStandardClassIds.Annotations.Java.Target] = [
+            FirCompilerRequiredParameterDescription(
+                name = StandardNames.DEFAULT_VALUE_PARAMETER,
+                kind = FirCraParameterKind.EnumParameter(JvmStandardClassIds.Annotations.Java.ElementType, isVararg = true),
+                position = null,
+            )
+        ]
 
-    override val requiredAnnotations: Set<ClassId> = requiredAnnotationsWithArguments + setOf(
+        this[JvmStandardClassIds.Annotations.JvmName] = [
+            FirCompilerRequiredParameterDescription(
+                name = StandardNames.NAME,
+                kind = FirCraParameterKind.LiteralParameter(ConstantValueKind.String),
+                position = 0,
+            )
+        ]
+    }
+
+    override val requiredAnnotations: Set<ClassId> = requiredAnnotationsWithArguments.keys + setOf(
         JvmStandardClassIds.Annotations.Java.Deprecated,
         JvmStandardClassIds.Annotations.JvmRecord,
+        StandardClassIds.Annotations.JvmInline,
     )
 
     override val volatileAnnotations: Set<ClassId> = setOf(
@@ -33,6 +53,9 @@ object FirJvmAnnotationsPlatformSpecificSupportComponent : FirAnnotationsPlatfor
         JvmStandardClassIds.Annotations.Java.Repeatable,
         JvmStandardClassIds.Annotations.JvmRepeatable,
     )
+
+    @LegacyJvmInlineHandling
+    override val hasJvmInlineAnnotation: Boolean = true
 
     override val deprecationAnnotationsWithOverridesPropagation: Map<ClassId, Boolean> = mapOf(
         JvmStandardClassIds.Annotations.Java.Deprecated to false,
@@ -46,7 +69,7 @@ object FirJvmAnnotationsPlatformSpecificSupportComponent : FirAnnotationsPlatfor
     ): AnnotationsPosition? {
         if (propertyAnnotations.isEmpty() || property.backingField == null) return null
 
-        val (newBackingFieldAnnotations, newPropertyAnnotations) = propertyAnnotations.partition {
+        val [newBackingFieldAnnotations, newPropertyAnnotations] = propertyAnnotations.partition {
             it.toAnnotationClassIdSafe(session) == JvmStandardClassIds.Annotations.Java.Deprecated
         }
 

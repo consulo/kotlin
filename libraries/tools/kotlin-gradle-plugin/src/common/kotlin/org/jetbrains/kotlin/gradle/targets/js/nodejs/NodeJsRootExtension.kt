@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.gradle.targets.js.nodejs
 import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.targets.web.HasPlatformDisambiguator
 import org.jetbrains.kotlin.gradle.targets.web.nodejs.BaseNodeJsRootExtension
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 
 /**
  * Extension for configuring Node.js-related settings at the root level in a Kotlin/JS project.
@@ -16,15 +17,15 @@ import org.jetbrains.kotlin.gradle.targets.web.nodejs.BaseNodeJsRootExtension
  * required for Node.js-based workflows in Kotlin/JS projects, while bridging with the `NodeJsEnvSpec`.
  *
  */
+@ObsoleteNpmDependencyModel
 abstract class NodeJsRootExtension internal constructor(
     project: Project,
-    nodeJs: () -> NodeJsEnvSpec,
     rootDir: String,
 ) : BaseNodeJsRootExtension(
     project,
-    nodeJs,
     rootDir
 ), HasPlatformDisambiguator by JsPlatformDisambiguator {
+    @ObsoleteNpmDependencyModel
     companion object : HasPlatformDisambiguator by JsPlatformDisambiguator {
         val EXTENSION_NAME: String
             get() = extensionName("nodeJs")

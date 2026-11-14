@@ -3,12 +3,14 @@ package org.jetbrains.kotlin.gradle.mpp.resources
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.incremental.testingUtils.assertEqualDirectoriesIgnoringDotFiles
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import java.nio.file.Path
 import kotlin.io.path.name
 import kotlin.io.path.writeText
 
 @MppGradlePluginTests
+@MustRunOnChangesInGradle
 @DisplayName("Test multiplatform resources publication")
 class MultiplatformResourcesPublicationIT : KGPBaseTest() {
 
@@ -18,6 +20,7 @@ class MultiplatformResourcesPublicationIT : KGPBaseTest() {
 
     @DisplayName("Multiplatform resources publication for Android target with release build type")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testAndroidReleaseResourcesPublicationInNewerAgpVersions(
         gradleVersion: GradleVersion,
         androidVersion: String,

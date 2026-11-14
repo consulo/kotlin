@@ -20,10 +20,10 @@ import samples.*
 import kotlin.test.*
 
 
-@RunWith(Enclosed::class)
 class Arrays {
 
-    class Usage {
+    @Nested
+    inner class Usage {
 
         @Sample
         fun arrayOrEmpty() {
@@ -92,7 +92,8 @@ class Arrays {
         }
     }
 
-    class Transformations {
+    @Nested
+    inner class Transformations {
 
         @Sample
         fun associateArrayOfPrimitives() {
@@ -180,13 +181,14 @@ class Arrays {
         @Sample
         fun partitionArrayOfPrimitives() {
             val array = intArrayOf(1, 2, 3, 4, 5)
-            val (even, odd) = array.partition { it % 2 == 0 }
+            val [even, odd] = array.partition { it % 2 == 0 }
             assertPrints(even, "[2, 4]")
             assertPrints(odd, "[1, 3, 5]")
         }
     }
 
-    class ContentOperations {
+    @Nested
+    inner class ContentOperations {
 
         @Sample
         fun contentToString() {
@@ -298,7 +300,8 @@ class Arrays {
         }
     }
 
-    class CopyOfOperations {
+    @Nested
+    inner class CopyOfOperations {
 
         @Sample
         fun copyOf() {
@@ -459,7 +462,8 @@ class Arrays {
         }
     }
 
-    class Sorting {
+    @Nested
+    inner class Sorting {
 
         @Sample
         fun sortArray() {
@@ -534,7 +538,8 @@ class Arrays {
 
     }
 
-    class Constructors {
+    @Nested
+    inner class Constructors {
         @Sample
         fun arrayOfSample() {
             val emptyArray = arrayOf<Any>()
@@ -548,11 +553,32 @@ class Arrays {
         }
 
         @Sample
+        fun arrayLiteralSample() {
+            val emptyArray: Array<Any> = []
+            assertPrints(emptyArray.contentToString(), "[]")
+
+            val strings: Array<String> = ["Hello", "world"]
+            assertPrints(strings.contentToString(), "[Hello, world]")
+
+            val numbers: Array<Number> = [3.14, 42L, 0.123f]
+            assertPrints(numbers.contentToString(), "[3.14, 42, 0.123]")
+        }
+
+        @Sample
         fun doubleArrayOfSample() {
             val emptyDoubleArray = doubleArrayOf()
             assertPrints(emptyDoubleArray.contentToString(), "[]")
 
             val doubleArray = doubleArrayOf(1.0, 2.5, 3.14)
+            assertPrints(doubleArray.contentToString(), "[1.0, 2.5, 3.14]")
+        }
+
+        @Sample
+        fun doubleArrayLiteralSample() {
+            val emptyDoubleArray: DoubleArray = []
+            assertPrints(emptyDoubleArray.contentToString(), "[]")
+
+            val doubleArray: DoubleArray = [1.0, 2.5, 3.14]
             assertPrints(doubleArray.contentToString(), "[1.0, 2.5, 3.14]")
         }
 
@@ -566,11 +592,29 @@ class Arrays {
         }
 
         @Sample
+        fun floatArrayLiteralSample() {
+            val emptyFloatArray: FloatArray = []
+            assertPrints(emptyFloatArray.contentToString(), "[]")
+
+            val floatArray: FloatArray = [1.0f, 2.5f, 3.14f]
+            assertPrints(floatArray.contentToString(), "[1.0, 2.5, 3.14]")
+        }
+
+        @Sample
         fun longArrayOfSample() {
             val emptyLongArray = longArrayOf()
             assertPrints(emptyLongArray.contentToString(), "[]")
 
             val longArray = longArrayOf(1L, 2L, 3L)
+            assertPrints(longArray.contentToString(), "[1, 2, 3]")
+        }
+
+        @Sample
+        fun longArrayLiteralSample() {
+            val emptyLongArray: LongArray = []
+            assertPrints(emptyLongArray.contentToString(), "[]")
+
+            val longArray: LongArray = [1, 2, 3]
             assertPrints(longArray.contentToString(), "[1, 2, 3]")
         }
 
@@ -584,11 +628,29 @@ class Arrays {
         }
 
         @Sample
+        fun intArrayLiteralSample() {
+            val emptyIntArray: IntArray = []
+            assertPrints(emptyIntArray.contentToString(), "[]")
+
+            val intArray: IntArray = [1, 2, 3]
+            assertPrints(intArray.contentToString(), "[1, 2, 3]")
+        }
+
+        @Sample
         fun charArrayOfSample() {
             val emptyCharArray = charArrayOf()
             assertPrints(emptyCharArray.contentToString(), "[]")
 
             val charArray = charArrayOf('a', 'b', 'c')
+            assertPrints(charArray.contentToString(), "[a, b, c]")
+        }
+
+        @Sample
+        fun charArrayLiteralSample() {
+            val emptyCharArray: CharArray = []
+            assertPrints(emptyCharArray.contentToString(), "[]")
+
+            val charArray: CharArray = ['a', 'b', 'c']
             assertPrints(charArray.contentToString(), "[a, b, c]")
         }
 
@@ -602,6 +664,15 @@ class Arrays {
         }
 
         @Sample
+        fun shortArrayLiteralSample() {
+            val emptyShortArray: ShortArray = []
+            assertPrints(emptyShortArray.contentToString(), "[]")
+
+            val shortArray: ShortArray = [1, 2, 3]
+            assertPrints(shortArray.contentToString(), "[1, 2, 3]")
+        }
+
+        @Sample
         fun byteArrayOfSample() {
             val emptyByteArray = byteArrayOf()
             assertPrints(emptyByteArray.contentToString(), "[]")
@@ -611,11 +682,29 @@ class Arrays {
         }
 
         @Sample
+        fun byteArrayLiteralSample() {
+            val emptyByteArray: ByteArray = []
+            assertPrints(emptyByteArray.contentToString(), "[]")
+
+            val byteArray: ByteArray = [1, 2, 3]
+            assertPrints(byteArray.contentToString(), "[1, 2, 3]")
+        }
+
+        @Sample
         fun booleanArrayOfSample() {
             val emptyBooleanArray = booleanArrayOf()
             assertPrints(emptyBooleanArray.contentToString(), "[]")
 
             val booleanArray = booleanArrayOf(true, false, true)
+            assertPrints(booleanArray.contentToString(), "[true, false, true]")
+        }
+
+        @Sample
+        fun booleanArrayLiteralSample() {
+            val emptyBooleanArray: BooleanArray = []
+            assertPrints(emptyBooleanArray.contentToString(), "[]")
+
+            val booleanArray: BooleanArray = [true, false, true]
             assertPrints(booleanArray.contentToString(), "[true, false, true]")
         }
     }

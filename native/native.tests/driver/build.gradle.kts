@@ -1,6 +1,8 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
+    id("test-inputs-check")
 }
 
 dependencies {
@@ -19,9 +21,9 @@ sourceSets {
     }
 }
 
-testsJar {}
-
 projectTests {
+    testData(isolated, "testData")
+
     nativeTestTask(
         "test",
         allowParallelExecution = false, // Driver tests run Native compiler from CLI. This is resource-intensive and should be done isolated.

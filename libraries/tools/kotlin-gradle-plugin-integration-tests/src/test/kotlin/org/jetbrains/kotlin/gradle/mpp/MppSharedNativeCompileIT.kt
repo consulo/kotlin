@@ -7,22 +7,25 @@ package org.jetbrains.kotlin.gradle.mpp
 
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
-import org.jetbrains.kotlin.konan.properties.hasProperty
 import org.jetbrains.kotlin.library.KLIB_PROPERTY_DEPENDS
 import org.jetbrains.kotlin.library.loader.KlibLoader
-import org.jetbrains.kotlin.library.unresolvedDependencies
-import org.junit.jupiter.api.Disabled
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInNative
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.fail
 
 @MppGradlePluginTests
+@MustRunOnChangesInGradle
 @DisplayName("Tests for multiplatform | shared native compilations")
 class MppSharedNativeCompileIT : KGPBaseTest() {
     /**
      * https://youtrack.jetbrains.com/issue/KT-56205/Shared-Native-Compilation-False-positive-w-Could-not-find-warnings-on-metadata-klibs
      * metadata klib should not contain any dependsOn= in their klib manifest.
      */
+    @TestMetadata("kt-54995-compileSharedNative-with-okio")
     @GradleTest
+    @MustRunOnChangesInNative
     fun `test - shared native klib - does not contain 'depends=' manifest property`(gradleVersion: GradleVersion) {
         project("kt-54995-compileSharedNative-with-okio", gradleVersion) {
             build("compileNativeMainKotlinMetadata") {
@@ -31,11 +34,7 @@ class MppSharedNativeCompileIT : KGPBaseTest() {
 
                 val libraryFile = KlibLoader { libraryPaths(nativeMainKlib) }.load().librariesStdlibFirst.single()
 
-                if (libraryFile.unresolvedDependencies.isNotEmpty()) {
-                    fail("Expected metadata klib to not list dependencies. Found ${libraryFile.unresolvedDependencies}")
-                }
-
-                if (libraryFile.manifestProperties.hasProperty(KLIB_PROPERTY_DEPENDS)) {
+                if (KLIB_PROPERTY_DEPENDS in libraryFile.manifestProperties) {
                     fail(
                         "Expected metadata klib to not contain $KLIB_PROPERTY_DEPENDS. " +
                                 "Value: ${libraryFile.manifestProperties.getProperty(KLIB_PROPERTY_DEPENDS)}"
@@ -45,13 +44,10 @@ class MppSharedNativeCompileIT : KGPBaseTest() {
         }
     }
 
-    /**
-     *
-     */
+    @TestMetadata("kt-57944-k2-native-compilation")
     @GradleTest
-    @Disabled("KT-60943: Will be fixed in K2")
-    fun `test - K2 - shared native compilation - assemble`(gradleVersion: GradleVersion) {
-        project("kt-57944-k2-native-compilation", gradleVersion, buildOptions = defaultBuildOptions.copy(languageVersion = "2.0")) {
+    fun `test - shared native compilation - assemble`(gradleVersion: GradleVersion) {
+        project("kt-57944-k2-native-compilation", gradleVersion) {
             build("assemble") {
                 assertTasksExecuted(":compileCommonMainKotlinMetadata")
                 assertTasksExecuted(":compileNativeMainKotlinMetadata")

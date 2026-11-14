@@ -1,17 +1,18 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostics
 
 import com.intellij.openapi.diagnostic.thisLogger
+import com.intellij.psi.util.parentsOfType
 import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProvider
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getResolutionFacade
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.resolveToFirSymbol
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkCanceled
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.forEachDeclaration
-import org.jetbrains.kotlin.analysis.utils.printer.parentsOfType
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.script
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContextForProvider
 import org.jetbrains.kotlin.fir.analysis.collectors.CheckerRunningDiagnosticCollectorVisitor
@@ -89,7 +90,7 @@ internal open class LLFirDiagnosticVisitor(
      * File and class checkers may report diagnostics on top-level declarations and class members, such as conflicting overload errors.
      * Because we are collecting diagnostics for each structure element separately, this visitor will not visit these nested declarations by
      * default, as the file/class and its nested declarations are different structure elements. Instead, all diagnostics produced during the
-     * visitor run will be committed at the end (see [FileStructureElementDiagnosticsCollector.collectForStructureElement]).
+     * visitor run will be committed at the end (see [collectForStructureElement]).
      *
      * Skipping nested declarations circumvents error suppression with `@Suppress` on top-level declarations and class members. This is
      * because suppression usually works as such: When a diagnostic is first reported on an element `E`, it is "pending". Once element `E`
@@ -107,15 +108,13 @@ internal open class LLFirDiagnosticVisitor(
         val declarationContainer = when (element) {
             // Script `FirFile`s can be checked by file checkers, which report diagnostics on the declarations inside the `FirScript`, so we
             // have to unwrap the script from the file to commit the diagnostics on the script's declarations.
-            is FirFile -> element.declarations.singleOrNull() as? FirScript ?: element
+            is FirFile -> element.script ?: element
 
             is FirScript, is FirRegularClass -> element
             else -> return
         }
 
-        // Casting to `FirDeclaration` is required in K1.
-        @Suppress("USELESS_CAST")
-        (declarationContainer as FirDeclaration).forEachDeclaration { declaration ->
+        declarationContainer.forEachDeclaration { declaration ->
             withAnnotationContainer(declaration) {
                 declaration.accept(components.reportCommitter, context)
             }

@@ -6,10 +6,12 @@
 package org.jetbrains.kotlin.gradle.targets.wasm.binaryen
 
 import org.gradle.api.provider.Provider
+import org.jetbrains.kotlin.gradle.targets.web.ObsoleteJsAndWasmToolingProvisioning
 
 /**
  * Provides platform and architecture names that is used to download Binaryen.
  */
+@ObsoleteJsAndWasmToolingProvisioning
 internal data class BinaryenPlatform(
     val name: String,
     val arch: String,
@@ -21,6 +23,7 @@ internal data class BinaryenPlatform(
         return name == WIN
     }
 
+    @ObsoleteJsAndWasmToolingProvisioning
     companion object {
         const val WIN = "windows"
         const val LINUX = "linux"
@@ -30,9 +33,11 @@ internal data class BinaryenPlatform(
         const val X86 = "x86_86"
 
         internal fun parseBinaryenPlatform(name: String, arch: String, uname: Provider<String>): BinaryenPlatform {
+            val osName = parseOsName(name.lowercase())
             return BinaryenPlatform(
-                parseOsName(name.lowercase()),
+                osName,
                 parseOsArch(
+                    osName,
                     arch.lowercase(),
                     uname
                 )
@@ -49,9 +54,15 @@ internal data class BinaryenPlatform(
             }
         }
 
-        private fun parseOsArch(arch: String, uname: Provider<String>): String {
+        private fun parseOsArch(osName: String, arch: String, uname: Provider<String>): String {
             return when {
-                arch == "arm" || arch.startsWith("aarch") -> uname.get()
+                arch == "arm" || arch.startsWith("aarch") -> {
+                    if (osName == WIN) {
+                        arch
+                    } else {
+                        uname.get()
+                    }
+                }
                 arch.contains("64") -> X64
                 else -> X86
             }

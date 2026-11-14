@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.ir.backend.js.tsexport
 
 import org.jetbrains.kotlin.js.config.ModuleKind
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
 
 public sealed class ExportedDeclaration {
     public val attributes: MutableSet<ExportedAttribute> = mutableSetOf()
@@ -17,6 +18,7 @@ public sealed class ExportedDeclaration {
 public sealed class ExportedAttribute {
     public class DeprecatedAttribute(public val message: String) : ExportedAttribute()
     public object DefaultExport : ExportedAttribute()
+    public class Documentation(public val sections: MutableList<String>) : ExportedAttribute()
 }
 
 public data class ExportedModule(
@@ -38,8 +40,13 @@ public sealed interface ExportedMember {
 }
 
 public sealed interface ExportedMemberName {
-    public class Identifier(override val value: String) : ExportedMemberName
-    public class SymbolReference(override val value: String) : ExportedMemberName
+    public class Identifier(override val value: String) : ExportedMemberName {
+        override fun toString(): String = value
+    }
+
+    public class SymbolReference(override val value: String) : ExportedMemberName {
+        override fun toString(): String = "[$value]"
+    }
 
     public val value: String
 
@@ -117,13 +124,23 @@ public data class ExportedPropertySetter(
 // TODO: Cover all cases with frontend and disable error declarations
 public class ErrorDeclaration(public val message: String) : ExportedDeclaration()
 
+public data class ExportedTypeAlias(
+    override val name: String,
+    val typeParameters: List<ExportedTypeParameter>,
+    val aliasedType: ExportedType,
+    val originalClassId: ClassId? = null,
+) : ExportedClassLikeDeclaration()
 
-public sealed class ExportedClass : ExportedDeclaration() {
+
+public sealed class ExportedClassLikeDeclaration : ExportedDeclaration() {
     public abstract val name: String
+}
+
+public sealed class ExportedClass : ExportedClassLikeDeclaration() {
     public abstract val members: List<ExportedDeclaration>
     public abstract val superClasses: List<ExportedType>
     public abstract val superInterfaces: List<ExportedType>
-    public abstract val nestedClasses: List<ExportedClass>
+    public abstract val nestedClasses: List<ExportedClassLikeDeclaration>
     public abstract val originalClassId: ClassId?
     public abstract val isCompanion: Boolean
     public abstract val isExternal: Boolean
@@ -138,7 +155,7 @@ public data class ExportedRegularClass(
     override val superInterfaces: List<ExportedType> = emptyList(),
     val typeParameters: List<ExportedTypeParameter>,
     override val members: List<ExportedDeclaration>,
-    override val nestedClasses: List<ExportedClass>,
+    override val nestedClasses: List<ExportedClassLikeDeclaration>,
     override val originalClassId: ClassId?,
     override val isExternal: Boolean,
 ) : ExportedClass() {
@@ -151,7 +168,7 @@ public data class ExportedObject(
     override val superClasses: List<ExportedType> = emptyList(),
     override val superInterfaces: List<ExportedType> = emptyList(),
     override val members: List<ExportedDeclaration>,
-    override val nestedClasses: List<ExportedClass>,
+    override val nestedClasses: List<ExportedClassLikeDeclaration>,
     val typeParameters: List<ExportedTypeParameter> = emptyList(),
     override val originalClassId: ClassId?,
     override val isExternal: Boolean,
@@ -214,7 +231,7 @@ public sealed class ExportedType {
     ) : ExportedType()
 
     public data class ClassType(
-        val name: String,
+        val name: FqName,
         val arguments: List<ExportedType>,
         val classId: ClassId? = null,
     ) : ExportedType() {

@@ -2,20 +2,23 @@
  * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.analysis.stubs
 
 import com.intellij.psi.PsiManager
-import org.jetbrains.kotlin.analysis.decompiler.psi.AbstractDecompiledTextTest.Companion.validateTree
 import org.jetbrains.kotlin.analysis.decompiler.psi.BuiltinsVirtualFileProvider
 import org.jetbrains.kotlin.analysis.decompiler.psi.file.KtDecompiledFile
+import org.jetbrains.kotlin.analysis.decompiler.psi.validateTree
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators.LLSourceLikeTestConfigurator
 import org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiExecutionTest
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.ktTestModuleStructure
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator
-import org.jetbrains.kotlin.analysis.utils.errors.requireIsInstance
+import org.jetbrains.kotlin.psi.KtImplementationDetail
+import org.jetbrains.kotlin.psi.KtPlatformInterface
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.assertions
+import org.jetbrains.kotlin.utils.addToStdlib.requireIsInstance
 import org.junit.jupiter.api.Test
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
@@ -23,6 +26,7 @@ import kotlin.io.path.name
 class BuiltinsStubsTest : AbstractAnalysisApiExecutionTest("testData/builtins/stubs") {
     override val configurator: AnalysisApiTestConfigurator = LLSourceLikeTestConfigurator()
 
+    @OptIn(KtPlatformInterface::class)
     @Test
     fun test(testServices: TestServices) {
         val project = testServices.ktTestModuleStructure.project
@@ -39,6 +43,7 @@ class BuiltinsStubsTest : AbstractAnalysisApiExecutionTest("testData/builtins/st
 
         for (builtinFile in builtinFiles) {
             requireIsInstance<KtDecompiledFile>(builtinFile)
+
             val builtinFileName = builtinFile.name
             fun assertEqualsToFile(fileExtension: String, actual: String) {
                 val expectedFile = testDataPath.resolveSibling("$builtinFileName$fileExtension")

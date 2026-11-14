@@ -20,13 +20,13 @@ KtProperty(18,45): 'val value = "1" + "2" + "3"'
   null
 
 KtBinaryExpression(30,45): '"1" + "2" + "3"'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/String.plus(<dispatch receiver>: kotlin.String, other: kotlin.Any?): kotlin.String
     ]
 
 KtBinaryExpression(30,39): '"1" + "2"'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/String.plus(<dispatch receiver>: kotlin.String, other: kotlin.Any?): kotlin.String
     ]
@@ -38,7 +38,10 @@ KtLiteralStringTemplateEntry(31,32): '1'
   null
 
 KtOperationReferenceExpression(34,35): '+'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/String.plus(<dispatch receiver>: kotlin.String, other: kotlin.Any?): kotlin.String
     ]
@@ -50,7 +53,10 @@ KtLiteralStringTemplateEntry(37,38): '2'
   null
 
 KtOperationReferenceExpression(40,41): '+'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/String.plus(<dispatch receiver>: kotlin.String, other: kotlin.Any?): kotlin.String
     ]

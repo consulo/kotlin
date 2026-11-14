@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -9,13 +9,11 @@ import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.expressions.FirComponentCall
 import org.jetbrains.kotlin.fir.expressions.FirPropertyAccessExpression
+import org.jetbrains.kotlin.fir.expressions.FirReplExpressionReference
 import org.jetbrains.kotlin.fir.expressions.FirStatement
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.hasContextParameters
+import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.coneTypeSafe
@@ -98,17 +96,13 @@ fun FirBasedSymbol<*>.asMemberDeclarationResolvedTo(phase: FirResolvePhase): Fir
     }
 }
 
-val FirNamedFunctionSymbol.isMethodOfAny: Boolean
-    get() {
-        if (isExtension || hasContextParameters) return false
-        return when (name) {
-            OperatorNameConventions.EQUALS -> valueParameterSymbols.singleOrNull()?.resolvedReturnType?.isNullableAny == true
-            OperatorNameConventions.HASH_CODE, OperatorNameConventions.TO_STRING -> fir.valueParameters.isEmpty()
-            else -> false
-        }
-    }
-
 val FirConstructorSymbol.isErrorPrimaryConstructor: Boolean get() = fir is FirErrorPrimaryConstructor
+
+/**
+ * @see FirDeclarationOrigin.Synthetic.DanglingTypeParameter
+ */
+val FirTypeParameterRef.isDangling: Boolean
+    get() = this is FirTypeParameter && origin == FirDeclarationOrigin.Synthetic.DanglingTypeParameter
 
 fun FirStatement.isDestructuredParameter(): Boolean = this is FirVariable && getDestructuredParameter() != null
 
@@ -136,5 +130,14 @@ fun FirCallableDeclaration.contextParametersForFunctionOrContainingProperty(): L
  * The function assumes that the body is not lazy.
  */
 fun FirPropertyAccessor.hasGeneratedDelegateBody(): Boolean {
-    return body?.statements?.firstOrNull()?.source?.kind == KtFakeSourceElementKind.DelegatedPropertyAccessor
+    return body?.statements?.firstOrNull()?.source?.kind is KtFakeSourceElementKind.DelegatedPropertyAccessor
 }
+
+/**
+ * A [FirReplExpressionReference] ([FirProperty.initializer]/[FirProperty.delegate]) of moved property inside a REPL snippet declaration
+ */
+val FirProperty.replExpressionReference: FirReplExpressionReference?
+    get() = when {
+        symbol !is FirRegularPropertySymbol || isReplSnippetDeclaration != true -> null
+        else -> initializer as? FirReplExpressionReference ?: delegate as? FirReplExpressionReference
+    }

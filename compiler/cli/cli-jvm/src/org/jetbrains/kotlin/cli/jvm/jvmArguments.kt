@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.cli.CliDiagnostics.COMPILER_ARGUMENTS_ERROR
 import org.jetbrains.kotlin.cli.CliDiagnostics.COMPILER_ARGUMENTS_WARNING
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments
+import org.jetbrains.kotlin.cli.common.getRuntimeJdkVersion
 import org.jetbrains.kotlin.cli.common.getLibraryFromHome
 import org.jetbrains.kotlin.cli.jvm.config.JvmClasspathRoot
 import org.jetbrains.kotlin.cli.jvm.config.JvmModulePathRoot
@@ -24,6 +25,7 @@ import java.io.File
 fun CompilerConfiguration.setupJvmSpecificArguments(arguments: K2JVMCompilerArguments) {
     put(JVMConfigurationKeys.INCLUDE_RUNTIME, arguments.includeRuntime)
     put(JVMConfigurationKeys.NO_REFLECT, arguments.noReflect)
+    put(JVMConfigurationKeys.NO_STDLIB, arguments.noStdlib)
 
     putIfNotNull(JVMConfigurationKeys.FRIEND_PATHS, arguments.friendPaths?.asList())
 
@@ -41,7 +43,7 @@ fun CompilerConfiguration.setupJvmSpecificArguments(arguments: K2JVMCompilerArgu
             this.report(COMPILER_ARGUMENTS_ERROR, "Unknown JDK release version: $releaseTargetArg")
         } else {
             //don't use release flag if it equals to compilation JDK version
-            if (value != getJavaVersion() || arguments.jdkHome != null) {
+            if (value != getRuntimeJdkVersion() || arguments.jdkHome != null) {
                 put(JVMConfigurationKeys.JDK_RELEASE, value)
             }
             if (jvmTargetArg != null && !isCompatibleJvmTargetAndRelease(jvmTargetArg, releaseTargetArg)) {
@@ -91,6 +93,13 @@ fun CompilerConfiguration.setupJvmSpecificArguments(arguments: K2JVMCompilerArgu
 
     val jvmTarget = get(JVMConfigurationKeys.JVM_TARGET) ?: JvmTarget.DEFAULT
 
+    if (arguments.valhallaValueClasses && !isJvmTargetValhallaCompatible(jvmTarget, arguments.enableJvmPreview)) {
+        this.report(
+            COMPILER_ARGUMENTS_ERROR,
+            "Valhalla value classes ('-Xvalhalla-value-classes') require JVM target 28 or later and the '-Xjvm-enable-preview' flag."
+        )
+    }
+
     val stringConcat = arguments.stringConcat
     if (stringConcat != null) {
         val runtimeStringConcat = JvmStringConcat.fromString(stringConcat)
@@ -129,18 +138,15 @@ fun CompilerConfiguration.setupJvmSpecificArguments(arguments: K2JVMCompilerArgu
         }
     }
 
-    if (arguments.valueClasses) {
-        this.report(
-            COMPILER_ARGUMENTS_ERROR, "This flag is deprecated, use -XXLanguage:+JvmInlineMultiFieldValueClasses instead"
-        )
-    }
-
     handleClosureGenerationSchemeArgument("-Xsam-conversions", arguments.samConversions, JVMConfigurationKeys.SAM_CONVERSIONS)
     handleClosureGenerationSchemeArgument("-Xlambdas", arguments.lambdas, JVMConfigurationKeys.LAMBDAS)
 
     addAll(JVMConfigurationKeys.ADDITIONAL_JAVA_MODULES, arguments.additionalJavaModules?.asList())
 
     put(JVMConfigurationKeys.IGNORED_ANNOTATIONS_FOR_BRIDGES, arguments.ignoredAnnotationsForBridges?.toList().orEmpty())
+
+    put(JVMConfigurationKeys.USE_METADATA_ON_INCREMENTAL_CLASSPATH, arguments.useMetadataOnIncrementalClasspath)
+    put(JVMConfigurationKeys.USE_JAVA_DIRECT, arguments.javaDirect)
 }
 
 private fun isCompatibleJvmTargetAndRelease(jvmTarget: String, release: String): Boolean {
@@ -218,7 +224,6 @@ fun CompilerConfiguration.configureStandardLibs(paths: KotlinPaths?, arguments: 
     configureStandardLibs(
         paths,
         KotlinPaths::stdlibPath,
-        KotlinPaths::scriptRuntimePath,
         KotlinPaths::reflectPath,
         arguments
     )
@@ -227,7 +232,6 @@ fun CompilerConfiguration.configureStandardLibs(paths: KotlinPaths?, arguments: 
 fun <PathProvider : Any> CompilerConfiguration.configureStandardLibs(
     paths: PathProvider?,
     stdlibPath: (PathProvider) -> File,
-    scriptRuntimePath: (PathProvider) -> File,
     reflectPath: (PathProvider) -> File,
     arguments: K2JVMCompilerArguments,
 ) {
@@ -243,7 +247,6 @@ fun <PathProvider : Any> CompilerConfiguration.configureStandardLibs(
 
     if (!arguments.noStdlib) {
         addRoot("kotlin.stdlib", PathUtil.KOTLIN_JAVA_STDLIB_JAR, stdlibPath, "'-no-stdlib'")
-        addRoot("kotlin.script.runtime", PathUtil.KOTLIN_JAVA_SCRIPT_RUNTIME_JAR, scriptRuntimePath, "'-no-stdlib'")
     }
     // "-no-stdlib" implies "-no-reflect": otherwise we would be able to transitively read stdlib classes through kotlin-reflect,
     // which is likely not what user wants since s/he manually provided "-no-stdlib"
@@ -285,7 +288,6 @@ fun CompilerConfiguration.configureAdvancedJvmOptions(arguments: K2JVMCompilerAr
         }
     }
 
-    put(JVMConfigurationKeys.DO_NOT_CLEAR_BINDING_CONTEXT, arguments.doNotClearBindingContext)
     put(JVMConfigurationKeys.DISABLE_CALL_ASSERTIONS, arguments.noCallAssertions)
     put(JVMConfigurationKeys.DISABLE_RECEIVER_ASSERTIONS, arguments.noReceiverAssertions)
     put(JVMConfigurationKeys.DISABLE_PARAM_ASSERTIONS, arguments.noParamAssertions)
@@ -297,13 +299,9 @@ fun CompilerConfiguration.configureAdvancedJvmOptions(arguments: K2JVMCompilerAr
 
     put(JVMConfigurationKeys.VALIDATE_BYTECODE, arguments.validateBytecode)
 
-    @Suppress("DEPRECATION")
-    put(JVMConfigurationKeys.LINK_VIA_SIGNATURES, arguments.linkViaSignatures)
-
     put(JVMConfigurationKeys.ENABLE_DEBUG_MODE, arguments.enableDebugMode)
     put(JVMConfigurationKeys.ENHANCED_COROUTINES_DEBUGGING, arguments.enhancedCoroutinesDebugging)
     put(JVMConfigurationKeys.NO_NEW_JAVA_ANNOTATION_TARGETS, arguments.noNewJavaAnnotationTargets)
-    put(JVMConfigurationKeys.USE_INLINE_SCOPES_NUMBERS, arguments.useInlineScopesNumbers)
 
     val assertionsMode =
         JVMAssertionsMode.fromStringOrNull(arguments.assertionsMode)
@@ -357,11 +355,3 @@ private fun CompilerConfiguration.parseBackendThreads(stringValue: String): Int 
     }
     return value
 }
-
-fun CompilerConfiguration.configureKlibPaths(arguments: K2JVMCompilerArguments) {
-    val libraries = arguments.klibLibraries ?: return
-    put(JVMConfigurationKeys.KLIB_PATHS, libraries.split(File.pathSeparator.toRegex()).filterNot(String::isEmpty))
-}
-
-private fun getJavaVersion(): Int =
-    System.getProperty("java.specification.version")?.substringAfter('.')?.toIntOrNull() ?: 6

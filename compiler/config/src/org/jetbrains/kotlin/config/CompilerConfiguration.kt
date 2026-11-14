@@ -120,7 +120,7 @@ class CompilerConfiguration {
 
     override fun toString(): String {
         return buildString {
-            for ((key, value) in map) {
+            for ([key, value] in map) {
                 append(key).append(":")
                 when (value) {
                     is Collection<*> -> {
@@ -131,7 +131,7 @@ class CompilerConfiguration {
                     }
                     is Map<*, *> -> {
                         appendLine()
-                        for ((k, v) in value) {
+                        for ([k, v] in value) {
                             append("  ").append(k).append("=").appendLine(v)
                         }
                     }
@@ -140,6 +140,17 @@ class CompilerConfiguration {
             }
         }.trim()
     }
+
+    fun toString(excludedKeys: Set<CompilerConfigurationKey<*>>, valueMapper: (Any) -> String?): String = buildString {
+        for ([key, value] in map) {
+            if (excludedKeys.none { key == it.ideaKey }) {
+                val mappedValue = valueMapper(value)
+                if (mappedValue != null) {
+                    append(key).append(": ").appendLine(mappedValue)
+                }
+            }
+        }
+    }.trim()
 
     private fun checkReadOnly() {
         check(!isReadOnly) { "CompilerConfiguration is read-only" }

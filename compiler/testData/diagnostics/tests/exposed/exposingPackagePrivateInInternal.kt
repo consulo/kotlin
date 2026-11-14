@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: -ForbidExposingPackagePrivateInInternal
+// RUN_PIPELINE_TILL: CODEGEN
 // FILE: Foo.java
 class Foo {}
 

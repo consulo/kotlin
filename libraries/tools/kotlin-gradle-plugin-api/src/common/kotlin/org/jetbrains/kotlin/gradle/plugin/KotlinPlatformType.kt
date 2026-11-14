@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.gradle.plugin
 
 import org.gradle.api.Named
 import org.gradle.api.attributes.*
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import java.io.Serializable
 
 /**
@@ -94,7 +93,7 @@ enum class KotlinPlatformType : Named, Serializable {
         /**
          * Executes the attribute disambiguation rule for the Kotlin platform type attribute.
          */
-        override fun execute(details: MultipleCandidatesDetails<KotlinPlatformType?>) = with(details) {
+        override fun execute(details: MultipleCandidatesDetails<KotlinPlatformType>) = with(details) {
             if (consumerValue in candidateValues) {
                 closestMatch(checkNotNull(consumerValue))
                 return@with

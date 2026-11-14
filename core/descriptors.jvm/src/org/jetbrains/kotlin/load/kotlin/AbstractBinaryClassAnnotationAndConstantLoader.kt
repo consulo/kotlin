@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.load.kotlin
 
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.SpecialJvmAnnotations
 import org.jetbrains.kotlin.builtins.UnsignedTypes
 import org.jetbrains.kotlin.descriptors.SourceElement
@@ -21,6 +22,7 @@ import org.jetbrains.kotlin.serialization.deserialization.ProtoContainer
 import org.jetbrains.kotlin.storage.StorageManager
 import org.jetbrains.kotlin.types.KotlinType
 
+@K1Deprecation
 abstract class AbstractBinaryClassAnnotationAndConstantLoader<A : Any, C : Any>(
     storageManager: StorageManager,
     kotlinClassFinder: KotlinClassFinder
@@ -90,13 +92,15 @@ abstract class AbstractBinaryClassAnnotationAndConstantLoader<A : Any, C : Any>(
         return if (UnsignedTypes.isUnsignedType(expectedType)) transformToUnsignedConstant(result) else result
     }
 
+    override fun maySynthesizeExtraCallableAnnotations(kind: AnnotatedCallableKind): Boolean = false
+
     private fun loadAnnotationsAndInitializers(kotlinClass: KotlinJvmBinaryClass): AnnotationsContainerWithConstants<A, C> {
         val memberAnnotations = HashMap<MemberSignature, MutableList<A>>()
         val propertyConstants = HashMap<MemberSignature, C>()
         val annotationParametersDefaultValues = HashMap<MemberSignature, C>()
 
         kotlinClass.visitMembers(object : KotlinJvmBinaryClass.MemberVisitor {
-            override fun visitMethod(name: Name, desc: String): KotlinJvmBinaryClass.MethodAnnotationVisitor? {
+            override fun visitMethod(name: Name, desc: String, exceptions: List<ClassId>): KotlinJvmBinaryClass.MethodAnnotationVisitor {
                 return AnnotationVisitorForMethod(MemberSignature.fromMethodNameAndDesc(name.asString(), desc))
             }
 
@@ -152,7 +156,6 @@ abstract class AbstractBinaryClassAnnotationAndConstantLoader<A : Any, C : Any>(
         return AnnotationsContainerWithConstants(memberAnnotations, propertyConstants, annotationParametersDefaultValues)
     }
 
-
     protected fun isRepeatableWithImplicitContainer(annotationClassId: ClassId, arguments: Map<Name, ConstantValue<*>>): Boolean {
         if (annotationClassId != SpecialJvmAnnotations.JAVA_LANG_ANNOTATION_REPEATABLE) return false
 
@@ -161,4 +164,3 @@ abstract class AbstractBinaryClassAnnotationAndConstantLoader<A : Any, C : Any>(
         return isImplicitRepeatableContainer(normalClass.classId)
     }
 }
-

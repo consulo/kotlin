@@ -38,10 +38,11 @@ internal class FirAnonymousObjectImpl(
     override var deprecationsProvider: DeprecationsProvider,
     override val scopeProvider: FirScopeProvider,
     override val classKind: ClassKind,
-    override val superTypeRefs: MutableList<FirTypeRef>,
+    override var superTypeRefs: MutableOrEmptyList<FirTypeRef>,
     @property:DirectDeclarationsAccess
     override val declarations: MutableList<FirDeclaration>,
     override var annotations: MutableOrEmptyList<FirAnnotation>,
+    override var staticControlFlowGraphReference: FirControlFlowGraphReference?,
     override val symbol: FirAnonymousObjectSymbol,
 ) : FirAnonymousObject() {
     override val isLocal: Boolean
@@ -62,6 +63,7 @@ internal class FirAnonymousObjectImpl(
         superTypeRefs.forEach { it.accept(visitor, data) }
         declarations.forEach { it.accept(visitor, data) }
         annotations.forEach { it.accept(visitor, data) }
+        staticControlFlowGraphReference?.accept(visitor, data)
     }
 
     override fun <D> transformChildren(transformer: FirTransformer<D>, data: D): FirAnonymousObjectImpl {
@@ -71,6 +73,7 @@ internal class FirAnonymousObjectImpl(
         transformSuperTypeRefs(transformer, data)
         transformDeclarations(transformer, data)
         transformAnnotations(transformer, data)
+        staticControlFlowGraphReference = staticControlFlowGraphReference?.transform(transformer, data)
         return this
     }
 
@@ -112,9 +115,7 @@ internal class FirAnonymousObjectImpl(
     }
 
     override fun replaceSuperTypeRefs(newSuperTypeRefs: List<FirTypeRef>) {
-        if (superTypeRefs === newSuperTypeRefs) return
-        superTypeRefs.clear()
-        superTypeRefs.addAll(newSuperTypeRefs)
+        superTypeRefs = newSuperTypeRefs.toMutableOrEmpty()
     }
 
     override fun replaceDeclarations(newDeclarations: List<FirDeclaration>) {
@@ -125,5 +126,9 @@ internal class FirAnonymousObjectImpl(
 
     override fun replaceAnnotations(newAnnotations: List<FirAnnotation>) {
         annotations = newAnnotations.toMutableOrEmpty()
+    }
+
+    override fun replaceStaticControlFlowGraphReference(newStaticControlFlowGraphReference: FirControlFlowGraphReference?) {
+        staticControlFlowGraphReference = newStaticControlFlowGraphReference
     }
 }

@@ -145,7 +145,7 @@ FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
 
 TYPES:
 FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
-    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Anno] constructor([ResolvedTo(RAW_FIR)] [CorrespondingProperty=/Anno.str] str: String): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -174,7 +174,7 @@ FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
 
 STATUS:
 FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
-    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Anno] constructor([ResolvedTo(RAW_FIR)] [CorrespondingProperty=/Anno.str] str: String): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -203,7 +203,7 @@ FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
 
 EXPECT_ACTUAL_MATCHING:
 FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
-    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Anno] constructor([ResolvedTo(RAW_FIR)] [CorrespondingProperty=/Anno.str] str: String): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -232,7 +232,7 @@ FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
 
 CONTRACTS:
 FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
-    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Anno] constructor([ResolvedTo(RAW_FIR)] [CorrespondingProperty=/Anno.str] str: String): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -261,7 +261,7 @@ FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
 
 IMPLICIT_TYPES_BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
-    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Anno] constructor([ResolvedTo(RAW_FIR)] [CorrespondingProperty=/Anno.str] str: String): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -290,7 +290,7 @@ FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
 
 CONSTANT_EVALUATION:
 FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
-    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Anno] constructor([ResolvedTo(RAW_FIR)] [CorrespondingProperty=/Anno.str] str: String): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -319,7 +319,7 @@ FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
 
 ANNOTATION_ARGUMENTS:
 FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
-    @R|kotlin/annotation/Target|[Types](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[Types](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
         public [ResolvedTo(STATUS)] [ContainingClassKey=Anno] constructor([ResolvedTo(STATUS)] [CorrespondingProperty=/Anno.str] str: R|kotlin/String|): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -348,7 +348,7 @@ FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
 
 BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
-    @R|kotlin/annotation/Target|[Types](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[Types](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
         public [ResolvedTo(STATUS)] [ContainingClassKey=Anno] constructor([ResolvedTo(STATUS)] [CorrespondingProperty=/Anno.str] str: R|kotlin/String|): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -362,12 +362,12 @@ FILE: [ResolvedTo(IMPORTS)] constructorCallSite.kt
             LAZY_super<R|kotlin/Any|>
         }
 
-        public final inner [ResolvedTo(EXPECT_ACTUAL_MATCHING)] class P2<[ResolvedTo(EXPECT_ACTUAL_MATCHING)] T2, [ResolvedTo(STATUS)] Outer(T1)> : R|@R|Anno|(LAZY_EXPRESSION)  P1<@R|Anno|(LAZY_EXPRESSION)  T1>| {
-            public [ResolvedTo(EXPECT_ACTUAL_MATCHING)] [ContainingClassKey=P2] P1<T1>.constructor<[ResolvedTo(EXPECT_ACTUAL_MATCHING)] T2>([ResolvedTo(EXPECT_ACTUAL_MATCHING)] i: R|kotlin/String|): R|P1.P2<T2, T1>| {
+        public final inner [ResolvedTo(STATUS)] class P2<[ResolvedTo(STATUS)] T2, [ResolvedTo(STATUS)] Outer(T1)> : R|@R|Anno|(LAZY_EXPRESSION)  P1<@R|Anno|(LAZY_EXPRESSION)  T1>| {
+            public [ResolvedTo(STATUS)] [ContainingClassKey=P2] P1<T1>.constructor<[ResolvedTo(STATUS)] T2>([ResolvedTo(STATUS)] i: R|kotlin/String|): R|P1.P2<T2, T1>| {
                 LAZY_super<R|@R|Anno|(LAZY_EXPRESSION)  P1<@R|Anno|(LAZY_EXPRESSION)  T1>|>
             }
 
-            public [ResolvedTo(STATUS)] [ContainingClassKey=P2] P1<T1>.constructor<[ResolvedTo(EXPECT_ACTUAL_MATCHING)] T2>(): R|P1.P2<T2, T1>| { LAZY_BLOCK }
+            public [ResolvedTo(STATUS)] [ContainingClassKey=P2] P1<T1>.constructor<[ResolvedTo(STATUS)] T2>(): R|P1.P2<T2, T1>| { LAZY_BLOCK }
 
         }
 

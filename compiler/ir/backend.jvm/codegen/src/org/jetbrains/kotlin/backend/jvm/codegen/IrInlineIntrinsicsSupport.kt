@@ -15,8 +15,6 @@ import org.jetbrains.kotlin.codegen.inline.ReifiedTypeInliner
 import org.jetbrains.kotlin.codegen.state.JvmBackendConfig
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.descriptors.toIrBasedKotlinType
-import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.defaultType
@@ -24,8 +22,6 @@ import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.jvm.AsmTypes.*
-import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.model.TypeParameterMarker
 import org.jetbrains.org.objectweb.asm.Type
 import org.jetbrains.org.objectweb.asm.Type.INT_TYPE
 import org.jetbrains.org.objectweb.asm.Type.VOID_TYPE
@@ -38,7 +34,7 @@ class IrInlineIntrinsicsSupport(
     private val classCodegen: ClassCodegen,
     private val reportErrorsOn: IrElement,
     private val containingFile: IrFile,
-) : ReifiedTypeInliner.IntrinsicsSupport<IrType> {
+) : ReifiedTypeInliner.IntrinsicsSupport {
     override val config: JvmBackendConfig
         get() = classCodegen.context.config
 
@@ -46,10 +42,8 @@ class IrInlineIntrinsicsSupport(
         ExpressionCodegen.generateClassInstance(v, type, classCodegen.typeMapper, wrapPrimitives = false)
     }
 
-    override fun generateTypeParameterContainer(v: InstructionAdapter, typeParameter: TypeParameterMarker) {
-        require(typeParameter is IrTypeParameterSymbol)
-
-        when (val parent = typeParameter.owner.parent) {
+    override fun generateTypeParameterContainer(v: InstructionAdapter, typeParameter: IrTypeParameter) {
+        when (val parent = typeParameter.parent) {
             is IrClass -> putClassInstance(v, parent.defaultType).also { AsmUtil.wrapJavaClassIntoKClass(v) }
             is IrSimpleFunction -> {
                 val property = parent.correspondingPropertySymbol
@@ -59,7 +53,7 @@ class IrInlineIntrinsicsSupport(
                     generateFunctionReference(v, parent)
                 }
             }
-            else -> error("Unknown parent of type parameter: ${parent.render()} ${typeParameter.owner.name})")
+            else -> error("Unknown parent of type parameter: ${parent.render()} ${typeParameter.name})")
         }
     }
 
@@ -107,17 +101,15 @@ class IrInlineIntrinsicsSupport(
         return classifier != null && JavaToKotlinClassMap.isMutable(classifier.owner.fqNameWhenAvailable?.toUnsafe())
     }
 
-    override fun toKotlinType(type: IrType): KotlinType = type.toIrBasedKotlinType()
-
     override fun generateExternalEntriesForEnumTypeIfNeeded(type: IrType): FieldInsnNode? =
         generateExternalEntriesForEnumTypeIfNeeded(type, classCodegen)
 
     override fun reportSuspendTypeUnsupported() {
-        classCodegen.context.ktDiagnosticReporter.at(reportErrorsOn, containingFile).report(JvmBackendErrors.TYPEOF_SUSPEND_TYPE)
+        classCodegen.context.diagnosticReporter.at(reportErrorsOn, containingFile).report(JvmBackendErrors.TYPEOF_SUSPEND_TYPE)
     }
 
     override fun reportNonReifiedTypeParameterWithRecursiveBoundUnsupported(typeParameterName: Name) {
-        classCodegen.context.ktDiagnosticReporter.at(reportErrorsOn, containingFile)
+        classCodegen.context.diagnosticReporter.at(reportErrorsOn, containingFile)
             .report(JvmBackendErrors.TYPEOF_NON_REIFIED_TYPE_PARAMETER_WITH_RECURSIVE_BOUND, typeParameterName.asString())
     }
 

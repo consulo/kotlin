@@ -16,11 +16,14 @@ fun copyK2JSCompilerArguments(from: K2JSCompilerArguments, to: KotlinWasmCompile
     to.includeUnavailableSourcesIntoSourceMap = from.includeUnavailableSourcesIntoSourceMap
     to.irDceDumpDeclarationIrSizesToFile = from.irDceDumpDeclarationIrSizesToFile
     to.irDceDumpReachabilityInfoToFile = from.irDceDumpReachabilityInfoToFile
+    to.regenerateUnchangedModules = from.regenerateUnchangedModules
     @Suppress("DEPRECATION")
     to.wasm = from.wasm
     to.wasmDebug = from.wasmDebug
+    to.wasmDisableArrayRangeChecksSafeElimination = from.wasmDisableArrayRangeChecksSafeElimination
     to.wasmEnableArrayRangeChecks = from.wasmEnableArrayRangeChecks
     to.wasmEnableAsserts = from.wasmEnableAsserts
+    to.wasmEnableTailCalls = from.wasmEnableTailCalls
     to.wasmGenerateClosedWorldMultimodule = from.wasmGenerateClosedWorldMultimodule
     to.wasmGenerateWat = from.wasmGenerateWat
     to.wasmIncludedModuleOnly = from.wasmIncludedModuleOnly
@@ -29,6 +32,7 @@ fun copyK2JSCompilerArguments(from: K2JSCompilerArguments, to: KotlinWasmCompile
     to.wasmNoJsTag = from.wasmNoJsTag
     to.wasmTarget = from.wasmTarget
     to.wasmUseNewExceptionProposal = from.wasmUseNewExceptionProposal
+    to.wasmUseStackSwitchingProposal = from.wasmUseStackSwitchingProposal
     to.wasmUseTrapsInsteadOfExceptions = from.wasmUseTrapsInsteadOfExceptions
 
     return to

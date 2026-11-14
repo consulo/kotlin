@@ -3,16 +3,24 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=UnionFindKt]]
   partSimpleName: "UnionFindKt"
   PACKAGE_DIRECTIVE
   IMPORT_LIST
-  CLASS[classId=/UnionFind, fqName=UnionFind, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=UnionFind, superNames=[]]
+  CLASS[classId=/UnionFind, fqName=UnionFind, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=UnionFind, superNames=[]]
     CLASS_BODY
       PROPERTY[fqName=UnionFind.data, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=true, hasReturnTypeRef=false, isExtension=false, isTopLevel=false, isVar=false, name=data]
         MODIFIER_LIST[private]
-      FUN[fqName=UnionFind.add, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=add]
+        CALL_EXPRESSION
+          REFERENCE_EXPRESSION[referencedName=IMutableList]
+          TYPE_ARGUMENT_LIST
+            TYPE_PROJECTION[projectionKind=NONE]
+              TYPE_REFERENCE
+                USER_TYPE
+                  REFERENCE_EXPRESSION[referencedName=Int]
+          VALUE_ARGUMENT_LIST
+      FUNCTION[fqName=UnionFind.add, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=add]
         VALUE_PARAMETER_LIST
         TYPE_REFERENCE
           USER_TYPE
             REFERENCE_EXPRESSION[referencedName=Int]
-      FUN[fqName=UnionFind.parent, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=parent]
+      FUNCTION[fqName=UnionFind.parent, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=parent]
         MODIFIER_LIST[private]
         VALUE_PARAMETER_LIST
           VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=x]
@@ -22,7 +30,7 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=UnionFindKt]]
         TYPE_REFERENCE
           USER_TYPE
             REFERENCE_EXPRESSION[referencedName=Int]
-      FUN[fqName=UnionFind.union, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=union]
+      FUNCTION[fqName=UnionFind.union, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=union]
         VALUE_PARAMETER_LIST
           VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=a]
             TYPE_REFERENCE
@@ -41,3 +49,9 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=UnionFindKt]]
         REFERENCE_EXPRESSION[referencedName=Boolean]
     PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=false, isGetter=true, mayHaveContract=false]
       VALUE_PARAMETER_LIST
+      BINARY_EXPRESSION
+        BINARY_EXPRESSION
+          OPERATION_REFERENCE[operationToken=PERC, referencedName=%]
+          INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=2]
+        OPERATION_REFERENCE[operationToken=EXCLEQ, referencedName=!=]
+        INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=0]

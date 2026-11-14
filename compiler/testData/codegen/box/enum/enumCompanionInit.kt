@@ -1,7 +1,7 @@
-// DONT_TARGET_EXACT_BACKEND: JS_IR
-// DONT_TARGET_EXACT_BACKEND: JS_IR_ES6
-// DONT_TARGET_EXACT_BACKEND: WASM_JS, WASM_WASI
-// ^KT-83337 Difference in behavior on nested class initialization
+// IGNORE_KLIB_RUNTIME_ERRORS_WITH_CUSTOM_SECOND_STAGE: Wasm-js:2.3,2.4
+// IGNORE_KLIB_RUNTIME_ERRORS_WITH_CUSTOM_SECOND_STAGE: JS:2.4
+// ISSUE: KT-83337 Difference in behavior on nested class initialization
+// ISSUE: KT-83356 K/Wasm: Difference in behavior on nested class initialization (for enums?)
 
 var result = ""
 
@@ -65,6 +65,7 @@ fun box(): String {
     result += "${y.name};"
     F.foo()
     G.O.foo()
+
     if (result != "E.init(x);E.init(y);E.companion.init;X;Y;F.init(x);F.init(y);F.companion.init;F.foo();X;G.O.init;G.O.foo();X;")
         return "fail: $result"
 

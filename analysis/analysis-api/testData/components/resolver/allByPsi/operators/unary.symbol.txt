@@ -23,22 +23,37 @@ KtParameterList(36,38): '()'
   null
 
 KtTypeReference(40,41): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(40,41): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(40,41): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtThisExpression(44,48): 'this'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A
     ]
 
 KtNameReferenceExpression(44,48): 'this'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A
     ]
@@ -53,22 +68,37 @@ KtParameterList(76,78): '()'
   null
 
 KtTypeReference(80,81): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(80,81): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(80,81): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtThisExpression(84,88): 'this'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A
     ]
 
 KtNameReferenceExpression(84,88): 'this'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A
     ]
@@ -83,13 +113,25 @@ KtParameterList(109,111): '()'
   null
 
 KtTypeReference(113,120): 'Boolean'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Boolean
+    ]
 
 KtUserType(113,120): 'Boolean'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Boolean
+    ]
 
 KtNameReferenceExpression(113,120): 'Boolean'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Boolean
+    ]
 
 KtConstantExpression(123,127): 'true'
   null
@@ -104,22 +146,37 @@ KtParameterList(148,150): '()'
   null
 
 KtTypeReference(152,153): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(152,153): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(152,153): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtThisExpression(156,160): 'this'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A
     ]
 
 KtNameReferenceExpression(156,160): 'this'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A
     ]
@@ -134,22 +191,37 @@ KtParameterList(181,183): '()'
   null
 
 KtTypeReference(185,186): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(185,186): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(185,186): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtThisExpression(189,193): 'this'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A
     ]
 
 KtNameReferenceExpression(189,193): 'this'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A
     ]
@@ -167,146 +239,191 @@ KtProperty(214,225): 'var a = A()'
   null
 
 KtCallExpression(222,225): 'A()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): A
     ]
 
 KtNameReferenceExpression(222,223): 'A'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(): A
+      /A
     ]
 
 KtValueArgumentList(223,225): '()'
   null
 
 KtPrefixExpression(230,232): '+a'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.unaryPlus(<dispatch receiver>: A): A
     ]
 
 KtOperationReferenceExpression(230,231): '+'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.unaryPlus(<dispatch receiver>: A): A
     ]
 
 KtNameReferenceExpression(231,232): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var a: A
     ]
 
 KtPrefixExpression(237,239): '-a'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.unaryMinus(<dispatch receiver>: A): A
     ]
 
 KtOperationReferenceExpression(237,238): '-'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.unaryMinus(<dispatch receiver>: A): A
     ]
 
 KtNameReferenceExpression(238,239): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var a: A
     ]
 
 KtPrefixExpression(244,246): '!a'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.not(<dispatch receiver>: A): kotlin.Boolean
     ]
 
 KtOperationReferenceExpression(244,245): '!'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.not(<dispatch receiver>: A): kotlin.Boolean
     ]
 
 KtNameReferenceExpression(245,246): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var a: A
     ]
 
 KtPrefixExpression(251,254): '++a'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var a: A,
       /A.inc(<dispatch receiver>: A): A
     ]
 
 KtOperationReferenceExpression(251,253): '++'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.inc(<dispatch receiver>: A): A
     ]
 
 KtNameReferenceExpression(253,254): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var a: A
     ]
 
 KtPrefixExpression(259,262): '--a'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var a: A,
       /A.dec(<dispatch receiver>: A): A
     ]
 
 KtOperationReferenceExpression(259,261): '--'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.dec(<dispatch receiver>: A): A
     ]
 
 KtNameReferenceExpression(261,262): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var a: A
     ]
 
 KtPostfixExpression(267,270): 'a++'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var a: A,
       /A.inc(<dispatch receiver>: A): A
     ]
 
 KtNameReferenceExpression(267,268): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var a: A
     ]
 
 KtOperationReferenceExpression(268,270): '++'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.inc(<dispatch receiver>: A): A
     ]
 
 KtPostfixExpression(275,278): 'a--'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var a: A,
       /A.dec(<dispatch receiver>: A): A
     ]
 
 KtNameReferenceExpression(275,276): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var a: A
     ]
 
 KtOperationReferenceExpression(276,278): '--'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.dec(<dispatch receiver>: A): A
     ]

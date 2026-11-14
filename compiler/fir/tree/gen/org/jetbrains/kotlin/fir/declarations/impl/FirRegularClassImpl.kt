@@ -43,10 +43,11 @@ internal class FirRegularClassImpl(
     @property:DirectDeclarationsAccess
     override val declarations: MutableList<FirDeclaration>,
     override var annotations: MutableOrEmptyList<FirAnnotation>,
+    override var staticControlFlowGraphReference: FirControlFlowGraphReference?,
     override val name: Name,
     override val symbol: FirRegularClassSymbol,
     override var companionObjectSymbol: FirRegularClassSymbol?,
-    override val superTypeRefs: MutableList<FirTypeRef>,
+    override var superTypeRefs: MutableOrEmptyList<FirTypeRef>,
     override var contextParameters: MutableOrEmptyList<FirValueParameter>,
 ) : FirRegularClass() {
     override val isLocal: Boolean
@@ -68,6 +69,7 @@ internal class FirRegularClassImpl(
         controlFlowGraphReference?.accept(visitor, data)
         declarations.forEach { it.accept(visitor, data) }
         annotations.forEach { it.accept(visitor, data) }
+        staticControlFlowGraphReference?.accept(visitor, data)
         superTypeRefs.forEach { it.accept(visitor, data) }
         contextParameters.forEach { it.accept(visitor, data) }
     }
@@ -78,6 +80,7 @@ internal class FirRegularClassImpl(
         controlFlowGraphReference = controlFlowGraphReference?.transform(transformer, data)
         transformDeclarations(transformer, data)
         transformAnnotations(transformer, data)
+        staticControlFlowGraphReference = staticControlFlowGraphReference?.transform(transformer, data)
         transformSuperTypeRefs(transformer, data)
         transformContextParameters(transformer, data)
         return this
@@ -135,13 +138,15 @@ internal class FirRegularClassImpl(
         annotations = newAnnotations.toMutableOrEmpty()
     }
 
+    override fun replaceStaticControlFlowGraphReference(newStaticControlFlowGraphReference: FirControlFlowGraphReference?) {
+        staticControlFlowGraphReference = newStaticControlFlowGraphReference
+    }
+
     override fun replaceCompanionObjectSymbol(newCompanionObjectSymbol: FirRegularClassSymbol?) {
         companionObjectSymbol = newCompanionObjectSymbol
     }
 
     override fun replaceSuperTypeRefs(newSuperTypeRefs: List<FirTypeRef>) {
-        if (superTypeRefs === newSuperTypeRefs) return
-        superTypeRefs.clear()
-        superTypeRefs.addAll(newSuperTypeRefs)
+        superTypeRefs = newSuperTypeRefs.toMutableOrEmpty()
     }
 }

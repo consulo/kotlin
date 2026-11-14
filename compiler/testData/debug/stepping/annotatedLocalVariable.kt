@@ -17,7 +17,7 @@ fun box() {
     y
 }
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:8 box
 // test.kt:11 box
 // test.kt:13 box
@@ -30,8 +30,9 @@ fun box() {
 // test.kt:8 box
 // test.kt:11 box
 // test.kt:13 box
+// test.kt:14 box
+// test.kt:14 box
 // test.kt:16 box
-// test.kt:17 box
 // test.kt:17 box
 // test.kt:18 box
 
@@ -40,7 +41,6 @@ fun box() {
 // test.kt:11 box
 // test.kt:13 box
 // test.kt:16 box
-// test.kt:17 box
 // test.kt:17 box
 // test.kt:18 box
 

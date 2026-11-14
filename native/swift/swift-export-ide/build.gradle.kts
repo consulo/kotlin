@@ -1,6 +1,8 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
+    id("java-test-fixtures")
     id("test-inputs-check")
 }
 
@@ -23,18 +25,20 @@ dependencies {
     testRuntimeOnly(libs.junit.jupiter.engine)
     testImplementation(libs.junit.jupiter.api)
 
-    testImplementation(testFixtures(project(":analysis:analysis-api-impl-base")))
-    testImplementation(testFixtures(project(":analysis:analysis-test-framework")))
-    testImplementation(testFixtures(project(":analysis:analysis-api-fir")))
     testRuntimeOnly(testFixtures(project(":analysis:low-level-api-fir")))
+
+    testFixturesApi(testFixtures(project(":analysis:analysis-test-framework")))
+    testFixturesApi(testFixtures(project(":analysis:analysis-api-fir")))
+    testFixturesImplementation(testFixtures(project(":generators:test-generator")))
+    testFixturesImplementation(project(":native:swift:sir"))
+    testFixturesImplementation(project(":native:swift:sir-providers"))
+    testFixturesImplementation(project(":native:swift:sir-printer"))
 }
 
 sourceSets {
     "main" { projectDefault() }
-    "test" {
-        projectDefault()
-        generatedTestDir()
-    }
+    "test" { projectDefault() }
+    "testFixtures" { projectDefault() }
 }
 
 projectTests {
@@ -45,13 +49,14 @@ projectTests {
         allowUnsafe = true, // KT-85212
     ) {
         dependsOn(":kotlin-native:distInvalidateStaleCaches")
-        extensions.configure<TestInputsCheckExtension>("testInputsCheck") {
-            allowFlightRecorder.set(true)
-        }
     }
 
+    testGenerator(
+        "org.jetbrains.kotlin.swiftexport.ide.TestGeneratorKt",
+        generateTestsInBuildDirectory = true,
+    )
+
     withJvmStdlibAndReflect()
-    withScriptRuntime()
     withMockJdkAnnotationsJar()
     withMockJdkRuntime()
 }
@@ -61,5 +66,3 @@ publish()
 runtimeJar()
 sourcesJar()
 javadocJar()
-
-testsJar()

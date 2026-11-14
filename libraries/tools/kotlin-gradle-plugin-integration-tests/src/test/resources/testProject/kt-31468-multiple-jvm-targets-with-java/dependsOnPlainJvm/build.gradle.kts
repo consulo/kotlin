@@ -6,12 +6,11 @@ val disambiguationAttribute = Attribute.of("disambiguationAttribute", String::cl
 
 kotlin {
     jvm {
-        withJava()
         attributes { attribute(disambiguationAttribute, "plainJvm") }
     }
 
     sourceSets {
-        val commonMain by getting {
+        val commonMain = getByName("commonMain") {
             dependencies {
                 api(project(":lib"))
             }

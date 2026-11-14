@@ -71,6 +71,8 @@ public inline operator fun <T> List<T>.component5(): T {
 
 /**
  * Returns `true` if [element] is found in the collection.
+ * 
+ * @sample samples.collections.Collections.Elements.contains
  */
 public operator fun <@kotlin.internal.OnlyInputTypes T> Iterable<T>.contains(element: T): Boolean {
     if (this is Collection)
@@ -199,6 +201,8 @@ public inline fun <T> List<T>.findLast(predicate: (T) -> Boolean): T? {
  * Returns the first element.
  * 
  * @throws NoSuchElementException if the collection is empty.
+ * 
+ * @sample samples.collections.Collections.Elements.first
  */
 public fun <T> Iterable<T>.first(): T {
     when (this) {
@@ -216,6 +220,8 @@ public fun <T> Iterable<T>.first(): T {
  * Returns the first element.
  * 
  * @throws NoSuchElementException if the list is empty.
+ * 
+ * @sample samples.collections.Collections.Elements.first
  */
 public fun <T> List<T>.first(): T {
     if (isEmpty())
@@ -226,6 +232,8 @@ public fun <T> List<T>.first(): T {
 /**
  * Returns the first element matching the given [predicate].
  * @throws [NoSuchElementException] if no such element is found.
+ * 
+ * @sample samples.collections.Collections.Elements.first
  */
 public inline fun <T> Iterable<T>.first(predicate: (T) -> Boolean): T {
     for (element in this) if (predicate(element)) return element
@@ -1031,13 +1039,15 @@ public fun <T : Comparable<T>> Iterable<T>.isSorted(): Boolean {
 public inline fun <T, R : Comparable<R>> Iterable<T>.isSortedBy(selector: (T) -> R?): Boolean {
     val iterator = iterator()
     if (!iterator.hasNext()) return true
-    val previous = iterator.next()
+    var element = iterator.next()
     if (!iterator.hasNext()) return true
-    var previousValue = selector(previous)
-    while (iterator.hasNext()) {
-        val currentValue = selector(iterator.next())
+    var previousValue: R? = null
+    while (true) {
+        val currentValue = selector(element)
         if (compareValues(previousValue, currentValue) > 0) return false
         previousValue = currentValue
+        if (!iterator.hasNext()) break
+        element = iterator.next()
     }
     return true
 }
@@ -1067,13 +1077,17 @@ public inline fun <T, R : Comparable<R>> Iterable<T>.isSortedBy(selector: (T) ->
 public inline fun <T, R : Comparable<R>> Iterable<T>.isSortedByDescending(selector: (T) -> R?): Boolean {
     val iterator = iterator()
     if (!iterator.hasNext()) return true
-    val previous = iterator.next()
+    var element = iterator.next()
     if (!iterator.hasNext()) return true
-    var previousValue = selector(previous)
-    while (iterator.hasNext()) {
-        val currentValue = selector(iterator.next())
-        if (compareValues(previousValue, currentValue) < 0) return false
+    var previousValue: R? = null
+    var isFirst = true
+    while (true) {
+        val currentValue = selector(element)
+        if (!isFirst && compareValues(previousValue, currentValue) < 0) return false
         previousValue = currentValue
+        isFirst = false
+        if (!iterator.hasNext()) break
+        element = iterator.next()
     }
     return true
 }
@@ -1938,6 +1952,129 @@ public infix fun <T> Iterable<T>.union(other: Iterable<T>): Set<T> {
 public inline fun <T> Iterable<T>.all(predicate: (T) -> Boolean): Boolean {
     if (this is Collection && isEmpty()) return true
     for (element in this) if (!predicate(element)) return false
+    return true
+}
+
+/**
+ * Returns `true` if all elements in the collection are distinct from each other,
+ * that is, no two elements are equal.
+ * 
+ * Returns `true` for an empty collection.
+ * 
+ * The elements are compared using structural equality (`==`).
+ * The operation returns `false` as soon as a duplicate element is found.
+ * 
+ * For elements of floating-point types (`Double`, `Float`), `NaN` is considered equal to `NaN`,
+ * and `-0.0` is considered not equal to `0.0`, consistent with [Double.equals] and [Float.equals].
+ * 
+ * @sample samples.generated.alldistinct.AllDistinctIterablesSamples.allDistinct
+ */
+@SinceKotlin("2.4")
+@ExperimentalStdlibApi
+public fun <T> Iterable<T>.allDistinct(): Boolean {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return true
+    val first = iterator.next()
+    if (!iterator.hasNext()) return true
+    val seen = HashSet<T>()
+    seen.add(first)
+    do {
+        if (!seen.add(iterator.next())) return false
+    } while (iterator.hasNext())
+    return true
+}
+
+/**
+ * Returns `true` if all values produced by applying the given [selector] function to the
+ * elements in the collection are distinct from each other.
+ * 
+ * Returns `true` for an empty collection.
+ * 
+ * The [selector] values are compared using structural equality (`==`).
+ * The operation returns `false` as soon as a duplicate [selector] value is found.
+ * 
+ * For selector values of floating-point types (`Double`, `Float`), `NaN` is considered equal to `NaN`,
+ * and `-0.0` is considered not equal to `0.0`, consistent with [Double.equals] and [Float.equals].
+ * 
+ * @sample samples.generated.alldistinct.AllDistinctIterablesSamples.allDistinctBy
+ */
+@SinceKotlin("2.4")
+@ExperimentalStdlibApi
+public inline fun <T, K> Iterable<T>.allDistinctBy(selector: (T) -> K): Boolean {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return true
+    var element = iterator.next()
+    if (!iterator.hasNext()) return true
+    val seen = HashSet<K>()
+    while (true) {
+        if (!seen.add(selector(element))) return false
+        if (!iterator.hasNext()) break
+        element = iterator.next()
+    }
+    return true
+}
+
+/**
+ * Returns `true` if all elements in the collection are equal to each other.
+ * 
+ * Returns `true` for an empty collection.
+ * 
+ * The elements are compared sequentially using structural equality (`==`),
+ * and all elements are considered equal if the first element equals
+ * every subsequent element.
+ * 
+ * For elements of floating-point types (`Double`, `Float`), `NaN` is considered equal to `NaN`,
+ * and `-0.0` is considered not equal to `0.0`, consistent with [Double.equals] and [Float.equals].
+ * 
+ * @sample samples.generated.allequal.AllEqualIterablesSamples.allEqual
+ */
+@SinceKotlin("2.4")
+@ExperimentalStdlibApi
+public fun <T> Iterable<T>.allEqual(): Boolean {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return true
+    val first = iterator.next()
+    while (iterator.hasNext()) {
+        if (first != iterator.next()) return false
+    }
+    return true
+}
+
+/**
+ * Returns `true` if all elements in the collection yield the same value
+ * produced by the given [selector] function.
+ * 
+ * Returns `true` for an empty collection.
+ * 
+ * The [selector] values are compared sequentially using structural equality (`==`),
+ * and all elements are considered equal by the [selector] value if the [selector]
+ * value of the first element equals the [selector] value of every subsequent element.
+ * 
+ * For selector values of floating-point types (`Double`, `Float`), `NaN` is considered equal to `NaN`,
+ * and `-0.0` is considered not equal to `0.0`, consistent with [Double.equals] and [Float.equals].
+ * 
+ * @sample samples.generated.allequal.AllEqualIterablesSamples.allEqualBy
+ */
+@SinceKotlin("2.4")
+@ExperimentalStdlibApi
+public inline fun <T, K> Iterable<T>.allEqualBy(selector: (T) -> K): Boolean {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return true
+    var element = iterator.next()
+    if (!iterator.hasNext()) return true
+    var firstKey: K? = null
+    var isFirst = true
+    while (true) {
+        val key = selector(element)
+        if (isFirst) {
+            firstKey = key
+            isFirst = false
+        } else if (firstKey != key) {
+            return false
+        }
+        if (!iterator.hasNext()) break
+        element = iterator.next()
+    }
     return true
 }
 

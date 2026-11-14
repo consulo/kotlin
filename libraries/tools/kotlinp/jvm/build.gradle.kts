@@ -3,13 +3,14 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 description = "kotlinp-jvm"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
     id("test-inputs-check")
     id("java-test-fixtures")
 }
 
-val shadows by configurations.creating
+val shadows = configurations.create("shadows")
 
 dependencies {
     compileOnly(project(":kotlin-metadata"))
@@ -27,6 +28,7 @@ dependencies {
     testFixturesApi(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
+    testFixturesApi(testFixtures(project(":compiler:jvm.tests")))
     testFixturesImplementation(testFixtures(project(":generators:test-generator")))
 
     testRuntimeOnly(project(":kotlin-metadata-jvm"))
@@ -46,12 +48,11 @@ projectTests {
     testData(project(":compiler").isolated, "testData/loadJava")
     testData(project(":compiler").isolated, "testData/serialization")
 
-    testTask(jUnitMode = JUnitMode.JUnit5)
+    testTask()
 
     testGenerator("org.jetbrains.kotlin.kotlinp.jvm.test.GenerateKotlinpTestsKt", generateTestsInBuildDirectory = true)
 
     withJvmStdlibAndReflect()
-    withScriptRuntime()
     withMockJdkAnnotationsJar()
     withTestJar()
     withMockJdkRuntime()
@@ -59,7 +60,7 @@ projectTests {
     withScriptingPlugin()
 }
 
-val shadowJar by task<ShadowJar> {
+val shadowJar = tasks.register<ShadowJar>("shadowJar") {
     archiveClassifier.set("shadow")
     archiveVersion.set("")
     configurations = listOf(shadows)
@@ -76,4 +77,3 @@ tasks {
     }
 }
 
-testsJar()

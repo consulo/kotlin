@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.library.components
 
-import org.jetbrains.kotlin.konan.file.File as KlibFile
 import org.jetbrains.kotlin.library.Klib
 import org.jetbrains.kotlin.library.KlibComponent
 import org.jetbrains.kotlin.library.KlibComponentLayout
+import org.jetbrains.kotlin.library.KlibComponentsContainer
 import org.jetbrains.kotlin.library.KlibConstants.KLIB_DEFAULT_COMPONENT_NAME
 import org.jetbrains.kotlin.library.KlibLayoutReader
 import org.jetbrains.kotlin.library.components.KlibMetadataConstants.KLIB_METADATA_FILE_EXTENSION
@@ -19,13 +19,14 @@ import org.jetbrains.kotlin.library.components.KlibMetadataConstants.KLIB_ROOT_P
 import org.jetbrains.kotlin.library.impl.KlibMetadataComponentImpl
 import org.jetbrains.kotlin.library.metadata.KlibMetadataProtoBuf
 import org.jetbrains.kotlin.metadata.ProtoBuf
+import java.nio.file.Path
 
 /**
  * This component provides read access to Klib metadata.
  */
 interface KlibMetadataComponent : KlibComponent {
     /** The metadata header in the raw form (bytes, yet to be deserialized to [KlibMetadataProtoBuf.Header]). */
-    val moduleHeaderData: ByteArray
+    val moduleHeaderData: ByteArray?
 
     /** Names of package fragments for the fully qualified package name [packageFqName]. */
     fun getPackageFragmentNames(packageFqName: String): Set<String>
@@ -33,8 +34,11 @@ interface KlibMetadataComponent : KlibComponent {
     /** The concrete package fragment in the raw form (bytes, yet to be deserialized to [ProtoBuf.PackageFragment]). */
     fun getPackageFragment(packageFqName: String, fragmentName: String): ByteArray
 
+    /** The names of all packages inside given klib. */
+    fun getPackageNames(): Set<String>
+
     companion object Kind : KlibComponent.Kind<KlibMetadataComponent, KlibMetadataComponentLayout> {
-        override fun createLayout(root: KlibFile) = KlibMetadataComponentLayout(root)
+        override fun createLayout(root: Path) = KlibMetadataComponentLayout(root)
 
         /**
          * Note: It is expected that every correct Klib has metadata files.
@@ -51,27 +55,25 @@ interface KlibMetadataComponent : KlibComponent {
  * It is expected that every correct Klib has metadata files. So, the [metadata] property always returns
  * a non-null component instance that can be used to read the Klib's metadata.
  */
-inline val Klib.metadata: KlibMetadataComponent
+inline val KlibComponentsContainer.metadata: KlibMetadataComponent
     get() = getComponent(KlibMetadataComponent.Kind)!!
 
-class KlibMetadataComponentLayout(root: KlibFile) : KlibComponentLayout(root) {
-    constructor(root: String) : this(KlibFile(root))
-
+class KlibMetadataComponentLayout(root: Path) : KlibComponentLayout(root) {
     /** The metadata directory. */
-    val metadataDir: KlibFile
-        get() = root.child(KLIB_DEFAULT_COMPONENT_NAME).child(KLIB_METADATA_FOLDER_NAME)
+    val metadataDir: Path
+        get() = root.resolve(KLIB_DEFAULT_COMPONENT_NAME).resolve(KLIB_METADATA_FOLDER_NAME)
 
     /** The metadata header file. */
-    val moduleHeaderFile: KlibFile
-        get() = metadataDir.child(KLIB_MODULE_METADATA_FILE_NAME)
+    val moduleHeaderFile: Path
+        get() = metadataDir.resolve(KLIB_MODULE_METADATA_FILE_NAME)
 
     /** The directory where package fragments with the fully qualified package name [packageFqName] are located. */
-    fun getPackageFragmentsDir(packageFqName: String): KlibFile =
-        metadataDir.child(if (packageFqName == "") KLIB_ROOT_PACKAGE_FRAGMENT_FOLDER_NAME else "$KLIB_NONROOT_PACKAGE_FRAGMENT_FOLDER_PREFIX$packageFqName")
+    fun getPackageFragmentsDir(packageFqName: String): Path =
+        metadataDir.resolve(if (packageFqName == "") KLIB_ROOT_PACKAGE_FRAGMENT_FOLDER_NAME else "$KLIB_NONROOT_PACKAGE_FRAGMENT_FOLDER_PREFIX$packageFqName")
 
     /** The concrete package fragment file with the name [partName] for the fully qualified package name [packageFqName]. */
-    fun getPackageFragmentFile(packageFqName: String, partName: String): KlibFile =
-        getPackageFragmentsDir(packageFqName).child("$partName.$KLIB_METADATA_FILE_EXTENSION")
+    fun getPackageFragmentFile(packageFqName: String, partName: String): Path =
+        getPackageFragmentsDir(packageFqName).resolve("$partName.$KLIB_METADATA_FILE_EXTENSION")
 }
 
 object KlibMetadataConstants {

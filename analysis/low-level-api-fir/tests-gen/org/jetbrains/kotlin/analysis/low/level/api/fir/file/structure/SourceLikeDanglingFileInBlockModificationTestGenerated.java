@@ -46,6 +46,18 @@ public class SourceLikeDanglingFileInBlockModificationTestGenerated extends Abst
   }
 
   @Test
+  @TestMetadata("danglingModifierListInClass.kt")
+  public void testDanglingModifierListInClass() {
+    run("danglingModifierListInClass.kt");
+  }
+
+  @Test
+  @TestMetadata("danglingModifierListInFile.kt")
+  public void testDanglingModifierListInFile() {
+    run("danglingModifierListInFile.kt");
+  }
+
+  @Test
   @TestMetadata("entireContract.kt")
   public void testEntireContract() {
     run("entireContract.kt");
@@ -115,6 +127,30 @@ public class SourceLikeDanglingFileInBlockModificationTestGenerated extends Abst
   @TestMetadata("extensionWithDefaultParametersScript.kts")
   public void testExtensionWithDefaultParametersScript() {
     run("extensionWithDefaultParametersScript.kts");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassGetterBody.kt")
+  public void testFullValueClassGetterBody() {
+    run("fullValueClassGetterBody.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassGetterBodyScript.kts")
+  public void testFullValueClassGetterBodyScript() {
+    run("fullValueClassGetterBodyScript.kts");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassMemberFunctionBody.kt")
+  public void testFullValueClassMemberFunctionBody() {
+    run("fullValueClassMemberFunctionBody.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassMemberFunctionBodyScript.kts")
+  public void testFullValueClassMemberFunctionBodyScript() {
+    run("fullValueClassMemberFunctionBodyScript.kts");
   }
 
   @Test
@@ -310,6 +346,18 @@ public class SourceLikeDanglingFileInBlockModificationTestGenerated extends Abst
   }
 
   @Test
+  @TestMetadata("memberGetterWithTypeWithBodyNearExplicitBackingField.kt")
+  public void testMemberGetterWithTypeWithBodyNearExplicitBackingField() {
+    run("memberGetterWithTypeWithBodyNearExplicitBackingField.kt");
+  }
+
+  @Test
+  @TestMetadata("memberGetterWithTypeWithBodyNearExplicitBackingFieldScript.kts")
+  public void testMemberGetterWithTypeWithBodyNearExplicitBackingFieldScript() {
+    run("memberGetterWithTypeWithBodyNearExplicitBackingFieldScript.kts");
+  }
+
+  @Test
   @TestMetadata("memberGetterWithTypeWithBodyScript.kts")
   public void testMemberGetterWithTypeWithBodyScript() {
     run("memberGetterWithTypeWithBodyScript.kts");
@@ -397,6 +445,18 @@ public class SourceLikeDanglingFileInBlockModificationTestGenerated extends Abst
   @TestMetadata("memberPropertyWithTypeInErrorDelegateScript.kts")
   public void testMemberPropertyWithTypeInErrorDelegateScript() {
     run("memberPropertyWithTypeInErrorDelegateScript.kts");
+  }
+
+  @Test
+  @TestMetadata("memberPropertyWithTypeInExplicitBackingFieldInitializer.kt")
+  public void testMemberPropertyWithTypeInExplicitBackingFieldInitializer() {
+    run("memberPropertyWithTypeInExplicitBackingFieldInitializer.kt");
+  }
+
+  @Test
+  @TestMetadata("memberPropertyWithTypeInExplicitBackingFieldInitializerScript.kts")
+  public void testMemberPropertyWithTypeInExplicitBackingFieldInitializerScript() {
+    run("memberPropertyWithTypeInExplicitBackingFieldInitializerScript.kts");
   }
 
   @Test
@@ -796,6 +856,18 @@ public class SourceLikeDanglingFileInBlockModificationTestGenerated extends Abst
   }
 
   @Test
+  @TestMetadata("topLevelGetterWithTypeWithBodyNearExplicitBackingField.kt")
+  public void testTopLevelGetterWithTypeWithBodyNearExplicitBackingField() {
+    run("topLevelGetterWithTypeWithBodyNearExplicitBackingField.kt");
+  }
+
+  @Test
+  @TestMetadata("topLevelGetterWithTypeWithBodyNearExplicitBackingFieldScript.kts")
+  public void testTopLevelGetterWithTypeWithBodyNearExplicitBackingFieldScript() {
+    run("topLevelGetterWithTypeWithBodyNearExplicitBackingFieldScript.kts");
+  }
+
+  @Test
   @TestMetadata("topLevelGetterWithTypeWithBodyNearField.kt")
   public void testTopLevelGetterWithTypeWithBodyNearField() {
     run("topLevelGetterWithTypeWithBodyNearField.kt");
@@ -907,6 +979,18 @@ public class SourceLikeDanglingFileInBlockModificationTestGenerated extends Abst
   @TestMetadata("topLevelPropertyWithTypeInErrorDelegateScript.kts")
   public void testTopLevelPropertyWithTypeInErrorDelegateScript() {
     run("topLevelPropertyWithTypeInErrorDelegateScript.kts");
+  }
+
+  @Test
+  @TestMetadata("topLevelPropertyWithTypeInExplicitBackingFieldInitializer.kt")
+  public void testTopLevelPropertyWithTypeInExplicitBackingFieldInitializer() {
+    run("topLevelPropertyWithTypeInExplicitBackingFieldInitializer.kt");
+  }
+
+  @Test
+  @TestMetadata("topLevelPropertyWithTypeInExplicitBackingFieldInitializerScript.kts")
+  public void testTopLevelPropertyWithTypeInExplicitBackingFieldInitializerScript() {
+    run("topLevelPropertyWithTypeInExplicitBackingFieldInitializerScript.kts");
   }
 
   @Test

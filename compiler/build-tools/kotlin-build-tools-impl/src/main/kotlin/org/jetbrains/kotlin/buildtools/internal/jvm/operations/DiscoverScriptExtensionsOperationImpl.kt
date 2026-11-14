@@ -16,20 +16,31 @@ import org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionsFromClasspath
 import java.nio.file.Path
 import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
 
-internal class DiscoverScriptExtensionsOperationImpl private constructor(
-    override val options: Options = Options(DiscoverScriptExtensionsOperation::class),
-    override val classpath: List<Path>,
-) : BuildOperationImpl<Collection<String>>(), DiscoverScriptExtensionsOperation, DiscoverScriptExtensionsOperation.Builder,
+internal class DiscoverScriptExtensionsOperationImpl : BuildOperationImpl<Collection<String>>, DiscoverScriptExtensionsOperation, DiscoverScriptExtensionsOperation.Builder,
     DeepCopyable<DiscoverScriptExtensionsOperation> {
 
-    constructor(classpath: List<Path>) : this(Options(DiscoverScriptExtensionsOperation::class), classpath) {
+    override val options: Options
+    override val classpath: List<Path>
+
+    private constructor(other: DiscoverScriptExtensionsOperationImpl) : super(other) {
+        options = other.options.deepCopy()
+        classpath = other.classpath.toList()
+    }
+
+    constructor(classpath: List<Path>) : super() {
+        this.options = Options(DiscoverScriptExtensionsOperation::class)
+        this.classpath = classpath
         initializeOptions(this::class, options)
     }
+
+    override val usesApplicationEnvironment: Boolean
+        get() = false
 
     override fun executeImpl(
         projectId: ProjectId,
         executionPolicy: ExecutionPolicy,
         logger: KotlinLogger?,
+        executionContext: ExecutionContext,
     ): Collection<String> {
         // KT-84096 BTA: support daemon execution for script discovery operation
         check(executionPolicy is ExecutionPolicy.InProcess) { "Only in-process execution policy is supported for this operation." }
@@ -49,12 +60,13 @@ internal class DiscoverScriptExtensionsOperationImpl private constructor(
 
     @UseFromImplModuleRestricted
     override fun <V> set(key: DiscoverScriptExtensionsOperation.Option<V>, value: V) {
+        checkOptionIsAvailableForVersion(key)
         options[key] = value
     }
 
     override fun build(): DiscoverScriptExtensionsOperation = deepCopy()
 
-    override fun deepCopy(): DiscoverScriptExtensionsOperationImpl = DiscoverScriptExtensionsOperationImpl(options.deepCopy(), classpath)
+    override fun deepCopy(): DiscoverScriptExtensionsOperationImpl = DiscoverScriptExtensionsOperationImpl(this)
 
     private operator fun <V> get(key: Option<V>): V = options[key]
 
@@ -62,10 +74,7 @@ internal class DiscoverScriptExtensionsOperationImpl private constructor(
         options[key] = value
     }
 
-    class Option<V> : BaseOptionWithDefault<V> {
-        constructor(id: String) : super(id)
-        constructor(id: String, default: V) : super(id, default = default)
-    }
+    class Option<V>(id: String, default: V) : BaseOptionWithDefault<V>(id, defaultValue = default)
 
     companion object {
         val COMPILER_MESSAGE_RENDERER: Option<CompilerMessageRenderer> =

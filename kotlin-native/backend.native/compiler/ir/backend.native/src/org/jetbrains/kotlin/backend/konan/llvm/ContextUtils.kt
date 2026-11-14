@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * Copyright 2010-2026 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
 
@@ -9,10 +9,12 @@ import kotlinx.cinterop.toCValues
 import kotlinx.cinterop.toKString
 import llvm.*
 import org.jetbrains.kotlin.backend.konan.*
-import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.NativeBackendContext
 import org.jetbrains.kotlin.backend.konan.lower.originalConstructor
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.path
 import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.library.KotlinLibrary
 
@@ -133,7 +135,7 @@ internal sealed class Lifetime(val slotType: SlotType) {
 internal interface ContextUtils : RuntimeAware {
     val generationState: NativeGenerationState
 
-    val context: Context
+    val context: NativeBackendContext
         get() = generationState.context
 
     override val runtime: Runtime
@@ -165,7 +167,7 @@ internal interface ContextUtils : RuntimeAware {
     }
 
     fun linkageOf(irFunction: IrSimpleFunction): LLVMLinkage {
-        if (isExternal(irFunction) || irFunction.isExported())
+        if (isExternal(irFunction) || irFunction.isExported)
             return LLVMLinkage.LLVMExternalLinkage
         if (context.config.producePerFileCache) {
             val originalFunction = irFunction.originalConstructor ?: irFunction
@@ -180,24 +182,17 @@ internal interface ContextUtils : RuntimeAware {
      * LLVM function generated from the Kotlin function.
      * It may be declared as external function prototype.
      */
-    val IrSimpleFunction.llvmFunction: LlvmCallable
-        get() = llvmFunctionOrNull
-                ?: error("$name in ${file.name}/${parent.fqNameForIrSerialization}")
+    val IrSimpleFunction.llvmFunction: LlvmFunction
+        get() = llvmFunctionOrNull ?: error("$name in ${file.name}/${parent.fqNameForIrSerialization}")
 
-    val IrSimpleFunction.llvmFunctionOrNull: LlvmCallable?
+    val IrSimpleFunction.llvmFunctionOrNull: LlvmFunction?
         get() {
             assert(this.isReal) {
                 this.computeFullName()
             }
             return if (isExternal(this)) {
                 runtime.addedLLVMExternalFunctions.getOrPut(this) {
-                    val symbolName = if (KonanBinaryInterface.isExported(this)) {
-                        this.computeSymbolName()
-                    } else {
-                        val containerName = parentClassOrNull?.fqNameForIrSerialization?.asString()
-                                ?: context.externalDeclarationFileNameProvider.getExternalDeclarationFileName(this)
-                        this.computePrivateSymbolName(containerName)
-                    }
+                    val symbolName = this.computeSymbolName(context, forImplementation = true)
                     val proto = LlvmFunctionProto(this, symbolName, this@ContextUtils, LLVMLinkage.LLVMExternalLinkage)
                     llvm.externalFunction(proto)
                 }
@@ -218,10 +213,11 @@ internal interface ContextUtils : RuntimeAware {
                 val typeInfoSymbolName = if (KonanBinaryInterface.isExported(this)) {
                     this.computeTypeInfoSymbolName()
                 } else {
-                    this.computePrivateTypeInfoSymbolName(context.externalDeclarationFileNameProvider.getExternalDeclarationFileName(this))
+                    this.computePrivateTypeInfoSymbolName(file.path)
                 }
 
-                constPointer(importGlobal(typeInfoSymbolName, runtime.typeInfoType, this))
+                generationState.dependenciesTracker.add(this)
+                constPointer(importGlobal(typeInfoSymbolName, runtime.typeInfoType))
             } else {
                 generationState.llvmDeclarations.forClass(this).typeInfo
             }
@@ -234,6 +230,23 @@ internal interface ContextUtils : RuntimeAware {
     val IrClass.llvmTypeInfoPtr: LLVMValueRef
         get() = typeInfoPtr.llvm
 
+    val IrClass.objectBodyType: ObjectBodyType
+        get() {
+            return if (isExternal(this)) {
+                runtime.addedLLVMExternalObjectBodyTypes.getOrPut(this) {
+                    val classBodyTypeName = if (KonanBinaryInterface.isExported(this)) {
+                        this.computeClassBodyTypeName()
+                    } else {
+                        this.computePrivateClassBodyTypeName(file.path)
+                    }
+
+                    generationState.dependenciesTracker.add(this)
+                    createClassBody(classBodyTypeName, this)
+                }
+            } else {
+                generationState.llvmDeclarations.forClass(this).bodyType
+            }
+        }
 }
 
 /**
@@ -242,16 +255,14 @@ internal interface ContextUtils : RuntimeAware {
 internal fun stringAsBytes(str: String) = str.toByteArray(Charsets.UTF_8)
 
 internal class ScopeInitializersGenerationState {
-    val topLevelFields = mutableListOf<IrField>()
-    var globalInitFunction: IrSimpleFunction? = null
     var globalInitState: LLVMValueRef? = null
-    var threadLocalInitFunction: IrSimpleFunction? = null
     var threadLocalInitState: AddressAccess? = null
-    val globalSharedObjects = mutableSetOf<LLVMValueRef>()
-    fun isEmpty() = topLevelFields.isEmpty() &&
+    var globalEagerInitFunction: LlvmCallable? = null
+    var threadLocalEagerInitFunction: LlvmCallable? = null
+    fun isEmpty() = globalEagerInitFunction == null &&
+            threadLocalEagerInitFunction == null &&
             globalInitState == null &&
-            threadLocalInitState == null &&
-            globalSharedObjects.isEmpty()
+            threadLocalInitState == null
 }
 
 internal class InitializersGenerationState {
@@ -335,7 +346,7 @@ internal open class BasicLlvmHelpers(bitcodeContext: BitcodePostProcessingContex
 internal class CodegenLlvmHelpers(private val generationState: NativeGenerationState, module: LLVMModuleRef) : BasicLlvmHelpers(generationState, module), RuntimeAware {
     private val context = generationState.context
 
-    private fun importFunction(name: String, otherModule: LLVMModuleRef, returnsObjectType: Boolean): LlvmCallable {
+    private fun importFunction(name: String, otherModule: LLVMModuleRef, returnsObjectType: Boolean): LlvmFunction {
         if (LLVMGetNamedFunction(module, name) != null) {
             throw IllegalArgumentException("function $name already exists")
         }
@@ -349,7 +360,7 @@ internal class CodegenLlvmHelpers(private val generationState: NativeGenerationS
 
         attributesCopier.addFunctionAttributes(function)
 
-        return LlvmCallable(functionType, returnsObjectType, function, attributesCopier)
+        return LlvmFunction.Declaration(functionType, returnsObjectType, function, attributesCopier)
     }
 
     private fun importMemset(): LlvmCallable {
@@ -360,27 +371,27 @@ internal class CodegenLlvmHelpers(private val generationState: NativeGenerationS
                 functionType)
     }
 
-    private fun llvmIntrinsic(name: String, type: LLVMTypeRef, vararg attributes: String): LlvmCallable {
+    private fun llvmIntrinsic(name: String, type: LLVMTypeRef, vararg attributes: String): LlvmFunction.Declaration {
         val result = LLVMAddFunction(module, name, type)!!
         attributes.forEach {
             val kindId = getLlvmAttributeKindId(it)
             addLlvmFunctionEnumAttribute(result, kindId)
         }
-        return LlvmCallable(type, false, result, LlvmFunctionAttributeProvider.copyFromExternal(result))
+        return LlvmFunction.Declaration(type, false, result, LlvmFunctionAttributeProvider.copyFromExternal(result))
     }
 
-    internal fun externalFunction(llvmFunctionProto: LlvmFunctionProto): LlvmCallable {
+    internal fun externalFunction(llvmFunctionProto: LlvmFunctionProto): LlvmFunction {
         if (llvmFunctionProto.origin != null) {
             this.dependenciesTracker.add(llvmFunctionProto.origin, onlyBitcode = llvmFunctionProto.independent)
         }
         val found = LLVMGetNamedFunction(module, llvmFunctionProto.name)
         if (found != null) {
             require(getGlobalFunctionType(found) == llvmFunctionProto.signature.llvmFunctionType) {
-                "Inconsistent function type of ${llvmFunctionProto.name}. Expected: ${LLVMPrintTypeToString(llvmFunctionProto.signature.llvmFunctionType)!!.toKString()}, " +
-                        "found: ${LLVMPrintTypeToString(getGlobalFunctionType(found))!!.toKString()}"
+                "Inconsistent function type of ${llvmFunctionProto.name}. Expected: ${llvmFunctionProto.signature.llvmFunctionType.toTypeString()}, " +
+                        "found: ${getGlobalFunctionType(found).toTypeString()}"
             }
             require(LLVMGetLinkage(found) == llvmFunctionProto.linkage)
-            return LlvmCallable(found, llvmFunctionProto.signature)
+            return LlvmFunction.Declaration(found, llvmFunctionProto.signature)
         } else {
             return llvmFunctionProto.createLlvmFunction(context, module)
         }
@@ -423,7 +434,7 @@ internal class CodegenLlvmHelpers(private val generationState: NativeGenerationS
 
     val allocInstanceFunction = importRtFunction("AllocInstance", true)
     val allocArrayFunction = importRtFunction("AllocArrayInstance", true)
-    val initAndRegisterGlobalFunction = importRtFunction("InitAndRegisterGlobal", false)
+    val registerGlobalFunction = importRtFunction("RegisterGlobal", false)
     val updateHeapRefFunction = importRtFunction("UpdateHeapRef", false)
     val updateStackRefFunction = importRtFunction("UpdateStackRef", false)
     val updateReturnRefFunction = importRtFunction("UpdateReturnRef", false)
@@ -658,3 +669,19 @@ class IrStaticInitializer(val konanLibrary: KotlinLibrary?, val runtimeInitializ
  */
 @JvmInline
 value class RuntimeInitializer(val llvmCallable: LlvmCallable)
+
+context(llvm: CodegenLlvmHelpers)
+internal fun Boolean.toLlvmConstInt32(): ConstInt32 =
+        llvm.constInt32(if (this) 1 else 0)
+
+context(llvm: CodegenLlvmHelpers)
+internal fun Int.toLlvmConstInt32(): ConstInt32 =
+        llvm.constInt32(this)
+
+context(llvm: CodegenLlvmHelpers)
+internal fun UByte.toLlvmConstUInt8(): ConstUInt8 =
+        llvm.constUInt8(this)
+
+context(llvm: CodegenLlvmHelpers)
+internal fun String?.toCStringLiteral(): ConstPointer =
+        if (this != null) llvm.staticData.cStringLiteral(this) else llvm.nullPointer

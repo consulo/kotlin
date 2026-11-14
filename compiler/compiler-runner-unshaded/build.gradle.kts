@@ -1,8 +1,10 @@
 description = "Compiler runner + daemon client unshaded"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("gradle-plugin-published-compiler-dependency-configuration")
+    id("gradle-plugin-compiler-dependency-configuration")
 }
 
 dependencies {
@@ -10,7 +12,6 @@ dependencies {
 
     compileOnly(project(":compiler:cli-base"))
     compileOnly(project(":kotlin-preloader"))
-    compileOnly(project(":compiler:frontend.java"))
     compileOnly(project(":daemon-common"))
     compileOnly(project(":compiler:build-tools:kotlin-build-tools-api"))
     compileOnly(project(":compiler:util"))

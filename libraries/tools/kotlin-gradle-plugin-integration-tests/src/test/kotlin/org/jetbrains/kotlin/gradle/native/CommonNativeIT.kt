@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.gradle.native
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.capitalize
+import org.jetbrains.kotlin.test.TestMetadata
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.OS
 
@@ -18,6 +19,7 @@ class CommonNativeIT : KGPBaseTest() {
 
     private val String.withPrefix get() = "native-apple-devices-common/$this"
 
+    @TestMetadata("native-apple-devices-common/common-ios")
     @DisplayName("Common ios")
     @GradleTest
     fun testCommonIos(gradleVersion: GradleVersion) {
@@ -29,24 +31,26 @@ class CommonNativeIT : KGPBaseTest() {
         )
     }
 
+    @TestMetadata("native-apple-devices-common/common-watchos")
     @DisplayName("Common watchos")
     @GradleTest
     fun testCommonWatchos(gradleVersion: GradleVersion) {
         doCommonNativeTest(
             "common-watchos",
-            libTargets = listOf("watchosLibArm32", "watchosLibArm64", "watchosLibX64"),
-            appTargets = listOf("watchosArm32", "watchosArm64", "watchosX64"),
+            libTargets = listOf("watchosLibDeviceArm64", "watchosLibSimulatorArm64", "watchosLibArm64"),
+            appTargets = listOf("watchosDeviceArm64", "watchosSimulatorArm64", "watchosArm64"),
             gradleVersion
         )
     }
 
+    @TestMetadata("native-apple-devices-common/common-tvos")
     @DisplayName("Common tvos")
     @GradleTest
     fun testCommonTvos(gradleVersion: GradleVersion) {
         doCommonNativeTest(
             "common-tvos",
-            libTargets = listOf("tvosLibArm64", "tvosLibX64"),
-            appTargets = listOf("tvosArm64", "tvosX64"),
+            libTargets = listOf("tvosLibArm64", "tvosLibSimulatorArm64"),
+            appTargets = listOf("tvosArm64", "tvosSimulatorArm64"),
             gradleVersion
         )
     }

@@ -6,33 +6,35 @@
 package org.jetbrains.kotlin.scripting.compiler.plugin.fir
 
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.psi.search.ProjectScope
 import org.jetbrains.kotlin.KtSourceFile
 import org.jetbrains.kotlin.KtVirtualFileSourceFile
 import org.jetbrains.kotlin.backend.common.pop
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
-import org.jetbrains.kotlin.cli.jvm.compiler.PsiBasedProjectFileSearchScope
+import org.jetbrains.kotlin.cli.CliDiagnostics
 import org.jetbrains.kotlin.cli.jvm.compiler.VfsBasedProjectEnvironment
-import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
+import org.jetbrains.kotlin.cli.report
 import org.jetbrains.kotlin.compiler.plugin.getCompilerExtensions
-import org.jetbrains.kotlin.compiler.plugin.registerInProject
-import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.allowAnyScriptsInSourceRoots
+import org.jetbrains.kotlin.config.disableStandardScriptDefinition
+import org.jetbrains.kotlin.config.languageVersionSettings
+import org.jetbrains.kotlin.config.scriptingHostConfiguration
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.SessionConfiguration
 import org.jetbrains.kotlin.fir.extensions.CollectAdditionalSourceFilesExtension
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
-import org.jetbrains.kotlin.fir.session.FirJvmSessionFactory
-import org.jetbrains.kotlin.fir.session.environment.AbstractProjectFileSearchScope
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.scripting.compiler.plugin.ScriptingK2CompilerPluginRegistrar
+import org.jetbrains.kotlin.scripting.compiler.plugin.legacyScriptRuntimeToAdd
+import org.jetbrains.kotlin.scripting.compiler.plugin.requiresLegacyScriptRuntime
 import org.jetbrains.kotlin.scripting.compiler.plugin.definitions.*
 import org.jetbrains.kotlin.scripting.compiler.plugin.dependencies.toSystemIndependentScriptPath
 import org.jetbrains.kotlin.scripting.compiler.plugin.impl.ScriptingModuleDataProvider
-import org.jetbrains.kotlin.scripting.compiler.plugin.impl.collectAndResolveScriptAnnotationsViaFir
-import org.jetbrains.kotlin.scripting.compiler.plugin.impl.convertToFirViaLightTree
-import org.jetbrains.kotlin.scripting.compiler.plugin.impl.refineAllForK2
-import org.jetbrains.kotlin.scripting.compiler.plugin.toCompilerMessageSeverity
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.compilationClasspathOf
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.createScriptingLibrarySessions
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.createScriptSourceSession
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.createScriptingSessionFactoryContext
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.effectiveHostConfiguration
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.refineAllWithFirAnnotationSession
+import org.jetbrains.kotlin.scripting.compiler.plugin.report
 import org.jetbrains.kotlin.scripting.configuration.ScriptingConfigurationKeys
 import org.jetbrains.kotlin.scripting.resolve.toSourceCode
 import org.jetbrains.kotlin.utils.topologicalSort
@@ -42,8 +44,8 @@ import kotlin.script.experimental.host.FileBasedScriptSource
 import kotlin.script.experimental.host.ScriptingHostConfiguration
 import kotlin.script.experimental.host.configurationDependencies
 import kotlin.script.experimental.host.with
-import kotlin.script.experimental.jvm.JvmDependency
 import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
+import kotlin.script.experimental.jvm.util.toClassPathOrEmpty
 
 class CollectAdditionalScriptSourcesExtension : CollectAdditionalSourceFilesExtension() {
     override fun isApplicable(configuration: CompilerConfiguration): Boolean =
@@ -71,29 +73,31 @@ class CollectAdditionalScriptSourcesExtension : CollectAdditionalSourceFilesExte
                 )
 
         val hostConfiguration = ensureUpdatedHostConfiguration(providedHostConfiguration, definitionProvider, configuration)
+        val updatedClasspath = LinkedHashSet<File>()
 
         fun SourceCode.collectImports(): List<SourceCode>? {
             val refinedScriptCompilationConfiguration =
                 hostConfiguration.getOrStoreRefinedCompilationConfiguration(this) { script, scriptCompilationConfiguration ->
-                    scriptCompilationConfiguration.refineAllForK2(script, hostConfiguration) { script, scriptCompilationConfiguration ->
-                        collectAndResolveScriptAnnotationsViaFir(
-                            script, scriptCompilationConfiguration, hostConfiguration,
-                            { _, scriptCompilationConfiguration ->
-                                getOrCreateSessionForAnnotationResolution(
-                                    scriptCompilationConfiguration,
-                                    scriptCompilationConfiguration[ScriptCompilationConfiguration.hostConfiguration] ?: hostConfiguration,
-                                    configuration,
-                                    environment
-                                )
-                            },
-                            SourceCode::convertToFirViaLightTree
-                        )
-                    }
+                    scriptCompilationConfiguration.refineAllWithFirAnnotationSession(
+                        script, hostConfiguration, { _, scriptCompilationConfiguration ->
+                            getOrCreateSessionForAnnotationResolution(
+                                scriptCompilationConfiguration,
+                                effectiveHostConfiguration(hostConfiguration, scriptCompilationConfiguration),
+                                configuration,
+                                environment
+                            )
+                        }
+                    )
                 }.onFailure {
                     for (report in it.reports) {
-                        configuration.report(report.severity.toCompilerMessageSeverity(), report.render(withSeverity = false))
+                        configuration.report(report.severity, report.render(withSeverity = false), null)
                     }
                 }.valueOrNull()
+
+            updatedClasspath.addAll(refinedScriptCompilationConfiguration?.get(ScriptCompilationConfiguration.dependencies).toClassPathOrEmpty())
+            if (refinedScriptCompilationConfiguration?.requiresLegacyScriptRuntime == true) {
+                configuration.legacyScriptRuntimeToAdd()?.let(updatedClasspath::add)
+            }
             return refinedScriptCompilationConfiguration?.get(ScriptCompilationConfiguration.importScripts)?.takeIf { it.isNotEmpty() }
         }
 
@@ -101,17 +105,44 @@ class CollectAdditionalScriptSourcesExtension : CollectAdditionalSourceFilesExte
             if (import is FileBasedScriptSource)
                 findVirtualFile(import.file.absoluteFile)?.let { virtualFile -> KtVirtualFileSourceFile(virtualFile) } ?: run {
                     configuration.report(
-                        CompilerMessageSeverity.ERROR,
+                        CliDiagnostics.SCRIPTING_ERROR,
                         "Unable to find imported script ${import.file}"
                     )
                     null
                 }
             else null  // TODO: support non-file sources (KT-83973)
 
+        val acceptsAnyValid = configuration.allowAnyScriptsInSourceRoots
+
+        fun SourceCode.isAcceptedOrReport(): Boolean {
+            val scriptDefinition = definitionProvider.findBaseCompilationConfiguration(this)?.valueOr { failure ->
+                if (acceptsAnyValid) {
+                    val reportsDescription = failure.reports.joinToString(prefix = "\n",separator = "\n") { report ->
+                        report.render(withSeverity = false)
+                    }
+                    configuration.report(
+                        CliDiagnostics.SCRIPTING_WARNING,
+                        "Unable to find script definition for ${locationId ?: "script"}: $reportsDescription"
+                    )
+                }
+                return false
+            } ?: run {
+                if (acceptsAnyValid) {
+                    configuration.report(
+                        CliDiagnostics.SCRIPTING_WARNING,
+                        "Unable to find script definition for ${locationId ?: "script"}"
+                    )
+                }
+                return false
+            }
+            // We ignore 'isStandalone' scripts silently (this flag is true by default)
+            // See KT-52525
+            return acceptsAnyValid || scriptDefinition[ScriptCompilationConfiguration.isStandalone] == false
+        }
 
         val sourcesToFiles = sources
             .associateBy(KtSourceFile::toSourceCode)
-            .filterTo(mutableMapOf()) { definitionProvider.isScript(it.key) }
+            .filterTo(mutableMapOf()) { it.key.isAcceptedOrReport() }
 
         val remainingSources = ArrayList<SourceCode>().also { it.addAll(sourcesToFiles.keys) }
         val knownSources = sourcesToFiles.keys.mapTo(mutableSetOf()) { it.locationId?.toSystemIndependentScriptPath() }
@@ -120,7 +151,9 @@ class CollectAdditionalScriptSourcesExtension : CollectAdditionalSourceFilesExte
         while (remainingSources.isNotEmpty()) {
             val sourceCode = remainingSources.pop()
             sourceCode.collectImports()?.let { imports ->
-                imports.filter { knownSources.add(it.locationId?.toSystemIndependentScriptPath()) }.forEach { newImport ->
+                imports.filter {
+                    knownSources.add(it.locationId?.toSystemIndependentScriptPath()) && it.isAcceptedOrReport()
+                }.forEach { newImport ->
                     remainingSources.add(newImport)
                     toSourceFile(newImport)?.let {
                         sourcesToFiles[newImport] = it
@@ -129,6 +162,8 @@ class CollectAdditionalScriptSourcesExtension : CollectAdditionalSourceFilesExte
                 sourceDependencies[sourceCode] = imports
             }
         }
+
+        environment.updateClasspath(updatedClasspath.toList())
 
         class CycleDetected(val node: SourceCode) : Throwable()
         return try {
@@ -139,7 +174,7 @@ class CollectAdditionalScriptSourcesExtension : CollectAdditionalSourceFilesExte
             }.reversed().mapNotNull { sourcesToFiles[it] }
         } catch (e: CycleDetected) {
             configuration.report(
-                CompilerMessageSeverity.ERROR,
+                CliDiagnostics.SCRIPTING_ERROR,
                 "Unable to handle recursive script dependencies, cycle detected on file ${e.node.name ?: e.node.locationId}",
             )
             sourcesToFiles.values
@@ -171,65 +206,32 @@ class CollectAdditionalScriptSourcesExtension : CollectAdditionalSourceFilesExte
         projectEnvironment: VfsBasedProjectEnvironment,
     ): FirSession =
         dummySessionForAnnotationResolution ?: run {
-
-            val extensionStorage = CompilerPluginRegistrar.ExtensionStorage()
-            with(ScriptingK2CompilerPluginRegistrar()) { extensionStorage.registerExtensions(configuration) }
-            extensionStorage.registerInProject(projectEnvironment.project) {
-                "Error on plugin registration: ${it.javaClass.name}"
-            }
-
             val extensionRegistrars = configuration.getCompilerExtensions(FirExtensionRegistrar)
 
             val dependencies = hostConfiguration[ScriptingHostConfiguration.configurationDependencies].orEmpty() +
                     scriptCompilationConfiguration[ScriptCompilationConfiguration.dependencies].orEmpty()
-            val classpath = dependencies.flatMap {
-                (it as? JvmDependency)?.classpath ?: emptyList()
-            }
+            val classpath = dependencies.compilationClasspathOf(scriptCompilationConfiguration)
+            projectEnvironment.updateClasspath(classpath)
 
             val moduleDataProvider = ScriptingModuleDataProvider("dummy", classpath.map(File::toPath))
 
-            val sessionFactoryContext = FirJvmSessionFactory.Context(
-                configuration = configuration,
-                projectEnvironment = projectEnvironment,
-                librariesScope = PsiBasedProjectFileSearchScope(ProjectScope.getLibrariesScope(projectEnvironment.project)),
-            )
-            val sharedLibrarySession = FirJvmSessionFactory.createSharedLibrarySession(
-                mainModuleName = Name.special("<dummy>"),
-                extensionRegistrars = extensionRegistrars,
-                languageVersionSettings = configuration.languageVersionSettings,
-                context = sessionFactoryContext,
+            val sessionFactoryContext = createScriptingSessionFactoryContext(configuration, projectEnvironment)
+            createScriptingLibrarySessions(
+                Name.special("<dummy>"),
+                moduleDataProvider,
+                extensionRegistrars,
+                configuration.languageVersionSettings,
+                sessionFactoryContext,
             )
 
-            FirJvmSessionFactory.createLibrarySession(
-                sharedLibrarySession,
-                moduleDataProvider = moduleDataProvider,
-                extensionRegistrars = extensionRegistrars,
-                languageVersionSettings = configuration.languageVersionSettings,
-                context = sessionFactoryContext,
-            )
-
-            FirJvmSessionFactory.createSourceSession(
-                moduleData = moduleDataProvider.addNewScriptModuleData(Name.special("<raw-script>")),
-                javaSourcesScope = AbstractProjectFileSearchScope.EMPTY,
-                createIncrementalCompilationSymbolProviders = { null },
-                extensionRegistrars = extensionRegistrars,
-                configuration = configuration,
-                context = sessionFactoryContext,
-                needRegisterJavaElementFinder = true,
-                isForLeafHmppModule = false,
-                init = {},
-            ).apply {
-                register(
-                    FirScriptCompilationComponent::class,
-                    FirScriptCompilationComponent(hostConfiguration, { _, _ -> this })
-                )
-                dummySessionForAnnotationResolution = this
-            }
+            createScriptSourceSession(
+                moduleDataProvider.addNewScriptModuleData(Name.special("<raw-script>"), isDummy = true),
+                extensionRegistrars,
+                configuration,
+                sessionFactoryContext,
+                hostConfiguration,
+            ).also { dummySessionForAnnotationResolution = it }
         }
 
     private var dummySessionForAnnotationResolution: FirSession? = null
-}
-
-private fun CompilerConfiguration.report(severity: CompilerMessageSeverity, message: String, location: CompilerMessageLocation? = null) {
-    messageCollector.report(severity, message, location)
 }

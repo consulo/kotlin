@@ -60,7 +60,7 @@ open class ConeTypeRenderer(
 
         if (contextParameters.isNotEmpty()) {
             builder.append("context(")
-            for ((index, contextParameter) in contextParameters.withIndex()) {
+            for ([index, contextParameter] in contextParameters.withIndex()) {
                 if (index != 0) {
                     builder.append(", ")
                 }
@@ -77,7 +77,7 @@ open class ConeTypeRenderer(
             builder.append(".")
         }
         builder.append("(")
-        for ((index, argument) in arguments.withIndex()) {
+        for ([index, argument] in arguments.withIndex()) {
             if (index != 0) {
                 builder.append(", ")
             }
@@ -92,7 +92,7 @@ open class ConeTypeRenderer(
 
     fun render(
         type: ConeKotlinType,
-        nullabilityMarker: String = if (type !is ConeFlexibleType && type.isMarkedNullable) "?" else "",
+        nullabilityMarker: String = if (type.needsNullabilityMarker() && type.isMarkedNullable) "?" else "",
     ) {
         if (type !is ConeFlexibleType && type !is ConeDefinitelyNotNullType && type.classId?.isFunctionType() != true) {
             // We don't render attributes for flexible/definitely not null/extension function types here,
@@ -105,6 +105,10 @@ open class ConeTypeRenderer(
             }
 
             is ConeIntersectionType -> {
+                render(type)
+            }
+
+            is ConeUnionType -> {
                 render(type)
             }
 
@@ -129,6 +133,10 @@ open class ConeTypeRenderer(
             }
         }
         builder.append(nullabilityMarker)
+    }
+
+    private fun ConeKotlinType.needsNullabilityMarker(): Boolean {
+        return this !is ConeFlexibleType && this !is ConeIntersectionType && this !is ConeUnionType
     }
 
     private fun renderFunctionType(type: ConeClassLikeType, nullabilityMarker: String = "") {
@@ -244,6 +252,11 @@ open class ConeTypeRenderer(
                 "`renderConstructor` mustn't be called with an intersection type argument. " +
                         "Call `render` to simply render the type or filter out intersection types on the call-site."
             )
+
+            is ConeUnionType -> error(
+                "`renderConstructor` mustn't be called with an intersection type argument. " +
+                        "Call `render` to simply render the type or filter out intersection types on the call-site."
+            )
         }
     }
 
@@ -254,7 +267,7 @@ open class ConeTypeRenderer(
     private fun ConeClassLikeType.renderTypeArguments() {
         if (typeArguments.isEmpty()) return
         builder.append("<")
-        for ((index, typeArgument) in typeArguments.withIndex()) {
+        for ([index, typeArgument] in typeArguments.withIndex()) {
             if (index > 0) {
                 builder.append(", ")
             }
@@ -352,9 +365,27 @@ open class ConeTypeRenderer(
 
     protected open fun render(type: ConeIntersectionType) {
         builder.append("it(")
-        for ((index, intersected) in type.intersectedTypes.withIndex()) {
+        for ([index, intersected] in type.intersectedTypes.withIndex()) {
             if (index > 0) {
                 builder.append(" & ")
+            }
+            this.render(intersected)
+        }
+        builder.append(")")
+    }
+
+    protected open fun render(type: ConeUnionType) {
+        builder.append("union(")
+        type.primaryType.takeUnless { it.isNothing }?.let {
+            builder.append("primary=")
+            if (it.classId?.isFunctionType() == true) it.renderNonCompilerAttributes()
+            this.render(it)
+            builder.append(", ")
+        }
+        builder.append("errors=")
+        for ([index, intersected] in type.richErrorTypes.withIndex()) {
+            if (index > 0) {
+                builder.append(" | ")
             }
             this.render(intersected)
         }

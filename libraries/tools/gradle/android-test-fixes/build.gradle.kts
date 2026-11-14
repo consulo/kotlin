@@ -1,15 +1,12 @@
 import plugins.KotlinBuildPublishingPlugin
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("gradle-plugin-common-configuration")
 }
 
-repositories {
-    google()
-}
-
 dependencies {
-    commonCompileOnly(gradleKotlinDsl())
     commonCompileOnly(libs.android.gradle.plugin.gradle.api) {
         overrideTargetJvmVersion(11)
         isTransitive = false

@@ -7,29 +7,15 @@ package org.jetbrains.kotlin.backend.common.linkage.issues
 
 import org.jetbrains.kotlin.analyzer.CompilationErrorException
 import org.jetbrains.kotlin.backend.common.serialization.IrModuleDeserializer
-import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageDiagnostics
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
-import org.jetbrains.kotlin.ir.IrDiagnosticReporter
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.util.IdSignature
 import org.jetbrains.kotlin.ir.util.render
-import org.jetbrains.kotlin.name.Name
 
 abstract class KotlinIrLinkerIssue {
     protected abstract val errorMessage: String
 
-    fun raiseIssue(messageCollector: MessageCollector): Nothing {
-        messageCollector.report(CompilerMessageSeverity.ERROR, errorMessage, null)
-        throw CompilationErrorException(errorMessage)
-    }
-}
-
-object PartialLinkageErrorsLogged : KotlinIrLinkerIssue() {
-    override val errorMessage = "There are linkage errors reported by the partial linkage engine"
-
-    fun raiseIssue(diagnosticReporter: IrDiagnosticReporter): Nothing {
-        diagnosticReporter.report(PartialLinkageDiagnostics.MAJOR_PARTIAL_LINKAGE_ISSUE, errorMessage)
+    fun raiseIssue(consumer: (String) -> Unit): Nothing {
+        consumer(errorMessage)
         throw CompilationErrorException(errorMessage)
     }
 }
@@ -127,13 +113,6 @@ class SignatureIdNotFoundInModuleWithDependencies(
             // action items:
             append(" Please check that the project configuration is correct and has consistent versions of all required dependencies.")
         }
-    }
-}
-
-class NoDeserializerForModule(moduleName: Name, idSignature: IdSignature?) : KotlinIrLinkerIssue() {
-    override val errorMessage = buildString {
-        append("Could not load module ${moduleName.asString()}")
-        if (idSignature != null) append(" in an attempt to find deserializer for symbol ${idSignature.render()}.")
     }
 }
 

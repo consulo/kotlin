@@ -1,20 +1,17 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.fir.symbols
 
-import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationList
 import org.jetbrains.kotlin.analysis.api.base.KaContextReceiver
 import org.jetbrains.kotlin.analysis.api.fir.*
-import org.jetbrains.kotlin.analysis.api.impl.base.symbols.asKaSymbolModality
-import org.jetbrains.kotlin.analysis.api.impl.base.symbols.toKtClassKind
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.types.KaType
-import org.jetbrains.kotlin.descriptors.Visibility
+import org.jetbrains.kotlin.fir.declarations.isInlineClass
 import org.jetbrains.kotlin.fir.declarations.utils.*
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -56,8 +53,6 @@ internal class KaFirNamedClassSymbol private constructor(
         analysisSession = session,
     )
 
-    override val psi: PsiElement? get() = withValidityAssertion { backingPsi ?: findPsi() }
-
     override val name: Name
         get() = withValidityAssertion { backingPsi?.nameAsSafeName ?: firSymbol.name }
 
@@ -78,8 +73,8 @@ internal class KaFirNamedClassSymbol private constructor(
             backingPsi?.kaSymbolModality ?: firSymbol.modality.asKaSymbolModality
         }
 
-    override val compilerVisibility: Visibility
-        get() = withValidityAssertion { backingPsi?.visibility ?: firSymbol.visibility }
+    override val visibility: KaSymbolVisibility
+        get() = withValidityAssertion { (backingPsi?.visibility ?: firSymbol.visibility).asKaSymbolVisibility }
 
     override val annotations: KaAnnotationList
         get() = withValidityAssertion {
@@ -94,10 +89,20 @@ internal class KaFirNamedClassSymbol private constructor(
 
     override val isInline: Boolean
         get() = withValidityAssertion {
+            when {
+                backingPsi == null -> firSymbol.isInlineClass
+                backingPsi.hasModifier(KtTokens.INLINE_KEYWORD) -> true
+                backingPsi.hasModifier(KtTokens.VALUE_KEYWORD) -> firSymbol.isInlineClass
+                else -> false
+            }
+        }
+
+    override val isValue: Boolean
+        get() = withValidityAssertion {
             if (backingPsi != null) {
                 backingPsi.hasModifier(KtTokens.VALUE_KEYWORD) || backingPsi.hasModifier(KtTokens.INLINE_KEYWORD)
             } else {
-                firSymbol.isInlineOrValue
+                firSymbol.isValue
             }
         }
 

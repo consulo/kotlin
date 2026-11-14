@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkContractDescrip
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.contractDescriptionGuard
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.isCallableWithSpecialBody
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
-import org.jetbrains.kotlin.fir.canHaveDeferredReturnTypeCalculation
 import org.jetbrains.kotlin.fir.contracts.FirRawContractDescription
 import org.jetbrains.kotlin.fir.contracts.FirResolvedContractDescription
 import org.jetbrains.kotlin.fir.declarations.*
@@ -52,9 +51,6 @@ private class LLFirContractsTargetResolver(target: LLFirResolveTarget) : LLFirAb
     override val transformer = FirContractResolveTransformer(resolveTargetSession, resolveTargetScopeSession)
 
     override fun doLazyResolveUnderLock(target: FirElementWithResolveState) {
-        // There is no sense to resolve such declarations as they do not have contracts
-        if (target is FirCallableDeclaration && target.canHaveDeferredReturnTypeCalculation) return
-
         when (target) {
             is FirPrimaryConstructor, is FirErrorPrimaryConstructor -> {
                 // No contracts here

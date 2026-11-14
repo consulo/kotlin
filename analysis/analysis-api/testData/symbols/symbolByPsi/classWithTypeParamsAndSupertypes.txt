@@ -1,6 +1,6 @@
 KaTypeParameterSymbol:
+  anchorPsi: KtTypeParameter
   annotations: []
-  compilerVisibility: Local
   isActual: false
   isExpect: false
   isExternal: false
@@ -9,17 +9,19 @@ KaTypeParameterSymbol:
   modality: FINAL
   name: T
   origin: SOURCE
+  psi: KtTypeParameter
+  realPsi: KtTypeParameter
   upperBounds: []
   variance: INVARIANT
   visibility: LOCAL
   getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: null
 
 KaTypeParameterSymbol:
+  anchorPsi: KtTypeParameter
   annotations: []
-  compilerVisibility: Local
   isActual: false
   isExpect: false
   isExternal: false
@@ -28,20 +30,22 @@ KaTypeParameterSymbol:
   modality: FINAL
   name: U
   origin: SOURCE
+  psi: KtTypeParameter
+  realPsi: KtTypeParameter
   upperBounds: []
   variance: INVARIANT
   visibility: LOCAL
   getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: null
 
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: X
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -50,10 +54,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: ABSTRACT
   name: X
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -62,8 +69,8 @@ KaNamedClassSymbol:
   ]
   typeParameters: [
     KaTypeParameterSymbol:
+      anchorPsi: KtTypeParameter
       annotations: []
-      compilerVisibility: Local
       isActual: false
       isExpect: false
       isExternal: false
@@ -72,16 +79,18 @@ KaNamedClassSymbol:
       modality: FINAL
       name: T
       origin: SOURCE
+      psi: KtTypeParameter
+      realPsi: KtTypeParameter
       upperBounds: []
       variance: INVARIANT
       visibility: LOCAL
       getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaTypeParameterSymbol:
+      anchorPsi: KtTypeParameter
       annotations: []
-      compilerVisibility: Local
       isActual: false
       isExpect: false
       isExternal: false
@@ -90,24 +99,26 @@ KaNamedClassSymbol:
       modality: FINAL
       name: U
       origin: SOURCE
+      psi: KtTypeParameter
+      realPsi: KtTypeParameter
       upperBounds: []
       variance: INVARIANT
       visibility: LOCAL
       getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: X
 
 KaTypeParameterSymbol:
+  anchorPsi: KtTypeParameter
   annotations: []
-  compilerVisibility: Local
   isActual: false
   isExpect: false
   isExternal: false
@@ -116,20 +127,22 @@ KaTypeParameterSymbol:
   modality: FINAL
   name: T
   origin: SOURCE
+  psi: KtTypeParameter
+  realPsi: KtTypeParameter
   upperBounds: []
   variance: INVARIANT
   visibility: LOCAL
   getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: null
 
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: Y
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -138,10 +151,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: ABSTRACT
   name: Y
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -158,8 +174,8 @@ KaNamedClassSymbol:
   ]
   typeParameters: [
     KaTypeParameterSymbol:
+      anchorPsi: KtTypeParameter
       annotations: []
-      compilerVisibility: Local
       isActual: false
       isExpect: false
       isExternal: false
@@ -168,27 +184,29 @@ KaNamedClassSymbol:
       modality: FINAL
       name: T
       origin: SOURCE
+      psi: KtTypeParameter
+      realPsi: KtTypeParameter
       upperBounds: []
       variance: INVARIANT
       visibility: LOCAL
       getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: Y
 
 KaTypeParameterSymbol:
+  anchorPsi: KtTypeParameter
   annotations: [
     org/jetbrains/annotations/NotNull()
       psi: KtAnnotationEntry
   ]
-  compilerVisibility: Local
   isActual: false
   isExpect: false
   isExternal: false
@@ -197,17 +215,19 @@ KaTypeParameterSymbol:
   modality: FINAL
   name: T
   origin: SOURCE
+  psi: KtTypeParameter
+  realPsi: KtTypeParameter
   upperBounds: []
   variance: INVARIANT
   visibility: LOCAL
   getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: null
 
 KaTypeParameterSymbol:
+  anchorPsi: KtTypeParameter
   annotations: []
-  compilerVisibility: Local
   isActual: false
   isExpect: false
   isExternal: false
@@ -216,20 +236,22 @@ KaTypeParameterSymbol:
   modality: FINAL
   name: R
   origin: SOURCE
+  psi: KtTypeParameter
+  realPsi: KtTypeParameter
   upperBounds: []
   variance: INVARIANT
   visibility: LOCAL
   getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: null
 
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: A
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -238,10 +260,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: FINAL
   name: A
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -262,11 +287,11 @@ KaNamedClassSymbol:
   ]
   typeParameters: [
     KaTypeParameterSymbol:
+      anchorPsi: KtTypeParameter
       annotations: [
         org/jetbrains/annotations/NotNull()
           psi: KtAnnotationEntry
       ]
-      compilerVisibility: Local
       isActual: false
       isExpect: false
       isExternal: false
@@ -275,16 +300,18 @@ KaNamedClassSymbol:
       modality: FINAL
       name: T
       origin: SOURCE
+      psi: KtTypeParameter
+      realPsi: KtTypeParameter
       upperBounds: []
       variance: INVARIANT
       visibility: LOCAL
       getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaTypeParameterSymbol:
+      anchorPsi: KtTypeParameter
       annotations: []
-      compilerVisibility: Local
       isActual: false
       isExpect: false
       isExternal: false
@@ -293,17 +320,19 @@ KaNamedClassSymbol:
       modality: FINAL
       name: R
       origin: SOURCE
+      psi: KtTypeParameter
+      realPsi: KtTypeParameter
       upperBounds: []
       variance: INVARIANT
       visibility: LOCAL
       getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(classWithTypeParamsAndSupertypes.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: A

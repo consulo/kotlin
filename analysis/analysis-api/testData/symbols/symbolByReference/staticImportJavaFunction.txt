@@ -1,13 +1,14 @@
 KaNamedFunctionSymbol:
+  anchorPsi: PsiMethodImpl
   annotations: []
   callableId: /Dependency.foo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: false
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: true
   isExpect: false
   isExtension: false
   isExternal: false
@@ -22,6 +23,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: foo
   origin: JAVA_SOURCE
+  psi: PsiMethodImpl
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -34,6 +37,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: Dependency
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: foo
   importableFqName: Dependency.foo

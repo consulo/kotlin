@@ -10,30 +10,20 @@ import org.jetbrains.kotlin.config.disableStandardScriptDefinition
 import org.jetbrains.kotlin.config.scriptingHostConfiguration
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.extensions.FirExtensionSessionComponent
-import org.jetbrains.kotlin.fir.lightTree.LightTree2Fir
-import org.jetbrains.kotlin.fir.resolve.providers.firProvider
-import org.jetbrains.kotlin.fir.resolve.providers.impl.FirProviderImpl
-import org.jetbrains.kotlin.fir.scopes.kotlinScopeProvider
-import org.jetbrains.kotlin.fir.session.sourcesToPathsMapper
 import org.jetbrains.kotlin.scripting.compiler.plugin.configureScriptDefinitions
 import org.jetbrains.kotlin.scripting.compiler.plugin.definitions.*
 import org.jetbrains.kotlin.scripting.compiler.plugin.fir.scriptCompilationComponent
-import org.jetbrains.kotlin.scripting.compiler.plugin.impl.collectAndResolveScriptAnnotationsViaFir
-import org.jetbrains.kotlin.scripting.compiler.plugin.impl.refineAllForK2
-import org.jetbrains.kotlin.scripting.compiler.plugin.impl.toKtSourceFile
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.createScriptAnnotationResolutionSession
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.refineAllWithFirAnnotationSession
 import org.jetbrains.kotlin.scripting.configuration.ScriptingConfigurationKeys
 import org.jetbrains.kotlin.scripting.definitions.ScriptConfigurationsProvider
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionProvider
 import org.jetbrains.kotlin.scripting.resolve.KtFileScriptSource
-import org.jetbrains.kotlin.scripting.resolve.getScriptCollectedData
-import org.jetbrains.kotlin.toSourceLinesMapping
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.ScriptingHostConfiguration
 import kotlin.script.experimental.host.with
-import kotlin.script.experimental.jvm.baseClassLoader
 import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
-import kotlin.script.experimental.jvm.jvm
 
 class FirScriptDefinitionProviderService(
     session: FirSession,
@@ -76,45 +66,28 @@ class FirScriptDefinitionProviderService(
     }
 
     fun getRefinedConfiguration(sourceCode: SourceCode): ResultWithDiagnostics<ScriptCompilationConfiguration>? {
-        @Suppress("DEPRECATION")
-        if (configurationProvider != null)
-            return configurationProvider!!.getScriptCompilationConfiguration(sourceCode)?.onSuccess {
-                it.configuration?.asSuccess() ?: return null
-            }
         // if the cache is not configured, returns base configuration. This is used for accessing configuration during refinement, see collectAndResolveScriptAnnotationsViaFir
         val hostBasedCache = refinedCompilationConfigurationCache ?: return getBaseConfiguration(sourceCode)
         return hostBasedCache.getRefinedCompilationConfiguration(sourceCode) ?: run {
-            getBaseConfiguration(sourceCode)?.onSuccess {
-                (it.refineAllForK2(
-                    sourceCode,
-                    hostConfiguration
-                ) { source, configuration ->
-                    if (source is KtFileScriptSource) {
-                        getScriptCollectedData(
-                            source.ktFile,
-                            configuration,
-                            hostConfiguration[ScriptingHostConfiguration.jvm.baseClassLoader]
-                        ).asSuccess()
-                    } else {
-                        collectAndResolveScriptAnnotationsViaFir(
-                            sourceCode, it, hostConfiguration,
-                            getSessionForAnnotationResolution =
-                                { source, configuration ->
-                                    session.scriptCompilationComponent?.getSessionForAnnotationResolution(source, configuration)
-                                        ?: session
-                                },
-                            convertToFir = { session, diagnosticsReporter ->
-                                val sourcesToPathsMapper = session.sourcesToPathsMapper
-                                val builder = LightTree2Fir(session, session.kotlinScopeProvider, diagnosticsReporter)
-                                val linesMapping = this.text.toSourceLinesMapping()
-                                builder.buildFirFile(text, toKtSourceFile(), linesMapping).also { firFile ->
-                                    (session.firProvider as FirProviderImpl).recordFile(firFile)
-                                    sourcesToPathsMapper.registerFileSource(firFile.source!!, locationId ?: name!!)
-                                }
-                            }
-                        )
+            if (sourceCode is KtFileScriptSource) {
+                @Suppress("DEPRECATION")
+                configurationProvider?.getScriptCompilationConfiguration(sourceCode)?.let {
+                    when (it) {
+                        is ResultWithDiagnostics.Success -> it.value.configuration?.asSuccess()
+                        is ResultWithDiagnostics.Failure -> it
                     }
-                }).also { refined ->
+                }
+            } else null
+        } ?: run {
+            getBaseConfiguration(sourceCode)?.onSuccess {
+                it.refineAllWithFirAnnotationSession(
+                    sourceCode,
+                    hostConfiguration,
+                    // the script's own session cannot be used: the script file would be recorded in it twice
+                    getAnnotationSession = { _, _ -> createScriptAnnotationResolutionSession(session, hostConfiguration) },
+                    // the service is used by the Analysis API as well, where the invalid annotations should not fail the refinement
+                    failOnInvalidAnnotations = false,
+                ).also { refined ->
                     hostBasedCache.storeRefinedCompilationConfiguration(sourceCode, refined)
                 }
             }

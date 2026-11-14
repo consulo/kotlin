@@ -96,6 +96,18 @@ public class SourceLikeLazyTypeAnnotationsTestGenerated extends AbstractSourceLi
     }
 
     @Test
+    @TestMetadata("fullValueClassParameterTypeCollisionAndAnnotations.kt")
+    public void testFullValueClassParameterTypeCollisionAndAnnotations() {
+      run("fullValueClassParameterTypeCollisionAndAnnotations.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassParameterTypeCollisionAndAnnotationsScript.kts")
+    public void testFullValueClassParameterTypeCollisionAndAnnotationsScript() {
+      run("fullValueClassParameterTypeCollisionAndAnnotationsScript.kts");
+    }
+
+    @Test
     @TestMetadata("nestedClassAsAnnotationArgument.kt")
     public void testNestedClassAsAnnotationArgument() {
       run("nestedClassAsAnnotationArgument.kt");
@@ -992,6 +1004,12 @@ public class SourceLikeLazyTypeAnnotationsTestGenerated extends AbstractSourceLi
     public void testTypePropagationFromPropertyWithInaccessibleAnnotationArgument() {
       run("typePropagationFromPropertyWithInaccessibleAnnotationArgument.kt");
     }
+
+    @Test
+    @TestMetadata("unresolvedAnnotations.kt")
+    public void testUnresolvedAnnotations() {
+      run("unresolvedAnnotations.kt");
+    }
   }
 
   @Nested
@@ -1031,6 +1049,12 @@ public class SourceLikeLazyTypeAnnotationsTestGenerated extends AbstractSourceLi
     @Test
     public void testAllFilesPresentInProperty() {
       KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/lazyResolveTypeAnnotations/property"), Pattern.compile("^(.+)\\.(kt|kts)$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("constPropertyWithAnnotatedType.kt")
+    public void testConstPropertyWithAnnotatedType() {
+      run("constPropertyWithAnnotatedType.kt");
     }
 
     @Test
@@ -1079,6 +1103,12 @@ public class SourceLikeLazyTypeAnnotationsTestGenerated extends AbstractSourceLi
     @TestMetadata("explicitBackingFieldWithAnnotatedImplicitType.kt")
     public void testExplicitBackingFieldWithAnnotatedImplicitType() {
       run("explicitBackingFieldWithAnnotatedImplicitType.kt");
+    }
+
+    @Test
+    @TestMetadata("explicitBackingFieldWithAnnotatedPropertyType.kt")
+    public void testExplicitBackingFieldWithAnnotatedPropertyType() {
+      run("explicitBackingFieldWithAnnotatedPropertyType.kt");
     }
 
     @Test
@@ -1355,6 +1385,12 @@ public class SourceLikeLazyTypeAnnotationsTestGenerated extends AbstractSourceLi
     @TestMetadata("resultWithPropagatedTypeUnavailable.kts")
     public void testResultWithPropagatedTypeUnavailable() {
       run("resultWithPropagatedTypeUnavailable.kts");
+    }
+
+    @Test
+    @TestMetadata("setterWithAnnotatedReturnType.kt")
+    public void testSetterWithAnnotatedReturnType() {
+      run("setterWithAnnotatedReturnType.kt");
     }
 
     @Test

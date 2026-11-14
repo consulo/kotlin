@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +FunctionalInterfaceConversion
+// RUN_PIPELINE_TILL: CODEGEN
 
 fun interface Foo {
     fun invoke()

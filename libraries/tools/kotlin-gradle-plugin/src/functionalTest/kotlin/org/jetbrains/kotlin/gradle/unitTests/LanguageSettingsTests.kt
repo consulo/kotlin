@@ -2,8 +2,6 @@
  * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.gradle.api.InvalidUserDataException
@@ -12,7 +10,6 @@ import org.gradle.api.Project
 import org.gradle.api.ProjectConfigurationException
 import org.gradle.api.internal.project.ProjectInternal
 import org.jetbrains.kotlin.config.LanguageVersion
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
@@ -40,7 +37,7 @@ class LanguageSettingsTests {
                 linuxX64()
                 linuxArm64()
 
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 iosArm64()
 
@@ -89,7 +86,7 @@ class LanguageSettingsTests {
                 linuxX64()
                 linuxArm64()
 
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 iosArm64()
 
@@ -253,9 +250,8 @@ class LanguageSettingsTests {
             "androidRelease" to "compileReleaseKotlinAndroid",
             "androidUnitTest" to "compileDebugUnitTestKotlinAndroid",
             "androidUnitTestDebug" to "compileDebugUnitTestKotlinAndroid",
-            "androidUnitTestRelease" to "compileReleaseUnitTestKotlinAndroid",
-            "appleMain" to "compileKotlinMetadata",
-            "appleTest" to "compileKotlinMetadata",
+            "appleMain" to "compileKotlinMacosArm64",
+            "appleTest" to "compileTestKotlinMacosArm64",
             "commonMain" to "compileKotlinMetadata",
             "commonTest" to "compileKotlinMetadata",
             "jsMain" to "compileKotlinJs",
@@ -271,10 +267,8 @@ class LanguageSettingsTests {
             "linuxX64Test" to "compileTestKotlinLinuxX64",
             "macosArm64Main" to "compileKotlinMacosArm64",
             "macosArm64Test" to "compileTestKotlinMacosArm64",
-            "macosMain" to "compileKotlinMetadata",
-            "macosTest" to "compileKotlinMetadata",
-            "macosX64Main" to "compileKotlinMacosX64",
-            "macosX64Test" to "compileTestKotlinMacosX64",
+            "macosMain" to "compileKotlinMacosArm64",
+            "macosTest" to "compileTestKotlinMacosArm64",
             "mingwMain" to "compileKotlinMingwX64",
             "mingwTest" to "compileTestKotlinMingwX64",
             "mingwX64Main" to "compileKotlinMingwX64",
@@ -308,7 +302,6 @@ class LanguageSettingsTests {
                         browser()
                         nodejs()
                     }
-                    @OptIn(ExperimentalWasmDsl::class)
                     wasmJs {
                         browser()
                         nodejs()
@@ -317,8 +310,6 @@ class LanguageSettingsTests {
                     linuxX64()
                     linuxArm64()
                     mingwX64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                    macosX64()
                     macosArm64()
 
                     applyDefaultHierarchyTemplate()

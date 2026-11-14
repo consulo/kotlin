@@ -1,13 +1,11 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("kotlin")
+    id("test-inputs-check")
 }
 
-repositories {
-    mavenCentral()
-}
-
-val testArtifacts by configurations.creating
-val signature by configurations.creating
+val signature = configurations.create("signature")
 
 sourceSets {
     "main" { none() }
@@ -18,24 +16,26 @@ dependencies {
     implementation("org.codehaus.mojo:animal-sniffer:1.21")
     implementation(kotlinStdlib())
 
-    testImplementation(kotlinTest("junit"))
-
-    testArtifacts(project(":kotlin-reflect"))
+    testImplementation(kotlinTest("junit5"))
+    testImplementation(testFixtures(project(":compiler:test-infrastructure-utils")))
 
     signature("org.codehaus.mojo.signature:java16:1.1@signature")
 }
 
 val signaturesDirectory = layout.buildDirectory.get().asFile.resolve("signatures")
 
-val collectSignatures by tasks.registering(Sync::class) {
+val collectSignatures = tasks.register("collectSignatures", Sync::class) {
     from(signature)
     into(signaturesDirectory)
 }
 
-tasks.named<Test>("test") {
-    dependsOn(collectSignatures)
-    dependsOn(testArtifacts)
-
-    systemProperty("kotlinVersion", project.version)
-    systemProperty("signaturesDirectory", signaturesDirectory)
+projectTests {
+    testTask {
+        systemProperty("kotlinVersion", project.version)
+        addDirectoryProperty("signaturesDirectory") {
+            fileProvider(collectSignatures.map { it.destinationDir })
+        }
+        withJvmStdlibAndReflect()
+        withReflectShadowJar()
+    }
 }

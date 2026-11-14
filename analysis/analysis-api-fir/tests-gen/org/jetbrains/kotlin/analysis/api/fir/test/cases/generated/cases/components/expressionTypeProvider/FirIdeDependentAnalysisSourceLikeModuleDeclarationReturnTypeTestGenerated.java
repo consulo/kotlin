@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.expressionTypeProvider.AbstractDeclarationReturnTypeTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.expressionTypeProvider.AbstractDeclarationReturnTypeTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirIdeDependentAnalysisSourceLikeModuleDeclarationReturnTypeTestGen
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Dependent,
         AnalysisApiMode.Ide,
@@ -82,9 +80,27 @@ public class FirIdeDependentAnalysisSourceLikeModuleDeclarationReturnTypeTestGen
   }
 
   @Test
+  @TestMetadata("constructorsAndMembers.kt")
+  public void testConstructorsAndMembers() {
+    run("constructorsAndMembers.kt");
+  }
+
+  @Test
   @TestMetadata("contextParameters.kt")
   public void testContextParameters() {
     run("contextParameters.kt");
+  }
+
+  @Test
+  @TestMetadata("contextParametersOnProperty.kt")
+  public void testContextParametersOnProperty() {
+    run("contextParametersOnProperty.kt");
+  }
+
+  @Test
+  @TestMetadata("danglingContextParameter.kt")
+  public void testDanglingContextParameter() {
+    run("danglingContextParameter.kt");
   }
 
   @Test
@@ -106,6 +122,12 @@ public class FirIdeDependentAnalysisSourceLikeModuleDeclarationReturnTypeTestGen
   }
 
   @Test
+  @TestMetadata("explicitBackingField.kt")
+  public void testExplicitBackingField() {
+    run("explicitBackingField.kt");
+  }
+
+  @Test
   @TestMetadata("functionType.kt")
   public void testFunctionType() {
     run("functionType.kt");
@@ -118,15 +140,33 @@ public class FirIdeDependentAnalysisSourceLikeModuleDeclarationReturnTypeTestGen
   }
 
   @Test
+  @TestMetadata("implicitTypeErrors.kt")
+  public void testImplicitTypeErrors() {
+    run("implicitTypeErrors.kt");
+  }
+
+  @Test
   @TestMetadata("implicitTypeFromTypealiasedConstructorCallWithImplicitTypeArguments.kt")
   public void testImplicitTypeFromTypealiasedConstructorCallWithImplicitTypeArguments() {
     run("implicitTypeFromTypealiasedConstructorCallWithImplicitTypeArguments.kt");
   }
 
   @Test
+  @TestMetadata("lambdaParameters.kt")
+  public void testLambdaParameters() {
+    run("lambdaParameters.kt");
+  }
+
+  @Test
   @TestMetadata("localDeclarations.kt")
   public void testLocalDeclarations() {
     run("localDeclarations.kt");
+  }
+
+  @Test
+  @TestMetadata("loopAndCatchParameters.kt")
+  public void testLoopAndCatchParameters() {
+    run("loopAndCatchParameters.kt");
   }
 
   @Test

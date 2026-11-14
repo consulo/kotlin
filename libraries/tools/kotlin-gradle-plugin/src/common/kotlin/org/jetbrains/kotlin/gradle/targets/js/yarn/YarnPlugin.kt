@@ -7,11 +7,13 @@ package org.jetbrains.kotlin.gradle.targets.js.yarn
 
 import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.targets.js.internal.jsToolingProject
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.JsPlatformDisambiguator
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsPlugin.Companion.kotlinNodeJsEnvSpec
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin.Companion.kotlinNodeJsRootExtension
 import org.jetbrains.kotlin.gradle.targets.js.npm.LockCopyTask
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 import org.jetbrains.kotlin.gradle.targets.web.yarn.CommonYarnPlugin
 
 /**
@@ -19,6 +21,7 @@ import org.jetbrains.kotlin.gradle.targets.web.yarn.CommonYarnPlugin
  * The `YarnPlugin` applies configurations, tasks, and extensions necessary for managing
  * Yarn as a package manager within JS-targeted projects using Gradle.
  */
+@ObsoleteNpmDependencyModel
 open class YarnPlugin : CommonYarnPlugin {
     override fun apply(target: Project) {
         YarnPluginApplier(
@@ -35,9 +38,10 @@ open class YarnPlugin : CommonYarnPlugin {
     }
 
 
+    @ObsoleteNpmDependencyModel
     companion object {
         fun apply(project: Project): YarnRootExtension {
-            val rootProject = project.rootProject
+            val rootProject = project.jsToolingProject()
             rootProject.plugins.apply(YarnPlugin::class.java)
             return rootProject.extensions.getByName(YarnRootExtension.YARN) as YarnRootExtension
         }

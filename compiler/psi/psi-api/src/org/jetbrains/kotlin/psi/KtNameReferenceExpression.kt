@@ -9,7 +9,7 @@ import com.intellij.lang.ASTNode
 import com.intellij.psi.PsiElement
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.tree.TokenSet
-import org.jetbrains.kotlin.KtStubBasedElementTypes
+import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.lexer.KtTokens.*
 import org.jetbrains.kotlin.name.Name
@@ -25,12 +25,52 @@ import org.jetbrains.kotlin.resolution.KtResolvableCall
  * val x = foo
  * //      ^_^
  * ```
+ *
+ * ### Analysis API Resolver Notes:
+ *
+ * Resolves the declaration symbol referenced by the given [KtNameReferenceExpression].
+ *
+ * **Note:** Unlike other `KtResolvableCall` entry points that provide both `resolveSuccessfulCall`
+ * and `resolveSuccessfulSymbol` specializations, `KtNameReferenceExpression.resolveSuccessfulCall` may return a
+ * different `KaSymbol`.
+ *
+ * For instance, this happens for constructor references. While `resolveSuccessfulCall` returns a
+ * `KaConstructorSymbol`, this method returns the corresponding `KaClassLikeSymbol`.
+ *
+ * #### Example #1
+ *
+ * ```kotlin
+ * fun foo() {}
+ *
+ * val x = foo
+ * //      ^^^
+ * ```
+ *
+ * Calling `resolveSuccessfulSymbol()` on the `KtNameReferenceExpression` (`foo`) returns the `KaDeclarationSymbol` of `foo`
+ * if resolution succeeds; otherwise, it returns `null` (e.g., when unresolved or ambiguous).
+ *
+ * [KtNameReferenceExpression] might be resolved not only to callables but also to types.
+ *
+ * #### Example #2
+ *
+ * ```kotlin
+ * class MyClass
+ * object MyObject
+ *
+ * val c = MyClass()
+ * //      ^^^^^^^  resolves to the class `MyClass`
+ *
+ * val o = MyObject
+ * //      ^^^^^^^^  resolves to the object `MyObject`
+ * ```
  */
-@OptIn(KtExperimentalApi::class)
+@OptIn(KtImplementationDetail::class)
 class KtNameReferenceExpression : KtExpressionImplStub<KotlinNameReferenceExpressionStub>, KtSimpleNameExpression, KtResolvableCall {
+    @KtImplementationDetail
     constructor(node: ASTNode) : super(node)
 
-    constructor(stub: KotlinNameReferenceExpressionStub) : super(stub, KtStubBasedElementTypes.REFERENCE_EXPRESSION)
+    @KtImplementationDetail
+    constructor(stub: KotlinNameReferenceExpressionStub) : super(stub, KtNodeTypes.REFERENCE_EXPRESSION)
 
     override fun getReferencedName(): String {
         val stub = greenStub
@@ -60,6 +100,10 @@ class KtNameReferenceExpression : KtExpressionImplStub<KotlinNameReferenceExpres
         return visitor.visitSimpleNameExpression(this, data)
     }
 
+    /**
+     * `true` if this reference is the underscore placeholder `_` (used, for example, to ignore a destructuring component or a
+     * lambda parameter).
+     */
     val isPlaceholder: Boolean
         get() = getIdentifier()?.text?.equals("_") == true
 

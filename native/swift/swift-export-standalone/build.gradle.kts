@@ -1,7 +1,8 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("gradle-plugin-compiler-dependency-configuration")
-    id("project-tests-convention")
 }
 
 description = "Standalone Runner for Swift Export"
@@ -14,6 +15,7 @@ dependencies {
     compileOnly(kotlinStdlib())
 
     implementation(project(":native:native.config"))
+    implementation(project(":compiler:util"))
     implementation(project(":native:swift:sir"))
     implementation(project(":native:swift:sir-providers"))
     implementation(project(":native:swift:sir-light-classes"))
@@ -21,12 +23,19 @@ dependencies {
 
     implementation(project(":analysis:analysis-api"))
     implementation(project(":analysis:analysis-api-standalone"))
+    runtimeOnly(project(":analysis:analysis-api-standalone:analysis-api-standalone-fir"))
 
     implementation(project(":libraries:tools:analysis-api-based-klib-reader"))
+    implementation(project(":kotlin-util-klib"))
+    compileOnly(project(":kotlin-util-klib-metadata"))
 }
 
 sourceSets {
     "main" { projectDefault() }
+}
+
+tasks.named("check") {
+    dependsOn(":native:swift:swift-export-standalone-integration-tests:check")
 }
 
 publish()

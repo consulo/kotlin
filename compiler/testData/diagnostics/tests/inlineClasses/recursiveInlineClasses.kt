@@ -1,6 +1,5 @@
 // RUN_PIPELINE_TILL: FRONTEND
-// LANGUAGE: +InlineClasses
-// DIAGNOSTICS: -INLINE_CLASS_DEPRECATED
+// DIAGNOSTICS: -INLINE_CLASS_DEPRECATED -INLINE_CLASS_DEPRECATED_ERROR
 
 inline class Test1(val x: <!VALUE_CLASS_CANNOT_BE_RECURSIVE!>Test1<!>)
 
@@ -17,7 +16,7 @@ inline class TestRecursionInTypeArguments(val x: List<TestRecursionInTypeArgumen
 
 inline class TestRecursionInArray(val x: Array<TestRecursionInArray>)
 
-inline class TestRecursionInUpperBounds<T : TestRecursionInUpperBounds<T>>(val x: T)
+inline class TestRecursionInUpperBounds<T : TestRecursionInUpperBounds<T>>(val x: <!VALUE_CLASS_CANNOT_BE_RECURSIVE_VIA_TYPE_PARAMETERS_ERROR!>T<!>)
 
 inline class Id<T>(val x: T)
 inline class TestRecursionThroughId(val x: Id<TestRecursionThroughId>)

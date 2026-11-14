@@ -7,13 +7,11 @@ package org.jetbrains.kotlinx.serialization.compiler.backend.ir
 
 import org.jetbrains.kotlin.backend.jvm.ir.getStringConstArgument
 import org.jetbrains.kotlin.backend.jvm.ir.representativeUpperBound
-import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
+import org.jetbrains.kotlin.descriptors.ValueClassBackendAgnosticApi
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrAnnotation
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetEnumValue
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
@@ -69,9 +67,9 @@ internal val IrClass.isInternallySerializableObject: Boolean
     get() = kind == ClassKind.OBJECT && hasSerializableOrMetaAnnotationWithoutArgs()
 
 
-internal fun IrClass.findPluginGeneratedMethod(name: String, afterK2: Boolean): IrSimpleFunction? {
+internal fun IrClass.findPluginGeneratedMethod(name: String): IrSimpleFunction? {
     return this.functions.find {
-        it.name.asString() == name && it.isFromPlugin(afterK2)
+        it.name.asString() == name && it.isFromPlugin()
     }
 }
 
@@ -132,14 +130,14 @@ fun IrClass.hasSerializableOrMetaAnnotation() = checkSerializableOrMetaAnnotatio
 
 private fun IrClass.hasSerializableAnnotationWithArgs(): Boolean {
     val annot = getAnnotation(SerializationAnnotations.serializableAnnotationFqName)
-    return annot?.arguments[0] != null
+    return annot?.argumentMapping[Name.identifier("with")] != null
 }
 
 private fun IrClass.checkSerializableOrMetaAnnotationArgs(mustDoNotHaveArgs: Boolean): Boolean {
     val annot = getAnnotation(SerializationAnnotations.serializableAnnotationFqName)
     if (annot != null) { // @Serializable have higher priority
         if (!mustDoNotHaveArgs) return true
-        if (annot.arguments[0] != null) return false
+        if (annot.argumentMapping[Name.identifier("with")] != null) return false
         return true
     }
     return annotations
@@ -201,14 +199,8 @@ fun IrClass.getSuperClassNotAny(): IrClass? {
     return if (parentClass.defaultType.isAny()) null else parentClass
 }
 
-@OptIn(ObsoleteDescriptorBasedAPI::class)
-internal fun IrDeclaration.isFromPlugin(afterK2: Boolean): Boolean =
-    if (afterK2) {
-        this.origin == IrDeclarationOrigin.GeneratedByPlugin(SerializationPluginKey)
-    } else {
-        // old FE doesn't specify custom origin
-        (this.descriptor as? CallableMemberDescriptor)?.kind == CallableMemberDescriptor.Kind.SYNTHESIZED
-    }
+internal fun IrDeclaration.isFromPlugin(): Boolean =
+    this.origin == IrDeclarationOrigin.GeneratedByPlugin(SerializationPluginKey)
 
 internal fun IrConstructor.isSerializationCtor(): Boolean {
     /*kind == CallableMemberDescriptor.Kind.SYNTHESIZED does not work because DeserializedClassConstructorDescriptor loses its kind*/
@@ -255,8 +247,8 @@ internal fun getSerializableClassDescriptorByCompanion(companion: IrClass): IrCl
 internal fun IrExpression.isInitializePropertyFromParameter(): Boolean =
     this is IrGetValueImpl && this.origin == IrStatementOrigin.INITIALIZE_PROPERTY_FROM_PARAMETER
 
-internal val IrConstructorCall.constructedClass
-    get() = this.symbol.owner.constructedClass
+internal val IrAnnotation.constructedClass
+    get() = this.classSymbol.owner
 
 internal val List<IrAnnotation>.hasAnySerialAnnotation: Boolean
     get() = serialNameValue != null || any { it.constructedClass.isSerialInfoAnnotation }
@@ -274,7 +266,7 @@ val IrClass.primaryConstructorOrFail get() = primaryConstructor ?: error("$this 
  */
 fun IrProperty.getEncodeDefaultAnnotationValue(): Boolean? {
     val call = annotations.findAnnotation(SerializationAnnotations.encodeDefaultFqName) ?: return null
-    val arg = call.arguments[0] ?: return true // ALWAYS by default
+    val arg = call.argumentMapping[Name.identifier("mode")] ?: return true // ALWAYS by default
     val argValue = (arg as? IrGetEnumValue
         ?: error("Argument of enum constructor expected to implement IrGetEnumValue, got $arg")).symbol.owner.name.toString()
     return when (argValue) {
@@ -311,5 +303,12 @@ fun IrSimpleType.argumentTypesOrUpperBounds(): List<IrType> {
     }
 }
 
-internal inline fun IrClass.shouldHaveSpecificSyntheticMethods(functionPresenceChecker: () -> IrSimpleFunction?) =
-    !isSingleFieldValueClass && (isAbstractOrSealedSerializableClass || functionPresenceChecker() != null)
+@OptIn(ValueClassBackendAgnosticApi::class)
+internal inline fun IrClass.shouldHaveSpecificSyntheticMethods(isJvm: Boolean, functionPresenceChecker: () -> IrSimpleFunction?) =
+    !isInlineClass(treatCompatibleFullValueClassesAsInline = !isJvm) && (isAbstractOrSealedSerializableClass || functionPresenceChecker() != null)
+
+// Off JVM, a single-field full value class without a superclass is unboxed like an inline class. It is still serialized like a regular
+// class, through its primary constructor, when it has a supertype, as a polymorphic serializer can't encode an inline class.
+@OptIn(ValueClassBackendAgnosticApi::class)
+internal fun IrClass.isSerializedAsInlineClass(isJvm: Boolean): Boolean =
+    isInlineClass(treatCompatibleFullValueClassesAsInline = !isJvm && superTypes.all { it.isAny() })

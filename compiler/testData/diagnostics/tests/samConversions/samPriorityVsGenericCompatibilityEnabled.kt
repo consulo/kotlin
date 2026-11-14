@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // LANGUAGE: -DisableCompatibilityModeForNewInference
-// SKIP_TXT
 // FULL_JDK
 
 fun <T> bar(action: () -> T): T = action()

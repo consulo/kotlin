@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.jetbrains.kotlin.buildtools.api.CompilerMessageRenderer.Severity
@@ -20,6 +18,7 @@ class ProblemsApiCompilerMessageRendererTest {
         val severity: Severity,
         val message: String,
         val location: SourceLocation?,
+        val diagnosticId: String?,
     )
 
     private class RecordingCompilerDiagnosticsProblemsReporter : CompilerDiagnosticsProblemsReporter {
@@ -29,8 +28,9 @@ class ProblemsApiCompilerMessageRendererTest {
             severity: Severity,
             message: String,
             location: SourceLocation?,
+            diagnosticId: String?,
         ) {
-            calls.add(RecordedCall(severity, message, location))
+            calls.add(RecordedCall(severity, message, location, diagnosticId))
         }
     }
 
@@ -112,6 +112,7 @@ class ProblemsApiCompilerMessageRendererTest {
         assertEquals(Severity.ERROR, call.severity)
         assertEquals("Unresolved reference", call.message)
         assertEquals(location, call.location)
+        assertNull(call.diagnosticId)
     }
 
     @Test
@@ -143,5 +144,29 @@ class ProblemsApiCompilerMessageRendererTest {
 
         assertEquals(1, reporter.calls.size)
         assertEquals("first", reporter.calls.single().message)
+    }
+
+    @Test
+    fun `diagnostic ID is buffered and forwarded to reporter`() {
+        val reporter = RecordingCompilerDiagnosticsProblemsReporter()
+        val renderer = ProblemsApiCompilerMessageRenderer()
+
+        renderer.render(Severity.ERROR, "Redundant CLI argument", null, "REDUNDANT_CLI_ARG")
+        renderer.replayTo(reporter)
+
+        assertEquals(1, reporter.calls.size)
+        assertEquals("REDUNDANT_CLI_ARG", reporter.calls.single().diagnosticId)
+    }
+
+    @Test
+    fun `null diagnostic ID is forwarded as null`() {
+        val reporter = RecordingCompilerDiagnosticsProblemsReporter()
+        val renderer = ProblemsApiCompilerMessageRenderer()
+
+        renderer.render(Severity.WARNING, "some warning", null, null)
+        renderer.replayTo(reporter)
+
+        assertEquals(1, reporter.calls.size)
+        assertNull(reporter.calls.single().diagnosticId)
     }
 }

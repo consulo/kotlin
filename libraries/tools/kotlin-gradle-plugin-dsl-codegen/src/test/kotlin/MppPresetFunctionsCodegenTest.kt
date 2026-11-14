@@ -5,8 +5,10 @@
 package org.jetbrains.kotlin.generators.gradle.dsl
 
 import org.jetbrains.kotlin.generators.arguments.getPrinterForTests
-import kotlin.test.Test
+import org.jetbrains.kotlin.testFederation.MustRunAlways
+import org.junit.jupiter.api.Test
 
+@MustRunAlways
 class MppPresetFunctionsCodegenTest {
     @Test
     fun testTargetContainerCodegenIsUpToDate() {

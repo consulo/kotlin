@@ -8,10 +8,11 @@ package org.jetbrains.kotlin.fir.java.enhancement
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.builtins.StandardNames.DEFAULT_VALUE_PARAMETER
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersion
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.caches.FirCache
 import org.jetbrains.kotlin.fir.caches.FirCachesFactory
@@ -24,38 +25,50 @@ import org.jetbrains.kotlin.fir.declarations.synthetic.FirSyntheticProperty
 import org.jetbrains.kotlin.fir.declarations.synthetic.buildSyntheticProperty
 import org.jetbrains.kotlin.fir.declarations.utils.*
 import org.jetbrains.kotlin.fir.diagnostics.ConeSimpleDiagnostic
+import org.jetbrains.kotlin.fir.expressions.ExplicitTypeArgumentIfMadeFlexibleSyntheticallyTypeAttribute
 import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.expressions.FirErrorExpression
 import org.jetbrains.kotlin.fir.expressions.FirLiteralExpression
 import org.jetbrains.kotlin.fir.expressions.unexpandedClassId
+import org.jetbrains.kotlin.fir.extensions.DeclarationGenerationContext
+import org.jetbrains.kotlin.fir.extensions.declarationGenerators
+import org.jetbrains.kotlin.fir.extensions.extensionService
 import org.jetbrains.kotlin.fir.java.FirJavaTypeConversionMode
 import org.jetbrains.kotlin.fir.java.JavaTypeParameterStack
 import org.jetbrains.kotlin.fir.java.declarations.*
 import org.jetbrains.kotlin.fir.java.symbols.FirJavaOverriddenSyntheticPropertySymbol
 import org.jetbrains.kotlin.fir.java.toConeKotlinTypeProbablyFlexible
+import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.resolve.getSuperTypes
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.substitution.substitutorByMap
+import org.jetbrains.kotlin.fir.resolve.symbol
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.scopes.CallableCopyTypeCalculator
 import org.jetbrains.kotlin.fir.scopes.DeferredCallableCopyReturnType
 import org.jetbrains.kotlin.fir.scopes.deferredCallableCopyReturnType
 import org.jetbrains.kotlin.fir.scopes.jvm.computeJvmDescriptor
-import org.jetbrains.kotlin.fir.symbols.ConeTypeParameterLookupTag
+import org.jetbrains.kotlin.fir.types.ConeTypeParameterLookupTag
 import org.jetbrains.kotlin.fir.symbols.asCone
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.buildErrorTypeRef
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
-import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
-import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
+import org.jetbrains.kotlin.fir.types.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitTypeRefImplWithoutSource
 import org.jetbrains.kotlin.fir.types.jvm.FirJavaTypeRef
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
-import org.jetbrains.kotlin.load.java.*
+import org.jetbrains.kotlin.load.java.AnnotationQualifierApplicabilityType
 import org.jetbrains.kotlin.load.java.AnnotationQualifierApplicabilityType.VALUE_PARAMETER
-import org.jetbrains.kotlin.load.java.typeEnhancement.*
+import org.jetbrains.kotlin.load.java.FakePureImplementationsProvider
+import org.jetbrains.kotlin.load.java.JavaTypeQualifiersByElementType
+import org.jetbrains.kotlin.load.java.JvmAnnotationNames
+import org.jetbrains.kotlin.load.java.structure.impl.JavaClassifierTypeImpl
+import org.jetbrains.kotlin.load.java.typeEnhancement.AbstractSignatureParts
+import org.jetbrains.kotlin.load.java.typeEnhancement.PREDEFINED_FUNCTION_ENHANCEMENT_INFO_BY_SIGNATURE
+import org.jetbrains.kotlin.load.java.typeEnhancement.PredefinedFunctionEnhancementInfo
+import org.jetbrains.kotlin.load.java.typeEnhancement.TypeEnhancementInfo
 import org.jetbrains.kotlin.load.kotlin.SignatureBuildingComponents
 import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.resolve.ReturnValueStatus
@@ -64,11 +77,13 @@ import org.jetbrains.kotlin.types.model.KotlinTypeMarker
 import org.jetbrains.kotlin.types.model.TypeParameterMarker
 import org.jetbrains.kotlin.types.model.TypeSystemContext
 import org.jetbrains.kotlin.util.PrivateForInline
+import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlin.utils.exceptions.checkWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import java.util.EnumMap
 
 class FirSignatureEnhancement(
-    private val owner: FirRegularClass,
+    private val owner: FirJavaClass,
     private val session: FirSession,
     /**
      * If **true** only type parameters from [owner] will be used for enhancement.
@@ -88,7 +103,6 @@ class FirSignatureEnhancement(
 
     private val javaTypeParameterStack: JavaTypeParameterStack
         get() = when {
-            owner !is FirJavaClass -> JavaTypeParameterStack.EMPTY
             enhanceClassHeaderOnly -> owner.classJavaTypeParameterStack
             else -> owner.javaTypeParameterStack
         }
@@ -178,15 +192,17 @@ class FirSignatureEnhancement(
                     this.symbol = symbol
                     this.name = name
                     returnTypeRef = newReturnTypeRef
-                    isFromSource = original.origin.fromSource
+                    javaOrigin = javaOrigin(original.origin.fromSource)
                     isVar = firElement.isVar
                     annotationList = FirDelegatedJavaAnnotationList(firElement)
                     status = firElement.status
                     if (firElement is FirJavaField) {
                         lazyInitializer = firElement.lazyInitializer
                         lazyHasConstantInitializer = firElement.lazyHasConstantInitializer
+                        lazyHasInitializer = firElement.lazyHasInitializer
                     } else {
                         initializer = firElement.initializer
+                        lazyHasInitializer = lazy { firElement.initializer != null }
                     }
 
                     dispatchReceiverType = firElement.dispatchReceiverType
@@ -210,7 +226,7 @@ class FirSignatureEnhancement(
                     symbol = FirJavaOverriddenSyntheticPropertySymbol(propertySymbol.callableId, propertySymbol.getterId)
                     delegateGetter = enhancedGetterSymbol?.fir as FirNamedFunction? ?: getterDelegate
                     delegateSetter = enhancedSetterSymbol?.fir as FirNamedFunction? ?: setterDelegate
-                    customStatus = enhanceStatus(firElement.status, predefinedEnhancementInfo = null, overriddenMembers = overridden)
+                    customStatus = enhanceStatus(firElement.status, firElement, predefinedEnhancementInfo = null, overriddenMembers = overridden)
                     deprecationsProvider = getDeprecationsProviderFromAccessors(session, delegateGetter, delegateSetter)
                     dispatchReceiverType = firElement.dispatchReceiverType
                 }.symbol
@@ -306,7 +322,7 @@ class FirSignatureEnhancement(
         val defaultQualifiers = firMethod.computeDefaultQualifiers()
         val overriddenMembers = precomputedOverridden ?: (firMethod as? FirNamedFunction)?.overridden().orEmpty()
 
-        val (newReturnTypeRef, deferredCalc) = if (firMethod is FirNamedFunction) {
+        val [newReturnTypeRef, deferredCalc] = if (firMethod is FirNamedFunction) {
             enhanceReturnType(firMethod, overriddenMembers, defaultQualifiers, predefinedEnhancementInfo)
         } else {
             firMethod.returnTypeRef to null
@@ -325,7 +341,7 @@ class FirSignatureEnhancement(
         val enhancedContextParameterTypes = mutableListOf<FirResolvedTypeRef>()
         val enhancedValueParameterTypes = mutableListOf<FirResolvedTypeRef>()
 
-        for ((index, valueParameter) in firMethod.valueParameters.withIndex()) {
+        for ([index, valueParameter] in firMethod.valueParameters.withIndex()) {
             val enhancedType = enhanceValueParameterType(
                 ownerFunction = firMethod,
                 overriddenMembers = overriddenMembers,
@@ -349,7 +365,7 @@ class FirSignatureEnhancement(
 
         var typeParameterSubstitutor: ConeSubstitutor? = null
         val declarationOrigin =
-            if (isIntersectionOverride) FirDeclarationOrigin.IntersectionOverride else FirDeclarationOrigin.Enhancement
+            if (isIntersectionOverride) FirDeclarationOrigin.IntersectionOverride else FirDeclarationOrigin.Enhancement(firMethod.origin)
 
         val function = when (firMethod) {
             is FirConstructor -> {
@@ -357,18 +373,19 @@ class FirSignatureEnhancement(
                 val builder: FirAbstractConstructorBuilder = if (firMethod.isPrimary) {
                     FirPrimaryConstructorBuilder().apply {
                         val resolvedStatus = firMethod.status as? FirResolvedDeclarationStatus
-                        status = resolvedStatus ?: FirDeclarationStatusImpl(firMethod.visibility, Modality.FINAL).apply {
+                        val baseStatus = resolvedStatus ?: FirDeclarationStatusImpl(firMethod.visibility, Modality.FINAL).apply {
                             isInner = firMethod.isInner
                             // Java annotation class constructors have stable names, copy flag.
                             hasStableParameterNames = firMethod.hasStableParameterNames
                         }
+                        status = enhanceStatus(baseStatus, firMethod, predefinedEnhancementInfo, overriddenMembers)
                         this.symbol = symbol
                         dispatchReceiverType = firMethod.dispatchReceiverType
                         attributes = firMethod.attributes.copy()
                     }
                 } else {
                     FirConstructorBuilder().apply {
-                        status = firMethod.status
+                        status = enhanceStatus(firMethod.status, firMethod, predefinedEnhancementInfo, overriddenMembers)
                         this.symbol = symbol
                         dispatchReceiverType = firMethod.dispatchReceiverType
                         attributes = firMethod.attributes.copy()
@@ -401,7 +418,7 @@ class FirSignatureEnhancement(
                     origin = declarationOrigin
 
                     this.name = name!!
-                    status = enhanceStatus(firMethod.status, predefinedEnhancementInfo, overriddenMembers)
+                    status = enhanceStatus(firMethod.status, firMethod, predefinedEnhancementInfo, overriddenMembers)
                     isLocal = false
                     symbol = if (isIntersectionOverride) {
                         FirIntersectionOverrideFunctionSymbol(
@@ -492,6 +509,7 @@ class FirSignatureEnhancement(
             if (isJavaRecordComponent) {
                 this.isJavaRecordComponent = true
             }
+            (this as? FirNamedFunction)?.setEqualityBoundTypeFromOverridden(overriddenMembers, session)
             updateIsOperatorFlagIfNeeded(this)
         }
 
@@ -500,6 +518,7 @@ class FirSignatureEnhancement(
 
     private fun enhanceStatus(
         original: FirDeclarationStatus,
+        declaration: FirCallableDeclaration,
         predefinedEnhancementInfo: PredefinedFunctionEnhancementInfo?,
         overriddenMembers: List<FirCallableDeclaration>,
     ): FirDeclarationStatus {
@@ -507,8 +526,17 @@ class FirSignatureEnhancement(
         predefinedEnhancementInfo?.returnValueStatus?.takeIf { it != ReturnValueStatus.Unspecified }?.let { newRvStatus ->
             return original.copy(returnValueStatus = newRvStatus)
         }
-        overriddenMembers.firstNotNullOfOrNull { declaration ->
-            declaration.status.returnValueStatus.takeIf { it != ReturnValueStatus.Unspecified }
+        val computed = session.mustUseReturnValueStatusComponent.computeMustUseReturnValueForJavaCallable(
+            session,
+            declaration.symbol,
+            owner.symbol,
+            owner.javaPackage?.annotations?.mapNotNull { it.classId }
+        )
+        if (computed != ReturnValueStatus.Unspecified) {
+            return original.copy(returnValueStatus = computed)
+        }
+        overriddenMembers.firstNotNullOfOrNull { overridden ->
+            overridden.status.returnValueStatus.takeIf { it != ReturnValueStatus.Unspecified }
         }?.let { newRvStatus ->
             return original.copy(returnValueStatus = newRvStatus)
         }
@@ -563,7 +591,7 @@ class FirSignatureEnhancement(
                 containingDeclarationSymbol = functionSymbol
             } else typeParameter
             if (typeParameter is FirTypeParameter) {
-                typeParameterSubstitutionMap[typeParameter.symbol] = ConeTypeParameterTypeImpl(
+                typeParameterSubstitutionMap[typeParameter.symbol] = ConeTypeParameterType(
                     newTypeParameter.symbol.toLookupTag(), isMarkedNullable = false
                 )
             }
@@ -781,51 +809,153 @@ class FirSignatureEnhancement(
 
 
     fun enhanceSuperTypes(nonEnhancedSuperTypes: List<FirTypeRef>): List<FirTypeRef> {
-        val purelyImplementedSupertype = getPurelyImplementedSupertype(moduleData.session)
-        val purelyImplementedSupertypeClassId = purelyImplementedSupertype?.classId
+        val purelyImplementedSupertypeWithEnhancement = getPurelyImplementedSupertypesWithEnhancement(moduleData.session)
+        val purelyImplementedSupertypeClassIds = purelyImplementedSupertypeWithEnhancement.types.map { it.classId }
+        val purelyImplementedSupertypeClassIdForWarning = purelyImplementedSupertypeWithEnhancement.enhancedTypeForWarning?.classId
         return buildList {
             nonEnhancedSuperTypes.mapNotNullTo(this) { superType ->
                 enhanceSuperType(superType).takeUnless {
-                    purelyImplementedSupertypeClassId != null && it.coneType.classId == purelyImplementedSupertypeClassId
+                    it.coneType.classId in purelyImplementedSupertypeClassIds ||
+                            it.coneType.classId == purelyImplementedSupertypeClassIdForWarning
                 }
             }
-            purelyImplementedSupertype?.let {
+            purelyImplementedSupertypeWithEnhancement.types.forEach {
+                add(buildResolvedTypeRef { coneType = it })
+            }
+            purelyImplementedSupertypeWithEnhancement.enhancedTypeForWarning?.let {
                 add(buildResolvedTypeRef { coneType = it })
             }
         }
     }
 
-    private fun getPurelyImplementedSupertype(session: FirSession): ConeKotlinType? {
+    private data class TypesWithEnhancement(val types: List<ConeKotlinType>, val enhancedTypeForWarning: ConeKotlinType?)
+
+    private fun getPurelyImplementedSupertypesWithEnhancement(session: FirSession): TypesWithEnhancement {
         val purelyImplementedClassIdFromAnnotation = owner.annotations
             .firstOrNull { it.unexpandedClassId?.asSingleFqName() == JvmAnnotationNames.PURELY_IMPLEMENTS_ANNOTATION }
             ?.let { (it.argumentMapping.mapping.values.firstOrNull() as? FirLiteralExpression) }
             ?.let { it.value as? String }
             ?.takeIf { it.isNotBlank() && isValidJavaFqName(it) }
             ?.let { ClassId.topLevel(FqName(it)) }
-        val purelyImplementedClassId = purelyImplementedClassIdFromAnnotation
-            ?: FakePureImplementationsProvider.getPurelyImplementedInterface(owner.symbol.classId)
-            ?: return null
-        val superTypeSymbol = session.symbolProvider.getClassLikeSymbolByClassId(purelyImplementedClassId) ?: return null
+        val purelyImplementedClassIds = listOfNotNull(
+            purelyImplementedClassIdFromAnnotation,
+            FakePureImplementationsProviderWithUpdates.getPurelyImplementedInterface(
+                owner.symbol.classId,
+                languageVersionSettings = session.languageVersionSettings
+            ),
+            FakePureImplementationsProvider.getPurelyImplementedInterface(owner.symbol.classId),
+        )
+        val purelyImplementedClassIdForWarnings =
+            FakePureImplementationsProviderWithUpdates.getPurelyImplementedInterfaceForWarnings(
+                owner.symbol.classId,
+                languageVersionSettings = session.languageVersionSettings
+            )
+        return TypesWithEnhancement(
+            types = purelyImplementedClassIds.mapNotNull {
+                it.buildPurelyImplementedSupertypeWithEnhancement(session, purelyImplementedClassIdFromAnnotation)
+            },
+            enhancedTypeForWarning = purelyImplementedClassIdForWarnings?.buildPurelyImplementedSupertypeWithEnhancement(
+                session,
+                purelyImplementedClassIdFromAnnotation,
+                relevantFeatureForAttributeIfNeeded = LanguageFeature.ConcurrentMapPurelyImplemented
+            )
+        )
+    }
+
+    private fun ClassId.buildPurelyImplementedSupertypeWithEnhancement(
+        session: FirSession,
+        purelyImplementedClassIdFromAnnotation: ClassId?,
+        relevantFeatureForAttributeIfNeeded: LanguageFeature? = null,
+    ): ConeKotlinType? {
+        val superTypeSymbol = session.symbolProvider.getClassLikeSymbolByClassId(this) ?: return null
         val superTypeParameterSymbols = superTypeSymbol.typeParameterSymbols
         val typeParameters = owner.typeParameters
         val supertypeParameterCount = superTypeParameterSymbols.size
         val typeParameterCount = typeParameters.size
         val parametersAsTypeProjections = when {
             typeParameterCount == supertypeParameterCount ->
-                typeParameters.map { ConeTypeParameterTypeImpl(ConeTypeParameterLookupTag(it.symbol), isMarkedNullable = false) }
+                typeParameters.map { ConeTypeParameterType(ConeTypeParameterLookupTag(it.symbol), isMarkedNullable = false) }
             typeParameterCount == 1 && supertypeParameterCount > 1 && purelyImplementedClassIdFromAnnotation == null -> {
                 val projection =
-                    ConeTypeParameterTypeImpl(ConeTypeParameterLookupTag(typeParameters.first().symbol), isMarkedNullable = false)
+                    ConeTypeParameterType(ConeTypeParameterLookupTag(typeParameters.first().symbol), isMarkedNullable = false)
                 (1..supertypeParameterCount).map { projection }
             }
             else -> return null
         }
         return ConeClassLikeTypeImpl(
-            purelyImplementedClassId.toLookupTag(),
-            parametersAsTypeProjections.toTypedArray(),
+            toLookupTag(),
+            if (relevantFeatureForAttributeIfNeeded == null) {
+                parametersAsTypeProjections.toTypedArray()
+            } else {
+                parametersAsTypeProjections.map { type ->
+                    ConeFlexibleType(
+                        lowerBound = type.withAttributes(
+                            type.attributes.add(
+                                ExplicitTypeArgumentIfMadeFlexibleSyntheticallyTypeAttribute(
+                                    coneType = type,
+                                    relevantFeature = relevantFeatureForAttributeIfNeeded
+                                )
+                            )
+                        ),
+                        upperBound = ConeTypeParameterType(type.lookupTag, isMarkedNullable = true),
+                        isTrivial = true,
+                    )
+                }.toTypedArray()
+            },
             isMarkedNullable = false
         )
     }
+
+    object FakePureImplementationsProviderWithUpdates {
+        fun getPurelyImplementedInterface(classFqName: ClassId, languageVersionSettings: LanguageVersionSettings): ClassId? {
+            for ([feature, map] in pureImplementationsClassIds.entries) {
+                if (!languageVersionSettings.supportsFeature(feature)) continue
+                map[classFqName]?.let { return it }
+            }
+            return null
+        }
+
+        fun getPurelyImplementedInterfaceForWarnings(classFqName: ClassId, languageVersionSettings: LanguageVersionSettings): ClassId? {
+            for ([feature, map] in pureImplementationsClassIds.entries) {
+                if (languageVersionSettings.supportsFeature(feature)) continue
+                map[classFqName]?.let { return it }
+            }
+            return null
+        }
+
+        private val pureImplementationsClassIds: EnumMap<LanguageFeature, MutableMap<ClassId, ClassId>> =
+            EnumMap(LanguageFeature::class.java)
+
+        context(feature: LanguageFeature)
+        private infix fun ClassId.implementedWith(implementations: List<ClassId>) {
+            val destination = pureImplementationsClassIds[feature]!!
+            implementations.forEach {
+                require(it !in destination)
+                destination[it] = this
+            }
+        }
+
+        @Suppress("SameParameterValue")
+        private fun withFeature(feature: LanguageFeature, action: context(LanguageFeature) () -> Unit) {
+            if (pureImplementationsClassIds[feature] == null) {
+                pureImplementationsClassIds[feature] = mutableMapOf()
+            }
+            context(feature) { action() }
+        }
+
+        init {
+            withFeature(LanguageFeature.ConcurrentMapPurelyImplemented) {
+                // See KT-8761
+                ClassId.topLevel(FqName("java.util.concurrent.ConcurrentMap")) implementedWith fqNameListOf(
+                    "java.util.concurrent.ConcurrentHashMap", "java.util.concurrent.ConcurrentSkipListMap",
+                )
+            }
+        }
+
+        @Suppress("SameParameterValue")
+        private fun fqNameListOf(vararg names: String): List<ClassId> = names.map { ClassId.topLevel(FqName(it)) }
+    }
+
 
     private fun enhanceSuperType(type: FirTypeRef): FirTypeRef =
         EnhancementSignatureParts(
@@ -1030,8 +1160,65 @@ class FirSignatureEnhancement(
         }
     }
 
-    private fun FirTypeRef.toConeKotlinType(mode: FirJavaTypeConversionMode, source: KtSourceElement?): ConeKotlinType =
-        toConeKotlinTypeProbablyFlexible(session, javaTypeParameterStack, source, mode)
+    private fun FirTypeRef.toConeKotlinType(mode: FirJavaTypeConversionMode, source: KtSourceElement?): ConeKotlinType {
+        val coneType = toConeKotlinTypeProbablyFlexible(session, javaTypeParameterStack, source, mode)
+        return runIf(this is FirJavaTypeRef && type is JavaClassifierTypeImpl && type.classifier == null) {
+            // TODO: drop this branch together with old Java facade (KT-70023)
+            val classLikeSymbol = getClassLikeSymbolFromExtensionService() ?: return@runIf null
+            val typeArguments = coneType.typeArguments.takeIf { it.size == classLikeSymbol.typeParameterSymbols.size }
+            // Note: we have to return ConeClassLikeType in SUPERTYPE mode
+            if (typeArguments != null) {
+                val classLikeType = classLikeSymbol.constructType(typeArguments)
+                if (mode == FirJavaTypeConversionMode.SUPERTYPE) classLikeType else classLikeType.toTrivialFlexibleType(session.typeContext)
+            } else {
+                val rawType = ConeRawType.create(
+                    lowerBound = classLikeSymbol.constructType(
+                        typeArguments = classLikeSymbol.typeParameterSymbols.getProjectionsForRawType(session, nullabilities = null)
+                    ),
+                    upperBound = classLikeSymbol.constructStarProjectedType()
+                )
+                if (mode == FirJavaTypeConversionMode.SUPERTYPE) rawType.lowerBound else rawType
+            }
+        } ?: coneType
+    }
+
+    /**
+     * This function is an introduced quirk for temporary support of Java type resolve for generated classes
+     *
+     * @return generated class symbol that matches the given Java type reference, null otherwise
+     */
+    private fun FirJavaTypeRef.getClassLikeSymbolFromExtensionService(): FirClassLikeSymbol<*>? {
+        val classifierQualifiedName = (type as? JavaClassifierTypeImpl)?.classifierQualifiedName?.let { FqName(it) }
+            ?: return null
+        val context = DeclarationGenerationContext.Nested(owner.symbol, null)
+        val shortName = classifierQualifiedName.shortName()
+        val parent = classifierQualifiedName.parent()
+        var parentSymbol: FirClassSymbol<*>? = owner.symbol
+        if (!parent.isRoot) {
+            val packageFqName = owner.classId.packageFqName
+            val relativeClassName = if (classifierQualifiedName.startsWith(packageFqName)) {
+                // my.package.Owner.Builder
+                FqName(classifierQualifiedName.asString().substring(packageFqName.asString().length + 1))
+            } else {
+                // Assume it's a qualified class name from the same package, like Owner.Builder
+                // We don't consider accesses from other packages here (as then full-pledged resolve is required)
+                classifierQualifiedName
+            }
+            return session.symbolProvider.getClassLikeSymbolByClassId(ClassId(packageFqName, relativeClassName, isLocal = false))
+        }
+        // If we know just a short name (like Builder), go bottom-up the owner class hierarchy to find a class
+        // that may contain such a generated nested class
+        while (parentSymbol != null) {
+            if (session.extensionService.declarationGenerators.any {
+                    shortName in it.getNestedClassifiersNames(parentSymbol, context)
+                }
+            ) {
+                return session.symbolProvider.getClassLikeSymbolByClassId(parentSymbol.classId.createNestedClassId(shortName))
+            }
+            parentSymbol = parentSymbol.getContainingClassSymbol() as? FirClassSymbol<*>
+        }
+        return null
+    }
 }
 
 /**
@@ -1088,7 +1275,7 @@ private class EnhancementSignatureParts(
         get() = this.asCone().classId?.asSingleFqName()?.toUnsafe()
 
     override val KotlinTypeMarker.enhancedForWarnings: ConeKotlinType?
-        get() = this.asCone().enhancedTypeForWarning
+        get() = EnhancedForWarningConeSubstitutor(session.typeContext).substituteOrNull(asCone())
 
     override fun KotlinTypeMarker.isEqual(other: KotlinTypeMarker): Boolean =
         AbstractTypeChecker.equalTypes(session.typeContext, this, other)
@@ -1102,16 +1289,6 @@ private class EnhancementSignatureParts(
         // If 'annotations' is empty or any annotation should propagate nullability, the type should propagate bound nullness.
         // The use of 'none { !... }' is a little ugly, but it seems the only way to achieve the correct empty case.
         get() = annotations.none { !annotationTypeQualifierResolver.shouldPropagateNullability(it) }
-
-    override fun getDefaultNullability(
-        referencedParameterBoundsNullability: NullabilityQualifierWithMigrationStatus?,
-        defaultTypeQualifiers: JavaDefaultQualifiers?,
-    ): NullabilityQualifierWithMigrationStatus? {
-        val defaultNullability = defaultTypeQualifiers?.nullabilityQualifier
-        return defaultNullability?.takeIf { defaultTypeQualifiers.preferQualifierOverBound }
-            ?: referencedParameterBoundsNullability?.takeIf { it.qualifier == NullabilityQualifier.NOT_NULL }
-            ?: defaultNullability
-    }
 }
 
 class FirEnhancedSymbolsStorage(private val cachesFactory: FirCachesFactory) : FirSessionComponent {
@@ -1141,7 +1318,7 @@ class FirEnhancedSymbolsStorage(private val cachesFactory: FirCachesFactory) : F
 
         @OptIn(PrivateForInline::class)
         val enhancedVariables: FirCache<FirVariableSymbol<*>, FirVariableSymbol<*>, Pair<FirSignatureEnhancement, Name>> =
-            cachesFactory.createCache { original, (enhancement, name) ->
+            cachesFactory.createCache { original, [enhancement, name] ->
                 enhancement.enhance(original, name)
             }
     }

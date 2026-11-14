@@ -25,7 +25,7 @@ class DoubleMathNativeTest {
                 doubleArrayOf( 3.75, -1.25),
                 doubleArrayOf( 4.0,  -1.0)
         )
-        for ((a, r) in data) {
+        for ([a, r] in data) {
             assertEquals(r, a.IEEErem(2.5), "($a).IEEErem(2.5)")
         }
 
@@ -66,6 +66,29 @@ class DoubleMathNativeTest {
 
         assertTrue(atan2(Double.NaN, 1.0).isNaN())
         assertTrue(atan2(1.0, Double.NaN).isNaN())
+    }
+
+    @Test fun customNaNRounding() {
+        val quietNaNBitMask = 1L shl 51
+        for (bits in longArrayOf(0x7ff0_0000_0000_0001L, -0x000f_ffff_ffff_ffffL, 0x7ff8000000000001L)) {
+            val value = Double.fromBits(bits)
+            val expectedBits = bits or quietNaNBitMask
+
+            // Here we test signaling NaN quieting & payload preservation that FloatMathTest.rounding() cannot test.
+            ceil(value).toRawBits().let {
+                assertEquals(quietNaNBitMask, it and quietNaNBitMask, "ceil($bits) is not a quiet NaN")
+                assertEquals(expectedBits, it, "ceil($bits) does not preserve the NaN payload")
+            }
+            floor(value).toRawBits().let {
+                assertEquals(quietNaNBitMask, it and quietNaNBitMask, "floor($bits) is not a quiet NaN")
+                assertEquals(expectedBits, it, "floor($bits) does not preserve the NaN payload")
+            }
+            assertEquals(value, truncate(value))
+            round(value).toRawBits().let {
+                assertEquals(quietNaNBitMask, it and quietNaNBitMask, "round($bits) is not a quiet NaN")
+                assertEquals(expectedBits, it, "round($bits) does not preserve the NaN payload")
+            }
+        }
     }
 }
 
@@ -128,7 +151,7 @@ class FloatMathNativeTest {
                 floatArrayOf( 3.75f, -1.25f),
                 floatArrayOf( 4.0f,  -1.0f)
         )
-        for ((a, r) in data) {
+        for ([a, r] in data) {
             assertEquals(r, a.IEEErem(2.5f), "($a).IEEErem(2.5f)")
         }
 
@@ -141,5 +164,76 @@ class FloatMathNativeTest {
 
     @Test fun maxValue() {
         assertEquals(Float.MAX_VALUE, Float.MAX_VALUE + 42)
+    }
+
+    //TODO: once Float.ulp becomes a common API (KT-57155), move this test to libraries/stdlib/test/numbers/MathTest.kt
+    @Test
+    fun ulp() {
+        assertTrue(Float.NaN.ulp.isNaN())
+
+        val customQuietNaN = Float.fromBits(Float.NaN.toBits() or 1)
+        assertTrue(customQuietNaN.ulp.isNaN())
+
+        val customSignalingNaN = Float.fromBits(Float.NaN.toBits() or (1 shl 31))
+        assertTrue(customSignalingNaN.ulp.isNaN())
+
+        assertEquals(Float.MIN_VALUE, (0.0f).ulp)
+        assertEquals(Float.MIN_VALUE, (-0.0f).ulp)
+        assertEquals(Float.MIN_VALUE, Float.MIN_VALUE.ulp)
+        assertEquals(Float.MIN_VALUE, (-Float.MIN_VALUE).ulp)
+        assertEquals(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY.ulp)
+        assertEquals(Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY.ulp)
+
+        val maxUlp = 2.0f.pow(104)
+        assertEquals(maxUlp, Float.MAX_VALUE.ulp)
+        assertEquals(maxUlp, (-Float.MAX_VALUE).ulp)
+
+        // subnormal-normal boundary
+        val minNormalMagnitude = Float.fromBits(0x80_0000)
+        for (normal in [minNormalMagnitude, -minNormalMagnitude]) {
+            val subnormal = if (normal > 0) minNormalMagnitude.nextDown() else normal.nextUp()
+
+            // minNormal.ulp is already Double.MIN_VALUE, can't go below that
+            assertEquals(1.0f, normal.ulp / subnormal.ulp)
+        }
+
+        // power-of-two boundaries
+        for (power in floatArrayOf(-40.0f, -20.0f, -10.0f, 0.0f, 10.0f, 20.0f, 40.0f)) {
+            val magnitude = 2.0f.pow(power)
+            magnitude.let {
+                val previousUlp = it.nextDown().ulp
+
+                assertEquals(2.0f, it.ulp / previousUlp)
+            }
+
+            (-magnitude).let {
+                val previousUlp = it.nextUp().ulp
+
+                assertEquals(2.0f, it.ulp / previousUlp)
+            }
+        }
+    }
+
+    @Test fun customNaNRounding() {
+        val quietNaNBitMask = 1 shl 22
+        for (bits in intArrayOf(0x7f80_0001, -0x007f_ffff, 0x7fc00001)) {
+            val value = Float.fromBits(bits)
+            val expectedBits = bits or quietNaNBitMask
+
+            // Here we test signaling NaN quieting & payload preservation that FloatMathTest.rounding() cannot test.
+            ceil(value).toRawBits().let {
+                assertEquals(quietNaNBitMask, it and quietNaNBitMask, "ceil($bits) is not a quiet NaN")
+                assertEquals(expectedBits, it, "ceil($bits) does not preserve the NaN payload")
+            }
+            floor(value).toRawBits().let {
+                assertEquals(quietNaNBitMask, it and quietNaNBitMask, "floor($bits) is not a quiet NaN")
+                assertEquals(expectedBits, it, "floor($bits) does not preserve the NaN payload")
+            }
+            assertEquals(value, truncate(value))
+            round(value).toRawBits().let {
+                assertEquals(quietNaNBitMask, it and quietNaNBitMask, "round($bits) is not a quiet NaN")
+                assertEquals(expectedBits, it, "round($bits) does not preserve the NaN payload")
+            }
+        }
     }
 }

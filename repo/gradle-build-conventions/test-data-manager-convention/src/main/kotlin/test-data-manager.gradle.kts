@@ -4,97 +4,141 @@
  */
 
 /**
- * Plugin for registering the `manageTestData` task in a module.
+ * Plugin for registering the `checkTestData` and `updateTestData` tasks in a module.
  *
  * Apply this plugin to modules that have managed test data.
  *
+ * ## Tasks
+ *
+ * - **`checkTestData`** ([CheckTestDataModuleTask]) — runs tests and fails on mismatches without
+ *   modifying anything.
+ * - **`updateTestData`** ([UpdateTestDataModuleTask]) — runs tests and updates files on mismatches.
+ *
+ * Both accept their options only via `-P` Gradle properties (not `--option` CLI flags) — see
+ * [AbstractTestDataModuleTask] for the rationale and the full option list.
+ *
  * ## Usage
  *
- * The task can be run in two ways:
+ * ```bash
+ * # Check mode
+ * ./gradlew :analysis:analysis-api-fir:checkTestData \
+ *     -Porg.jetbrains.kotlin.testDataManager.options.testDataPath=path/to/file.kt
  *
- * 1. **Directly** on a single module:
- *    ```bash
- *    ./gradlew :analysis:analysis-api-fir:manageTestData --mode=update
- *    ```
+ * # Update mode
+ * ./gradlew :analysis:analysis-api-fir:updateTestData \
+ *     -Porg.jetbrains.kotlin.testDataManager.options.testDataPath=path/to/file.kt
  *
- * 2. **Via orchestration** from the root `manageTestDataGlobally` task:
- *    ```bash
- *    ./gradlew manageTestDataGlobally --mode=update
- *    ```
+ * # Or across all modules with the plugin (Gradle task-name matching)
+ * ./gradlew updateTestData -Porg.jetbrains.kotlin.testDataManager.options.testClassPattern=.*Fir.*
+ * ```
  *
- * When run via orchestration, the task pulls configuration from the shared
- * [TestDataManagerConfiguration] extension. When run directly, it uses
- * its own `@Option` values from CLI.
+ * There is no global orchestrator task — each module reads its own `-P` properties independently.
  *
  * ## Ordering
  *
- * The task inherits `mustRunAfter` from the module's `test` task, ensuring
- * proper execution order when running globally (e.g., golden modules first).
+ * [TestDataManagerExtension.mustRunAfterProjects] orders the tasks, as well as `test`, across modules
+ * (e.g., golden modules first):
+ *
+ * ```kotlin
+ * testDataManager {
+ *     mustRunAfterProjects.add(":analysis:analysis-api-fir")
+ * }
+ * ```
  */
 
-tasks.register<TestDataManagerModuleTask>(manageTestDataTaskName) {
-    markAsIdeaTestTask()
+val testDataManager = extensions.create<TestDataManagerExtension>("testDataManager")
 
-    // Wire providers from shared config
-    // Note: the config might have values only in the case running the task by the global one
-    val rootConfig = rootProject.extensions.getByType<TestDataManagerConfiguration>()
-    mode.convention(rootConfig.mode.orElse(TestDataManagerMode.DEFAULT))
-    testDataPath.convention(rootConfig.testDataPath)
-    testClassPattern.convention(rootConfig.testClassPattern)
-    goldenOnly.convention(rootConfig.goldenOnly)
-    incremental.convention(rootConfig.incremental)
+tasks.named { it == "test" }.configureEach {
+    mustRunAfter(testDataManager.mustRunAfterProjects.map { projectPaths -> projectPaths.map { "$it:test" } })
+}
 
-    // Capture test task configuration eagerly during configuration (configuration-cache compatible)
-    // Note: taskProvider.map creates a task dependency, so we capture the value directly
-    val testTask = tasks.named<Test>("test").get()
+tasks.register<CheckTestDataModuleTask>(checkTestDataTaskName) {
+    wireOptions(testDataManager)
+}
 
-    // Copy all test task dependencies and inputs, so tests run the same way in the manager as they run normally
-    dependsOn(testTask.dependsOn)
-    dependsOn(testTask.inputs)
+tasks.register<UpdateTestDataModuleTask>(updateTestDataTaskName) {
+    wireOptions(testDataManager)
+}
 
-    // Inherit ordering from test task, but convert :test references to :manageTestData
-    // This ensures proper ordering when running manageTestDataGlobally
-    val testMustRunAfter = testTask.mustRunAfter.getDependencies(testTask)
-    testMustRunAfter.forEach { dependency ->
-        val taskPath = dependency.path
-        if (taskPath.endsWith(":test")) {
-            // Convert :module:test -> :module:manageTestData
-            val manageTestDataPath = "${dependency.project.path}:$manageTestDataTaskName"
-            mustRunAfter(manageTestDataPath)
-        }
-    }
-
-    // Use testTask.classpath to include both compiled test classes AND dependencies
-    classpath = testTask.classpath
-    workingDir = testTask.workingDir
-    environment = testTask.environment
-    jvmArgs = testTask.jvmArgs
-    enableAssertions = testTask.enableAssertions
-    minHeapSize = testTask.minHeapSize
-    maxHeapSize = testTask.maxHeapSize
-    jvmArgumentProviders += testTask.jvmArgumentProviders
-    javaLauncher = testTask.javaLauncher
+/**
+ * Wires a test-data manager-style [JavaExec] task to mirror the module's regular `test` task
+ * so tests run the same way under the manager as they do normally.
+ *
+ * Shared by both [CheckTestDataModuleTask] and [UpdateTestDataModuleTask] registrations.
+ */
+private fun AbstractTestDataModuleTask.wireOptions(extension: TestDataManagerExtension) {
+    /**
+     * Wires each option's convention from its `-P` Gradle property. The providers are resolved lazily at
+     * execution time, so they are not configuration-cache inputs — see [AbstractTestDataModuleTask].
+     */
+    testDataPath.convention(project.providers.gradleProperty(TestDataManagerOption.TEST_DATA_PATH))
+    testClassPattern.convention(project.providers.gradleProperty(TestDataManagerOption.TEST_CLASS_PATTERN))
+    goldenOnly.convention(project.providers.gradleProperty(TestDataManagerOption.GOLDEN_ONLY).map { it.toBoolean() })
+    incremental.convention(project.providers.gradleProperty(TestDataManagerOption.INCREMENTAL).map { it.toBoolean() })
 
     /**
-     * This disables `KotlinSecurityManager` in the Test Data Manager.
-     * Currently, the policy file is only generated in 'test' tasks (see `test-inputs-check.gradle.kts`), so the policy will be non-existent
-     * until the corresponding test task runs. However, the following properties are still carried on from the 'test' task – unless they're
-     * filtered, the Test Data Manager process will crash:
+     * The `Test` task configured exactly like the module's `test`, but never executed (see `createGeneralTestTask`).
      *
-     * ```
-     * -Djava.security.manager=org.jetbrains.kotlin.security.KotlinSecurityManager
-     * -Djava.security.policy=some/subproject/path/build/permissions-for-test.policy
-     * ```
-     *
-     * Also see KT-84278.
-     * */
-    systemProperties = testTask.systemProperties.filterKeys { !it.startsWith("java.security.") }
+     * All options below are mapped lazily from it. With the configuration cache (on by default in this repository),
+     * the mapped providers are evaluated once, when the cache entry is stored, i.e., after all configuration
+     * of the carrier has been applied, so the `Test` instance is never read while this task executes.
+     * Without the configuration cache, they are evaluated when first queried, right before execution.
+     */
+    val carrier = tasks.named<Test>(testDataManagerWarmupTaskName)
 
-    // Forward idea.active to enable IDE integration in TestDataManagerRunner
+    // Runs everything the carrier depends on: compilation of the test classpath and all its other inputs.
+    // The carrier itself is skipped by its `onlyIf`.
+    dependsOn(carrier)
+
+    // Orders same-named tasks across modules, e.g., `:moduleB:checkTestData` after `:moduleA:checkTestData`.
+    // Resolved as plain task paths when the task graph is built.
+    val peerTaskName = name
+    mustRunAfter(extension.mustRunAfterProjects.map { projectPaths -> projectPaths.map { "$it:$peerTaskName" } })
+
+    javaLauncher.set(carrier.flatMap { it.javaLauncher })
+    workingDirectory.set(carrier.flatMap { it.workingDirectory })
+
+    // Includes both compiled test classes AND dependencies.
+    // `Test.classpath` is a plain `FileCollection` that may be replaced later, so a provider of it is used.
+    classpath(carrier.map { it.classpath })
+
+    // `JavaExec` parses `-ea`, `-Xms`, `-Xmx` and `-D` from `jvmArguments` back into the corresponding options
+    // at execution time, so this is equivalent to copying them one by one, but lazy.
+    jvmArguments.addAll(carrier.map { test ->
+        buildList {
+            addAll(test.jvmArgs)
+            if (test.enableAssertions) add("-ea")
+            test.minHeapSize?.let { add("-Xms$it") }
+            test.maxHeapSize?.let { add("-Xmx$it") }
+
+            /**
+             * Filter out system properties used by `test-inputs-check`.
+             * Otherwise, the task would crash with either missing security policy or `declared-inputs-for-test.txt` file.
+             *
+             * Also see KT-84278.
+             */
+            test.systemProperties
+                .filterKeys { !it.startsWith("java.security.") && !it.startsWith("test.instrumenter.") }
+                .forEach { (key, value) -> add(if (value == null) "-D$key" else "-D$key=$value") }
+        }
+    })
+
+    inheritedEnvironment.set(carrier.map { test -> test.environment.mapValues { it.value.toString() } })
+
+    /**
+     * Filter out JVM argument provider used by `test-inputs-check`
+     */
+    inheritedJvmArgumentProviders.set(carrier.map { test ->
+        test.jvmArgumentProviders.filter { it !is JfrArgumentProvider }
+    })
+
+    // IDE integration: mark the task the same way as `Test` so IDEA's test runner picks it up
+    // and forwards `idea.active` to enable IDE integration in `TestDataManagerRunner`.
     if (project.providers.systemProperty("idea.active").isPresent) {
+        extra["idea.internal.test"] = true
         systemProperty("idea.active", "true")
     }
 
     // Pass project name for unique test IDs when running multiple modules in parallel
-    systemProperty("$testDataManagerOptionsPrefix.projectName", project.path)
+    systemProperty(TestDataManagerOption.PROJECT_NAME, project.path)
 }

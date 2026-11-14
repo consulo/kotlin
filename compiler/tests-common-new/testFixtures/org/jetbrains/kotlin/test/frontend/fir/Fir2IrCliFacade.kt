@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -10,17 +10,18 @@ import org.jetbrains.kotlin.cli.pipeline.Fir2IrPipelineArtifact
 import org.jetbrains.kotlin.cli.pipeline.FrontendPipelineArtifact
 import org.jetbrains.kotlin.cli.pipeline.PipelinePhase
 import org.jetbrains.kotlin.cli.pipeline.withNewDiagnosticCollector
-import org.jetbrains.kotlin.config.messageCollector
 import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
 import org.jetbrains.kotlin.diagnostics.impl.DiagnosticsCollectorImpl
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.util.KotlinMangler
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
+import org.jetbrains.kotlin.test.frontend.fir.FirFrontendFacade.Companion.shouldRunFirFrontendFacade
 import org.jetbrains.kotlin.test.model.BackendKinds
 import org.jetbrains.kotlin.test.model.Frontend2BackendConverter
 import org.jetbrains.kotlin.test.model.FrontendKinds
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
+import org.jetbrains.kotlin.test.checkTestInfrastructure
 
 abstract class Fir2IrCliFacade<Phase, InputPipelineArtifact, OutputPipelineArtifact>(
     testServices: TestServices,
@@ -33,11 +34,22 @@ abstract class Fir2IrCliFacade<Phase, InputPipelineArtifact, OutputPipelineArtif
         InputPipelineArtifact : FrontendPipelineArtifact,
         OutputPipelineArtifact : Fir2IrPipelineArtifact {
 
+    /**
+     * Fir2Ir must run for exactly those modules which were analyzed by the platform FIR frontend, i.e. by [FirCliFacade],
+     * which uses the same predicate.
+     *
+     * Modules compiled to metadata KLIBs by [FirCliMetadataFrontendFacade] are not among them: their [FirOutputArtifact]
+     * wraps a `MetadataFrontendPipelineArtifact`, which [transform] can't handle.
+     */
+    override fun shouldTransform(module: TestModule): Boolean {
+        return super.shouldTransform(module) && shouldRunFirFrontendFacade(module, testServices)
+    }
+
     override fun transform(
         module: TestModule,
         inputArtifact: FirOutputArtifact,
     ): IrBackendInput? {
-        require(inputArtifact is FirCliBasedOutputArtifact<*>) {
+        checkTestInfrastructure(inputArtifact is FirCliBasedOutputArtifact<*>) {
             "${this::class} expects FirCliBasedOutputArtifact as input, but ${inputArtifact::class} was found"
         }
         @Suppress("UNCHECKED_CAST")
@@ -46,7 +58,7 @@ abstract class Fir2IrCliFacade<Phase, InputPipelineArtifact, OutputPipelineArtif
             DiagnosticsCollectorImpl()
         )
         val output = phase.executePhase(input)
-            ?: return processErrorFromCliPhase(cliArtifact.configuration, testServices)
+            ?: return processErrorFromCliPhase(input.configuration, testServices)
         return Fir2IrCliBasedOutputArtifact(output)
     }
 }
@@ -56,8 +68,6 @@ class Fir2IrCliBasedOutputArtifact<A : Fir2IrPipelineArtifact>(val cliArtifact: 
         get() = cliArtifact.result.irModuleFragment
     override val irBuiltIns: IrBuiltIns
         get() = cliArtifact.result.irBuiltIns
-    override val descriptorMangler: KotlinMangler.DescriptorMangler?
-        get() = null
     override val irMangler: KotlinMangler.IrMangler
         get() = cliArtifact.result.components.irMangler
     override val diagnosticReporter: BaseDiagnosticsCollector

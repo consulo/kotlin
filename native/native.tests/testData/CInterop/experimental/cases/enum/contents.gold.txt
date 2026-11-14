@@ -1,5 +1,4 @@
 library {
-  // module name: <dependency.def>
 
   library fragment {
     // package name: dependency
@@ -57,7 +56,7 @@ library {
     }
 
     @kotlinx/cinterop/internal/CEnumVarTypeSize(size = 4)
-    @kotlin/Deprecated(message = "Use sizeOf<T>() or alignOf<T>() instead.", replaceWith = kotlin/ReplaceWith(imports = [], expression = ""), level = kotlin/DeprecationLevel.WARNING)
+    @kotlin/Deprecated(message = "Use sizeOf<T>() or alignOf<T>() instead.", replaceWith = kotlin/ReplaceWith(imports = [], expression = ""), level = kotlin/DeprecationLevel.ERROR)
     public final companion object dependency/E1.Var.Companion : kotlinx/cinterop/CPrimitiveVar.Type {
 
       private constructor()

@@ -1,15 +1,15 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.platform.declarations
 
+import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.KaPlatformInterface
 import org.jetbrains.kotlin.fileClasses.javaFileFacadeFqName
 import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.psi.*
-import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.yieldIfNotNull
 
 @KaPlatformInterface
@@ -28,14 +28,15 @@ public class KotlinFileBasedDeclarationProvider(public val kotlinFile: KtFile) :
         }
 
     override fun getClassLikeDeclarationByClassId(classId: ClassId): KtClassLikeDeclaration? {
-        return getClassLikeDeclarationsByClassId(classId).firstOrNull()
+        return getDeclarationsByClassId(classId).filterIsInstance<KtClassLikeDeclaration>().firstOrNull()
     }
 
     override fun getAllClassesByClassId(classId: ClassId): Collection<KtClassOrObject> {
-        return getClassLikeDeclarationsByClassId(classId).filterIsInstance<KtClassOrObject>().toList()
+        return getDeclarationsByClassId(classId).filterIsInstance<KtClassOrObject>().toList()
     }
 
-    private fun getClassLikeDeclarationsByClassId(classId: ClassId): Sequence<KtClassLikeDeclaration> {
+    @OptIn(KtExperimentalApi::class)
+    private fun getDeclarationsByClassId(classId: ClassId): Sequence<KtNamedDeclaration> {
         @OptIn(ClassIdBasedLocality::class)
         if (classId.isLocal) {
             return emptySequence()
@@ -45,7 +46,7 @@ public class KotlinFileBasedDeclarationProvider(public val kotlinFile: KtFile) :
             return emptySequence()
         }
 
-        data class Task(val chunks: List<Name>, val element: KtElement)
+        data class Task(val chunks: List<Name>, val element: PsiElement)
 
         return sequence {
             val tasks = ArrayDeque<Task>()
@@ -61,18 +62,29 @@ public class KotlinFileBasedDeclarationProvider(public val kotlinFile: KtFile) :
                 val (chunks, element) = tasks.removeFirst()
                 assert(chunks.isNotEmpty())
 
-                if (element !is KtNamedDeclaration || element.nameAsName != chunks[0]) {
+                // A `companion { }` block doesn't contribute to the class IDs of its declarations
+                if (element is KtCompanionBlock) {
+                    for (child in element.body.declarationsAndCompanionBlocks) {
+                        tasks.addLast(Task(chunks, child))
+                    }
+
+                    continue
+                }
+
+                // Class IDs of nameless declarations use the safe name
+                if (element !is KtNamedDeclaration || element.nameAsSafeName != chunks[0]) {
                     continue
                 }
 
                 if (chunks.size == 1) {
-                    yieldIfNotNull(element as? KtClassLikeDeclaration)
+                    yieldIfNotNull(element)
                     continue
                 }
 
                 if (element is KtDeclarationContainer) {
                     val newChunks = chunks.subList(1, chunks.size)
-                    for (child in element.declarations) {
+                    val children = (element as? KtClassOrObject)?.body?.declarationsAndCompanionBlocks ?: element.declarations
+                    for (child in children) {
                         tasks.addLast(Task(newChunks, child))
                     }
                 }
@@ -81,11 +93,11 @@ public class KotlinFileBasedDeclarationProvider(public val kotlinFile: KtFile) :
     }
 
     override fun getAllTypeAliasesByClassId(classId: ClassId): Collection<KtTypeAlias> {
-        return getClassLikeDeclarationsByClassId(classId).filterIsInstance<KtTypeAlias>().toList()
+        return getDeclarationsByClassId(classId).filterIsInstance<KtTypeAlias>().toList()
     }
 
     override fun getTopLevelKotlinClassLikeDeclarationNamesInPackage(packageFqName: FqName): Set<Name> {
-        return getTopLevelDeclarationNames<KtClassLikeDeclaration>(packageFqName)
+        return getTopLevelDeclarationNames(packageFqName) { it is KtClassLikeDeclaration }
     }
 
     override fun getTopLevelProperties(callableId: CallableId): Collection<KtProperty> {
@@ -104,7 +116,7 @@ public class KotlinFileBasedDeclarationProvider(public val kotlinFile: KtFile) :
     }
 
     override fun getTopLevelCallableNamesInPackage(packageFqName: FqName): Set<Name> {
-        return getTopLevelDeclarationNames<KtCallableDeclaration>(packageFqName)
+        return getTopLevelDeclarationNames(packageFqName) { it is KtCallableDeclaration }
     }
 
     override fun findFilesForFacadeByPackage(packageFqName: FqName): Collection<KtFile> {
@@ -149,22 +161,24 @@ public class KotlinFileBasedDeclarationProvider(public val kotlinFile: KtFile) :
 
         return buildList {
             for (declaration in topLevelDeclarations) {
-                if (declaration is T && declaration.nameAsName == name) {
+                // IDs of nameless declarations use the safe name
+                if (declaration is T && declaration.nameAsSafeName == name) {
                     add(declaration)
                 }
             }
         }
     }
 
-    private inline fun <reified T : KtNamedDeclaration> getTopLevelDeclarationNames(packageFqName: FqName): Set<Name> {
+    private inline fun getTopLevelDeclarationNames(packageFqName: FqName, filter: (KtNamedDeclaration) -> Boolean): Set<Name> {
         if (kotlinFile.packageFqName != packageFqName) {
             return emptySet()
         }
 
         return buildSet {
             for (declaration in topLevelDeclarations) {
-                if (declaration is T) {
-                    addIfNotNull(declaration.nameAsName)
+                // IDs of nameless declarations use the safe name
+                if (declaration is KtNamedDeclaration && filter(declaration)) {
+                    add(declaration.nameAsSafeName)
                 }
             }
         }

@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.standalone.fir.test.configurators.Analy
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.symbolDeclarationOverridesProvider.AbstractOverriddenDeclarationProviderTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.symbolDeclarationOverridesProvider.AbstractOverriddenDeclarationProviderTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirStandaloneNormalAnalysisSourceModuleOverriddenDeclarationProvide
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirStandaloneModeTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.Source,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Standalone,
@@ -73,6 +71,18 @@ public class FirStandaloneNormalAnalysisSourceModuleOverriddenDeclarationProvide
   @TestMetadata("delegateOverrideWithoutImplicitTypeInsideAnonymousObject.kt")
   public void testDelegateOverrideWithoutImplicitTypeInsideAnonymousObject() {
     run("delegateOverrideWithoutImplicitTypeInsideAnonymousObject.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassCustomEquals.kt")
+  public void testFullValueClassCustomEquals() {
+    run("fullValueClassCustomEquals.kt");
   }
 
   @Test
@@ -175,6 +185,12 @@ public class FirStandaloneNormalAnalysisSourceModuleOverriddenDeclarationProvide
   @TestMetadata("javaGetterImplementingKotlinProperty_MethodMode.kt")
   public void testJavaGetterImplementingKotlinProperty_MethodMode() {
     run("javaGetterImplementingKotlinProperty_MethodMode.kt");
+  }
+
+  @Test
+  @TestMetadata("javaGetterImplementingKotlinProperty_MethodMode_Plugin.kt")
+  public void testJavaGetterImplementingKotlinProperty_MethodMode_Plugin() {
+    run("javaGetterImplementingKotlinProperty_MethodMode_Plugin.kt");
   }
 
   @Test

@@ -58,7 +58,7 @@ internal class StringTableBuilder {
     private var index = 0
 
     operator fun String.unaryPlus() {
-        this@StringTableBuilder.indices.getOrPut(this) { index++ }
+        this@StringTableBuilder.indices.computeIfAbsent(this) { index++ }
     }
 
     fun build() = StringTable(indices)
@@ -76,7 +76,7 @@ internal class StringTable(val indices: Map<String, Int>) {
     fun serialize(stream: ByteArrayStream) {
         val lengths = IntArray(indices.size)
         val strings = Array(indices.size) { "" }
-        indices.forEach { (string, index) ->
+        indices.forEach { [string, index] ->
             lengths[index] = string.length
             strings[index] = string
         }

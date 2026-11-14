@@ -1,7 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +ProperForInArrayLoopRangeVariableAssignmentSemantic
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_VALUE
-// SKIP_TXT
 
 fun testObjectArray() {
     var xs = arrayOf("a", "b", "c")

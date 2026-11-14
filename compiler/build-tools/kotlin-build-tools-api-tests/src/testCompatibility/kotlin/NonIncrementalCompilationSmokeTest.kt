@@ -7,26 +7,32 @@ package org.jetbrains.kotlin.buildtools.tests
 
 import org.jetbrains.kotlin.buildtools.api.RemovedCompilerArgument
 import org.jetbrains.kotlin.buildtools.api.arguments.ExperimentalCompilerArgument
+import org.jetbrains.kotlin.buildtools.api.arguments.JsCompilerArguments.Companion.X_EXPORT_KDOC
 import org.jetbrains.kotlin.buildtools.api.arguments.JvmCompilerArguments
+import org.jetbrains.kotlin.buildtools.api.js.JsPlatformToolchain.Companion.js
 import org.jetbrains.kotlin.buildtools.tests.compilation.BaseCompilationTest
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertLogContainsSubstringExactlyTimes
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertOutputs
-import org.jetbrains.kotlin.buildtools.tests.compilation.model.DefaultStrategyAgnosticCompilationTest
-import org.jetbrains.kotlin.buildtools.tests.compilation.model.LogLevel
-import org.jetbrains.kotlin.buildtools.tests.compilation.model.project
+import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertOutputsContains
+import org.jetbrains.kotlin.buildtools.tests.compilation.model.*
+import org.jetbrains.kotlin.buildtools.tests.compilation.util.unwrap
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.assertThrows
+import kotlin.io.path.readText
 
 class NonIncrementalCompilationSmokeTest : BaseCompilationTest() {
     @DisplayName("Non-incremental compilation produces only expected outputs in multi-module setup")
     @DefaultStrategyAgnosticCompilationTest
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun multiModule(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        project(strategyConfig) {
-            val module1 = module("jvm-module-1")
-            val module2 = module("jvm-module-2", listOf(module1))
+        jvmProject(strategyConfig) {
+            val module1 = module("basic-multimodule-project/module-1")
+            val module2 = module("basic-multimodule-project/module-2", listOf(module1))
 
             module1.compile {
                 assertOutputs("FooKt.class", "Bar.class", "BazKt.class")
@@ -41,12 +47,12 @@ class NonIncrementalCompilationSmokeTest : BaseCompilationTest() {
     @DefaultStrategyAgnosticCompilationTest
     @TestMetadata("kotlin-java-mixed")
     fun mixedJavaKotlin(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        project(strategyConfig) {
+        jvmProject(strategyConfig) {
             val module1 = module("kotlin-java-mixed")
 
             module1.compile {
                 assertOutputs("bpkg/MainKt.class", "bpkg/BClass.class")
-                if (strategyConfig.first::class.simpleName != "KotlinToolchainsV1Adapter") { // v1 is not producing some logs and that's expected
+                if (strategyConfig.first.unwrap()::class.simpleName != "KotlinToolchainsV1Adapter") { // v1 is not producing some logs and that's expected
                     assertLogContainsSubstringExactlyTimes(LogLevel.DEBUG, "AClass.java", 1) // no duplication of java sources
                 }
             }
@@ -56,10 +62,10 @@ class NonIncrementalCompilationSmokeTest : BaseCompilationTest() {
     @OptIn(ExperimentalCompilerArgument::class, RemovedCompilerArgument::class)
     @DisplayName("Using removed argument throws on unsupported compiler versions")
     @DefaultStrategyAgnosticCompilationTest
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun removedArgument(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        project(strategyConfig) {
-            val module1 = module("jvm-module-1") {
+        jvmProject(strategyConfig) {
+            val module1 = module("basic-multimodule-project/module-1") {
                 it.compilerArguments[JvmCompilerArguments.X_USE_K2_KAPT] = true
             }
             val compilerVersion = kotlinToolchain.getCompilerVersion()
@@ -94,10 +100,10 @@ class NonIncrementalCompilationSmokeTest : BaseCompilationTest() {
     @OptIn(ExperimentalCompilerArgument::class)
     @DisplayName("Using recently added argument throws on unsupported compiler versions")
     @DefaultStrategyAgnosticCompilationTest
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun addedArgument(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        project(strategyConfig) {
-            val module1 = module("jvm-module-1") {
+        jvmProject(strategyConfig) {
+            val module1 = module("basic-multimodule-project/module-1") {
                 it.compilerArguments[JvmCompilerArguments.X_ANNOTATIONS_IN_METADATA] = true
             }
             if (kotlinToolchain.getCompilerVersion().startsWith("2.0") || kotlinToolchain.getCompilerVersion().startsWith("2.1")) {
@@ -108,6 +114,72 @@ class NonIncrementalCompilationSmokeTest : BaseCompilationTest() {
                     assertOutputs("FooKt.class", "Bar.class", "BazKt.class")
                 }
             }
+        }
+    }
+
+    @BtaV2StrategyAgnosticCompilationTest
+    fun basicJsCompilation(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        jsProject(strategyConfig) {
+            val libModule = module("js-ic-basic-lib")
+            val appModule = module("js-ic-basic-app", listOf(libModule))
+            libModule.compile()
+            appModule.compile()
+            appModule.link {
+                assertOutputs("js-ic-basic-app.js")
+            }
+        }
+    }
+
+    @BtaV2StrategyAgnosticCompilationTest
+    fun basicWasmCompilation(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        wasmProject(strategyConfig) {
+            val libModule = module("js-ic-basic-lib")
+            val appModule = module("js-ic-basic-app", listOf(libModule))
+            libModule.compile()
+            appModule.compile()
+            appModule.link {
+                assertOutputs(
+                    "js-ic-basic-app.wasm",
+                    "js-ic-basic-app.mjs",
+                    "js-ic-basic-app.import-object.mjs",
+                    "js-ic-basic-app.js-builtins.mjs",
+                )
+            }
+        }
+    }
+
+    @OptIn(ExperimentalCompilerArgument::class)
+    @BtaV2StrategyAgnosticCompilationTest
+    @TestMetadata("js-only-ic-basic-app")
+    fun basicJsRichDtsGeneration(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        val [toolchains] = strategyConfig
+        toolchains.assumeJsIsSupported()
+
+        val kotlinToolingVersion = KotlinToolingVersion(toolchains.getCompilerVersion())
+        if (kotlinToolingVersion < KotlinToolingVersion(2, 5, 0, "Beta1")) {
+            val exception = assertThrows<UnsupportedOperationException> {
+                toolchains.js.jsDtsGenerationOperationBuilder(emptyList(), workingDirectory.resolve("dts"))
+            }
+            assertEquals("JsDtsGenerationOperation is available from Kotlin compiler version 2.5.0", exception.message)
+            return
+        }
+
+        assumeTrue(KotlinToolingVersion(toolchains.getCompilerVersion()) >= KotlinToolingVersion(2, 5, 0, "Beta2"))
+
+        jsProject(strategyConfig, useRichDtsGenerator = true) {
+            val libModule = module("js-ic-basic-lib")
+            val appModule = module("js-only-ic-basic-app", listOf(libModule)) {
+                it.compilerArguments[X_EXPORT_KDOC] = true
+            }
+            libModule.compile()
+            appModule.compile()
+            appModule.link(destinationDirectory = appModule.outputDirectory.resolve("out")) {
+                assertOutputsContains("js-only-ic-basic-app.js", "js-only-ic-basic-app.d.ts")
+            }
+
+            val dts = appModule.outputDirectory.resolve("out/js-only-ic-basic-app.d.ts").readText()
+            assertTrue("function richDts(value: string): string" in dts)
+            assertTrue("* A declaration generated from KLIB metadata." in dts)
         }
     }
 }

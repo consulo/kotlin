@@ -1,7 +1,5 @@
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     `kotlin-dsl`
@@ -11,19 +9,11 @@ plugins {
 
 description = "Foreign Class Usage Checker – track dependency usage in libraries"
 
-repositories {
-    mavenCentral { setUrl("https://cache-redirector.jetbrains.com/maven-central") }
-    gradlePluginPortal()
-    maven("https://packages.jetbrains.team/maven/p/ij/intellij-dependencies") {
-        content {
-            includeGroupByRegex("org\\.jetbrains\\.intellij\\.deps(\\..+)?")
-        }
-    }
-}
-
 kotlin {
     @OptIn(ExperimentalKotlinGradlePluginApi::class, ExperimentalBuildToolsApi::class)
-    compilerVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation
+    compilerVersion = embeddedKotlinVersion
+    @Suppress("DEPRECATION")
+    coreLibrariesVersion = embeddedKotlinVersion
     jvmToolchain(17)
 
     compilerOptions {
@@ -32,9 +22,8 @@ kotlin {
 }
 
 dependencies {
-    compileOnly(kotlin("stdlib", embeddedKotlinVersion))
     implementation(libs.intellij.asm)
-    implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:${libs.versions.kotlin.`for`.gradle.plugins.compilation.get()}")
+    implementation("org.jetbrains.kotlin:kotlin-metadata-jvm:$embeddedKotlinVersion")
     implementation(libs.diff.utils)
 }
 
@@ -53,19 +42,15 @@ tasks.withType<AbstractArchiveTask>().configureEach {
     isReproducibleFileOrder = true
 }
 
-tasks.withType<KotlinCompile>().configureEach {
-    compilerOptions {
-        languageVersion.set(KotlinVersion.KOTLIN_2_1)
-        apiVersion.set(KotlinVersion.KOTLIN_2_1)
-    }
-}
-
-project.configurations.named(org.jetbrains.kotlin.gradle.plugin.PLUGIN_CLASSPATH_CONFIGURATION_NAME + "Main") {
-    resolutionStrategy {
-        eachDependency {
-            if (this.requested.group == "org.jetbrains.kotlin") useVersion(libs.versions.kotlin.`for`.gradle.plugins.compilation.get())
+listOf(
+    org.jetbrains.kotlin.gradle.plugin.PLUGIN_CLASSPATH_CONFIGURATION_NAME + "Main",
+    "compilePluginsBlocksPluginClasspathElements",
+).forEach { confName ->
+    project.configurations.named(confName) {
+        resolutionStrategy {
+            eachDependency {
+                if (this.requested.group == "org.jetbrains.kotlin") useVersion(embeddedKotlinVersion)
+            }
         }
     }
 }
-
-kotlin.compilerOptions.moduleName.value(project.name)

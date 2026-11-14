@@ -18,6 +18,8 @@ class Clazz
 
 fun function(arg: Int) = arg
 
+fun fun_with_keywoards(repeat: Int) = repeat
+
 val Int.x: String
     get() = "test"
 
@@ -26,3 +28,6 @@ fun String.y(): Int = 5
 var variable: Int = 0
 
 val constant: Int = 0
+
+@OptIn(kotlin.experimental.ExperimentalObjCName::class)
+fun renamedParameter(@ObjCName(swiftName="_") input: String): Unit = TODO()

@@ -16,6 +16,59 @@ import kotlin.test.assertTrue
 
 @AndroidGradlePluginTests
 class AbiValidationAndroidIT : KGPBaseTest() {
+    @GradleAndroidTest
+    fun testForDisabledAbiValidation(
+        gradleVersion: GradleVersion,
+        agpVersion: String,
+        jdkVersion: JdkVersions.ProvidedJdk,
+    ) {
+        androidProject(gradleVersion, agpVersion, jdkVersion) {
+            // skip lint as it shows the deprecation warning
+            // Skip test due to the bug in 8.8: https://issuetracker.google.com/issues/363264994
+            val tasks = buildList {
+                add("check")
+                addAll(listOf("-x", "lintDebug"))
+                addAll(listOf("-x", "testDebugUnitTest"))
+                if (TestVersions.AgpCompatibilityMatrix.fromVersion(agpVersion) < TestVersions.AgpCompatibilityMatrix.AGP_90) {
+                    addAll(listOf("-x", "testReleaseUnitTest"))
+                }
+            }
+            build(
+                *tasks.toTypedArray(),
+            ) {
+                assertTasksAreNotInTaskGraph(":checkKotlinAbi")
+            }
+        }
+    }
+
+    @GradleAndroidTest
+    fun testForEnabledAbiValidation(
+        gradleVersion: GradleVersion,
+        agpVersion: String,
+        jdkVersion: JdkVersions.ProvidedJdk,
+    ) {
+        androidProject(gradleVersion, agpVersion, jdkVersion) {
+            abiValidation()
+
+            // create the reference dumps to check
+            build("updateKotlinAbi")
+
+            // skip lint as it shows the deprecation warning
+            // Skip test due to the bug in 8.8: https://issuetracker.google.com/issues/363264994
+            val tasks = buildList {
+                add("check")
+                addAll(listOf("-x", "lintDebug"))
+                addAll(listOf("-x", "testDebugUnitTest"))
+                if (TestVersions.AgpCompatibilityMatrix.fromVersion(agpVersion) < TestVersions.AgpCompatibilityMatrix.AGP_90) {
+                    addAll(listOf("-x", "testReleaseUnitTest"))
+                }
+            }
+            build(*tasks.toTypedArray()) {
+                assertTasksExecuted(":checkKotlinAbi")
+            }
+        }
+    }
+
     @DisplayName("KT-78525 (Android)")
     @GradleAndroidTest
     fun testAndroidCompatibilityWithBcv(
@@ -23,7 +76,7 @@ class AbiValidationAndroidIT : KGPBaseTest() {
         agpVersion: String,
         jdkVersion: JdkVersions.ProvidedJdk,
     ) {
-        androidProject(gradleVersion, agpVersion, jdkVersion, applyBcvPlugin = true) {
+        androidProject(gradleVersion, agpVersion, jdkVersion) {
             abiValidation { }
 
             build("updateKotlinAbi")
@@ -31,7 +84,6 @@ class AbiValidationAndroidIT : KGPBaseTest() {
             assertTrue(referenceJvmDumpFile().length() > 0)
 
             build("checkKotlinAbi")
-            build("apiCheck")
         }
     }
 
@@ -42,7 +94,7 @@ class AbiValidationAndroidIT : KGPBaseTest() {
         agpVersion: String,
         jdkVersion: JdkVersions.ProvidedJdk,
     ) {
-        kmpWithAndroidProject(gradleVersion, agpVersion, jdkVersion, applyBcvPlugin = true) {
+        kmpWithAndroidProject(gradleVersion, agpVersion, jdkVersion) {
             abiValidation()
 
             buildScriptInjection {
@@ -62,7 +114,6 @@ class AbiValidationAndroidIT : KGPBaseTest() {
             assertFileContains(referenceMixedAndroidDumpFile.toPath(), "class SimpleClass")
 
             build("checkKotlinAbi")
-            build("apiCheck")
         }
     }
 }

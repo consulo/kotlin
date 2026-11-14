@@ -7,10 +7,10 @@ package org.jetbrains.kotlinx.atomicfu.runners;
 
 import com.intellij.testFramework.TestDataPath;
 import org.jetbrains.kotlin.test.util.KtTestUtil;
-import org.junit.jupiter.api.Tag;
 import org.jetbrains.kotlin.konan.test.blackbox.support.EnforcedProperty;
 import org.jetbrains.kotlin.konan.test.blackbox.support.ClassLevelProperty;
 import org.jetbrains.kotlin.konan.test.blackbox.support.group.UseExtTestCaseGroupProvider;
+import org.junit.jupiter.api.Tag;
 import org.jetbrains.kotlin.konan.test.blackbox.support.EnforcedHostTarget;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Nested;
@@ -23,12 +23,11 @@ import java.util.regex.Pattern;
 @SuppressWarnings("all")
 @TestMetadata("plugins/atomicfu/atomicfu-compiler/testData/box")
 @TestDataPath("$PROJECT_ROOT")
-@Tag("klibIrInliner")
 @EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE")
 @EnforcedProperty(property = ClassLevelProperty.CACHE_MODE, propertyValue = "NO")
-@UseExtTestCaseGroupProvider()
+@UseExtTestCaseGroupProvider
 @Tag("atomicfu-native")
-@EnforcedHostTarget()
+@EnforcedHostTarget
 public class AtomicfuNativeKlibSyntheticAccessorTestGenerated extends AbstractAtomicfuNativeKlibSyntheticAccessorTest {
   private void run(String fileName) {
     runTest("plugins/atomicfu/atomicfu-compiler/testData/box/" + fileName);
@@ -42,12 +41,11 @@ public class AtomicfuNativeKlibSyntheticAccessorTestGenerated extends AbstractAt
   @Nested
   @TestMetadata("plugins/atomicfu/atomicfu-compiler/testData/box/atomic_extensions")
   @TestDataPath("$PROJECT_ROOT")
-  @Tag("klibIrInliner")
   @EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE")
   @EnforcedProperty(property = ClassLevelProperty.CACHE_MODE, propertyValue = "NO")
-  @UseExtTestCaseGroupProvider()
+  @UseExtTestCaseGroupProvider
   @Tag("atomicfu-native")
-  @EnforcedHostTarget()
+  @EnforcedHostTarget
   public class Atomic_extensions {
     private void run(String fileName) {
       runTest("plugins/atomicfu/atomicfu-compiler/testData/box/atomic_extensions/" + fileName);
@@ -86,6 +84,12 @@ public class AtomicfuNativeKlibSyntheticAccessorTestGenerated extends AbstractAt
     @TestMetadata("ExtensionsTest.kt")
     public void testExtensionsTest() {
       run("ExtensionsTest.kt");
+    }
+
+    @Test
+    @TestMetadata("InlineExtensionProperties.kt")
+    public void testInlineExtensionProperties() {
+      run("InlineExtensionProperties.kt");
     }
 
     @Test
@@ -128,12 +132,11 @@ public class AtomicfuNativeKlibSyntheticAccessorTestGenerated extends AbstractAt
   @Nested
   @TestMetadata("plugins/atomicfu/atomicfu-compiler/testData/box/atomics_basic")
   @TestDataPath("$PROJECT_ROOT")
-  @Tag("klibIrInliner")
   @EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE")
   @EnforcedProperty(property = ClassLevelProperty.CACHE_MODE, propertyValue = "NO")
-  @UseExtTestCaseGroupProvider()
+  @UseExtTestCaseGroupProvider
   @Tag("atomicfu-native")
-  @EnforcedHostTarget()
+  @EnforcedHostTarget
   public class Atomics_basic {
     private void run(String fileName) {
       runTest("plugins/atomicfu/atomicfu-compiler/testData/box/atomics_basic/" + fileName);
@@ -217,15 +220,15 @@ public class AtomicfuNativeKlibSyntheticAccessorTestGenerated extends AbstractAt
     }
 
     @Test
-    @TestMetadata("MultiFileCAS.kt")
-    public void testMultiFileCAS() {
-      run("MultiFileCAS.kt");
-    }
-
-    @Test
     @TestMetadata("MultiInitTest.kt")
     public void testMultiInitTest() {
       run("MultiInitTest.kt");
+    }
+
+    @Test
+    @TestMetadata("PlusMinus.kt")
+    public void testPlusMinus() {
+      run("PlusMinus.kt");
     }
 
     @Test
@@ -248,14 +251,74 @@ public class AtomicfuNativeKlibSyntheticAccessorTestGenerated extends AbstractAt
   }
 
   @Nested
-  @TestMetadata("plugins/atomicfu/atomicfu-compiler/testData/box/context_parameters")
+  @TestMetadata("plugins/atomicfu/atomicfu-compiler/testData/box/companion_blocks")
   @TestDataPath("$PROJECT_ROOT")
-  @Tag("klibIrInliner")
   @EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE")
   @EnforcedProperty(property = ClassLevelProperty.CACHE_MODE, propertyValue = "NO")
-  @UseExtTestCaseGroupProvider()
+  @UseExtTestCaseGroupProvider
   @Tag("atomicfu-native")
-  @EnforcedHostTarget()
+  @EnforcedHostTarget
+  public class Companion_blocks {
+    private void run(String fileName) {
+      runTest("plugins/atomicfu/atomicfu-compiler/testData/box/companion_blocks/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInCompanion_blocks() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("plugins/atomicfu/atomicfu-compiler/testData/box/companion_blocks"), Pattern.compile("^(.+)\\.kt$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("ComanionTraces.kt")
+    public void testComanionTraces() {
+      run("ComanionTraces.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockProperties.kt")
+    public void testCompanionBlockProperties() {
+      run("CompanionBlockProperties.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionExtensionProperties.kt")
+    public void testCompanionExtensionProperties() {
+      run("CompanionExtensionProperties.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionFunctions.kt")
+    public void testCompanionFunctions() {
+      run("CompanionFunctions.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionLoopingFunctions.kt")
+    public void testCompanionLoopingFunctions() {
+      run("CompanionLoopingFunctions.kt");
+    }
+
+    @Test
+    @TestMetadata("DelegatedCompanionProperties.kt")
+    public void testDelegatedCompanionProperties() {
+      run("DelegatedCompanionProperties.kt");
+    }
+
+    @Test
+    @TestMetadata("InlineExtensionProperties.kt")
+    public void testInlineExtensionProperties() {
+      run("InlineExtensionProperties.kt");
+    }
+  }
+
+  @Nested
+  @TestMetadata("plugins/atomicfu/atomicfu-compiler/testData/box/context_parameters")
+  @TestDataPath("$PROJECT_ROOT")
+  @EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE")
+  @EnforcedProperty(property = ClassLevelProperty.CACHE_MODE, propertyValue = "NO")
+  @UseExtTestCaseGroupProvider
+  @Tag("atomicfu-native")
+  @EnforcedHostTarget
   public class Context_parameters {
     private void run(String fileName) {
       runTest("plugins/atomicfu/atomicfu-compiler/testData/box/context_parameters/" + fileName);
@@ -276,12 +339,11 @@ public class AtomicfuNativeKlibSyntheticAccessorTestGenerated extends AbstractAt
   @Nested
   @TestMetadata("plugins/atomicfu/atomicfu-compiler/testData/box/delegated")
   @TestDataPath("$PROJECT_ROOT")
-  @Tag("klibIrInliner")
   @EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE")
   @EnforcedProperty(property = ClassLevelProperty.CACHE_MODE, propertyValue = "NO")
-  @UseExtTestCaseGroupProvider()
+  @UseExtTestCaseGroupProvider
   @Tag("atomicfu-native")
-  @EnforcedHostTarget()
+  @EnforcedHostTarget
   public class Delegated {
     private void run(String fileName) {
       runTest("plugins/atomicfu/atomicfu-compiler/testData/box/delegated/" + fileName);
@@ -297,17 +359,22 @@ public class AtomicfuNativeKlibSyntheticAccessorTestGenerated extends AbstractAt
     public void testDelegatedPropertiesTest() {
       run("DelegatedPropertiesTest.kt");
     }
+
+    @Test
+    @TestMetadata("InitializationOrderTest.kt")
+    public void testInitializationOrderTest() {
+      run("InitializationOrderTest.kt");
+    }
   }
 
   @Nested
   @TestMetadata("plugins/atomicfu/atomicfu-compiler/testData/box/locks")
   @TestDataPath("$PROJECT_ROOT")
-  @Tag("klibIrInliner")
   @EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE")
   @EnforcedProperty(property = ClassLevelProperty.CACHE_MODE, propertyValue = "NO")
-  @UseExtTestCaseGroupProvider()
+  @UseExtTestCaseGroupProvider
   @Tag("atomicfu-native")
-  @EnforcedHostTarget()
+  @EnforcedHostTarget
   public class Locks {
     private void run(String fileName) {
       runTest("plugins/atomicfu/atomicfu-compiler/testData/box/locks/" + fileName);
@@ -334,12 +401,11 @@ public class AtomicfuNativeKlibSyntheticAccessorTestGenerated extends AbstractAt
   @Nested
   @TestMetadata("plugins/atomicfu/atomicfu-compiler/testData/box/top-level")
   @TestDataPath("$PROJECT_ROOT")
-  @Tag("klibIrInliner")
   @EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE")
   @EnforcedProperty(property = ClassLevelProperty.CACHE_MODE, propertyValue = "NO")
-  @UseExtTestCaseGroupProvider()
+  @UseExtTestCaseGroupProvider
   @Tag("atomicfu-native")
-  @EnforcedHostTarget()
+  @EnforcedHostTarget
   public class Top_level {
     private void run(String fileName) {
       runTest("plugins/atomicfu/atomicfu-compiler/testData/box/top-level/" + fileName);
@@ -357,6 +423,12 @@ public class AtomicfuNativeKlibSyntheticAccessorTestGenerated extends AbstractAt
     }
 
     @Test
+    @TestMetadata("InvokeLoopFromInlineFun.kt")
+    public void testInvokeLoopFromInlineFun() {
+      run("InvokeLoopFromInlineFun.kt");
+    }
+
+    @Test
     @TestMetadata("TopLevelTest.kt")
     public void testTopLevelTest() {
       run("TopLevelTest.kt");
@@ -366,12 +438,11 @@ public class AtomicfuNativeKlibSyntheticAccessorTestGenerated extends AbstractAt
   @Nested
   @TestMetadata("plugins/atomicfu/atomicfu-compiler/testData/box/trace")
   @TestDataPath("$PROJECT_ROOT")
-  @Tag("klibIrInliner")
   @EnforcedProperty(property = ClassLevelProperty.TEST_KIND, propertyValue = "STANDALONE")
   @EnforcedProperty(property = ClassLevelProperty.CACHE_MODE, propertyValue = "NO")
-  @UseExtTestCaseGroupProvider()
+  @UseExtTestCaseGroupProvider
   @Tag("atomicfu-native")
-  @EnforcedHostTarget()
+  @EnforcedHostTarget
   public class Trace {
     private void run(String fileName) {
       runTest("plugins/atomicfu/atomicfu-compiler/testData/box/trace/" + fileName);

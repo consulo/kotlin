@@ -18,13 +18,14 @@ import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlinx.atomicfu.compiler.backend.AtomicArray
 import org.jetbrains.kotlinx.atomicfu.compiler.backend.AtomicHandlerType
 import org.jetbrains.kotlinx.atomicfu.compiler.backend.VolatilePropertyReference
 import org.jetbrains.kotlinx.atomicfu.compiler.backend.atomicfuRender
 import org.jetbrains.kotlinx.atomicfu.compiler.backend.common.AbstractAtomicfuTransformer.Companion.VOLATILE
+import org.jetbrains.kotlinx.atomicfu.compiler.backend.hasStaticBackingField
 import org.jetbrains.kotlinx.atomicfu.compiler.diagnostic.AtomicfuErrorMessages.CONSTRAINTS_MESSAGE
-import java.util.concurrent.atomic.AtomicInteger
 
 abstract class AbstractAtomicfuIrBuilder(
     protected val irBuiltIns: IrBuiltIns,
@@ -61,11 +62,20 @@ abstract class AbstractAtomicfuIrBuilder(
      *                                                 }
      *                                             }
      */
-    abstract fun irCallFunction (
+    abstract fun irCallFunction(
         symbol: IrSimpleFunctionSymbol,
         arguments: List<IrExpression?>,
         valueType: IrType
     ): IrCall
+
+    protected fun irUnaryMinus(value: IrExpression?): IrExpression? {
+        if (value == null) return null
+        val klass = value.type.getClass() ?: error("No class found for type ${value.type}: ${value.dump()}")
+        val unaryMinus = klass.functions.single {
+            it.name == OperatorNameConventions.UNARY_MINUS && it.hasShape(dispatchReceiver = true)
+        }.symbol
+        return irCallFunction(unaryMinus, listOf(value), value.type)
+    }
 
     protected fun invokeFunctionOnAtomicHandlerClass(
         getAtomicHandler: IrExpression,
@@ -78,11 +88,17 @@ abstract class AbstractAtomicfuIrBuilder(
         val functionSymbol = when (functionName) {
             "get", "<get-value>", "getValue" -> atomicHandlerClassSymbol.getSimpleFunction("get")
             "set", "<set-value>", "setValue", "lazySet" -> atomicHandlerClassSymbol.getSimpleFunction("set")
+            "plusAssign", "minusAssign" -> atomicHandlerClassSymbol.getSimpleFunction("getAndAdd")
             else -> atomicHandlerClassSymbol.getSimpleFunction(functionName)
         } ?: error("No $functionName function found in ${atomicHandlerClassSymbol.owner.render()}")
+        val modifiedArgs = if (functionName == "minusAssign") {
+            valueArguments.dropLast(1) + irUnaryMinus(valueArguments.last())
+        } else {
+            valueArguments
+        }
         return irCallFunction(
             functionSymbol,
-            listOf(getAtomicHandler) + valueArguments,
+            listOf(getAtomicHandler) + modifiedArgs,
             valueType
         )
     }
@@ -105,18 +121,18 @@ abstract class AbstractAtomicfuIrBuilder(
     protected fun irVolatileField(
         name: String,
         valueType: IrType,
-        annotations: List<IrAnnotation>,
+        originalField: IrField,
         parentContainer: IrDeclarationContainer,
     ): IrField {
         return context.irFactory.buildField {
             this.name = Name.identifier(name + VOLATILE)
             this.type = valueType
             isFinal = false
-            isStatic = parentContainer is IrFile
+            isStatic = parentContainer is IrFile || originalField.isStatic
             visibility = DescriptorVisibilities.PRIVATE
             origin = AbstractAtomicSymbols.ATOMICFU_GENERATED_FIELD
         }.apply {
-            this.annotations = annotations + atomicfuSymbols.volatileAnnotation
+            this.annotations = originalField.annotations + atomicfuSymbols.volatileAnnotation
             this.parent = parentContainer
         }
     }
@@ -131,7 +147,7 @@ abstract class AbstractAtomicfuIrBuilder(
         return buildAndInitializeNewField(atomicfuField, parentContainer) { atomicFactoryCall: IrExpression? ->
             val valueType = atomicfuSymbols.atomicToPrimitiveType(atomicfuField.type as IrSimpleType)
             val initValue = atomicFactoryCall?.getAtomicFactoryValueArgument()
-            buildVolatileFieldOfType(atomicfuProperty.name.asString(), valueType, atomicfuField.annotations, initValue, parentContainer)
+            buildVolatileFieldOfType(atomicfuProperty.name.asString(), valueType, atomicfuField, initValue, parentContainer)
         }
     }
 
@@ -145,7 +161,7 @@ abstract class AbstractAtomicfuIrBuilder(
     abstract fun buildVolatileFieldOfType(
         name: String,
         valueType: IrType,
-        annotations: List<IrAnnotation>,
+        originalField: IrField,
         initExpr: IrExpression?,
         parentContainer: IrDeclarationContainer,
     ): IrField
@@ -156,7 +172,7 @@ abstract class AbstractAtomicfuIrBuilder(
             volatileField,
             atomicfuProperty.visibility,
             isVar = true,
-            isStatic = false,
+            isStatic = atomicfuProperty.hasStaticBackingField,
             parentContainer
         )
         return VolatilePropertyReference(volatileProperty)
@@ -176,7 +192,7 @@ abstract class AbstractAtomicfuIrBuilder(
             atomicArrayField,
             atomicfuProperty.visibility,
             isVar = false,
-            isStatic = parentContainer is IrFile,
+            isStatic = parentContainer is IrFile || atomicfuProperty.hasStaticBackingField,
             parentContainer
         )
         return AtomicArray(atomicArrayProperty)
@@ -192,9 +208,11 @@ abstract class AbstractAtomicfuIrBuilder(
         return buildAndInitializeNewField(atomicfuArrayField, parentContainer) { atomicFactoryCall: IrExpression? ->
             val arrayClass = atomicfuSymbols.getAtomicArrayHanlderType(atomicfuArrayField.type)
             val valueType = atomicfuSymbols.atomicArrayToPrimitiveType(atomicfuArrayField.type)
+            val fieldType = if (arrayClass.owner.typeParameters.isNotEmpty()) arrayClass.typeWith(valueType) else arrayClass.defaultType
+
             context.irFactory.buildField {
                 this.name = atomicfuArrayField.name
-                type = arrayClass.defaultType
+                this.type = fieldType
                 this.isFinal = true
                 this.isStatic = atomicfuArrayField.isStatic
                 visibility = DescriptorVisibilities.PRIVATE
@@ -229,7 +247,7 @@ abstract class AbstractAtomicfuIrBuilder(
         val initializer = oldAtomicField.initializer?.expression
         return if (initializer == null) {
             // replace field initialization in the init block
-            val (initBlock, initExprWithIndex) = oldAtomicField.getInitBlockWithIndexedInitExpr(parentContainer)
+            val [initBlock, initExprWithIndex] = oldAtomicField.getInitBlockWithIndexedInitExpr(parentContainer)
                 ?: run {
                     return newFieldBuilder(null)
                 }
@@ -295,9 +313,11 @@ abstract class AbstractAtomicfuIrBuilder(
                 val arrayOfNulls = irCall(atomicfuSymbols.arrayOfNulls).apply {
                     typeArguments[0] = valueType
                     arguments[0] = size
+                    type = context.irBuiltIns.arrayClass.typeWith(valueType.makeNullable())
                 }
                 typeArguments[0] = valueType
                 arguments[0] = arrayOfNulls
+                type = atomicArrayClass.typeWith(valueType)
                 this.dispatchReceiver = dispatchReceiver
             }
         }
@@ -309,25 +329,38 @@ abstract class AbstractAtomicfuIrBuilder(
         dispatchReceiver: IrExpression?,
     ): IrFunctionAccessExpression
 
-    fun irPropertyReference(property: IrProperty, classReceiver: IrExpression?): IrPropertyReferenceImpl {
+    fun irPropertyReference(property: IrProperty, classReceiver: IrExpression?): IrRichPropertyReference {
         val backingField = requireNotNull(property.backingField) { "Backing field of the property $property should not be null" }
-        val isInstanceProperty = property.parentClassOrNull != null
+        val isInstanceProperty = property.parentClassOrNull != null && !backingField.isStatic
         val receiversCount = if (isInstanceProperty && classReceiver == null) 1 else 0
         val kPropertyClass = irBuiltIns.getKPropertyClass(property.isVar, receiversCount).owner
         val substitutionMap = mutableMapOf<IrTypeParameterSymbol, IrType>()
         if (receiversCount == 1)
             substitutionMap[kPropertyClass.typeParameters[0].symbol] = property.parentAsClass.defaultType
         substitutionMap[kPropertyClass.typeParameters.last().symbol] = backingField.type
-        return IrPropertyReferenceImpl(
+        val unboundReceiverType = if (receiversCount == 1) property.parentAsClass.defaultType else null
+        val getter = requireNotNull(property.getter) { "Getter of the property $property should not be null" }
+        val parent = scope.getLocalDeclarationParent()
+        return IrRichPropertyReferenceImpl(
             UNDEFINED_OFFSET, UNDEFINED_OFFSET,
             type = kPropertyClass.defaultType.substitute(substitutionMap),
-            symbol = property.symbol,
-            typeArgumentsCount = 0,
-            field = backingField.symbol,
-            getter = property.getter?.symbol,
-            setter = property.setter?.symbol
+            reflectionTargetSymbol = property.symbol,
+            getterFunction = irBuiltIns.buildRichReferenceWrapper(
+                getter, parent,
+                boundReceiverType = classReceiver?.type,
+                parameterTypes = listOfNotNull(unboundReceiverType),
+                returnType = getter.returnType,
+            ),
+            setterFunction = property.setter?.let { setter ->
+                irBuiltIns.buildRichReferenceWrapper(
+                    setter, parent,
+                    boundReceiverType = classReceiver?.type,
+                    parameterTypes = listOfNotNull(unboundReceiverType) + backingField.type,
+                    returnType = irBuiltIns.unitType,
+                )
+            },
         ).apply {
-            dispatchReceiver = classReceiver
+            if (classReceiver != null) boundValues.add(classReceiver)
         }
     }
 
@@ -360,7 +393,9 @@ abstract class AbstractAtomicfuIrBuilder(
             origin = IrStatementOrigin.LAMBDA
         )
 
-    fun invokePropertyGetter(refGetter: IrExpression) = irCall(atomicfuSymbols.invoke0Symbol).apply { dispatchReceiver = refGetter }
+    fun invokePropertyGetter(refGetter: IrExpression) =
+        irCall(atomicfuSymbols.invoke0Symbol, refGetter.type.getFunctionReturnType()).apply { dispatchReceiver = refGetter }
+
     fun toBoolean(irExpr: IrExpression) = irEquals(irExpr, irInt(1)) as IrCall
     fun toInt(irExpr: IrExpression) = irIfThenElse(irBuiltIns.intType, irExpr, irInt(1), irInt(0))
 
@@ -438,7 +473,7 @@ abstract class AbstractAtomicfuIrBuilder(
                 UNDEFINED_OFFSET, UNDEFINED_OFFSET, listOf(
                     IrReturnImpl(
                         UNDEFINED_OFFSET, UNDEFINED_OFFSET,
-                        irBuiltIns.unitType,
+                        irBuiltIns.nothingType,
                         symbol,
                         IrSetFieldImpl(
                             UNDEFINED_OFFSET, UNDEFINED_OFFSET,
@@ -515,6 +550,7 @@ abstract class AbstractAtomicfuIrBuilder(
                     +irCall(atomicfuSymbols.invoke1Symbol).apply {
                         arguments[0] = irGet(action)
                         arguments[1] = irGet(cur)
+                        type = action.type.getFunctionReturnType()
                     }
                 }
             }
@@ -579,6 +615,7 @@ abstract class AbstractAtomicfuIrBuilder(
                         irCall(atomicfuSymbols.invoke1Symbol).apply {
                             arguments[0] = irGet(action)
                             arguments[1] = irGet(cur)
+                            type = action.type.getFunctionReturnType()
                         }, "atomicfu\$upd", false
                     )
                     +irIfThen(
@@ -600,4 +637,9 @@ abstract class AbstractAtomicfuIrBuilder(
                 }
             }
         }
+
+    private fun IrType.getFunctionReturnType(): IrType {
+        require(isFunction()) { "Expected FunctionN type, but got: ${this.render()}" }
+        return (this as IrSimpleType).arguments.last().typeOrFail
+    }
 }

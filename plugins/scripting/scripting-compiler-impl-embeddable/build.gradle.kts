@@ -1,6 +1,8 @@
 description = "Kotlin Compiler Infrastructure for Scripting for embeddable compiler"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     java
 }
 
@@ -8,6 +10,7 @@ dependencies {
     embedded(project(":kotlin-scripting-compiler-impl")) { isTransitive = false }
     runtimeOnly(project(":kotlin-scripting-common"))
     runtimeOnly(project(":kotlin-scripting-jvm"))
+    runtimeOnly(project(":kotlin-script-runtime")) // legacy script templates support, KT-87149
     runtimeOnly(kotlinStdlib())
 }
 

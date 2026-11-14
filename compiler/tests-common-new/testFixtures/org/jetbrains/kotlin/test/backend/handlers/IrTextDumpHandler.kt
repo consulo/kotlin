@@ -13,18 +13,21 @@ import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.DumpIrTreeOptions
 import org.jetbrains.kotlin.ir.util.DumpIrTreeOptions.FlagsFilter
 import org.jetbrains.kotlin.ir.util.allOverridden
-import org.jetbrains.kotlin.ir.util.dump
+import org.jetbrains.kotlin.ir.util.dumpOrFail
 import org.jetbrains.kotlin.ir.util.dumpTreesFromLineNumber
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
-import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.CHECK_BYTECODE_LISTING
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.DUMP_EXTERNAL_CLASS
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.DUMP_IR
+import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.DUMP_IR_DIFFERENCE
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.EXTERNAL_FILE
+import org.jetbrains.kotlin.test.directives.TestDumpDirectives
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.directives.model.SimpleDirective
+import org.jetbrains.kotlin.test.directives.model.ValueDirective
 import org.jetbrains.kotlin.test.model.BackendKind
 import org.jetbrains.kotlin.test.model.TestFile
 import org.jetbrains.kotlin.test.model.TestModule
@@ -32,8 +35,8 @@ import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.independentSourceDirectoryPath
 import org.jetbrains.kotlin.test.services.independentSourceDirectoryPathsTransitive
 import org.jetbrains.kotlin.test.services.moduleStructure
+import org.jetbrains.kotlin.test.testInfraError
 import org.jetbrains.kotlin.test.utils.MultiModuleInfoDumper
-import org.jetbrains.kotlin.test.utils.withExtension
 import org.jetbrains.kotlin.test.utils.withSuffixAndExtension
 import org.jetbrains.kotlin.utils.addToStdlib.applyIf
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
@@ -44,11 +47,11 @@ class IrTextDumpHandler(
     artifactKind: BackendKind<IrBackendInput>,
     val customExtension: String? = null,
     val directive: SimpleDirective = DUMP_IR,
+    val directiveForIrDifference: ValueDirective<TargetBackend> = DUMP_IR_DIFFERENCE,
     val showOffsets: Boolean = false,
 ) : AbstractIrHandler(testServices, artifactKind) {
     companion object {
         const val DUMP_EXTENSION = "ir.txt"
-        const val DUMP_EXTENSION2 = "ir2.txt"
 
         fun List<IrFile>.groupWithTestFiles(testServices: TestServices, ordered: Boolean = false): List<Pair<Pair<TestModule, TestFile>?, IrFile>> {
             return mapNotNull { irFile ->
@@ -59,9 +62,9 @@ class IrTextDumpHandler(
                 }
                 moduleAndFile to irFile
             }.applyIf(ordered) {
-                sortedBy { (moduleAndFile, irFile) ->
+                sortedBy { [moduleAndFile, irFile] ->
                     val pathFromIrFile = irFile.fileEntry.name
-                    val (module, _) = moduleAndFile ?: return@sortedBy pathFromIrFile
+                    val [module, _] = moduleAndFile ?: return@sortedBy pathFromIrFile
                     pathFromIrFile.removePrefix(module.independentSourceDirectoryPath(testServices))
                 }
             }
@@ -88,24 +91,19 @@ class IrTextDumpHandler(
             irFileEntry: IrFileEntry,
             fullPath: String,
         ): String {
-            val (correspondingModule, _) = testFileToIrFile.firstOrNull { it.second.fileEntry == irFileEntry }?.first ?: return fullPath
+            val [correspondingModule, _] = testFileToIrFile.firstOrNull { it.second.fileEntry == irFileEntry }?.first ?: return fullPath
             return fullPath.removePrefix(correspondingModule.independentSourceDirectoryPath(testServices))
         }
     }
 
     override val directiveContainers: List<DirectivesContainer>
-        get() = listOf(CodegenTestDirectives)
+        get() = listOf(TestDumpDirectives, CodegenTestDirectives)
 
     private val pathRelativizer = IrFileEntryPathRelativizer(testServices)
 
     private val baseDumper = MultiModuleInfoDumper()
-    private val buildersForSeparateFileDumps: MutableMap<File, StringBuilder> = mutableMapOf()
-
-    private var byteCodeListingEnabled = false
 
     override fun processModule(module: TestModule, info: IrBackendInput) {
-        byteCodeListingEnabled = byteCodeListingEnabled || CHECK_BYTECODE_LISTING in module.directives
-
         if (directive !in module.directives) return
 
         pathRelativizer.addModule(module)
@@ -133,14 +131,17 @@ class IrTextDumpHandler(
         )
         val builder = baseDumper.builderForModule(module.name)
 
-        for ((moduleAndFile, irFile) in info.irModuleFragment.files.groupWithTestFiles(testServices, ordered = true)) {
-            if (moduleAndFile?.second?.directives?.contains(EXTERNAL_FILE) == true) continue
+        for ([moduleAndFile, irFile] in info.irModuleFragment.files.groupWithTestFiles(testServices, ordered = true)) {
+            val testFile = moduleAndFile?.second
+            if (testFile?.directives?.contains(EXTERNAL_FILE) == true || moduleAndFile?.second?.isAdditional == true) continue
             val actualDump = irFile.dumpTreesFromLineNumber(lineNumber = 0, dumpOptions)
             builder.append(actualDump)
         }
 
         compareDumpsOfExternalClasses(module, info)
     }
+
+    private val externalFiles = mutableMapOf<File, String>()
 
     private fun compareDumpsOfExternalClasses(module: TestModule, info: IrBackendInput) {
         val externalClassIds = module.directives[DUMP_EXTERNAL_CLASS]
@@ -150,10 +151,13 @@ class IrTextDumpHandler(
         assertions.assertAll(
             externalClassIds.map { externalClassId ->
                 {
-                    val classDump = info.findExternalClass(externalClassId).dump(dumpOptions)
+                    val classDump = info.findExternalClass(externalClassId).dumpOrFail(dumpOptions)
                     val suffix = ".__${externalClassId.replace("/", ".")}"
                     val expectedFile = baseFile.withSuffixAndExtension(suffix, getDumpExtension())
                     assertions.assertEqualsToFile(expectedFile, classDump)
+
+                    val classBaseDump = baseFile.withSuffixAndExtension(suffix, getBaseDumpExtension())
+                    externalFiles[classBaseDump] = classDump
                 }
             }
         )
@@ -164,27 +168,31 @@ class IrTextDumpHandler(
 
         @OptIn(InternalSymbolFinderAPI::class)
         return irBuiltIns.symbolFinder.findClass(classId)?.owner
-            ?: assertions.fail { "Can't find a class in external dependencies: $externalClassId" }
+            ?: testInfraError( "Can't find a class in external dependencies: $externalClassId" )
     }
 
     override fun processAfterAllModules(someAssertionWasFailed: Boolean) {
-        val moduleStructure = testServices.moduleStructure
-        val defaultExpectedFile = moduleStructure.originalTestDataFiles.first()
-            .withExtension(getDumpExtension())
-        checkOneExpectedFile(defaultExpectedFile, baseDumper.generateResultingDump())
-        buildersForSeparateFileDumps.entries.forEach { (expectedFile, dump) -> checkOneExpectedFile(expectedFile, dump.toString()) }
+        val actualDump = baseDumper.generateResultingDump()
+        val baseDumpExtension = getBaseDumpExtension()
+
+        validateTargetSpecificDumpFile(
+            testServices, assertions,
+            baseDumpExtension = baseDumpExtension,
+            directiveForIrDifference,
+            actualDump,
+            isKotlinLikeDump = false,
+            externalFilesDumps = externalFiles,
+        )
     }
 
-    private fun checkOneExpectedFile(expectedFile: File, actualDump: String) {
-        if (actualDump.isNotEmpty()) {
-            assertions.assertEqualsToFile(expectedFile, actualDump)
-        } else {
-            assertions.assertFileDoesntExist(expectedFile, directive)
-        }
+    private fun getBaseDumpExtension(): String {
+        return customExtension ?: DUMP_EXTENSION
     }
 
     private fun getDumpExtension(): String {
-        return customExtension ?: (if (byteCodeListingEnabled) DUMP_EXTENSION2 else DUMP_EXTENSION)
+        return customExtension
+            ?: getTargetSpecificDumpExtension(testServices, getBaseDumpExtension())
+            ?: getBaseDumpExtension()
     }
 }
 

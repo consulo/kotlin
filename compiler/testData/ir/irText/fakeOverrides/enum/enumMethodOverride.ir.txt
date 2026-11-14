@@ -6,16 +6,20 @@ FILE fqName:<root> fileName:/1.kt
         ENUM_CONSTRUCTOR_CALL 'public constructor <init> (name: kotlin.String, ordinal: kotlin.Int) declared in kotlin.Enum'
           TYPE_ARG E: <root>.A
         INSTANCE_INITIALIZER_CALL classDescriptor='CLASS ENUM_CLASS name:A modality:FINAL visibility:public superTypes:[<root>.Java1; kotlin.Enum<<root>.A>]' type=kotlin.Unit
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.A
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.A [companion]
       VALUE_PARAMETER kind:Regular name:value index:0 type:kotlin.String
       SYNTHETIC_BODY kind=ENUM_VALUEOF
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.A>
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.A> [companion]
       SYNTHETIC_BODY kind=ENUM_VALUES
     FUN FAKE_OVERRIDE name:compareTo visibility:public modality:FINAL returnType:kotlin.Int [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.A>
       VALUE_PARAMETER kind:Regular name:other index:1 type:<root>.A
       overridden:
         public final fun compareTo (other: E of kotlin.Enum): kotlin.Int declared in kotlin.Enum
+    FUN FAKE_OVERRIDE name:describeConstable visibility:public modality:FINAL returnType:@[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.A?>?>? [fake_override]
+      VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.A>
+      overridden:
+        public final fun describeConstable (): @[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] E of kotlin.Enum?>?>? declared in kotlin.Enum
     FUN FAKE_OVERRIDE name:equals visibility:public modality:FINAL returnType:kotlin.Boolean [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Any
       VALUE_PARAMETER kind:Regular name:other index:1 type:kotlin.Any?
@@ -38,7 +42,7 @@ FILE fqName:<root> fileName:/1.kt
         public open fun toString (): kotlin.String declared in <root>.Java1
         public open fun toString (): kotlin.String declared in kotlin.Enum
     PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
-      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.A>
+      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.A> [companion]
         correspondingProperty: PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
         SYNTHETIC_BODY kind=ENUM_ENTRIES
     PROPERTY FAKE_OVERRIDE name:name visibility:public modality:FINAL [fake_override,val]
@@ -75,6 +79,10 @@ FILE fqName:<root> fileName:/1.kt
           VALUE_PARAMETER kind:Regular name:other index:1 type:<root>.B
           overridden:
             public final fun compareTo (other: <root>.B): kotlin.Int declared in <root>.B
+        FUN FAKE_OVERRIDE name:describeConstable visibility:public modality:FINAL returnType:@[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.B?>?>? [fake_override]
+          VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.B>
+          overridden:
+            public final fun describeConstable (): @[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.B?>?>? declared in <root>.B
         FUN FAKE_OVERRIDE name:equals visibility:public modality:FINAL returnType:kotlin.Boolean [fake_override,operator]
           VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Any
           VALUE_PARAMETER kind:Regular name:other index:1 type:kotlin.Any?
@@ -120,16 +128,20 @@ FILE fqName:<root> fileName:/1.kt
         ENUM_CONSTRUCTOR_CALL 'public constructor <init> (name: kotlin.String, ordinal: kotlin.Int) declared in kotlin.Enum'
           TYPE_ARG E: <root>.B
         INSTANCE_INITIALIZER_CALL classDescriptor='CLASS ENUM_CLASS name:B modality:OPEN visibility:public superTypes:[<root>.Java1; kotlin.Enum<<root>.B>]' type=kotlin.Unit
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.B
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.B [companion]
       VALUE_PARAMETER kind:Regular name:value index:0 type:kotlin.String
       SYNTHETIC_BODY kind=ENUM_VALUEOF
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.B>
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.B> [companion]
       SYNTHETIC_BODY kind=ENUM_VALUES
     FUN FAKE_OVERRIDE name:compareTo visibility:public modality:FINAL returnType:kotlin.Int [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.B>
       VALUE_PARAMETER kind:Regular name:other index:1 type:<root>.B
       overridden:
         public final fun compareTo (other: E of kotlin.Enum): kotlin.Int declared in kotlin.Enum
+    FUN FAKE_OVERRIDE name:describeConstable visibility:public modality:FINAL returnType:@[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.B?>?>? [fake_override]
+      VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.B>
+      overridden:
+        public final fun describeConstable (): @[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] E of kotlin.Enum?>?>? declared in kotlin.Enum
     FUN FAKE_OVERRIDE name:equals visibility:public modality:FINAL returnType:kotlin.Boolean [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Any
       VALUE_PARAMETER kind:Regular name:other index:1 type:kotlin.Any?
@@ -153,7 +165,7 @@ FILE fqName:<root> fileName:/1.kt
         public abstract fun foo (i: @[FlexibleNullability] kotlin.Int?): kotlin.Unit declared in <root>.Java1
       BLOCK_BODY
     PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
-      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.B>
+      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.B> [companion]
         correspondingProperty: PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
         SYNTHETIC_BODY kind=ENUM_ENTRIES
     PROPERTY FAKE_OVERRIDE name:name visibility:public modality:FINAL [fake_override,val]
@@ -181,16 +193,20 @@ FILE fqName:<root> fileName:/1.kt
         ENUM_CONSTRUCTOR_CALL 'public constructor <init> (name: kotlin.String, ordinal: kotlin.Int) declared in kotlin.Enum'
           TYPE_ARG E: <root>.C
         INSTANCE_INITIALIZER_CALL classDescriptor='CLASS ENUM_CLASS name:C modality:FINAL visibility:public superTypes:[<root>.Java2; kotlin.Enum<<root>.C>]' type=kotlin.Unit
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.C
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.C [companion]
       VALUE_PARAMETER kind:Regular name:value index:0 type:kotlin.String
       SYNTHETIC_BODY kind=ENUM_VALUEOF
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.C>
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.C> [companion]
       SYNTHETIC_BODY kind=ENUM_VALUES
     FUN FAKE_OVERRIDE name:compareTo visibility:public modality:FINAL returnType:kotlin.Int [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.C>
       VALUE_PARAMETER kind:Regular name:other index:1 type:<root>.C
       overridden:
         public final fun compareTo (other: E of kotlin.Enum): kotlin.Int declared in kotlin.Enum
+    FUN FAKE_OVERRIDE name:describeConstable visibility:public modality:FINAL returnType:@[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.C?>?>? [fake_override]
+      VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.C>
+      overridden:
+        public final fun describeConstable (): @[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] E of kotlin.Enum?>?>? declared in kotlin.Enum
     FUN FAKE_OVERRIDE name:equals visibility:public modality:FINAL returnType:kotlin.Boolean [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Any
       VALUE_PARAMETER kind:Regular name:other index:1 type:kotlin.Any?
@@ -213,7 +229,7 @@ FILE fqName:<root> fileName:/1.kt
         public open fun toString (): kotlin.String declared in <root>.Java2
         public open fun toString (): kotlin.String declared in kotlin.Enum
     PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
-      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.C>
+      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.C> [companion]
         correspondingProperty: PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
         SYNTHETIC_BODY kind=ENUM_ENTRIES
     PROPERTY FAKE_OVERRIDE name:name visibility:public modality:FINAL [fake_override,val]
@@ -250,6 +266,10 @@ FILE fqName:<root> fileName:/1.kt
           VALUE_PARAMETER kind:Regular name:other index:1 type:<root>.D
           overridden:
             public final fun compareTo (other: <root>.D): kotlin.Int declared in <root>.D
+        FUN FAKE_OVERRIDE name:describeConstable visibility:public modality:FINAL returnType:@[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.D?>?>? [fake_override]
+          VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.D>
+          overridden:
+            public final fun describeConstable (): @[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.D?>?>? declared in <root>.D
         FUN FAKE_OVERRIDE name:equals visibility:public modality:FINAL returnType:kotlin.Boolean [fake_override,operator]
           VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Any
           VALUE_PARAMETER kind:Regular name:other index:1 type:kotlin.Any?
@@ -292,16 +312,20 @@ FILE fqName:<root> fileName:/1.kt
         ENUM_CONSTRUCTOR_CALL 'public constructor <init> (name: kotlin.String, ordinal: kotlin.Int) declared in kotlin.Enum'
           TYPE_ARG E: <root>.D
         INSTANCE_INITIALIZER_CALL classDescriptor='CLASS ENUM_CLASS name:D modality:OPEN visibility:public superTypes:[<root>.Java2; kotlin.Enum<<root>.D>]' type=kotlin.Unit
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.D
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.D [companion]
       VALUE_PARAMETER kind:Regular name:value index:0 type:kotlin.String
       SYNTHETIC_BODY kind=ENUM_VALUEOF
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.D>
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.D> [companion]
       SYNTHETIC_BODY kind=ENUM_VALUES
     FUN FAKE_OVERRIDE name:compareTo visibility:public modality:FINAL returnType:kotlin.Int [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.D>
       VALUE_PARAMETER kind:Regular name:other index:1 type:<root>.D
       overridden:
         public final fun compareTo (other: E of kotlin.Enum): kotlin.Int declared in kotlin.Enum
+    FUN FAKE_OVERRIDE name:describeConstable visibility:public modality:FINAL returnType:@[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.D?>?>? [fake_override]
+      VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.D>
+      overridden:
+        public final fun describeConstable (): @[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] E of kotlin.Enum?>?>? declared in kotlin.Enum
     FUN FAKE_OVERRIDE name:equals visibility:public modality:FINAL returnType:kotlin.Boolean [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Any
       VALUE_PARAMETER kind:Regular name:other index:1 type:kotlin.Any?
@@ -325,7 +349,7 @@ FILE fqName:<root> fileName:/1.kt
         public open fun foo (i: kotlin.Int): kotlin.Unit declared in <root>.Java2
       BLOCK_BODY
     PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
-      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.D>
+      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.D> [companion]
         correspondingProperty: PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
         SYNTHETIC_BODY kind=ENUM_ENTRIES
     PROPERTY FAKE_OVERRIDE name:name visibility:public modality:FINAL [fake_override,val]
@@ -353,16 +377,20 @@ FILE fqName:<root> fileName:/1.kt
         ENUM_CONSTRUCTOR_CALL 'public constructor <init> (name: kotlin.String, ordinal: kotlin.Int) declared in kotlin.Enum'
           TYPE_ARG E: <root>.E
         INSTANCE_INITIALIZER_CALL classDescriptor='CLASS ENUM_CLASS name:E modality:FINAL visibility:public superTypes:[<root>.Java1; <root>.Java3; kotlin.Enum<<root>.E>]' type=kotlin.Unit
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.E
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.E [companion]
       VALUE_PARAMETER kind:Regular name:value index:0 type:kotlin.String
       SYNTHETIC_BODY kind=ENUM_VALUEOF
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.E>
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.E> [companion]
       SYNTHETIC_BODY kind=ENUM_VALUES
     FUN FAKE_OVERRIDE name:compareTo visibility:public modality:FINAL returnType:kotlin.Int [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.E>
       VALUE_PARAMETER kind:Regular name:other index:1 type:<root>.E
       overridden:
         public final fun compareTo (other: E of kotlin.Enum): kotlin.Int declared in kotlin.Enum
+    FUN FAKE_OVERRIDE name:describeConstable visibility:public modality:FINAL returnType:@[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.E?>?>? [fake_override]
+      VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.E>
+      overridden:
+        public final fun describeConstable (): @[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] E of kotlin.Enum?>?>? declared in kotlin.Enum
     FUN FAKE_OVERRIDE name:equals visibility:public modality:FINAL returnType:kotlin.Boolean [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Any
       VALUE_PARAMETER kind:Regular name:other index:1 type:kotlin.Any?
@@ -393,7 +421,7 @@ FILE fqName:<root> fileName:/1.kt
         public open fun toString (): kotlin.String declared in <root>.Java3
         public open fun toString (): kotlin.String declared in kotlin.Enum
     PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
-      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.E>
+      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.E> [companion]
         correspondingProperty: PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
         SYNTHETIC_BODY kind=ENUM_ENTRIES
     PROPERTY FAKE_OVERRIDE name:name visibility:public modality:FINAL [fake_override,val]
@@ -430,6 +458,10 @@ FILE fqName:<root> fileName:/1.kt
           VALUE_PARAMETER kind:Regular name:other index:1 type:<root>.F
           overridden:
             public final fun compareTo (other: <root>.F): kotlin.Int declared in <root>.F
+        FUN FAKE_OVERRIDE name:describeConstable visibility:public modality:FINAL returnType:@[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.F?>?>? [fake_override]
+          VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.F>
+          overridden:
+            public final fun describeConstable (): @[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.F?>?>? declared in <root>.F
         FUN FAKE_OVERRIDE name:equals visibility:public modality:FINAL returnType:kotlin.Boolean [fake_override,operator]
           VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Any
           VALUE_PARAMETER kind:Regular name:other index:1 type:kotlin.Any?
@@ -477,16 +509,20 @@ FILE fqName:<root> fileName:/1.kt
         ENUM_CONSTRUCTOR_CALL 'public constructor <init> (name: kotlin.String, ordinal: kotlin.Int) declared in kotlin.Enum'
           TYPE_ARG E: <root>.F
         INSTANCE_INITIALIZER_CALL classDescriptor='CLASS ENUM_CLASS name:F modality:ABSTRACT visibility:public superTypes:[<root>.Java1; <root>.Java3; kotlin.Enum<<root>.F>]' type=kotlin.Unit
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.F
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL returnType:<root>.F [companion]
       VALUE_PARAMETER kind:Regular name:value index:0 type:kotlin.String
       SYNTHETIC_BODY kind=ENUM_VALUEOF
-    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.F>
+    FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL returnType:kotlin.Array<<root>.F> [companion]
       SYNTHETIC_BODY kind=ENUM_VALUES
     FUN FAKE_OVERRIDE name:compareTo visibility:public modality:FINAL returnType:kotlin.Int [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.F>
       VALUE_PARAMETER kind:Regular name:other index:1 type:<root>.F
       overridden:
         public final fun compareTo (other: E of kotlin.Enum): kotlin.Int declared in kotlin.Enum
+    FUN FAKE_OVERRIDE name:describeConstable visibility:public modality:FINAL returnType:@[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] <root>.F?>?>? [fake_override]
+      VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Enum<<root>.F>
+      overridden:
+        public final fun describeConstable (): @[FlexibleNullability] java.util.Optional<@[FlexibleNullability] java.lang.Enum.EnumDesc<@[FlexibleNullability] E of kotlin.Enum?>?>? declared in kotlin.Enum
     FUN FAKE_OVERRIDE name:equals visibility:public modality:FINAL returnType:kotlin.Boolean [fake_override,operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:kotlin.Any
       VALUE_PARAMETER kind:Regular name:other index:1 type:kotlin.Any?
@@ -518,7 +554,7 @@ FILE fqName:<root> fileName:/1.kt
         public abstract fun foo (i: @[FlexibleNullability] kotlin.Any?): kotlin.Unit declared in <root>.Java3
       BLOCK_BODY
     PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
-      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.F>
+      FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL returnType:kotlin.enums.EnumEntries<<root>.F> [companion]
         correspondingProperty: PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
         SYNTHETIC_BODY kind=ENUM_ENTRIES
     PROPERTY FAKE_OVERRIDE name:name visibility:public modality:FINAL [fake_override,val]

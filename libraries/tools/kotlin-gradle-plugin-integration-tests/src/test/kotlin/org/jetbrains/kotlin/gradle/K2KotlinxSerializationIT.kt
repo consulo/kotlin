@@ -9,6 +9,9 @@ import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.testbase.BuildOptions.ConfigurationCacheValue
 import org.jetbrains.kotlin.gradle.util.resolveRepoPath
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerPlugins
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
@@ -16,7 +19,10 @@ import kotlin.io.path.listDirectoryEntries
 import kotlin.test.assertTrue
 
 @OtherGradlePluginTests
+@MustRunOnChangesInGradle
+@MustRunOnChangesInCompilerPlugins
 class K2KotlinxSerializationIT : KGPBaseTest() {
+    @TestMetadata("kotlinxSerializationMppK2")
     @DisplayName("Compile common code to metadata with kotlinx.serialization and K2")
     @GradleTest
     fun `test kotlinxSerializationMppK2`(gradleVersion: GradleVersion) {
@@ -32,23 +38,25 @@ class K2KotlinxSerializationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinxSerializationK2AgainstK1")
     @DisplayName("Compile code with kotlinx.serialization with K2 against K1. KT-57941")
     @GradleTest
     fun `test kotlinx serialization K2 against K1`(gradleVersion: GradleVersion) {
         project(
             "kotlinxSerializationK2AgainstK1",
             gradleVersion,
-            buildOptions = defaultBuildOptions.suppressDeprecationWarningsSinceGradleVersion(
-                TestVersions.Gradle.G_9_0,
-                gradleVersion,
-                "KGP 1.9.25 produces deprecation warning in Gradle 9.x releases"
-            ).run {
-                if (gradleVersion >= GradleVersion.version(TestVersions.Gradle.G_9_0)) {
-                    copy(configurationCache = ConfigurationCacheValue.DISABLED)
-                } else this
-            }
+            buildOptions = defaultBuildOptions
+                .suppressDeprecationWarnings("KGP 1.9.25 produces deprecation warning")
+                .run {
+                    if (gradleVersion >= GradleVersion.version(TestVersions.Gradle.G_9_0)) {
+                        copy(
+                            configurationCache = ConfigurationCacheValue.DISABLED,
+                            isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED
+                        )
+                    } else this
+                }
         ) {
-            projectPath.resolve("lib").addDefaultSettingsToSettingsGradle(gradleVersion)
+            projectPath.resolve("lib").addDefaultSettingsToSettingsGradle()
             subprojects("app", "lib").buildScriptInjection {
                 project.plugins.apply("org.jetbrains.kotlin.plugin.serialization")
                 dependencies.add("implementation", "org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.0")
@@ -67,13 +75,13 @@ class K2KotlinxSerializationIT : KGPBaseTest() {
             projectName = "kotlinxSerializationK2AgainstK1Lib/lib",
             gradleVersion = gradleVersion,
             localRepoDir = tempDir,
-            buildOptions = defaultBuildOptions.suppressDeprecationWarningsSinceGradleVersion(
-                TestVersions.Gradle.G_8_7,
-                gradleVersion,
-                "KGP 1.7.20 produces deprecation warning in Gradle 8.7"
-            )
+            buildOptions = defaultBuildOptions
+                .suppressDeprecationWarnings("KGP 1.7.20 produces deprecation warning in Gradle 8.7")
                 // KGP 1.7.20 is not compatible with configuration cache in Gradle 8
-                .copy(configurationCache = ConfigurationCacheValue.DISABLED)
+                .copy(
+                    configurationCache = ConfigurationCacheValue.DISABLED,
+                    isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED
+                )
         ) {
             build(":publish") {
                 assertTasksExecuted(":publish")
@@ -90,6 +98,7 @@ class K2KotlinxSerializationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinxSerializationK2WithJs")
     @DisplayName("Compile production executable with kotlinx.serialization to JS. KT-57690, KT-57807")
     @GradleTest
     fun `test kotlinx serialization compile to JS`(gradleVersion: GradleVersion) {
@@ -103,6 +112,7 @@ class K2KotlinxSerializationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinxSerializationK2WithJs")
     @DisplayName("Compile test sourceset with kotlinx.serialization to JS. KT-57781")
     @GradleTest
     fun `test kotlinx serialization compile test source set to JS`(gradleVersion: GradleVersion) {
@@ -116,6 +126,7 @@ class K2KotlinxSerializationIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinxSerializationMppK2")
     @DisplayName("Compile MPP project to JS kotlinx.serialization and K2")
     @GradleTest
     fun `test kotlinx serialization mpp to JS`(gradleVersion: GradleVersion) {

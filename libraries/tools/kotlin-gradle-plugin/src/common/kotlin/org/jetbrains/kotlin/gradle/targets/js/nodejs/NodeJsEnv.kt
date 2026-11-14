@@ -1,8 +1,10 @@
 package org.jetbrains.kotlin.gradle.targets.js.nodejs
 
 import org.jetbrains.kotlin.gradle.targets.js.AbstractEnv
+import org.jetbrains.kotlin.gradle.targets.web.ObsoleteJsAndWasmToolingProvisioning
 import java.io.File
 
+@ObsoleteJsAndWasmToolingProvisioning
 data class NodeJsEnv(
     override val download: Boolean,
     override val dir: File,
@@ -16,8 +18,4 @@ data class NodeJsEnv(
 ) : AbstractEnv {
     val isWindows: Boolean
         get() = platformName == "win"
-
-    @Deprecated("Use executable instead. Scheduled for removal in Kotlin 2.3.", ReplaceWith("executable"), level = DeprecationLevel.ERROR)
-    val nodeExecutable
-        get() = executable
 }

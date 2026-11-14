@@ -6,45 +6,66 @@
 package kotlinx.metadata.klib
 
 import kotlinx.metadata.klib.impl.*
-import kotlinx.metadata.klib.impl.readHeader
-import kotlinx.metadata.klib.impl.writeHeader
-import kotlinx.metadata.klib.impl.KlibMetadataVersionWriteExtension
-import kotlin.metadata.internal.common.KmModuleFragment
-import kotlin.metadata.internal.*
+import org.jetbrains.kotlin.library.metadata.KlibMetadataProtoBuf
 import org.jetbrains.kotlin.library.metadata.parseModuleHeader
 import org.jetbrains.kotlin.library.metadata.parsePackageFragment
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion
 import org.jetbrains.kotlin.metadata.deserialization.NameResolverImpl
-import org.jetbrains.kotlin.serialization.ApproximatingStringTable
+import org.jetbrains.kotlin.serialization.SerializableStringTable
+import kotlin.metadata.KmAnnotation
+import kotlin.metadata.KmType
+import kotlin.metadata.internal.WriteContext
+import kotlin.metadata.internal.common.KmModuleFragment
+import kotlin.metadata.internal.toKmModuleFragment
 
 /**
- * Allows to modify the way fragments of the single package are read by [KlibModuleMetadata.readStrict] and [KlibModuleMetadata.readLenient].
- * For example, it may be convenient to join fragments into a single one.
+ * The strategy that allows customizing the already read Km* entities.
  */
 interface KlibModuleFragmentReadStrategy {
-    fun processModuleParts(parts: List<KmModuleFragment>): List<KmModuleFragment>
+    /**
+     * Allows to modify the way fragments of the single package are read by [KlibModuleMetadata.readStrict] and
+     * [KlibModuleMetadata.readLenient]. For example, it may be convenient to join fragments into a single one.
+     */
+    fun processModuleParts(parts: List<KmModuleFragment>): List<KmModuleFragment> = parts
+
+    /**
+     * Allows post-processing [KmType] after deserializing it.
+     */
+    fun processType(type: KmType) {}
+
+    /**
+     * Allows post-processing [KmAnnotation] after deserializing it.
+     */
+    fun processAnnotation(annotation: KmAnnotation) {}
 
     companion object {
-        val DEFAULT = object : KlibModuleFragmentReadStrategy {
-            override fun processModuleParts(parts: List<KmModuleFragment>) =
-                parts
-        }
+        val DEFAULT = object : KlibModuleFragmentReadStrategy {}
     }
 }
 
 /**
- * Allows to modify the way module fragments are written by [KlibModuleMetadata.write].
- * For example, splitting big fragments into several small one allows to improve IDE performance.
+ * The strategy that allows customizing Km* entities before writing them.
  */
 interface KlibModuleFragmentWriteStrategy {
-    fun processPackageParts(parts: List<KmModuleFragment>): List<KmModuleFragment>
+    /**
+     * Allows to modify the way module fragments are written by [KlibModuleMetadata.write].
+     * For example, splitting big fragments into several small one allows to improve IDE performance.
+     */
+    fun processPackageParts(parts: List<KmModuleFragment>): List<KmModuleFragment> = parts
+
+    /**
+     * Allows pre-processing [KmType] before serializing it.
+     */
+    fun processType(type: KmType) {}
+
+    /**
+     * Allows pre-processing [KmAnnotation] before serializing it.
+     */
+    fun processAnnotation(annotation: KmAnnotation) {}
 
     companion object {
-        val DEFAULT = object : KlibModuleFragmentWriteStrategy {
-            override fun processPackageParts(parts: List<KmModuleFragment>): List<KmModuleFragment> =
-                parts
-        }
+        val DEFAULT = object : KlibModuleFragmentWriteStrategy {}
     }
 }
 
@@ -52,7 +73,12 @@ interface KlibModuleFragmentWriteStrategy {
  * Represents the parsed metadata of KLIB.
  */
 class KlibModuleMetadata(
-    val name: String,
+    @Deprecated(
+        "The module name is going to be dropped in MV=2.6.0 (see https://youtrack.jetbrains.com/issue/KT-87197). " +
+                "Use the `unique_name` property from the KLIB manifest instead.",
+        level = DeprecationLevel.WARNING,
+    )
+    val name: String?,
     val fragments: List<KmModuleFragment>,
     val metadataVersion: KlibMetadataVersion,
     internal val isAllowedToWrite: Boolean = true,
@@ -61,7 +87,7 @@ class KlibModuleMetadata(
      * Serialized representation of module metadata.
      */
     class SerializedKlibMetadata(
-        val header: ByteArray,
+        val header: ByteArray?,
         val fragments: List<List<ByteArray>>,
         val fragmentNames: List<String>,
         val metadataVersion: KlibMetadataVersion,
@@ -71,7 +97,8 @@ class KlibModuleMetadata(
      * Specifies access to library's metadata.
      */
     interface MetadataLibraryProvider {
-        val moduleHeaderData: ByteArray
+        val moduleHeaderData: ByteArray?
+        val packageFqNames: Set<String>
         val metadataVersion: KlibMetadataVersion
         fun packageMetadataParts(fqName: String): Set<String>
         fun packageMetadata(fqName: String, partName: String): ByteArray
@@ -122,17 +149,22 @@ class KlibModuleMetadata(
         ): KlibModuleMetadata {
             checkMetadataVersionForRead(library.metadataVersion, lenient)
 
-            val moduleHeaderProto = parseModuleHeader(library.moduleHeaderData)
-            val moduleHeader = moduleHeaderProto.readHeader()
-            val moduleFragments = moduleHeader.packageFragmentName.flatMap { packageFqName ->
+            val moduleHeader = parseModuleHeader(library.moduleHeaderData)
+            val moduleFragments = library.packageFqNames.flatMap { packageFqName ->
                 library.packageMetadataParts(packageFqName).map { part ->
                     val packageFragment = parsePackageFragment(library.packageMetadata(packageFqName, part))
                     val nameResolver = NameResolverImpl(packageFragment.strings, packageFragment.qualifiedNames)
-                    packageFragment.toKmModuleFragment(nameResolver)
+                    val readExtensions = if (readStrategy !== KlibModuleFragmentReadStrategy.DEFAULT)
+                        listOf(
+                            KlibTypeReadExtension(readStrategy::processType),
+                            KlibAnnotationReadExtension(readStrategy::processAnnotation)
+                        )
+                    else emptyList()
+                    packageFragment.toKmModuleFragment(nameResolver, readExtensions)
                 }.let(readStrategy::processModuleParts)
             }
             return KlibModuleMetadata(
-                moduleHeader.moduleName,
+                moduleHeader?.moduleName,
                 moduleFragments,
                 library.metadataVersion,
                 isAllowedToWrite = !lenient,
@@ -163,24 +195,35 @@ class KlibModuleMetadata(
             .groupBy(KmModuleFragment::fqNameOrFail)
             .mapValues { writeStrategy.processPackageParts(it.value) }
 
-        val header = KlibHeader(
-            name,
-            groupedFragments.map { it.key },
-            groupedFragments.filter { it.value.all(KmModuleFragment::isEmpty) }.map { it.key },
-        )
-        val versionExt = KlibMetadataVersionWriteExtension(metadataVersion)
-        val groupedProtos = groupedFragments.mapValues { (_, fragments) ->
+        val packageFragmentNames: List<String> = groupedFragments.map { it.key }
+        val emptyPackageFragmentNames: List<String> = groupedFragments.filter { it.value.all(KmModuleFragment::isEmpty) }.map { it.key }
+
+        val writeExtensions = if (writeStrategy != KlibModuleFragmentWriteStrategy.DEFAULT)
+            listOf(
+                KlibTypeWriteExtension(writeStrategy::processType),
+                KlibAnnotationWriteExtension(writeStrategy::processAnnotation),
+                KlibMetadataVersionWriteExtension(metadataVersion),
+            )
+        else
+            listOf(KlibMetadataVersionWriteExtension(metadataVersion))
+
+        val groupedProtos = groupedFragments.mapValues { [_, fragments] ->
             fragments.map { mf ->
-                val c = WriteContext(ApproximatingStringTable(), listOf(versionExt))
-                KlibModuleFragmentWriter(c.strings as ApproximatingStringTable, c.contextExtensions).also { it.writeModuleFragment(mf) }.write()
+                val c = WriteContext(SerializableStringTable(), writeExtensions)
+                KlibModuleFragmentWriter(c.strings as SerializableStringTable, c.contextExtensions).also { it.writeModuleFragment(mf) }.write()
             }
         }
-        // This context and string table is only required for module-level annotations.
-        val c = WriteContext(ApproximatingStringTable())
+
+        @Suppress("DEPRECATION") // The name keeps being written to the header until it is dropped (KT-87197).
+        val moduleName = name ?: error("The module name is required to write the metadata header in MV < 2.6.0 (see https://youtrack.jetbrains.com/issue/KT-87197)")
         return SerializedKlibMetadata(
-            header.writeHeader(c).build().toByteArray(),
+            KlibMetadataProtoBuf.Header.newBuilder().also { proto ->
+                proto.moduleName = wrapModuleName(moduleName)
+                proto.addAllPackageFragmentName(packageFragmentNames)
+                proto.addAllEmptyPackage(emptyPackageFragmentNames)
+            }.build().toByteArray(),
             groupedProtos.map { it.value.map(ProtoBuf.PackageFragment::toByteArray) },
-            header.packageFragmentName,
+            packageFragmentNames,
             metadataVersion,
         )
     }
@@ -191,3 +234,8 @@ private fun KmModuleFragment.fqNameOrFail(): String =
 
 private fun KmModuleFragment.isEmpty(): Boolean =
     classes.isEmpty() && (pkg?.let { it.functions.isEmpty() && it.properties.isEmpty() && it.typeAliases.isEmpty() } ?: true)
+
+private fun wrapModuleName(moduleName: String): String =
+    moduleName
+        .let { if (it.startsWith("<")) it else "<$it" }
+        .let { if (it.endsWith(">")) it else "$it>" }

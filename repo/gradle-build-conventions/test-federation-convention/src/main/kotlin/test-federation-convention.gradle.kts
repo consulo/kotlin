@@ -1,115 +1,121 @@
-@file:OptIn(TemporaryTestFederationApi::class)
+@file:OptIn(DelicateTestFederationApi::class)
 
-import org.gradle.api.internal.tasks.testing.junit.JUnitTestFramework
+import com.gradle.develocity.agent.gradle.DevelocityConfiguration
 import org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestFramework
 import org.jetbrains.kotlin.testFederation.*
+import org.jetbrains.kotlin.testFederation.TestSubset.*
 
-val extension = extensions.create<TestFederationExtension>("testFederation")
+tasks.withType<Test>().configureEach {
+    val extension = testFederationExtension
+    val domains = testFederationDomains
+    val formattedDomains = domains.map { it.toArgumentString() }
+    val subsets = testFederationSubsets
+    val formattedSubsets = subsets.map { it.toArgumentString() }
+    val areNightlyTestsEnabled = project.areNightlyTestsEnabled
 
-project.dependencies.extensions.add(
-    ProjectDependency::class.java, "testFederationRuntime", dependencies.project(":repo:test-federation-runtime")
-)
+    inputs.property(TEST_FEDERATION_NIGHTLY_KEY, areNightlyTestsEnabled)
+    inputs.property(TEST_FEDERATION_SUBSETS_KEY, formattedSubsets)
 
-val testFederationRuntime = configurations.detachedConfiguration(dependencies.project(":repo:test-federation-runtime")).apply {
-    isTransitive = false
-}.incoming.files
+    val projectPath = project.buildTreePath
+    val scan = project.extensions.getByType(DevelocityConfiguration::class).buildScan
 
-if (project.testFederationEnabled.orNull == true) {
-    tasks.withType<Test>().configureEach {
-        val currentDomain = project.testFederationDomain
-        val testFederationMode = project.testFederationMode
-        val affectedDomains = project.testFederationAffectedDomains
-        val formattedAffectedDomains = affectedDomains.map { domains -> domains.toArgumentString() }
-        val isSmokeTest = project.provider { isSmokeTest }
+    doFirst {
+        val testFramework = testFramework
 
-        inputs.property(TEST_FEDERATION_MODE_KEY, testFederationMode)
-        inputs.property(TEST_FEDERATION_AFFECTED_DOMAINS_KEY, formattedAffectedDomains)
-        inputs.property("test.federation.isSmokeTest", isSmokeTest).optional(true)
+        logger.quiet(buildFrame(
+            "Domain: ${domains.get()}",
+            "Test subsets: [${formattedSubsets.get().replace(",", ", ")}]",
+        ))
+        scan.value("$projectPath:${this.name} domain", domains.get().toString())
+        scan.value("$projectPath:${this.name} test subsets", formattedSubsets.get())
 
-        val testFederationRuntime = testFederationRuntime
-
-        doFirst {
-            this as Test
-
-            val isSmokeTest = isSmokeTest.orNull
-            if (isSmokeTest == true) {
-                logger.quiet("$path is marked as 'isSmokeTest'")
-            }
-
-
-            logger.quiet("Current Domain: '${currentDomain.get()}'")
-            logger.quiet("Affected Domains: '${formattedAffectedDomains.get()}'")
-            logger.quiet("Domain Test Mode: '${testFederationMode.get()}'")
-
-            systemProperty(TEST_FEDERATION_MODE_KEY, testFederationMode.get().name)
-            environment(TEST_FEDERATION_MODE_ENV, testFederationMode.get().name)
-
-            systemProperty(TEST_FEDERATION_AFFECTED_DOMAINS_KEY, formattedAffectedDomains.get())
-            environment(TEST_FEDERATION_AFFECTED_DOMAINS_ENV_KEY, formattedAffectedDomains.get())
-
-            /* The test task was explicitly marked as 'isSmokeTest=false', therefore, won't further execute in smoke mode */
-            if (isSmokeTest == false && testFederationMode.get() == TestFederationMode.Smoke) {
-                throw StopExecutionException("Test task is marked as 'isSmokeTest=false' and therefore won't run in SmokeTest mode")
-            }
-
-            /* If the task itself is marked as 'isSmokeTest', then all tests within are considered a smoke test, no filters apply */
-            if (isSmokeTest != true && testFederationMode.get() == TestFederationMode.Smoke) {
-                val testFramework = testFramework
-                if (testFramework is JUnitPlatformTestFramework) {
-                    testFramework.options.includeTags("smoke")
-                    affectedDomains.get().forEach { domain ->
-                        testFramework.options.includeTags("affectedBy:${domain.name}")
-                    }
+        if (testFramework !is JUnitPlatformTestFramework) {
+            // Non-JUnit 5 tasks can't be split into subsets, so they must opt out of every partial subset
+            check(extension.smokeTests.skip.get() && extension.contractTests.skip.get()) {
+                buildString {
+                    appendLine("Unsupported 'testFramework' found for task '$path'")
+                    appendLine("  testFramework: ${testFramework.javaClass.simpleName}; expected: '${JUnitPlatformTestFramework::class.simpleName}'")
+                    appendLine("  solutions:")
+                    appendLine("     - Use the 'project-tests-convention' testTask")
+                    appendLine("     - Use JUnit 5 by calling 'useJUnitPlatform()'")
+                    appendLine("     - Opt out from every partial subset: 'testFederation { smokeTests { skip() }; contractTests { skip() } }'")
                 }
-
-                if (testFramework is JUnitTestFramework) {
-                    testFramework.options.includeCategories("org.jetbrains.kotlin.testFederation.SmokeTest")
-                }
-
-                println("##teamcity[addBuildTag 'Test Federation Mode: Smoke']")
-                affectedDomains.get().forEach { domain ->
-                    println("##teamcity[addBuildTag 'Affected: $domain']")
-                }
-            }
-
-            /* Ensure that the test federation runtime is always available on the classpath (and the extension is enabled) */
-            systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
-
-            /* Check if classpath contains test federation runtime */
-            if (!classpath.files.containsAll(testFederationRuntime.files)) {
-                error("Test Federation Runtime is not available on the classpath")
             }
         }
-    }
 
-    afterEvaluate {
-        tasks.withType<Test>().configureEach {
-            classpath += testFederationRuntime
-            /*
-            When running in smoke test mode, a given test task might actually not provide any smoke test
-            */
-            val defaultFailOnNoDiscoveredTests = failOnNoDiscoveredTests.get()
-            failOnNoDiscoveredTests.value(testFederationMode.map { mode ->
-                if (mode == TestFederationMode.Smoke) false
-                else defaultFailOnNoDiscoveredTests
-            }).disallowChanges()
-
-            val testFederationMode = project.testFederationMode
-            doFirst {
-                if (testFederationMode.get() == TestFederationMode.Smoke) {
-                    filter.isFailOnNoMatchingTests = false
-                }
+        val shouldSkipTask = when {
+            setOf(SmokeTests).containsAll(subsets.get()) -> extension.smokeTests.skip.get()
+            contractSubsets.containsAll(subsets.get()) -> extension.contractTests.skip.get()
+            (contractSubsets + SmokeTests).containsAll(subsets.get()) -> {
+                extension.smokeTests.skip.get() && extension.contractTests.skip.get()
             }
+            else -> false
+        }
+        if (shouldSkipTask) {
+            val message = "The test task is disabled because all requested subsets are configured to skip()"
+            logger.quiet(message)
+            throw StopExecutionException(message)
+        }
+
+        if (testFramework !is JUnitPlatformTestFramework) {
+            // Every partial subset is skipped above, so only AllTests can reach this point
+            check(AllTests in subsets.get()) {
+                "Unexpected test subsets for non-JUnit 5 task '$path': ${subsets.get()}"
+            }
+            // Run non-JUnit 5 tasks without further configuration
+            return@doFirst
+        }
+
+        systemProperty(TEST_FEDERATION_DOMAINS_KEY, formattedDomains.get())
+        environment(TEST_FEDERATION_DOMAINS_ENV_KEY, formattedDomains.get())
+
+        systemProperty(TEST_FEDERATION_SUBSETS_KEY, formattedSubsets.get())
+        environment(TEST_FEDERATION_SUBSETS_ENV_KEY, formattedSubsets.get())
+
+        systemProperty(TEST_FEDERATION_NIGHTLY_KEY, areNightlyTestsEnabled.get())
+        environment(TEST_FEDERATION_NIGHTLY_ENV_KEY, areNightlyTestsEnabled.get())
+
+        extension.smokeTests.autoSamplePercentage.orNull?.let { percentage ->
+            systemProperty(TEST_FEDERATION_AUTO_SMOKE_TEST_PERCENTAGE_KEY, percentage)
+            environment(TEST_FEDERATION_AUTO_SMOKE_TEST_PERCENTAGE_ENV_KEY, percentage)
+        }
+
+        for (domain in domains.get()) {
+            println("##teamcity[addBuildTag 'Domain: $domain']")
+        }
+
+        for (testSubset in subsets.get()) {
+            println("##teamcity[addBuildTag '$testSubset']")
+        }
+
+        // Exclude nightly tests if not specifically running in 'nightly' mode.
+        // Like any tag filter, this also makes Gradle skip its check that the task discovers tests ('failOnNoDiscoveredTests'),
+        // so that check only applies to nightly builds and local runs.
+        if (!areNightlyTestsEnabled.get()) {
+            testFramework.options.excludeTags("nightly")
+        }
+
+        // Check if classpath contains vintage engine and report it as unsupported
+        if (classpath.files.any { file -> file.name.contains("junit-vintage-engine") }) {
+            error("Unsupported 'junit-vintage-engine' found in classpath. Please remove this dependency")
         }
     }
 }
 
 afterEvaluate {
-    if (extension.defaultDependencyEnabled.get()) {
-        dependencies {
-            configurations.findByName("testImplementation")?.name(project(":repo:test-federation-runtime"))
-            configurations.findByName("jvmTestImplementation")?.name(project(":repo:test-federation-runtime"))
-            configurations.findByName("testFixturesCompileOnly")?.name(project(":repo:test-federation-runtime"))
+    tasks.withType<Test>().configureEach {
+        // A task that selects only a subset of tests may have no tests to run.
+        val defaultFailOnNoDiscoveredTests = failOnNoDiscoveredTests.get()
+        failOnNoDiscoveredTests.value(testFederationSubsets.map { subsets ->
+            if (!subsets.contains(AllTests)) false
+            else defaultFailOnNoDiscoveredTests
+        }).disallowChanges()
+
+        val subsets = testFederationSubsets
+        doFirst {
+            if (!subsets.get().contains(AllTests)) {
+                filter.isFailOnNoMatchingTests = false
+            }
         }
     }
 }

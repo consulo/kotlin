@@ -5,19 +5,19 @@
 
 package org.jetbrains.kotlin.gradle.plugin.mpp
 
-import org.gradle.api.artifacts.component.ComponentIdentifier
 import org.gradle.api.artifacts.component.ComponentSelector
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier
-import org.gradle.api.artifacts.component.ModuleComponentSelector
-import org.gradle.api.artifacts.component.ProjectComponentIdentifier
-import org.gradle.api.artifacts.component.ProjectComponentSelector
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.attributes.Attribute
+import org.jetbrains.kotlin.gradle.cache.KotlinGradleTaskExecutionCache
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.utils.LazyResolvedConfigurationComponent
 import org.jetbrains.kotlin.gradle.utils.LazyResolvedConfigurationWithArtifacts
 import org.jetbrains.kotlin.gradle.utils.dependencyArtifactsOrNull
+import org.jetbrains.kotlin.gradle.utils.resolvedDependenciesByKmpModuleId
+import org.jetbrains.kotlin.gradle.utils.resolvedDependenciesByRequested
 import java.io.File
+import kotlin.collections.contains
+import kotlin.collections.ifEmpty
 
 private typealias KotlinSourceSetName = String
 
@@ -34,7 +34,12 @@ internal data class SourceSetVisibilityResult(
     val hostSpecificMetadataArtifactBySourceSet: Map<String, File>,
 )
 
-internal class SourceSetVisibilityProvider {
+internal class SourceSetVisibilityProvider(
+    private val projectId: String,
+    private val resolveWithLenientPSMResolutionScheme: Boolean,
+    private val allowMatchingByRequestedCoordinates: Boolean,
+    private val cache: KotlinGradleTaskExecutionCache,
+) {
     class PlatformCompilationData(
         val allSourceSets: Set<KotlinSourceSetName>,
         val resolvedDependenciesConfiguration: LazyResolvedConfigurationComponent,
@@ -42,7 +47,141 @@ internal class SourceSetVisibilityProvider {
         val compilationName: String,
         val targetName: String,
     ) {
-        override fun toString(): String = "PlatformCompilationData(compilationName='${compilationName}')"
+        val compilationId: String get() = "$targetName/$compilationName"
+        override fun toString(): String = "PlatformCompilationData($compilationId)"
+    }
+
+    /**
+     * Returns resolved Gradle variant names to which [resolvedRootMppDependencyIdentifier] dependency was resolved to
+     * as part of [this]. Usually returns set of one element.
+     * Multiple elements is possible when dependency resolved in multiple variants. i.e. apiElements + fixtures.
+     * Or kotlin(test) can get resolved to kotlin-test-common and kotlin-test-junit
+     *
+     * Returns null when [resolvedRootMppDependencyIdentifier] was not resolved for given [compilation][this].
+     * It can happen when consumer tries to consume dependency that was not published for its target.
+     *
+     * **Legacy Behavior**
+     * When [allowMatchingByRequestedCoordinates] is enabled, the [requestedDependency] will be attempted to find platform variant.
+     *
+     * For example:
+     * * [this] = jvm/main compilation, i.e. [resolvedDependenciesConfiguration] = jvmCompileClasspath
+     * * [resolvedRootMppDependencyIdentifier] = o.j.kotlinx:coroutines-core
+     * Returns `setOf("jvmApiElements-published")`
+     */
+    private fun PlatformCompilationData.resolveToPlatformVariantNames(
+        resolvedRootMppDependencyIdentifier: KmpModuleIdentifier,
+        requestedDependency: ComponentSelector,
+    ): Set<String>? {
+        val resolvedPlatformDependencies = buildList {
+            resolvedDependenciesConfiguration
+                .resolvedDependenciesByKmpModuleId(cache, projectId)
+                .get(resolvedRootMppDependencyIdentifier)
+                .orEmpty()
+                .let(::addAll)
+
+            if (allowMatchingByRequestedCoordinates) {
+                resolvedDependenciesConfiguration
+                    .resolvedDependenciesByRequested(cache, projectId)
+                    .get(requestedDependency)
+                    .orEmpty()
+                    .let(::addAll)
+            }
+        }.filter {
+            // Pre lenient resolve logic
+            if (!resolveWithLenientPSMResolutionScheme) return@filter true
+            /**
+             * Detect that platform compilation's resolvedDependenciesConfiguration resolved metadata variant as a fallback
+             *
+             * This likely means that the dependency is missing the target of the platform compilation and we must therefore not
+             * see this dependency in the resulting list.
+             *
+             * @see [UklibResolutionTestsWithMockComponents] and [KmpResolutionIT]
+             */
+            val platformCompilationResolvedToMetadataJarVariant = it.resolvedVariant.attributes.getAttribute(
+                KotlinPlatformType.attribute
+            ) == KotlinPlatformType.common || it.resolvedVariant.attributes.getAttribute(
+                Attribute.of(KotlinPlatformType.attribute.name, String::class.java)
+            ) == KotlinPlatformType.common.name
+
+            return@filter !platformCompilationResolvedToMetadataJarVariant
+        }.ifEmpty { return null }
+
+        return resolvedPlatformDependencies.map { resolvedPlatformDependency ->
+            val resolvedVariant = kotlinVariantNameFromPublishedVariantName(
+                resolvedPlatformDependency.resolvedVariant.displayName
+            )
+
+            resolvedVariant
+        }.toSet()
+    }
+
+    /**
+     * Associates host-specific source sets with host-metadata artifact
+     * coming from one of source set's platform variants.
+     *
+     * Context:
+     * Metadata klib for shared host-specific source set (e.g. iosMain shared between iosX64 and iosArm64)
+     * is published as separate variant in all its underlying targets.
+     * There will be metadataApiElements -- for non host-specific source sets. i.e. commonMain
+     * And two more: iosX64MetadataApiElements and iosArm64MetadataApiElements
+     * both containing the same metadata klib of iosMain.
+     *
+     * For example:
+     * * [resolvedRootMppDependencyIdentifier] == o.j.k:kotlinx-coroutines-core
+     * * [dependencyProjectStructureMetadata.hostSpecificSourceSets][KotlinProjectStructureMetadata.hostSpecificSourceSets] = `listOf("iosMain")`
+     * * [dependencyProjectStructureMetadata] == PSM of coroutines
+     * * [platformCompilationsByResolvedVariantName] ==
+     *      iosX64ApiElements   -> IosX64MainCompilationData
+     *      iosArm64ApiElements -> IosArm64MainCompilationData
+     *
+     * Can return the following valid responses:
+     * `mapOf("iosMain" to File("iosX64-metadata.klib"))`
+     * `mapOf("iosMain" to File("iosArm64-metadata.klib"))`
+     */
+    private fun resolveHostSpecificArtifactsBySourceSet(
+        visibleSourceSetNames: Set<String>,
+        resolvedRootMppDependencyIdentifier: KmpModuleIdentifier,
+        dependencyProjectStructureMetadata: KotlinProjectStructureMetadata,
+        platformCompilationsByResolvedVariantName: Map<String, PlatformCompilationData>,
+    ): Map<String, File> {
+        val hostSpecificSourceSets = dependencyProjectStructureMetadata.hostSpecificSourceSets.intersect(visibleSourceSetNames)
+        if (hostSpecificSourceSets.isEmpty()) return emptyMap()
+
+        val res = mutableMapOf<String, File>()
+        hostSpecificSourceSets.forEach { hostSpecificSourceSet ->
+            val cacheKey = "hostSpecificMetadataJarFile/$projectId/${resolvedRootMppDependencyIdentifier.componentId}/$hostSpecificSourceSet"
+            val hostSpecificMetadataJarFile = cache.getOrCompute(cacheKey) {
+                val resolvedHostSpecificMetadataConfiguration = dependencyProjectStructureMetadata
+                    .sourceSetNamesByVariantName
+                    .firstNotNullOfOrNull { (variantName, variantSourceSets) ->
+                        if (!variantSourceSets.contains(hostSpecificSourceSet)) return@firstNotNullOfOrNull null
+                        platformCompilationsByResolvedVariantName[variantName]?.hostSpecificMetadataConfiguration
+                    } ?: return@getOrCompute null
+
+                val dependency = resolvedHostSpecificMetadataConfiguration
+                    .allResolvedDependencies
+                    .find { KmpModuleIdentifier.from(it.selected) == resolvedRootMppDependencyIdentifier }
+                    ?: return@getOrCompute null
+
+                val metadataArtifact = resolvedHostSpecificMetadataConfiguration
+                    // it can happen that related host-specific metadata artifact doesn't exist
+                    // for example on linux machines, then just gracefully return null
+                    .dependencyArtifactsOrNull(dependency)
+                    ?.singleOrNull()
+                    ?: return@getOrCompute null
+
+                // It can happen that host-specific artifact is mentioned in resolve but it doesn't exist physically
+                // then again gracefully return null
+                val metadataArtifactFile = metadataArtifact.file
+                if (!metadataArtifactFile.exists()) return@getOrCompute null
+
+                metadataArtifactFile
+            }
+
+            if (hostSpecificMetadataJarFile != null) res[hostSpecificSourceSet] = hostSpecificMetadataJarFile
+        }
+
+        return res
     }
 
     /**
@@ -62,57 +201,29 @@ internal class SourceSetVisibilityProvider {
         dependingPlatformCompilations: List<PlatformCompilationData>,
         dependencyProjectStructureMetadata: KotlinProjectStructureMetadata,
         resolvedToOtherProject: Boolean,
-        resolveWithLenientPSMResolutionScheme: Boolean,
-        allowMatchingByRequestedCoordinates: Boolean,
     ): SourceSetVisibilityResult {
         if (dependingPlatformCompilations.isEmpty())
             return SourceSetVisibilityResult(emptySet(), emptyMap())
 
-        val resolvedRootMppDependencyId = resolvedRootMppDependency.selected.id
-        val resolvedRootMppDependencyKmpIdentifier = resolvedRootMppDependencyId.kmpMultiVariantModuleIdentifier()
+        val resolvedRootMppDependencyIdentifier = KmpModuleIdentifier.from(
+            resolvedRootMppDependency.selected,
+        )
 
         val platformCompilationsByResolvedVariantName = mutableMapOf<String, PlatformCompilationData>()
         val visiblePlatformVariantNames: List<Set<String>> = dependingPlatformCompilations
             .mapNotNull { platformCompilationData ->
-                val resolvedPlatformDependencies = platformCompilationData
-                    .resolvedDependenciesConfiguration
-                    .allResolvedDependencies
-                    .filter {
-                        it.selected.id.kmpMultiVariantModuleIdentifier() == resolvedRootMppDependencyKmpIdentifier ||
-                                (allowMatchingByRequestedCoordinates && it.requested == resolvedRootMppDependency.requested)
-                    }
-                    .filter {
-                        // Pre lenient resolve logic
-                        if (!resolveWithLenientPSMResolutionScheme) return@filter true
-                        /**
-                         * Detect that platform compilation's resolvedDependenciesConfiguration resolved metadata variant as a fallback
-                         *
-                         * This likely means that the dependency is missing the target of the platform compilation and we must therefore not
-                         * see this dependency in the [visiblePlatformVariantNames]
-                         *
-                         * @see [UklibResolutionTestsWithMockComponents] and [KmpResolutionIT]
-                         */
-                        val platformCompilationResolvedToMetadataJarVariant = it.resolvedVariant.attributes.getAttribute(
-                            KotlinPlatformType.attribute
-                        ) == KotlinPlatformType.common || it.resolvedVariant.attributes.getAttribute(
-                            Attribute.of(KotlinPlatformType.attribute.name, String::class.java)
-                        ) == KotlinPlatformType.common.name
 
-                        return@filter !platformCompilationResolvedToMetadataJarVariant
-                    }
-                    .ifEmpty { return@mapNotNull null }
+                val resolvedVariants = platformCompilationData.resolveToPlatformVariantNames(
+                    resolvedRootMppDependencyIdentifier, resolvedRootMppDependency.requested,
+                )
 
-                resolvedPlatformDependencies.map { resolvedPlatformDependency ->
-                    val resolvedVariant = kotlinVariantNameFromPublishedVariantName(
-                        resolvedPlatformDependency.resolvedVariant.displayName
-                    )
-
+                resolvedVariants?.forEach { resolvedVariant ->
                     if (resolvedVariant !in platformCompilationsByResolvedVariantName) {
                         platformCompilationsByResolvedVariantName[resolvedVariant] = platformCompilationData
                     }
+                }
 
-                    resolvedVariant
-                }.toSet()
+                resolvedVariants
             }
 
         if (visiblePlatformVariantNames.isEmpty()) {
@@ -149,48 +260,12 @@ internal class SourceSetVisibilityProvider {
                  */
                 emptyMap()
             } else {
-                val hostSpecificSourceSets = visibleSourceSetNames.intersect(dependencyProjectStructureMetadata.hostSpecificSourceSets)
-
-                /**
-                 * As all of the variants normally contain the same metadata for each of the relevant host-specific source sets,
-                 * any of the variants that we resolved can be used, so choose the first one that satisfies both:
-                 *
-                 *  - it contains the host-specific source set, and
-                 *  - we have resolved it for some compilation
-                 */
-                val someVariantByHostSpecificSourceSet =
-                    hostSpecificSourceSets.associate { sourceSetName ->
-                        sourceSetName to dependencyProjectStructureMetadata.sourceSetNamesByVariantName
-                            .filterKeys { it in platformCompilationsByResolvedVariantName }
-                            .filterValues { sourceSetName in it }
-                            .keys.first()
-                    }
-
-                someVariantByHostSpecificSourceSet.entries.mapNotNull { (sourceSetName, variantName) ->
-                    val resolvedHostSpecificMetadataConfiguration = platformCompilationsByResolvedVariantName
-                        .getValue(variantName)
-                        .hostSpecificMetadataConfiguration
-                        ?: return@mapNotNull null
-
-                    val dependency = resolvedHostSpecificMetadataConfiguration
-                        .allResolvedDependencies
-                        .find { it.selected.id == resolvedRootMppDependencyId }
-                        ?: return@mapNotNull null
-
-                    val metadataArtifact = resolvedHostSpecificMetadataConfiguration
-                        // it can happen that related host-specific metadata artifact doesn't exist
-                        // for example on linux machines, then just gracefully return null
-                        .dependencyArtifactsOrNull(dependency)
-                        ?.singleOrNull()
-                        ?: return@mapNotNull null
-
-                    // It can happen that host-specific artifact is mentioned in resolve but it doesn't exist physically
-                    // then again gracefully return null
-                    val metadataArtifactFile = metadataArtifact.file
-                    if (!metadataArtifactFile.exists()) return@mapNotNull null
-
-                    sourceSetName to metadataArtifact.file
-                }.toMap()
+                resolveHostSpecificArtifactsBySourceSet(
+                    visibleSourceSetNames = visibleSourceSetNames,
+                    resolvedRootMppDependencyIdentifier = resolvedRootMppDependencyIdentifier,
+                    dependencyProjectStructureMetadata = dependencyProjectStructureMetadata,
+                    platformCompilationsByResolvedVariantName = platformCompilationsByResolvedVariantName,
+                )
             }
 
         /**
@@ -265,52 +340,3 @@ internal fun sortSourceSetsByDependsOnRelation(
 
 internal fun kotlinVariantNameFromPublishedVariantName(resolvedToVariantName: String): String =
     originalVariantNameFromPublished(resolvedToVariantName) ?: resolvedToVariantName
-
-/**
- * This identifier is used to group the resolved variants as a single KMP module. These groups are then used for visibility inference and
- * the diagnostics about partially unresolved KMP dependencies ([org.jetbrains.kotlin.gradle.plugin.diagnostics.checkers.KmpPartiallyResolvedDependenciesChecker]).
- */
-internal sealed class KmpMultiVariantModuleIdentifier {
-    data class ProjectIdentifier(
-        val projectPath: String,
-    ) : KmpMultiVariantModuleIdentifier() {
-        override val displayCoordinate: String
-            get() = "project $projectPath"
-    }
-
-    data class ModuleIdentifier(
-        val group: String,
-        val module: String,
-    ) : KmpMultiVariantModuleIdentifier() {
-        override val displayCoordinate: String
-            get() = "${group}:${module}"
-    }
-
-    class Unidentifiable(val origin: Any) : KmpMultiVariantModuleIdentifier() {
-        override fun equals(other: Any?): Boolean = false
-        override fun hashCode(): Int {
-            return javaClass.hashCode()
-        }
-
-        override val displayCoordinate: String
-            get() = origin.toString()
-    }
-
-    abstract val displayCoordinate: String
-}
-
-internal fun ComponentIdentifier.kmpMultiVariantModuleIdentifier(): KmpMultiVariantModuleIdentifier {
-    return when (this) {
-        is ProjectComponentIdentifier -> KmpMultiVariantModuleIdentifier.ProjectIdentifier(projectPath)
-        is ModuleComponentIdentifier -> KmpMultiVariantModuleIdentifier.ModuleIdentifier(moduleIdentifier.group, moduleIdentifier.name)
-        else -> KmpMultiVariantModuleIdentifier.Unidentifiable(this)
-    }
-}
-
-internal fun ComponentSelector.kmpMultiVariantModuleIdentifier(): KmpMultiVariantModuleIdentifier {
-    return when (this) {
-        is ProjectComponentSelector -> KmpMultiVariantModuleIdentifier.ProjectIdentifier(projectPath)
-        is ModuleComponentSelector -> KmpMultiVariantModuleIdentifier.ModuleIdentifier(moduleIdentifier.group, moduleIdentifier.name)
-        else -> KmpMultiVariantModuleIdentifier.Unidentifiable(this)
-    }
-}

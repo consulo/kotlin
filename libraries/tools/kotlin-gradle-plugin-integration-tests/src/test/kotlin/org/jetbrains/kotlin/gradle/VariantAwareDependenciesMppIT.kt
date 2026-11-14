@@ -11,12 +11,15 @@ import org.jetbrains.kotlin.gradle.uklibs.applyMultiplatform
 import org.jetbrains.kotlin.gradle.util.checkedReplace
 import org.jetbrains.kotlin.gradle.util.replaceText
 import org.jetbrains.kotlin.gradle.util.testResolveAllConfigurations
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import kotlin.io.path.appendText
 import kotlin.test.assertTrue
 
 @DisplayName("Multiplatform variant aware dependency resolution")
 @MppGradlePluginTests
+@MustRunOnChangesInGradle
 class VariantAwareDependenciesMppIT : KGPBaseTest() {
 
     override val defaultBuildOptions: BuildOptions = super.defaultBuildOptions.copy(
@@ -59,7 +62,7 @@ class VariantAwareDependenciesMppIT : KGPBaseTest() {
                     sourceSets.jsMain {
                         dependencies {
                             implementation(
-                                project.dependencies.create(project.rootProject)
+                                dependencies.project(mapOf("path" to ":"))
                             )
                         }
                     }
@@ -128,7 +131,7 @@ class VariantAwareDependenciesMppIT : KGPBaseTest() {
                         |    }
                         |}
                         |
-                        |dependencies { implementation rootProject }
+                        |dependencies { implementation(project(":")) }
                         |
                         """.trimMargin()
                     )
@@ -147,7 +150,7 @@ class VariantAwareDependenciesMppIT : KGPBaseTest() {
                 it.replace("kotlinOptions.jvmTarget = \"1.7\"", "kotlinOptions.jvmTarget = \"11\"") +
                         """
                         |
-                        |dependencies { implementation rootProject }
+                        |dependencies { implementation(project(":")) }
                         |
                         """.trimMargin()
             }
@@ -208,6 +211,7 @@ class VariantAwareDependenciesMppIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("new-mpp-jvm-with-java-multi-module")
     @DisplayName("Multiplatform project with Java plugin applied could be resolved in all configurations")
     @GradleTest
     fun testJvmWithJavaProjectCanBeResolvedInAllConfigurations(gradleVersion: GradleVersion) {
@@ -217,6 +221,7 @@ class VariantAwareDependenciesMppIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("Configurations with no explicit usage could be resolved")
     @GradleTest
     fun testConfigurationsWithNoExplicitUsageResolveRuntime(gradleVersion: GradleVersion) {
@@ -240,11 +245,6 @@ class VariantAwareDependenciesMppIT : KGPBaseTest() {
             testResolveAllConfigurations { _, buildResult ->
                 buildResult.assertOutputContains(
                     ">> :customConfiguration --> kotlin-compiler-embeddable-${defaultBuildOptions.kotlinVersion}.jar"
-                )
-
-                // Check that the transitive dependencies with 'runtime' scope are also available:
-                buildResult.assertOutputContains(
-                    ">> :customConfiguration --> kotlin-script-runtime-${defaultBuildOptions.kotlinVersion}.jar"
                 )
             }
         }
@@ -274,6 +274,7 @@ class VariantAwareDependenciesMppIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("simpleProject")
     @DisplayName("Custom configuration with dependency on multiplatform project could be resolved")
     @GradleTest
     fun testResolveDependencyOnMppInCustomConfiguration(gradleVersion: GradleVersion) {

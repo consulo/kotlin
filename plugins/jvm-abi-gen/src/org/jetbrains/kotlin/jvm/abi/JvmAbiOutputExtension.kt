@@ -53,7 +53,7 @@ class JvmAbiOutputExtension(
         val preserveDeclarationOrder: Boolean,
         val treatInternalAsPrivate: Boolean,
     ) : OutputFileCollection {
-        private val classesToBeDeleted = abiClassInfos.mapNotNullTo(mutableSetOf()) { (className, action) ->
+        private val classesToBeDeleted = abiClassInfos.mapNotNullTo(mutableSetOf()) { [className, action] ->
             className.takeIf { action == AbiClassInfo.Deleted }
         }
 
@@ -94,6 +94,11 @@ class JvmAbiOutputExtension(
                             private val keptFields = mutableListOf<FieldNode>()
                             private val keptMethods = mutableListOf<MethodNode>()
                             private val innerClassInfos = mutableMapOf<String, InnerClassInfo>()
+
+                            override fun visitAttribute(attribute: Attribute) {
+                                if (attribute.type == LOADABLE_DESCRIPTORS_ATTRIBUTE_NAME) return
+                                super.visitAttribute(attribute)
+                            }
 
                             override fun visitSource(source: String?, debug: String?) {
                                 sourceFile = source
@@ -182,7 +187,7 @@ class JvmAbiOutputExtension(
                                 }
 
                                 val sourceMapText = sourceMap?.parent?.takeIf { !it.isTrivial }
-                                    ?.let { SMAPBuilder.build(it.resultMappings, backwardsCompatibleSyntax = false) }
+                                    ?.let { SMAPBuilder.build(it.resultMappings, validate = false) }
                                 // This is technically not the right way to use `ClassVisitor` (`visitSource` should be called before
                                 // `visitMethod` and such), but `ClassWriter` doesn't care, and we're a bit constrained here (see above).
                                 cv.visitSource(sourceFile, sourceMapText)

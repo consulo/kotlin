@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +NoDeprecationOnDeprecatedEnumEntries
+// RUN_PIPELINE_TILL: CODEGEN
 // ISSUE: KT-37975
 
 @Deprecated("")

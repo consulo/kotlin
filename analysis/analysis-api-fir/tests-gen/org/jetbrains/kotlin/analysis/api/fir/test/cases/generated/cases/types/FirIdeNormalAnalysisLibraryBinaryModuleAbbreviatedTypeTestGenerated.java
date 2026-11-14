@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.types.AbstractAbbreviatedTypeTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.types.AbstractAbbreviatedTypeTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirIdeNormalAnalysisLibraryBinaryModuleAbbreviatedTypeTestGenerated
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.LibraryBinary,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -73,6 +71,18 @@ public class FirIdeNormalAnalysisLibraryBinaryModuleAbbreviatedTypeTestGenerated
   @TestMetadata("FunctionAliasNullableFromLibrary.kt")
   public void testFunctionAliasNullableFromLibrary() {
     run("FunctionAliasNullableFromLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("IntAliasFromDecompiledLibrary.kt")
+  public void testIntAliasFromDecompiledLibrary() {
+    run("IntAliasFromDecompiledLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("IntAliasInDecompiledLibraryUseSite.kt")
+  public void testIntAliasInDecompiledLibraryUseSite() {
+    run("IntAliasInDecompiledLibraryUseSite.kt");
   }
 
   @Test

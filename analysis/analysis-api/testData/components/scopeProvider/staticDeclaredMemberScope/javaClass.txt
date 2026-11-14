@@ -1,9 +1,12 @@
 KaJavaFieldSymbol:
+  anchorPsi: PsiFieldImpl
   annotations: []
   callableId: /JavaClass.foo
-  compilerVisibility: Public
+  contextParameters: []
   contextReceivers: []
   isActual: false
+  isCompanion: true
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -13,28 +16,32 @@ KaJavaFieldSymbol:
   modality: FINAL
   name: foo
   origin: JAVA_SOURCE
+  psi: PsiFieldImpl
+  realPsi: PsiFieldImpl
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: kotlin/Int
+  typeParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: null
   getContainingJvmClassName: JavaClass
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: JavaClass.foo
 
 KaNamedFunctionSymbol:
+  anchorPsi: PsiMethodImpl
   annotations: []
   callableId: /JavaClass.bar
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: false
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: true
   isExpect: false
   isExtension: false
   isExternal: false
@@ -49,6 +56,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: bar
   origin: JAVA_SOURCE
+  psi: PsiMethodImpl
+  realPsi: null
   receiverParameter: null
   returnType: KaFlexibleType:
     annotations: []
@@ -60,16 +69,17 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: JavaClass
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: bar
   importableFqName: JavaClass.bar
 
 KaNamedClassSymbol:
+  anchorPsi: PsiClassImpl
   annotations: []
   classId: JavaClass.NestedClass
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -78,10 +88,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: CLASS
   modality: OPEN
   name: NestedClass
   origin: JAVA_SOURCE
+  psi: PsiClassImpl
+  realPsi: PsiClassImpl
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -92,16 +105,16 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: null
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: JavaClass.NestedClass
 
 KaNamedClassSymbol:
+  anchorPsi: PsiClassImpl
   annotations: []
   classId: JavaClass.InnerClass
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -110,10 +123,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: true
+  isValue: false
   location: CLASS
   modality: OPEN
   name: InnerClass
   origin: JAVA_SOURCE
+  psi: PsiClassImpl
+  realPsi: PsiClassImpl
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -124,6 +140,6 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: null
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: JavaClass.InnerClass

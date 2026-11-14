@@ -1,6 +1,5 @@
+// LATEST_LV_DIFFERENCE
 // RUN_PIPELINE_TILL: FRONTEND
-// SKIP_JAVAC
-// LANGUAGE: +InlineClasses
 // ALLOW_KOTLIN_PACKAGE
 // DIAGNOSTICS: -UNUSED_PARAMETER
 
@@ -47,11 +46,11 @@ object B2 {
 
 @JvmInline
 final value class D0(val x: Int)
-<!VALUE_CLASS_NOT_FINAL!>open<!> <!VALUE_CLASS_WITHOUT_JVM_INLINE_ANNOTATION!>value<!> class D1(val x: Int)
-<!VALUE_CLASS_NOT_FINAL!>abstract<!> <!VALUE_CLASS_WITHOUT_JVM_INLINE_ANNOTATION!>value<!> class D2(val x: Int)
-<!VALUE_CLASS_NOT_FINAL!>sealed<!> <!VALUE_CLASS_WITHOUT_JVM_INLINE_ANNOTATION!>value<!> class D3(val x: Int)
+<!VALUE_CLASS_NOT_FINAL!>open<!> <!INLINE_VALUE_CLASS_WITHOUT_EXPLICIT_INLINE_ERROR!>value<!> class D1(val x: Int)
+<!VALUE_CLASS_NOT_FINAL!>abstract<!> <!INLINE_VALUE_CLASS_WITHOUT_EXPLICIT_INLINE_ERROR!>value<!> class D2(val x: Int)
+<!VALUE_CLASS_NOT_FINAL!>sealed<!> <!INLINE_VALUE_CLASS_WITHOUT_EXPLICIT_INLINE_ERROR!>value<!> class D3(val x: Int)
 
-<!INCOMPATIBLE_MODIFIERS, VALUE_CLASS_WITHOUT_JVM_INLINE_ANNOTATION!>value<!> <!INCOMPATIBLE_MODIFIERS!>data<!> class D4(val x: String)
+<!INCOMPATIBLE_MODIFIERS, INLINE_VALUE_CLASS_WITHOUT_EXPLICIT_INLINE_ERROR!>value<!> <!INCOMPATIBLE_MODIFIERS!>data<!> class D4(val x: String)
 
 /* GENERATED_FIR_TAGS: annotationDeclaration, classDeclaration, companionObject, data, nestedClass, objectDeclaration,
 primaryConstructor, propertyDeclaration, sealed, value, vararg */

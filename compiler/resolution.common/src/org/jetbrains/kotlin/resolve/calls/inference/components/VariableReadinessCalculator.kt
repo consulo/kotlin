@@ -5,15 +5,22 @@
 
 package org.jetbrains.kotlin.resolve.calls.inference.components
 
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.resolve.calls.inference.components.VariableFixationFinder.Context
 import org.jetbrains.kotlin.resolve.calls.inference.components.VariableFixationFinder.VariableForFixation
+import org.jetbrains.kotlin.resolve.calls.inference.model.Constraint
+import org.jetbrains.kotlin.resolve.calls.inference.model.ConstraintKind
+import org.jetbrains.kotlin.types.AbstractTypeApproximator
+import org.jetbrains.kotlin.types.TypeApproximatorConfiguration.AbstractIncorporationConfiguration
 import org.jetbrains.kotlin.types.model.*
+import org.jetbrains.kotlin.utils.addToStdlib.ifTrue
 import org.jetbrains.kotlin.resolve.calls.inference.components.VariableReadinessCalculator.TypeVariableFixationReadinessQuality as Q
 
 class VariableReadinessCalculator(
     trivialConstraintTypeInferenceOracle: TrivialConstraintTypeInferenceOracle,
     languageVersionSettings: LanguageVersionSettings,
+    private val typeApproximator: AbstractTypeApproximator,
     inferenceLoggerParameter: InferenceLogger? = null,
 ) : AbstractVariableReadinessCalculator<VariableReadinessCalculator.TypeVariableFixationReadiness>(
     trivialConstraintTypeInferenceOracle,
@@ -49,6 +56,19 @@ class VariableReadinessCalculator(
         // It does however include `T = Nothing(?)` and `T <: Nothing(?)`
         HAS_PROPER_NON_TRIVIAL_CONSTRAINTS,
         HAS_PROPER_NON_TRIVIAL_CONSTRAINTS_OTHER_THAN_INCORPORATED_FROM_DECLARED_UPPER_BOUND,
+
+        // If a variable is based on a reified type parameter.
+        // Generally, we shouldn't care much if a type variable is based on a reified type parameter, but it tends to be the most
+        // common case for a materialize-like functions, having a shape like `fun <reified T> materialize(): T`.
+        //
+        // And for the usages like `val x: Base = run { materialize() ?: derived }`, it might be very important to infer `T` into `Base`.
+        // That's why we prefer to fix such variables as soon as they have any proper (likely UPPER) constraints.
+        //
+        // One might notice that such a behavior might be reasonable for non-reified's as well, but it's more of the issue for KT-81083.
+        // So, basically this readiness is only necessary to preserve backwards compatibility (see KT-86728).
+        // Relevant test data: `reifiedFirst.kt` and `earlierReifiedFix.kt`
+        // TODO: Consider getting rid of it (KT-81083)
+        REIFIED,
 
         // Starts fixation of variables with a LOWER flexible constraint even if
         // they have LOWER constraints referring to some others: this makes fixing
@@ -111,7 +131,7 @@ class VariableReadinessCalculator(
         val forbidden = !c.notFixedTypeVariables.contains(this)
                 || dependencyProvider.isVariableRelatedToTopLevelType(this)
                 || hasUnprocessedConstraintsInForks()
-                || dependencyProvider.isRelatedToCollectionLiteral(this)
+                || dependencyProvider.isRelatedToAtomWithExpectedTypeAsStaticReceiver(this)
         val areAllProperConstraintsSelfTypeBased = areAllProperConstraintsSelfTypeBased()
 
         // These values go in the same order as they are defined in `TypeVariableFixationReadinessQuality`,
@@ -131,7 +151,8 @@ class VariableReadinessCalculator(
 
         readiness[Q.HAS_PROPER_NON_SELF_TYPE_BASED_CONSTRAINT] =
             readiness[Q.HAS_PROPER_CONSTRAINTS] && !areAllProperConstraintsSelfTypeBased
-        readiness[Q.HAS_NO_DEPENDENCIES_TO_OTHER_VARIABLES] = !hasDependencyToOtherTypeVariables()
+        readiness[Q.HAS_NO_DEPENDENCIES_TO_OTHER_VARIABLES] = !hasDependencyToOtherTypeVariables() &&
+                !hasDependencyToOtherTypeVariablesViaSelfTypeAndShallowConstraint()
         readiness[Q.HAS_PROPER_NON_TRIVIAL_CONSTRAINTS] = !allConstraintsTrivialOrNonProper()
         readiness[Q.HAS_PROPER_NON_TRIVIAL_CONSTRAINTS_OTHER_THAN_INCORPORATED_FROM_DECLARED_UPPER_BOUND] =
             !hasOnlyIncorporatedConstraintsFromDeclaredUpperBound()
@@ -139,7 +160,8 @@ class VariableReadinessCalculator(
         readiness[Q.HAS_PROPER_FLEXIBLE_LOWER_CONSTRAINT] = constraints
             .any { it.kind.isLower() && it.isProperArgumentConstraint() && it.type.isFlexible() }
 
-        val (_, hasProperNonIltConstraint) = computeIltConstraintsRelatedFlags()
+        (val hasProperNonIltConstraint) = computeIltConstraintsRelatedFlags()
+        readiness[Q.REIFIED] = isReified()
         readiness[Q.HAS_PROPER_NON_ILT_CONSTRAINT] = hasProperNonIltConstraint
 
         readiness[Q.HAS_NO_EXPLICIT_LOWER_NOTHING_CONSTRAINT] = hasNoExplicitLowerNothingConstraint()
@@ -182,5 +204,188 @@ class VariableReadinessCalculator(
                 hasDependencyOnOuterTypeVariable = !readiness[Q.HAS_NO_OUTER_TYPE_VARIABLE_DEPENDENCY],
             )
         }
+    }
+
+    private val eliminateSecondKindIncorporation: Boolean =
+        languageVersionSettings.supportsFeature(LanguageFeature.EliminateSecondKindIncorporation)
+
+    /**
+     * Delays the fixation of a variable whose constraints would be refined by fixing another variable first.
+     *
+     * For a variable `T` with a nested self-occurrence, e.g. `T <: Comparable<T>`, and a "shallow" bound to
+     * another not-fixed variable `S` (`T <: S`, `S <: T`, or `T == S`), the constraints of `T` are effectively
+     * parameterized by `S`: once `S` is fixed, its result is substituted into the constraints containing `S` which may refine
+     * what `T` can be fixed to (`T <: Comparable<S_result>`). So `T` must not count as dependency-free: `S` should go first.
+     *
+     * Constraints without a nested self-occurrence need no special treatment: either they contain another
+     * type variable in a nested position themselves (then [hasDependencyToOtherTypeVariables] is already
+     * true), or the shallow bound adds nothing beyond direct transitive incorporation.
+     *
+     * Before [LanguageFeature.EliminateSecondKindIncorporation] (pre-2.5), the same effect was achieved
+     * differently: the eagerly derived constraint copies (`T <: Comparable<S>`) made
+     * [hasDependencyToOtherTypeVariables] true for `T` directly.
+     */
+    context(c: Context)
+    private fun TypeConstructorMarker.hasDependencyToOtherTypeVariablesViaSelfTypeAndShallowConstraint(): Boolean {
+        if (!eliminateSecondKindIncorporation) return false
+        val variableWithConstraints = c.notFixedTypeVariables[this] ?: return false
+        // Only nested self-occurrences (inside a type argument) matter: for a top-level one (`T?`, `T & Any`, …)
+        // the second kind used to produce either a trivial constraint or one covered by the direct incorporation
+        val selfReferredConstraints = variableWithConstraints.getConstraintsContainedSpecifiedTypeVariable(this)
+            .filter { it.type.lowerBoundIfFlexible().argumentsCount() != 0 }
+            .ifEmpty { return false }
+
+        var hasUpperShallowNeighbor = false
+        var hasLowerShallowNeighbor = false
+
+        for (constraint in variableWithConstraints.constraints) {
+            val rigidType = constraint.type.lowerBoundIfFlexible()
+            val neighbor = rigidType.originalIfDefinitelyNotNullable().typeConstructor()
+
+            // Likely impossible, but not sure about red code
+            if (neighbor == this) continue
+
+            if (c.notFixedTypeVariables.containsKey(neighbor)) {
+                when (constraint.kind) {
+                    // An EQUALITY bound is substituted without approximation, so any self-referring constraint retains it
+                    ConstraintKind.EQUALITY -> return true
+                    ConstraintKind.UPPER -> hasUpperShallowNeighbor = true
+                    ConstraintKind.LOWER -> hasLowerShallowNeighbor = true
+                }
+            }
+        }
+
+        if (!hasUpperShallowNeighbor && !hasLowerShallowNeighbor) return false
+
+        // Just a random type which should survive after approximation as a sign that in the presence of the shallow neighbors
+        // the type variable should be treated as having a complex dependency.
+        // NB: This type doesn't leak outside of this function
+        val stub = c.createStubTypeForTypeVariablesInSubtyping(variableWithConstraints.typeVariable)
+
+        // This part figures out whether from any combination of self-referred constraint and some shallow type
+        // variable neighbor we can deduce a complex dependency from `this` type variable to the neighboring one.
+        // In other words, we try to find and evidence that T <: (or :>) SomeSelfType<...S...>. or
+        //
+        // For example, having T <: SomeSelfType<T> and some shallow T <: S.
+        // The idea is that we substitute SomeSelfType<T>[T =: Captured(out stub)]
+        // and approximate: if the stub survives (SomeSelfType<Captured(out stub)> keeps it), the resulting
+        // constraint T <: SomeSelfType<out S> retains `S`, so T has a complex dependency on S.
+        // It's possible to prove that T <: SomeSelfType<out S> is a correct constraint from the preconditions:
+        //   T <: SomeSelfType<T> && T <: S
+        //    => SomeSelfType<T> <: SomeSelfType<out S>
+        //    => T <: SomeSelfType<out S>
+        // The same thing might be applied for S <: T, but the captured type should be based on IN projection.
+        if (hasUpperShallowNeighbor) {
+            // Captured(out Stub(T))
+            val capturedSubstitution = c.createCapturedType(
+                c.createTypeArgument(stub, TypeVariance.OUT),
+                constructorSupertypes = listOf(stub),
+                lowerType = null,
+                CaptureStatus.FOR_INCORPORATION,
+            )
+
+            anyApproximatedConstraintHasStubTypeSurvived(
+                selfReferredConstraints,
+                typeVariable = this,
+                capturedSubstitution,
+                stub
+            ).ifTrue { return true }
+        }
+
+        if (hasLowerShallowNeighbor) {
+            // Captured(in Stub(T))
+            val capturedSubstitution = c.createCapturedType(
+                c.createTypeArgument(stub, TypeVariance.IN),
+                constructorSupertypes = emptyList(),
+                lowerType = stub,
+                CaptureStatus.FOR_INCORPORATION,
+            )
+
+            anyApproximatedConstraintHasStubTypeSurvived(
+                selfReferredConstraints,
+                typeVariable = this,
+                capturedSubstitution,
+                stub
+            ).ifTrue { return true }
+        }
+
+        return false
+    }
+
+    context(c: Context)
+    private fun anyApproximatedConstraintHasStubTypeSurvived(
+        selfReferredConstraints: Collection<Constraint>,
+        typeVariable: TypeConstructorMarker,
+        capturedSubstitution: CapturedTypeMarker,
+        stub: StubTypeMarker,
+    ): Boolean {
+        val stubConstructor = stub.typeConstructor()
+        val substitutor = c.typeSubstitutorByTypeConstructor(
+            mapOf(typeVariable to capturedSubstitution)
+        )
+        for (constraint in selfReferredConstraints) {
+            val substitutedType = substitutor.safeSubstitute(constraint.type)
+            check(substitutedType !== constraint.type) {
+                "Substitution should not non-trivial for self-referred constraint $constraint"
+            }
+
+            // The approximation direction mirrors the self-referred constraint: an UPPER containing constraint
+            // (`T <: C<…>`) was approximated to a supertype, a LOWER one — to a subtype, an EQUALITY one — both ways
+            if (constraint.kind.impliesUpper() &&
+                stubSurvivesCapturedTypeApproximation(substitutedType, toSuper = true, stubConstructor)
+            ) {
+                return true
+            }
+            if (constraint.kind.impliesLower() &&
+                stubSurvivesCapturedTypeApproximation(substitutedType, toSuper = false, stubConstructor)
+            ) {
+                return true
+            }
+        }
+        return false
+    }
+
+    context(c: Context)
+    private fun stubSurvivesCapturedTypeApproximation(
+        type: KotlinTypeMarker,
+        toSuper: Boolean,
+        stubConstructor: TypeConstructorMarker,
+    ): Boolean {
+        val approximatedType = when {
+            toSuper -> typeApproximator.approximateToSuperType(
+                type, StubTypesAwareIncorporationConfiguration,
+                c.approximatorCaches,
+            )
+            else -> typeApproximator.approximateToSubType(
+                type, StubTypesAwareIncorporationConfiguration,
+                c.approximatorCaches,
+            )
+        } ?: type
+        return approximatedType.containsUnprojectedStub(stubConstructor)
+    }
+
+    // Mirrors the legacy `containsConstrainingTypeWithoutProjection` filter of the second incorporation kind:
+    // a derived constraint like `T <: SomeSelfType<out S>` was dropped there, so only a non-projected
+    // occurrence of the neighbor (`T <: SomeSelfType<S>`) counts as a complex dependency (see KT-91112).
+    // TODO: Reconsider ignoring projected occurrences of the neighbor (KT-91227)
+    context(c: Context)
+    private fun KotlinTypeMarker.containsUnprojectedStub(stubConstructor: TypeConstructorMarker): Boolean {
+        if (this is FlexibleTypeMarker) {
+            return lowerBound().containsUnprojectedStub(stubConstructor) ||
+                    !c.isTriviallyFlexible(this) && upperBound().containsUnprojectedStub(stubConstructor)
+        }
+
+        for (index in 0 until argumentsCount()) {
+            val argument = getArgument(index)
+            val argumentType = argument.getType() ?: continue
+            if (argument.getVariance() == TypeVariance.INV && argumentType.typeConstructor() === stubConstructor) return true
+            if (argumentType.containsUnprojectedStub(stubConstructor)) return true
+        }
+
+        return false
+    }
+
+    private object StubTypesAwareIncorporationConfiguration : AbstractIncorporationConfiguration() {
+        override val stubTypesEqualToAnything: Boolean get() = false
     }
 }

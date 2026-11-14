@@ -7,14 +7,13 @@ package kotlin.reflect.jvm.internal
 
 import org.jetbrains.kotlin.descriptors.runtime.structure.desc
 import java.lang.reflect.Method
+import java.lang.reflect.Type
 import kotlin.LazyThreadSafetyMode.PUBLICATION
 import kotlin.jvm.internal.FunctionBase
 import kotlin.metadata.Modality
-import kotlin.reflect.KParameter
-import kotlin.reflect.KType
-import kotlin.reflect.KTypeParameter
-import kotlin.reflect.KVisibility
+import kotlin.reflect.*
 import kotlin.reflect.full.createDefaultType
+import kotlin.reflect.full.createTypeImpl
 import kotlin.reflect.jvm.internal.calls.AnnotationConstructorCaller
 import kotlin.reflect.jvm.internal.calls.AnnotationConstructorCaller.CallMode.CALL_BY_NAME
 import kotlin.reflect.jvm.internal.calls.AnnotationConstructorCaller.CallMode.POSITIONAL_CALL
@@ -30,6 +29,7 @@ internal class JavaAnnotationConstructor(
 
     override val container: KDeclarationContainerImpl get() = klass
     override val rawBoundReceiver: Any? get() = null
+    override val rawBoundContextArguments: List<Any?> get() = emptyList()
     override val signature: String by lazy(PUBLICATION) {
         parameters.joinToString(separator = "", prefix = "<init>(", postfix = ")V") { it.type.jvmErasure.java.desc }
     }
@@ -62,6 +62,9 @@ internal class JavaAnnotationConstructor(
     override val arity: Int get() = methods.size
     override val overridden: Collection<ReflectKFunction> get() = emptyList()
 
+    @ExperimentalCompanionExtensions
+    override val companionExtensionClass: KClass<*>? get() = null
+
     override val caller: Caller<*> by lazy(PUBLICATION) {
         AnnotationConstructorCaller(klass.java, methods.map { it.name }, POSITIONAL_CALL, JAVA, methods)
     }
@@ -74,6 +77,10 @@ internal class JavaAnnotationConstructor(
         require(overriddenStorage == KCallableOverriddenStorage.EMPTY) { "Constructors cannot have fake overrides: $this" }
         return JavaAnnotationConstructor(klass)
     }
+
+    override fun bindToLowerArity(boundReceiver: Any?, boundContextArguments: List<Any?>): ReflectKCallable<Any?> =
+        throw KotlinReflectionInternalError("Annotation constructors cannot have bound receivers or context arguments: $this")
+
 
     override fun equals(other: Any?): Boolean {
         val that = other.asReflectFunction() ?: return false
@@ -94,7 +101,9 @@ internal class JavaAnnotationConstructorParameter(
 ) : ReflectKParameter() {
     override val name: String get() = method.name
     override val type: KType by lazy(PUBLICATION) {
-        method.genericReturnType.toKType(emptyMap(), TypeNullability.NOT_NULL, isForAnnotationParameter = true)
+        val javaType = method.genericReturnType
+        val type = javaType.toKType(emptyMap(), TypeNullability.NOT_NULL, isForAnnotationParameter = true)
+        if (isVararg) type.toVarargArrayType(javaType) else type
     }
     override val kind: KParameter.Kind get() = KParameter.Kind.VALUE
     override val isVararg: Boolean get() = name == "value" && method.returnType.isArray
@@ -103,4 +112,9 @@ internal class JavaAnnotationConstructorParameter(
     override val declaresDefaultValue: Boolean get() = isOptional
 
     override val isOptional: Boolean get() = method.defaultValue != null
+}
+
+private fun KType.toVarargArrayType(javaType: Type): KType {
+    val elementType = arguments.singleOrNull()?.type ?: return this
+    return classifier!!.createTypeImpl(listOf(KTypeProjection.covariant(elementType)), computeJavaType = lazyOf(javaType))
 }

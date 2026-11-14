@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// JAVAC_EXPECTED_FILE
+// RUN_PIPELINE_TILL: CODEGEN
 // KT-588 Unresolved static method
 
 class Test() : Thread("Test") {

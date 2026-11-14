@@ -31,6 +31,10 @@ object TestGeneratorForJUnit5 : AbstractTestGenerator() {
         println("@Test")
     }
 
+    private fun Printer.generateSmokeTestAnnotation() {
+        println("@MustRunAlways")
+    }
+
     private fun Printer.generateNestedAnnotation(isNested: Boolean) {
         if (isNested) {
             println("@Nested")
@@ -65,6 +69,7 @@ object TestGeneratorForJUnit5 : AbstractTestGenerator() {
         testClass: TestGroup.TestClass,
         dryRun: Boolean,
         allowGenerationOnTeamCity: Boolean,
+        tolerateEmptyModels: Boolean,
         mainClassName: String?,
     ): GenerationResult {
         val generatorInstance = TestGeneratorInstance(
@@ -74,7 +79,7 @@ object TestGeneratorForJUnit5 : AbstractTestGenerator() {
             testClass.testModels,
             mainClassName,
         )
-        return generatorInstance.generateAndSave(dryRun, allowGenerationOnTeamCity)
+        return generatorInstance.generateAndSave(dryRun, allowGenerationOnTeamCity, tolerateEmptyModels)
     }
 
     private class TestGeneratorInstance(
@@ -82,7 +87,7 @@ object TestGeneratorForJUnit5 : AbstractTestGenerator() {
         suiteTestClassFqName: String,
         baseTestClassFqName: String,
         private val testClassModels: Collection<TestClassModel>,
-        private val mainClassName: String?
+        private val mainClassName: String?,
     ) {
         private val baseTestClassPackage: String = baseTestClassFqName.substringBeforeLast('.', "")
         private val baseTestClassName: String = baseTestClassFqName.substringAfterLast('.', baseTestClassFqName)
@@ -92,8 +97,8 @@ object TestGeneratorForJUnit5 : AbstractTestGenerator() {
             baseDir + "/" + this.suiteClassPackage.replace(".", "/") + "/" + this.suiteClassName + ".java"
 
         @Throws(IOException::class)
-        fun generateAndSave(dryRun: Boolean, allowGenerationOnTeamCity: Boolean): GenerationResult {
-            val generatedCode = generate()
+        fun generateAndSave(dryRun: Boolean, allowGenerationOnTeamCity: Boolean, tolerateEmptyModels: Boolean): GenerationResult {
+            val generatedCode = generate(tolerateEmptyModels)
 
             val testSourceFile = File(testSourceFilePath)
             val changed = if (!dryRun) {
@@ -109,7 +114,7 @@ object TestGeneratorForJUnit5 : AbstractTestGenerator() {
             return GenerationResult(changed, testSourceFilePath)
         }
 
-        private fun generate(): String {
+        private fun generate(tolerateEmptyModels: Boolean): String {
             val out = StringBuilder()
             val p = Printer(out, indentUnit = Printer.TWO_SPACE_INDENT)
 
@@ -185,10 +190,16 @@ object TestGeneratorForJUnit5 : AbstractTestGenerator() {
 
                     override val testKClass: Class<*>
                         get() = testClassModels.first().testKClass
+
+                    override val isSmokeTest: Boolean
+                        get() = testClassModels.any { it.isSmokeTest }
+
+                    override val smokeTestLimit: Int
+                        get() = testClassModels.maxOf { it.smokeTestLimit }
                 }
             }
 
-            generateTestClass(p, model, isNested = false)
+            generateTestClass(p, model, tolerateEmptyModels, isNested = false)
             return out.toString()
         }
 
@@ -245,6 +256,12 @@ object TestGeneratorForJUnit5 : AbstractTestGenerator() {
 
                     override val testKClass: Class<*>
                         get() = this@unfold.testKClass
+
+                    override val isSmokeTest: Boolean
+                        get() = this@unfold.isSmokeTest
+
+                    override val smokeTestLimit: Int
+                        get() = this@unfold.smokeTestLimit
                 }
             }
             return result
@@ -253,6 +270,7 @@ object TestGeneratorForJUnit5 : AbstractTestGenerator() {
         private fun generateTestClass(
             p: Printer,
             testClassModel: TestClassModel,
+            tolerateEmptyModels: Boolean,
             isNested: Boolean,
         ) {
             p.generateNestedAnnotation(isNested)
@@ -271,26 +289,28 @@ object TestGeneratorForJUnit5 : AbstractTestGenerator() {
 
             var first = true
 
-            for (methodModel in testMethods) {
-                if (first) {
-                    first = false
-                } else {
-                    p.println()
-                }
-
-                generateTestMethod(p, methodModel)
-            }
-
-            for (innerTestClass in innerTestClasses) {
-                if (!innerTestClass.isEmpty) {
+            if (!testClassModel.isEmpty) {
+                for (methodModel in testMethods) {
                     if (first) {
                         first = false
                     } else {
                         p.println()
                     }
 
-                    generateTestClass(p, innerTestClass, true)
+                    generateTestMethod(p, methodModel)
                 }
+            } else if (!tolerateEmptyModels) {
+                throw IllegalStateException("Test class ${testClassModel.name}: ${testClassModel.testKClass} (with data at ${testClassModel.dataString}) is empty. Please remove it")
+            }
+
+            for (innerTestClass in innerTestClasses) {
+                if (first) {
+                    first = false
+                } else {
+                    p.println()
+                }
+
+                generateTestClass(p, innerTestClass, tolerateEmptyModels, true)
             }
 
             p.popIndent()
@@ -299,6 +319,9 @@ object TestGeneratorForJUnit5 : AbstractTestGenerator() {
 
         private fun generateTestMethod(p: Printer, methodModel: MethodModel<*>) {
             if (methodModel.isTestMethod) {
+                if (methodModel.isSmokeTest) {
+                    p.generateSmokeTestAnnotation()
+                }
                 p.generateTestAnnotation()
                 p.generateTags(methodModel)
                 p.generateMetadata(methodModel)

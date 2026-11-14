@@ -1,5 +1,4 @@
 library {
-  // module name: <data_class.kt>
 
   library fragment {
     // package name: test
@@ -29,10 +28,10 @@ library {
       public final val intProp: kotlin/Int
         public final get
 
-      public final val nonConstructorProp: kotlin/Int /* = ... */
+      public final val stringProp: kotlin/String
         public final get
 
-      public final val stringProp: kotlin/String
+      public final val nonConstructorProp: kotlin/Int /* = ... */
         public final get
     }
 
@@ -48,6 +47,9 @@ library {
 
       // must-use return value
       public open /* synthesized */ fun toString(): kotlin/String
+    }
+
+    package {
     }
   }
 }

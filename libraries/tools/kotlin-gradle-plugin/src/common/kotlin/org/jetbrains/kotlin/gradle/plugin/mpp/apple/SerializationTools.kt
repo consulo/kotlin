@@ -5,151 +5,182 @@
 
 package org.jetbrains.kotlin.gradle.plugin.mpp.apple
 
-import com.google.gson.*
-import com.google.gson.reflect.TypeToken
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.descriptors.element
+import kotlinx.serialization.encoding.*
+import org.jetbrains.kotlin.gradle.internal.json.KgpJson
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.internal.GradleSwiftExportFiles
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.internal.GradleSwiftExportModule
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.internal.GradleSwiftExportModuleType
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.internal.GradleSwiftExportModules
 import java.io.File
-import java.io.Serializable
-import java.lang.reflect.Field
-import java.lang.reflect.Type
 
+/**
+ * Reads and writes the Swift Export modules file. Paths in the file are relative to the directory the file is in,
+ * which lets the output of a run be moved around. [GradleSwiftExportModules] still gets absolute files.
+ */
 internal object SerializationTools {
 
-    private val gson: Gson by lazy {
-        GsonBuilder()
-            .registerTypeHierarchyAdapter(File::class.java, FileTypeAdapter)
-            .registerTypeAdapter(GradleSwiftExportModule::class.java, SwiftExportModuleDeserializerAndSerializer)
-            .addDeserializationExclusionStrategy(SuperclassExclusionStrategy)
-            .addSerializationExclusionStrategy(SuperclassExclusionStrategy)
-            .setPrettyPrinting()
-            .create()
+    /** Writes [modules] with their paths relative to [baseDirectory]. Every file has to be inside it. */
+    fun writeToJson(modules: GradleSwiftExportModules, baseDirectory: File): String =
+        KgpJson.prettyPrinted.encodeToString(GradleSwiftExportModulesSerializer(RelativePaths(baseDirectory)), modules)
+
+    /** Reads modules written by [writeToJson], resolving their paths against [baseDirectory]. */
+    fun readFromJson(json: String, baseDirectory: File): GradleSwiftExportModules =
+        KgpJson.prettyPrinted.decodeFromString(GradleSwiftExportModulesSerializer(RelativePaths(baseDirectory)), json)
+}
+
+/** Converts the paths of the modules file to and from paths relative to [baseDirectory], with `/` separators. */
+private class RelativePaths(baseDirectory: File) {
+    private val baseDirectory = baseDirectory.absoluteFile.normalize()
+
+    // Real paths, so /var and /private/var on macOS count as the same directory.
+    private val realBaseDirectory by lazy { baseDirectory.realFile() }
+
+    fun relativize(file: File): String {
+        val realFile = file.realFile()
+        val relative = realFile.relativeToOrNull(realBaseDirectory)?.invariantSeparatorsPath
+        require(relative != null && relative != ".." && !relative.startsWith("../")) {
+            "Swift Export file $realFile is outside of $realBaseDirectory, so the modules file can't refer to it"
+        }
+        return relative
     }
 
-    inline fun <reified T : Serializable> writeToJson(objects: T): String = gson.toJson(objects)
+    // toRealPath instead of canonicalFile (KT-69613). It needs an existing file, so a missing one stays as it is.
+    private fun File.realFile(): File = if (exists()) toPath().toRealPath().toFile() else absoluteFile.normalize()
 
-    inline fun <reified T : Serializable> readFromJson(jsonString: String): T {
-        val listType = object : TypeToken<T>() {}.type
-        return gson.fromJson(jsonString, listType)
+    fun resolve(path: String): File = baseDirectory.resolve(path)
+}
+
+private class GradleSwiftExportFilesSerializer(private val paths: RelativePaths) : KSerializer<GradleSwiftExportFiles> {
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("GradleSwiftExportFiles") {
+        element<String>("swiftApi")
+        element<String>("kotlinBridges")
+        element<String>("cHeaderBridges")
+    }
+
+    override fun serialize(encoder: Encoder, value: GradleSwiftExportFiles) {
+        encoder.encodeStructure(descriptor) {
+            encodeStringElement(descriptor, 0, paths.relativize(value.swiftApi))
+            encodeStringElement(descriptor, 1, paths.relativize(value.kotlinBridges))
+            encodeStringElement(descriptor, 2, paths.relativize(value.cHeaderBridges))
+        }
+    }
+
+    override fun deserialize(decoder: Decoder): GradleSwiftExportFiles {
+        return decoder.decodeStructure(descriptor) {
+            var swiftApi = ""
+            var kotlinBridges = ""
+            var cHeaderBridges = ""
+            while (true) {
+                when (val index = decodeElementIndex(descriptor)) {
+                    0 -> swiftApi = decodeStringElement(descriptor, 0)
+                    1 -> kotlinBridges = decodeStringElement(descriptor, 1)
+                    2 -> cHeaderBridges = decodeStringElement(descriptor, 2)
+                    CompositeDecoder.DECODE_DONE -> break
+                    else -> error("Unexpected index: $index")
+                }
+            }
+            GradleSwiftExportFiles(paths.resolve(swiftApi), paths.resolve(kotlinBridges), paths.resolve(cHeaderBridges))
+        }
     }
 }
 
-private object FileTypeAdapter : JsonSerializer<File>, JsonDeserializer<File> {
-    override fun serialize(src: File?, typeOfSrc: Type?, context: JsonSerializationContext?): JsonElement {
-        return JsonPrimitive(src?.path)
+private class GradleSwiftExportModuleSerializer(private val paths: RelativePaths) : KSerializer<GradleSwiftExportModule> {
+    private val stringListSerializer = ListSerializer(String.serializer())
+    private val filesSerializer = GradleSwiftExportFilesSerializer(paths)
+
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("GradleSwiftExportModule") {
+        element<String>("files", isOptional = true)
+        element<String>("bridgeName", isOptional = true)
+        element<String>("swiftApi", isOptional = true)
+        element<String>("name")
+        element<String>("type")
+        element<String>("dependencies")
     }
 
-    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): File {
-        return File(json?.asString.orEmpty())
-    }
-}
-
-private object SuperclassExclusionStrategy : ExclusionStrategy {
-    override fun shouldSkipField(fieldAttributes: FieldAttributes?): Boolean {
-        if (fieldAttributes == null) return false
-        val fieldName = fieldAttributes.name
-        val theClass = fieldAttributes.declaringClass
-        return isFieldInSuperclass(theClass, fieldName)
-    }
-
-    override fun shouldSkipClass(clazz: Class<*>?): Boolean {
-        return false
-    }
-
-    private fun isFieldInSuperclass(subclass: Class<*>, fieldName: String): Boolean {
-        var superclass = subclass.superclass
-        var field: Field?
-
-        while (superclass != null) {
-            field = getField(superclass, fieldName)
-            if (field != null) {
-                return true
-            }
-
-            superclass = superclass.superclass
-        }
-
-        return false
-    }
-
-    private fun getField(theClass: Class<*>, fieldName: String): Field? {
-        return try {
-            theClass.getDeclaredField(fieldName)
-        } catch (e: Exception) {
-            null
-        }
-    }
-}
-
-private object SwiftExportModuleDeserializerAndSerializer : JsonDeserializer<GradleSwiftExportModule>,
-    JsonSerializer<GradleSwiftExportModule> {
-    private val NAME_FIELD = GradleSwiftExportModule::name.name
-    private val TYPE_FIELD = GradleSwiftExportModule::type.name
-    private val DEPENDENCIES_FIELD = GradleSwiftExportModule::dependencies.name
-    private val FILES_FIELD = GradleSwiftExportModule.BridgesToKotlin::files.name
-    private val BRIDGE_NAME_FIELD = GradleSwiftExportModule.BridgesToKotlin::bridgeName.name
-    private val SWIFT_API_FIELD = GradleSwiftExportModule.SwiftOnly::swiftApi.name
-
-    override fun deserialize(json: JsonElement?, typeOfT: Type?, context: JsonDeserializationContext?): GradleSwiftExportModule {
-        val jsonObject = json?.asJsonObject ?: throw JsonParseException("Invalid JSON for SwiftExportModule")
-        if (context == null) throw JsonParseException("Context is required for deserializing")
-
-        val name = jsonObject.get(NAME_FIELD).asString
-        val type = context.deserialize<GradleSwiftExportModuleType>(
-            jsonObject.get(TYPE_FIELD),
-            GradleSwiftExportModuleType::class.java
-        )
-        val dependencies = context.deserialize<List<String>>(
-            jsonObject.get(DEPENDENCIES_FIELD),
-            object : TypeToken<List<String>>() {}.type
-        )
-
-        return when (type) {
-            GradleSwiftExportModuleType.SWIFT_ONLY -> {
-                val swiftApi = context.deserialize<File>(
-                    jsonObject.get(SWIFT_API_FIELD),
-                    File::class.java
-                )
-
-                GradleSwiftExportModule.SwiftOnly(swiftApi, name, dependencies)
-            }
-            GradleSwiftExportModuleType.BRIDGES_TO_KOTLIN -> {
-                val files = context.deserialize<GradleSwiftExportFiles>(
-                    jsonObject.get(FILES_FIELD),
-                    GradleSwiftExportFiles::class.java
-                )
-
-                val bridgeName = jsonObject.get(BRIDGE_NAME_FIELD).asString
-                GradleSwiftExportModule.BridgesToKotlin(files, bridgeName, name, dependencies)
-            }
-            else -> throw JsonParseException("Unknown GradleSwiftExportModuleType")
-        }
-    }
-
-    override fun serialize(src: GradleSwiftExportModule?, typeOfSrc: Type?, context: JsonSerializationContext?): JsonElement {
-        if (context == null) throw JsonParseException("Context is required for serializing files")
-        if (src == null) {
-            return JsonNull.INSTANCE
-        }
-
-        val jsonObject = JsonObject()
-
-        when (src) {
+    override fun serialize(encoder: Encoder, value: GradleSwiftExportModule) {
+        val composite = encoder.beginStructure(descriptor)
+        when (value) {
             is GradleSwiftExportModule.BridgesToKotlin -> {
-                jsonObject.add(FILES_FIELD, context.serialize(src.files))
-                jsonObject.addProperty(BRIDGE_NAME_FIELD, src.bridgeName)
+                composite.encodeSerializableElement(descriptor, 0, filesSerializer, value.files)
+                composite.encodeStringElement(descriptor, 1, value.bridgeName)
             }
             is GradleSwiftExportModule.SwiftOnly -> {
-                jsonObject.add(SWIFT_API_FIELD, context.serialize(src.swiftApi))
+                composite.encodeStringElement(descriptor, 2, paths.relativize(value.swiftApi))
             }
         }
+        composite.encodeStringElement(descriptor, 3, value.name)
+        composite.encodeStringElement(descriptor, 4, value.type.name)
+        composite.encodeSerializableElement(descriptor, 5, stringListSerializer, value.dependencies)
+        composite.endStructure(descriptor)
+    }
 
-        jsonObject.addProperty(NAME_FIELD, src.name)
-        jsonObject.add(TYPE_FIELD, context.serialize(src.type))
-        jsonObject.add(DEPENDENCIES_FIELD, context.serialize(src.dependencies))
-
-        return jsonObject
+    override fun deserialize(decoder: Decoder): GradleSwiftExportModule {
+        return decoder.decodeStructure(descriptor) {
+            var files: GradleSwiftExportFiles? = null
+            var bridgeName: String? = null
+            var swiftApi: String? = null
+            var name = ""
+            var type = ""
+            var dependencies: List<String> = emptyList()
+            while (true) {
+                when (val index = decodeElementIndex(descriptor)) {
+                    0 -> files = decodeSerializableElement(descriptor, 0, filesSerializer)
+                    1 -> bridgeName = decodeStringElement(descriptor, 1)
+                    2 -> swiftApi = decodeStringElement(descriptor, 2)
+                    3 -> name = decodeStringElement(descriptor, 3)
+                    4 -> type = decodeStringElement(descriptor, 4)
+                    5 -> dependencies = decodeSerializableElement(descriptor, 5, stringListSerializer)
+                    CompositeDecoder.DECODE_DONE -> break
+                    else -> error("Unexpected index: $index")
+                }
+            }
+            when (GradleSwiftExportModuleType.valueOf(type)) {
+                GradleSwiftExportModuleType.SWIFT_ONLY -> GradleSwiftExportModule.SwiftOnly(
+                    paths.resolve(swiftApi ?: error("swiftApi is required for SWIFT_ONLY")),
+                    name,
+                    dependencies
+                )
+                GradleSwiftExportModuleType.BRIDGES_TO_KOTLIN -> GradleSwiftExportModule.BridgesToKotlin(
+                    files ?: error("files is required for BRIDGES_TO_KOTLIN"),
+                    bridgeName ?: error("bridgeName is required for BRIDGES_TO_KOTLIN"),
+                    name,
+                    dependencies
+                )
+            }
+        }
     }
 }
 
+private class GradleSwiftExportModulesSerializer(paths: RelativePaths) : KSerializer<GradleSwiftExportModules> {
+    private val moduleListSerializer = ListSerializer(GradleSwiftExportModuleSerializer(paths))
+
+    override val descriptor: SerialDescriptor = buildClassSerialDescriptor("GradleSwiftExportModules") {
+        element<String>("modules")
+    }
+
+    override fun serialize(encoder: Encoder, value: GradleSwiftExportModules) {
+        encoder.encodeStructure(descriptor) {
+            encodeSerializableElement(descriptor, 0, moduleListSerializer, value.modules)
+        }
+    }
+
+    override fun deserialize(decoder: Decoder): GradleSwiftExportModules {
+        return decoder.decodeStructure(descriptor) {
+            var modules: List<GradleSwiftExportModule> = emptyList()
+            while (true) {
+                when (val index = decodeElementIndex(descriptor)) {
+                    0 -> modules = decodeSerializableElement(descriptor, 0, moduleListSerializer)
+                    CompositeDecoder.DECODE_DONE -> break
+                    else -> error("Unexpected index: $index")
+                }
+            }
+            GradleSwiftExportModules(modules)
+        }
+    }
+}

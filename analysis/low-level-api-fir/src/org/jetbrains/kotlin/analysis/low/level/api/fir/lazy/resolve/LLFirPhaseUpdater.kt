@@ -1,19 +1,29 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve
 
+import org.jetbrains.kotlin.analysis.low.level.api.fir.transformers.unwrapSymbolToPostpone
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.body
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.expressions.FirAnnotation
+import org.jetbrains.kotlin.fir.expressions.FirAnnotationCall
+import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirScriptSymbol
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 
 internal object LLFirPhaseUpdater {
     fun updateDeclarationContent(target: FirElementWithResolveState, newPhase: FirResolvePhase) {
         updatePhaseForNonLocals(target, newPhase, isTargetDeclaration = true)
+
+        if (newPhase == FirResolvePhase.ANNOTATION_ARGUMENTS && target is FirDeclaration) {
+            // Local elements inside annotation arguments (e.g., lambdas in invalid code) are fully resolved on this phase
+            target.accept(AnnotationArgumentsPhaseUpdatingVisitor, target.symbol)
+        }
 
         if (newPhase == FirResolvePhase.BODY_RESOLVE) {
             updateDeclarationSignatureBody(target)
@@ -119,6 +129,29 @@ internal object LLFirPhaseUpdater {
             }
             else -> {}
         }
+    }
+}
+
+/**
+ * Updates local elements inside annotations owned by the target declaration, whose symbol is passed as `data`.
+ *
+ * Foreign annotations (e.g., type annotations from an implicit return type) are skipped, as their owners update them
+ * under their own locks.
+ * The owner is determined in the same way as for [postponed symbols][org.jetbrains.kotlin.analysis.low.level.api.fir.transformers.postponedSymbolsForAnnotationResolution].
+ */
+private object AnnotationArgumentsPhaseUpdatingVisitor : NonLocalAnnotationVisitor<FirBasedSymbol<*>>() {
+    override fun processAnnotation(annotation: FirAnnotation, data: FirBasedSymbol<*>) {
+        if (annotation !is FirAnnotationCall || !annotation.isOwnedBy(data)) return
+
+        annotation.acceptChildren(LocalElementPhaseUpdatingTransformer)
+    }
+
+    private fun FirAnnotationCall.isOwnedBy(symbol: FirBasedSymbol<*>): Boolean {
+        val owner = containingDeclarationSymbol.unwrapSymbolToPostpone()
+        if (owner == symbol) return true
+
+        // Annotations of a script top-level destructuring declaration are created with the script as their owner
+        return symbol.origin == FirDeclarationOrigin.Synthetic.DestructuringDeclarationContainer && owner is FirScriptSymbol
     }
 }
 

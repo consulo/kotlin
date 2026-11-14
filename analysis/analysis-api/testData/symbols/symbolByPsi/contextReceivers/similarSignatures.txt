@@ -1,9 +1,9 @@
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: A
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -12,10 +12,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: FINAL
   name: A
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -26,16 +29,16 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(similarSignatures.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: A
 
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: B
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -44,10 +47,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: FINAL
   name: B
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -58,21 +64,24 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: KaFileSymbol(similarSignatures.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: B
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /tooo
-  compilerVisibility: Public
   contextParameters: [
     KaContextParameterSymbol:
+      anchorPsi: KtContextReceiver
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
       isActual: false
+      isCompanion: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -81,16 +90,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: A
       origin: SOURCE
+      psi: KtContextReceiver
+      realPsi: KtContextReceiver
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: A
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(similarSignatures.kt)
       getContainingJvmClassName: SimilarSignaturesKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   contextReceivers: [
@@ -105,6 +117,7 @@ KaNamedFunctionSymbol:
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -119,6 +132,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: tooo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -131,21 +146,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: SimilarSignaturesKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: tooo
   importableFqName: tooo
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /tooo
-  compilerVisibility: Public
   contextParameters: [
     KaContextParameterSymbol:
+      anchorPsi: KtContextReceiver
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
       isActual: false
+      isCompanion: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -154,16 +173,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: B
       origin: SOURCE
+      psi: KtContextReceiver
+      realPsi: KtContextReceiver
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: B
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(similarSignatures.kt)
       getContainingJvmClassName: SimilarSignaturesKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   contextReceivers: [
@@ -178,6 +200,7 @@ KaNamedFunctionSymbol:
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -192,6 +215,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: tooo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -204,21 +229,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: SimilarSignaturesKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: tooo
   importableFqName: tooo
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /tooo
-  compilerVisibility: Public
   contextParameters: [
     KaContextParameterSymbol:
+      anchorPsi: KtContextReceiver
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
       isActual: false
+      isCompanion: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -227,23 +256,29 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: A
       origin: SOURCE
+      psi: KtContextReceiver
+      realPsi: KtContextReceiver
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: A
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(similarSignatures.kt)
       getContainingJvmClassName: SimilarSignaturesKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaContextParameterSymbol:
+      anchorPsi: KtContextReceiver
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
       isActual: false
+      isCompanion: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -252,16 +287,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: B
       origin: SOURCE
+      psi: KtContextReceiver
+      realPsi: KtContextReceiver
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: B
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(similarSignatures.kt)
       getContainingJvmClassName: SimilarSignaturesKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   contextReceivers: [
@@ -282,6 +320,7 @@ KaNamedFunctionSymbol:
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -296,6 +335,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: tooo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -308,21 +349,25 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: SimilarSignaturesKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: tooo
   importableFqName: tooo
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /tooo
-  compilerVisibility: Public
   contextParameters: [
     KaContextParameterSymbol:
+      anchorPsi: KtContextReceiver
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
       isActual: false
+      isCompanion: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -331,23 +376,29 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: B
       origin: SOURCE
+      psi: KtContextReceiver
+      realPsi: KtContextReceiver
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: B
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(similarSignatures.kt)
       getContainingJvmClassName: SimilarSignaturesKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaContextParameterSymbol:
+      anchorPsi: KtContextReceiver
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
       isActual: false
+      isCompanion: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -356,16 +407,19 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: A
       origin: SOURCE
+      psi: KtContextReceiver
+      realPsi: KtContextReceiver
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: A
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(similarSignatures.kt)
       getContainingJvmClassName: SimilarSignaturesKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   contextReceivers: [
@@ -386,6 +440,7 @@ KaNamedFunctionSymbol:
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -400,6 +455,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: tooo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -412,6 +469,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: SimilarSignaturesKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: tooo
   importableFqName: tooo

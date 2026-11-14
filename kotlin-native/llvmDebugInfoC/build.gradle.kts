@@ -22,6 +22,8 @@ import org.jetbrains.kotlin.konan.target.TargetWithSanitizer
 import org.jetbrains.kotlin.tools.ToolExecutionTask
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("native")
 }
 
@@ -80,7 +82,7 @@ native {
     }
 }
 
-val cppApiElements by configurations.creating {
+val cppApiElements = configurations.create("cppApiElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     attributes {
@@ -89,7 +91,7 @@ val cppApiElements by configurations.creating {
     }
 }
 
-val cppLinkElements by configurations.creating {
+val cppLinkElements = configurations.create("cppLinkElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     attributes {

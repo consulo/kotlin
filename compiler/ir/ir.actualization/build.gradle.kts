@@ -1,4 +1,6 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
@@ -6,6 +8,7 @@ dependencies {
     implementation(project(":compiler:util"))
     api(project(":compiler:ir.tree"))
     api(project(":core:compiler.common"))
+    implementation(project(":core:descriptors"))
     implementation(project(":compiler:resolution.common"))
     implementation(project(":compiler:frontend.common"))
     implementation(project(":compiler:frontend.common-psi"))
@@ -18,4 +21,3 @@ sourceSets {
     "main" { projectDefault() }
     "test" {}
 }
-

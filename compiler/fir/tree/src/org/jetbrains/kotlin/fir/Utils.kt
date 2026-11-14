@@ -32,7 +32,6 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirFileSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertyAccessorSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirReplSnippetSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirScriptSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.*
 import org.jetbrains.kotlin.fir.types.impl.*
@@ -58,8 +57,7 @@ fun <R : FirTypeRef> R.copyWithNewSourceKind(newKind: KtFakeSourceElementKind): 
 fun <R : FirTypeRef> R.copyWithNewSource(newSource: KtSourceElement): R {
     if (source?.kind == newSource.kind) return this
 
-    @Suppress("UNCHECKED_CAST")
-    return when (val typeRef = this) {
+    val result = when (val typeRef = this) {
         is FirResolvedTypeRefImpl -> buildResolvedTypeRefCopy(typeRef) {
             source = newSource
         }
@@ -88,8 +86,16 @@ fun <R : FirTypeRef> R.copyWithNewSource(newSource: KtSourceElement): R {
             leftType = typeRef.leftType
             rightType = typeRef.rightType
         }
+        is FirUnionTypeRef -> buildUnionTypeRef {
+            source = newSource
+            isMarkedNullable = typeRef.isMarkedNullable
+            annotations += typeRef.annotations
+            types += typeRef.types
+        }
         else -> TODO("Not implemented for ${typeRef::class}")
-    } as R
+    }
+    @Suppress("UNCHECKED_CAST")
+    return result as R
 }
 
 val FirFile.packageFqName: FqName
@@ -129,6 +135,7 @@ fun FirDeclarationStatus.copy(
     isFromSealedClass: Boolean = this.isFromSealedClass,
     isFromEnumClass: Boolean = this.isFromEnumClass,
     isFun: Boolean = this.isFun,
+    isRichError: Boolean = this.isRichError,
     hasStableParameterNames: Boolean = this.hasStableParameterNames,
     returnValueStatus: ReturnValueStatus = this.returnValueStatus
 ): FirDeclarationStatus {
@@ -161,6 +168,7 @@ fun FirDeclarationStatus.copy(
         isFromSealedClass = isFromSealedClass,
         isFromEnumClass = isFromEnumClass,
         isFun = isFun,
+        isRichError = isRichError,
         hasStableParameterNames = hasStableParameterNames,
         returnValueStatus = returnValueStatus,
     )
@@ -212,6 +220,7 @@ private fun copyStatusAttributes(
     isFromSealedClass: Boolean = from.isFromSealedClass,
     isFromEnumClass: Boolean = from.isFromEnumClass,
     isFun: Boolean = from.isFun,
+    isRichError: Boolean = from.isRichError,
     hasStableParameterNames: Boolean = from.hasStableParameterNames,
     returnValueStatus: ReturnValueStatus = from.returnValueStatus,
 ) {
@@ -236,6 +245,7 @@ private fun copyStatusAttributes(
     to.isFun = isFun
     to.hasStableParameterNames = hasStableParameterNames
     to.returnValueStatus = returnValueStatus
+    to.isRichError = isRichError
 }
 
 inline fun <R> whileAnalysing(session: FirSession, element: FirElement, block: () -> R): R {
@@ -263,10 +273,20 @@ val FirSession.exceptionHandler: FirExceptionHandler by FirSession.sessionCompon
 
 object FirCliExceptionHandler : FirExceptionHandler() {
     override fun handleExceptionOnElementAnalysis(element: FirElement, throwable: Throwable): Nothing {
+        /*
+         * If exception was caused by lack of static memory (e.g. `StackOverflowError`), the memory
+         * would be not sufficient to load the `AnalysisExceptionsKt.class` containing the
+         * `wrapIntoSourceCodeAnalysisExceptionIfNeeded` utility, which would lead to overriding
+         * the original exception with `NoClassDefFoundError`.
+         * So, considering that `wrapIntoSourceCodeAnalysisExceptionIfNeeded` skips VM errors anyway,
+         * is's ok to check for it earlier.
+         */
+        if (throwable is VirtualMachineError) throw throwable
         throw throwable.wrapIntoSourceCodeAnalysisExceptionIfNeeded(element.source)
     }
 
     override fun handleExceptionOnFileAnalysis(file: FirFile, throwable: Throwable): Nothing {
+        if (throwable is VirtualMachineError) throw throwable
         throw throwable.wrapIntoFileAnalysisExceptionIfNeeded(
             file.sourceFile?.path,
             file.source,
@@ -398,10 +418,6 @@ val FirExpression.isStatementLikeExpression: Boolean
 
 private val FirExpression.isIndexedAssignment: Boolean
     get() = this is FirBlock && statements.lastOrNull()?.source?.kind == KtFakeSourceElementKind.ImplicitUnit.IndexedAssignmentCoercion
-
-fun shouldSuppressInlineContextAt(element: FirElement?, container: FirBasedSymbol<*>?): Boolean {
-    return element != null && container.let { it is FirValueParameterSymbol && it.isNoinline && it.fir.defaultValue == element }
-}
 
 fun FirBasedSymbol<*>.packageFqName(): FqName {
     return when (this) {

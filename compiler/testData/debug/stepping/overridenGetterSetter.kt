@@ -34,7 +34,7 @@ fun box() {
 }
 
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:31 box
 // test.kt:16 <init>
 // test.kt:18 <init>
@@ -104,12 +104,8 @@ fun box() {
 // test.kt:16 <init>
 // test.kt:32 box
 // test.kt:9 testPropertyInInterface
-// test.kt:18 <get-propVal2>
 // test.kt:10 testPropertyInInterface
-// test.kt:21 <get-propVar2>
 // test.kt:11 testPropertyInInterface
-// test.kt:21 <set-propVar2>
-// test.kt:21 <set-propVar2>
 // test.kt:12 testPropertyInInterface
 // test.kt:33 box
 // test.kt:26 testPropertyInInterfaceImpl

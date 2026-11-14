@@ -16,7 +16,7 @@
 
 package kotlin.text.test
 
-import org.junit.Test
+import kotlin.test.Test
 import kotlin.test.*
 
 class RegexTest {
@@ -26,7 +26,7 @@ class RegexTest {
 
         val matches = regex.findAll(input).toList()
         assertTrue(matches.all { it.groups.size == 3 })
-        val (m1, m2, m3) = matches
+        val [m1, m2, m3] = matches
 
         assertEquals("1", m1.groups["num"]?.value)
         assertEquals(0..0, m1.groups["num"]?.range)

@@ -1,6 +1,11 @@
 import org.gradle.api.Project
 import java.io.File
 
+plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
+}
+
 project.removePrePushHookIfExists()
 
 fun Project.removePrePushHookIfExists() {

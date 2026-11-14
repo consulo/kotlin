@@ -7,33 +7,32 @@ package org.jetbrains.kotlin.generators.tests
 
 import org.jetbrains.kotlin.generators.dsl.junit5.generateTestGroupSuiteWithJUnit5
 import org.jetbrains.kotlin.generators.model.annotation
+import org.jetbrains.kotlin.generators.util.TestGeneratorUtil.KT_WITHOUT_UNDERSCORE_PREFIX
 import org.jetbrains.kotlin.konan.test.abi.AbstractNativeLibraryAbiReaderTest
 import org.jetbrains.kotlin.konan.test.blackbox.AbstractNativeCodegenBoxTest
 import org.jetbrains.kotlin.konan.test.blackbox.support.ClassLevelProperty
 import org.jetbrains.kotlin.konan.test.blackbox.support.EnforcedProperty
-import org.jetbrains.kotlin.konan.test.blackbox.support.KLIB_IR_INLINER
 import org.jetbrains.kotlin.konan.test.blackbox.support.TestKind
 import org.jetbrains.kotlin.konan.test.blackbox.support.group.UseExtTestCaseGroupProvider
 import org.jetbrains.kotlin.konan.test.blackbox.support.group.UseDummyTestCaseGroupProvider
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.CacheMode
 import org.jetbrains.kotlin.konan.test.blackbox.AbstractNativeCodegenBoxCoreTest
 import org.jetbrains.kotlin.konan.test.diagnostics.*
-import org.jetbrains.kotlin.konan.test.dump.AbstractNativeKlibDumpIrSignaturesTest
+import org.jetbrains.kotlin.konan.test.dump.AbstractNativeKlibDumpSignaturesTest
 import org.jetbrains.kotlin.konan.test.dump.AbstractNativeKlibDumpIrTest
-import org.jetbrains.kotlin.konan.test.dump.AbstractNativeKlibDumpMetadataSignaturesTest
+import org.jetbrains.kotlin.konan.test.dump.AbstractNativeKlibDumpMetadataSerializationTest
 import org.jetbrains.kotlin.konan.test.dump.AbstractNativeKlibDumpMetadataTest
 import org.jetbrains.kotlin.konan.test.headerklib.AbstractNativeHeaderKlibComparisonTest
 import org.jetbrains.kotlin.konan.test.headerklib.AbstractNativeHeaderKlibCompilationTest
 import org.jetbrains.kotlin.konan.test.irText.AbstractLightTreeNativeIrTextTest
 import org.jetbrains.kotlin.konan.test.irText.AbstractPsiNativeIrTextTest
 import org.jetbrains.kotlin.konan.test.klib.AbstractKlibCrossCompilationIdentityTest
-import org.jetbrains.kotlin.konan.test.klib.AbstractKlibCrossCompilationIdentityWithPreSerializationLoweringTest
 import org.jetbrains.kotlin.konan.test.serialization.AbstractNativeIrDeserializationTest
-import org.jetbrains.kotlin.konan.test.serialization.AbstractNativeIrDeserializationWithInlinedFunInKlibTest
 import org.jetbrains.kotlin.konan.test.syntheticAccessors.AbstractNativeKlibSyntheticAccessorTest
 import org.jetbrains.kotlin.konan.test.dump.AbstractNativeLoadCompiledKotlinTest
+import org.jetbrains.kotlin.konan.test.headerMode.AbstractNativeCodegenBoxCoreHeaderModeTest
 import org.jetbrains.kotlin.test.utils.CUSTOM_TEST_DATA_EXTENSION_PATTERN
-import org.junit.jupiter.api.Disabled
+import org.jetbrains.kotlin.testFederation.HostDependent
 import org.junit.jupiter.api.Tag
 
 fun main(args: Array<String>) {
@@ -72,44 +71,50 @@ fun main(args: Array<String>) {
                 // KT-67300: TODO: extract specialBackendChecks into own test runner, invoking Native backend facade at the end
                 model("nativeTests", excludedPattern = excludedCustomTestdataPattern)
                 model("testsWithAnyBackend", excludedPattern = excludedCustomTestdataPattern)
-            }
-
-            testClass<AbstractNativeDiagnosticsWithBackendWithInlinedFunInKlibTestBase>(
-                suiteTestClassName = "NativeKlibDiagnosticsWithInlinedFunInKlibTestGenerated",
-                annotations = listOf(klib())
-            ) {
-                model("klibSerializationTests", excludedPattern = excludedCustomTestdataPattern)
-                // KT-67300: TODO: extract specialBackendChecks into own test runner, invoking Native backend facade at the end
-                model("nativeTests", excludedPattern = excludedCustomTestdataPattern)
-                model("testsWithAnyBackend", excludedPattern = excludedCustomTestdataPattern)
+                model("irInliner", excludedPattern = excludedCustomTestdataPattern)
             }
         }
 
         // Dump KLIB metadata tests
         testGroup(testsRoot, "native/native.tests/testData/klib/dump-metadata") {
-            testClass<AbstractNativeKlibDumpMetadataTest> {
-                model(pattern = "^([^_](.+)).kt$", recursive = true)
+            testClass<AbstractNativeKlibDumpMetadataTest>(
+                annotations = listOf(
+                    provider<UseDummyTestCaseGroupProvider>(),
+                )
+            ) {
+                model(pattern = KT_WITHOUT_UNDERSCORE_PREFIX, recursive = true)
+            }
+        }
+
+        testGroup(testsRoot, "compiler/testData/serialization") {
+            testClass<AbstractNativeKlibDumpMetadataSerializationTest>(
+                annotations = listOf(
+                    provider<UseDummyTestCaseGroupProvider>(),
+                )
+            ) {
+                model(pattern = KT_WITHOUT_UNDERSCORE_PREFIX, recursive = true)
             }
         }
 
         // Dump KLIB IR tests
         testGroup(testsRoot, "native/native.tests/testData/klib/dump-ir") {
-            testClass<AbstractNativeKlibDumpIrTest> {
-                model(pattern = "^([^_](.+)).kt$", recursive = true)
-            }
-        }
-
-        // Dump KLIB IR signatures tests
-        testGroup(testsRoot, "native/native.tests/testData/klib/dump-signatures") {
-            testClass<AbstractNativeKlibDumpIrSignaturesTest> {
-                model(pattern = "^([^_](.+)).kt$", recursive = true)
-            }
-        }
-
-        // Dump KLIB metadata signatures tests
-        testGroup(testsRoot, "native/native.tests/testData/klib/dump-signatures") {
-            testClass<AbstractNativeKlibDumpMetadataSignaturesTest> {
+            testClass<AbstractNativeKlibDumpIrTest>(
+                annotations = listOf(
+                    provider<UseDummyTestCaseGroupProvider>(),
+                )
+            ) {
                 model(pattern = "^([^_](.+)).(kt|def)$", recursive = true)
+            }
+        }
+
+        // Dump KLIB signatures tests
+        testGroup(testsRoot, "native/native.tests/testData/klib/dump-signatures") {
+            testClass<AbstractNativeKlibDumpSignaturesTest>(
+                annotations = listOf(
+                    provider<UseDummyTestCaseGroupProvider>(),
+                )
+            ) {
+                model(pattern = "^([^_](.+))\\.(kt|def)$", recursive = true)
             }
         }
 
@@ -128,21 +133,7 @@ fun main(args: Array<String>) {
         }
 
         testGroup(testsRoot, "compiler/testData/codegen") {
-            testClass<AbstractNativeCodegenBoxTest>(
-                suiteTestClassName = "NativeCodegenBoxWithInlinedFunInKlibTestGenerated",
-                annotations = listOf(
-                    klibIrInliner(),
-                    provider<UseExtTestCaseGroupProvider>()
-                )
-            ) {
-                model("box", excludeDirs = k1BoxTestDir)
-                model("boxInline")
-            }
             testClass<AbstractNativeIrDeserializationTest> {
-                model("box", excludeDirs = k1BoxTestDir)
-                model("boxInline")
-            }
-            testClass<AbstractNativeIrDeserializationWithInlinedFunInKlibTest> {
                 model("box", excludeDirs = k1BoxTestDir)
                 model("boxInline")
             }
@@ -153,9 +144,17 @@ fun main(args: Array<String>) {
                     provider<UseDummyTestCaseGroupProvider>(),
                 )
             ) {
-                // TODO Uncomment the following line during work on OSIP-286 Migrate Kotlin Native box tests to common compiler test infra
-                //      Meanwhile let's not run these thousands of tests in `box` to make experimental test runs much faster.
-                // model("box", excludeDirs = k1BoxTestDir)
+                model("box", excludeDirs = k1BoxTestDir)
+                model("boxInline")
+            }
+            // Codegen/box tests based on Compiler Core testinfra
+            testClass<AbstractNativeCodegenBoxCoreHeaderModeTest>(
+                suiteTestClassName = "NativeCodegenBoxHeaderModeTestGenerated",
+                annotations = listOf(
+                    provider<UseDummyTestCaseGroupProvider>(),
+                )
+            ) {
+                model("box", excludeDirs = k1BoxTestDir)
                 model("boxInline")
             }
         }
@@ -165,7 +164,7 @@ fun main(args: Array<String>) {
                 suiteTestClassName = "NativeSpecificCodegenBoxTestGenerated",
                 annotations = listOf(
                     provider<UseDummyTestCaseGroupProvider>(),
-                    temporarilyDisabledBecauseOfKt85080(), // TODO: drop after fixing KT-85080
+                    hostDependent(),
                 )
             ) {
                 model()
@@ -177,7 +176,6 @@ fun main(args: Array<String>) {
             testClass<AbstractNativeCodegenBoxTest>(
                 suiteTestClassName = "NativeKlibSyntheticAccessorsBoxTestGenerated",
                 annotations = listOf(
-                    klibIrInliner(),
                     provider<UseExtTestCaseGroupProvider>(),
                 )
             ) {
@@ -190,7 +188,6 @@ fun main(args: Array<String>) {
             testClass<AbstractNativeKlibSyntheticAccessorTest>(
                 annotations = listOf(
                     *klibSyntheticAccessors(),
-                    klibIrInliner(),
                 )
             ) {
                 model()
@@ -199,10 +196,7 @@ fun main(args: Array<String>) {
 
         // KLIB cross-compilation tests.
         testGroup(testsRoot, "native/native.tests/testData/klib/cross-compilation/identity") {
-            testClass<AbstractKlibCrossCompilationIdentityTest> {
-                model()
-            }
-            testClass<AbstractKlibCrossCompilationIdentityWithPreSerializationLoweringTest> {
+            testClass<AbstractKlibCrossCompilationIdentityTest>(annotations = listOf(hostDependent())) {
                 model()
             }
         }
@@ -223,7 +217,8 @@ fun main(args: Array<String>) {
 }
 
 private fun klib() = annotation(Tag::class.java, "klib")
-fun klibIrInliner() = annotation(Tag::class.java, KLIB_IR_INLINER)
+
+private fun hostDependent() = annotation(HostDependent::class.java)
 
 fun klibSyntheticAccessors() = arrayOf(
     annotation(
@@ -238,6 +233,3 @@ fun klibSyntheticAccessors() = arrayOf(
     ),
     provider<UseExtTestCaseGroupProvider>(),
 )
-
-// TODO: drop after fixing KT-85080
-private fun temporarilyDisabledBecauseOfKt85080() = annotation(Disabled::class.java)

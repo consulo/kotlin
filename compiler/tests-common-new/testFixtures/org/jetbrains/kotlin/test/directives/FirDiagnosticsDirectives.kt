@@ -60,11 +60,6 @@ object FirDiagnosticsDirectives : SimpleDirectivesContainer() {
         """.trimIndent()
     )
 
-    val FIR_IDENTICAL by directive(
-        description = "Contents of fir test data file and FE 1.0 are identical",
-        applicability = Global
-    )
-
     val LATEST_LV_DIFFERENCE by directive(
         description = """
             Diagnostics differs between latest stable and latest language version
@@ -141,9 +136,9 @@ object FirDiagnosticsDirectives : SimpleDirectivesContainer() {
         """
     )
 
-    val RENDER_FIR_DECLARATION_ATTRIBUTES by directive(
+    val RENDER_SPECIFIC_FIR_DECLARATION_ATTRIBUTES by stringDirective(
         description = """
-            Prints declaration attributes to dumps in load compiled kotlin tests
+            Renders specified attributes to `.fir.txt` dumps
         """
     )
 
@@ -163,6 +158,10 @@ object FirDiagnosticsDirectives : SimpleDirectivesContainer() {
 
     val DISABLE_WITH_PARSER by enumDirective<FirParser>(
         description = "Disables the test if it's analyzed with specified parser"
+    )
+
+    val HAS_CUSTOM_EXTENSION_FILES by directive(
+        description = "Some module files have custom extensions and shouldn't be filtered out by kt/kts check"
     )
 }
 

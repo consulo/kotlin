@@ -10,19 +10,27 @@ import org.jetbrains.kotlin.cli.common.CLICompiler
 import org.jetbrains.kotlin.cli.js.K2JSCompiler
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
 import org.jetbrains.kotlin.cli.metadata.KotlinMetadataCompiler
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.test.InTextDirectivesUtils
 import org.jetbrains.kotlin.test.TestDataAssertions
-import org.jetbrains.kotlin.test.testFramework.KtUsefulTestCase
 import org.jetbrains.kotlin.test.util.KtTestUtil
 import org.jetbrains.kotlin.test.util.trimTrailingWhitespacesAndAddNewlineAtEOF
-import org.jetbrains.kotlin.utils.PathUtil
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.TestInfo
+import org.junit.jupiter.api.parallel.Execution
+import org.junit.jupiter.api.parallel.ExecutionMode
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
 
-abstract class AbstractMultiPlatformIntegrationTest : KtUsefulTestCase() {
-    fun doTest(directoryPath: String) {
+@Execution(ExecutionMode.SAME_THREAD, reason = "`executeCompilerGrabOutput` is thread-unsafe, as it replaces `System.out`")
+abstract class AbstractMultiPlatformIntegrationTest {
+    private lateinit var testInfo: TestInfo
+
+    @BeforeEach
+    fun setUp(testInfo: TestInfo) {
+        this.testInfo = testInfo
+    }
+
+    fun runTest(directoryPath: String) {
         val root = File(directoryPath).apply { assert(exists()) }
         val commonSrc = File(root, "common.kt").apply { assert(exists()) }
         val jsSrc = File(root, "js.kt").takeIf(File::exists)
@@ -31,8 +39,8 @@ abstract class AbstractMultiPlatformIntegrationTest : KtUsefulTestCase() {
         val common2Src = File(root, "common2.kt").takeIf(File::exists)
         val jvm2Src = File(root, "jvm2.kt").takeIf(File::exists)
 
-        val tmpdir = KtTestUtil.tmpDir(getTestName(true))
-        val stdlibCommon = findStdlibCommon().absolutePath
+        val tmpdir = KtTestUtil.tmpDir(testInfo.testMethod.get().name)
+        val stdlibCommon = ForTestCompileRuntime.stdlibCommonForTests().absolutePath
 
         val commonDest = File(tmpdir, "common").absolutePath
         val jvmDest = File(tmpdir, "jvm").absolutePath.takeIf { jvmSrc != null }
@@ -59,7 +67,7 @@ abstract class AbstractMultiPlatformIntegrationTest : KtUsefulTestCase() {
                         commonSrc,
                         "-Xir-produce-klib-dir",
                         "-libraries",
-                        PathUtil.kotlinPathsForCompiler.jsStdLibKlibPath.absolutePath,
+                        ForTestCompileRuntime.stdlibJs().absolutePath,
                         "-ir-output-dir",
                         jsDest!!,
                         "-ir-output-name",
@@ -95,21 +103,8 @@ abstract class AbstractMultiPlatformIntegrationTest : KtUsefulTestCase() {
         TestDataAssertions.assertEqualsToFile(File(root, "output.txt"), result.replace('\\', '/'))
     }
 
-    private fun findStdlibCommon(): File {
-        // Take kotlin-stdlib-common.klib from dist/ when it's there
-        val fromDist = File("dist/common/kotlin-stdlib-common.klib")
-        if (fromDist.isFile) return fromDist
-
-        val stdlibCommonLibsDir = "libraries/stdlib/common/build/libs"
-        val commonLibs = Files.newDirectoryStream(Paths.get(stdlibCommonLibsDir)).use(Iterable<Path>::toList)
-        return commonLibs.sorted().findLast {
-            val name = it.toFile().name
-            !name.endsWith("-javadoc.jar") && !name.endsWith("-sources.jar") && !name.contains("coroutines")
-        }?.toFile() ?: error("kotlin-stdlib-common is not found in $stdlibCommonLibsDir")
-    }
-
     private fun CLICompiler<*>.compile(sources: File, commonSources: File?, vararg mainArguments: String): String = buildString {
-        val (output, exitCode) = AbstractCliTest.executeCompilerGrabOutput(
+        val [output, exitCode] = AbstractCliTest.executeCompilerGrabOutput(
             this@compile,
             listOfNotNull(sources.absolutePath, commonSources?.absolutePath, commonSources?.absolutePath?.let("-Xcommon-sources="::plus)) +
                     "-Xmulti-platform" + mainArguments +

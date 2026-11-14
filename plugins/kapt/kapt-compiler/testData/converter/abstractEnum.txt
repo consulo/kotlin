@@ -104,8 +104,8 @@ public enum E {
  */
 @kotlin.Metadata()
 public enum E2 {
-    /*public static final*/ X /* = new E2() */,
-    /*public static final*/ Y /* = new E2() */;
+    /*public static final*/ X /* = new E2(0) */,
+    /*public static final*/ Y /* = new E2(0) */;
 
     E2(int n) {
     }
@@ -146,8 +146,8 @@ public enum E2 {
  */
 @kotlin.Metadata()
 public enum E3 {
-    /*public static final*/ X /* = new E3() */,
-    /*public static final*/ Y /* = new E3() */;
+    /*public static final*/ X /* = new E3(null) */,
+    /*public static final*/ Y /* = new E3(null) */;
     @org.jetbrains.annotations.NotNull()
     private final java.lang.String a = null;
 
@@ -203,7 +203,7 @@ public enum E3 {
  */
 @kotlin.Metadata()
 public enum E4 {
-    /*public static final*/ X /* = new E4() */;
+    /*public static final*/ X /* = new E4(null, 0, 0L, false) */;
     @org.jetbrains.annotations.NotNull()
     private final java.lang.String a = null;
     private final int b = 0;

@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirClass
+import org.jetbrains.kotlin.fir.descriptors.FirModuleDescriptor
 import org.jetbrains.kotlin.fir.dispatchReceiverClassLookupTagOrNull
 import org.jetbrains.kotlin.fir.isDelegated
 import org.jetbrains.kotlin.fir.lazy.Fir2IrLazyPropertyForPureField
@@ -46,6 +47,7 @@ class Fir2IrFakeOverrideStrategy(
     override val isGenericClashFromSameSupertypeAllowed: Boolean,
     override val isOverrideOfPublishedApiFromOtherModuleDisallowed: Boolean,
     private val delegatedMemberGenerationStrategy: Fir2IrDelegatedMembersGenerationStrategy,
+    private val leafModule: IrModuleFragment,
 ) : FakeOverrideBuilderStrategy.BindToPrivateSymbols() {
     private val fieldOnlyProperties: MutableList<IrPropertyWithLateBinding> = mutableListOf()
 
@@ -67,10 +69,34 @@ class Fir2IrFakeOverrideStrategy(
     }
 
     override fun shouldSeeInternals(
-        thisModule: ModuleDescriptor,
-        memberModule: ModuleDescriptor,
+        thisModule: IrModuleFragment,
+        memberModule: IrModuleFragment,
     ): Boolean {
-        return thisModule.shouldSeeInternalsOf(memberModule)
+        val thisModuleDesc = thisModule.descriptor as FirModuleDescriptor
+        val memberModuleDesc = memberModule.descriptor as FirModuleDescriptor
+        if (thisModuleDesc.shouldSeeInternalsOf(memberModuleDesc)) return true
+
+        /*
+         * There could be a case when one declaration is located in common sources and another is located in
+         * platform dependencies. For the frontend these two module data don't see each other, but from the
+         * backend point of view all sources belong to the same module. So in this situation we also should
+         * consider if the other declaration is visible from the leaf source module.
+         */
+        val leafModuleDescriptor = leafModule.descriptor as FirModuleDescriptor
+        if (thisModuleDesc.session.kind == FirSession.Kind.Source && thisModuleDesc != leafModuleDescriptor) {
+            return leafModuleDescriptor.shouldSeeInternalsOf(memberModuleDesc)
+        }
+
+        /*
+         * This branch could be useful for the case with classpath substitution, if we would make a fake-override
+         * for a library class if it has a supertype from source. But at the moment of writing this code it's
+         * effectively unreachable, as fake overrides for library classes are built in the `Fir2IrLazyClass.declarations`
+         * which doesn't invoke this code. But it was decided to keep it for symmetry.
+         */
+        if (memberModuleDesc.session.kind == FirSession.Kind.Source && memberModuleDesc != leafModuleDescriptor) {
+            return thisModuleDesc.shouldSeeInternalsOf(leafModuleDescriptor)
+        }
+        return false
     }
 
     fun clearFakeOverrideFields() {
@@ -116,8 +142,8 @@ class Fir2IrDelegatedMembersGenerationStrategy(
      */
     private val delegatedClassesInfo: Map<IrClassSymbol, Map<IrClassSymbol, IrFieldSymbol>> = when (classActualizationInfo) {
         null -> delegatedClassesInfo
-        else -> delegatedClassesInfo.mapValues { (_, map) ->
-            map.mapKeys { (classSymbol, _) ->
+        else -> delegatedClassesInfo.mapValues { [_, map] ->
+            map.mapKeys { [classSymbol, _] ->
                 val classId = classSymbol.owner.classId ?: return@mapKeys classSymbol
                 val actualizedDeclaration = classActualizationInfo.getActualWithoutExpansion(classId)?.owner ?: return@mapKeys classSymbol
                 when (actualizedDeclaration) {
@@ -140,7 +166,7 @@ class Fir2IrDelegatedMembersGenerationStrategy(
         }.let {
             // There might be a diamond of fake-overrides with a single original declaration
             // see `manyImplFromOneJavaInterfaceWithDelegation.kt` test for reference
-            it.applyIf(it.size > 1) { distinctBy { (member, _) -> member.resolveFakeOverride() } }
+            it.applyIf(it.size > 1) { distinctBy { [member, _] -> member.resolveFakeOverride() } }
         }
 
         when (matched.size) {
@@ -149,7 +175,7 @@ class Fir2IrDelegatedMembersGenerationStrategy(
             else -> {
                 errorWithAttachment("Too many suitable delegated supertypes for single delegated declaration") {
                     withEntry("delegated declaration", overridableMember.render())
-                    matched.forEach { (supertypeMember, delegateField) ->
+                    matched.forEach { [supertypeMember, delegateField] ->
                         withEntryGroup("matched delegate") {
                             withEntry("delegate field", delegateField.owner.render())
                             withEntry("supertype member", supertypeMember.render())
@@ -158,7 +184,7 @@ class Fir2IrDelegatedMembersGenerationStrategy(
                 }
             }
         }
-        val (delegateTargetFromBaseType, delegateFieldSymbol) = matched.single()
+        val [delegateTargetFromBaseType, delegateFieldSymbol] = matched.single()
 
         if (!fir2IrExtensions.shouldGenerateDelegatedMember(delegateTargetFromBaseType)) return
 

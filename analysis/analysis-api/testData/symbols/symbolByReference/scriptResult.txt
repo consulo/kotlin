@@ -1,17 +1,19 @@
 KaKotlinPropertySymbol:
+  anchorPsi: KtScriptInitializer
   annotations: []
   backingFieldSymbol: null
   callableId: /$$result
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtScriptInitializer
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -21,29 +23,33 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: FINAL
     origin: PLUGIN
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getContainingFileSymbol: KaFileSymbol(scriptResult.kts)
     getContainingJvmClassName: null
     getContainingModule: KaScriptModule "Script scriptResult.kts"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: get$$result
     importableFqName: null
   hasBackingField: true
   hasGetter: true
   hasSetter: false
   initializer: KaConstantInitializerValue(42)
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: false
   isStatic: false
@@ -52,6 +58,9 @@ KaKotlinPropertySymbol:
   modality: FINAL
   name: $$result
   origin: PLUGIN
+  primaryConstructorParameter: null
+  psi: KtScriptInitializer
+  realPsi: null
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -63,8 +72,6 @@ KaKotlinPropertySymbol:
   getContainingFileSymbol: KaFileSymbol(scriptResult.kts)
   getContainingJvmClassName: null
   getContainingModule: KaScriptModule "Script scriptResult.kts"
-  deprecationStatus: null
-  javaGetterName: get$$result
-  javaSetterName: null
+  deprecation: null
   isInline: false
   importableFqName: $$result

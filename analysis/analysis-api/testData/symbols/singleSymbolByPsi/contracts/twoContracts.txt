@@ -1,10 +1,10 @@
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     kotlin/OptIn(markerClass = [kotlin.contracts.ExperimentalContracts::class])
       psi: KtAnnotationEntry
   ]
   callableId: /twoContracts
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: [
@@ -22,15 +22,17 @@ KaNamedFunctionSymbol:
                 KaContractExplicitParameterValue:
                   symbol:
                     KaValueParameterSymbol:
+                      anchorPsi: KtParameter
                       annotations: []
                       callableId: null
-                      compilerVisibility: Public
+                      contextParameters: []
                       contextReceivers: []
-                      generatedPrimaryConstructorProperty: null
                       hasDeclaredDefaultValue: false
                       hasDefaultValue: false
                       isActual: false
+                      isCompanion: false
                       isCrossinline: false
+                      isDelegated: false
                       isExpect: false
                       isExtension: false
                       isExternal: false
@@ -42,16 +44,20 @@ KaNamedFunctionSymbol:
                       modality: FINAL
                       name: foo
                       origin: SOURCE
+                      primaryConstructorProperty: null
+                      psi: KtParameter
+                      realPsi: KtParameter
                       receiverParameter: null
                       returnType: KaUsualClassType:
                         annotations: []
                         typeArguments: []
                         type: kotlin/Any?
+                      typeParameters: []
                       visibility: PUBLIC
                       getContainingFileSymbol: KaFileSymbol(twoContracts.kt)
                       getContainingJvmClassName: TwoContractsKt
                       getContainingModule: KaSourceModule "Sources of main"
-                      deprecationStatus: null
+                      deprecation: null
                       importableFqName: null
               isNegated: false
           right:
@@ -60,15 +66,17 @@ KaNamedFunctionSymbol:
                 KaContractExplicitParameterValue:
                   symbol:
                     KaValueParameterSymbol:
+                      anchorPsi: KtParameter
                       annotations: []
                       callableId: null
-                      compilerVisibility: Public
+                      contextParameters: []
                       contextReceivers: []
-                      generatedPrimaryConstructorProperty: null
                       hasDeclaredDefaultValue: false
                       hasDefaultValue: false
                       isActual: false
+                      isCompanion: false
                       isCrossinline: false
+                      isDelegated: false
                       isExpect: false
                       isExtension: false
                       isExternal: false
@@ -80,16 +88,20 @@ KaNamedFunctionSymbol:
                       modality: FINAL
                       name: bar
                       origin: SOURCE
+                      primaryConstructorProperty: null
+                      psi: KtParameter
+                      realPsi: KtParameter
                       receiverParameter: null
                       returnType: KaUsualClassType:
                         annotations: []
                         typeArguments: []
                         type: kotlin/Any?
+                      typeParameters: []
                       visibility: PUBLIC
                       getContainingFileSymbol: KaFileSymbol(twoContracts.kt)
                       getContainingJvmClassName: TwoContractsKt
                       getContainingModule: KaSourceModule "Sources of main"
-                      deprecationStatus: null
+                      deprecation: null
                       importableFqName: null
               isNegated: true
           operation: AND
@@ -98,15 +110,17 @@ KaNamedFunctionSymbol:
         KaContractExplicitParameterValue:
           symbol:
             KaValueParameterSymbol:
+              anchorPsi: KtParameter
               annotations: []
               callableId: null
-              compilerVisibility: Public
+              contextParameters: []
               contextReceivers: []
-              generatedPrimaryConstructorProperty: null
               hasDeclaredDefaultValue: false
               hasDefaultValue: false
               isActual: false
+              isCompanion: false
               isCrossinline: false
+              isDelegated: false
               isExpect: false
               isExtension: false
               isExternal: false
@@ -118,6 +132,9 @@ KaNamedFunctionSymbol:
               modality: FINAL
               name: block
               origin: SOURCE
+              primaryConstructorProperty: null
+              psi: KtParameter
+              realPsi: KtParameter
               receiverParameter: null
               returnType: KaFunctionType:
                 annotations: []
@@ -128,17 +145,19 @@ KaNamedFunctionSymbol:
                     type: kotlin/Unit
                 ]
                 type: () -> kotlin/Unit
+              typeParameters: []
               visibility: PUBLIC
               getContainingFileSymbol: KaFileSymbol(twoContracts.kt)
               getContainingJvmClassName: TwoContractsKt
               getContainingModule: KaSourceModule "Sources of main"
-              deprecationStatus: null
+              deprecation: null
               importableFqName: null
-      occurrencesRange: EXACTLY_ONCE
+      invocationKind: EXACTLY_ONCE
   ]
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -153,6 +172,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: twoContracts
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -161,15 +182,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -181,27 +204,33 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: foo
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Any?
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(twoContracts.kt)
       getContainingJvmClassName: TwoContractsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -213,27 +242,33 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: bar
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Any?
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(twoContracts.kt)
       getContainingJvmClassName: TwoContractsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -245,6 +280,9 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: block
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaFunctionType:
         annotations: []
@@ -255,11 +293,12 @@ KaNamedFunctionSymbol:
             type: kotlin/Unit
         ]
         type: () -> kotlin/Unit
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(twoContracts.kt)
       getContainingJvmClassName: TwoContractsKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -267,6 +306,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: TwoContractsKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: twoContracts
   importableFqName: twoContracts

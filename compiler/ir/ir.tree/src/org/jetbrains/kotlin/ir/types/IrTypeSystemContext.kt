@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.descriptors.ValueClassBackendAgnosticApi
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.declarations.*
@@ -24,6 +25,7 @@ import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.impl.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.util.isNullable
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.FqNameUnsafe
 import org.jetbrains.kotlin.name.Name
@@ -299,14 +301,9 @@ interface IrTypeSystemContext : TypeSystemContext, TypeSystemCommonSuperTypesCon
 
     override fun RigidTypeMarker.asArgumentList() = this as IrSimpleType
 
-    override fun TypeConstructorMarker.isAnyConstructor(): Boolean =
-        this is IrClassSymbol && isClassWithFqName(StandardNames.FqNames.any)
-
-    override fun TypeConstructorMarker.isNothingConstructor(): Boolean =
-        this is IrClassSymbol && isClassWithFqName(StandardNames.FqNames.nothing)
-
-    override fun TypeConstructorMarker.isArrayConstructor(): Boolean =
-        this is IrClassSymbol && isClassWithFqName(StandardNames.FqNames.array)
+    override fun TypeConstructorMarker.isClassWithId(classId: ClassId): Boolean {
+        return this is IrClassSymbol && isClassWithFqName(classId.asSingleFqName().toUnsafe())
+    }
 
     override fun RigidTypeMarker.isSingleClassifierType() = true
 
@@ -450,19 +447,19 @@ interface IrTypeSystemContext : TypeSystemContext, TypeSystemCommonSuperTypesCon
 
     override fun KotlinTypeMarker.getAnnotationFirstArgumentValue(fqName: FqName): Any? =
         (this as? IrType)?.annotations?.firstOrNull { annotation ->
-            annotation.symbol.owner.parentAsClass.hasEqualFqName(fqName)
+            annotation.isAnnotationWithEqualFqName(fqName)
         }?.run {
-            (arguments.getOrNull(0) as? IrConst)?.value
+            (argumentMapping.values.firstOrNull() as? IrConst)?.value
         }
 
     override fun TypeConstructorMarker.getTypeParameterClassifier(): TypeParameterMarker? =
         this as? IrTypeParameterSymbol
 
-    override fun TypeConstructorMarker.isInlineClass(): Boolean =
-        (this as? IrClassSymbol)?.owner?.isSingleFieldValueClass == true
+    val treatFullValueClassesWithOneFieldAsBasic: Boolean get() = true
 
-    override fun TypeConstructorMarker.isMultiFieldValueClass(): Boolean =
-        (this as? IrClassSymbol)?.owner?.isMultiFieldValueClass == true
+    @OptIn(ValueClassBackendAgnosticApi::class)
+    override fun TypeConstructorMarker.isInlineClass(): Boolean =
+        (this as? IrClassSymbol)?.owner?.isInlineClass(treatFullValueClassesWithOneFieldAsBasic) == true
 
     override fun TypeConstructorMarker.getValueClassProperties(): List<Pair<Name, SimpleTypeMarker>>? =
         (this as? IrClassSymbol)?.owner?.valueClassRepresentation?.underlyingPropertyNamesToTypes
@@ -476,8 +473,9 @@ interface IrTypeSystemContext : TypeSystemContext, TypeSystemCommonSuperTypesCon
             irClass.kind != ClassKind.INTERFACE && irClass.kind != ClassKind.ANNOTATION_CLASS
         } ?: owner.superTypes.first()
 
-    override fun KotlinTypeMarker.getUnsubstitutedUnderlyingType(): KotlinTypeMarker? =
-        (this as IrType).classOrNull?.owner?.inlineClassRepresentation?.underlyingType
+    @OptIn(ValueClassBackendAgnosticApi::class)
+    override fun KotlinTypeMarker.getUnsubstitutedUnderlyingTypeInJvm(): KotlinTypeMarker? =
+        (this as IrType).classOrNull?.owner?.inlineClassRepresentation(treatFullValueClassesWithOneFieldAsBasic)?.underlyingType
 
     override fun TypeConstructorMarker.getPrimitiveType(): PrimitiveType? =
         getNameForClassUnderKotlinPackage()?.let(PrimitiveType::getByShortName)

@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.annotations.AbstractAnalysisApiAnnotationsOnDeclarationsTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.annotations.AbstractAnalysisApiAnnotationsOnDeclarationsTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,7 +33,6 @@ public class FirIdeNormalAnalysisSourceLikeModuleAnalysisApiAnnotationsOnDeclara
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -50,6 +48,18 @@ public class FirIdeNormalAnalysisSourceLikeModuleAnalysisApiAnnotationsOnDeclara
   @Test
   public void testAllFilesPresentInAnnotationsOnDeclaration() {
     KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/annotations/annotationsOnDeclaration"), Pattern.compile("^(.+)\\.(kt|kts)$"), null, true);
+  }
+
+  @Test
+  @TestMetadata("compileTimeFunctionArgument.kt")
+  public void testCompileTimeFunctionArgument() {
+    run("compileTimeFunctionArgument.kt");
+  }
+
+  @Test
+  @TestMetadata("compileTimeFunctionArgument_IntrinsicConstEvaluationDisabled.kt")
+  public void testCompileTimeFunctionArgument_IntrinsicConstEvaluationDisabled() {
+    run("compileTimeFunctionArgument_IntrinsicConstEvaluationDisabled.kt");
   }
 
   @Test
@@ -93,6 +103,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleAnalysisApiAnnotationsOnDeclara
     @TestMetadata("arrayType2.kt")
     public void testArrayType2() {
       run("arrayType2.kt");
+    }
+
+    @Test
+    @TestMetadata("complexAnnotation.kt")
+    public void testComplexAnnotation() {
+      run("complexAnnotation.kt");
     }
 
     @Test

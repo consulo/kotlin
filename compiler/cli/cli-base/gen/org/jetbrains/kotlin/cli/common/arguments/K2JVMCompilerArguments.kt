@@ -133,6 +133,17 @@ If API Level >= 2.2 -- no-op.""",
         }
 
     @Argument(
+        value = "-Xdirect-java-actualization",
+        description = "Enable experimental direct Java actualization support.",
+    )
+    @Enables(LanguageFeature.DirectJavaActualization)
+    var directJavaActualization: Boolean = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
         value = "-Xdisable-standard-script",
         description = "Disable standard Kotlin scripting support.",
     )
@@ -153,17 +164,6 @@ If API Level >= 2.2 -- no-op.""",
         }
 
     @Argument(
-        value = "-Xenhance-type-parameter-types-to-def-not-null",
-        description = "Enhance not-null-annotated type parameter types to definitely-non-nullable types ('@NotNull T' => 'T & Any').",
-    )
-    @Enables(LanguageFeature.ProhibitUsingNullableTypeParameterAgainstNotNullAnnotated)
-    var enhanceTypeParameterTypesToDefNotNull: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
         value = "-Xenhanced-coroutines-debugging",
         description = """Generate additional linenumber instruction for compiler-generated code
 inside suspend functions and lambdas to distinguish them from user code by debugger.""",
@@ -178,7 +178,6 @@ inside suspend functions and lambdas to distinguish them from user code by debug
         value = "-Xfriend-paths",
         valueDescription = "<path>",
         description = "Paths to output directories for friend modules (modules whose internals should be visible).",
-        delimiter = Argument.Delimiters.default,
     )
     var friendPaths: Array<String> = emptyArray()
         set(value) {
@@ -218,10 +217,10 @@ inside suspend functions and lambdas to distinguish them from user code by debug
         }
 
     @Argument(
-        value = "-Xir-do-not-clear-binding-context",
-        description = "When using the IR backend, do not clear BindingContext between 'psi2ir' and lowerings.",
+        value = "-Xjava-direct",
+        description = "Build the Java model of Java sources directly from their syntax tree.",
     )
-    var doNotClearBindingContext: Boolean = false
+    var javaDirect: Boolean = true
         set(value) {
             checkFrozen()
             field = value
@@ -241,7 +240,6 @@ inside suspend functions and lambdas to distinguish them from user code by debug
         value = "-Xjava-source-roots",
         valueDescription = "<path>",
         description = "Paths to directories with Java source files.",
-        delimiter = Argument.Delimiters.default,
     )
     var javaSourceRoots: Array<String> = emptyArray()
         set(value) {
@@ -253,7 +251,7 @@ inside suspend functions and lambdas to distinguish them from user code by debug
         value = "-Xjdk-release",
         valueDescription = "<version>",
         description = """Compile against the specified JDK API version, similarly to javac's '-release'. This requires JDK 9 or newer.
-The supported versions depend on the JDK used; for JDK 17+, the supported versions are 1.8 and 9–26.
+The supported versions depend on the JDK used; for JDK 17+, the supported versions are 1.8 and 9–28.
 This also sets the value of '-jvm-target' to be equal to the selected JDK version.""",
     )
     var jdkRelease: String? = null
@@ -293,7 +291,7 @@ Modes:
             field = value
         }
 
-    @Deprecated("This flag is deprecated. Use `-jvm-default` instead")
+    @all:Deprecated("Use `-jvm-default` instead.")
     @Argument(
         value = "-Xjvm-default",
         valueDescription = "{all|all-compatibility|disable}",
@@ -301,6 +299,7 @@ Modes:
 -Xjvm-default=disable            -> -jvm-default=disable
 -Xjvm-default=all-compatibility  -> -jvm-default=enable
 -Xjvm-default=all                -> -jvm-default=no-compatibility""",
+        deprecatedVersion = "2.2.0",
     )
     var jvmDefault: String? = null
         set(value) {
@@ -330,18 +329,6 @@ This works like '--enable-preview' in Java. All class files are marked as compil
         }
 
     @Argument(
-        value = "-Xklib",
-        valueDescription = "<path>",
-        description = "Paths to cross-platform libraries in the .klib format.",
-        delimiter = Argument.Delimiters.pathSeparator,
-    )
-    var klibLibraries: String? = null
-        set(value) {
-            checkFrozen()
-            field = if (value.isNullOrEmpty()) null else value
-        }
-
-    @Argument(
         value = "-Xlambdas",
         valueDescription = "{class|indy}",
         description = """Select the code generation scheme for lambdas.
@@ -354,20 +341,6 @@ The default value is 'indy' if language version is 2.0+, and 'class' otherwise."
         set(value) {
             checkFrozen()
             field = if (value.isNullOrEmpty()) null else value
-        }
-
-    @Deprecated("This flag is deprecated")
-    @Argument(
-        value = "-Xlink-via-signatures",
-        description = """Link JVM IR symbols via signatures instead of descriptors.
-This mode is slower, but it can be useful for troubleshooting problems with the JVM IR backend.
-This option is deprecated and will be deleted in future versions.
-It has no effect when -language-version is 2.0 or higher.""",
-    )
-    var linkViaSignatures: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
         }
 
     @Argument(
@@ -578,34 +551,10 @@ The default value is 'enable'.""",
         }
 
     @Argument(
-        value = "-Xsuppress-deprecated-jvm-target-warning",
-        description = """Suppress warnings about deprecated JVM target versions.
-This option has no effect and will be deleted in a future version.""",
-    )
-    var suppressDeprecatedJvmTargetWarning: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
         value = "-Xsuppress-missing-builtins-error",
         description = "Suppress the \"cannot access built-in declaration\" error (useful with '-no-stdlib').",
     )
     var suppressMissingBuiltinsError: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
-        value = "-Xtype-enhancement-improvements-strict-mode",
-        description = """Enable strict mode for improvements to type enhancement for loaded Java types based on nullability annotations,
-including the ability to read type-use annotations from class files.
-See KT-45671 for more details.""",
-    )
-    @Enables(LanguageFeature.TypeEnhancementImprovementsInStrictMode)
-    var typeEnhancementImprovementsInStrictMode: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -635,7 +584,19 @@ See KT-45671 for more details.""",
         value = "-Xuse-inline-scopes-numbers",
         description = "Use inline scopes numbers for inline marker variables.",
     )
+    @Enables(LanguageFeature.JvmInlineScopesNumbers)
     var useInlineScopesNumbers: Boolean = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
+    @Argument(
+        value = "-Xuse-metadata-on-incremental-classpath",
+        description = """Use fragment metadata found on the compilation classpath to perform incremental compilation.
+This flag is intended for incremental compilation only and should not be used directly.""",
+    )
+    var useMetadataOnIncrementalClasspath: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -663,21 +624,20 @@ This can be used in the event of problems with the new implementation.""",
         }
 
     @Argument(
-        value = "-Xvalidate-bytecode",
-        description = "Validate generated JVM bytecode before and after optimizations.",
+        value = "-Xvalhalla-value-classes",
+        description = "Compile value classes to behave as experimental Project Valhalla value classes. Requires JVM target 28 or later and the '-Xjvm-enable-preview' flag.",
     )
-    var validateBytecode: Boolean = false
+    var valhallaValueClasses: Boolean = false
         set(value) {
             checkFrozen()
             field = value
         }
 
     @Argument(
-        value = "-Xvalue-classes",
-        description = "Enable experimental value classes.",
+        value = "-Xvalidate-bytecode",
+        description = "Validate generated JVM bytecode before and after optimizations.",
     )
-    @Enables(LanguageFeature.JvmInlineMultiFieldValueClasses)
-    var valueClasses: Boolean = false
+    var validateBytecode: Boolean = false
         set(value) {
             checkFrozen()
             field = value
@@ -690,7 +650,7 @@ This can be used in the event of problems with the new implementation.""",
 -Xwhen-expressions=indy         Generate type-checking 'when' expressions using 'invokedynamic' with 'SwitchBootstraps.typeSwitch(..)' and 
                                 following 'tableswitch' or 'lookupswitch'. This requires '-jvm-target 21' or greater.
 -Xwhen-expressions=inline       Generate type-checking 'when' expressions as a chain of type checks.
-The default value is 'inline'.""",
+The default value is 'indy' if the JVM target version is 21 or greater, and 'inline' otherwise.""",
     )
     var whenExpressionsGeneration: String? = null
         set(value) {
@@ -783,7 +743,7 @@ The default value is 'inline'.""",
     @Argument(
         value = "-jvm-target",
         valueDescription = "<version>",
-        description = "The target version of the generated JVM bytecode (1.8 and 9–26), with 1.8 as the default.",
+        description = "The target version of the generated JVM bytecode (1.8 and 9–28), with 1.8 as the default.",
     )
     var jvmTarget: String? = null
         set(value) {

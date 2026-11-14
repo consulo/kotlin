@@ -6,17 +6,18 @@
 package org.jetbrains.kotlin.codegen.forTestCompile;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.kotlin.config.KotlinCompilerVersion;
 import org.jetbrains.kotlin.utils.ExceptionUtilsKt;
+import org.jetbrains.kotlin.utils.PathUtil;
 
 import java.io.File;
 import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
-import static java.lang.System.*;
+import static java.lang.System.getProperty;
 import static org.jetbrains.kotlin.codegen.forTestCompile.TestCompilePaths.*;
 
 public class ForTestCompileRuntime {
@@ -25,7 +26,17 @@ public class ForTestCompileRuntime {
 
     @NotNull
     public static File runtimeJarForTests() {
-        return propertyOrDist(KOTLIN_FULL_STDLIB_PATH, "dist/kotlinc/lib/kotlin-stdlib.jar");
+        return getFileFromProperty(KOTLIN_FULL_STDLIB_PATH);
+    }
+
+    @NotNull
+    public static File thirdPartyJsr305ForTests() {
+        return getFileFromProperty(KOTLIN_THIRDPARTY_JSR305_PATH);
+    }
+
+    @NotNull
+    public static File thirdPartyJava8AnnotationsForTests() {
+        return getFileFromProperty(KOTLIN_THIRDPARTY_JAVA8_ANNOTATIONS_PATH);
     }
 
     /**
@@ -35,27 +46,27 @@ public class ForTestCompileRuntime {
     @NotNull
     @Deprecated
     public static File runtimeJarFromDistForTests() {
-        return new File("dist/kotlinc/lib/kotlin-stdlib.jar");
+        return distKotlincLibFile("kotlin-stdlib.jar");
     }
 
     @NotNull
     public static File runtimeJarForTestsWithJdk8() {
-        return propertyOrDist(KOTLIN_FULL_STDLIB_PATH, "dist/kotlinc/lib/kotlin-stdlib-jdk8.jar");
+        return getFileFromProperty(KOTLIN_FULL_STDLIB_PATH);
     }
 
     @NotNull
     public static File minimalRuntimeJarForTests() {
-        return propertyOrDist(KOTLIN_MINIMAL_STDLIB_PATH, "dist/kotlin-stdlib-jvm-minimal-for-test.jar");
+        return getFileFromProperty(KOTLIN_MINIMAL_STDLIB_PATH);
     }
 
     @NotNull
     public static File kotlinTestJarForTests() {
-        return propertyOrDist(KOTLIN_TEST_JAR_PATH, "dist/kotlinc/lib/kotlin-test.jar");
+        return getFileFromProperty(KOTLIN_TEST_JAR_PATH);
     }
 
     @NotNull
     public static File reflectJarForTests() {
-        return propertyOrDist(KOTLIN_REFLECT_JAR_PATH, "dist/kotlinc/lib/kotlin-reflect.jar");
+        return getFileFromProperty(KOTLIN_REFLECT_JAR_PATH);
     }
 
     /**
@@ -65,47 +76,124 @@ public class ForTestCompileRuntime {
     @NotNull
     @Deprecated
     public static File reflectJarFromDistForTests() {
-        return new File("dist/kotlinc/lib/kotlin-reflect.jar");
+        return distKotlincLibFile("kotlin-reflect.jar");
     }
 
     @NotNull
     public static File scriptRuntimeJarForTests() {
-        return propertyOrDist(KOTLIN_SCRIPT_RUNTIME_PATH, "dist/kotlinc/lib/kotlin-script-runtime.jar");
+        return getFileFromProperty(KOTLIN_SCRIPT_RUNTIME_PATH);
     }
 
     @NotNull
     public static File distKotlincForTests() {
-        return new File(propertyOrDist(KOTLIN_DIST_PATH, "dist"), "kotlinc");
+        return new File(getFileFromProperty(KOTLIN_DIST_PATH), "kotlinc");
+    }
+
+    @NotNull
+    public static File distKotlincLibFile(@NotNull String fileName) {
+        return new File(distKotlincForTests(), "lib/" + fileName);
+    }
+
+    @NotNull
+    public static File stdlibWasmJsFromDist() {
+        return distKotlincLibFile(PathUtil.WASM_JS_LIB_NAME + ".klib");
+    }
+
+    @NotNull
+    public static File stdlibWasmWasiFromDist() {
+        return distKotlincLibFile(PathUtil.WASM_WASI_LIB_NAME + ".klib");
     }
 
     @NotNull
     public static File pluginSandboxAnnotationsJvmForTests() {
-        return propertyOrDist(
-                PLUGIN_SANDBOX_ANNOTATIONS_JAR_PATH,
-                "plugins/plugin-sandbox/plugin-annotations/build/libs/plugin-annotations-jvm" + "-" + KotlinCompilerVersion.VERSION + ".jar"
+        return getFileFromProperty(
+                PLUGIN_SANDBOX_ANNOTATIONS_JAR_PATH
         );
     }
 
     @NotNull
     public static File pluginSandboxAnnotationsJsForTests() {
-        return propertyOrDist(
-                PLUGIN_SANDBOX_ANNOTATIONS_JS_KLIB_PATH,
-                "plugins/plugin-sandbox/plugin-annotations/build/libs/plugin-annotations-js" + "-" + KotlinCompilerVersion.VERSION + ".klib"
+        return getFileFromProperty(
+                PLUGIN_SANDBOX_ANNOTATIONS_JS_KLIB_PATH
         );
     }
 
     @NotNull
+    public static File pluginSandboxAnnotationsWasmForTests() {
+        return getFileFromProperty(
+                PLUGIN_SANDBOX_ANNOTATIONS_WASM_KLIB_PATH
+        );
+    }
+
+    @NotNull
+    public static File pluginSandboxJarForTests() {
+        return getFileFromProperty(
+                PLUGIN_SANDBOX_JAR_PATH
+        );
+    }
+
+    @NotNull
+    public static List<File> scriptingPluginFilesForTests() {
+        return getFilesFromProperty(KOTLIN_SCRIPTING_PLUGIN_CLASSPATH);
+    }
+
+    @NotNull
     public static List<File> testScriptDefinitionClasspathForTests() {
-        String classpathString = getProperty(KOTLIN_TEST_SCRIPT_DEFINITION_CLASSPATH, null);
+        return getFilesFromProperty(KOTLIN_TEST_SCRIPT_DEFINITION_CLASSPATH);
+    }
+
+    @NotNull
+    public static File scriptingTestsRuntimeClasspathForTests() {
+        return getFileFromProperty(KOTLIN_SCRIPTING_TESTS_RUNTIME_CLASSPATH);
+    }
+
+    @NotNull
+    public static File runtimeSourcesJarForTests() {
+        return getFileFromProperty(KOTLIN_FULL_STDLIB_SOURCES_PATH);
+    }
+
+    @NotNull
+    public static File stdlibCommonForTests() {
+        return getFileFromProperty(KOTLIN_COMMON_STDLIB_PATH);
+    }
+
+    @NotNull
+    public static File stdlibJs() {
+        return stdlibJsForTests();
+    }
+
+    @NotNull
+    public static File stdlibJsReducedForTests() {
+        return getFileFromProperty(KOTLIN_JS_REDUCED_STDLIB_PATH);
+    }
+
+    @NotNull
+    public static File kotlinTestJsKLibForTests() {
+        return getFileFromProperty(KOTLIN_JS_KOTLIN_TEST_KLIB_PATH);
+    }
+
+    @NotNull
+    public static File fullWasmStdlibForTests(String alias) {
+        return getFileFromProperty("kotlin." + alias + ".stdlib.path");
+    }
+
+    @NotNull
+    public static File kotlinTestWasmKLibForTests(String alias) {
+        return getFileFromProperty("kotlin." + alias + ".kotlin.test.path");
+    }
+
+    @NotNull
+    private static List<File> getFilesFromProperty(String property) {
+        String classpathString = getProperty(property, null);
         if (classpathString == null) {
-            return Collections.emptyList();
+            throw new IllegalStateException("Property " + property + " is missing");
         }
 
         List<File> list = new ArrayList<>();
         for (String classpathEntryString : classpathString.split(File.pathSeparator)) {
             File file = new File(classpathEntryString);
             if (!file.exists()) {
-                throw new IllegalStateException("The file required for custom test script definition not found: " + classpathEntryString);
+                throw new IllegalStateException("Property " + property + " contains non-existent path: " + classpathEntryString);
             }
             list.add(file);
         }
@@ -113,28 +201,15 @@ public class ForTestCompileRuntime {
         return list;
     }
 
-    @NotNull
-    public static File runtimeSourcesJarForTests() {
-        return propertyOrDist(KOTLIN_FULL_STDLIB_SOURCES_PATH, "dist/kotlinc/lib/kotlin-stdlib-sources.jar");
-    }
-
-    @NotNull
-    public static File stdlibCommonForTests() {
-        return propertyOrDist(KOTLIN_COMMON_STDLIB_PATH, "dist/common/kotlin-stdlib-common.klib");
-    }
-
-    @NotNull
-    public static File stdlibJs() {
-        return propertyOrDist(KOTLIN_JS_STDLIB_KLIB_PATH, "build/js-ir-runtime/full-runtime.klib");
-    }
-
-    private static File propertyOrDist(String property, String distPath) {
-        String path = getProperty(property, distPath);
+    public static File getFileFromProperty(String property) {
+        String path = getProperty(property);
+        assert (path != null) : "Property " + property + " is not defined";
         File file = new File(path);
-        assert (file.exists()) : path + " doesn't exist; property: " + property + "; distPath: " + distPath;
+        assert (file.exists()) : path + " doesn't exist; property: " + property;
         return file;
     }
 
+    @NotNull
     public static File transformTestDataPath(String path) {
         String property = getProperty(KOTLIN_TESTDATA_ROOTS);
         if (property != null) {
@@ -153,27 +228,63 @@ public class ForTestCompileRuntime {
 
     @NotNull
     public static File jvmAnnotationsForTests() {
-        return propertyOrDist(KOTLIN_ANNOTATIONS_PATH, "dist/kotlinc/lib/kotlin-annotations-jvm.jar");
+        return getFileFromProperty(KOTLIN_ANNOTATIONS_PATH);
     }
 
     @NotNull
     public static File stdlibJsForTests() {
-        return propertyOrDist(KOTLIN_JS_STDLIB_KLIB_PATH, "dist/kotlinc/lib/kotlin-stdlib-js.klib");
+        return getFileFromProperty(KOTLIN_JS_STDLIB_KLIB_PATH);
     }
 
     @NotNull
-    private static File assertExists(@NotNull File file) {
-        if (!file.exists()) {
-            throw new IllegalStateException(file + " does not exist. Run 'gradlew dist'");
-        }
-        return file;
+    public static File jklibStdlibForTests() {
+        return getFileFromProperty(KOTLIN_JKLIB_STDLIB_PATH);
+    }
+
+    public static File stdlibWebForTests() {
+        return getFileFromProperty(KOTLIN_WEB_STDLIB_KLIB_PATH);
+    }
+
+    @NotNull
+    public static File stdlibWasmJsForTests() {
+        return getFileFromProperty(KOTLIN_WASM_STDLIB_KLIB_PATH);
+    }
+
+    @NotNull
+    public static File thirdPartyAnnotations() {
+        return getFileFromProperty(KOTLIN_THIRDPARTY_ANNOTATIONS_PATH);
+    }
+
+    @NotNull
+    public static File kotlinNativeImageDistForTests() {
+        return getFileFromProperty(KOTLIN_NATIVE_IMAGE_DIST_PATH);
+    }
+
+    @NotNull
+    public static File kotlinNativeImageResourcesPathForTests() {
+        return getFileFromProperty(KOTLIN_NATIVE_IMAGE_RESOURCES_PATH);
+    }
+
+    @NotNull
+    public static List<File> kotlinNativeImagePluginsRuntimeForTests() {
+        return getFilesFromProperty(KOTLIN_NATIVE_IMAGE_PLUGINS_RUNTIME);
+    }
+
+    @NotNull
+    public static List<File> kotlinNativeImagePluginsClasspathForTests() {
+        return getFilesFromProperty(KOTLIN_NATIVE_IMAGE_PLUGINS_CLASSPATH);
+    }
+
+    @NotNull
+    public static List<File> kotlinCompilerEmbeddableClasspathForTests() {
+        return getFilesFromProperty(KOTLIN_COMPILER_EMBEDDABLE_CLASSPATH);
     }
 
     @NotNull
     public static synchronized ClassLoader runtimeAndReflectJarClassLoader() {
         ClassLoader loader = reflectJarClassLoader.get();
         if (loader == null) {
-            loader = createClassLoader(runtimeJarForTests(), reflectJarForTests(), scriptRuntimeJarForTests(), kotlinTestJarForTests());
+            loader = createClassLoader(runtimeJarForTests(), reflectJarForTests(), kotlinTestJarForTests());
             reflectJarClassLoader = new SoftReference<>(loader);
         }
         return loader;
@@ -183,7 +294,7 @@ public class ForTestCompileRuntime {
     public static synchronized ClassLoader runtimeJarClassLoader() {
         ClassLoader loader = runtimeJarClassLoader.get();
         if (loader == null) {
-            loader = createClassLoader(runtimeJarForTests(), scriptRuntimeJarForTests(), kotlinTestJarForTests());
+            loader = createClassLoader(runtimeJarForTests(), kotlinTestJarForTests());
             runtimeJarClassLoader = new SoftReference<>(loader);
         }
         return loader;
@@ -201,5 +312,25 @@ public class ForTestCompileRuntime {
         catch (MalformedURLException e) {
             throw ExceptionUtilsKt.rethrow(e);
         }
+    }
+
+    public static File lombokCompilerPluginForTests() {
+        return getFileFromProperty(LOMBOK_COMPILER_PLUGIN_JAR_PATH);
+    }
+
+    public static File allOpenCompilerPluginForTests() {
+        return getFileFromProperty(ALLOPEN_COMPILER_PLUGIN_JAR_PATH);
+    }
+
+    public static File noArgCompilerPluginForTests() {
+        return getFileFromProperty(NOARG_COMPILER_PLUGIN_JAR_PATH);
+    }
+
+    public static @NotNull File mainKtsJar() {
+        return getFileFromProperty(MAIN_KTS_JAR_PATH);
+    }
+
+    public static List<File> parcelizeRuntimeForTests() {
+        return getFilesFromProperty(PARCELIZE_COMPILER_PLUGIN_CLASSPATH);
     }
 }

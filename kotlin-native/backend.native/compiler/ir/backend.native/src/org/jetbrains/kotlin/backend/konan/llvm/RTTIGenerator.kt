@@ -19,50 +19,14 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.objcinterop.*
 import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.name.NativeRuntimeNames
 
 internal class RTTIGenerator(
         override val generationState: NativeGenerationState,
         private val referencedFunctions: Set<IrSimpleFunction>?,
 ) : ContextUtils {
 
-    private val acyclicCache = mutableMapOf<IrType, Boolean>()
-    private val safeAcyclicFieldTypes = setOf(
-            context.irBuiltIns.stringClass,
-            context.irBuiltIns.booleanClass, context.irBuiltIns.charClass,
-            context.irBuiltIns.byteClass, context.irBuiltIns.shortClass, context.irBuiltIns.intClass,
-            context.irBuiltIns.longClass,
-            context.irBuiltIns.floatClass, context.irBuiltIns.doubleClass) +
-            context.irBuiltIns.primitiveTypesToPrimitiveArrays.values +
-            context.irBuiltIns.unsignedTypesToUnsignedArrays.values
-
-    // TODO: extend logic here by taking into account final acyclic classes.
-    private fun checkAcyclicFieldType(type: IrType): Boolean = acyclicCache.getOrPut(type) {
-        when {
-            type.isInterface() -> false
-            type.computePrimitiveBinaryTypeOrNull() != null -> true
-            else -> {
-                val classifier = type.classifierOrNull
-                (classifier != null && classifier in safeAcyclicFieldTypes)
-            }
-        }
-    }
-
-    private fun checkAcyclicClass(irClass: IrClass): Boolean = when {
-        irClass.symbol == context.irBuiltIns.arrayClass -> false
-        irClass.isArray -> true
-        context.getLayoutBuilder(irClass).getFields(llvm).all { checkAcyclicFieldType(it.type) } -> true
-        else -> false
-    }
-
     private fun flagsFromClass(irClass: IrClass): Int {
         var result = 0
-        // TODO: maybe perform deeper analysis to find surely acyclic types.
-        if (!irClass.isInterface && !irClass.isAbstract() && !irClass.isAnnotationClass) {
-            if (checkAcyclicClass(irClass)) {
-                result = result or TF_ACYCLIC
-            }
-        }
         if (irClass.isInterface)
             result = result or TF_INTERFACE
 
@@ -148,7 +112,7 @@ internal class RTTIGenerator(
     private fun exportTypeInfoIfRequired(irClass: IrClass, typeInfoGlobal: LLVMValueRef?) {
         val annotation = irClass.annotations.findAnnotation(RuntimeNames.exportTypeInfoAnnotation)
         if (annotation != null) {
-            val name = annotation.getAnnotationStringValue()!!
+            val name = annotation.getConstArgument<String>("name")!!
             // TODO: use LLVMAddAlias.
             val global = addGlobal(name, llvm.pointerType, isExported = true)
             LLVMSetInitializer(global, typeInfoGlobal)
@@ -232,7 +196,7 @@ internal class RTTIGenerator(
         }
 
         val needInterfaceTable = !irClass.isInterface && !irClass.isAbstract() && !irClass.isObjCClass()
-        val (interfaceTable, interfaceTableSize) = if (needInterfaceTable) {
+        val [interfaceTable, interfaceTableSize] = if (needInterfaceTable) {
             interfaceTableRecords(irClass)
         } else {
             Pair(emptyList(), -1)
@@ -260,7 +224,7 @@ internal class RTTIGenerator(
                     irClass.symbol == context.irBuiltIns.arrayClass -> llvm.Kotlin_processArrayInMark.toConstPointer()
                     else -> genProcessObjectInMark(llvmDeclarations.bodyType)
                 },
-                requiredAlignment = llvmDeclarations.alignment
+                requiredAlignment = llvmDeclarations.bodyType.alignment
         )
 
         val typeInfoGlobalValue = if (!irClass.typeInfoHasVtableAttached) {
@@ -297,7 +261,7 @@ internal class RTTIGenerator(
     fun interfaceTableRecords(irClass: IrClass): Pair<List<InterfaceTableRecord>, Int> {
         // The details are in ClassLayoutBuilder.
         val interfaces = irClass.implementedInterfaces
-        val (interfaceTableSkeleton, interfaceTableSize) = interfaceTableSkeleton(interfaces)
+        val [interfaceTableSkeleton, interfaceTableSize] = interfaceTableSkeleton(interfaces)
 
         val interfaceTableEntries = interfaceTableRecords(irClass, interfaceTableSkeleton)
         return Pair(interfaceTableEntries, interfaceTableSize)
@@ -381,17 +345,17 @@ internal class RTTIGenerator(
 
     private fun mapRuntimeType(type: LLVMTypeRef, isObjectType: Boolean): Int {
         if (isObjectType) {
-            require(type == llvm.pointerType) { "Expected object type, got ${llvmtype2string(type)}" }
+            require(type == llvm.pointerType) { "Expected object type, got ${type.toTypeString()}" }
             return RT_OBJECT
         }
 
-        return primitiveRuntimeTypeMap[type] ?: throw Error("Unmapped type: ${llvmtype2string(type)}")
+        return primitiveRuntimeTypeMap[type] ?: throw Error("Unmapped type: ${type.toTypeString()}")
     }
 
     private val debugRuntimeOrNull: LLVMModuleRef? by lazy {
         if (generationState.runtimeModulesConfig.containsDebuggingRuntime) {
             val path = generationState.runtimeModulesConfig.absolutePathFor(RuntimeModule.DEBUG)
-            parseBitcodeFile(context, context.messageCollector, llvm.llvmContext, path)
+            parseBitcodeFile(context, context.diagnosticReporter, llvm.llvmContext, path)
         } else {
             null
         }
@@ -439,7 +403,7 @@ internal class RTTIGenerator(
             val objectFieldIndices = llvmDeclarations.bodyType.sortedIndicesOfObjectFields.toSet()
 
             val fields = context.getLayoutBuilder(irClass).getFields(llvm).map {
-                val index = llvmDeclarations.fieldIndices[it.irFieldSymbol]!!
+                val index = llvmDeclarations.bodyType.fieldsIndices[it.irFieldSymbol]!!
                 val isObjectType = index in objectFieldIndices
                 FieldRecord(
                         LLVMOffsetOfElement(llvmTargetData, bodyType, index).toInt(),
@@ -468,7 +432,7 @@ internal class RTTIGenerator(
             return null
         }
 
-        val associatedObjectTableRecords = associatedObjects.map { (key, value) ->
+        val associatedObjectTableRecords = associatedObjects.map { [key, value] ->
             val function = context.getObjectClassInstanceFunction(value)
 
             Struct(runtime.associatedObjectTableRecordType, key.typeInfoPtr, function.llvmFunction.toConstPointer())
@@ -500,7 +464,6 @@ internal class RTTIGenerator(
             irClass: IrClass,
             methodImpls: Map<IrSimpleFunction, ConstPointer>,
             bodyType: ObjectBodyType,
-            immutable: Boolean = false
     ): ConstPointer {
         assert(irClass.isInterface)
 
@@ -530,7 +493,7 @@ internal class RTTIGenerator(
             ClassGlobalHierarchyInfo(-1, -1, 0)
 
         // TODO: interfaces (e.g. FunctionN and Function) should have different colors.
-        val (interfaceTableSkeleton, interfaceTableSize) = interfaceTableSkeleton(interfaces)
+        val [interfaceTableSkeleton, interfaceTableSize] = interfaceTableSkeleton(interfaces)
 
         val interfaceTable = interfaceTableSkeleton.map { layoutBuilder ->
             if (layoutBuilder == null) {
@@ -558,7 +521,7 @@ internal class RTTIGenerator(
                 interfaceTableSize = interfaceTableSize, interfaceTable = interfaceTablePtr,
                 packageName = ReflectionInfo.EMPTY.packageName,
                 relativeName = ReflectionInfo.EMPTY.relativeName,
-                flags = flagsFromClass(irClass) or (if (immutable) TF_IMMUTABLE else 0),
+                flags = flagsFromClass(irClass),
                 classId = typeHierarchyInfo.classIdLo,
                 writableTypeInfo = writableTypeInfo,
                 associatedObjects = null,
@@ -582,13 +545,8 @@ internal class RTTIGenerator(
 
     private fun getReflectionInfo(irClass: IrClass): ReflectionInfo {
         val packageFragment = irClass.getPackageFragment()
-        val reflectionPackageName = if (packageFragment is IrFile) {
-            // This annotation is used by test infrastructure.
-            packageFragment.annotations.findAnnotation(KonanFqNames.reflectionPackageName)?.getAnnotationStringValue()
-        } else {
-            null
-        }
-
+        // `@kotlin.internal.ReflectionPackageName` is used by test infrastructure.
+        val reflectionPackageName = (packageFragment as? IrFile)?.reflectionPackageName
         val packageName: String = reflectionPackageName ?: packageFragment.packageFqName.asString() // Compute and store package name in TypeInfo anyways.
         val relativeName: String?
         val flags: Int
@@ -623,13 +581,10 @@ internal class RTTIGenerator(
 }
 
 // Keep in sync with Konan_TypeFlags in TypeInfo.h.
-private const val TF_IMMUTABLE = 1
-private const val TF_ACYCLIC   = 2
-private const val TF_INTERFACE = 4
-private const val TF_OBJC_DYNAMIC = 8
-private const val TF_LEAK_DETECTOR_CANDIDATE = 16
-private const val TF_SUSPEND_FUNCTION = 32
-private const val TF_HAS_FINALIZER = 64
-private const val TF_HAS_FREEZE_HOOK = 128
-private const val TF_REFLECTION_SHOW_PKG_NAME = 256
-private const val TF_REFLECTION_SHOW_REL_NAME = 512
+private const val TF_INTERFACE = 1 shl 2
+private const val TF_OBJC_DYNAMIC = 1 shl 3
+private const val TF_KOTLIN_OBJC_CLASS = 1 shl 4
+private const val TF_SUSPEND_FUNCTION = 1 shl 5
+private const val TF_HAS_FINALIZER = 1 shl 6
+private const val TF_REFLECTION_SHOW_PKG_NAME = 1 shl 8
+private const val TF_REFLECTION_SHOW_REL_NAME = 1 shl 9

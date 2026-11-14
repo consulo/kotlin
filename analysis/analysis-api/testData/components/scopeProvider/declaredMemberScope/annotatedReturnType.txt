@@ -1,14 +1,18 @@
 KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
   annotations: [
     test/RegularAnno()
       psi: KtAnnotationEntry
   ]
   backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Private
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -19,6 +23,8 @@ KaKotlinPropertySymbol:
     name: field
     origin: PROPERTY_BACKING_FIELD
     owningProperty: KaKotlinPropertySymbol(test/MyInterface.property)
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: [
@@ -27,6 +33,7 @@ KaKotlinPropertySymbol:
       ]
       typeArguments: []
       type: @R|test/TypeAnno|()  kotlin/String
+    typeParameters: []
     visibility: PRIVATE
     getDispatchReceiver(): KaUsualClassType:
       annotations: []
@@ -35,19 +42,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(annotatedReturnType.kt)
     getContainingJvmClassName: test.MyInterface
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   callableId: test/MyInterface.property
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -57,6 +65,8 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: ABSTRACT
     origin: SOURCE
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: [
@@ -65,6 +75,7 @@ KaKotlinPropertySymbol:
       ]
       typeArguments: []
       type: @R|test/TypeAnno|()  kotlin/String
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getDispatchReceiver(): KaUsualClassType:
@@ -74,19 +85,20 @@ KaKotlinPropertySymbol:
     getContainingFileSymbol: KaFileSymbol(annotatedReturnType.kt)
     getContainingJvmClassName: test.MyInterface
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: getProperty
     importableFqName: null
   hasBackingField: false
   hasGetter: true
   hasSetter: false
   initializer: null
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: false
   isStatic: false
@@ -95,6 +107,9 @@ KaKotlinPropertySymbol:
   modality: ABSTRACT
   name: property
   origin: SOURCE
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: [
@@ -113,25 +128,24 @@ KaKotlinPropertySymbol:
   getContainingFileSymbol: KaFileSymbol(annotatedReturnType.kt)
   getContainingJvmClassName: test.MyInterface
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
-  javaGetterName: getProperty
-  javaSetterName: null
+  deprecation: null
   isInline: false
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     test/RegularAnno()
       psi: KtAnnotationEntry
   ]
   callableId: test/MyInterface.function
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -146,6 +160,8 @@ KaNamedFunctionSymbol:
   modality: ABSTRACT
   name: function
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: [
@@ -157,18 +173,20 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: [
         test/RegularAnno()
           psi: KtAnnotationEntry
       ]
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -180,6 +198,9 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: argument
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: [
@@ -188,11 +209,12 @@ KaNamedFunctionSymbol:
         ]
         typeArguments: []
         type: @R|test/TypeAnno|()  kotlin/Int
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(annotatedReturnType.kt)
       getContainingJvmClassName: test.MyInterface
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -204,6 +226,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: test.MyInterface
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: function
   importableFqName: null

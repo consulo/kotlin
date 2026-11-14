@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER
-// LANGUAGE: +UseCorrectExecutionOrderForVarargArguments
 // WITH_STDLIB
 
 fun foo(vararg x: Unit, y: Any) {}

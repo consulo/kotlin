@@ -10,8 +10,8 @@ import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.expressions.FirBlock
 import org.jetbrains.kotlin.fir.symbols.lazyDeclarationResolver
 import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
-import org.jetbrains.kotlin.test.backend.handlers.assertFileDoesntExist
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
+import org.jetbrains.kotlin.test.directives.assertEqualsToDump
 import org.jetbrains.kotlin.test.frontend.fir.FirOutputArtifact
 import org.jetbrains.kotlin.test.frontend.fir.handlers.FirDumpHandler.Companion.collectFilesForRendering
 import org.jetbrains.kotlin.test.model.TestModule
@@ -31,25 +31,14 @@ class FirVFirDumpHandler(
 
             val allFiles = collectFilesForRendering(module, info, part)
 
-            part.session.lazyDeclarationResolver.startResolvingPhase(FirResolvePhase.BODY_RESOLVE)
-
             val renderer = FirVerboseRenderer(FirVerbosePrinter(builderForModule))
             allFiles.forEach { it.accept(renderer) }
-
-            part.session.lazyDeclarationResolver.finishResolvingPhase(FirResolvePhase.BODY_RESOLVE)
         }
     }
 
     override fun processAfterAllModules(someAssertionWasFailed: Boolean) {
-        val testDataFile = testServices.moduleStructure.originalTestDataFiles.first()
-        val expectedFile = testDataFile.parentFile.resolve("${testDataFile.nameWithoutFirExtension}.vfir.txt")
-
-        if (dumper.isEmpty()) {
-            assertions.assertFileDoesntExist(expectedFile, FirDiagnosticsDirectives.DUMP_VFIR)
-        } else {
-            val actualText = dumper.generateResultingDump()
-            assertions.assertEqualsToFile(expectedFile, actualText, message = { "Content is not equal" })
-        }
+        val actualText = if (dumper.isEmpty()) null else dumper.generateResultingDump()
+        assertEqualsToDump(extension = ".vfir.txt", actualText)
     }
 
     private class FirVerboseRenderer(private val printer: FirVerbosePrinter) : FirVisitorVoid() {

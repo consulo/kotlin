@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -7,9 +7,9 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.api
 
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
-import org.jetbrains.kotlin.analysis.low.level.api.fir.LLResolutionFacadeService
+import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
-import org.jetbrains.kotlin.diagnostics.KtPsiDiagnostic
+import org.jetbrains.kotlin.analysis.low.level.api.fir.LLResolutionFacadeService
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.psi.KtFile
 /**
  * Returns [LLResolutionFacade] which corresponds to containing module
  */
+@KaImplementationDetail
 fun KaModule.getResolutionFacade(project: Project): LLResolutionFacade =
     LLResolutionFacadeService.getInstance(project).getResolutionFacade(this)
 
@@ -30,6 +31,7 @@ fun KaModule.getResolutionFacade(project: Project): LLResolutionFacade =
  *
  * The underlying [FirDeclaration][org.jetbrains.kotlin.fir.declarations.FirDeclaration] will be resolved at least to [phase].
  */
+@KaImplementationDetail
 fun KtDeclaration.resolveToFirSymbol(
     resolutionFacade: LLResolutionFacade,
     phase: FirResolvePhase = FirResolvePhase.RAW_FIR,
@@ -43,6 +45,7 @@ fun KtDeclaration.resolveToFirSymbol(
  *
  * The underlying [FirDeclaration][org.jetbrains.kotlin.fir.declarations.FirDeclaration] will be resolved at least to [phase].
  */
+@KaImplementationDetail
 @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
 inline fun <reified S : FirBasedSymbol<*>> KtDeclaration.resolveToFirSymbolOfType(
     resolutionFacade: LLResolutionFacade,
@@ -60,6 +63,7 @@ inline fun <reified S : FirBasedSymbol<*>> KtDeclaration.resolveToFirSymbolOfTyp
  *
  * The underlying [FirDeclaration][org.jetbrains.kotlin.fir.declarations.FirDeclaration] will be resolved at least to [phase].
  */
+@KaImplementationDetail
 @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
 inline fun <reified S : FirBasedSymbol<*>> KtDeclaration.resolveToFirSymbolOfTypeSafe(
     resolutionFacade: LLResolutionFacade,
@@ -71,25 +75,22 @@ inline fun <reified S : FirBasedSymbol<*>> KtDeclaration.resolveToFirSymbolOfTyp
 /**
  * Resolve a **non-Kotlin** [PsiClass] to a [FirRegularClassSymbol]
  */
+@KaImplementationDetail
 fun PsiClass.resolveToFirSymbol(resolutionFacade: LLResolutionFacade): FirRegularClassSymbol =
     resolutionFacade.resolveToFirSymbol(this)
 
 /**
- * Returns a list of Diagnostics compiler finds for given [KtElement]
+ * Returns a sequence of diagnostics which the compiler reports on the given [KtElement], and, if [isRecursive] is `true`, on all its
+ * children as well (which is the default).
+ *
  * This operation could be performance affective because it create FIleStructureElement and resolve non-local declaration into BODY phase
  */
-fun KtElement.getDiagnostics(resolutionFacade: LLResolutionFacade, filter: DiagnosticCheckerFilter): Collection<KtPsiDiagnostic> =
-    resolutionFacade.getDiagnostics(this, filter)
-
-/**
- * Returns a sequence of Diagnostics compiler finds for given [KtFile]
- * This operation could be performance affective because it create FIleStructureElement and resolve non-local declaration into BODY phase
- */
-fun KtFile.diagnostics(
+@KaImplementationDetail
+fun KtElement.diagnostics(
     resolutionFacade: LLResolutionFacade,
-    filter: DiagnosticCheckerFilter
-): Sequence<KtPsiDiagnostic> =
-    resolutionFacade.diagnostics(this, filter)
+    filter: DiagnosticCheckerFilter,
+    isRecursive: Boolean = true,
+): Sequence<LLDiagnostic> = resolutionFacade.diagnostics(this, filter, isRecursive)
 
 /**
  * Build [FirElement] node in its final resolved state for a requested element.
@@ -108,6 +109,7 @@ fun KtFile.diagnostics(
  * @see getOrBuildFirFile
  * @see LLResolutionFacade.getOrBuildFirFor
  */
+@KaImplementationDetail
 fun KtElement.getOrBuildFir(resolutionFacade: LLResolutionFacade): FirElement? =
     resolutionFacade.getOrBuildFirFor(this)
 
@@ -116,6 +118,7 @@ fun KtElement.getOrBuildFir(resolutionFacade: LLResolutionFacade): FirElement? =
  * Returned [FirElement] is guaranteed to be resolved to [FirResolvePhase.BODY_RESOLVE] phase
  * This operation could be performance affective because it create FIleStructureElement and resolve non-local declaration into BODY phase
  */
+@KaImplementationDetail
 inline fun <reified E : FirElement> KtElement.getOrBuildFirSafe(resolutionFacade: LLResolutionFacade) =
     getOrBuildFir(resolutionFacade) as? E
 
@@ -124,6 +127,7 @@ inline fun <reified E : FirElement> KtElement.getOrBuildFirSafe(resolutionFacade
  * Returned [FirElement] is guaranteed to be resolved to [FirResolvePhase.BODY_RESOLVE] phase
  * This operation could be performance affective because it create FIleStructureElement and resolve non-local declaration into BODY phase
  */
+@KaImplementationDetail
 inline fun <reified E : FirElement> KtElement.getOrBuildFirOfType(resolutionFacade: LLResolutionFacade): E {
     val fir = getOrBuildFir(resolutionFacade)
     if (fir is E) return fir
@@ -134,5 +138,6 @@ inline fun <reified E : FirElement> KtElement.getOrBuildFirOfType(resolutionFaca
  * Get a [FirFile] which was created by [KtElement]
  * Returned [FirFile] can be resolved to any phase from [FirResolvePhase.RAW_FIR] to [FirResolvePhase.BODY_RESOLVE]
  */
+@KaImplementationDetail
 fun KtFile.getOrBuildFirFile(resolutionFacade: LLResolutionFacade): FirFile =
     resolutionFacade.getOrBuildFirFile(this)

@@ -5,14 +5,13 @@ import KotlinRuntimeSupport
 import KotlinStdlib
 
 public final class Foo: KotlinRuntime.KotlinBase {
-    public init() {
-        if Self.self != main.Foo.self { fatalError("Inheritance from exported Kotlin classes is not supported yet: \(String(reflecting: Self.self)) inherits from main.Foo ") }
+    public override init() {
         let __kt = __root___Foo_init_allocate()
         super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
         { __root___Foo_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
     }
     package override init(
-        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+        __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
         options: KotlinRuntime.KotlinBaseConstructionOptions
     ) {
         super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -94,22 +93,22 @@ public func getBar(
 ) -> Swift.String {
     return __root___bar_get__TypesOfArgumentsE__Swift_Optional_main_Foo___(receiver.map { it in it.__externalRCRef() } ?? nil)
 }
-public func getFoo(
+public func getFooProp(
     _ receiver: Swift.Int32
 ) -> Swift.String {
     return __root___foo_get__TypesOfArgumentsE__Swift_Int32__(receiver)
 }
-public func getFoo(
+public func getFooProp(
     _ receiver: Swift.Int32?
 ) -> Swift.String {
     return __root___foo_get__TypesOfArgumentsE__Swift_Optional_Swift_Int32___(receiver.map { it in NSNumber(value: it) } ?? nil)
 }
-public func getFoo(
+public func getFooProp(
     _ receiver: main.Foo
 ) -> Swift.String {
     return __root___foo_get__TypesOfArgumentsE__main_Foo__(receiver.__externalRCRef())
 }
-public func getFoo(
+public func getFooProp(
     _ receiver: main.Foo?
 ) -> Swift.String {
     return __root___foo_get__TypesOfArgumentsE__Swift_Optional_main_Foo___(receiver.map { it in it.__externalRCRef() } ?? nil)
@@ -117,40 +116,151 @@ public func getFoo(
 public func return_any_should_append_runtime_import() -> any KotlinRuntimeSupport._KotlinBridgeable {
     return KotlinRuntime.KotlinBase.__createBridgeable(externalRCRef: __root___return_any_should_append_runtime_import())
 }
-public func setFoo(
+public func setFooProp(
     _ receiver: Swift.Int32,
     v: Swift.String
 ) -> Swift.Void {
     return { __root___foo_set__TypesOfArgumentsE__Swift_Int32_Swift_String__(receiver, v); return () }()
 }
-public func setFoo(
+public func setFooProp(
     _ receiver: Swift.Int32?,
     v: Swift.String
 ) -> Swift.Void {
     return { __root___foo_set__TypesOfArgumentsE__Swift_Optional_Swift_Int32__Swift_String__(receiver.map { it in NSNumber(value: it) } ?? nil, v); return () }()
 }
-public func setFoo(
+public func setFooProp(
     _ receiver: main.Foo,
     v: Swift.String
 ) -> Swift.Void {
     return { __root___foo_set__TypesOfArgumentsE__main_Foo_Swift_String__(receiver.__externalRCRef(), v); return () }()
 }
-public func setFoo(
+public func setFooProp(
     _ receiver: main.Foo?,
     v: Swift.String
 ) -> Swift.Void {
     return { __root___foo_set__TypesOfArgumentsE__Swift_Optional_main_Foo__Swift_String__(receiver.map { it in it.__externalRCRef() } ?? nil, v); return () }()
 }
+extension main.Foo {
+    public var fooProp: Swift.String {
+        get {
+            let receiver = self
+            return main.getFooProp(receiver)
+        }
+        set(v) {
+            let receiver = self
+            return main.setFooProp(receiver, v: v)
+        }
+    }
+}
+extension main.Foo {
+    public var bar: Swift.String {
+        get {
+            let receiver = self
+            return main.getBar(receiver)
+        }
+    }
+}
+extension main.Foo {
+    public func foo() -> Swift.Void {
+        let receiver = self
+        return main.foo(receiver)
+    }
+}
+extension main.Foo {
+    public func combine(
+        foo: main.Foo
+    ) -> main.Foo {
+        let receiver = self
+        return main.combine(receiver, foo: foo)
+    }
+}
+extension Swift.Int32 {
+    public var fooProp: Swift.String {
+        get {
+            let receiver = self
+            return main.getFooProp(receiver)
+        }
+        set(v) {
+            let receiver = self
+            return main.setFooProp(receiver, v: v)
+        }
+    }
+}
+extension Swift.Int32 {
+    public var bar: Swift.String {
+        get {
+            let receiver = self
+            return main.getBar(receiver)
+        }
+    }
+}
+extension Swift.Int32 {
+    public func foo() -> Swift.Void {
+        let receiver = self
+        return main.foo(receiver)
+    }
+}
+extension Swift.Int32? {
+    public var fooProp: Swift.String {
+        get {
+            let receiver = self
+            return main.getFooProp(receiver)
+        }
+        set(v) {
+            let receiver = self
+            return main.setFooProp(receiver, v: v)
+        }
+    }
+}
+extension main.Foo? {
+    public var fooProp: Swift.String {
+        get {
+            let receiver = self
+            return main.getFooProp(receiver)
+        }
+        set(v) {
+            let receiver = self
+            return main.setFooProp(receiver, v: v)
+        }
+    }
+}
+extension Swift.Int32? {
+    public var bar: Swift.String {
+        get {
+            let receiver = self
+            return main.getBar(receiver)
+        }
+    }
+}
+extension main.Foo? {
+    public var bar: Swift.String {
+        get {
+            let receiver = self
+            return main.getBar(receiver)
+        }
+    }
+}
+extension Swift.Int32? {
+    public func foo() -> Swift.Void {
+        let receiver = self
+        return main.foo(receiver)
+    }
+}
+extension main.Foo? {
+    public func foo() -> Swift.Void {
+        let receiver = self
+        return main.foo(receiver)
+    }
+}
 extension ExportedKotlinPackages.inline {
     public final class Bar: KotlinRuntime.KotlinBase {
-        public init() {
-            if Self.self != ExportedKotlinPackages.inline.Bar.self { fatalError("Inheritance from exported Kotlin classes is not supported yet: \(String(reflecting: Self.self)) inherits from ExportedKotlinPackages.inline.Bar ") }
+        public override init() {
             let __kt = inline_Bar_init_allocate()
             super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
             { inline_Bar_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -229,11 +339,11 @@ extension ExportedKotlinPackages.operators {
                     return ExportedKotlinPackages.operators.Foo.EmptyIterator.__createClassWrapper(externalRCRef: operators_Foo_EmptyIterator_get())
                 }
             }
-            private init() {
+            private override init() {
                 fatalError()
             }
             package override init(
-                __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+                __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
                 options: KotlinRuntime.KotlinBaseConstructionOptions
             ) {
                 super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -256,13 +366,12 @@ extension ExportedKotlinPackages.operators {
         public init(
             value: Swift.Int32
         ) {
-            if Self.self != ExportedKotlinPackages.operators.Foo.self { fatalError("Inheritance from exported Kotlin classes is not supported yet: \(String(reflecting: Self.self)) inherits from ExportedKotlinPackages.operators.Foo ") }
             let __kt = operators_Foo_init_allocate()
             super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
             { operators_Foo_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer_Swift_Int32__(__kt, value); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);
@@ -353,12 +462,6 @@ extension ExportedKotlinPackages.operators {
             other: ExportedKotlinPackages.operators.Foo
         ) -> Swift.Bool {
             this._compareTo(other: other) <= 0
-        }
-        public static func ==(
-            this: ExportedKotlinPackages.operators.Foo,
-            other: (any KotlinRuntimeSupport._KotlinBridgeable)?
-        ) -> Swift.Bool {
-            this.equals(other: other)
         }
         public static func >(
             this: ExportedKotlinPackages.operators.Foo,
@@ -463,19 +566,11 @@ extension ExportedKotlinPackages.operators {
         public func dec() -> ExportedKotlinPackages.operators.Foo {
             return ExportedKotlinPackages.operators.Foo.__createClassWrapper(externalRCRef: operators_Foo_dec(self.__externalRCRef()))
         }
-        public func equals(
-            other: (any KotlinRuntimeSupport._KotlinBridgeable)?
-        ) -> Swift.Bool {
-            return operators_Foo_equals__TypesOfArguments__Swift_Optional_anyU20KotlinRuntimeSupport__KotlinBridgeable___(self.__externalRCRef(), other.map { it in it.__externalRCRef() } ?? nil)
-        }
-        public func hashCode() -> Swift.Int32 {
-            return operators_Foo_hashCode(self.__externalRCRef())
-        }
         public func inc() -> ExportedKotlinPackages.operators.Foo {
             return ExportedKotlinPackages.operators.Foo.__createClassWrapper(externalRCRef: operators_Foo_inc(self.__externalRCRef()))
         }
         public func iterator() -> any ExportedKotlinPackages.kotlin.collections.Iterator {
-            return KotlinRuntime.KotlinBase.__createProtocolWrapper(externalRCRef: operators_Foo_iterator(self.__externalRCRef())) as! any ExportedKotlinPackages.kotlin.collections.Iterator
+            return KotlinRuntime.KotlinBase.__createProtocolWrapper(externalRCRef: operators_Foo_iterator(self.__externalRCRef()), conformsTo: ExportedKotlinPackages.kotlin.collections.Iterator.Type.self) as! any ExportedKotlinPackages.kotlin.collections.Iterator
         }
         public func rangeTo(
             other: ExportedKotlinPackages.operators.Foo
@@ -486,9 +581,6 @@ extension ExportedKotlinPackages.operators {
             other: ExportedKotlinPackages.operators.Foo
         ) -> ExportedKotlinPackages.operators.Foo {
             return ExportedKotlinPackages.operators.Foo.__createClassWrapper(externalRCRef: operators_Foo_rangeUntil__TypesOfArguments__ExportedKotlinPackages_operators_Foo__(self.__externalRCRef(), other.__externalRCRef()))
-        }
-        public func toString() -> Swift.String {
-            return operators_Foo_toString(self.__externalRCRef())
         }
         public static func ~=(
             this: ExportedKotlinPackages.operators.Foo,
@@ -516,14 +608,13 @@ extension ExportedKotlinPackages.operators {
 }
 extension ExportedKotlinPackages.overload {
     public final class Foo: KotlinRuntime.KotlinBase {
-        public init() {
-            if Self.self != ExportedKotlinPackages.overload.Foo.self { fatalError("Inheritance from exported Kotlin classes is not supported yet: \(String(reflecting: Self.self)) inherits from ExportedKotlinPackages.overload.Foo ") }
+        public override init() {
             let __kt = overload_Foo_init_allocate()
             super.init(__externalRCRefUnsafe: __kt, options: .asBoundBridge);
             { overload_Foo_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(__kt); return () }()
         }
         package override init(
-            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer?,
+            __externalRCRefUnsafe: Swift.UnsafeMutableRawPointer,
             options: KotlinRuntime.KotlinBaseConstructionOptions
         ) {
             super.init(__externalRCRefUnsafe: __externalRCRefUnsafe, options: options);

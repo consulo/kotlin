@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.analysis.test.framework.test.configurators
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.AnalysisApiServiceRegistrar
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.AnalysisApiServiceRegistrar
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.KtTestModuleStructure
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.services.TestModuleStructure
@@ -18,7 +18,6 @@ import org.jetbrains.kotlin.test.services.TestServices
  */
 object DummyAnalysisApiTestConfigurator : AnalysisApiTestConfigurator {
     override val analysisApiMode: AnalysisApiMode get() = AnalysisApiMode.Ide
-    override val frontendKind: FrontendKind get() = FrontendKind.Fir
     override val analyseInDependentSession: Boolean get() = false
     override fun configureTest(builder: TestConfigurationBuilder, disposable: Disposable) {}
     override val serviceRegistrars: List<AnalysisApiServiceRegistrar<TestServices>> get() = emptyList()

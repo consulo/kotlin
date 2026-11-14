@@ -60,6 +60,9 @@ internal class JvmDefaultIT : KGPBaseTest() {
 
     @DisplayName("Should override 'kotlin-dsl' plugin value")
     @GradleTest
+    @GradleTestVersions(
+        maxVersion = TestVersions.Gradle.G_9_6 // Gradle 9.7+ configures by default proper value
+    )
     fun overrideKotlinDslPlugin(
         gradleVersion: GradleVersion,
     ) {
@@ -69,7 +72,7 @@ internal class JvmDefaultIT : KGPBaseTest() {
                 id("kotlin-dsl")
             }
 
-            overrideOldGradleBoundLanguageVersionsWith21()
+            overrideOldGradleBoundLanguageVersionsWith23()
             kotlinSourcesDir().also { it.createDirectories() }.writeMainFun()
 
             checkJvmDefaultReplacement(
@@ -87,6 +90,9 @@ internal class JvmDefaultIT : KGPBaseTest() {
     @OptIn(ExperimentalBuildToolsApi::class, ExperimentalKotlinGradlePluginApi::class)
     @DisplayName("Should not override 'kotlin-dsl' plugin value if using BTA with older Kotlin compiler version")
     @GradleTest
+    @GradleTestVersions(
+        maxVersion = TestVersions.Gradle.G_9_6 // Gradle 9.7+ releases using incompatible by metadata with Kotlin compiler 2.2.0 artifacts
+    )
     fun notOverrideKotlinDslPluginOnUsingBtaWithOlderCompilerVersion(
         gradleVersion: GradleVersion,
     ) {
@@ -102,9 +108,9 @@ internal class JvmDefaultIT : KGPBaseTest() {
                 """.trimIndent()
             )
             buildScriptInjection {
-                useCompilerVersion("2.2.0-RC")
+                useCompilerVersion("2.2.0")
             }
-            overrideOldGradleBoundLanguageVersionsWith21()
+            overrideOldGradleBoundLanguageVersionsWith23()
             kotlinSourcesDir().also { it.createDirectories() }.writeMainFun()
 
             build(":compileKotlin") {
@@ -116,6 +122,9 @@ internal class JvmDefaultIT : KGPBaseTest() {
 
     @DisplayName("Should override 'kotlin-dsl' plugin value if using BTA with current Kotlin compiler version")
     @GradleTest
+    @GradleTestVersions(
+        maxVersion = TestVersions.Gradle.G_9_6 // Gradle 9.7+ configures by default proper value
+    )
     fun overrideKotlinDslPluginOnUsingBtaWithCurrentCompilerVersion(
         gradleVersion: GradleVersion,
     ) {
@@ -131,7 +140,7 @@ internal class JvmDefaultIT : KGPBaseTest() {
                 """.trimIndent()
             )
 
-            overrideOldGradleBoundLanguageVersionsWith21()
+            overrideOldGradleBoundLanguageVersionsWith23()
             kotlinSourcesDir().also { it.createDirectories() }.writeMainFun()
 
             checkJvmDefaultReplacement(
@@ -148,6 +157,9 @@ internal class JvmDefaultIT : KGPBaseTest() {
 
     @DisplayName("Stable -jvm-default option is specified")
     @GradleTest
+    @GradleTestVersions(
+        maxVersion = TestVersions.Gradle.G_9_6 // Gradle 9.7+ configures by default proper value
+    )
     fun stableJvmDefaultOptionIsPresent(
         gradleVersion: GradleVersion,
     ) {
@@ -164,7 +176,7 @@ internal class JvmDefaultIT : KGPBaseTest() {
                     }
                 }
             }
-            overrideOldGradleBoundLanguageVersionsWith21()
+            overrideOldGradleBoundLanguageVersionsWith23()
 
             kotlinSourcesDir().also { it.createDirectories() }.writeMainFun()
 
@@ -192,15 +204,14 @@ internal class JvmDefaultIT : KGPBaseTest() {
     )
 
     // Gradle versions 8.* and before use either LV 1.4 or 1.8, but they both are currently disabled
-    private fun TestProject.overrideOldGradleBoundLanguageVersionsWith21() {
+    private fun TestProject.overrideOldGradleBoundLanguageVersionsWith23() {
         buildScriptInjection {
             project.afterEvaluate {
                 project.afterEvaluate {
                     project.tasks.named("compileKotlin", KotlinJvmCompile::class.java) {
-                        @Suppress("DEPRECATION")
                         it.compilerOptions {
-                            languageVersion.set(KotlinVersion.KOTLIN_2_1)
-                            apiVersion.set(KotlinVersion.KOTLIN_2_1)
+                            languageVersion.set(KotlinVersion.KOTLIN_2_3)
+                            apiVersion.set(KotlinVersion.KOTLIN_2_3)
                         }
                     }
                 }
@@ -217,7 +228,7 @@ internal class JvmDefaultIT : KGPBaseTest() {
             kotlinJvm.target.compilations.getByName(KotlinCompilation.MAIN_COMPILATION_NAME).compileTaskProvider.map {
                 (it as KotlinCompile).createCompilerArguments(KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext.default)
             }
-        }.buildAndReturn(":compileKotlin", buildAction = BuildActions.buildWithAssertions(buildOutputAssertions))
+        }.buildAndReturn(":compileKotlin", buildAction = BuildActions.build, buildAssertions = buildOutputAssertions)
 
         assertEquals(expectedJvmDefaultStable, jvmArgs.jvmDefaultStable)
         @Suppress("DEPRECATION")

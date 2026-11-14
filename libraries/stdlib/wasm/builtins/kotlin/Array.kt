@@ -46,6 +46,14 @@ internal constructor(size: Int) {
     @Suppress("PRIMARY_CONSTRUCTOR_DELEGATION_CALL_EXPECTED")
     internal constructor(storage: WasmAnyArray)
 
+    internal fun getWithoutBoundCheck(index: Int): T {
+        @Suppress("UNCHECKED_CAST") return storage.get(index) as T
+    }
+
+    internal fun setWithoutBoundCheck(index: Int, value: T) {
+        storage.set(index, value)
+    }
+
     /**
      * Returns the array element at the given [index].
      *
@@ -89,6 +97,19 @@ internal constructor(size: Int) {
     /** Creates an [Iterator] for iterating over the elements of the array. */
     public actual operator fun iterator(): Iterator<T> =
         ArrayIterator(this)
+
+    companion {
+        /**
+         * Returns an array containing the specified elements.
+         *
+         * @sample samples.collections.Arrays.Constructors.arrayLiteralSample
+         */
+        @SinceKotlin("2.5")
+        @ExperimentalCollectionLiteralsApi
+        @Suppress("NOTHING_TO_INLINE", "UNCHECKED_CAST")
+        public actual inline operator fun <T> of(vararg elements: T): Array<T> =
+            elements as Array<T>
+    }
 }
 
 private class ArrayIterator<T> constructor(val array: Array<T>) : Iterator<T> {

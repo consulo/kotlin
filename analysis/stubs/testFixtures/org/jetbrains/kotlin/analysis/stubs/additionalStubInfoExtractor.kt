@@ -2,39 +2,76 @@
  * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.analysis.stubs
 
 import com.intellij.psi.stubs.StubElement
-import org.jetbrains.kotlin.analysis.utils.printer.PrettyPrinter
-import org.jetbrains.kotlin.analysis.utils.printer.prettyPrint
+import org.jetbrains.kotlin.analysis.internal.utils.IndentedTextBuilder
+import org.jetbrains.kotlin.analysis.internal.utils.buildIndentedText
+import org.jetbrains.kotlin.config.JvmTarget
 import org.jetbrains.kotlin.constant.ConstantValue
 import org.jetbrains.kotlin.contracts.description.*
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.psi.KtImplementationDetail
 import org.jetbrains.kotlin.psi.KtProjectionKind
 import org.jetbrains.kotlin.psi.stubs.impl.*
 import java.lang.reflect.Modifier
 
-internal fun extractAdditionalStubInfo(stub: KotlinFileStubImpl): String = prettyPrint {
-    extractAdditionInfo(stub)
+/**
+ * Members that [extractAdditionInfo] must not render, keyed by the class declaring them.
+ *
+ * The key is the concrete stub class and not just the member name, so an unrelated stub
+ * with a same-named member is still rendered.
+ */
+private val IGNORED_ADDITIONAL_PROPERTIES: Map<Class<out StubElement<*>>, Set<String>> = mapOf(
+    // 'KotlinModifierListStubImpl.toString()' already renders the mask symbolically, e.g., 'MODIFIER_LIST[enum]'
+    KotlinModifierListStubImpl::class.java to setOf("hasAnyModifier"),
+)
+
+/**
+ * Class files compiled with the default JVM target have this version.
+ * It is rendered as [DEFAULT_CLASS_FILE_MAJOR_VERSION_PLACEHOLDER], so changing the default target does not change the test data.
+ */
+private val DEFAULT_CLASS_FILE_MAJOR_VERSION: Int = JvmTarget.DEFAULT.majorVersion
+
+private const val DEFAULT_CLASS_FILE_MAJOR_VERSION_PLACEHOLDER = "<current_major_version>"
+
+private const val CLASS_FILE_MAJOR_VERSION_PROPERTY = KotlinClassStubImpl::classFileMajorVersion.name
+
+internal fun extractAdditionalStubInfo(stub: KotlinFileStubImpl): String {
+    return buildIndentedText(indentation = IndentedTextBuilder.TWO_SPACES) {
+        extractAdditionInfo(stub)
+    }
 }
 
-private fun PrettyPrinter.extractAdditionInfo(stub: StubElement<*>) {
+private fun IndentedTextBuilder.extractAdditionInfo(stub: StubElement<*>) {
     // Nodes are stored in the form "NodeType:Node" and have too much repeating information for Kotlin stubs
     // Remove all repeating information (See KotlinStubBaseImpl.toString())
     val adjustedStubText = stub.toString().substringAfter(STUB_TO_STRING_PREFIX).replace(", [", "[")
     appendLine(adjustedStubText)
 
     withIndent {
+        val ignoredProperties = IGNORED_ADDITIONAL_PROPERTIES[stub::class.java].orEmpty()
         val additionalProperties = stub::class.java
             .declaredMethods
-            // All "public" information from stub interfaces is already rendered via regular toString()
-            .filter { it.parameterTypes.isEmpty() && Modifier.isFinal(it.modifiers) }
+            .filter { method ->
+                // All "public" information from stub interfaces is already rendered via regular toString().
+                // A Kotlin implementation leaves such an override non-final, so 'final' selects what the class declares itself
+                method.parameterTypes.isEmpty() &&
+                        Modifier.isFinal(method.modifiers) &&
+                        // An 'internal' member is mangled into "name$moduleName" and is plumbing rather than stub content
+                        '$' !in method.name &&
+                        method.name !in ignoredProperties
+            }
             .sortedBy { it.name }
 
         for (method in additionalProperties) {
             val value = method(stub) ?: continue
+
+            // 'false' says as little as a missing value
+            if (value == false) continue
 
             val methodName = method.name
             val name = if (methodName.startsWith("get")) {
@@ -44,7 +81,11 @@ private fun PrettyPrinter.extractAdditionInfo(stub: StubElement<*>) {
             }
 
             append(name).append(": ")
-            appendValue(value)
+            if (name == CLASS_FILE_MAJOR_VERSION_PROPERTY && value == DEFAULT_CLASS_FILE_MAJOR_VERSION) {
+                append(DEFAULT_CLASS_FILE_MAJOR_VERSION_PLACEHOLDER)
+            } else {
+                appendValue(value)
+            }
             appendLine()
         }
 
@@ -54,7 +95,7 @@ private fun PrettyPrinter.extractAdditionInfo(stub: StubElement<*>) {
     }
 }
 
-private fun PrettyPrinter.appendValue(value: Any?) {
+private fun IndentedTextBuilder.appendValue(value: Any?) {
     when (value) {
         is Map<*, *> -> appendValue(value.entries)
         is Collection<*> -> when (value.size) {
@@ -67,7 +108,7 @@ private fun PrettyPrinter.appendValue(value: Any?) {
                 append(" ]")
             }
 
-            else -> printCollection(value, separator = "\n", prefix = "[\n", postfix = "\n]") {
+            else -> appendCollection(value, separator = "\n", prefix = "[\n", postfix = "\n]") {
                 withIndent {
                     appendValue(it)
                 }
@@ -81,7 +122,9 @@ private fun PrettyPrinter.appendValue(value: Any?) {
         }
 
         is KotlinTypeBean -> appendTypeInfo(value)
+        is KotlinValueClassRepresentation -> appendValueClassRepresentation(value)
         is Name -> append(value.asString())
+        is Boolean, is Int -> append(value.toString())
         is Enum<*> -> append(value.name)
         is String -> append("\"").append(value).append("\"")
         is FqName -> append(value.asString())
@@ -92,12 +135,28 @@ private fun PrettyPrinter.appendValue(value: Any?) {
         }
 
         null -> append("null")
-        is ConstantValue<*>, is KotlinStubOrigin -> append(value.toString())
+        is ConstantValue<*> -> append(value.toString())
+        is KotlinStubOrigin -> append(
+            value.toString().replace(
+                "$CLASS_FILE_MAJOR_VERSION_PROPERTY=$DEFAULT_CLASS_FILE_MAJOR_VERSION)",
+                "$CLASS_FILE_MAJOR_VERSION_PROPERTY=$DEFAULT_CLASS_FILE_MAJOR_VERSION_PLACEHOLDER)",
+            )
+        )
         else -> error("Unsupported type: ${value::class}")
     }
 }
 
-private fun PrettyPrinter.appendTypeInfo(typeBean: KotlinTypeBean) {
+private fun IndentedTextBuilder.appendValueClassRepresentation(representation: KotlinValueClassRepresentation) {
+    val kind = when (representation) {
+        is KotlinInlineClassRepresentation -> "inline"
+        is KotlinFullValueClassRepresentation -> "full"
+    }
+
+    append(kind).append(" ")
+    appendValue(representation.underlyingPropertyNamesToTypes?.toMap())
+}
+
+private fun IndentedTextBuilder.appendTypeInfo(typeBean: KotlinTypeBean) {
     when (typeBean) {
         is KotlinClassTypeBean -> {
             append(typeBean.classId.asFqNameString())
@@ -145,7 +204,7 @@ private fun PrettyPrinter.appendTypeInfo(typeBean: KotlinTypeBean) {
 }
 
 class KotlinContractRenderer(
-    private val printer: PrettyPrinter,
+    private val printer: IndentedTextBuilder,
 ) : KtContractDescriptionVisitor<Unit, Nothing?, KotlinTypeBean, Nothing?>() {
     override fun visitConditionalEffectDeclaration(
         conditionalEffect: KtConditionalEffectDeclaration<KotlinTypeBean, Nothing?>,
@@ -228,6 +287,15 @@ class KotlinContractRenderer(
     ) {
         printer.append("ReturnsResultOf(")
         returnsResultOfEffect.valueParameterReference.accept(this, data)
+        printer.append(")")
+    }
+
+    override fun visitReturnsParameterEffectDeclaration(
+        returnsParameterEffect: KtReturnsParameterDeclaration<KotlinTypeBean, Nothing?>,
+        data: Nothing?,
+    ) {
+        printer.append("ReturnsParameter(")
+        returnsParameterEffect.valueParameterReference.accept(this, data)
         printer.append(")")
     }
 }

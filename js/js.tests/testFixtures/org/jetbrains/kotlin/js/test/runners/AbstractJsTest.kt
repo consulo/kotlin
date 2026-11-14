@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.js.test.runners
 
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.js.test.handlers.JsIrRecompiledArtifactsIdentityHandler
 import org.jetbrains.kotlin.js.test.handlers.JsLineNumberHandler
+import org.jetbrains.kotlin.js.test.handlers.JsSizeHandler
 import org.jetbrains.kotlin.js.test.handlers.JsWrongModuleHandler
 import org.jetbrains.kotlin.js.test.utils.configureLineNumberTests
 import org.jetbrains.kotlin.js.test.utils.configureSteppingTests
@@ -19,14 +19,20 @@ import org.jetbrains.kotlin.test.backend.handlers.IrPreprocessedInlineFunctionDu
 import org.jetbrains.kotlin.test.backend.handlers.IrTextDumpHandler
 import org.jetbrains.kotlin.test.builders.*
 import org.jetbrains.kotlin.test.configuration.commonFirHandlersForCodegenTest
+import org.jetbrains.kotlin.test.configuration.commonIrHandlersForCodegenTest
+import org.jetbrains.kotlin.test.configuration.setupIrTextDumpHandlers
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.DUMP_IR_AFTER_INLINE
-import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.IGNORE_BACKEND_K2_MULTI_MODULE
+import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.DUMP_IR_AFTER_INLINE_DIFFERENCE
+import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.DUMP_IR_AFTER_SPLITTING
+import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.DUMP_IR_AFTER_SPLITTING_DIFFERENCE
+import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.IGNORE_BACKEND_MULTI_MODULE
 import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.JsEnvironmentConfigurationDirectives
+import org.jetbrains.kotlin.test.directives.JsEnvironmentConfigurationDirectives.GENERATE_INLINE_ANONYMOUS_FUNCTIONS
+import org.jetbrains.kotlin.test.directives.JsEnvironmentConfigurationDirectives.IGNORE_WITH_INLINE_ANONYMOUS_FUNCTIONS
 import org.jetbrains.kotlin.test.directives.KlibAbiConsistencyDirectives.CHECK_SAME_ABI_AFTER_INLINING
 import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives
-import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.LANGUAGE
 import org.jetbrains.kotlin.test.directives.model.ValueDirective
 import org.jetbrains.kotlin.test.frontend.fir.FirMetaInfoDiffSuppressor
 import org.jetbrains.kotlin.test.frontend.fir.handlers.FirCfgConsistencyHandler
@@ -52,6 +58,9 @@ abstract class AbstractJsTest(
         super.configure(builder)
         with(builder) {
             setUpDefaultDirectivesForJsBoxTest(parser)
+            defaultDirectives {
+                +CHECK_SAME_ABI_AFTER_INLINING
+            }
             configureFirHandlersStep {
                 useHandlers(
                     ::FirDumpHandler,
@@ -60,16 +69,13 @@ abstract class AbstractJsTest(
                     ::FirResolvedTypesVerifier,
                 )
             }
-            defaultDirectives {
-                LANGUAGE with listOf(
-                    "-${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                    "-${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-                )
+            configureIrHandlersStep {
+                setupIrTextDumpHandlers()
             }
-
             configureJsArtifactsHandlersStep {
                 useHandlers(
                     ::JsIrRecompiledArtifactsIdentityHandler,
+                    ::JsSizeHandler,
                 )
             }
 
@@ -88,11 +94,27 @@ abstract class AbstractPsiJsBoxTest : AbstractJsTest(
     parser = FirParser.Psi,
 )
 
-abstract class AbstractLightTreeJsBoxTest : AbstractJsTest(
+abstract class AbstractLightTreeJsBoxTest(
+    testGroupOutputDirPrefix: String = "lightTreeBox/",
+) : AbstractJsTest(
     pathToTestDir = "${JsEnvironmentConfigurator.TEST_DATA_DIR_PATH}/box/",
-    testGroupOutputDirPrefix = "lightTreeBox/",
+    testGroupOutputDirPrefix = testGroupOutputDirPrefix,
     parser = FirParser.LightTree,
 )
+
+abstract class AbstractJsBoxWithInlineAnonymousFunctionsTest(
+    testGroupOutputDirPrefix: String = "boxWithInlineAnonymousFunctions/",
+) : AbstractLightTreeJsBoxTest(testGroupOutputDirPrefix) {
+    override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>
+        get() = listOf(IGNORE_WITH_INLINE_ANONYMOUS_FUNCTIONS)
+
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        builder.defaultDirectives {
+            +GENERATE_INLINE_ANONYMOUS_FUNCTIONS
+        }
+    }
+}
 
 abstract class AbstractJsCodegenBoxTestBase(
     pathToTestDir: String = "compiler/testData/codegen/box/",
@@ -104,86 +126,80 @@ abstract class AbstractJsCodegenBoxTestBase(
             commonFirHandlersForCodegenTest()
         }
 
-        builder.useAfterAnalysisCheckers(
+        builder.useFailureSuppressors(
             ::FirMetaInfoDiffSuppressor
         )
-    }
-}
 
-abstract class AbstractJsCodegenBoxTest : AbstractJsCodegenBoxTestBase(
-    testGroupOutputDirPrefix = "codegen/box/"
-)
-
-abstract class AbstractJsCodegenBoxWithInlinedFunInKlibTest(
-    pathToTestDir: String = "compiler/testData/codegen/box/",
-    testGroupOutputDirPrefix: String = "codegen/boxWithInlinedFunInKlib",
-) : AbstractJsCodegenBoxTestBase(pathToTestDir, testGroupOutputDirPrefix) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            defaultDirectives {
-                +CHECK_SAME_ABI_AFTER_INLINING
-                LANGUAGE with listOf(
-                    "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                    "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-                )
-            }
-            configureLoweredIrHandlersStep {
-                useHandlers(
-                    { testServices, artifactKind ->
-                        IrTextDumpHandler(
-                            testServices = testServices,
-                            artifactKind = artifactKind,
-                            customExtension = "inlined.ir",
-                            directive = DUMP_IR_AFTER_INLINE,
-                            showOffsets = true,
-                        )
-                    },
-                    ::IrPreprocessedInlineFunctionDumpHandler,
-                )
-            }
+        builder.configureIrHandlersStep {
+            commonIrHandlersForCodegenTest()
         }
     }
 }
 
-abstract class AbstractJsCodegenBoxInlineWithInlinedFunInKlibTest : AbstractJsCodegenBoxWithInlinedFunInKlibTest(
-    pathToTestDir = "compiler/testData/codegen/boxInline/",
-    testGroupOutputDirPrefix = "codegen/boxInlineWithInlinedFunInKlib/"
-)
+abstract class AbstractJsCodegenBoxTest(
+    testGroupOutputDirPrefix: String = "codegen/box/",
+) : AbstractJsCodegenBoxTestBase(
+    pathToTestDir = "compiler/testData/codegen/box",
+    testGroupOutputDirPrefix = testGroupOutputDirPrefix,
+) {
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        builder.configureLoweredIrDumpHandlers()
+    }
+}
 
-abstract class AbstractJsKlibSyntheticAccessorsBoxWithInlinedFunInKlibTest : AbstractJsCodegenBoxWithInlinedFunInKlibTest(
+abstract class AbstractJsCodegenBoxWithInlineAnonymousFunctionsTest(
+    testGroupOutputDirPrefix: String = "codegen/boxWithInlineAnonymousFunctions/",
+) : AbstractJsCodegenBoxTest(testGroupOutputDirPrefix) {
+    override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>
+        get() = listOf(IGNORE_WITH_INLINE_ANONYMOUS_FUNCTIONS)
+
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        builder.defaultDirectives {
+            +GENERATE_INLINE_ANONYMOUS_FUNCTIONS
+        }
+    }
+}
+
+abstract class AbstractJsCodegenBoxInlineTest(
+    testGroupOutputDirPrefix: String = "codegen/boxInline/",
+) : AbstractJsCodegenBoxTestBase(
+    pathToTestDir = "compiler/testData/codegen/boxInline",
+    testGroupOutputDirPrefix = testGroupOutputDirPrefix,
+) {
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        builder.configureLoweredIrDumpHandlers()
+    }
+}
+
+abstract class AbstractJsCodegenBoxInlineWithInlineAnonymousFunctionsTest(
+    testGroupOutputDirPrefix: String = "codegen/boxInlineWithInlineAnonymousFunctions/",
+) : AbstractJsCodegenBoxInlineTest(testGroupOutputDirPrefix) {
+    override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>
+        get() = listOf(IGNORE_WITH_INLINE_ANONYMOUS_FUNCTIONS)
+
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        builder.defaultDirectives {
+            +GENERATE_INLINE_ANONYMOUS_FUNCTIONS
+        }
+    }
+}
+
+abstract class AbstractJsKlibSyntheticAccessorsBoxTest : AbstractJsCodegenBoxTestBase(
     pathToTestDir = "compiler/testData/klib/syntheticAccessors/",
-    testGroupOutputDirPrefix = "klib/syntheticAccessorsWithInlinedFunInKlib/"
+    testGroupOutputDirPrefix = "klib/syntheticAccessors/"
 )
 
-abstract class AbstractJsCodegenInlineTest(
-    pathToTestDir: String = "compiler/testData/codegen/boxInline/",
-    testGroupOutputDirPrefix: String = "codegen/boxInline/"
-) : AbstractJsTest(pathToTestDir, testGroupOutputDirPrefix)
 
-abstract class AbstractJsCodegenInlineWithInlinedFunInKlibTest(
-    pathToTestDir: String = "compiler/testData/codegen/boxInline/",
-    testGroupOutputDirPrefix: String = "codegen/boxInlineWithInlinedKlib/"
-) : AbstractJsCodegenInlineTest(pathToTestDir, testGroupOutputDirPrefix) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            defaultDirectives {
-                LANGUAGE with listOf(
-                    "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                    "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-                )
-            }
-        }
-    }
-}
-
-abstract class AbstractJsCodegenSplittingInlineWithInlinedFunInKlibTest(
-    pathToTestDir: String = "compiler/testData/codegen/boxInline/",
-    testGroupOutputDirPrefix: String = "codegen/boxInlineSplittedWithInlinedKlib/",
-) : AbstractJsCodegenInlineWithInlinedFunInKlibTest(pathToTestDir, testGroupOutputDirPrefix) {
+abstract class AbstractJsCodegenSplittingTest(
+    pathToTestDir: String = "compiler/testData/codegen/",
+    testGroupOutputDirPrefix: String = "codegen/boxInlineSplitted/",
+) : AbstractJsCodegenBoxTestBase(pathToTestDir, testGroupOutputDirPrefix) {
     override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>?
-        get() = listOf(IGNORE_BACKEND_K2_MULTI_MODULE)
+        get() = listOf(IGNORE_BACKEND_MULTI_MODULE)
 
     override fun configure(builder: TestConfigurationBuilder) {
         super.configure(builder)
@@ -192,13 +208,22 @@ abstract class AbstractJsCodegenSplittingInlineWithInlinedFunInKlibTest(
             ::SplittingModuleTransformerForBoxTests
         )
         builder.useMetaTestConfigurators(::SplittingTestConfigurator)
+        builder.configureIrHandlersStep {
+            useHandlers(
+                { testServices, artifactKind ->
+                    IrTextDumpHandler(
+                        testServices = testServices,
+                        artifactKind = artifactKind,
+                        customExtension = "splitted.ir",
+                        directive = DUMP_IR_AFTER_SPLITTING,
+                        directiveForIrDifference = DUMP_IR_AFTER_SPLITTING_DIFFERENCE,
+                        showOffsets = true,
+                    )
+                },
+            )
+        }
     }
 }
-
-abstract class AbstractJsCodegenSplittingWithInlinedFunInKlibTest : AbstractJsCodegenSplittingInlineWithInlinedFunInKlibTest(
-    pathToTestDir = "compiler/testData/codegen/box/",
-    testGroupOutputDirPrefix = "codegen/boxSplittedWithInlinedKlib/",
-)
 
 abstract class AbstractJsLineNumberTest(
     testGroupOutputDirPrefix: String = "lineNumbers/"
@@ -209,23 +234,6 @@ abstract class AbstractJsLineNumberTest(
     override fun configure(builder: TestConfigurationBuilder) {
         super.configure(builder)
         builder.configureLineNumberTests(::JsLineNumberHandler)
-    }
-}
-
-abstract class AbstractJsLineNumberWithInlinedFunInKlibTest : AbstractJsLineNumberTest(
-    testGroupOutputDirPrefix = "lineNumbersInlined/"
-) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            configureLineNumberTests(::JsLineNumberHandler)
-            defaultDirectives {
-                LANGUAGE with listOf(
-                    "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                    "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-                )
-            }
-        }
     }
 }
 
@@ -275,47 +283,11 @@ abstract class AbstractJsSteppingTest(
     }
 }
 
-abstract class AbstractJsSteppingWithInlinedFunInKlibTest(
-    testGroupOutputDirPrefix: String = "debug/steppingWithInlinedFunInKlib/"
-) : AbstractJsSteppingTest(
-    testGroupOutputDirPrefix = testGroupOutputDirPrefix
-) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            defaultDirectives {
-                LANGUAGE with listOf(
-                    "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                    "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-                )
-            }
-        }
-    }
-}
-
 abstract class AbstractJsSteppingSplitTest : AbstractJsSteppingTest(
     testGroupOutputDirPrefix = "debug/steppingSplit/"
 ) {
     override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>?
-        get() = listOf(IGNORE_BACKEND_K2_MULTI_MODULE)
-
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            @OptIn(TestInfrastructureInternals::class)
-            useModuleStructureTransformers(
-                ::SplittingModuleTransformerForBoxTests
-            )
-            useMetaTestConfigurators(::SplittingTestConfigurator)
-        }
-    }
-}
-
-abstract class AbstractJsSteppingSplitWithInlinedFunInKlibTest : AbstractJsSteppingWithInlinedFunInKlibTest(
-    testGroupOutputDirPrefix = "debug/steppingSplitWithInlinedFunInKlib/"
-) {
-    override val additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>?
-        get() = listOf(IGNORE_BACKEND_K2_MULTI_MODULE)
+        get() = listOf(IGNORE_BACKEND_MULTI_MODULE)
 
     override fun configure(builder: TestConfigurationBuilder) {
         super.configure(builder)
@@ -336,28 +308,11 @@ abstract class AbstractJsCodegenWasmJsInteropTest(
     testGroupOutputDirPrefix = testGroupOutputDirPrefix
 )
 
-abstract class AbstractJsCodegenWasmJsInteropWithInlinedFunInKlibTest : AbstractJsCodegenWasmJsInteropTest(
-    testGroupOutputDirPrefix = "codegen/boxWasmJsInteropJsWithInlinedFunInKlib/"
-) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            defaultDirectives {
-                LANGUAGE with listOf(
-                    "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                    "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-                )
-            }
-        }
-    }
-}
-
 fun TestConfigurationBuilder.setUpDefaultDirectivesForJsBoxTest(parser: FirParser) {
     defaultDirectives {
         val runIc = getBoolean("kotlin.js.ir.icMode")
         if (runIc) +JsEnvironmentConfigurationDirectives.RUN_IC
         if (getBoolean("kotlin.js.ir.klibMainModule")) +JsEnvironmentConfigurationDirectives.KLIB_MAIN_MODULE
-        if (getBoolean("kotlin.js.ir.perModule", true)) +JsEnvironmentConfigurationDirectives.PER_MODULE
         if (getBoolean("kotlin.js.ir.dce", true)) +JsEnvironmentConfigurationDirectives.RUN_IR_DCE
         +LanguageSettingsDirectives.ALLOW_KOTLIN_PACKAGE
         -JsEnvironmentConfigurationDirectives.GENERATE_NODE_JS_RUNNER
@@ -368,4 +323,22 @@ fun TestConfigurationBuilder.setUpDefaultDirectivesForJsBoxTest(parser: FirParse
 
 private fun getBoolean(s: String, default: Boolean): Boolean {
     return System.getProperty(s)?.let { parseBoolean(it) } ?: default
+}
+
+fun TestConfigurationBuilder.configureLoweredIrDumpHandlers() {
+    configureLoweredIrHandlersStep {
+        useHandlers(
+            { testServices, artifactKind ->
+                IrTextDumpHandler(
+                    testServices = testServices,
+                    artifactKind = artifactKind,
+                    customExtension = "inlined.ir",
+                    directive = DUMP_IR_AFTER_INLINE,
+                    directiveForIrDifference = DUMP_IR_AFTER_INLINE_DIFFERENCE,
+                    showOffsets = true,
+                )
+            },
+            ::IrPreprocessedInlineFunctionDumpHandler,
+        )
+    }
 }

@@ -16,10 +16,8 @@
 
 package org.jetbrains.kotlin.konan.util
 
-import org.jetbrains.kotlin.konan.file.use
+import org.jetbrains.kotlin.io.propertyList
 import org.jetbrains.kotlin.konan.properties.KonanPropertiesLoader
-import org.jetbrains.kotlin.konan.properties.Properties
-import org.jetbrains.kotlin.konan.properties.propertyList
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.RandomAccessFile
@@ -27,6 +25,7 @@ import java.net.InetAddress
 import java.net.URL
 import java.net.UnknownHostException
 import java.nio.file.Paths
+import java.util.Properties
 
 private val Properties.dependenciesUrl: String
     get() = getProperty("dependenciesUrl")
@@ -78,6 +77,13 @@ sealed class DependencySource {
     sealed class Remote : DependencySource() {
         class Public(val subDirectory: String? = null) : Remote()
         object Internal : Remote()
+
+        /**
+         * A dependency downloaded from an explicit, full [url] (host and filename need not follow the
+         * `dependenciesUrl/<name>.<ext>` convention). Used for artifacts that live outside the standard dependency
+         * repositories, e.g. a whole Xcode `.xip`.
+         */
+        class Url(val url: String) : Remote()
     }
 }
 
@@ -177,13 +183,12 @@ class DependencyProcessor(
         }
     }
 
-    private fun downloadDependency(dependency: String, baseUrl: String, archiveExtractor: ArchiveExtractor) {
+    private fun downloadDependency(dependency: String, url: URL, archiveExtractor: ArchiveExtractor) {
         val depDir = File(dependenciesDirectory, dependency)
         val depName = depDir.name
 
         val fileName = "$depName.${archiveType.fileExtension}"
         val archive = cacheDirectory.resolve(fileName)
-        val url = URL("$baseUrl/$fileName")
 
         val extractedDependencies = DependencyFile(dependenciesDirectory, ".extracted")
         if (extractedDependencies.contains(depName) &&
@@ -234,6 +239,7 @@ class DependencyProcessor(
                 is DependencySource.Local -> candidate.takeIf { it.path.exists() }
                 is DependencySource.Remote.Public -> candidate
                 DependencySource.Remote.Internal -> candidate.takeIf { InternalServer.isAvailable }
+                is DependencySource.Remote.Url -> candidate
             }
         }.firstOrNull()
 
@@ -283,6 +289,7 @@ class DependencyProcessor(
     fun run(archiveExtractor: ArchiveExtractor = DependencyExtractor()) {
         // We need a lock that can be shared between different classloaders (KT-39781).
         // TODO: Rework dependencies downloading to avoid storing the lock in the system properties.
+        @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")
         val lock = System.getProperties().computeIfAbsent("kotlin.native.dependencies.lock") {
             // String literals are internalized so we create a new instance to avoid synchronization on a shared object.
             java.lang.String("lock")
@@ -300,16 +307,18 @@ class DependencyProcessor(
             RandomAccessFile(lockFile, "rw").use {
                 it.channel.lock().use {
                     remoteDependencies.forEach { (dependency, candidate) ->
-                        val baseUrl = when (candidate) {
+                        val fileName = "$dependency.${archiveType.fileExtension}"
+                        val url = when (candidate) {
                             is DependencySource.Remote.Public -> if (candidate.subDirectory != null) {
-                                "$dependenciesUrl/${candidate.subDirectory}"
+                                URL("$dependenciesUrl/${candidate.subDirectory}/$fileName")
                             } else {
-                                dependenciesUrl
+                                URL("$dependenciesUrl/$fileName")
                             }
-                            DependencySource.Remote.Internal -> InternalServer.url
+                            DependencySource.Remote.Internal -> URL("${InternalServer.url}/$fileName")
+                            is DependencySource.Remote.Url -> URL(candidate.url)
                         }
                         // TODO: consider using different caches for different remotes.
-                        downloadDependency(dependency, baseUrl, archiveExtractor)
+                        downloadDependency(dependency, url, archiveExtractor)
                     }
                 }
             }

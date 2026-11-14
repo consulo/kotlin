@@ -10,6 +10,8 @@ import org.jetbrains.kotlin.gradle.tasks.FatFrameworkTask
 import org.jetbrains.kotlin.gradle.tasks.FrameworkLayout
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.*
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.OS
 import kotlin.io.path.absolutePathString
@@ -19,8 +21,10 @@ import kotlin.test.assertTrue
 @OsCondition(supportedOn = [OS.MAC], enabledOnCI = [OS.MAC])
 @DisplayName("Tests for K/N builds with Fat Framework")
 @NativeGradlePluginTests
+@MustRunOnChangesInGradle
 class FatFrameworkIT : KGPBaseTest() {
 
+    @TestMetadata("native-fat-framework/smoke")
     @DisplayName("Fat framework for iOS smoke test")
     @GradleTest
     fun smokeIos(gradleVersion: GradleVersion) {
@@ -40,6 +44,7 @@ class FatFrameworkIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-fat-framework/smoke")
     @DisplayName("Fat framework for watchOS smoke test")
     @GradleTest
     fun smokeWatchos(gradleVersion: GradleVersion) {
@@ -49,44 +54,17 @@ class FatFrameworkIT : KGPBaseTest() {
         ) {
             buildGradleKts.modify {
                 it.checkedReplace("iosArm64()", "watchosArm64(); watchosDeviceArm64()")
-                    .checkedReplace("iosX64()", "watchosX64()")
+                    .checkedReplace("iosX64()", "")
             }
             checkSmokeBuild(
-                archs = listOf("x64", "arm64", "deviceArm64"),
+                archs = listOf("arm64", "deviceArm64"),
                 targetPrefix = "watchos",
                 expectedPlistPlatform = "WatchOS"
             )
             val binary = projectPath.resolve("build/fat-framework/smoke.framework/smoke").absolutePathString()
             runProcess(listOf("file", binary), projectPath.toFile()).assertProcessRunResult {
                 assertTrue(isSuccessful)
-                assertTrue(output.contains("\\(for architecture x86_64\\):\\s+Mach-O 64-bit dynamically linked shared library x86_64".toRegex()))
                 assertTrue(output.contains("\\(for architecture arm64_32\\):\\s+Mach-O dynamically linked shared library arm64_32_v8".toRegex()))
-                assertTrue(output.contains("\\(for architecture arm64\\):\\s+Mach-O 64-bit dynamically linked shared library arm64".toRegex()))
-            }
-        }
-    }
-
-    @DisplayName("Fat framework with MacOS smoke test")
-    @GradleTest
-    fun smokeMacos(gradleVersion: GradleVersion) {
-        nativeProject(
-            "native-fat-framework/smoke",
-            gradleVersion
-        ) {
-            buildGradleKts.modify {
-                it.checkedReplace("iosArm64()", "macosArm64()")
-                    .checkedReplace("iosX64()", "macosX64()")
-            }
-            checkSmokeBuild(
-                archs = listOf("x64", "arm64"),
-                targetPrefix = "macos",
-                expectedPlistPlatform = "MacOSX",
-                true
-            )
-            val binary = projectPath.resolve("build/fat-framework/smoke.framework/Versions/A/smoke").absolutePathString()
-            runProcess(listOf("file", binary), projectPath.toFile()).assertProcessRunResult {
-                assertTrue(isSuccessful)
-                assertTrue(output.contains("\\(for architecture x86_64\\):\\s+Mach-O 64-bit dynamically linked shared library x86_64".toRegex()))
                 assertTrue(output.contains("\\(for architecture arm64\\):\\s+Mach-O 64-bit dynamically linked shared library arm64".toRegex()))
             }
         }
@@ -96,7 +74,6 @@ class FatFrameworkIT : KGPBaseTest() {
         archs: List<String>,
         targetPrefix: String,
         expectedPlistPlatform: String,
-        isMacosFramework: Boolean = false
     ) {
         build("fat") {
             val linkTasks = archs.map {
@@ -106,7 +83,7 @@ class FatFrameworkIT : KGPBaseTest() {
             assertTasksExecuted(linkTasks)
             assertTasksExecuted(":fat")
 
-            val frameworkLayout = FrameworkLayout(projectPath.resolve("build/fat-framework/smoke.framework").toFile(), isMacosFramework)
+            val frameworkLayout = FrameworkLayout(projectPath.resolve("build/fat-framework/smoke.framework").toFile(), false)
 
             assertFileExists(frameworkLayout.binary.toPath())
             assertFileExists(frameworkLayout.header.toPath())
@@ -130,6 +107,7 @@ class FatFrameworkIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-fat-framework/smoke")
     @DisplayName("Fat framework with duplicated iOS Arm 64")
     @GradleTest
     fun testDuplicatedArchitecture(gradleVersion: GradleVersion) {
@@ -150,13 +128,13 @@ class FatFrameworkIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-fat-framework/smoke")
     @DisplayName("Fat framework with incorrect 'osx' family")
     @GradleTest
     fun testIncorrectFamily(gradleVersion: GradleVersion) {
         nativeProject("native-fat-framework/smoke", gradleVersion) {
             buildScriptInjection {
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                val macos = kotlinMultiplatform.macosX64()
+                val macos = kotlinMultiplatform.macosArm64()
                 macos.binaries.framework("DEBUG")
                 val fat = project.tasks.getByName("fat") as FatFrameworkTask
                 fat.from(macos.binaries.getFramework("DEBUG"))
@@ -167,6 +145,7 @@ class FatFrameworkIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-fat-framework/smoke")
     @DisplayName("Fat framework with custom base name")
     @GradleTest
     fun testCustomName(gradleVersion: GradleVersion) {
@@ -185,6 +164,7 @@ class FatFrameworkIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-fat-framework/smoke")
     @DisplayName("Fat framework with different input types")
     @GradleTest
     fun testDifferentTypes(gradleVersion: GradleVersion) {
@@ -200,6 +180,7 @@ class FatFrameworkIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-fat-framework/smoke")
     @DisplayName("Fat framework with all static inputs")
     @GradleTest
     fun testAllStatic(gradleVersion: GradleVersion) {
@@ -213,6 +194,7 @@ class FatFrameworkIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-fat-framework/smoke")
     @DisplayName("Test that the configurations exposing the frameworks don't interfere with variant-aware dependency resolution")
     @GradleTest
     fun testDependencyResolution(gradleVersion: GradleVersion) {
@@ -224,8 +206,8 @@ class FatFrameworkIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("native-fat-framework/smoke")
     @DisplayName("Test that the configurations exposing fat frameworks with the same baseName are resolved normally")
-    @GradleTestVersions(minVersion = TestVersions.Gradle.G_8_0)
     @GradleTest
     fun testExposingFrameworksWithSameBaseName(gradleVersion: GradleVersion) {
         nativeProject("native-fat-framework/smoke", gradleVersion) {

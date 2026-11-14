@@ -1,9 +1,9 @@
 KaNamedClassSymbol:
+  anchorPsi: ClsClassImpl
   annotations: []
   classId: JavaInterface
   classKind: INTERFACE
   companionObject: null
-  compilerVisibility: Public
   contextReceivers: []
   isActual: false
   isData: false
@@ -12,10 +12,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: TOP_LEVEL
   modality: ABSTRACT
   name: JavaInterface
   origin: JAVA_LIBRARY
+  psi: ClsClassImpl
+  realPsi: ClsClassImpl
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -26,6 +29,6 @@ KaNamedClassSymbol:
   visibility: PUBLIC
   getContainingFileSymbol: null
   getContainingModule: KaLibraryModule "Library library"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: JavaInterface

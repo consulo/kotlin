@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.parsing;
 
-import com.google.common.collect.ImmutableMap;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.Language;
 import com.intellij.lang.PsiBuilder;
@@ -22,6 +21,10 @@ import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.parsing.KotlinParsing.NameParsingMode;
 import org.jetbrains.kotlin.psi.stubs.elements.KtTokenSets;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.jetbrains.kotlin.KtNodeTypes.*;
 import static org.jetbrains.kotlin.lang.BinaryOperationPrecedence.TOKEN_TO_BINARY_PRECEDENCE_MAP_WITH_SOFT_IDENTIFIERS;
 import static org.jetbrains.kotlin.lexer.KtTokens.*;
@@ -33,7 +36,7 @@ import static org.jetbrains.kotlin.parsing.KotlinWhitespaceAndCommentsBindersKt.
 public class KotlinExpressionParsing extends AbstractKotlinParsing {
     private static final TokenSet WHEN_CONDITION_RECOVERY_SET = TokenSet.create(RBRACE, IN_KEYWORD, NOT_IN, IS_KEYWORD, NOT_IS, ELSE_KEYWORD);
     private static final TokenSet WHEN_CONDITION_RECOVERY_SET_WITH_ARROW = TokenSet.create(RBRACE, IN_KEYWORD, NOT_IN, IS_KEYWORD, NOT_IS, ELSE_KEYWORD, ARROW, DOT);
-    private static final ImmutableMap<String, KtToken> KEYWORD_TEXTS = tokenSetToMap(KEYWORDS);
+    private static final Map<String, KtToken> KEYWORD_TEXTS = tokenSetToMap(KEYWORDS);
 
     private static final TokenSet TOKEN_SET_TO_FOLLOW_AFTER_DESTRUCTURING_DECLARATION_IN_LAMBDA = TokenSet.create(ARROW, COMMA, COLON);
     private static final TokenSet TOKEN_SET_TO_FOLLOW_AFTER_DESTRUCTURING_DECLARATION_IN_LAMBDA_RECOVERY =
@@ -49,12 +52,12 @@ public class KotlinExpressionParsing extends AbstractKotlinParsing {
     private static final TokenSet IN_KEYWORD_SET = TokenSet.create(IN_KEYWORD);
     private static final TokenSet TRY_CATCH_RECOVERY_TOKEN_SET = TokenSet.create(LBRACE, RBRACE, FINALLY_KEYWORD, CATCH_KEYWORD);
 
-    private static ImmutableMap<String, KtToken> tokenSetToMap(TokenSet tokens) {
-        ImmutableMap.Builder<String, KtToken> builder = ImmutableMap.builder();
+    private static Map<String, KtToken> tokenSetToMap(TokenSet tokens) {
+        Map<String, KtToken> map = new HashMap<>();
         for (IElementType token : tokens.getTypes()) {
-            builder.put(token.toString(), (KtToken) token);
+            map.put(token.toString(), (KtToken) token);
         }
-        return builder.build();
+        return Collections.unmodifiableMap(map);
     }
 
     private static final TokenSet TYPE_ARGUMENT_LIST_STOPPERS = TokenSet.create(
@@ -67,7 +70,7 @@ public class KotlinExpressionParsing extends AbstractKotlinParsing {
             //            MUL,
             PLUS, MINUS, EXCL, DIV, PERC, LTEQ,
             // TODO GTEQ,   foo<bar, baz>=x
-            EQEQEQ, EXCLEQEQEQ, EQEQ, EXCLEQ, ANDAND, OROR, SAFE_ACCESS, ELVIS,
+            EQEQEQ, EXCLEQEQEQ, EQEQ, EXCLEQ, ANDAND, OROR, SAFE_ACCESS, ERROR_SAFE_ACCESS, ELVIS,
             SEMICOLON, RANGE, RANGE_UNTIL, EQ, MULTEQ, DIVEQ, PERCEQ, PLUSEQ, MINUSEQ, NOT_IN, NOT_IS,
             COLONCOLON,
             COLON
@@ -99,7 +102,7 @@ public class KotlinExpressionParsing extends AbstractKotlinParsing {
             CollectionsKt.last(BinaryOperationPrecedence.getEntries());
 
     private static final TokenSet ALLOW_NEWLINE_OPERATIONS = TokenSet.create(
-            DOT, SAFE_ACCESS,
+            DOT, SAFE_ACCESS, ERROR_SAFE_ACCESS,
             COLON, AS_KEYWORD, AS_SAFE,
             ELVIS,
             // Can't allow `is` and `!is` because of when entry conditions: IS_KEYWORD, NOT_IS,
@@ -206,13 +209,13 @@ public class KotlinExpressionParsing extends AbstractKotlinParsing {
             switch (operation.tokenId) {
                 case AS_KEYWORD_Id:
                 case AS_SAFE_Id:
-                    myKotlinParsing.parseTypeRefWithoutIntersections();
+                    myKotlinParsing.parseTypeRefWithoutIntersectionsOrUnions();
                     minPrecedence = BinaryOperationPrecedence.AS;
                     resultType = KtNodeTypes.BINARY_WITH_TYPE;
                     break;
                 case IS_KEYWORD_Id:
                 case NOT_IS_Id:
-                    myKotlinParsing.parseTypeRefWithoutIntersections();
+                    myKotlinParsing.parseTypeRefWithoutIntersectionsOrUnions();
                     // The handling of `is`, it doesn't parse RHS recursively and greedily.
                     // To prevent parsing of more prioritized operations next to `is` (for instance, INFIX, RANGE, and others),
                     // use the `minPrecedence` in addition to `maxPrecedence`.
@@ -361,8 +364,9 @@ public class KotlinExpressionParsing extends AbstractKotlinParsing {
             else if (parseCallSuffix()) {
                 expression.done(CALL_EXPRESSION);
             }
-            else if (at(DOT) || at(SAFE_ACCESS)) {
-                IElementType expressionType = at(DOT) ? DOT_QUALIFIED_EXPRESSION : SAFE_ACCESS_EXPRESSION;
+            else if (at(DOT) || at(SAFE_ACCESS) || at(ERROR_SAFE_ACCESS)) {
+                IElementType expressionType =
+                        at(DOT) ? DOT_QUALIFIED_EXPRESSION : (at(SAFE_ACCESS) ? SAFE_ACCESS_EXPRESSION : ERROR_SAFE_ACCESS_EXPRESSION);
                 advance(); // DOT or SAFE_ACCESS
 
                 if (!firstExpressionParsed) {
@@ -1301,7 +1305,7 @@ public class KotlinExpressionParsing extends AbstractKotlinParsing {
      *  : annotations + ("\n")+ expression
      *  ;
      */
-    private void parseBlockLevelExpression() {
+    void parseBlockLevelExpression() {
         if (at(AT)) {
             PsiBuilder.Marker expression = mark();
             myKotlinParsing.parseAnnotations(DEFAULT);
@@ -1861,7 +1865,9 @@ public class KotlinExpressionParsing extends AbstractKotlinParsing {
     public void parseObjectLiteral() {
         PsiBuilder.Marker literal = mark();
         PsiBuilder.Marker declaration = mark();
-        myKotlinParsing.parseObject(NameParsingMode.PROHIBITED, false); // Body is not optional because of foo(object : A, B)
+        // Body is not optional because of foo(object : A, B).
+        // Object expressions keep the regular parsing of primary constructor modifiers on the next line.
+        myKotlinParsing.parseObject(NameParsingMode.PROHIBITED, false, KotlinParsing.DeclarationParsingMode.MEMBER_OR_TOPLEVEL);
         declaration.done(OBJECT_DECLARATION);
         literal.done(OBJECT_LITERAL);
     }

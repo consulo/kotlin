@@ -20,6 +20,7 @@ package androidx.compose.compiler.plugins.kotlin.lower
 
 import androidx.compose.compiler.plugins.kotlin.ComposeCallableIds
 import androidx.compose.compiler.plugins.kotlin.ComposeClassIds
+import androidx.compose.compiler.plugins.kotlin.ComposeNames
 import androidx.compose.compiler.plugins.kotlin.FeatureFlags
 import androidx.compose.compiler.plugins.kotlin.ModuleMetrics
 import androidx.compose.compiler.plugins.kotlin.analysis.StabilityInferencer
@@ -29,22 +30,29 @@ import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrImplementationDetail
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
+import org.jetbrains.kotlin.ir.builders.declarations.buildRichReferenceWrapper
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionExpression
+import org.jetbrains.kotlin.ir.expressions.IrRichFunctionReference
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionExpressionImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionReferenceImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrRichFunctionReferenceImpl
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
+import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classOrFail
 import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.types.isUnit
+import org.jetbrains.kotlin.ir.types.typeOrNull
 import org.jetbrains.kotlin.ir.types.typeWith
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
@@ -80,26 +88,41 @@ import org.jetbrains.kotlin.utils.IDEAPluginsCompatibilityAPI
  */
 class WrapJsComposableLambdaLowering(
     context: IrPluginContext,
+    irModule: IrModuleFragment,
     metrics: ModuleMetrics,
     stabilityInferencer: StabilityInferencer,
     featureFlags: FeatureFlags,
 ) : AbstractComposeLowering(
     context,
+    irModule,
     metrics,
     stabilityInferencer,
     featureFlags,
 ) {
+    private fun IrValueParameter.isArtificialComposeParameter(): Boolean =
+        when {
+            name == ComposeNames.ComposerParameter -> true
+            name.asString().startsWith(ComposeNames.ChangedParameter.asString()) -> true
+            name.asString().startsWith(ComposeNames.DefaultParameter.asString()) -> true
+            else -> false
+        }
+
     private val rememberFunSymbol by lazy {
         val composerParamTransformer = ComposerParamTransformer(
-            context, stabilityInferencer, metrics, featureFlags
+            context, irModule, stabilityInferencer, metrics, featureFlags
         )
         getTopLevelFunctions(ComposeCallableIds.remember)
-            .map { it.owner }
-            .first {
-                it.parameters.size == 2 && !it.parameters.first().isVararg
-            }.symbol.owner
-            .let {
-                composerParamTransformer.visitSimpleFunction(it) as IrSimpleFunction
+            .map {
+                // make sure all remember functions are remapped with $composer and other artificial parameters
+                val fn = it.owner
+                if (fn.parameters.any { p -> p.name == ComposeNames.ComposerParameter })
+                    it.owner
+                else
+                    composerParamTransformer.visitSimpleFunction(it.owner) as IrSimpleFunction
+            }
+            .first { rememberFun ->
+                val nonArtificialParams = rememberFun.parameters.filter { !it.isArtificialComposeParameter() }
+                nonArtificialParams.size == (2) && !nonArtificialParams.first().isVararg
             }.symbol
     }
 
@@ -151,7 +174,7 @@ class WrapJsComposableLambdaLowering(
     private fun functionReferenceForComposableLambda(
         lambda: IrFunctionExpression,
         dispatchReceiver: IrExpression,
-    ): IrFunctionReferenceImpl {
+    ): IrRichFunctionReference {
         val argumentsCount = lambda.function.parameters.size
 
         val invokeSymbol = getTopLevelClass(ComposeClassIds.ComposableLambda)
@@ -160,14 +183,27 @@ class WrapJsComposableLambdaLowering(
                         argumentsCount == it.owner.parameters.count { it.kind != IrParameterKind.DispatchReceiver }
             }
 
-        return IrFunctionReferenceImpl(
+        val lambdaType = lambda.type as IrSimpleType
+        val lambdaTypeArguments = lambdaType.arguments.map { it.typeOrNull ?: context.irBuiltIns.anyNType }
+        val invoke = invokeSymbol.owner
+        val invokeFunction = context.irBuiltIns.buildRichReferenceWrapper(
+            invoke,
+            parent = lambda.function.parent,
+            boundReceiverType = dispatchReceiver.type,
+            parameterTypes = lambdaTypeArguments.dropLast(1),
+            returnType = lambdaTypeArguments.last(),
+        )
+
+        return IrRichFunctionReferenceImpl(
             startOffset = UNDEFINED_OFFSET,
             endOffset = UNDEFINED_OFFSET,
             type = lambda.type,
-            symbol = invokeSymbol,
-            typeArgumentsCount = invokeSymbol.owner.typeParameters.size
-        ).also { reference ->
-            reference.dispatchReceiver = dispatchReceiver
+            reflectionTargetSymbol = invokeSymbol,
+            overriddenFunctionSymbol = lambdaType.classOrFail.owner.selectSAMOverriddenFunction().symbol,
+            invokeFunction = invokeFunction,
+            hasUnitConversion = lambdaTypeArguments.last().isUnit(),
+        ).apply {
+            boundValues += dispatchReceiver
         }
     }
 

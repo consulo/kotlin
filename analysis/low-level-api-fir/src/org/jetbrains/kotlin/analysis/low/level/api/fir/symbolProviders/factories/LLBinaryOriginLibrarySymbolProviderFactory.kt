@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.symbolProviders.factorie
 
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.psi.search.GlobalSearchScope
+import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KaModulePlatformKind
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaLibraryModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
 import org.jetbrains.kotlin.analysis.low.level.api.fir.projectStructure.LLFirModuleData
@@ -29,23 +30,18 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.library.KlibConstants.KLIB_FILE_EXTENSION
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.loader.KlibLoader
-import org.jetbrains.kotlin.library.metadata.impl.KlibResolvedModuleDescriptorsFactoryImpl.Companion.FORWARD_DECLARATIONS_MODULE_NAME
+import org.jetbrains.kotlin.library.metadata.FORWARD_DECLARATIONS_MODULE_NAME
 import org.jetbrains.kotlin.load.kotlin.PackageAndMetadataPartProvider
 import org.jetbrains.kotlin.load.kotlin.PackagePartProvider
 import org.jetbrains.kotlin.load.kotlin.VirtualFileFinderFactory
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
-import org.jetbrains.kotlin.platform.JsPlatform
-import org.jetbrains.kotlin.platform.WasmPlatform
-import org.jetbrains.kotlin.platform.jvm.JvmPlatform
-import org.jetbrains.kotlin.platform.konan.NativePlatform
 import org.jetbrains.kotlin.utils.exceptions.rethrowIntellijPlatformExceptionIfNeeded
 import java.nio.file.Path
 import kotlin.io.path.absolutePathString
 import kotlin.io.path.extension
 import kotlin.io.path.isDirectory
-import org.jetbrains.kotlin.util.Logger as KLogger
 
 /**
  * [LLLibrarySymbolProviderFactory] for [KotlinDeserializedDeclarationsOrigin.BINARIES][org.jetbrains.kotlin.analysis.api.platform.KotlinDeserializedDeclarationsOrigin.BINARIES].
@@ -69,7 +65,7 @@ internal object LLBinaryOriginLibrarySymbolProviderFactory : LLLibrarySymbolProv
         )
     }
 
-    override fun createCommonLibrarySymbolProvider(
+    override fun createMetadataLibrarySymbolProvider(
         session: LLFirSession,
         packagePartProvider: PackagePartProvider,
         scope: GlobalSearchScope,
@@ -180,25 +176,6 @@ internal object LLBinaryOriginLibrarySymbolProviderFactory : LLLibrarySymbolProv
     }
 
     private val LOG = Logger.getInstance(LLBinaryOriginLibrarySymbolProviderFactory::class.java)
-
-    private object IntellijLogBasedLogger : KLogger {
-        override fun log(message: String) {
-            LOG.info(message)
-        }
-
-        override fun error(message: String) {
-            LOG.error(message)
-        }
-
-        override fun warning(message: String) {
-            LOG.warn(message)
-        }
-
-        @Deprecated(KLogger.FATAL_DEPRECATION_MESSAGE, ReplaceWith(KLogger.FATAL_REPLACEMENT))
-        override fun fatal(message: String): Nothing {
-            throw IllegalStateException(message)
-        }
-    }
 }
 
 /**
@@ -212,13 +189,12 @@ internal object LLBinaryOriginLibrarySymbolProviderFactory : LLLibrarySymbolProv
  * is a specific visible symptom of this, but might not be the only problem. See KT-79930.
  */
 private fun createFallbackBuiltinsSymbolProvider(session: LLFirSession): FirSymbolProvider {
-    val targetPlatform = session.moduleData.platform
-    val isCloneableAvailable = when {
-        targetPlatform.all { it is JvmPlatform } -> true
-        targetPlatform.all { it is NativePlatform } -> false
-        targetPlatform.all { it is JsPlatform } -> false
-        targetPlatform.all { it is WasmPlatform } -> false
-        else -> true // Common
+    val isCloneableAvailable = when (session.platformKind) {
+        KaModulePlatformKind.JVM -> true
+        KaModulePlatformKind.JS -> false
+        KaModulePlatformKind.WASM -> false
+        KaModulePlatformKind.NATIVE -> false
+        KaModulePlatformKind.METADATA -> true
     }
 
     val baseProvider = FirFallbackBuiltinSymbolProvider(session, session.moduleData, session.kotlinScopeProvider)

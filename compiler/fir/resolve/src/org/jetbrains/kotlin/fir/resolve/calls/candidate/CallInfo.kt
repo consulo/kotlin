@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.builder.buildArgumentList
 import org.jetbrains.kotlin.fir.expressions.impl.FirResolvedArgumentList
-import org.jetbrains.kotlin.fir.resolve.DoubleColonLHS
+import org.jetbrains.kotlin.fir.resolve.CallableReferenceLhsAsType
 import org.jetbrains.kotlin.fir.resolve.ResolutionMode
 import org.jetbrains.kotlin.fir.resolve.calls.AbstractCallInfo
 import org.jetbrains.kotlin.fir.resolve.calls.ConeResolutionAtom
@@ -55,8 +55,11 @@ open class CallInfo(
     val implicitInvokeMode: ImplicitInvokeMode,
 
     val containingCandidateForCollectionLiteral: Candidate? = null,
+    val isImplicitInvokeReceiver: Boolean = false,
 ) : AbstractCallInfo() {
-    val isCollectionLiteralCall: Boolean
+    // non-trivial means that it is resolved with expected type / in dependent mode where
+    // we don't fallback right away
+    val isNonTrivialCollectionLiteralCall: Boolean
         get() = containingCandidateForCollectionLiteral != null
 
     override val isImplicitInvoke: Boolean
@@ -77,8 +80,13 @@ open class CallInfo(
         get() = (argumentList as? FirResolvedArgumentList)?.originalArgumentList?.arguments ?: argumentList.arguments
     val argumentAtoms: List<ConeResolutionAtom> = arguments.map { createRawAtom(it) }
 
-    fun replaceWithVariableAccess(): CallInfo =
-        copy(callKind = CallKind.VariableAccess, typeArguments = emptyList(), argumentList = FirEmptyArgumentList)
+    fun asImplicitInvokeReceiver(): CallInfo =
+        copy(
+            callKind = CallKind.VariableAccess,
+            typeArguments = emptyList(),
+            argumentList = FirEmptyArgumentList,
+            isImplicitInvokeReceiver = true
+        )
 
     fun replaceExplicitReceiver(explicitReceiver: FirExpression?): CallInfo =
         copy(explicitReceiver = explicitReceiver)
@@ -101,12 +109,14 @@ open class CallInfo(
         implicitInvokeMode: ImplicitInvokeMode = this.implicitInvokeMode,
         candidateForCommonInvokeReceiver: Candidate? = this.candidateForCommonInvokeReceiver,
         containingCandidateForCollectionLiteral: Candidate? = this.containingCandidateForCollectionLiteral,
+        isImplicitInvokeReceiver: Boolean = this.isImplicitInvokeReceiver,
     ): CallInfo = CallInfo(
         callSite, callKind, name, explicitReceiver, argumentList,
         isUsedAsGetClassReceiver, typeArguments,
         session, containingFile, containingDeclarations,
         candidateForCommonInvokeReceiver, resolutionMode, origin, implicitInvokeMode,
         containingCandidateForCollectionLiteral,
+        isImplicitInvokeReceiver,
     )
 }
 
@@ -119,7 +129,7 @@ class CallableReferenceInfo(
     containingDeclarations: List<FirDeclaration>,
 
     val expectedType: ConeKotlinType?,
-    val lhs: DoubleColonLHS?,
+    val lhsAsType: CallableReferenceLhsAsType?,
     val hasSyntheticOuterCall: Boolean,
 
     origin: FirFunctionCallOrigin = FirFunctionCallOrigin.Regular,
@@ -141,9 +151,14 @@ class CallableReferenceInfo(
         implicitInvokeMode: ImplicitInvokeMode,
         candidateForCommonInvokeReceiver: Candidate?,
         containingCandidateForCollectionLiteral: Candidate?,
-    ): CallableReferenceInfo = CallableReferenceInfo(
-        callSite, name, explicitReceiver,
-        session, containingFile, containingDeclarations,
-        expectedType, lhs, hasSyntheticOuterCall, origin, callKind
-    )
+        isImplicitInvokeReceiver: Boolean,
+    ): CallableReferenceInfo {
+        require(!isImplicitInvokeReceiver) { "CallableReferenceInfo cannot be an implicit invoke receiver" }
+
+        return CallableReferenceInfo(
+            callSite, name, explicitReceiver,
+            session, containingFile, containingDeclarations,
+            expectedType, lhsAsType, hasSyntheticOuterCall, origin, callKind
+        )
+    }
 }

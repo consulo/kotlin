@@ -1,6 +1,5 @@
-// LANGUAGE: +CompanionBlocksAndExtensions
-// IGNORE_BACKEND: ANDROID
-// IGNORE_BACKEND: WASM_JS, WASM_WASI, JS_IR, JS_IR_ES6
+// LANGUAGE: +CompanionBlocks +CompanionExtensions
+// DUMP_KLIB_ABI: DEFAULT
 import C.func
 
 class C {

@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.fir.renderer
 
 import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
+import org.jetbrains.kotlin.fir.expressions.classId
 
 open class FirResolvedQualifierRenderer {
 
@@ -25,7 +26,7 @@ open class FirResolvedQualifierRenderer {
         } else {
             printer.print(resolvedQualifier.packageFqName.asString().replace(".", "/"))
         }
-        if (resolvedQualifier.isNullableLHSForCallableReference) {
+        if (resolvedQualifier.isNullableLhsForCallableReference) {
             printer.print("?")
         }
     }

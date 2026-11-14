@@ -7,8 +7,11 @@ package org.jetbrains.kotlin.backend.wasm.ir2wasm
 
 import org.jetbrains.kotlin.backend.wasm.WasmBackendContext
 import org.jetbrains.kotlin.backend.wasm.getInstanceFunctionForExternalObject
+import org.jetbrains.kotlin.backend.wasm.lower.WasmSuspendLambdaMergingLowering
+import org.jetbrains.kotlin.ir.backend.js.lower.WebCallableReferenceLowering
 import org.jetbrains.kotlin.ir.backend.js.objectGetInstanceFunction
 import org.jetbrains.kotlin.ir.declarations.IdSignatureRetriever
+import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.util.IdSignature
@@ -217,6 +220,19 @@ fun compileIrFile(
 
     if (linkerDataContext == null) return
 
+    irFile.declarations.forEach {
+        if (it is IrClass) {
+            // Register callable reference class declarations for deduplication at link time.
+            // Multiple files may create classes with the same structure (e.g., Function1_bound1_I, SuspendLambda_2AA),
+            // and we want to deduplicate them to a single canonical set of definitions.
+            if (it.origin == WebCallableReferenceLowering.FUNCTION_REFERENCE_IMPL
+                || it.origin == WasmSuspendLambdaMergingLowering.SUSPEND_LAMBDA_MERGING_CLASS
+            ) {
+                linkerDataContext.addEquivalentType(it.name.asString(), it.symbol)
+            }
+        }
+    }
+
     val fileContext = backendContext.getFileContext(irFile)
     fileContext.mainFunctionWrapper?.apply {
         linkerDataContext.addMainFunctionWrapper(symbol)
@@ -224,17 +240,17 @@ fun compileIrFile(
     fileContext.testFunctionDeclarator?.apply {
         linkerDataContext.addTestFunDeclarator(symbol)
     }
-    fileContext.closureCallExports.forEach { (exportSignature, function) ->
+    fileContext.closureCallTrampolines.forEach { [signatureString, function] ->
+        linkerDataContext.addEquivalentFunction("__closureTrampoline_$signatureString", function.symbol)
+    }
+    fileContext.kotlinClosureToJsConverters.forEach { [arity, function] ->
+        linkerDataContext.addEquivalentFunction("__kotlinToJsClosure_$arity", function.symbol)
+    }
+    fileContext.jsClosureCallers.forEach { [exportSignature, function] ->
         linkerDataContext.addEquivalentFunction("<1>_$exportSignature", function.symbol)
     }
-    fileContext.kotlinClosureToJsConverters.forEach { (exportSignature, function) ->
+    fileContext.jsToKotlinClosures.forEach { [exportSignature, function] ->
         linkerDataContext.addEquivalentFunction("<2>_$exportSignature", function.symbol)
-    }
-    fileContext.jsClosureCallers.forEach { (exportSignature, function) ->
-        linkerDataContext.addEquivalentFunction("<3>_$exportSignature", function.symbol)
-    }
-    fileContext.jsToKotlinClosures.forEach { (exportSignature, function) ->
-        linkerDataContext.addEquivalentFunction("<4>_$exportSignature", function.symbol)
     }
     fileContext.objectInstanceFieldInitializer?.apply {
         linkerDataContext.addObjectInstanceFieldInitializer(symbol)
@@ -243,8 +259,8 @@ fun compileIrFile(
         linkerDataContext.addNonConstantFieldInitializers(symbol)
     }
 
-    fileContext.classAssociatedObjects.forEach { (klass, associatedObjects) ->
-        val associatedObjectsInstanceGetters = associatedObjects.map { (key, obj) ->
+    fileContext.classAssociatedObjects.forEach { [klass, associatedObjects] ->
+        val associatedObjectsInstanceGetters = associatedObjects.map { [key, obj] ->
             obj.objectGetInstanceFunction?.let {
                 AssociatedObjectBySymbols(key.symbol, it.symbol, false)
             } ?: obj.getInstanceFunctionForExternalObject?.let {

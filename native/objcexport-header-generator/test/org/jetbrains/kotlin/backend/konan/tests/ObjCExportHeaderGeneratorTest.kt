@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.backend.konan.tests
 
 import org.jetbrains.kotlin.backend.konan.testUtils.HeaderGenerator
 import org.jetbrains.kotlin.backend.konan.testUtils.HeaderGenerator.Configuration
+import org.jetbrains.kotlin.backend.konan.testUtils.IgnoreK1
 import org.jetbrains.kotlin.backend.konan.testUtils.TodoAnalysisApi
 import org.jetbrains.kotlin.backend.konan.testUtils.headersTestDataDir
 import org.jetbrains.kotlin.test.TestDataAssertions
@@ -59,7 +60,6 @@ class ObjCExportHeaderGeneratorTest(private val generator: HeaderGenerator) {
     }
 
     @Test
-    @TodoAnalysisApi
     fun `test - enumClassWithObjCEnumAndRenamedLiterals`() {
         doTest(headersTestDataDir.resolve("enumClassWithObjCEnumAndRenamedLiterals"))
     }
@@ -166,21 +166,23 @@ class ObjCExportHeaderGeneratorTest(private val generator: HeaderGenerator) {
         doTest(headersTestDataDir.resolve("classWithHidesFromObjCAnnotation"))
     }
 
-    /**
-     * Disabled because of init constructors order KT-70626
-     */
     @Test
-    @TodoAnalysisApi
     fun `test - functionWithThrowsAnnotation`() {
         doTest(headersTestDataDir.resolve("functionWithThrowsAnnotation"))
     }
 
     @Test
+    // Error types cannot be serialized into a klib, so the test module cannot be compiled
+    // in the K1 test pipeline; the source-based Analysis API pipeline still covers it.
+    @IgnoreK1(expectCrash = true)
     fun `test - functionWithErrorType`() {
         doTest(headersTestDataDir.resolve("functionWithErrorType"))
     }
 
     @Test
+    // Error types cannot be serialized into a klib, so the test module cannot be compiled
+    // in the K1 test pipeline; the source-based Analysis API pipeline still covers it.
+    @IgnoreK1(expectCrash = true)
     fun `test - functionWithErrorTypeAndFrameworkName`() {
         doTest(headersTestDataDir.resolve("functionWithErrorTypeAndFrameworkName"), Configuration(frameworkName = "shared"))
     }
@@ -211,23 +213,27 @@ class ObjCExportHeaderGeneratorTest(private val generator: HeaderGenerator) {
     }
 
     @Test
-    @TodoAnalysisApi
     fun `test - receiverWithMustBeDocumentedAnnotation`() {
         doTest(headersTestDataDir.resolve("receiverWithMustBeDocumentedAnnotation"))
     }
 
     @Test
-    @TodoAnalysisApi
     fun `test - dispatchAndExtensionReceiverWithMustBeDocumentedAnnotation`() {
         doTest(headersTestDataDir.resolve("dispatchAndExtensionReceiverWithMustBeDocumentedAnnotation"))
     }
 
     @Test
+    // Error types cannot be serialized into a klib, so the test module cannot be compiled
+    // in the K1 test pipeline; the source-based Analysis API pipeline still covers it.
+    @IgnoreK1(expectCrash = true)
     fun `test - classWithUnresolvedSuperType`() {
         doTest(headersTestDataDir.resolve("classWithUnresolvedSuperType"))
     }
 
     @Test
+    // Error types cannot be serialized into a klib, so the test module cannot be compiled
+    // in the K1 test pipeline; the source-based Analysis API pipeline still covers it.
+    @IgnoreK1(expectCrash = true)
     fun `test - classWithUnresolvedSuperTypeGenerics`() {
         doTest(headersTestDataDir.resolve("classWithUnresolvedSuperTypeGenerics"))
     }
@@ -294,6 +300,10 @@ class ObjCExportHeaderGeneratorTest(private val generator: HeaderGenerator) {
     }
 
     @Test
+    // The test data declares conflicting constructor overloads that are only disambiguated
+    // by @ObjCName in the generated header; such code is not compilable Kotlin, so the test
+    // module cannot be compiled in the K1 test pipeline; the Analysis API pipeline still covers it.
+    @IgnoreK1(expectCrash = true)
     fun `test - constructors`() {
         doTest(headersTestDataDir.resolve("constructors"))
     }
@@ -301,6 +311,11 @@ class ObjCExportHeaderGeneratorTest(private val generator: HeaderGenerator) {
     @Test
     fun `test - companion`() {
         doTest(headersTestDataDir.resolve("companion"))
+    }
+
+    @Test
+    fun `test - companion blocks and extensions`() {
+        doTest(headersTestDataDir.resolve("companionBlocksAndExtensions"))
     }
 
     @Test
@@ -323,6 +338,9 @@ class ObjCExportHeaderGeneratorTest(private val generator: HeaderGenerator) {
         doTest(headersTestDataDir.resolve("specialFunctionNames"))
     }
 
+    /**
+     * For equivalent AA-test, see reducedSpecialFunctionNamesExplicitMethodFamily.
+     */
     @Test
     @TodoAnalysisApi
     fun `test - special function names with explicit method family`() {
@@ -430,7 +448,7 @@ class ObjCExportHeaderGeneratorTest(private val generator: HeaderGenerator) {
 
     @Test
     fun `test - functionWithReservedMethodName`() {
-        doTest(headersTestDataDir.resolve("functionWithReservedMethodName"))
+        doTest(headersTestDataDir.resolve("functionWithReservedMethodName"), Configuration(frameworkName = "Shared"))
     }
 
     @Test
@@ -468,6 +486,9 @@ class ObjCExportHeaderGeneratorTest(private val generator: HeaderGenerator) {
     }
 
     @Test
+    // A public property of a private type is not compilable Kotlin, so the test module
+    // cannot be compiled in the K1 test pipeline; the Analysis API pipeline still covers it.
+    @IgnoreK1(expectCrash = true)
     fun `test - privateTopLevelClassProperty`() {
         doTest(headersTestDataDir.resolve("privateTopLevelClassProperty"))
     }
@@ -621,13 +642,15 @@ class ObjCExportHeaderGeneratorTest(private val generator: HeaderGenerator) {
         doTest(headersTestDataDir.resolve("varWithPrivateSetterTranslatedAsImmutableProperty"))
     }
 
-    /**
-     * Disabled because of init constructors order KT-70626
-     */
     @Test
-    @TodoAnalysisApi
     fun `test - mangle throws annotation`() {
         doTest(headersTestDataDir.resolve("mangleThrowsAnnotation"))
+    }
+
+    @Test
+    @TodoAnalysisApi // KT-86289
+    fun `test - KT-85423 mangle clashing throws and non-throws`() {
+        doTest(headersTestDataDir.resolve("mangleClashingThrowsAndNonThrows"))
     }
 
     @Test
@@ -698,6 +721,38 @@ class ObjCExportHeaderGeneratorTest(private val generator: HeaderGenerator) {
     @Test
     fun `test - extensions mangling`() {
         doTest(headersTestDataDir.resolve("extensionsMangling"))
+    }
+
+    @Test
+    fun `test - function parameters mangling`() {
+        doTest(headersTestDataDir.resolve("functionParametersMangling"))
+    }
+
+    @Test
+    fun `test - properties with reserved names`() {
+        doTest(headersTestDataDir.resolve("propertiesWithReservedNames"))
+    }
+
+    @Test
+    @TodoAnalysisApi
+    fun `test - conflict upon mangling a property or a method should be handled by the manglers`() {
+        doTest(headersTestDataDir.resolve("conflictUponManglingPropertyOrMethod"))
+    }
+
+    /**
+     * This test primarily exercises the AA impl for explicitMethodFamily=true, and not the subsequent conflict
+     * detection and mangling, as that's dependent on the resolution of KT-86289. For such a test (K1), see
+     * specialFunctionNamesExplicitMethodFamily.
+     */
+    @Test
+    fun `test - reduced set of special function names with explicit method family`() {
+        doTest(headersTestDataDir.resolve("reducedSpecialFunctionNamesExplicitMethodFamily"), Configuration(explicitMethodFamily = true))
+    }
+
+    @Test
+    @TodoAnalysisApi
+    fun `test - manglers should be able to resolve entry naming clashes across enums`() {
+        doTest(headersTestDataDir.resolve("entryNamesClashAcrossEnums"))
     }
 
     private fun doTest(root: File, configuration: Configuration = Configuration()) {

@@ -13,12 +13,14 @@ import org.jetbrains.kotlin.backend.wasm.utils.fitsLatin1
 import org.jetbrains.kotlin.backend.wasm.utils.getFunctionalInterfaceSlot
 import org.jetbrains.kotlin.backend.wasm.utils.getJsBuiltinDescriptor
 import org.jetbrains.kotlin.backend.wasm.utils.getJsFunAnnotation
+import org.jetbrains.kotlin.backend.wasm.utils.getReflectionQualifier
 import org.jetbrains.kotlin.backend.wasm.utils.getWasmImportDescriptor
 import org.jetbrains.kotlin.backend.wasm.utils.hasUnpairedSurrogates
 import org.jetbrains.kotlin.backend.wasm.utils.isAbstractOrSealed
 import org.jetbrains.kotlin.config.AnalysisFlags.allowFullyQualifiedNameInKClass
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.backend.wasm.lower.WasmSuspendLambdaMergingLowering
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.backend.js.lower.WebCallableReferenceLowering
@@ -51,7 +53,7 @@ import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.parentClassOrNull
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
-import org.jetbrains.kotlin.name.parentOrNull
+import org.jetbrains.kotlin.wasm.WasmServiceImportExportKind
 import org.jetbrains.kotlin.wasm.ir.WasmAnyRef
 import org.jetbrains.kotlin.wasm.ir.WasmExport
 import org.jetbrains.kotlin.wasm.ir.WasmExpressionBuilder
@@ -60,6 +62,7 @@ import org.jetbrains.kotlin.wasm.ir.WasmExternRef
 import org.jetbrains.kotlin.wasm.ir.WasmF32
 import org.jetbrains.kotlin.wasm.ir.WasmF64
 import org.jetbrains.kotlin.wasm.ir.WasmFunction
+import org.jetbrains.kotlin.wasm.ir.WasmFunctionAnnotation
 import org.jetbrains.kotlin.wasm.ir.WasmGlobal
 import org.jetbrains.kotlin.wasm.ir.WasmHeapType
 import org.jetbrains.kotlin.wasm.ir.WasmI32
@@ -210,6 +213,10 @@ class DeclarationGenerator(
         val declarationBody = declaration.body
         require(declarationBody is IrBlockBody) { "Only IrBlockBody is supported" }
 
+        if (declaration.symbol in backendContext.jsCalledFunctions) {
+            function.functionAnnotations.add(WasmFunctionAnnotation.JsCalled)
+        }
+
         if (declaration is IrConstructor) {
             bodyBuilder.generateObjectCreationPrefixIfNeeded(declaration)
         }
@@ -234,6 +241,19 @@ class DeclarationGenerator(
 
         declarationCodegenContext.defineFunction(declaration.symbol, function)
         multimoduleExportIfNeeded(declaration, function)
+
+        // Register callable reference and merged suspend lambda class members for deduplication at link time.
+        // Multiple files may create classes with the same signature (e.g., Function1_bound1_I, SuspendLambda_2AA),
+        // and we want all calls to resolve to a single canonical set of functions.
+        val parentClass = declaration.parentClassOrNull
+        if (parentClass != null) {
+            if (parentClass.origin == WebCallableReferenceLowering.FUNCTION_REFERENCE_IMPL
+                || parentClass.origin == WasmSuspendLambdaMergingLowering.SUSPEND_LAMBDA_MERGING_CLASS
+            ) {
+                val equivalenceKey = "${parentClass.name.asString()}.${declaration.name.asString()}"
+                linkerDataContext.addEquivalentFunction(equivalenceKey, declaration.symbol)
+            }
+        }
 
         val nameIfExported = when {
             declaration.isExplicitlyExported() -> declaration.getJsNameOrKotlinName().identifier
@@ -367,14 +387,19 @@ class DeclarationGenerator(
         val symbol = klass.symbol
         val superType = klass.getSuperClass(irBuiltIns)?.symbol
 
-        val fqnShouldBeEmitted = backendContext.configuration.languageVersionSettings.getFlag(allowFullyQualifiedNameInKClass)
+        // For callable reference and merged suspend lambda classes, do not use the FQN to ensure
+        // deterministic names across files during link-time deduplication.
+        val fqnShouldBeEmitted = (backendContext.configuration.languageVersionSettings.getFlag(allowFullyQualifiedNameInKClass) &&
+                                      klass.origin != WebCallableReferenceLowering.FUNCTION_REFERENCE_IMPL &&
+                                      klass.origin != WasmSuspendLambdaMergingLowering.SUSPEND_LAMBDA_MERGING_CLASS)
+        val originalFqName = klass.originalFqName
         val qualifier =
             if (fqnShouldBeEmitted) {
-                (klass.originalFqName ?: klass.kotlinFqName).parentOrNull()?.asString() ?: ""
+                klass.getReflectionQualifier(originalFqName ?: klass.kotlinFqName)
             } else {
                 ""
             }
-        val simpleName = klass.name.asString()
+        val simpleName = (originalFqName?.shortName() ?: klass.name).asString()
         val packageNameStringLiteralId: WasmSymbol<Int>
         val simpleNameStringLiteralId: WasmSymbol<Int>
         if (backendContext.isWasmJsTarget) {
@@ -507,7 +532,7 @@ class DeclarationGenerator(
 
         val specialSlotIFaces = backendContext.specialSlotITableTypes
 
-        val (forward, back) = supportedInterfaces.partition { it.symbol !in specialSlotIFaces && !it.symbol.isFunction() }
+        val [forward, back] = supportedInterfaces.partition { it.symbol !in specialSlotIFaces && !it.symbol.isFunction() }
         val supportedPushedBack = forward + back
 
         for (iFace in supportedPushedBack) {

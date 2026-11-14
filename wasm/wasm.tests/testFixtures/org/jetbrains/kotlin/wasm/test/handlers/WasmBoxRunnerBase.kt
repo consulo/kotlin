@@ -9,34 +9,50 @@ import org.jetbrains.kotlin.test.DebugMode
 import org.jetbrains.kotlin.test.InTextDirectivesUtils
 import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives.RUN_UNIT_TESTS
 import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives.USE_NEW_EXCEPTION_HANDLING_PROPOSAL
+import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives.USE_STACK_SWITCHING_PROPOSAL
 import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives.WASM_NO_JS_TAG
 import org.jetbrains.kotlin.test.services.TestServices
+import org.jetbrains.kotlin.test.services.configuration.WasmEnvironmentConfigurator.Companion.WASM_BASE_FILE_NAME
 import org.jetbrains.kotlin.test.services.moduleStructure
+import org.jetbrains.kotlin.test.testInfraError
+import org.jetbrains.kotlin.wasm.test.tools.ExternalToolFailure
 import org.jetbrains.kotlin.wasm.test.tools.WasmVM
+import org.jetbrains.kotlin.wasm.test.tools.WASI_BOX_ENTRY_EXPORT
 import java.io.File
+
+data class WasmVMOutput(
+    val vmName: String,
+    val output: String,
+    val executionName: String = vmName,
+)
+
+internal fun formatWasmExecutionName(vmName: String, mode: String): String =
+    if (mode.isEmpty()) vmName else "$vmName ($mode)"
 
 abstract class WasmBoxRunnerBase(
     testServices: TestServices,
     executeWithV8Only: Boolean = false,
 ) : AbstractWasmArtifactsCollector(testServices) {
-    private val wasmEngines = if (executeWithV8Only) {
+    internal val wasmEngines = if (executeWithV8Only) {
         // JavaScriptCore may glitch on Linux CI: `libglib-2.0.so.0: file too short`
         // however this engine can be avoided for some testrunners like klib compatibility tests,
         // where it's enough to execute an image only on any one of engine, which is the reliable and simple to setup, like V8.
         listOfNotNull(WasmVM.V8)
     } else {
         // KT-82392 [Wasm] Investigate and fix JSC test run on windows
-        val jscOfNotWindows = WasmVM.JavaScriptCore.takeIf {
-            !System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
-        }
-        listOfNotNull(WasmVM.V8, WasmVM.SpiderMonkey, jscOfNotWindows)
+        val isNotWindows = !System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
+        val isForcedOnWindows = System.getProperty("javascript.engine.JavaScriptCore.EnableOnWindows") == "true"
+        val jscIfNeeded = WasmVM.JavaScriptCore.takeIf { isNotWindows || isForcedOnWindows }
+        listOfNotNull(WasmVM.V8, WasmVM.SpiderMonkey, jscIfNeeded)
     }
 
-    protected fun saveAdditionalFilesAndRun(
+    fun saveAdditionalFilesAndRun(
         outputDir: File,
         mark: String,
-        failsIn: List<String>,
-        filesToIgnoreInSizeChecks: MutableSet<File>
+        filesToIgnoreInSizeChecks: MutableSet<File>,
+        useUnitTestRunnerOnly: Boolean = false,
+        outputCollector: MutableList<WasmVMOutput>? = null,
+        callGroupedTestsDriver: Boolean = false,
     ): List<Throwable> {
         val originalFile = testServices.moduleStructure.originalTestDataFiles.first()
         val collectedJsArtifacts = collectJsArtifacts(originalFile, mark)
@@ -48,7 +64,35 @@ abstract class WasmBoxRunnerBase(
 
         val isNoJsTag = WASM_NO_JS_TAG in testServices.moduleStructure.allDirectives
 
-        val testJs = """
+        val testJs = if (useUnitTestRunnerOnly) """
+                    ${if (isNoJsTag) "import './tag.mjs'" else ""}
+                    import * as jsModule from './$WASM_BASE_FILE_NAME.mjs'
+                    if (globalThis.console == null) {
+                        globalThis.console = {};
+                    }
+                    if (console.log == null) {
+                        console.log = print;
+                    }
+                    try {
+                        ${generateWasmJsUnitTestRunnerInvocation(callGroupedTestsDriver)}
+                    } catch(e) {
+                        console.log('Failed with exception!')
+
+                        if (e instanceof Error) {
+                            console.log('Message: ' + e.message)
+                            console.log('Name:    ' + e.name)
+                            console.log('Stack:')
+                            console.log(e.stack)
+                        } else {
+                            console.log('e: ' + e)
+                            console.log('typeof e: ' + typeof e)
+                        }
+                        throw e;
+                    }
+
+                    ${if (debugMode >= DebugMode.DEBUG) "console.log('test passed');" else ""}                        
+                """.trimIndent()
+        else """
                     ${if (isNoJsTag) "import './tag.mjs'" else ""}
                     import * as jsModule from './$WASM_BASE_FILE_NAME.mjs'
                     if (globalThis.console == null) {
@@ -75,7 +119,9 @@ abstract class WasmBoxRunnerBase(
                         }
                     }
     
-                    if (actualResult !== "OK")
+                    const hasFailures = (jsModule.hasTestFailures && jsModule.hasTestFailures()) ||
+                                        (jsModule.__ALL_EXPORTS && jsModule.__ALL_EXPORTS.hasTestFailures && jsModule.__ALL_EXPORTS.hasTestFailures());
+                    if (actualResult !== "OK" || hasFailures)
                         throw `Wrong box result '${'$'}{actualResult}'; Expected "OK"`;
 
                     ${if (debugMode >= DebugMode.DEBUG) "console.log('test passed');" else ""}                        
@@ -139,48 +185,104 @@ abstract class WasmBoxRunnerBase(
         }
 
         val useNewExceptionProposal = USE_NEW_EXCEPTION_HANDLING_PROPOSAL in testServices.moduleStructure.allDirectives
+        val useStackSwitchingProposal = USE_STACK_SWITCHING_PROPOSAL in testServices.moduleStructure.allDirectives
 
         return wasmEngines
             .mapNotNull { vm ->
                 vm.runWithCaughtExceptions(
                     debugMode = debugMode,
                     useNewExceptionHandling = useNewExceptionProposal,
-                    failsIn = failsIn,
+                    useStackSwitching = useStackSwitchingProposal,
                     entryFile = collectedJsArtifacts.entryPath,
                     jsFilePaths = jsFilePaths,
                     workingDirectory = outputDir,
+                    executionName = formatWasmExecutionName(vm.vmName, mark),
+                    outputCollector = outputCollector,
                 )
             }
     }
 }
 
+internal fun generateWasmJsUnitTestRunnerInvocation(callGroupedTestsDriver: Boolean): String =
+    if (callGroupedTestsDriver) {
+        """
+        // Grouped batch: pass/fail is attributed on the JVM side, so a failure must NOT throw here.
+        await jsModule.runGroupedTests();
+        """.trimIndent()
+    } else {
+        """
+        await jsModule.startUnitTests();
+        const hasFailures = (jsModule.hasTestFailures && jsModule.hasTestFailures()) ||
+                            (jsModule.__ALL_EXPORTS && jsModule.__ALL_EXPORTS.hasTestFailures && jsModule.__ALL_EXPORTS.hasTestFailures());
+        if (hasFailures) {
+            throw new Error('Unit test failed');
+        }
+        """.trimIndent()
+    }
+
+/**
+ * A failed VM execution. [output] is the stdout the execution printed, when there was any to capture: the grouped
+ * runners parse it for the per-test results printed before the failure.
+ */
+class WasmVMException(
+    nested: Throwable,
+    val vmName: String,
+    val executionName: String = vmName,
+    val output: String? = null,
+) : Throwable("WasmVM $executionName failed", cause = nested)
+
+internal const val UNIT_TEST_STARTED_MARKER = "##teamcity[testStarted"
+
+/**
+ * Rejects a `// RUN_UNIT_TESTS` run whose output shows no `@Test` function starting. Such a test always has at least
+ * one: the `@Test` launcher that calls its `box()`. An empty report therefore means the VM never reached the
+ * unit-test runner, and the test would otherwise pass without a single `@Test` function having run.
+ */
+internal fun checkUnitTestsReported(output: String, executionName: String): AssertionError? {
+    if (output.contains(UNIT_TEST_STARTED_MARKER)) return null
+    return AssertionError(
+        "The unit-test runner reported no test in $executionName: its output has no `$UNIT_TEST_STARTED_MARKER` " +
+                "event, so none of the `@Test` functions of this `// RUN_UNIT_TESTS` test ran there, not even the " +
+                "launcher that calls `box()`. Output:\n$output"
+    )
+}
+
 internal fun WasmVM.runWithCaughtExceptions(
     debugMode: DebugMode,
     useNewExceptionHandling: Boolean,
-    failsIn: List<String>,
+    useStackSwitching: Boolean,
     entryFile: String?,
     jsFilePaths: List<String>,
     workingDirectory: File,
+    executionName: String,
+    outputCollector: MutableList<WasmVMOutput>? = null,
+    wasiEntryExport: String = WASI_BOX_ENTRY_EXPORT,
+    expectUnitTestReport: Boolean = false,
 ): Throwable? {
-    val vmName = javaClass.simpleName
-
     try {
         if (debugMode >= DebugMode.DEBUG) {
-            println(" ------ Run in $vmName" + if (shortName in failsIn) " (expected to fail)" else "")
+            println(" ------ Run in $executionName")
         }
         val str = run(
             "./${entryFile}",
             jsFilePaths,
             workingDirectory = workingDirectory,
             useNewExceptionHandling = useNewExceptionHandling,
+            useStackSwitching = useStackSwitching,
+            wasiEntryExport = wasiEntryExport,
         )
-        if (shortName in failsIn) {
-            return AssertionError("The test expected to fail in ${vmName}. Please update the testdata.")
+        outputCollector?.add(WasmVMOutput(vmName = vmName, output = str, executionName = executionName))
+        if (debugMode >= DebugMode.DEBUG) {
+            println(" ------ Run in $executionName is completed")
+        }
+        if (str.contains("##teamcity[testFailed")) {
+            return WasmVMException(AssertionError("Unit test failed in $executionName. Output:\n$str"), vmName, executionName, str)
+        }
+        if (expectUnitTestReport) {
+            checkUnitTestsReported(str, executionName)?.let { return WasmVMException(it, vmName, executionName, str) }
         }
     } catch (e: Throwable) {
-        if (shortName !in failsIn) {
-            return e
-        }
+        return WasmVMException(e, vmName, executionName, (e as? ExternalToolFailure)?.output)
     }
     return null
 }
@@ -207,6 +309,19 @@ fun checkExpectedOptimizedOutputSize(debugMode: DebugMode, testFileContent: Stri
     return assertExpectedSizesMatchActual(debugMode, testDir, listOf("wasm" to expectedOptimizeSizes), filesToIgnore)
 }
 
+fun checkExpectedOutputSize(
+    mode: String,
+    debugMode: DebugMode,
+    testFileText: String,
+    outputDir: File,
+    filesToIgnoreInSizeChecks: Set<File> = emptySet(),
+): List<Throwable> = when (mode) {
+    "dce" -> checkExpectedDceOutputSize(debugMode, testFileText, outputDir, filesToIgnoreInSizeChecks)
+    "optimized" -> checkExpectedOptimizedOutputSize(debugMode, testFileText, outputDir, filesToIgnoreInSizeChecks)
+    "dev" -> emptyList()
+    else -> testInfraError("Unknown mode: $mode")
+}
+
 private fun assertExpectedSizesMatchActual(
     debugMode: DebugMode,
     testDir: File,
@@ -215,7 +330,7 @@ private fun assertExpectedSizesMatchActual(
 ): List<Throwable> {
     val filesByExtension = testDir.listFiles()?.filterNot { it in filesToIgnore }?.groupBy { it.extension }.orEmpty()
 
-    val errors = fileExtensionToItsExpectedSize.mapNotNull { (extension, expectedSize) ->
+    val errors = fileExtensionToItsExpectedSize.mapNotNull { [extension, expectedSize] ->
         val totalSize = filesByExtension[extension].orEmpty().sumOf { it.length() }
 
         val thresholdPercent = 1

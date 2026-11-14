@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -50,7 +50,7 @@ public class KotlinParsing extends AbstractKotlinParsing {
             TokenSet.orSet(TokenSet.create(LBRACE, RBRACE), TYPE_REF_FIRST);
     private static final TokenSet COLON_COMMA_LBRACE_RBRACE_TYPE_REF_FIRST_SET =
             TokenSet.orSet(TokenSet.create(COLON, COMMA, LBRACE, RBRACE), TYPE_REF_FIRST);
-    private static final TokenSet RECEIVER_TYPE_TERMINATORS = TokenSet.create(DOT, SAFE_ACCESS);
+    private static final TokenSet RECEIVER_TYPE_TERMINATORS = TokenSet.create(DOT, SAFE_ACCESS, ERROR_SAFE_ACCESS);
     private static final TokenSet VALUE_PARAMETER_FIRST =
             TokenSet.orSet(
                     TokenSet.create(IDENTIFIER, LBRACKET, VAL_KEYWORD, VAR_KEYWORD),
@@ -70,7 +70,7 @@ public class KotlinParsing extends AbstractKotlinParsing {
     private static final TokenSet COMMA_COLON_GT_SET = TokenSet.create(COMMA, COLON, GT);
     private static final TokenSet IDENTIFIER_RBRACKET_LBRACKET_SET = TokenSet.create(IDENTIFIER, RBRACKET, LBRACKET);
     private static final TokenSet LBRACE_RBRACE_SET = TokenSet.create(LBRACE, RBRACE);
-    private static final TokenSet COMMA_SEMICOLON_RBRACE_SET = TokenSet.create(COMMA, SEMICOLON, RBRACE);
+    private static final TokenSet NO_MODIFIERS_BEFORE_FOR_ENUM_ENTRY = TokenSet.create(COMMA, SEMICOLON, RBRACE, LPAR, LBRACE);
     private static final TokenSet VALUE_ARGS_RECOVERY_SET = TokenSet.create(LBRACE, SEMICOLON, RPAR, EOL_OR_SEMICOLON, RBRACE);
     private static final TokenSet PROPERTY_NAME_FOLLOW_SET =
       TokenSet.create(COLON, EQ, LBRACE, RBRACE, SEMICOLON, VAL_KEYWORD, VAR_KEYWORD, FUN_KEYWORD, CLASS_KEYWORD);
@@ -134,7 +134,12 @@ public class KotlinParsing extends AbstractKotlinParsing {
                     if (topLevel && (atSet(definitelyOutOfReceiverSet) || at(LPAR))) return true;
                     if (topLevel && at(IDENTIFIER)) {
                         IElementType lookahead = lookahead(1);
-                        return lookahead != LT && lookahead != DOT && lookahead != SAFE_ACCESS && lookahead != QUEST;
+                        return lookahead != LT &&
+                               lookahead != DOT &&
+                               lookahead != SAFE_ACCESS &&
+                               lookahead != QUEST &&
+                               lookahead != ERROR_SAFE_ACCESS &&
+                               lookahead != OR;
                     }
                     return false;
                 }
@@ -175,7 +180,7 @@ public class KotlinParsing extends AbstractKotlinParsing {
         }
 
         checkUnclosedBlockComment();
-        fileMarker.done(KT_FILE);
+        fileMarker.done(FILE);
     }
 
     private void checkUnclosedBlockComment() {
@@ -202,7 +207,7 @@ public class KotlinParsing extends AbstractKotlinParsing {
 
     void parseExpressionCodeFragment() {
         PsiBuilder.Marker marker = mark();
-        myExpressionParsing.parseExpression();
+        myExpressionParsing.parseBlockLevelExpression();
 
         checkForUnexpectedSymbols();
 
@@ -254,7 +259,7 @@ public class KotlinParsing extends AbstractKotlinParsing {
         scriptMarker.done(SCRIPT);
         scriptMarker.setCustomEdgeTokenBinders(PRECEDING_ALL_BINDER, TRAILING_ALL_BINDER);
 
-        fileMarker.done(KT_FILE);
+        fileMarker.done(FILE);
     }
 
     private void checkForUnexpectedSymbols() {
@@ -519,7 +524,7 @@ public class KotlinParsing extends AbstractKotlinParsing {
         switch (getTokenId()) {
             case CLASS_KEYWORD_Id:
             case INTERFACE_KEYWORD_Id:
-                return parseClass(detector.isEnumDetected(), true);
+                return parseClass(detector.isEnumDetected(), true, declarationParsingMode);
             case FUN_KEYWORD_Id:
                 return parseFunction();
             case VAL_KEYWORD_Id:
@@ -532,11 +537,11 @@ public class KotlinParsing extends AbstractKotlinParsing {
             case TYPE_ALIAS_KEYWORD_Id:
                 return parseTypeAlias();
             case OBJECT_KEYWORD_Id:
-                parseObject(nameParsingModeForObject, true);
+                parseObject(nameParsingModeForObject, true, declarationParsingMode);
                 return OBJECT_DECLARATION;
             case IDENTIFIER_Id:
                 if (detector.isEnumDetected() && declarationParsingMode.canBeEnumUsedAsSoftKeyword) {
-                    return parseClass(true, false);
+                    return parseClass(true, false, declarationParsingMode);
                 }
         }
 
@@ -1023,7 +1028,8 @@ public class KotlinParsing extends AbstractKotlinParsing {
             NameParsingMode nameParsingMode,
             boolean optionalBody,
             boolean enumClass,
-            boolean expectKindKeyword
+            boolean expectKindKeyword,
+            @NotNull DeclarationParsingMode declarationParsingMode
     ) {
         if (expectKindKeyword) {
             if (object) {
@@ -1059,10 +1065,18 @@ public class KotlinParsing extends AbstractKotlinParsing {
 
         PsiBuilder.Marker beforeConstructorModifiers = mark();
         PsiBuilder.Marker primaryConstructorMarker = mark();
+        boolean statementWithNewlineBeforeConstructorModifiers =
+                declarationParsingMode != DeclarationParsingMode.MEMBER_OR_TOPLEVEL && myBuilder.newlineBeforeCurrentToken();
         boolean hasConstructorModifiers = parseModifierList(TokenSet.EMPTY);
 
-        // Some modifiers found, but no parentheses following: class has already ended, and we are looking at something else
-        if (hasConstructorModifiers && !atSet(LPAR_LBRACE_COLON_CONSTRUCTOR_KEYWORD_SET)) {
+        // Some modifiers found, but no parentheses following: class has already ended, and we are looking at something else.
+        // The same applies to local and script top-level classes if the modifiers start on a new line and aren't followed by
+        // the `constructor` keyword because they likely belong to the next statement, e.g.
+        //    class A
+        //    error("")
+        if (hasConstructorModifiers &&
+            (!atSet(LPAR_LBRACE_COLON_CONSTRUCTOR_KEYWORD_SET) || statementWithNewlineBeforeConstructorModifiers && !at(CONSTRUCTOR_KEYWORD))
+        ) {
             beforeConstructorModifiers.rollbackTo();
             return object ? OBJECT_DECLARATION : CLASS;
         }
@@ -1122,12 +1136,12 @@ public class KotlinParsing extends AbstractKotlinParsing {
         return object ? OBJECT_DECLARATION : CLASS;
     }
 
-    private IElementType parseClass(boolean enumClass, boolean expectKindKeyword) {
-        return parseClassOrObject(false, NameParsingMode.REQUIRED, true, enumClass, expectKindKeyword);
+    private IElementType parseClass(boolean enumClass, boolean expectKindKeyword, @NotNull DeclarationParsingMode declarationParsingMode) {
+        return parseClassOrObject(false, NameParsingMode.REQUIRED, true, enumClass, expectKindKeyword, declarationParsingMode);
     }
 
-    void parseObject(NameParsingMode nameParsingMode, boolean optionalBody) {
-        parseClassOrObject(true, nameParsingMode, optionalBody, false, true);
+    void parseObject(NameParsingMode nameParsingMode, boolean optionalBody, @NotNull DeclarationParsingMode declarationParsingMode) {
+        parseClassOrObject(true, nameParsingMode, optionalBody, false, true, declarationParsingMode);
     }
 
     /*
@@ -1198,7 +1212,7 @@ public class KotlinParsing extends AbstractKotlinParsing {
     private ParseEnumEntryResult parseEnumEntry() {
         PsiBuilder.Marker entry = mark();
 
-        parseModifierList(COMMA_SEMICOLON_RBRACE_SET);
+        parseModifierList(NO_MODIFIERS_BEFORE_FOR_ENUM_ENTRY);
 
         if (!atSet(SOFT_KEYWORDS_AT_MEMBER_START) && at(IDENTIFIER)) {
             advance(); // IDENTIFIER
@@ -1544,7 +1558,8 @@ public class KotlinParsing extends AbstractKotlinParsing {
 
         beforeName.drop();
 
-        if (mode.accessorsAllowed) {
+        // Destructuring declarations have no accessors or backing fields, so the following tokens are left to the caller
+        if (mode.accessorsAllowed && !multiDeclaration) {
             // It's only needed for non-local properties, because in local ones:
             // "val a = 1; b" must not be an infix call of b on "val ...;"
 
@@ -1916,7 +1931,7 @@ public class KotlinParsing extends AbstractKotlinParsing {
 
         if (!receiverPresent) return false;
 
-        createTruncatedBuilder(lastDot).parseTypeRefWithoutIntersections();
+        createTruncatedBuilder(lastDot).parseTypeRefWithoutIntersectionsOrUnions();
 
         if (atSet(RECEIVER_TYPE_TERMINATORS)) {
             advance(); // expectation
@@ -2226,22 +2241,22 @@ public class KotlinParsing extends AbstractKotlinParsing {
         parseTypeRef(TokenSet.EMPTY);
     }
 
-    void parseTypeRefWithoutIntersections() {
-        parseTypeRef(TokenSet.EMPTY, /* allowSimpleIntersectionTypes */ false);
+    void parseTypeRefWithoutIntersectionsOrUnions() {
+        parseTypeRef(TokenSet.EMPTY, /* allowSimpleIntersectionTypes */ false, /* allowUnionTypes */ false);
     }
 
     void parseTypeRef(TokenSet extraRecoverySet) {
-        parseTypeRef(extraRecoverySet, /* allowSimpleIntersectionTypes */ true);
+        parseTypeRef(extraRecoverySet, /* allowSimpleIntersectionTypes */ true, /* allowUnionTypes */ true);
     }
 
-    private void parseTypeRef(TokenSet extraRecoverySet, boolean allowSimpleIntersectionTypes) {
-        PsiBuilder.Marker typeRefMarker = parseTypeRefContents(extraRecoverySet, allowSimpleIntersectionTypes);
+    private void parseTypeRef(TokenSet extraRecoverySet, boolean allowSimpleIntersectionTypes, boolean allowUnionTypes) {
+        PsiBuilder.Marker typeRefMarker = parseTypeRefContents(extraRecoverySet, allowSimpleIntersectionTypes, allowUnionTypes);
         typeRefMarker.done(TYPE_REFERENCE);
     }
 
     // The extraRecoverySet is needed for the foo(bar<x, 1, y>(z)) case, to tell whether we should stop
     // on expression-indicating symbols or not
-    private PsiBuilder.Marker parseTypeRefContents(TokenSet extraRecoverySet, boolean allowSimpleIntersectionTypes) {
+    private PsiBuilder.Marker parseTypeRefContents(TokenSet extraRecoverySet, boolean allowSimpleIntersectionTypes, boolean allowUnionTypes) {
         PsiBuilder.Marker typeRefMarker = mark();
 
         parseTypeModifierList();
@@ -2273,7 +2288,7 @@ public class KotlinParsing extends AbstractKotlinParsing {
 
             // This may be a function parameter list or just a parenthesized type
             advance(); // LPAR
-            parseTypeRefContents(TokenSet.EMPTY, /* allowSimpleIntersectionTypes */ true).drop(); // parenthesized types, no reference element around it is needed
+            parseTypeRefContents(TokenSet.EMPTY, /* allowSimpleIntersectionTypes */ true, true).drop(); // parenthesized types, no reference element around it is needed
 
             if (at(RPAR) && lookahead(1) != ARROW) {
                 // It's a parenthesized type
@@ -2315,13 +2330,31 @@ public class KotlinParsing extends AbstractKotlinParsing {
             leftTypeRef.done(TYPE_REFERENCE);
 
             advance(); // &
-            parseTypeRef(extraRecoverySet, /* allowSimpleIntersectionTypes */ true);
+            parseTypeRef(extraRecoverySet, /* allowSimpleIntersectionTypes */ true, /* allowUnionTypes */ false);
 
             intersectionType.done(INTERSECTION_TYPE);
             wasIntersection = true;
         }
 
-        if (typeBeforeDot && at(DOT) && !wasIntersection && !wasFunctionTypeParsed) {
+        boolean wasUnion = false;
+        if (allowUnionTypes && at(OR)) {
+            PsiBuilder.Marker firstTypeRef = typeRefMarker;
+
+            typeRefMarker = typeRefMarker.precede();
+            PsiBuilder.Marker unionType = firstTypeRef.precede();
+
+            firstTypeRef.done(TYPE_REFERENCE);
+
+            while (at(OR)) {
+                advance(); // |
+                parseTypeRef(extraRecoverySet, /* allowSimpleUnionTypes */ true, /* allowUnionTypes */ false);
+            }
+
+            unionType.done(UNION_TYPE);
+            wasUnion = true;
+        }
+
+        if (typeBeforeDot && at(DOT) && !wasIntersection && !wasUnion && !wasFunctionTypeParsed) {
             // This is a receiver for a function type
             //  A.(B) -> C
             //   ^

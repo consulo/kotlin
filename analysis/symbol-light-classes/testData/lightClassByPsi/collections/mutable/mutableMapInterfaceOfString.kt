@@ -1,4 +1,6 @@
-// WITH_STDLIB
+// STDLIB_JDK8
+// FULL_JDK
+// LIBRARY_PLATFORMS: JVM
 package test
 
 interface IMutableMap : MutableMap<String, String>
@@ -24,6 +26,10 @@ open class CMutableMap3 : IMutableMap {
         TODO("Not yet implemented")
     }
 
+    override fun remove(key: String, value: String): Boolean {
+        TODO("Not yet implemented")
+    }
+
     override val entries: MutableSet<MutableMap.MutableEntry<String, String>>
         get() = TODO("Not yet implemented")
     override val keys: MutableSet<String>
@@ -46,6 +52,10 @@ open class CMutableMap3 : IMutableMap {
     }
 
     override fun get(key: String): String? {
+        TODO("Not yet implemented")
+    }
+
+    override fun getOrDefault(key: String, defaultValue: String): String {
         TODO("Not yet implemented")
     }
 }

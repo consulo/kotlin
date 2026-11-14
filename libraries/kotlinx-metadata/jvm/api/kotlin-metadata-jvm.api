@@ -27,6 +27,8 @@ public final class kotlin/metadata/Attributes {
 	public static final fun getVisibility (Lkotlin/metadata/KmProperty;)Lkotlin/metadata/Visibility;
 	public static final fun getVisibility (Lkotlin/metadata/KmPropertyAccessorAttributes;)Lkotlin/metadata/Visibility;
 	public static final fun getVisibility (Lkotlin/metadata/KmTypeAlias;)Lkotlin/metadata/Visibility;
+	public static final fun isCompanionBlockMember (Lkotlin/metadata/KmFunction;)Z
+	public static final fun isCompanionBlockMember (Lkotlin/metadata/KmProperty;)Z
 	public static final fun isConst (Lkotlin/metadata/KmProperty;)Z
 	public static final fun isCrossinline (Lkotlin/metadata/KmValueParameter;)Z
 	public static final fun isData (Lkotlin/metadata/KmClass;)Z
@@ -53,11 +55,15 @@ public final class kotlin/metadata/Attributes {
 	public static final fun isOperator (Lkotlin/metadata/KmFunction;)Z
 	public static final fun isReified (Lkotlin/metadata/KmTypeParameter;)Z
 	public static final fun isSecondary (Lkotlin/metadata/KmConstructor;)Z
+	public static final fun isStatic (Lkotlin/metadata/KmFunction;)Z
+	public static final fun isStatic (Lkotlin/metadata/KmProperty;)Z
 	public static final fun isSuspend (Lkotlin/metadata/KmFunction;)Z
 	public static final fun isSuspend (Lkotlin/metadata/KmType;)Z
 	public static final fun isTailrec (Lkotlin/metadata/KmFunction;)Z
 	public static final fun isValue (Lkotlin/metadata/KmClass;)Z
 	public static final fun isVar (Lkotlin/metadata/KmProperty;)Z
+	public static final fun setCompanionBlockMember (Lkotlin/metadata/KmFunction;Z)V
+	public static final fun setCompanionBlockMember (Lkotlin/metadata/KmProperty;Z)V
 	public static final fun setConst (Lkotlin/metadata/KmProperty;Z)V
 	public static final fun setCrossinline (Lkotlin/metadata/KmValueParameter;Z)V
 	public static final fun setData (Lkotlin/metadata/KmClass;Z)V
@@ -106,6 +112,8 @@ public final class kotlin/metadata/Attributes {
 	public static final fun setReturnValueStatus (Lkotlin/metadata/KmFunction;Lkotlin/metadata/ReturnValueStatus;)V
 	public static final fun setReturnValueStatus (Lkotlin/metadata/KmProperty;Lkotlin/metadata/ReturnValueStatus;)V
 	public static final fun setSecondary (Lkotlin/metadata/KmConstructor;Z)V
+	public static final fun setStatic (Lkotlin/metadata/KmFunction;Z)V
+	public static final fun setStatic (Lkotlin/metadata/KmProperty;Z)V
 	public static final fun setSuspend (Lkotlin/metadata/KmFunction;Z)V
 	public static final fun setSuspend (Lkotlin/metadata/KmType;Z)V
 	public static final fun setTailrec (Lkotlin/metadata/KmFunction;Z)V
@@ -137,6 +145,15 @@ public final class kotlin/metadata/ClassNameKt {
 }
 
 public abstract interface annotation class kotlin/metadata/ExperimentalAnnotationsInMetadata : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class kotlin/metadata/ExperimentalCompanionBlocks : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class kotlin/metadata/ExperimentalCompanionBlocksAndExtensions : java/lang/annotation/Annotation {
+}
+
+public abstract interface annotation class kotlin/metadata/ExperimentalCompanionExtensions : java/lang/annotation/Annotation {
 }
 
 public abstract interface annotation class kotlin/metadata/ExperimentalContextReceivers : java/lang/annotation/Annotation {
@@ -494,6 +511,7 @@ public final class kotlin/metadata/KmEffectType : java/lang/Enum {
 	public static final field CALLS Lkotlin/metadata/KmEffectType;
 	public static final field RETURNS_CONSTANT Lkotlin/metadata/KmEffectType;
 	public static final field RETURNS_NOT_NULL Lkotlin/metadata/KmEffectType;
+	public static final field RETURNS_PARAMETER Lkotlin/metadata/KmEffectType;
 	public static final field RETURNS_RESULT_OF Lkotlin/metadata/KmEffectType;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lkotlin/metadata/KmEffectType;
@@ -531,6 +549,7 @@ public final class kotlin/metadata/KmFunction {
 	public field returnType Lkotlin/metadata/KmType;
 	public fun <init> (Ljava/lang/String;)V
 	public final fun getAnnotations ()Ljava/util/List;
+	public final fun getCompanionExtensionReceiverType ()Lkotlin/metadata/KmType;
 	public final fun getCompilerPluginMetadata ()Ljava/util/Map;
 	public final fun getContextParameters ()Ljava/util/List;
 	public final fun getContextReceiverTypes ()Ljava/util/List;
@@ -542,6 +561,7 @@ public final class kotlin/metadata/KmFunction {
 	public final fun getTypeParameters ()Ljava/util/List;
 	public final fun getValueParameters ()Ljava/util/List;
 	public final fun getVersionRequirements ()Ljava/util/List;
+	public final fun setCompanionExtensionReceiverType (Lkotlin/metadata/KmType;)V
 	public final fun setContract (Lkotlin/metadata/KmContract;)V
 	public final fun setName (Ljava/lang/String;)V
 	public final fun setReceiverParameterType (Lkotlin/metadata/KmType;)V
@@ -567,6 +587,7 @@ public final class kotlin/metadata/KmProperty {
 	public fun <init> (Ljava/lang/String;)V
 	public final fun getAnnotations ()Ljava/util/List;
 	public final fun getBackingFieldAnnotations ()Ljava/util/List;
+	public final fun getCompanionExtensionReceiverType ()Lkotlin/metadata/KmType;
 	public final fun getCompilerPluginMetadata ()Ljava/util/Map;
 	public final fun getContextParameters ()Ljava/util/List;
 	public final fun getContextReceiverTypes ()Ljava/util/List;
@@ -580,6 +601,7 @@ public final class kotlin/metadata/KmProperty {
 	public final fun getSetterParameter ()Lkotlin/metadata/KmValueParameter;
 	public final fun getTypeParameters ()Ljava/util/List;
 	public final fun getVersionRequirements ()Ljava/util/List;
+	public final fun setCompanionExtensionReceiverType (Lkotlin/metadata/KmType;)V
 	public final fun setName (Ljava/lang/String;)V
 	public final fun setReceiverParameterType (Lkotlin/metadata/KmType;)V
 	public final fun setReturnType (Lkotlin/metadata/KmType;)V
@@ -779,6 +801,7 @@ public final class kotlin/metadata/jvm/JvmAttributes {
 	public static final fun getHasAnnotationsInBytecode (Lkotlin/metadata/KmPropertyAccessorAttributes;)Z
 	public static final fun getHasAnnotationsInBytecode (Lkotlin/metadata/KmValueParameter;)Z
 	public static final fun getHasMethodBodiesInInterface (Lkotlin/metadata/KmClass;)Z
+	public static final fun getVisibility (Lkotlin/metadata/jvm/KotlinClassMetadata$SyntheticClass;)Lkotlin/metadata/Visibility;
 	public static final fun isCompiledInCompatibilityMode (Lkotlin/metadata/KmClass;)Z
 	public static final fun isMovedFromInterfaceCompanion (Lkotlin/metadata/KmProperty;)Z
 	public static final fun setCompiledInCompatibilityMode (Lkotlin/metadata/KmClass;Z)V
@@ -790,6 +813,7 @@ public final class kotlin/metadata/jvm/JvmAttributes {
 	public static final fun setHasAnnotationsInBytecode (Lkotlin/metadata/KmValueParameter;Z)V
 	public static final fun setHasMethodBodiesInInterface (Lkotlin/metadata/KmClass;Z)V
 	public static final fun setMovedFromInterfaceCompanion (Lkotlin/metadata/KmProperty;Z)V
+	public static final fun setVisibility (Lkotlin/metadata/jvm/KotlinClassMetadata$SyntheticClass;Lkotlin/metadata/Visibility;)V
 }
 
 public final class kotlin/metadata/jvm/JvmExtensionsKt {
@@ -999,6 +1023,8 @@ public final class kotlin/metadata/jvm/KotlinModuleMetadata {
 	public final fun getKmModule ()Lkotlin/metadata/jvm/KmModule;
 	public final fun getVersion ()Lkotlin/metadata/jvm/JvmMetadataVersion;
 	public static final fun read ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
+	public static final fun readLenient ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
+	public static final fun readStrict ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
 	public final fun setKmModule (Lkotlin/metadata/jvm/KmModule;)V
 	public final fun setVersion (Lkotlin/metadata/jvm/JvmMetadataVersion;)V
 	public final fun write ()[B
@@ -1006,6 +1032,8 @@ public final class kotlin/metadata/jvm/KotlinModuleMetadata {
 
 public final class kotlin/metadata/jvm/KotlinModuleMetadata$Companion {
 	public final fun read ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
+	public final fun readLenient ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
+	public final fun readStrict ([B)Lkotlin/metadata/jvm/KotlinModuleMetadata;
 }
 
 public abstract interface annotation class kotlin/metadata/jvm/UnstableMetadataApi : java/lang/annotation/Annotation {

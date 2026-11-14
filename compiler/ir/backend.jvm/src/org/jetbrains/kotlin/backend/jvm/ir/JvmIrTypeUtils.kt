@@ -23,8 +23,8 @@ import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.util.erasedUpperBound
+import org.jetbrains.kotlin.ir.util.isNullable
 
 /**
  * Get the default null/0 value for the type.
@@ -39,7 +39,7 @@ fun IrType.defaultValue(startOffset: Int, endOffset: Int, context: JvmBackendCon
         return classifier.owner.representativeUpperBound.defaultValue(startOffset, endOffset, context)
     }
 
-    if (this !is IrSimpleType || this.isMarkedNullable() || classOrNull?.owner?.isSingleFieldValueClass != true)
+    if (this !is IrSimpleType || this.isMarkedNullable() || classOrNull?.owner?.isInlineClass != true)
         return IrConstImpl.defaultValueForType(startOffset, endOffset, this)
 
     val underlyingType = unboxInlineClass()
@@ -51,21 +51,20 @@ fun IrType.defaultValue(startOffset: Int, endOffset: Int, context: JvmBackendCon
     }
 }
 
+fun IrType.isFullValueClassType(): Boolean =
+    erasedUpperBound.isFullValueClass
+
 fun IrType.isInlineClassType(): Boolean {
     // Workaround for KT-69856
     return if (this is IrSimpleType && classifier.owner is IrScript) {
         false
     } else {
-        erasedUpperBound.isSingleFieldValueClass
+        erasedUpperBound.isInlineClass
     }
 }
 
 fun IrType.isBoxedInlineClassType(): Boolean =
     isInlineClassType() && isNullable() && unboxInlineClass().let { it.isPrimitiveType() || it.isNullable() }
-
-fun IrType.isMultiFieldValueClassType(): Boolean = erasedUpperBound.isMultiFieldValueClass
-
-fun IrType.isValueClassType(): Boolean = erasedUpperBound.isValue
 
 val IrType.upperBound: IrSimpleType
     get() = erasedUpperBound.symbol.starProjectedType

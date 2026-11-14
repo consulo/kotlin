@@ -14,7 +14,9 @@ private fun WasmOp.pureStacklessInstruction() = when (this) {
 }
 
 private fun WasmOp.isOutCfgNode() = when (this) {
-    WasmOp.UNREACHABLE, WasmOp.RETURN, WasmOp.THROW, WasmOp.THROW_REF, WasmOp.RETHROW, WasmOp.BR, WasmOp.BR_TABLE -> true
+    WasmOp.UNREACHABLE, WasmOp.RETURN, WasmOp.THROW, WasmOp.THROW_REF, WasmOp.RETHROW, WasmOp.BR, WasmOp.BR_TABLE,
+    WasmOp.RETURN_CALL, WasmOp.RETURN_CALL_INDIRECT, WasmOp.RETURN_CALL_REF
+        -> true
     else -> false
 }
 
@@ -22,6 +24,7 @@ private fun WasmOp.isInCfgNode() = when (this) {
     WasmOp.ELSE, WasmOp.CATCH, WasmOp.CATCH_ALL -> true
     else -> false
 }
+
 
 internal abstract class OptimizeFlow {
     abstract fun push(instruction: WasmInstr)
@@ -98,7 +101,6 @@ private class RemoveInstructionPriorUnreachable(output: OptimizeFlow) : Optimize
             if (first.operator != WasmOp.NOP) {
                 val firstLocation = first.location as? SourceLocation.DefinedLocation
                 if (firstLocation != null) {
-                    //replace first instruction to NOP
                     output.push(wasmInstrWithLocation(WasmOp.NOP, firstLocation))
                 }
             }
@@ -108,10 +110,9 @@ private class RemoveInstructionPriorUnreachable(output: OptimizeFlow) : Optimize
     }
 
     override fun flash() {
-        firstInstruction?.let {
-            push(it)
-            firstInstruction = null
-        }
+        val first = firstInstruction ?: return
+        output.push(first)
+        firstInstruction = null
     }
 }
 
@@ -141,18 +142,16 @@ private class RemoveInstructionPriorDrop(output: OptimizeFlow) : OptimizeFlowBas
         if (second.operator == WasmOp.DROP && first.operator.pureStacklessInstruction()) {
             val firstLocation = first.location as? SourceLocation.DefinedLocation
             if (firstLocation != null) {
-                //replace first instruction
                 firstInstruction = wasmInstrWithLocation(WasmOp.NOP, firstLocation)
                 secondInstruction = instruction
             } else {
-                //eat both instructions
                 firstInstruction = instruction
                 secondInstruction = null
             }
         } else {
+            output.push(first)
             firstInstruction = second
             secondInstruction = instruction
-            output.push(first)
         }
     }
 
@@ -161,7 +160,6 @@ private class RemoveInstructionPriorDrop(output: OptimizeFlow) : OptimizeFlowBas
             output.push(it)
             firstInstruction = null
         }
-
         secondInstruction?.let {
             output.push(it)
             secondInstruction = null
@@ -169,12 +167,15 @@ private class RemoveInstructionPriorDrop(output: OptimizeFlow) : OptimizeFlowBas
     }
 }
 
-
 private class MergeSetAndGetIntoTee(output: OptimizeFlow) : OptimizeFlowBase(output) {
     private var firstInstruction: WasmInstr? = null
 
     override fun push(instruction: WasmInstr) {
         if (instruction.operator.opcode == WASM_OP_PSEUDO_OPCODE) {
+            // If the pseudo-instruction is an annotation between
+            // LOCAL_SET and LOCAL_GET, it should prevent merging into
+            // LOCAL_TEE, so flush the buffered instruction and pass
+            // the annotation through immediately.
             flash()
             output.push(instruction)
             return
@@ -197,22 +198,24 @@ private class MergeSetAndGetIntoTee(output: OptimizeFlow) : OptimizeFlowBase(out
 
             if (getNumber == setNumber) {
                 val location = instruction.location
-                firstInstruction = if (location != null) {
+                val tee = if (location != null) {
                     wasmInstrWithLocation(WasmOp.LOCAL_TEE, location, firstImmediate)
                 } else {
                     wasmInstrWithoutLocation(WasmOp.LOCAL_TEE, firstImmediate)
                 }
+                output.push(tee)
+                firstInstruction = null
                 return
             }
         }
 
-        firstInstruction = instruction
         output.push(first)
+        firstInstruction = instruction
     }
 
     override fun flash() {
-        firstInstruction?.let {
-            output.push(it)
+        firstInstruction?.let { first ->
+            output.push(first)
             firstInstruction = null
         }
     }

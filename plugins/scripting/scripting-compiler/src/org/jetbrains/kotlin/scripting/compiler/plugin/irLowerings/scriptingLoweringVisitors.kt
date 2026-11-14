@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactory1
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.at
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.declarations.*
@@ -134,7 +135,7 @@ internal open class ScriptLikeAccessCallsGenerator(
         implicitReceiversFieldsWithParameters.firstOrNull {
             if (originalReceiverParameter != null) it.second == originalReceiverParameter
             else it.second.type == receiverType
-        }?.let { (field, param) ->
+        }?.let { [field, param] ->
             val builder = context.irBuiltIns.createIrBuilder(expression.symbol)
             return if (data.isInScriptConstructor) {
                 builder.irGet(param.type, param.symbol)

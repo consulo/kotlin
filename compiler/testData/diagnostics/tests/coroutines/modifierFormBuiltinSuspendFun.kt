@@ -1,6 +1,4 @@
 // RUN_PIPELINE_TILL: FRONTEND
-// LANGUAGE: +ModifierNonBuiltinSuspendFunError
-// SKIP_TXT
 
 infix fun Int.suspend(c: () -> Unit) {}
 

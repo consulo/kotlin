@@ -5,9 +5,13 @@
 
 package org.jetbrains.kotlin.native.interop.gen
 
+import org.jetbrains.kotlin.backend.common.IdSignaturesExtractor
+import org.jetbrains.kotlin.backend.common.KlibSignatureIndexComponentWriterImpl
 import org.jetbrains.kotlin.config.KlibAbiCompatibilityLevel
 import org.jetbrains.kotlin.config.KotlinCompilerVersion
+import org.jetbrains.kotlin.ir.util.IdSignature
 import org.jetbrains.kotlin.konan.library.AbstractNativeKlibWriterTest
+import org.jetbrains.kotlin.library.KlibMockDSL
 import org.jetbrains.kotlin.library.KotlinAbiVersion
 import org.jetbrains.kotlin.library.SerializedIrModule
 import org.jetbrains.kotlin.library.loader.KlibLoader
@@ -17,9 +21,10 @@ import org.jetbrains.kotlin.native.interop.gen.jvm.createInteropLibrary
 import org.jetbrains.kotlin.util.toCInteropKlibMetadataVersion
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assumptions.abort
-import java.io.File
+import java.nio.file.Path
 import java.util.Properties
 import kotlin.collections.forEach
+import kotlin.io.path.nameWithoutExtension
 
 class CInteropKlibWritingTest : AbstractNativeKlibWriterTest<CInteropParameters>(::CInteropParameters) {
     class CInteropParameters : NativeParameters() {
@@ -39,6 +44,8 @@ class CInteropKlibWritingTest : AbstractNativeKlibWriterTest<CInteropParameters>
         override var ir: SerializedIrModule?
             get() = null
             set(_) = abort<Nothing>("createInteropLibrary() does not support serialization of IR")
+
+        var signatureIndex: Pair<Set<IdSignature>, Set<IdSignature>> = emptySet<IdSignature>() to emptySet<IdSignature>()
     }
 
     @Test
@@ -50,24 +57,55 @@ class CInteropKlibWritingTest : AbstractNativeKlibWriterTest<CInteropParameters>
         }
     }
 
-    override fun writeKlib(parameters: CInteropParameters): File {
+    @Test
+    fun `Writing a klib with signature index`() {
+        fun generateSignatures(): Set<IdSignature> = List(5) { index ->
+            IdSignature.CommonSignature(
+                    packageFqName = KlibMockDSL.generateRandomPackageName(index + 1),
+                    declarationFqName = KlibMockDSL.generateRandomName(10),
+                    id = null,
+                    mask = 0,
+                    description = null
+            )
+        }.toSet()
+
+        listOf(true, false).forEach { useSignatureIndex ->
+            runTestWithParameters {
+                if (useSignatureIndex) {
+                    signatureIndex = generateSignatures() to generateSignatures()
+                }
+            }
+        }
+    }
+
+    context(dsl: KlibMockDSL)
+    override fun customizeMockKlib(parameters: CInteropParameters) {
+        super.customizeMockKlib(parameters)
+        KlibSignatureIndexComponentWriterImpl(parameters.signatureIndex.first, parameters.signatureIndex.second).writeTo(dsl.rootDir)
+    }
+
+    override fun writeKlib(parameters: CInteropParameters): Path {
         val klibDir = createNewKlibDir()
         val klibLocation = if (parameters.nopack) klibDir else klibDir.resolveSibling(klibDir.nameWithoutExtension + ".klib")
 
         createInteropLibrary(
                 serializedMetadata = parameters.metadata,
-                outputPath = klibLocation.path,
+                outputPath = klibLocation,
                 moduleName = parameters.uniqueName,
-                nativeBitcodeFiles = parameters.bitcodeFiles.map { it.file.path },
+                nativeBitcodeFiles = parameters.bitcodeFiles.map { it.file },
                 target = parameters.target,
                 manifest = Properties().apply {
-                    parameters.customManifestProperties.forEach { (key, value) -> setProperty(key, value) }
+                    parameters.customManifestProperties.forEach { [key, value] -> setProperty(key, value) }
                 },
                 dependencies = KlibLoader { libraryPaths(parameters.dependencies.map { it.path }) }.load().librariesStdlibFirst,
                 nopack = parameters.nopack,
                 shortName = parameters.shortName,
-                staticLibraries = parameters.nativeIncludedBinaryFiles.map { it.file.path },
+                staticLibraries = parameters.nativeIncludedBinaryFiles.map { it.file },
                 klibAbiCompatibilityLevel = parameters.abiLevel,
+                topLevelSignatures = IdSignaturesExtractor.ExtractedSignatures(
+                        declaredSignatures = parameters.signatureIndex.first,
+                        importedSignatures = parameters.signatureIndex.second
+                ),
         )
 
         return klibLocation

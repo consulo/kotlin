@@ -3,29 +3,27 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName", "DEPRECATION")
+@file:Suppress("DEPRECATION")
 
 package org.jetbrains.kotlin.gradle.unitTests
 
-import org.gradle.kotlin.dsl.get
-import org.gradle.kotlin.dsl.newInstance
 import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments
 import org.jetbrains.kotlin.cli.common.arguments.parseCommandLineArguments
 import org.jetbrains.kotlin.compilerRunner.ArgumentUtils
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
-import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
-import org.jetbrains.kotlin.gradle.internal.CompilerArgumentAware
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext.Companion.lenient
 import org.jetbrains.kotlin.gradle.plugin.mpp.disambiguateName
 import org.jetbrains.kotlin.gradle.tasks.*
 import org.jetbrains.kotlin.gradle.tasks.K2MultiplatformStructure.Fragment
 import org.jetbrains.kotlin.gradle.tasks.K2MultiplatformStructure.RefinesEdge
 import org.jetbrains.kotlin.gradle.util.*
-import kotlin.test.Test
+import org.jetbrains.kotlin.gradle.utils.newInstance
 import java.io.File
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.fail
 
@@ -126,7 +124,7 @@ class K2MultiplatformStructureTest {
 
         // Add extra source file
         targets.forEach { target ->
-            val compileTask = target.compilations.get("main").compileTaskProvider.get() as KotlinCompileTool
+            val compileTask = target.compilations.getByName("main").compileTaskProvider.get() as KotlinCompileTool
             val extraSourceFile = project.file("${target.disambiguateName("generated")}.kt").also {
                 it.parentFile.mkdirs()
                 it.writeText("fun generated() {}")
@@ -137,7 +135,7 @@ class K2MultiplatformStructureTest {
         project.evaluate()
 
         val actualFragmentSources = targets.associate { target ->
-            val compileTask = target.compilations.get("main").compileTaskProvider.get() as K2MultiplatformCompilationTask
+            val compileTask = target.compilations.getByName("main").compileTaskProvider.get() as K2MultiplatformCompilationTask
             val args = compileTask.buildCompilerArguments()
 
             target.name to args.fragmentSources.toList().map {
@@ -177,12 +175,6 @@ class K2MultiplatformStructureTest {
                 parentFile.mkdirs()
                 writeText("object ${sourceSet.name}")
             }
-        }
-
-        /* Enable K2 if necessary */
-        if (KotlinVersion.DEFAULT < KotlinVersion.KOTLIN_2_0) {
-            @Suppress("Deprecation")
-            compilation.compilerOptions.options.languageVersion.set(KotlinVersion.KOTLIN_2_0)
         }
 
         val compileTask = compilation.compileTaskProvider.get() as K2MultiplatformCompilationTask
@@ -242,8 +234,8 @@ class K2MultiplatformStructureTest {
 private fun K2MultiplatformCompilationTask.buildCompilerArguments(): CommonCompilerArguments {
     /* KotlinNative implements CompilerArgumentAware, but does not adhere to its contract */
     @Suppress("UNCHECKED_CAST")
-    this as CompilerArgumentAware<CommonCompilerArguments>
-    return this.createCompilerArguments(lenient)
+    this as KotlinCompilerArgumentsProducer
+    return this.createCompilerArguments(lenient) as CommonCompilerArguments
 }
 
 internal fun CommonCompilerArguments.configureK2Multiplatform(multiplatformStructure: K2MultiplatformStructure) {

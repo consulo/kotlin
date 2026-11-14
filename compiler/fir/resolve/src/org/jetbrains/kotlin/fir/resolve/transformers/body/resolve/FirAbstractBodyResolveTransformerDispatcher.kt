@@ -108,6 +108,7 @@ abstract class FirAbstractBodyResolveTransformerDispatcher(
                     context.containingClassDeclarations,
                     context.file,
                     context.topContainerForTypeResolution,
+                    lastCompanionBlockOwner = context.lastCompanionBlockOwner,
                 )
             )
         }
@@ -189,6 +190,15 @@ abstract class FirAbstractBodyResolveTransformerDispatcher(
         superReceiverExpression,
         data,
         FirExpressionsResolveTransformer::transformSuperReceiverExpression,
+    )
+
+    override fun transformComponentCall(
+        componentCall: FirComponentCall,
+        data: ResolutionMode,
+    ): FirStatement = expressionTransformation(
+        componentCall,
+        data,
+        FirExpressionsResolveTransformer::transformComponentCall,
     )
 
     override fun transformFunctionCall(

@@ -15,6 +15,7 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.*
 import org.gradle.work.DisableCachingByDefault
+import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.gradle.plugin.cocoapods.CocoapodsExtension.CocoapodsDependency
 import org.jetbrains.kotlin.gradle.plugin.cocoapods.CocoapodsExtension.CocoapodsDependency.PodLocation.Path
 import org.jetbrains.kotlin.gradle.plugin.cocoapods.cocoapodsBuildDirs
@@ -40,6 +41,7 @@ abstract class PodBuildTask @Inject constructor(
 
     @get:PathSensitive(PathSensitivity.RELATIVE)
     @get:InputFile
+    @get:NormalizeLineEndings
     abstract val buildSettingsFile: RegularFileProperty
 
     @get:Nested
@@ -59,6 +61,7 @@ abstract class PodBuildTask @Inject constructor(
     @get:PathSensitive(PathSensitivity.RELATIVE)
     @get:IgnoreEmptyDirectories
     @get:InputDirectory
+    @get:NormalizeLineEndings
     internal val srcDir: Provider<Directory> = pod.flatMap { pod ->
         val podLocation = pod.source
         if (podLocation is Path) {
@@ -82,6 +85,7 @@ abstract class PodBuildTask @Inject constructor(
             it.include("**/${pod.get().schemeName}.*/")
             it.include("**/${pod.get().schemeName}/")
             it.exclude("XCBuildData/**")
+            it.exclude("EagerLinkingTBDs/**") // shared dir pruned across pod builds (Xcode 27 eager linking) — not a stable output
         }
 
     @get:Internal

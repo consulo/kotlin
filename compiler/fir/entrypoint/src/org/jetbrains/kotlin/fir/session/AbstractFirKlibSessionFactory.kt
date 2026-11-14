@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.fir.deserialization.ModuleDataProvider
 import org.jetbrains.kotlin.fir.deserialization.SingleModuleDataProvider
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
+import org.jetbrains.kotlin.fir.resolve.providers.impl.FirNonErrorSymbolProvider
 import org.jetbrains.kotlin.fir.scopes.FirKotlinScopeProvider
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.name.Name
@@ -47,7 +48,9 @@ abstract class AbstractFirKlibSessionFactory<CONTEXT> : FirAbstractSessionFactor
         scopeProvider: FirKotlinScopeProvider,
         context: CONTEXT,
     ): List<FirSymbolProvider> {
-        return emptyList()
+        return listOfNotNull(
+            FirNonErrorSymbolProvider.createIfRichErrorsEnabled(session, moduleData, scopeProvider),
+        )
     }
 
     // ==================================== Library session ====================================
@@ -110,7 +113,7 @@ abstract class AbstractFirKlibSessionFactory<CONTEXT> : FirAbstractSessionFactor
         moduleData: FirModuleData,
         extensionRegistrars: List<FirExtensionRegistrar>,
         configuration: CompilerConfiguration,
-        isForLeafHmppModule: Boolean,
+        kmpModuleKind: KmpModuleKind,
         icData: KlibIcData? = null,
         init: FirSessionConfigurator.() -> Unit
     ): FirSession {
@@ -120,11 +123,11 @@ abstract class AbstractFirKlibSessionFactory<CONTEXT> : FirAbstractSessionFactor
             context,
             extensionRegistrars,
             configuration,
-            isForLeafHmppModule,
+            kmpModuleKind,
             init,
             createProviders = { session, kotlinScopeProvider, symbolProvider, generatedSymbolsProvider ->
                 SourceProviders(
-                    listOfNotNull(
+                    sourceProviders = listOfNotNull(
                         symbolProvider,
                         generatedSymbolsProvider,
                         icData?.let {
@@ -136,7 +139,8 @@ abstract class AbstractFirKlibSessionFactory<CONTEXT> : FirAbstractSessionFactor
                                 flexibleTypeFactory = createFlexibleTypeFactory(session),
                             )
                         },
-                    )
+                    ),
+                    incrementalProvider = null,
                 )
             }
         )

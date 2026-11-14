@@ -1,15 +1,16 @@
 FILE[kind=File[packageFqName=<root>]]
   PACKAGE_DIRECTIVE
   IMPORT_LIST
-  CLASS[classId=/MyAnnotation, fqName=MyAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=MyAnnotation, superNames=[]]
+  CLASS[classId=/MyAnnotation, fqName=MyAnnotation, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=MyAnnotation, superNames=[]]
     MODIFIER_LIST[annotation]
-  CLASS[classId=/A, fqName=A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=A, superNames=[]]
+  CLASS[classId=/A, fqName=A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=A, superNames=[]]
     CLASS_BODY
       PROPERTY[fqName=A.x, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=true, hasReturnTypeRef=false, isExtension=false, isTopLevel=false, isVar=false, name=x]
-  CLASS[classId=/B, fqName=B, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=B, superNames=[]]
-  CLASS[classId=/ContextParametersOnCallableMembers, fqName=ContextParametersOnCallableMembers, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=ContextParametersOnCallableMembers, superNames=[]]
+        INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=1]
+  CLASS[classId=/B, fqName=B, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=B, superNames=[]]
+  CLASS[classId=/ContextParametersOnCallableMembers, fqName=ContextParametersOnCallableMembers, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=ContextParametersOnCallableMembers, superNames=[]]
     CLASS_BODY
-      FUN[fqName=ContextParametersOnCallableMembers.function, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=true, isTopLevel=false, mayHaveContract=false, name=function]
+      FUNCTION[fqName=ContextParametersOnCallableMembers.function, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=true, isTopLevel=false, mayHaveContract=false, name=function]
         MODIFIER_LIST[]
           CONTEXT_PARAMETER_LIST
             VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=a]
@@ -32,6 +33,9 @@ FILE[kind=File[packageFqName=<root>]]
         TYPE_REFERENCE
           USER_TYPE
             REFERENCE_EXPRESSION[referencedName=Int]
+        DOT_QUALIFIED_EXPRESSION
+          REFERENCE_EXPRESSION[referencedName=a]
+          REFERENCE_EXPRESSION[referencedName=x]
       PROPERTY[fqName=ContextParametersOnCallableMembers.property, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=true, isTopLevel=false, isVar=false, name=property]
         MODIFIER_LIST[]
           CONTEXT_PARAMETER_LIST
@@ -56,6 +60,9 @@ FILE[kind=File[packageFqName=<root>]]
             REFERENCE_EXPRESSION[referencedName=Int]
         PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=false, isGetter=true, mayHaveContract=false]
           VALUE_PARAMETER_LIST
+          DOT_QUALIFIED_EXPRESSION
+            REFERENCE_EXPRESSION[referencedName=a]
+            REFERENCE_EXPRESSION[referencedName=x]
       PROPERTY[fqName=ContextParametersOnCallableMembers.propertyWithSetter, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=true, isTopLevel=false, isVar=true, name=propertyWithSetter]
         MODIFIER_LIST[]
           CONTEXT_PARAMETER_LIST
@@ -80,6 +87,9 @@ FILE[kind=File[packageFqName=<root>]]
             REFERENCE_EXPRESSION[referencedName=Int]
         PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=false, isGetter=true, mayHaveContract=false]
           VALUE_PARAMETER_LIST
+          DOT_QUALIFIED_EXPRESSION
+            REFERENCE_EXPRESSION[referencedName=a]
+            REFERENCE_EXPRESSION[referencedName=x]
         PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=true, isGetter=false, mayHaveContract=false]
           VALUE_PARAMETER_LIST
             VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=v]

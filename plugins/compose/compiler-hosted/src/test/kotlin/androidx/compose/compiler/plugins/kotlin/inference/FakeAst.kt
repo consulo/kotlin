@@ -326,7 +326,7 @@ fun resolve(data: Map<String, Function>): Resolutions {
     val resolvedNodes = mutableMapOf<Node, ResolvedType>()
 
     val rootScope = Scope(
-        data.entries.associate { (name, function) ->
+        data.entries.associate { [name, function] ->
             name to (function resolvesTo function.type)
         }
     )
@@ -471,18 +471,31 @@ fun containersOf(data: Map<String, Function>): Map<Node, Node> {
 }
 
 private fun <T> List<T>.sameContentAs(other: List<T>) =
-    other == this || (size == other.size && zip(other).all { (a, b) -> a == b })
+    other == this || (size == other.size && zip(other).all { [a, b] -> a == b })
 
 private fun <K, V> Map<K, V>.toPairs() =
     entries.map { entry -> entry.key to entry.value }
 
-private fun List<Annotation>.item(): Item? =
-    firstOrNull { it.name == "ComposableTarget" }?.let { Token(it.value) }
-        ?: firstOrNull { it.name == "ComposableOpenTarget" }?.let { Open(it.value.toInt()) }
+private fun List<Annotation>.item(): Item? {
+    val targetsFromAnnotations = filter { it.name == "ComposableTarget" }.map { it.value }.toSet()
+    val explicitOpen = firstOrNull { it.name == "ComposableOpenTarget" }?.value?.toInt()
+    return when {
+        targetsFromAnnotations.size == 1 -> Token(targetsFromAnnotations.first())
+        targetsFromAnnotations.size > 1 -> Open(
+            explicitOpen ?: -1, constraints = Constraints.restrictedTo(targetsFromAnnotations)
+        )
+        explicitOpen != null -> Open(explicitOpen)
+        else -> null
+    }
+}
 
 val composable = listOf(Annotation("Composable"))
 val uiTarget = listOf(Annotation("ComposableTarget", "UI"))
 val vectorTarget = listOf(Annotation("ComposableTarget", "Vector"))
+val wTarget = listOf(Annotation("ComposableTarget", "w"))
+val xTarget = listOf(Annotation("ComposableTarget", "x"))
+val yTarget = listOf(Annotation("ComposableTarget", "y"))
+val zTarget = listOf(Annotation("ComposableTarget", "z"))
 fun composableLambda() = FunctionType("lambda", annotations = composable)
 fun call(name: String, vararg args: Node) = Call(Ref(name), arguments = args.toList())
 fun lambda(vararg body: Node) = Lambda(type = composableLambda(), body = body.toList())

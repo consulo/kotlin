@@ -1,13 +1,13 @@
 import gradle.GradlePluginVariant
+import gradle.addKgpGradleApiDependency
+import gradle.removeGradleApiDependencyFromTestConfiguration
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("gradle-plugin-common-configuration")
     `jvm-test-suite`
     id("gradle-plugin-api-reference")
-}
-
-repositories {
-    google()
 }
 
 dependencies {
@@ -49,26 +49,31 @@ pluginApiReference {
 
 testing {
     suites {
-        val coreDepsVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation.get()
-        val test by getting(JvmTestSuite::class) {
+        val test = getByName<JvmTestSuite>("test") {
             useJUnitJupiter(libs.versions.junit5)
             dependencies {
-                implementation("org.jetbrains.kotlin:kotlin-stdlib:${coreDepsVersion}")
-                implementation("org.jetbrains.kotlin:kotlin-test:${coreDepsVersion}")
+                implementation("org.jetbrains.kotlin:kotlin-stdlib")
+                implementation("org.jetbrains.kotlin:kotlin-test")
+
+                compileOnly.addKgpGradleApiDependency()
+
+                runtimeOnly(gradleApi())
             }
         }
 
         register<JvmTestSuite>("functionalTest") {
             dependencies {
                 implementation(project())
-                implementation(gradleKotlinDsl())
                 implementation(project(":compiler:cli-base")) { isTransitive = false }
                 implementation(platform(libs.junit.bom))
                 implementation(libs.junit.jupiter.api)
-                implementation("org.jetbrains.kotlin:kotlin-stdlib:$coreDepsVersion")
-                implementation("org.jetbrains.kotlin:kotlin-test:$coreDepsVersion")
+                implementation("org.jetbrains.kotlin:kotlin-stdlib")
+                implementation("org.jetbrains.kotlin:kotlin-test")
+
+                compileOnly.addKgpGradleApiDependency()
 
                 runtimeOnly(libs.junit.jupiter.engine)
+                runtimeOnly(gradleApi())
             }
 
             targets {
@@ -109,3 +114,5 @@ configurations.all {
         }
     }
 }
+
+removeGradleApiDependencyFromTestConfiguration()

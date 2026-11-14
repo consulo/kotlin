@@ -16,9 +16,9 @@
 
 package androidx.compose.compiler.plugins.kotlin.inference
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class TestLazyScheme {
 
@@ -55,7 +55,7 @@ class TestLazyScheme {
     }
 
     @Test
-    fun canUpdateResult() {
+    fun canUpdateResultThroughUnificationWithClosedBindings() {
         val lazyScheme = LazyScheme(schemeOf("[0, [1], [2]:[0, [2], [1]]"))
         val bindings = lazyScheme.bindings
         val a = bindings.closed("a")
@@ -65,6 +65,30 @@ class TestLazyScheme {
         bindings.unify(lazyScheme.parameters[0].target, b)
         bindings.unify(lazyScheme.parameters[1].target, c)
         assertEquals(schemeOf("[a, [b], [c]:[a, [c], [b]]]"), lazyScheme.toScheme())
+    }
+
+    @Test
+    fun canUpdateResultThroughUnificationWithConstrainedOpenBindings() {
+        val lazyScheme = LazyScheme(schemeOf("[0, [1], [2]:[0, [2], [1]]"))
+        val bindings = lazyScheme.bindings
+        val a = bindings.open(constraints = Constraints.restrictedTo(setOf("U", "V")))
+        val b = bindings.open(constraints = Constraints.restrictedTo(setOf("W", "X")))
+        val c = bindings.open(constraints = Constraints.restrictedTo(setOf("Y", "Z")))
+        bindings.unify(lazyScheme.target, a)
+        bindings.unify(lazyScheme.parameters[0].target, b)
+        bindings.unify(lazyScheme.parameters[1].target, c)
+        assertEquals(
+            "[" +
+                    "Open(0, constrainedTo = {U, V}), " +
+                    "[Open(2, constrainedTo = {W, X})], [Open(1, constrainedTo = {Y, Z})]" +
+                    ": " +
+                    "[" +
+                    "Open(0, constrainedTo = {U, V}), " +
+                    "[Open(1, constrainedTo = {Y, Z})], [Open(2, constrainedTo = {W, X})]" +
+                    "]" +
+                    "]",
+            lazyScheme.toScheme().toString()
+        )
     }
 
     @Test

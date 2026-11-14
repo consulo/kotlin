@@ -7,18 +7,20 @@ package org.jetbrains.kotlin.gradle.native
 
 import org.gradle.api.JavaVersion
 import org.gradle.util.GradleVersion
-import org.jetbrains.kotlin.gradle.dsl.NativeCacheKind
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.OS
-import kotlin.io.path.appendText
 
 @DisplayName("KotlinNative isolated class loader test")
+@MustRunOnChangesInGradle
 @NativeGradlePluginTests
 internal class KotlinNativeIsolatedClassloaderIT : KGPBaseTest() {
 
+    @TestMetadata("compilerPlugins/pluginUsesJdkClass")
     @DisplayName("KT-65761: K2Native isolated class loader should be able to load platform classes")
-    @JdkVersions(versions = [JavaVersion.VERSION_1_8, JavaVersion.VERSION_21])
+    @JdkVersions(versions = [JavaVersion.VERSION_21])
     @GradleWithJdkTest
     @OsCondition(
         supportedOn = [OS.LINUX, OS.MAC, OS.WINDOWS],
@@ -30,7 +32,12 @@ internal class KotlinNativeIsolatedClassloaderIT : KGPBaseTest() {
          * We try to access it in the isolated classpath and ensure that it's not accessible there.
          */
         org.gradle.launcher.bootstrap.EntryPoint::class.java
-        nativeProject("compilerPlugins/pluginUsesJdkClass", gradleVersion, buildJdk = providedJdk.location) {
+        nativeProject(
+            "compilerPlugins/pluginUsesJdkClass",
+            gradleVersion,
+            buildJdk = providedJdk.location,
+            buildOptions = defaultBuildOptions.suppressDeprecatedJdkWarningWithGradle814(gradleVersion, providedJdk)
+        ) {
             build(":library:compileKotlinLinuxX64")
         }
     }

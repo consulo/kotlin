@@ -68,6 +68,19 @@ typealias TypealiasWithFactoryWithoutParameters2 = ClassWithFactoryWithoutParame
 //fun TypealiasWithFactoryWithoutParameters2(): ClassWithFactoryWithoutParameters =
 //    TypealiasWithFactoryWithoutParameters2(321)
 
+// FILE: subclass.kt
+
+interface Job
+
+interface CompletableJob: Job
+
+typealias TCJ = CompletableJob
+
+// Should be mangled because CompletableJob is a Job
+fun Job(parent: Job?): CompletableJob = TODO()
+
+fun Job(): TCJ = TODO()
+
 // FILE: enum.kt
 
 enum class EnumWithFactory {
@@ -109,3 +122,13 @@ import flattenedPackage.FlattenedPackageClass
 //  so they clash in Swift.
 // TODO KT-70758
 //fun FlattenedPackageClass(d: Double) = FlattenedPackageClass()
+
+// FILE: suffix.kt
+
+package test.factory.suffix
+
+sealed class Foo
+
+class BasicFoo internal constructor(arg: Boolean) : Foo()
+
+fun BasicFoo(): Foo = BasicFoo(true)

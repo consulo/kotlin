@@ -1,10 +1,11 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.test.services.configuration
 
+import org.jetbrains.kotlin.cli.common.testEnvironment
 import org.jetbrains.kotlin.codegen.forTestCompile.TestCompilePaths.KOTLIN_JS_KOTLIN_TEST_KLIB_PATH
 import org.jetbrains.kotlin.codegen.forTestCompile.TestCompilePaths.KOTLIN_JS_STDLIB_KLIB_PATH
 import org.jetbrains.kotlin.config.*
@@ -12,6 +13,7 @@ import org.jetbrains.kotlin.config.AnalysisFlags.allowFullyQualifiedNameInKClass
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.TranslationMode
 import org.jetbrains.kotlin.js.config.JsGenerationGranularity
 import org.jetbrains.kotlin.js.config.ModuleKind
+import org.jetbrains.kotlin.js.config.TsCompilationStrategy
 import org.jetbrains.kotlin.js.config.moduleKind
 import org.jetbrains.kotlin.test.directives.ConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.JsEnvironmentConfigurationDirectives
@@ -22,6 +24,7 @@ import org.jetbrains.kotlin.test.directives.model.RegisteredDirectives
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.*
 import org.jetbrains.kotlin.test.util.joinToArrayString
+import org.jetbrains.kotlin.utils.addToStdlib.butIf
 import java.io.File
 
 abstract class JsEnvironmentConfigurator(testServices: TestServices) : EnvironmentConfigurator(testServices),
@@ -50,24 +53,26 @@ abstract class JsEnvironmentConfigurator(testServices: TestServices) : Environme
             TranslationMode.PER_FILE_PROD_MINIMIZED_NAMES to "outPfMin"
         )
 
-        fun getJsModuleArtifactPath(testServices: TestServices, moduleName: String, translationMode: TranslationMode = TranslationMode.FULL_DEV): String {
-            return getJsArtifactsOutputDir(testServices, translationMode).absolutePath + File.separator + getJsModuleArtifactName(testServices, moduleName)
-        }
-
-        fun getRecompiledJsModuleArtifactPath(testServices: TestServices, moduleName: String, translationMode: TranslationMode = TranslationMode.FULL_DEV): String {
-            return getJsArtifactsRecompiledOutputDir(testServices, translationMode).absolutePath + File.separator + getJsModuleArtifactName(testServices, moduleName)
-        }
+        fun getJsModuleArtifactPath(
+            testServices: TestServices,
+            moduleName: String,
+            translationMode: TranslationMode = TranslationMode.FULL_DEV,
+            firstTimeCompilation: Boolean = true,
+        ): String = getJsArtifactsOutputDir(testServices, translationMode, firstTimeCompilation).absolutePath +
+                File.separator +
+                getJsModuleArtifactName(testServices, moduleName)
 
         fun getJsModuleArtifactName(testServices: TestServices, moduleName: String): String {
             return testServices.klibEnvironmentConfigurator.getKlibArtifactSimpleName(testServices, moduleName) + "_v5"
         }
 
-        fun getJsArtifactsOutputDir(testServices: TestServices, translationMode: TranslationMode = TranslationMode.FULL_DEV): File {
-            return testServices.temporaryDirectoryManager.getOrCreateTempDirectory(outputDirByMode[translationMode]!!)
-        }
-
-        fun getJsArtifactsRecompiledOutputDir(testServices: TestServices, translationMode: TranslationMode = TranslationMode.FULL_DEV): File {
-            return testServices.temporaryDirectoryManager.getOrCreateTempDirectory(outputDirByMode[translationMode]!! + "-recompiled")
+        fun getJsArtifactsOutputDir(
+            testServices: TestServices,
+            translationMode: TranslationMode = TranslationMode.FULL_DEV,
+            firstTimeCompilation: Boolean = true,
+        ): File {
+            val name = outputDirByMode[translationMode]!!.butIf(!firstTimeCompilation) { "$it-recompiled" }
+            return testServices.temporaryDirectoryManager.getOrCreateTempDirectory(name)
         }
 
         fun getMainModule(testServices: TestServices): TestModule {
@@ -103,16 +108,6 @@ abstract class JsEnvironmentConfigurator(testServices: TestServices) : Environme
             val runtimeClasspaths = testServices.runtimeClasspathProviders.flatMap { it.runtimeClassPaths(module) }
             runtimeClasspaths.mapTo(result) { it.absolutePath }
             return result
-        }
-
-        fun getMainCallParametersForModule(module: TestModule): List<String>? {
-            return when {
-                JsEnvironmentConfigurationDirectives.CALL_MAIN in module.directives -> listOf()
-                JsEnvironmentConfigurationDirectives.MAIN_ARGS in module.directives -> {
-                    module.directives[JsEnvironmentConfigurationDirectives.MAIN_ARGS].single()
-                }
-                else -> null
-            }
         }
 
         fun TestModule.hasFilesToRecompile(): Boolean {
@@ -156,6 +151,20 @@ abstract class JsEnvironmentConfigurator(testServices: TestServices) : Environme
                 .filter { isEsModules || it.granularity != JsGenerationGranularity.PER_FILE }
                 .toSet()
         }
+
+        fun getTypeScriptExportTranslationModes(testServices: TestServices, module: TestModule): List<TranslationMode> {
+            val globalDirectives = testServices.moduleStructure.allDirectives
+            return when (globalDirectives[JsEnvironmentConfigurationDirectives.TS_COMPILATION_STRATEGY].lastOrNull()) {
+                TsCompilationStrategy.MERGED -> listOf(
+                    when {
+                        JsEnvironmentConfigurationDirectives.SPLIT_PER_MODULE in globalDirectives -> TranslationMode.PER_MODULE_DEV
+                        else -> TranslationMode.FULL_DEV
+                    }
+                )
+                TsCompilationStrategy.EACH_FILE -> getTranslationModesForTest(testServices, module).filter { !it.production }
+                TsCompilationStrategy.NONE, null -> emptyList()
+            }
+        }
     }
 
     override fun provideAdditionalAnalysisFlags(
@@ -168,6 +177,7 @@ abstract class JsEnvironmentConfigurator(testServices: TestServices) : Environme
     }
 
     override fun configureCompilerConfiguration(configuration: CompilerConfiguration, module: TestModule) {
+        configuration.testEnvironment = true
         configuration.phaseConfig = createJsTestPhaseConfig(testServices, module)
 
         configuration.moduleKind = getModuleKind(testServices, module)

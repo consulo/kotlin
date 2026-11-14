@@ -12,9 +12,11 @@ import org.jetbrains.kotlin.fir.checkers.generator.diagnostics.model.Positioning
 import org.jetbrains.kotlin.fir.checkers.generator.diagnostics.model.upperBoundViolatedDiagnosticInit
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFieldSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -40,9 +42,6 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
 
         val FUNCTION_DELEGATE_MEMBER_NAME_CLASH by error<PsiElement>(PositioningStrategy.DECLARATION_NAME)
 
-        val VALUE_CLASS_WITHOUT_JVM_INLINE_ANNOTATION by error<PsiElement>()
-        val JVM_INLINE_WITHOUT_VALUE_CLASS by error<PsiElement>()
-
         val INAPPLICABLE_JVM_EXPOSE_BOXED_WITH_NAME by error<PsiElement>()
         val USELESS_JVM_EXPOSE_BOXED by warning<PsiElement>()
         val JVM_EXPOSE_BOXED_CANNOT_EXPOSE_SUSPEND by error<PsiElement>()
@@ -53,6 +52,12 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
         val JVM_EXPOSE_BOXED_CANNOT_EXPOSE_SYNTHETIC by error<PsiElement>()
         val JVM_EXPOSE_BOXED_CANNOT_EXPOSE_LOCALS by error<PsiElement>()
         val JVM_EXPOSE_BOXED_CANNOT_EXPOSE_REIFIED by error<PsiElement>()
+        val JVM_EXPOSE_BOXED_CANNOT_EXPOSE_PRIVATE by error<PsiElement>()
+        val JVM_EXPOSE_BOXED_CANNOT_EXPOSE_SEALED_CONSTRUCTOR by error<PsiElement>()
+        val JVM_EXPOSE_BOXED_CAN_BE_REPLACED_WITH_JVM_NAME by warning<PsiElement>()
+        val JVM_EXPOSE_BOXED_NAME_IS_NOT_JAVA_IDENTIFIER by warning<PsiElement> {
+            parameter<String>("name")
+        }
 
         val WRONG_TYPE_FOR_JAVA_OVERRIDE by warning<PsiElement>(PositioningStrategy.OVERRIDE_MODIFIER) {
             parameter<FirCallableSymbol<*>>("override")
@@ -79,6 +84,11 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
         }
 
         val CONFLICT_VERSION_AND_JVM_OVERLOADS_ANNOTATION by warning<PsiElement>()
+
+        val VALUE_CLASS_EXTENDS_VALUE_CLASS_COMPILED_AS_IDENTITY_CLASS by warning<KtElement> {
+            parameter<FirRegularClassSymbol>("valueClass")
+            parameter<ConeKotlinType>("superType")
+        }
     }
 
     val TYPES by object : DiagnosticGroup("Types") {
@@ -116,8 +126,15 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
             parameter<ConeKotlinType>("actualType")
             parameter<ConeKotlinType>("expectedType")
         }
+        val JAVA_CLASS_PROPERTY_REFERENCE by deprecationError<PsiElement>(
+            featureForError = ForbidJavaClassPropertyReferences,
+            positioningStrategy = PositioningStrategy.REFERENCED_NAME_BY_QUALIFIED,
+        )
 
         val UNEXHAUSTIVE_WHEN_BASED_ON_JAVA_ANNOTATIONS by warning<PsiElement>(PositioningStrategy.WHEN_EXPRESSION) {
+            parameter<ConeKotlinType>("subjectType")
+        }
+        val WHEN_SUBJECT_CAN_BE_NULL_IN_JAVA by warning<PsiElement>(PositioningStrategy.WHEN_EXPRESSION) {
             parameter<ConeKotlinType>("subjectType")
         }
     }
@@ -139,7 +156,8 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
         val SYNCHRONIZED_IN_ANNOTATION by deprecationError<KtAnnotationEntry>(ForbidJvmAnnotationsOnAnnotationParameters)
         val SYNCHRONIZED_ON_INLINE by warning<KtAnnotationEntry>()
         val SYNCHRONIZED_ON_VALUE_CLASS by deprecationError<KtAnnotationEntry>(ProhibitSynchronizationByValueClassesAndPrimitives)
-        val SYNCHRONIZED_ON_SUSPEND by deprecationError<KtAnnotationEntry>(SynchronizedSuspendError)
+        val SYNCHRONIZED_ON_WILL_BECOME_VALUE_CLASS by error<KtAnnotationEntry>()
+        val SYNCHRONIZED_ON_SUSPEND_ERROR by error<KtAnnotationEntry>()
         val OVERLOADS_WITHOUT_DEFAULT_ARGUMENTS by warning<KtAnnotationEntry>()
         val OVERLOADS_ABSTRACT by error<KtAnnotationEntry>()
         val OVERLOADS_INTERFACE by error<KtAnnotationEntry>()
@@ -155,6 +173,7 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
         val JVM_PACKAGE_NAME_NOT_SUPPORTED_IN_FILES_WITH_CLASSES by error<KtAnnotationEntry>()
 
         val POSITIONED_VALUE_ARGUMENT_FOR_JAVA_ANNOTATION by error<KtExpression>()
+        val POSITIONED_VALUE_ARGUMENT_FOR_JAVA_ANNOTATION_WARNING by warning<KtExpression>()
 
         val REDUNDANT_REPEATABLE_ANNOTATION by warning<KtAnnotationEntry> {
             parameter<FqName>("kotlinRepeatable")
@@ -169,6 +188,12 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
             parameter<Collection<String>>("correspondingKotlinTargets")
         }
         val ANNOTATION_TARGETS_ONLY_IN_JAVA by warning<KtAnnotationEntry>()
+        val ANNOTATION_TARGETS_NON_EXISTENT_ACCESSOR by warning<KtAnnotationEntry> {
+            parameter<String>("declarationName")
+        }
+        val RUNTIME_ANNOTATION_ON_LAMBDA_IS_NOT_RETAINED by warning<KtAnnotationEntry> {
+            parameter<FirClassLikeSymbol<*>>("annotationClass")
+        }
     }
 
     val SUPER by object : DiagnosticGroup("Super") {
@@ -185,6 +210,7 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
         val ENUM_JVM_RECORD by error<PsiElement>(PositioningStrategy.ENUM_MODIFIER)
         val JVM_RECORD_WITHOUT_PRIMARY_CONSTRUCTOR_PARAMETERS by error<PsiElement>()
         val NON_DATA_CLASS_JVM_RECORD by error<PsiElement>()
+        val NON_DATA_VALUE_CLASS_JVM_RECORD by error<PsiElement>()
         val JVM_RECORD_NOT_VAL_PARAMETER by error<PsiElement>()
         val JVM_RECORD_NOT_LAST_VARARG_PARAMETER by error<PsiElement>()
         val INNER_JVM_RECORD by error<PsiElement>(PositioningStrategy.INNER_MODIFIER)
@@ -269,9 +295,6 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
         val INAPPLICABLE_JVM_FIELD_WARNING by warning<KtAnnotationEntry> {
             parameter<String>("message")
         }
-        val IDENTITY_SENSITIVE_OPERATIONS_WITH_VALUE_TYPE by warning<KtElement> {
-            parameter<ConeKotlinType>("type")
-        }
         val SYNCHRONIZED_BLOCK_ON_JAVA_VALUE_BASED_CLASS by warning<KtElement> {
             parameter<ConeKotlinType>("type")
         }
@@ -280,6 +303,7 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
         }
         val JVM_SYNTHETIC_ON_DELEGATE by error<KtAnnotationEntry>()
         val SUBCLASS_CANT_CALL_COMPANION_PROTECTED_NON_STATIC by error<PsiElement>(PositioningStrategy.REFERENCED_NAME_BY_QUALIFIED)
+        val SUBCLASS_CANT_CALL_COMPANION_PROTECTED_NON_STATIC_WARNING by warning<PsiElement>(PositioningStrategy.REFERENCED_NAME_BY_QUALIFIED)
         val CONCURRENT_HASH_MAP_CONTAINS_OPERATOR_ERROR by error<PsiElement>()
         val SPREAD_ON_SIGNATURE_POLYMORPHIC_CALL_ERROR by error<PsiElement>(PositioningStrategy.SPREAD_OPERATOR)
         val JAVA_SAM_INTERFACE_CONSTRUCTOR_REFERENCE by error<PsiElement>()

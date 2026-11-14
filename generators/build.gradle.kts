@@ -1,31 +1,36 @@
 import GeneratorInputKind.RuntimeClasspath
+import org.gradle.kotlin.dsl.embedded
+import org.gradle.kotlin.dsl.testRuntimeOnly
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
+    id("java-test-fixtures")
 }
 
 sourceSets {
     "main" { java.srcDirs("main") }
+    "testFixtures" { projectDefault() }
     "test" { projectDefault() }
 }
 
-fun extraSourceSet(name: String, extendMain: Boolean = true): Pair<SourceSet, Configuration> {
+fun extraSourceSet(name: String, extendMain: Boolean = true): Triple<SourceSet, Configuration, Configuration> {
     val sourceSet = sourceSets.create(name) {
         java.srcDir(name)
     }
     val api = configurations[sourceSet.apiConfigurationName]
+    val implementation = configurations[sourceSet.implementationConfigurationName]
     if (extendMain) {
         dependencies { api(mainSourceSet.output) }
         configurations[sourceSet.runtimeOnlyConfigurationName]
             .extendsFrom(configurations.runtimeClasspath.get())
     }
-    return sourceSet to api
+    return Triple(sourceSet, api, implementation)
 }
 
 val (builtinsSourceSet, builtinsApi) = extraSourceSet("builtins", extendMain = false)
-val (evaluateSourceSet, evaluateApi) = extraSourceSet("evaluate")
-val (interpreterSourceSet, interpreterApi) = extraSourceSet("interpreter")
+val (evaluateSourceSet, evaluateApi, evaluateImplementation) = extraSourceSet("evaluate")
 val (protobufSourceSet, protobufApi) = extraSourceSet("protobuf")
 val (protobufCompareSourceSet, protobufCompareApi) = extraSourceSet("protobufCompare")
 val (wasmSourceSet, wasmApi) = extraSourceSet("wasm")
@@ -34,17 +39,26 @@ val (nativeInteropRuntimeSourceSet, nativeInteropRuntimeApi) = extraSourceSet("n
 dependencies {
     api(kotlinStdlib("jdk8"))
     api(project(":core:util.runtime"))
-    api(intellijPlatformUtil()) {
-        exclude(module = "annotations")
-    }
+
+    api(intellijCore())
+    api(libs.intellij.patched.kotlinx.coroutines.core.jvm)
+    implementation(intellijJDom())
+
+    // Dependencies of 'intellijCore()' available on Maven Central
+    implementation(libs.apache.commons.lang)
+    implementation(libs.apache.commons.compress)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.opentelemetry.api) { isTransitive = false }
+
+    testFixturesApi(testFixtures(project(":compiler:tests-common")))
+    testFixturesApi(project(":core:util.runtime"))
 
     builtinsApi("org.jetbrains.kotlin:kotlin-stdlib:$bootstrapKotlinVersion") { isTransitive = false }
-    evaluateApi(project(":core:deserialization"))
     evaluateApi(commonDependency("org.jetbrains.kotlin:kotlin-reflect"))
+    evaluateApi(project(":compiler:ir.tree"))
+    evaluateImplementation(project(":core:compiler.common.jvm"))
     wasmApi(project(":wasm:wasm.ir"))
     wasmApi(kotlinStdlib())
-    interpreterApi(project(":compiler:ir.tree"))
-    interpreterApi(commonDependency("org.jetbrains.kotlin:kotlin-reflect"))
     protobufApi(kotlinStdlib())
     protobufCompareApi(testFixtures(project(":kotlin-build-common")))
     protobufCompareApi(testFixtures(project(":compiler:tests-common")))
@@ -52,11 +66,11 @@ dependencies {
 
     testImplementation(builtinsSourceSet.output)
     testImplementation(evaluateSourceSet.output)
-    testImplementation(interpreterSourceSet.output)
     testImplementation(protobufSourceSet.output)
     testImplementation(protobufCompareSourceSet.output)
 
     testImplementation(project(":compiler:cli"))
+    testImplementation(project(":kotlin-build-common"))
     testImplementation(testFixtures(project(":compiler:incremental-compilation-impl")))
     testImplementation(testFixtures(project(":plugins:jvm-abi-gen")))
     testImplementation(testFixtures(project(":plugins:parcelize:parcelize-compiler")))
@@ -69,7 +83,7 @@ dependencies {
     testImplementation(testFixtures(project(":kotlin-sam-with-receiver-compiler-plugin")))
     testImplementation(testFixtures(project(":kotlin-assignment-compiler-plugin")))
     testImplementation(testFixtures(project(":kotlinx-serialization-compiler-plugin")))
-    testImplementation(projectTests(":kotlin-atomicfu-compiler-plugin"))
+    testImplementation(testFixtures(project(":kotlin-atomicfu-compiler-plugin")))
     testImplementation(testFixtures(project(":kotlin-dataframe-compiler-plugin")))
     testImplementation(testFixtures(project(":plugins:plugin-sandbox")))
     testImplementation(testFixtures(project(":plugins:plugin-sandbox:plugin-sandbox-ic-test")))
@@ -91,7 +105,7 @@ dependencies {
 }
 
 projectTests {
-    testTask(parallel = true, jUnitMode = JUnitMode.JUnit4) {
+    testTask {
         workingDir = rootDir
     }
 }
@@ -163,12 +177,6 @@ val generateOperationsMap by generator(
     inputKind = RuntimeClasspath
 )
 
-val generateInterpreterMap by generator(
-    "org.jetbrains.kotlin.generators.interpreter.GenerateInterpreterMapKt",
-    interpreterSourceSet,
-    inputKind = RuntimeClasspath
-)
-
 val generateWasmIntrinsics by generator(
     "org.jetbrains.kotlin.generators.wasm.WasmIntrinsicGeneratorKt",
     wasmSourceSet,
@@ -180,5 +188,3 @@ val generateNativeInteropRuntime by generator(
     nativeInteropRuntimeSourceSet,
     inputKind = RuntimeClasspath,
 )
-
-testsJar()

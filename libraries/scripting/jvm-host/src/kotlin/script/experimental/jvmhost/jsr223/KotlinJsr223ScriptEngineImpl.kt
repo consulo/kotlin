@@ -5,41 +5,54 @@
 
 package kotlin.script.experimental.jvmhost.jsr223
 
-import org.jetbrains.kotlin.cli.common.repl.*
-import java.lang.ref.WeakReference
+import com.google.common.base.Throwables
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.K2ReplCompiler
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.currentSnippetNo
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.disposeOnFinalization
+import org.jetbrains.kotlin.scripting.compiler.plugin.impl.withMessageCollectorAndDisposable
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import javax.script.ScriptContext
 import javax.script.ScriptEngineFactory
 import kotlin.script.experimental.api.*
-import kotlin.script.experimental.host.ScriptingHostConfiguration
 import kotlin.script.experimental.host.withDefaultsFrom
+import kotlin.script.experimental.jvm.K2ReplEvaluator
 import kotlin.script.experimental.jvm.baseClassLoader
-import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
+import kotlin.script.experimental.jvm.jsr223.base.InvokeWrapper
+import kotlin.script.experimental.jvm.jsr223.base.KOTLIN_SCRIPT_STATE_BINDINGS_KEY
+import kotlin.script.experimental.jvm.jsr223.base.KotlinJsr223JvmScriptEngineBase
+import kotlin.script.experimental.jvm.jsr223.base.ScriptArgsWithTypes
+import kotlin.script.experimental.jvm.jsr223.getScriptContext
+import kotlin.script.experimental.jvm.jsr223.jsr223
 import kotlin.script.experimental.jvm.jvm
-import kotlin.script.experimental.jvmhost.repl.JvmReplCompiler
-import kotlin.script.experimental.jvmhost.repl.JvmReplEvaluator
-import kotlin.script.experimental.jvmhost.repl.JvmReplEvaluatorState
 
-// TODO: reimplement without legacy REPL infrastructure
+data class K2ReplState(
+    val compiler: K2ReplCompiler,
+    val evaluator: K2ReplEvaluator,
+    var lineCounter: Int = 0,
+) : AutoCloseable {
+    internal var compilerDisposal: AutoCloseable? = null
 
+    /**
+     * Releases the compiler environment of this state; the state is unusable afterward.
+     * It also happens automatically once the state becomes unreachable.
+     */
+    override fun close() {
+        compilerDisposal?.close()
+    }
+}
+
+/**
+ * The in-process Kotlin JSR-223 engine. It runs [KotlinJsr223JvmScriptEngineBase]'s compile/eval
+ * loop over the [K2ReplCompiler] and [K2ReplEvaluator] pair.
+ */
 class KotlinJsr223ScriptEngineImpl(
     factory: ScriptEngineFactory,
     baseCompilationConfiguration: ScriptCompilationConfiguration,
     baseEvaluationConfiguration: ScriptEvaluationConfiguration,
     val getScriptArgs: (context: ScriptContext) -> ScriptArgsWithTypes?
-) : KotlinJsr223JvmScriptEngineBase(factory), KotlinJsr223InvocableScriptEngine {
+) : KotlinJsr223JvmScriptEngineBase<K2ReplState>(factory), KotlinJsr223InvocableScriptEngine {
 
-    @Volatile
-    private var lastScriptContext: ScriptContext? = null
-
-    val jsr223HostConfiguration = ScriptingHostConfiguration(defaultJvmScriptingHostConfiguration) {
-        val weakThis = WeakReference(this@KotlinJsr223ScriptEngineImpl)
-        jsr223 {
-            getScriptContext { weakThis.get()?.let { it.lastScriptContext ?: it.getContext() } }
-        }
-    }
-
-    val compilationConfiguration by lazy {
+    override val compilationConfiguration: ScriptCompilationConfiguration =
         ScriptCompilationConfiguration(baseCompilationConfiguration) {
             hostConfiguration.update { it.withDefaultsFrom(jsr223HostConfiguration) }
             repl {
@@ -55,27 +68,47 @@ class KotlinJsr223ScriptEngineImpl(
                 }
             }
         }
-    }
 
-    val evaluationConfiguration by lazy {
+    override val evaluationConfiguration: ScriptEvaluationConfiguration by lazy {
         ScriptEvaluationConfiguration(baseEvaluationConfiguration) {
             hostConfiguration.update { it.withDefaultsFrom(jsr223HostConfiguration) }
         }
     }
 
-    override val replCompiler: ReplCompilerWithoutCheck by lazy {
-        JvmReplCompiler(compilationConfiguration)
-    }
+    override val replCompiler: K2ReplCompiler get() = getCurrentState(getContext()).compiler
+    override val replEvaluator: K2ReplEvaluator get() = getCurrentState(getContext()).evaluator
 
-    private val localEvaluator by lazy {
-        GenericReplCompilingEvaluatorBase(replCompiler, JvmReplEvaluator(evaluationConfiguration))
-    }
+    override fun createState(lock: ReentrantReadWriteLock): K2ReplState =
+        withMessageCollectorAndDisposable(disposeOnSuccess = false) { messageCollector, disposable ->
+            K2ReplState(
+                K2ReplCompiler(
+                    K2ReplCompiler.createCompilationState(
+                        messageCollector,
+                        disposable,
+                        compilationConfiguration
+                    )
+                ),
+                K2ReplEvaluator()
+            ).also {
+                // JSR-223 hosts usually drop engines and contexts without closing them
+                it.compilerDisposal = disposeOnFinalization(disposable)
+            }.asSuccess()
+        }.valueOrThrow() // TODO: consider error reporting
 
-    override val replEvaluator: ReplFullEvaluator get() = localEvaluator
+    // Uses the default context's lineCounter so snippet names stay unique across the shared
+    // replCompiler. A custom context's lineCounter would restart at 0 and collide.
+    override fun nextSnippetNo(): Int = getCurrentState(getContext()).lineCounter++
 
-    val state: IReplStageState<*> get() = getCurrentState(getContext())
-
-    override fun createState(lock: ReentrantReadWriteLock): IReplStageState<*> = replEvaluator.createState(lock)
+    override fun snippetCompilationConfiguration(
+        baseConfiguration: ScriptCompilationConfiguration,
+        snippet: SourceCode,
+        snippetNo: Int,
+    ): ScriptCompilationConfiguration =
+        baseConfiguration.with {
+            repl {
+                currentSnippetNo(snippetNo)
+            }
+        }
 
     override fun overrideScriptArgs(context: ScriptContext): ScriptArgsWithTypes? = getScriptArgs(context)
 
@@ -83,19 +116,34 @@ class KotlinJsr223ScriptEngineImpl(
         get() = null
 
     override val backwardInstancesHistory: Sequence<Any>
-        get() = getCurrentState(getContext()).asState(JvmReplEvaluatorState::class.java).history.asReversed().asSequence().map { it.item.second }.filterNotNull()
+        get() = sequence {
+            var lastSnippet = getCurrentState(getContext()).evaluator.lastEvaluatedSnippet
+            while (lastSnippet != null) {
+                lastSnippet.get().result.scriptInstance?.let { yield(it) }
+                lastSnippet = lastSnippet.previous
+            }
+        }
 
     override val baseClassLoader: ClassLoader
         get() = evaluationConfiguration[ScriptEvaluationConfiguration.jvm.baseClassLoader]!!
-
-    override fun compileAndEval(script: String, context: ScriptContext): Any? {
-        // TODO: find a way to pass context to evaluation directly and avoid this hack
-        lastScriptContext = context
-        return try {
-            super.compileAndEval(script, context)
-        } finally {
-            lastScriptContext = null
-        }
-    }
 }
 
+fun renderReplStackTrace(cause: Throwable, startFromMethodName: String): String {
+    val newTrace = arrayListOf<StackTraceElement>()
+    var skip = true
+    for (element in cause.stackTrace.reversed()) {
+        if ("${element.className}.${element.methodName}" == startFromMethodName) {
+            skip = false
+        }
+        if (!skip) {
+            newTrace.add(element)
+        }
+    }
+
+    val resultingTrace = newTrace.reversed().dropLast(1)
+
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN", "UsePropertyAccessSyntax")
+    (cause as java.lang.Throwable).setStackTrace(resultingTrace.toTypedArray())
+
+    return Throwables.getStackTraceAsString(cause).trimEnd()
+}

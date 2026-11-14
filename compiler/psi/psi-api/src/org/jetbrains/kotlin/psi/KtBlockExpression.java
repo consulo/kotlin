@@ -13,7 +13,7 @@ import com.intellij.psi.impl.source.tree.CompositeElement;
 import com.intellij.psi.impl.source.tree.LazyParseablePsiElement;
 import com.intellij.psi.util.PsiUtilCore;
 import com.intellij.util.IncorrectOperationException;
-import kotlin.annotations.jvm.ReadOnly;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.idea.KotlinLanguage;
@@ -39,8 +39,10 @@ import static org.jetbrains.kotlin.KtNodeTypes.BLOCK;
  * }</pre>
  */
 @SuppressWarnings("deprecation")
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public class KtBlockExpression extends LazyParseablePsiElement implements KtElement, KtExpression, KtStatementExpression {
 
+    @KtImplementationDetail
     public KtBlockExpression(@Nullable CharSequence text) {
         super(BLOCK, text);
     }
@@ -89,9 +91,20 @@ public class KtBlockExpression extends LazyParseablePsiElement implements KtElem
         }
     }
 
+    /**
+     * Deletes this block.
+     * <p>
+     * When {@link KtPsiMutationService} is registered, as in the IntelliJ Kotlin plugin, the deletion may also adjust the surrounding code,
+     * e.g., delete a semicolon that follows the block. Without the service, it performs only the plain platform deletion.
+     */
     @Override
     public void delete() throws IncorrectOperationException {
-        KtElementUtilsKt.deleteSemicolon(this);
+        KtPsiMutationServiceKt.deleteWithMutationService(this, mutationService -> mutationService.deleteBlockExpression(this));
+    }
+
+    @Override
+    @KtIdeApi
+    public void rawDelete() throws IncorrectOperationException {
         super.delete();
     }
 
@@ -117,28 +130,32 @@ public class KtBlockExpression extends LazyParseablePsiElement implements KtElem
         return this;
     }
 
+    /** Returns the first statement of this block, or {@code null} if the block is empty. */
     @Nullable
     public KtExpression getFirstStatement() {
         return findChildByClass(KtExpression.class);
     }
 
-    @ReadOnly
+    /** Returns the statements of this block in source order, or an empty list if the block is empty. */
     @NotNull
     public List<KtExpression> getStatements() {
         return Arrays.asList(findChildrenByClass(KtExpression.class));
     }
 
+    /** Returns the text range of the closing brace, or {@code null} if it is absent (for example, in incomplete code). */
     @Nullable
     public TextRange getLastBracketRange() {
         PsiElement rBrace = getRBrace();
         return rBrace != null ? rBrace.getTextRange() : null;
     }
 
+    /** Returns the closing brace token of this block, or {@code null} if it is absent. */
     @Nullable
     public PsiElement getRBrace() {
         return findPsiChildByType(KtTokens.RBRACE);
     }
 
+    /** Returns the opening brace token of this block, or {@code null} if it is absent. */
     @Nullable
     public PsiElement getLBrace() {
         return findPsiChildByType(KtTokens.LBRACE);

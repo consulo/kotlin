@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.fir.java.declarations
 
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirImplementationDetail
 import org.jetbrains.kotlin.fir.FirModuleData
 import org.jetbrains.kotlin.fir.builder.FirBuilderDsl
@@ -71,6 +70,9 @@ class FirJavaTypeParameter(
     )
 
     override val annotations: List<FirAnnotation> get() = annotationList
+
+    override val constraintAnnotations: List<FirAnnotation>
+        get() = emptyList()
 
     /**
      * The class represents the state of the enhancement process for the type parameter.
@@ -263,12 +265,24 @@ class FirJavaTypeParameter(
         return this
     }
 
+    override fun <D> transformBounds(transformer: FirTransformer<D>, data: D): FirJavaTypeParameter {
+        return this
+    }
+
+    override fun <D> transformConstraintAnnotations(transformer: FirTransformer<D>, data: D): FirJavaTypeParameter {
+        return this
+    }
+
     override fun replaceBounds(newBounds: List<FirTypeRef>) {
         shouldNotBeCalled(::replaceBounds, ::bounds)
     }
 
     override fun replaceAnnotations(newAnnotations: List<FirAnnotation>) {
         shouldNotBeCalled(::replaceAnnotations, ::annotations)
+    }
+
+    override fun replaceConstraintAnnotations(newConstraintAnnotations: List<FirAnnotation>) {
+        shouldNotBeCalled(::replaceConstraintAnnotations, ::constraintAnnotations)
     }
 }
 

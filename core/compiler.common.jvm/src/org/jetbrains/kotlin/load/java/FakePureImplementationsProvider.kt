@@ -15,7 +15,10 @@ object FakePureImplementationsProvider {
 
     private val pureImplementationsClassIds = mutableMapOf<ClassId, ClassId>()
     private infix fun ClassId.implementedWith(implementations: List<ClassId>) {
-        implementations.associateWithTo(pureImplementationsClassIds) { this }
+        implementations.forEach {
+            require(it !in pureImplementationsClassIds)
+            pureImplementationsClassIds[it] = this
+        }
     }
 
     init {
@@ -29,7 +32,7 @@ object FakePureImplementationsProvider {
         ClassId.topLevel(FqName("java.util.function.BiFunction")) implementedWith fqNameListOf("java.util.function.BinaryOperator")
     }
 
-    private val pureImplementationsFqNames = pureImplementationsClassIds.map { (key, value) ->
+    private val pureImplementationsFqNames = pureImplementationsClassIds.map { [key, value] ->
         key.asSingleFqName() to value.asSingleFqName()
     }.toMap()
 

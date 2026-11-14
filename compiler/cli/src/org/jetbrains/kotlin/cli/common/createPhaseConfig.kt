@@ -16,7 +16,7 @@ fun createPhaseConfig(
     val toDumpBoth = createPhaseSetFromArguments(arguments.phasesToDump)
     val toValidateBoth = createPhaseSetFromArguments(arguments.phasesToValidate)
 
-    val (additionalBefore, additionalAfter) = getCornerPhasesToDump(arguments, phasesToExecute)
+    val [additionalBefore, additionalAfter] = getCornerPhasesToDump(arguments, phasesToExecute)
     return PhaseConfig(
         createPhaseSetFromArguments(arguments.disablePhases),
         createPhaseSetFromArguments(arguments.verbosePhases),
@@ -51,7 +51,7 @@ fun PhaseConfig.list(phases: List<AnyNamedPhase>) {
 }
 
 private fun PhaseConfig.list(phases: List<Pair<Int, AnyNamedPhase>>) {
-    for ((depth, phase) in phases) {
+    for ([depth, phase] in phases) {
         println(buildString {
             append("    ".repeat(depth))
             append(phase.name)
@@ -62,7 +62,7 @@ private fun PhaseConfig.list(phases: List<Pair<Int, AnyNamedPhase>>) {
 }
 
 private fun createPhaseSetFromArguments(names: Array<String>?): PhaseSet = when {
-    names == null -> PhaseSet.Empty
+    names.isNullOrEmpty() -> PhaseSet.Empty
     "all" in names.map { it.toLowerCaseAsciiOnly() } -> PhaseSet.All
     else -> PhaseSet.Enum(names.toSet())
 }

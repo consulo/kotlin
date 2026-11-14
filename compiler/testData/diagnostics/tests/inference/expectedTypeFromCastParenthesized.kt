@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +ExpectedTypeFromCast
+// RUN_PIPELINE_TILL: CODEGEN
 
 @Target(AnnotationTarget.EXPRESSION)
 @Retention(AnnotationRetention.SOURCE)

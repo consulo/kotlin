@@ -1,24 +1,30 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("test-inputs-check")
-    id("project-tests-convention")
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5)
+    testTask()
 }
 
 dependencies {
-    api(project(":compiler:ir.psi2ir"))
-    api(project(":compiler:fir:fir2ir"))
+
     api(project(":compiler:ir.serialization.common"))
-    api(project(":js:js.frontend"))
 
     implementation(project(":compiler:ir.backend.common"))
-    implementation(project(":compiler:fir:fir-serialization"))
+    implementation(project(":compiler:frontend.common-psi"))
+    implementation(project(":compiler:psi:psi-api"))
+    implementation(project(":js:js.config"))
     implementation(project(":wasm:wasm.config"))
     implementation(project(":compiler:cli-base"))
+    implementation(project(":core:descriptors"))
     implementation(project(":core:compiler.common.wasm"))
+    implementation(project(":core:compiler.common.js"))
+    implementation(project(":js:js.parser"))
+    implementation(project(":kotlin-util-klib-metadata"))
+    implementation(project(":core:error.handling"))
 
     compileOnly(intellijCore())
 

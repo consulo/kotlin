@@ -3,6 +3,8 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:Suppress("DEPRECATION") // Tests the deprecated legacy Swift Export DSL on purpose.
+
 package org.jetbrains.kotlin.gradle.native
 
 import org.gradle.kotlin.dsl.kotlin
@@ -47,7 +49,7 @@ class SwiftExportXCIT : KGPBaseTest() {
                                 moduleName.set("Shared")
                                 flattenPackage.set("com.github.jetbrains.example")
 
-                                export(project(":subproject")) {
+                                export(dependencies.project(mapOf("path" to ":subproject"))) {
                                     moduleName.set("Subproject")
                                     flattenPackage.set("com.github.jetbrains.library")
                                 }

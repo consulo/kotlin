@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.incremental.classpathDiff
 
 import com.intellij.util.containers.Interner
 import com.intellij.util.io.DataExternalizer
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.build.report.metrics.*
 import org.jetbrains.kotlin.incremental.KotlinClassInfo
 import org.jetbrains.kotlin.incremental.storage.*
@@ -21,13 +22,17 @@ import java.io.File
 /** Utility to serialize a [ClasspathSnapshot]. */
 object CachedClasspathSnapshotSerializer {
 
-    // Note: This cache is shared across builds, so we need to be careful if the snapshot file's path hasn't changed but its contents have
-    // changed. Luckily, each snapshot file is currently the output of a Gradle (non-incremental) transform, so that case will not happen.
-    // TODO: Make this code safer (not relying on how the snapshot files are produced and whether Gradle maintains the above guarantee). For
-    // example, if the transform is incremental, the above case may happen (the output directory of an incremental transform is unchanged
-    // even though its inputs/outputs have changed). Potential solutions: Write the file's content hash in the file's name or to another
-    // file next to it, or check that its timestamp and size haven't changed (we'll need to deal with directories too).
-    private val cache = InMemoryCacheWithEviction<File, ClasspathEntrySnapshot>(
+    // Cache key includes last-modified time and file size so that an overwritten snapshot file (same path,
+    // different content) is detected as a cache miss without relying on the caller to use a content-derived filename.
+    // `lastModified` alone is not reliable because some filesystems have coarse timestamp resolution (e.g. 1-2 seconds),
+    // so a file overwritten within the same window may keep the same timestamp; `size` acts as an additional
+    // discriminator for that case. The remaining edge case — same size and same timestamp — is unlikely in practice
+    // but would require a content hash to detect, which is expensive to compute on every cache lookup.
+    private data class FileKey(val file: File, val lastModified: Long, val size: Long)
+
+    private fun File.toFileKey() = FileKey(this, lastModified(), length())
+
+    private val cache = InMemoryCacheWithEviction<FileKey, ClasspathEntrySnapshot>(
         maxTimePeriodsToKeepStrongReferences = 20,
         maxTimePeriodsToKeepSoftReferences = 1000,
         maxMemoryUsageRatioToKeepStrongReferences = 0.8
@@ -38,9 +43,9 @@ object CachedClasspathSnapshotSerializer {
 
         var cacheMisses = 0L
         val classpathSnapshot = ClasspathSnapshot(classpathEntrySnapshotFiles.map { snapshotFile ->
-            cache.computeIfAbsent(snapshotFile) {
+            cache.computeIfAbsent(snapshotFile.toFileKey()) {
                 cacheMisses++
-                ClasspathEntrySnapshotExternalizer.loadFromFile(it)
+                ClasspathEntrySnapshotExternalizer.loadFromFile(it.file)
             }
         })
 
@@ -61,7 +66,7 @@ object ClasspathEntrySnapshotExternalizer : DataExternalizer<ClasspathEntrySnaps
 
     override fun read(input: DataInput): ClasspathEntrySnapshot {
         return ClasspathEntrySnapshot(
-            classSnapshots = LinkedHashMapExternalizer(StringExternalizer, ClassSnapshotExternalizer).read(input)
+            classSnapshots = LinkedHashMapExternalizer(StringExternalizer, ClassSnapshotExternalizer).read(input),
         )
     }
 }
@@ -72,8 +77,18 @@ internal object ClassSnapshotExternalizer : DataExternalizer<ClassSnapshot> by D
 )
 
 internal object AccessibleClassSnapshotExternalizer : DataExternalizer<AccessibleClassSnapshot> by DelegateDataExternalizer(
-    types = listOf(KotlinClassSnapshot::class.java, JavaClassSnapshot::class.java),
-    typesExternalizers = listOf(KotlinClassSnapshotExternalizer, JavaClassSnapshotExternalizer)
+    types = listOf(
+        KotlinClassSnapshot::class.java,
+        JavaClassSnapshot::class.java,
+        PackageInfoClassSnapshot::class.java,
+        ModuleInfoClassSnapshot::class.java,
+    ),
+    typesExternalizers = listOf(
+        KotlinClassSnapshotExternalizer,
+        JavaClassSnapshotExternalizer,
+        PackageInfoClassSnapshotExternalizer,
+        ModuleInfoClassSnapshotExternalizer,
+    )
 )
 
 private object KotlinClassSnapshotExternalizer : DataExternalizer<KotlinClassSnapshot> by DelegateDataExternalizer(
@@ -120,6 +135,7 @@ private object PackageFacadeKotlinClassSnapshotExternalizer : DataExternalizer<P
         LongExternalizer.save(output, snapshot.classAbiHash)
         NullableValueExternalizer(KotlinClassInfoExternalizer).save(output, snapshot.classMemberLevelSnapshot)
         SetExternalizer(StringExternalizer).save(output, snapshot.packageMemberNames)
+        NullableValueExternalizer(ListExternalizer(TypeAliasSnapshotExternalizer)).save(output, snapshot.typeAliases)
     }
 
     override fun read(input: DataInput): PackageFacadeKotlinClassSnapshot {
@@ -128,7 +144,24 @@ private object PackageFacadeKotlinClassSnapshotExternalizer : DataExternalizer<P
             classId = ClassIdExternalizerWithInterning.read(input),
             classAbiHash = LongExternalizer.read(input),
             classMemberLevelSnapshot = NullableValueExternalizer(KotlinClassInfoExternalizer).read(input),
-            packageMemberNames = SetExternalizer(StringExternalizer).read(input)
+            packageMemberNames = SetExternalizer(StringExternalizer).read(input),
+            typeAliases = NullableValueExternalizer(ListExternalizer(TypeAliasSnapshotExternalizer)).read(input)
+        )
+    }
+}
+
+internal object TypeAliasSnapshotExternalizer : DataExternalizer<TypeAliasSnapshot> {
+
+    override fun save(output: DataOutput, value: TypeAliasSnapshot) {
+        ClassIdExternalizer.save(output, value.aliasClassId)
+        ClassIdExternalizer.save(output, value.expandedClassId)
+    }
+
+    override fun read(input: DataInput): TypeAliasSnapshot {
+        return TypeAliasSnapshot(
+            // To reduce memory usage, apply object interning to classId's package name as they are commonly shared.
+            aliasClassId = ClassIdExternalizerWithInterning.read(input),
+            expandedClassId = ClassIdExternalizerWithInterning.read(input)
         )
     }
 }
@@ -177,6 +210,7 @@ internal object KotlinClassInfoExternalizer : DataExternalizer<KotlinClassInfo> 
     }
 }
 
+@OptIn(K1Deprecation::class)
 private object ExtraInfoExternalizer : DataExternalizer<KotlinClassInfo.ExtraInfo> {
 
     override fun save(output: DataOutput, info: KotlinClassInfo.ExtraInfo) {
@@ -210,6 +244,41 @@ private object JavaClassSnapshotExternalizer : DataExternalizer<JavaClassSnapsho
             classAbiHash = LongExternalizer.read(input),
             classMemberLevelSnapshot = NullableValueExternalizer(JavaClassMemberLevelSnapshotExternalizer).read(input),
             supertypes = ListExternalizer(JvmClassNameExternalizerWithInterning).read(input)
+        )
+    }
+}
+
+private object PackageInfoClassSnapshotExternalizer : DataExternalizer<PackageInfoClassSnapshot> {
+
+    override fun save(output: DataOutput, snapshot: PackageInfoClassSnapshot) {
+        ClassIdExternalizer.save(output, snapshot.classId)
+        LongExternalizer.save(output, snapshot.classAbiHash)
+    }
+
+    override fun read(input: DataInput): PackageInfoClassSnapshot {
+        return PackageInfoClassSnapshot(
+            // To reduce memory usage, apply object interning to classId's package name as they are commonly shared
+            classId = ClassIdExternalizerWithInterning.read(input),
+            classAbiHash = LongExternalizer.read(input)
+        )
+    }
+}
+
+private object ModuleInfoClassSnapshotExternalizer : DataExternalizer<ModuleInfoClassSnapshot> {
+
+    override fun save(output: DataOutput, snapshot: ModuleInfoClassSnapshot) {
+        ClassIdExternalizer.save(output, snapshot.classId)
+        LongExternalizer.save(output, snapshot.classAbiHash)
+        SetExternalizer(FqNameExternalizer).save(output, snapshot.packages)
+        ListExternalizer(StringExternalizer).save(output, snapshot.transitiveRequires)
+    }
+
+    override fun read(input: DataInput): ModuleInfoClassSnapshot {
+        return ModuleInfoClassSnapshot(
+            classId = ClassIdExternalizerWithInterning.read(input),
+            classAbiHash = LongExternalizer.read(input),
+            packages = SetExternalizer(FqNameExternalizerWithInterning).read(input),
+            transitiveRequires = ListExternalizer(StringExternalizer).read(input),
         )
     }
 }

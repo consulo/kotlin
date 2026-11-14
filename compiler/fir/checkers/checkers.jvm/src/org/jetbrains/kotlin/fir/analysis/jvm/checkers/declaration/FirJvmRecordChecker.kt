@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtRealSourceElementKind
 import org.jetbrains.kotlin.config.JvmAnalysisFlags
 import org.jetbrains.kotlin.config.JvmTarget
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
@@ -19,6 +20,7 @@ import org.jetbrains.kotlin.fir.analysis.checkers.fullyExpandedClassId
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.*
+import org.jetbrains.kotlin.fir.isEnabled
 import org.jetbrains.kotlin.fir.java.jvmTargetProvider
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.toRegularClassSymbol
@@ -71,8 +73,12 @@ object FirJvmRecordChecker : FirRegularClassChecker(MppCheckerKind.Common) {
             return
         }
 
-        if (!declaration.isData) {
-            reporter.reportOn(annotationSource, FirJvmErrors.NON_DATA_CLASS_JVM_RECORD)
+        if (!declaration.isData && !declaration.symbol.isFullValueClass) {
+            if (LanguageFeature.FullValueClasses.isEnabled()) {
+                reporter.reportOn(annotationSource, FirJvmErrors.NON_DATA_VALUE_CLASS_JVM_RECORD)
+            } else {
+                reporter.reportOn(annotationSource, FirJvmErrors.NON_DATA_CLASS_JVM_RECORD)
+            }
             return
         }
 
@@ -94,7 +100,7 @@ object FirJvmRecordChecker : FirRegularClassChecker(MppCheckerKind.Common) {
                 val fromConstructor = decl.source?.kind == KtFakeSourceElementKind.PropertyFromParameter
                 if (decl.isVar && fromConstructor) {
                     reporter.reportOn(decl.source, FirJvmErrors.JVM_RECORD_NOT_VAL_PARAMETER)
-                } else if (!fromConstructor && (decl.hasBackingField || decl.delegateFieldSymbol != null)) {
+                } else if (!fromConstructor && (decl.hasBackingField || decl.delegateFieldSymbol != null) && !decl.isCompanionBlockMember) {
                     reporter.reportOn(decl.source, FirJvmErrors.FIELD_IN_JVM_RECORD)
                 }
             } else if (decl is FirField && decl.isSynthetic) {

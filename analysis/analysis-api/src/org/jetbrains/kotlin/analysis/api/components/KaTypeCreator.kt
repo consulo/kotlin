@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.analysis.api.components
 import org.jetbrains.kotlin.analysis.api.KaContextParameterApi
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
+import org.jetbrains.kotlin.analysis.api.KaObsoleteComponentApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.lifetime.KaLifetimeOwner
 import org.jetbrains.kotlin.analysis.api.symbols.KaClassLikeSymbol
@@ -77,6 +78,7 @@ public interface KaTypeCreator : KaSessionComponent {
     public fun buildStarTypeProjection(): KaStarTypeProjection
 }
 
+@KaObsoleteComponentApi
 @SubclassOptInRequired(KaImplementationDetail::class)
 public interface KaTypeBuilder : KaLifetimeOwner
 
@@ -85,15 +87,9 @@ public interface KaTypeBuilder : KaLifetimeOwner
  *
  * @see KaTypeCreator.buildClassType
  */
+@KaObsoleteComponentApi
 @SubclassOptInRequired(KaImplementationDetail::class)
 public interface KaClassTypeBuilder : KaTypeBuilder {
-    /**
-     * Default value: [KaTypeNullability.NON_NULLABLE].
-     */
-    @Deprecated("Use `isMarkedNullable` instead.", ReplaceWith("isMarkedNullable"))
-    @Suppress("Deprecation")
-    public var nullability: KaTypeNullability
-
     /**
      * Whether the type is marked as nullable, i.e. the type is represented as `T?`.
      *
@@ -121,15 +117,9 @@ public interface KaClassTypeBuilder : KaTypeBuilder {
  *
  * @see KaTypeCreator.buildTypeParameterType
  */
+@KaObsoleteComponentApi
 @SubclassOptInRequired(KaImplementationDetail::class)
 public interface KaTypeParameterTypeBuilder : KaTypeBuilder {
-    /**
-     * Default value: [KaTypeNullability.NON_NULLABLE].
-     */
-    @Deprecated("Use `isMarkedNullable` instead.", ReplaceWith("isMarkedNullable"))
-    @Suppress("Deprecation")
-    public var nullability: KaTypeNullability
-
     /**
      * Whether the type is marked as nullable, i.e. the type is represented as `T?`.
      *
@@ -145,6 +135,7 @@ public interface KaTypeParameterTypeBuilder : KaTypeBuilder {
  *
  * @see KaTypeCreator.buildTypeParameterType
  */
+@KaObsoleteComponentApi
 @KaExperimentalApi
 @SubclassOptInRequired(KaImplementationDetail::class)
 public interface KaArrayTypeBuilder : KaTypeBuilder {
@@ -194,8 +185,7 @@ public interface KaArrayTypeBuilder : KaTypeBuilder {
  * }
  * ```
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
-@KaContextParameterApi
+@KaObsoleteComponentApi
 context(session: KaSession)
 public fun buildClassType(classId: ClassId, init: KaClassTypeBuilder.() -> Unit = {}): KaType {
     return with(session) {
@@ -218,8 +208,7 @@ public fun buildClassType(classId: ClassId, init: KaClassTypeBuilder.() -> Unit 
  * buildClassType(builtinTypes.string)
  * ```
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
-@KaContextParameterApi
+@KaObsoleteComponentApi
 context(session: KaSession)
 public fun buildClassType(symbol: KaClassLikeSymbol, init: KaClassTypeBuilder.() -> Unit = {}): KaType {
     return with(session) {
@@ -233,9 +222,8 @@ public fun buildClassType(symbol: KaClassLikeSymbol, init: KaClassTypeBuilder.()
 /**
  * Builds a boxed / primitive (depending on the [init] block) array type from the given [elementType].
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
+@KaObsoleteComponentApi
 @KaExperimentalApi
-@KaContextParameterApi
 context(session: KaSession)
 public fun buildArrayType(elementType: KaType, init: KaArrayTypeBuilder.() -> Unit = {}): KaType {
     return with(session) {
@@ -250,9 +238,8 @@ public fun buildArrayType(elementType: KaType, init: KaArrayTypeBuilder.() -> Un
  * Builds the underlying array type of [vararg](https://kotlinlang.org/docs/functions.html#variable-number-of-arguments-varargs)
  * function parameter with the given [elementType].
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
+@KaObsoleteComponentApi
 @KaExperimentalApi
-@KaContextParameterApi
 context(session: KaSession)
 public fun buildVarargArrayType(elementType: KaType): KaType {
     return with(session) {
@@ -265,8 +252,7 @@ public fun buildVarargArrayType(elementType: KaType): KaType {
 /**
  * Builds a [KaTypeParameterType] with the given type parameter symbol.
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
-@KaContextParameterApi
+@KaObsoleteComponentApi
 context(session: KaSession)
 public fun buildTypeParameterType(symbol: KaTypeParameterSymbol, init: KaTypeParameterTypeBuilder.() -> Unit = {}): KaTypeParameterType {
     return with(session) {
@@ -280,9 +266,8 @@ public fun buildTypeParameterType(symbol: KaTypeParameterSymbol, init: KaTypePar
 /**
  * Builds a [KaStarTypeProjection] (`*`).
  */
-// Auto-generated bridge. DO NOT EDIT MANUALLY!
+@KaObsoleteComponentApi
 @KaExperimentalApi
-@KaContextParameterApi
 context(session: KaSession)
 public fun buildStarTypeProjection(): KaStarTypeProjection {
     return with(session) {

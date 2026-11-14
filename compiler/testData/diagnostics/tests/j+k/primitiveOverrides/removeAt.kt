@@ -1,8 +1,7 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // WITH_STDLIB
 // SCOPE_DUMP: A:removeAt
 // ISSUE: KT-65410
-// MUTE_LL_FIR: SCOPE_DUMP uses different parameter names in AA modes
 
 // FILE: Java1.java
 import kotlin.collections.AbstractMutableList;

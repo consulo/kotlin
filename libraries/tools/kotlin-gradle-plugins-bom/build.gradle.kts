@@ -1,6 +1,8 @@
 import plugins.signLibraryPublication
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("java-platform")
     id("maven-publish")
 }

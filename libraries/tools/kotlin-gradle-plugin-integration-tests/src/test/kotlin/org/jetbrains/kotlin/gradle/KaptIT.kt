@@ -19,16 +19,21 @@ package org.jetbrains.kotlin.gradle
 import org.gradle.api.JavaVersion
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.logging.configuration.WarningMode
+import org.gradle.kotlin.dsl.getByType
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.util.GradleVersion
-import org.jetbrains.kotlin.config.LanguageVersion
+import org.jetbrains.kotlin.gradle.dsl.KaptExtensionConfig
+import org.jetbrains.kotlin.gradle.dsl.KaptStubGenerationScheme
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.tasks.USING_JVM_INCREMENTAL_COMPILATION_MESSAGE
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.addBeforeSubstring
 import org.jetbrains.kotlin.gradle.util.checkedReplace
-import org.jetbrains.kotlin.gradle.util.replaceText
 import org.jetbrains.kotlin.gradle.util.testResolveAllConfigurations
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInBuildToolsApi
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerPlugins
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.OS
@@ -104,18 +109,13 @@ abstract class KaptBaseIT : KGPBaseTest() {
         test = test,
     )
 
-    protected val String.withPrefix get() = "kapt2/$this"
+    protected val String.withPrefix get() = "kapt/$this"
 }
 
 /**
- * Note that some tests are disabled because kapt class loader cache holds a file descriptor open, which leads to problems on Windows.
- * If you get a failed test on the build server with the message:
- *
- *     java.io.IOException: Failed to delete temp directory Z:\BuildAgent\temp\buildTmp\[...].
- *     The following paths could not be deleted (see suppressed exceptions for details): [...]
- *
- * then override and disable the test here via `@Disabled`.
+ * Runs the whole [KaptIT] suite with the annotation processor classloaders cache enabled.
  */
+@MustRunOnChangesInCompilerPlugins
 @DisplayName("Kapt with classloaders cache")
 class KaptClassLoadersCacheIT : KaptIT() {
     override fun kaptOptions(): BuildOptions.KaptOptions = super.kaptOptions().copy(
@@ -126,41 +126,6 @@ class KaptClassLoadersCacheIT : KaptIT() {
     @Disabled("classloaders cache is incompatible with AP discovery in classpath")
     @GradleTest
     override fun testDisableDiscoveryInCompileClasspath(gradleVersion: GradleVersion) {
-    }
-
-    @Disabled("classloaders cache is leaking file descriptors that prevents cleaning test project")
-    @GradleTest
-    override fun testChangesInLocalAnnotationProcessor(gradleVersion: GradleVersion) {
-    }
-
-    @Disabled("classloaders cache is leaking file descriptors that prevents cleaning test project")
-    @GradleTest
-    override fun testKt19179andKt37241(gradleVersion: GradleVersion) {
-    }
-
-    @Disabled("classloaders cache is leaking file descriptors that prevents cleaning test project")
-    @GradleTest
-    override fun testChangesToKaptConfigurationDoNotTriggerStubGeneration(gradleVersion: GradleVersion) {
-    }
-
-    @Disabled("classloaders cache is leaking file descriptors that prevents cleaning test project")
-    @GradleTest
-    override fun testKt33847(gradleVersion: GradleVersion) {
-    }
-
-    @Disabled("classloaders cache is leaking file descriptors that prevents cleaning test project")
-    @GradleTest
-    override fun testRepeatableAnnotations(gradleVersion: GradleVersion) {
-    }
-
-    @Disabled("classloaders cache is leaking file descriptors that prevents cleaning test project")
-    @GradleTest
-    override fun useGeneratedKotlinSource(gradleVersion: GradleVersion) {
-    }
-
-    @Disabled("classloaders cache is leaking file descriptors that prevents cleaning test project")
-    @GradleTest
-    override fun testMultipleProcessingPasses(gradleVersion: GradleVersion) {
     }
 
     override fun testAnnotationProcessorAsFqName(gradleVersion: GradleVersion) {
@@ -186,7 +151,12 @@ class KaptClassLoadersCacheIT : KaptIT() {
 
 @DisplayName("Kapt base checks")
 @OtherGradlePluginTests
+@MustRunOnChangesInGradle
+@MustRunOnChangesInCompilerPlugins
 open class KaptIT : KaptBaseIT() {
+
+    @TestMetadata("kapt/kaptSkipped")
+    @MustRunOnChangesInGradle
     @DisplayName("Kapt is skipped when no annotation processors are added")
     @GradleTest
     fun testKaptSkipped(gradleVersion: GradleVersion) {
@@ -198,6 +168,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
+    @MustRunOnChangesInGradle
     @DisplayName("KT-63366: Adding kapt AP dependency in afterEvaluate for custom SourceSet")
     @GradleTest
     fun testKaptCustomSourceSetDependencyAfterEvaluate(gradleVersion: GradleVersion) {
@@ -224,6 +196,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/indirectDependencies")
+    @MustRunOnChangesInGradle
     @DisplayName("Kapt is not skipped when all annotation processors are declared as indirect dependencies")
     @GradleTest
     fun testKaptNotSkippedWithIndirectDependencies(gradleVersion: GradleVersion) {
@@ -234,6 +208,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
     @DisplayName("Kapt is working with newer JDKs")
     @JdkVersions(versions = [JavaVersion.VERSION_11, JavaVersion.VERSION_17, JavaVersion.VERSION_21])
     @GradleWithJdkTest
@@ -263,6 +238,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
     @DisplayName("KT-48402: Kapt worker classpath is using JRE classes from toolchain")
     @JdkVersions(versions = [JavaVersion.VERSION_17])
     @GradleWithJdkTest
@@ -291,6 +267,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
+    @MustRunOnChangesInGradle
     @DisplayName("Additional Kapt jvm arguments are passed to the process")
     @GradleTest
     internal fun additionalJvmArgumentsArePassed(gradleVersion: GradleVersion) {
@@ -320,6 +298,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
+    @MustRunOnChangesInGradle
     @DisplayName("Warning is produced on additional Kapt jvm arguments and 'none' workers isolation mode")
     @GradleTest
     internal fun warningOnNoneIsolationModeAndAdditionalJvmArguments(gradleVersion: GradleVersion) {
@@ -352,6 +332,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/annotationProcessorAsFqName")
     @DisplayName("Should find annotation processor via FQName")
     @GradleTest
     open fun testAnnotationProcessorAsFqName(gradleVersion: GradleVersion) {
@@ -372,6 +353,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
+    @MustRunOnChangesInGradle
     @DisplayName("Kapt tasks is up-to-date on the second run")
     @GradleTest
     fun testSimple(gradleVersion: GradleVersion) {
@@ -397,8 +380,37 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
+    @DisplayName("Kapt direct stub generation mode")
+    @GradleTest
+    fun testDirectGenerationMode(gradleVersion: GradleVersion) {
+        project("simple".withPrefix, gradleVersion) {
+
+            buildScriptInjection {
+                val kaptExtension = project.extensions.getByType<KaptExtensionConfig>()
+                kaptExtension.stubGenerationScheme.set(KaptStubGenerationScheme.DIRECT)
+            }
+
+            build("build") {
+                assertKaptSuccessful()
+                assertTasksExecuted(":kaptGenerateStubsKotlin", ":kaptKotlin", ":compileKotlin", ":compileJava")
+                assertFileExists(projectPath.resolve("build/generated/source/kapt/main/example/TestClassGenerated.java"))
+                assertFileExists(kotlinClassesDir().resolve("example/TestClass.class"))
+                assertFileExists(javaClassesDir().resolve("example/TestClassGenerated.class"))
+                assertFileExists(javaClassesDir().resolve("example/SourceAnnotatedTestClassGenerated.class"))
+                assertFileExists(javaClassesDir().resolve("example/BinaryAnnotatedTestClassGenerated.class"))
+                assertFileExists(javaClassesDir().resolve("example/RuntimeAnnotatedTestClassGenerated.class"))
+                assertFileNotExistsInTree("build/classes", "ExampleSourceAnnotation.class")
+                assertOutputDoesNotContain("warning: The following options were not recognized by any processor")
+                assertOutputContains("Need to discovery annotation processors in the AP classpath")
+            }
+        }
+    }
+
+    @TestMetadata("kapt/simple")
     @DisplayName("Kapt is working with incremental compilation")
     @GradleTest
+    @MustRunOnChangesInBuildToolsApi
     fun testSimpleWithIC(gradleVersion: GradleVersion) {
         project(
             "simple".withPrefix,
@@ -430,6 +442,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
+    @MustRunOnChangesInGradle
     @DisplayName("Disabled incremental compilation should disable it also for generate stubs task")
     @GradleTest
     fun testDisableIcForGenerateStubs(gradleVersion: GradleVersion) {
@@ -445,6 +459,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/inheritedAnnotations")
     @DisplayName("Works with inherited annotations")
     @GradleTest
     fun testInheritedAnnotations(gradleVersion: GradleVersion) {
@@ -461,7 +476,7 @@ open class KaptIT : KaptBaseIT() {
 
     @DisplayName("passes arguments from kapt configuration")
     @GradleTest
-    @TestMetadata("kapt2/arguments")
+    @TestMetadata("kapt/arguments")
     fun testArguments(gradleVersion: GradleVersion) {
         project("arguments".withPrefix, gradleVersion) {
             build("build") {
@@ -480,6 +495,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/generatedDirUpToDate")
+    @MustRunOnChangesInGradle
     @DisplayName("generated directory is up-to-date on binary annotation remove")
     @GradleTest
     fun testGeneratedDirectoryIsUpToDate(gradleVersion: GradleVersion) {
@@ -523,16 +540,20 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/incrementalRebuild")
     @DisplayName("Should incrementally rebuild on java class deletion")
     @GradleTest
+    @MustRunOnChangesInBuildToolsApi
     fun testRemoveJavaClassICRebuild(gradleVersion: GradleVersion) {
         testICRebuild(gradleVersion) { project ->
             project.javaSourcesDir().resolve("foo/Foo.java").deleteExisting()
         }
     }
 
+    @TestMetadata("kapt/incrementalRebuild")
     @DisplayName("Should incrementally rebuild on classpath change")
     @GradleTest
+    @MustRunOnChangesInBuildToolsApi
     open fun testChangeClasspathICRebuild(gradleVersion: GradleVersion) {
         testICRebuild(gradleVersion) { project ->
             project.buildGradle.modify {
@@ -543,7 +564,8 @@ open class KaptIT : KaptBaseIT() {
 
     @DisplayName("Should incrementally rebuild on annotation processor arguments change")
     @GradleTest
-    @TestMetadata("kapt2/arguments")
+    @TestMetadata("kapt/arguments")
+    @MustRunOnChangesInBuildToolsApi
     fun testChangeAPArgumentsICRebuild(gradleVersion: GradleVersion) {
         project("arguments".withPrefix, gradleVersion) {
             build("build") {
@@ -610,8 +632,10 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
     @DisplayName("Should run processing incrementally on annotation removal")
     @GradleTest
+    @MustRunOnChangesInBuildToolsApi
     fun testRemoveAnnotationIC(gradleVersion: GradleVersion) {
         project(
             "simple".withPrefix,
@@ -639,6 +663,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/kt18799")
     @DisplayName("KT18799: generate annotation value for constant values in documented types")
     @GradleTest
     open fun testKt18799(gradleVersion: GradleVersion) {
@@ -658,13 +683,14 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
+    @MustRunOnChangesInGradle
     @DisplayName("compile arguments are properly copied from compileKotlin to kaptTask")
     @GradleTest
     fun testCopyCompileArguments(gradleVersion: GradleVersion) {
         project(
             "simple".withPrefix,
             gradleVersion,
-            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
         ) {
             val arg = "-Xsuppress-version-warnings"
             buildGradle.modify {
@@ -685,6 +711,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/kaptOutputKotlinCode")
     @DisplayName("generates Kotlin code")
     @GradleTest
     fun testOutputKotlinCode(gradleVersion: GradleVersion) {
@@ -699,6 +726,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/locationMapping")
     @DisplayName("location mapping is working as expected")
     @GradleTest
     fun testLocationMapping(gradleVersion: GradleVersion) {
@@ -728,12 +756,13 @@ open class KaptIT : KaptBaseIT() {
 
             buildAndFail("build") {
                 val actual = getErrorMessages()
-                val expectedPropertyLineNumber = if (buildOptions.languageVersion == LanguageVersion.KOTLIN_1_9.versionString) 4 else 5
-                assertEquals(expected = genKotlinErrorString(expectedPropertyLineNumber, 7), actual = actual)
+                assertEquals(expected = genKotlinErrorString(5, 7), actual = actual)
             }
         }
     }
 
+    @TestMetadata("kapt/nokapt")
+    @MustRunOnChangesInGradle
     @DisplayName("should fail to add dependency into 'kapt' configuration when plugin is not applied")
     @GradleTest
     fun testNoKaptPluginApplied(gradleVersion: GradleVersion) {
@@ -745,6 +774,68 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @DisplayName("KT-89502: memory leaks in annotation processors are detected")
+    @GradleTest
+    fun testDetectMemoryLeaks(gradleVersion: GradleVersion) {
+        project(
+            "localAnnotationProcessor".withPrefix,
+            gradleVersion,
+            dependencyManagement = DependencyManagement.DefaultDependencyManagement(setOf("https://jitpack.io")),
+        ) {
+            subProject("annotation-processor").javaSourcesDir().resolve("TestAnnotationProcessor.kt").modify { text ->
+                text
+                    .replace(
+                        "const val KAPT_KOTLIN_GENERATED_OPTION_NAME = \"kapt.kotlin.generated\"",
+                        "const val KAPT_KOTLIN_GENERATED_OPTION_NAME = \"kapt.kotlin.generated\"\n        @JvmStatic var leaked: Any? = null"
+                    )
+                    .replace("val annotatedElements = ", "leaked = this\n        val annotatedElements = ")
+            }
+            subProject("example").buildGradle.append(
+                //language=Gradle
+                """
+                kapt {
+                    detectMemoryLeaks = "paranoid"
+                }
+                """.trimIndent()
+            )
+
+            val cacheWarning = KotlinToolingDiagnostics.KaptMemoryLeakDetectionWithClassLoadersCache
+            build(":example:kaptKotlin") {
+                assertOutputContains("Memory leak detected!")
+                assertOutputContains("Location: 'org.kotlin.annotationProcessor.TestAnnotationProcessor', static field 'leaked'")
+                // The warning is about the 'standard' mode only.
+                assertNoDiagnostic(cacheWarning)
+            }
+
+            subProject("example").buildGradle.modify { it.replace("detectMemoryLeaks = \"paranoid\"", "detectMemoryLeaks = \"standard\"") }
+            build(":example:kaptKotlin", "--rerun-tasks") {
+                if ((buildOptions.kaptOptions?.classLoadersCacheSize ?: 0) > 0) {
+                    assertHasDiagnostic(cacheWarning)
+                } else {
+                    assertNoDiagnostic(cacheWarning)
+                }
+            }
+        }
+    }
+
+    @DisplayName("Classloaders cache is reported as disabled when processors are discovered from the compile classpath")
+    @GradleTest
+    fun testClassLoadersCacheWithCompileClasspathDiscovery(gradleVersion: GradleVersion) {
+        project(
+            "simple".withPrefix,
+            gradleVersion,
+            buildOptions = defaultBuildOptions.copy(
+                kaptOptions = kaptOptions().copy(includeCompileClasspath = true, classLoadersCacheSize = 10)
+            )
+        ) {
+            build("build") {
+                assertHasDiagnostic(KotlinToolingDiagnostics.KaptClassLoadersCacheWithCompileClasspathDiscovery)
+            }
+        }
+    }
+
+    @TestMetadata("kapt/localAnnotationProcessor")
+    @MustRunOnChangesInGradle
     @DisplayName("Should re-run kapt on changes in local annotation processor")
     @GradleTest
     open fun testChangesInLocalAnnotationProcessor(gradleVersion: GradleVersion) {
@@ -752,8 +843,6 @@ open class KaptIT : KaptBaseIT() {
             "localAnnotationProcessor".withPrefix,
             gradleVersion,
             dependencyManagement = DependencyManagement.DefaultDependencyManagement(setOf("https://jitpack.io")),
-            // KT-76289 KAPT Gradle Project Isolation Violation
-            buildOptions = defaultBuildOptions.copy(isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED),
         ) {
             build("build")
 
@@ -799,6 +888,80 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @DisplayName("KT-88583: the isolation hides the build process classpath on a fresh daemon and on a dirty daemon")
+    @GradleTest
+    open fun testIsolateProcessorsFromBuildClasspath(gradleVersion: GradleVersion) {
+        project("empty", gradleVersion) {
+            settingsGradle.appendText("\ninclude ':annotation-processor', ':example'\n")
+            addKgpToBuildScriptCompilationClasspath()
+
+            subProject("annotation-processor").apply {
+                projectPath.source("build.gradle") { "" }
+                javaSourcesDir().source("org/kotlin/probe/ClasspathProbeProcessor.java") { classpathProbeProcessorSource }
+                projectPath.source("src/main/resources/META-INF/services/javax.annotation.processing.Processor") {
+                    "org.kotlin.probe.ClasspathProbeProcessor"
+                }
+                // A pure Java annotation processor without any dependencies:
+                // nothing (not even kotlin-stdlib) is on the annotation processing classpath except the processor itself,
+                // so classes it observes besides JDK ones can only leak from the build process classpath.
+                buildScriptInjection {
+                    project.plugins.apply("java")
+                }
+            }
+
+            subProject("example").apply {
+                projectPath.source("build.gradle") { "" }
+                kotlinSourcesDir().source("Example.kt") {
+                    """
+                    class Example {
+                        fun greet(): String = "Hello"
+                    }
+                    """.trimIndent()
+                }
+                buildScriptInjection {
+                    project.plugins.apply("org.jetbrains.kotlin.jvm")
+                    project.plugins.apply("org.jetbrains.kotlin.kapt")
+                    project.dependencies.add("kapt", project.dependencies.project(mapOf("path" to ":annotation-processor")))
+                }
+            }
+
+            // Use a daemon unique to this copied test project, then keep reusing it across all three builds.
+            val daemonMarker = "-Duser.variant=kt88583${projectPath.parent.fileName}"
+            var hostProcess: String? = null
+
+            fun BuildResult.assertSameHost() {
+                val currentHost = parseHostProcess(output)
+                hostProcess?.let { assertEquals(it, currentHost) } ?: run { hostProcess = currentHost }
+            }
+
+            fun buildAndReadProbes(isolationEnabled: Boolean): Map<String, Boolean> {
+                lateinit var buildOutput: String
+                build("build", daemonMarker, "-P$ISOLATION_PROPERTY=$isolationEnabled") {
+                    assertTasksExecuted(":example:kaptKotlin")
+                    assertSameHost()
+                    buildOutput = output
+                }
+                return parseProbes(buildOutput)
+            }
+
+            assertEquals(ISOLATED_PROBES, buildAndReadProbes(isolationEnabled = true))
+            assertEquals(true, buildAndReadProbes(isolationEnabled = false)[JAVAC_PROBE])
+            assertEquals(ISOLATED_PROBES, buildAndReadProbes(isolationEnabled = true))
+        }
+    }
+
+    private fun parseProbes(output: String): Map<String, Boolean> =
+        Regex("""kapt-probe (\S+) visible: (true|false)""")
+            .findAll(output)
+            .associate { it.groupValues[1] to it.groupValues[2].toBoolean() }
+
+    /** The name of the process that hosts kapt. It proves which builds share one daemon. */
+    private fun parseHostProcess(output: String): String =
+        Regex("""kapt-probe-host (\S+)""").find(output)?.groupValues?.get(1)
+            ?: error("The annotation processor did not report the hosting process")
+
+    @TestMetadata("kapt/simple")
+    @MustRunOnChangesInGradle
     @DisplayName("should not resolve 'kapt' configuration during build configuration phase")
     @GradleTest
     fun testKaptConfigurationLazyResolution(gradleVersion: GradleVersion) {
@@ -813,6 +976,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/kaptAvoidance")
+    @MustRunOnChangesInGradle
     @DisplayName("Should be possible to disable discovery in compile classpath")
     @GradleTest
     open fun testDisableDiscoveryInCompileClasspath(gradleVersion: GradleVersion) {
@@ -841,6 +1006,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/kaptAvoidance")
+    @MustRunOnChangesInGradle
     @DisplayName("up-to-date checks are working")
     @GradleTest
     fun testKaptAvoidance(gradleVersion: GradleVersion) {
@@ -897,14 +1064,13 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/kt19179")
     @DisplayName("KT19179 and KT37241: kapt is not skipped and does not generate stubs for non-existent entries")
     @GradleTest
     open fun testKt19179andKt37241(gradleVersion: GradleVersion) {
         project(
             "kt19179".withPrefix,
             gradleVersion,
-            // KT-76289 KAPT Gradle Project Isolation Violation
-            buildOptions = defaultBuildOptions.copy(isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED),
         ) {
 
             build("build") {
@@ -962,14 +1128,13 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/kt33847")
     @DisplayName("KT33847: Kapt does not included Filer-generated class files on compilation classpath")
     @GradleTest
     open fun testKt33847(gradleVersion: GradleVersion) {
         project(
             "kt33847".withPrefix,
             gradleVersion,
-            // KT-76289 KAPT Gradle Project Isolation Violation
-            buildOptions = defaultBuildOptions.copy(isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED),
         ) {
 
             build("build") {
@@ -999,6 +1164,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @MustRunOnChangesInGradle
     @DisplayName("Dependency on kapt module should not resolve all configurations")
     @GradleTest
     fun testDependencyOnKaptModule(gradleVersion: GradleVersion) {
@@ -1011,25 +1177,21 @@ open class KaptIT : KaptBaseIT() {
                 )
             )
         ) {
-            includeOtherProjectAsSubmodule("simple", "kapt2")
+            includeOtherProjectAsSubmodule("simple", "kapt")
             buildGradle.append("\ndependencies { implementation project(':simple') }")
 
             testResolveAllConfigurations()
         }
     }
 
+    @TestMetadata("kapt/mpp-kapt-presence")
     @DisplayName("Kapt with MPP/Jvm")
     @GradleTest
     fun testMPPKaptPresence(gradleVersion: GradleVersion) {
         project(
             "mpp-kapt-presence".withPrefix,
             gradleVersion,
-            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
         ) {
-            if (!isWithJavaSupported) {
-                subProject("dac").buildGradle.replaceText("withJava()", "")
-            }
-
             build(":dac:compileKotlinJvm") {
                 assertTasksExecuted(
                     ":dac:kaptGenerateStubsKotlinJvm",
@@ -1048,6 +1210,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("KT-31127: processor using Filer api does not break 'javaCompile' task")
     @GradleTest
     fun testKotlinProcessorUsingFiler(gradleVersion: GradleVersion) {
@@ -1083,6 +1246,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
     @DisplayName("should do annotation processing when 'sourceCompatibility = 8' and JDK is 11+")
     @JdkVersions(versions = [JavaVersion.VERSION_17])
     @GradleWithJdkTest
@@ -1115,6 +1279,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/jpms-module")
     @DisplayName("Works with JPMS on JDK 9+")
     @GradleTest
     fun testJpmsModule(gradleVersion: GradleVersion) {
@@ -1145,6 +1310,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/incrementalRebuild")
+    @MustRunOnChangesInGradle
     @DisplayName("KT-46651: kapt is tracking source files properly with configuration cache enabled")
     @GradleTest
     open fun kaptGenerateStubsShouldNotCaptureSourcesStateInConfigurationCache(gradleVersion: GradleVersion) {
@@ -1166,6 +1333,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/localAnnotationProcessor")
+    @MustRunOnChangesInGradle
     @DisplayName("KT-47347: kapt processors should not be an input files for stub generation")
     @GradleTest
     open fun testChangesToKaptConfigurationDoNotTriggerStubGeneration(gradleVersion: GradleVersion) {
@@ -1173,8 +1342,6 @@ open class KaptIT : KaptBaseIT() {
             "localAnnotationProcessor".withPrefix,
             gradleVersion,
             dependencyManagement = DependencyManagement.DefaultDependencyManagement(setOf("https://jitpack.io")),
-            // KT-76289 KAPT Gradle Project Isolation Violation
-            buildOptions = defaultBuildOptions.copy(isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED),
         ) {
             build("assemble")
 
@@ -1196,6 +1363,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
+    @MustRunOnChangesInGradle
     @DisplayName("KT-52392: Setup with different windows disks does not fail configuration")
     @GradleTest
     @OsCondition(supportedOn = [OS.WINDOWS], enabledOnCI = [OS.WINDOWS])
@@ -1211,6 +1380,7 @@ open class KaptIT : KaptBaseIT() {
                  */
                 warningMode = WarningMode.None,
                 configurationCache = BuildOptions.ConfigurationCacheValue.DISABLED,
+                isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED,
             ),
         ) {
             fun findAnotherRoot() = ('A'..'Z').first { !projectPath.root.startsWith(it.toString()) }
@@ -1236,6 +1406,7 @@ open class KaptIT : KaptBaseIT() {
 
     }
 
+    @TestMetadata("kapt/simple")
     @DisplayName("KT-61879: K2 KAPT works with proguarded compiler jars and enum class")
     @GradleTest
     fun testEnumClass(gradleVersion: GradleVersion) {
@@ -1248,6 +1419,8 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/generatedSources")
+    @MustRunOnChangesInGradle
     @DisplayName("Generated sources attached to KotlinSourceSet are also used by generate stubs task")
     @GradleTest
     fun testGeneratedSourcesUsedInGenerateStubsTask(gradleVersion: GradleVersion) {
@@ -1256,14 +1429,13 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/repeatableAnnotations")
     @DisplayName("KT-53135: check that JVM IR backend is enabled by default by verifying that repeatable annotations are supported")
     @GradleTest
     open fun testRepeatableAnnotations(gradleVersion: GradleVersion) {
         project(
             "repeatableAnnotations".withPrefix,
             gradleVersion,
-            // KT-76289 KAPT Gradle Project Isolation Violation
-            buildOptions = defaultBuildOptions.copy(isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED),
         ) {
             build("build") {
                 assertKaptSuccessful()
@@ -1272,14 +1444,13 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/useGeneratedKotlinSource")
     @DisplayName("Kapt-generated Kotlin sources can be used in Kotlin")
     @GradleTest
     open fun useGeneratedKotlinSource(gradleVersion: GradleVersion) {
         project(
             "useGeneratedKotlinSource".withPrefix,
             gradleVersion,
-            // KT-76289 KAPT Gradle Project Isolation Violation
-            buildOptions = defaultBuildOptions.copy(isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED),
         ) {
             build("build") {
                 assertKaptSuccessful()
@@ -1288,13 +1459,13 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
     @DisplayName("KT-58745: compiler plugin options should be passed to KaptGenerateStubs task")
     @GradleTest
     fun kaptGenerateStubsConfiguredWithCompilerPluginOptions(gradleVersion: GradleVersion) {
         project(
             "simple".withPrefix,
             gradleVersion,
-            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
         ) {
 
             buildGradle.modify {
@@ -1316,12 +1487,14 @@ open class KaptIT : KaptBaseIT() {
 
                 assertCompilerArgument(
                     ":kaptGenerateStubsKotlin",
-                    "plugin:org.jetbrains.kotlin.noarg:annotation=my.custom.Annotation"
+                    "plugin:org.jetbrains.kotlin.noarg:annotation=my.custom.Annotation",
                 )
             }
         }
     }
 
+    @TestMetadata("kapt/kapt-in-test-runtime-classpath")
+    @MustRunOnChangesInGradle
     @DisplayName("KT-59256: kapt generated files are included into the test runtime classpath")
     @GradleTest
     fun testKaptGeneratedInTestRuntimeClasspath(gradleVersion: GradleVersion) {
@@ -1332,14 +1505,13 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/multipass")
     @DisplayName("Application of annotation processors is repeated as long as new source files are generated")
     @GradleTest
     open fun testMultipleProcessingPasses(gradleVersion: GradleVersion) {
         project(
             "multipass".withPrefix,
             gradleVersion,
-            // KT-76289 KAPT Gradle Project Isolation Violation
-            buildOptions = defaultBuildOptions.copy(isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED),
         ) {
             build("build") {
                 assertKaptSuccessful()
@@ -1352,6 +1524,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
     @DisplayName("KT-64719 KAPT stub generation should fail on files with declaration errors")
     @GradleTest
     open fun testFailOnTopLevelSyntaxError(gradleVersion: GradleVersion) {
@@ -1359,12 +1532,18 @@ open class KaptIT : KaptBaseIT() {
             javaSourcesDir().resolve("invalid.kt").writeText("TopLevelDeclarationExpected")
 
             buildAndFail(":kaptGenerateStubsKotlin") {
-                assertOutputContains("invalid.kt:1:1")
-                assertOutputContains("Expecting a top level declaration")
+                if (gradleVersion < GradleVersion.version(TestVersions.Gradle.G_9_7)) {
+                    assertOutputContains("invalid.kt:1:1")
+                    assertOutputContains("Expecting a top level declaration")
+                } else {
+                    assertOutputContains("Syntax error: Expecting a top level declaration.")
+                    assertOutputContains("Location: .*invalid.kt".toRegex())
+                }
             }
         }
     }
 
+    @TestMetadata("kapt/simple")
     @DisplayName("KT-64719 KAPT stub generation should not fail on errors in bodies")
     @GradleTest
     fun testNotFailOnBodyLevelSyntaxError(gradleVersion: GradleVersion) {
@@ -1377,6 +1556,7 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/serialization")
     @DisplayName("KT-65006 Kapt works with the serialization plugin")
     @GradleTest
     fun testSerializationPlugin(gradleVersion: GradleVersion) {
@@ -1391,11 +1571,13 @@ open class KaptIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/simple")
     @DisplayName("KT-80843 Kapt does not fail on redeclaration in data class")
     @GradleTest
     fun testRedeclarationInDataClass(gradleVersion: GradleVersion) {
         project("simple".withPrefix, gradleVersion) {
-            javaSourcesDir().resolve("invalid.kt").writeText("""
+            javaSourcesDir().resolve("invalid.kt").writeText(
+                """
                 data class ClassWithDupProps(
                     val rock: String,
                     val paper: String,
@@ -1403,11 +1585,89 @@ open class KaptIT : KaptBaseIT() {
                     val rock: String, // This would cause KAPT K2 to crash
                 )
 
-            """.trimIndent())
+            """.trimIndent()
+            )
 
             build(":kaptGenerateStubsKotlin") {
                 assertFileExists(projectPath.resolve("build/tmp/kapt3/stubs/main/ClassWithDupProps.java"))
             }
         }
+    }
+
+    private companion object {
+        private const val ISOLATION_PROPERTY = "kapt.isolate.processors.from.build.classpath"
+
+        private const val JAVAC_PROBE = "com.sun.source.util.Trees"
+
+        /** With the isolation on, a processor sees only its own classes, JDK platform classes and javac. */
+        private val ISOLATED_PROBES = mapOf(
+            "build-process-classpath" to false,
+            "kotlin.Unit" to false,
+            JAVAC_PROBE to true,
+        )
+
+        //language=Java
+        private val classpathProbeProcessorSource = """
+            package org.kotlin.probe;
+
+            import java.lang.management.ManagementFactory;
+            import java.util.Set;
+            import javax.annotation.processing.AbstractProcessor;
+            import javax.annotation.processing.RoundEnvironment;
+            import javax.annotation.processing.SupportedAnnotationTypes;
+            import javax.lang.model.SourceVersion;
+            import javax.lang.model.element.TypeElement;
+            import javax.tools.Diagnostic;
+
+            @SupportedAnnotationTypes("*")
+            public class ClasspathProbeProcessor extends AbstractProcessor {
+                private boolean reported = false;
+
+                @Override
+                public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+                    if (reported) return false;
+                    reported = true;
+                    printMessage("kapt-probe-host " + ManagementFactory.getRuntimeMXBean().getName());
+                    report("build-process-classpath", buildProcessClasspathIsReachable());
+                    probe("kotlin.Unit");
+                    probe("com.sun.source.util.Trees");
+                    return false;
+                }
+
+                // The build process classpath is what KT-88583 is about: it is reachable exactly when the
+                // system classloader of the hosting process is somewhere in our own classloader chain.
+                private boolean buildProcessClasspathIsReachable() {
+                    ClassLoader system = ClassLoader.getSystemClassLoader();
+                    for (ClassLoader cl = getClass().getClassLoader(); cl != null; cl = cl.getParent()) {
+                        if (cl == system) return true;
+                    }
+                    return false;
+                }
+
+                private void probe(String className) {
+                    boolean visible;
+                    try {
+                        Class.forName(className, false, getClass().getClassLoader());
+                        visible = true;
+                    } catch (ClassNotFoundException e) {
+                        visible = false;
+                    }
+                    report(className, visible);
+                }
+
+                private void report(String what, boolean visible) {
+                    printMessage("kapt-probe " + what + " visible: " + visible);
+                }
+
+                private void printMessage(String message) {
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.WARNING, message);
+                }
+
+                @Override
+                public SourceVersion getSupportedSourceVersion() {
+                    return SourceVersion.latestSupported();
+                }
+            }
+        """.trimIndent()
     }
 }

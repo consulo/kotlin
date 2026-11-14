@@ -65,6 +65,38 @@ public class KaptJVMCompilerMojo extends K2JVMCompileMojo {
     @Parameter
     private boolean mapDiagnosticLocations = false;
 
+    private enum StubGenerationScheme {
+        // NOTE: these values are intentionally lowercase
+        jtree,
+        direct,
+    }
+
+    /**
+     * Selects how kapt generates Java stubs.
+     * {@code jtree} is the historical scheme that uses javac AST and will be deprecated eventually.
+     * {@code direct} is a new experimental scheme that generates Java text directly.
+     */
+    @Parameter(property = "kapt.stub.generation.scheme", defaultValue = "jtree")
+    private StubGenerationScheme stubGenerationScheme;
+
+    /**
+     * Number of threads writing the generated Java stubs; {@code 1} (the default) writes them sequentially.
+     * Only used with the {@code direct} stub generation scheme; with {@code jtree} kapt warns and writes sequentially.
+     *
+     * Can be configured as:
+     * - Mojo parameter: {@code <stubWriterThreads>4</stubWriterThreads>}
+     * - Maven property: {@code -Dkapt.stub.writer.threads=4}
+     */
+    @Parameter(property = "kapt.stub.writer.threads", defaultValue = "1")
+    private int stubWriterThreads;
+
+    /**
+     * Skip function body resolution during stub generation:
+     * {@code <headerMode>true</headerMode>} or {@code -Dkapt.header.mode=true}.
+     */
+    @Parameter(property = "kapt.header.mode", defaultValue = "false")
+    private boolean headerMode;
+
     @Parameter
     private List<String> annotationProcessorArgs;
 
@@ -116,7 +148,21 @@ public class KaptJVMCompilerMojo extends K2JVMCompileMojo {
         options.add(new KaptOption("useLightAnalysis", useLightAnalysis));
         options.add(new KaptOption("correctErrorTypes", correctErrorTypes));
         options.add(new KaptOption("mapDiagnosticLocations", mapDiagnosticLocations));
+        options.add(new KaptOption("stubGenerationScheme", stubGenerationScheme.name()));
         options.add(new KaptOption("processors", annotationProcessors));
+
+        if (stubWriterThreads < 1) {
+            // Warn and fall back rather than failing later in the compiler, and name the parameter the user set.
+            getLog().warn(
+                    "Option <stubWriterThreads> (-Dkapt.stub.writer.threads) was set to an invalid value: "
+                            + stubWriterThreads + ". Using default value 1 instead.");
+        } else if (stubWriterThreads != 1) {
+            options.add(new KaptOption("stubWriterThreads", String.valueOf(stubWriterThreads)));
+        }
+
+        if (headerMode) {
+            options.add(new KaptOption("headerMode", true));
+        }
 
         if (includeCompileClasspath != null) {
             options.add(new KaptOption("includeCompileClasspath", includeCompileClasspath));

@@ -1,26 +1,30 @@
 import GenerateKgpBuildConstantsTask.Companion.registerGenerateKgpBuildConstantsTask
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import gradle.GradlePluginVariant
+import gradle.addKgpGradleApiDependency
+import gradle.enableKotlinSerializationPlugin
+import gradle.removeGradleApiDependencyFromTestConfiguration
 import org.gradle.plugin.compatibility.compatibility
 import org.jetbrains.kotlin.build.androidsdkprovisioner.ProvisioningType
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import org.jetbrains.kotlin.testFederation.TemporaryTestFederationApi
-import org.jetbrains.kotlin.testFederation.isSmokeTest
+import org.jetbrains.kotlin.nativeDistribution.useProvidedNativeBootstrapDistribution
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     id("gradle-plugin-common-configuration")
     id("kotlin-git.gradle-build-conventions.binary-compatibility-extended")
+    id("kotlin-git.gradle-build-conventions.kgp-npm-tooling-helper")
+    id("kgp-build-utils")
+    id("kgp-jacoco-on-the-fly")
+    id("kgp-jacoco-instrumenter")
     id("android-sdk-provisioner")
     id("asm-deprecating-transformer")
-    id("project-tests-convention")
+    id("native-bootstrap-distribution-provisioner")
     `java-test-fixtures`
-}
-
-repositories {
-    google()
-    mavenCentral()
-    gradlePluginPortal()
+    `jvm-test-suite`
 }
 
 kotlin {
@@ -35,52 +39,10 @@ kotlin {
                 "org.jetbrains.kotlin.gradle.ComposeKotlinGradlePluginApi",
                 "org.jetbrains.kotlin.gradle.swiftexport.ExperimentalSwiftExportDsl",
                 "org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation",
+                "org.jetbrains.kotlin.gradle.ExperimentalJsTestDsl",
+                "org.jetbrains.kotlin.gradle.DelicateKotlinGradlePluginApi",
             )
         )
-    }
-}
-
-registerKotlinSourceForVersionRange(
-    GradlePluginVariant.GRADLE_MIN,
-    GradlePluginVariant.GRADLE_82,
-)
-
-registerKotlinSourceForVersionRange(
-    GradlePluginVariant.GRADLE_MIN,
-    GradlePluginVariant.GRADLE_86,
-)
-
-registerKotlinSourceForVersionRange(
-    GradlePluginVariant.GRADLE_MIN,
-    GradlePluginVariant.GRADLE_811,
-)
-
-tasks.test {
-    useJUnitPlatform {
-        exclude("**/*LincheckTest.class")
-    }
-    val jdk8Provider = project.getToolchainJdkHomeFor(JdkMajorVersion.JDK_1_8)
-    val jdk11Provider = project.getToolchainJdkHomeFor(JdkMajorVersion.JDK_11_0)
-    doFirst {
-        systemProperty("jdk8Home", jdk8Provider.get())
-        systemProperty("jdk11Home", jdk11Provider.get())
-    }
-}
-
-tasks.withType<Test>().configureEach {
-    javaLauncher.set(project.getToolchainLauncherFor(JdkMajorVersion.JDK_21_0))
-}
-
-tasks.register<Test>("lincheckTest") {
-    classpath = sourceSets.test.get().runtimeClasspath
-    testClassesDirs = sourceSets.test.get().output.classesDirs
-    jvmArgs(
-        "--add-opens", "java.base/jdk.internal.misc=ALL-UNNAMED",
-        "--add-exports", "java.base/jdk.internal.util=ALL-UNNAMED",
-        "--add-exports", "java.base/sun.security.action=ALL-UNNAMED"
-    )
-    useJUnitPlatform {
-        include("**/*LincheckTest.class")
     }
 }
 
@@ -140,7 +102,10 @@ val unpublishedCompilerRuntimeDependencies = listOf(
     ":wasm:wasm.config", // for k/js task
 )
 
-val coreDepsVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation.get()
+configurations.embedded.configure {
+    // excludes stdlib and other dependencies provided by Gradle runtime
+    excludeGradleCommonDependencies()
+}
 
 dependencies {
     commonApi(platform(project(":kotlin-gradle-plugins-bom")))
@@ -151,6 +116,7 @@ dependencies {
         commonCompileOnly(project(compilerRuntimeDependency)) { isTransitive = false }
     }
     commonCompileOnly(libs.guava)
+    commonCompileOnly(libs.org.jetbrains.annotations)
     commonCompileOnly(project(":daemon-common")) {
         isTransitive = false
     }
@@ -163,6 +129,7 @@ dependencies {
     }
     commonCompileOnly(project(":kotlin-gradle-statistics"))
     commonCompileOnly(project(":kotlin-gradle-build-metrics"))
+    commonCompileOnly(project(":kotlin-gradle-plugin-idea-browser-debug"))
     commonCompileOnly(project(":compiler:build-tools:kotlin-build-tools-jdk-utils"))
     commonCompileOnly(libs.android.gradle.plugin.gradle.api) {
         overrideTargetJvmVersion(11)
@@ -218,14 +185,11 @@ dependencies {
 
     embedded(project(":kotlin-gradle-build-metrics"))
     embedded(project(":kotlin-gradle-statistics"))
+    embedded(project(":kotlin-gradle-plugin-idea-browser-debug"))
     embedded(libs.intellij.asm) { isTransitive = false }
     embedded(commonDependency("com.google.code.gson:gson")) { isTransitive = false }
     embedded(libs.develocity.gradlePluginAdapter)
     embedded("org.jetbrains.kotlinx:kotlinx-serialization-json") {
-        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib")
-        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-common")
-        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk8")
-        exclude(group = "org.jetbrains.kotlin", module = "kotlin-stdlib-jdk7")
         version {
             strictly(GradlePluginVariant.GRADLE_MIN.compatibleKotlinxJsonSerializationVersion)
         }
@@ -238,32 +202,26 @@ dependencies {
         exclude(group = "*")
     }
 
+    commonCompileOnly(libs.playwright) {
+        exclude(group = "com.microsoft.playwright", module = "driver-bundle")
+    }
+    embedded(libs.playwright) {
+        exclude(group = "com.microsoft.playwright", module = "driver-bundle")
+    }
+
+    embedded(libs.org.tukaani.xz)
+
     commonCompileOnly(libs.apache.commons.compress)
     embedded(libs.apache.commons.compress)
 
     // Adding workaround KT-57317 for Gradle versions where Kotlin runtime <1.8.0
     "mainEmbedded"(project(":kotlin-build-tools-enum-compat"))
 
-    commonCompileOnly("org.bouncycastle:bcpkix-jdk18on:1.80")
-    commonCompileOnly("org.bouncycastle:bcpg-jdk18on:1.80")
-
-    testCompileOnly(project(":compiler"))
-
-    testImplementation(commonDependency("org.jetbrains.teamcity:serviceMessages"))
-    testImplementation(testFixtures(project(":kotlin-build-common")))
-    testImplementation(testFixtures(project(":compiler:test-infrastructure-utils")))
-    testImplementation(project(":kotlin-compiler-runner"))
-    testImplementation(kotlin("test-junit5", coreDepsVersion))
-    testImplementation(libs.junit.jupiter.api)
-    testImplementation(libs.junit.jupiter.params)
-
-    testImplementation(project(":kotlin-gradle-statistics"))
-    testImplementation(project(":kotlin-tooling-metadata"))
-    testImplementation(libs.lincheck)
-    testImplementation(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
-    testImplementation(libs.slf4j.api)
-
+    commonCompileOnly(libs.bouncycastle.bcpkix.jdk18on)
+    commonCompileOnly(libs.bouncycastle.bcpg.jdk18on)
 }
+
+optInToK1Deprecation()
 
 configurations.commonCompileClasspath.get().exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-core")
 
@@ -333,12 +291,35 @@ configurations.all {
             because("CVE-2025-48924")
         }
 
-        // Bouncy Castle
-        if (requested.group == "org.bouncycastle" && requested.name == "bcpkix-jdk18on") {
-            useVersion("1.80")
-            because("CVE-2024-34447, CVE-2024-30172, CVE-2024-30171, CVE-2024-29857")
-        }
+        checkAndOverrideBouncyCastleVersion(project)
     }
+}
+
+val asmDeprecationExclusions = listOf(
+    "org.jetbrains.kotlin.gradle.**", // part of the plugin
+    "org.jetbrains.kotlin.statistics.**", // part of the plugin
+    "org.jetbrains.kotlin.tooling.**", // part of the plugin
+    "org.jetbrains.kotlin.org.**", // already shadowed dependencies
+    "org.jetbrains.kotlin.com.**", // already shadowed dependencies
+    "org.jetbrains.kotlin.it.unimi.**", // already shadowed dependencies
+    "org.jetbrains.kotlin.internal.**", // already internal package
+)
+val asmDeprecationMessage = """
+    You're using a Kotlin compiler class bundled into KGP for its internal needs.
+    This is discouraged and will not be supported in future releases.
+    The class in this artifact is scheduled for removal in a future Kotlin release. Please define dependency on it in an alternative way.
+    See https://kotl.in/gradle/internal-compiler-symbols for more details
+""".trimIndent()
+asmDeprecation {
+    val embeddedConfigurations = listOf(configurations.getByName("embedded")) + GradlePluginVariant.values().map { variant ->
+        configurations.getByName("${sourceSets.getByName(variant.sourceSetName).name}Embedded")
+    }
+    deprecateClassesByPattern(
+        inputConfigurations = embeddedConfigurations,
+        pattern = "org.jetbrains.kotlin.**",
+        deprecationMessage = asmDeprecationMessage,
+        exclusions = asmDeprecationExclusions,
+    )
 }
 
 tasks {
@@ -347,6 +328,7 @@ tasks {
             "projectVersion" to project.version,
             "kotlinNativeVersion" to project.kotlinNativeVersion,
             "kotlinWebNpmToolingDirName" to kotlinWebNpmToolingDirName,
+            "bouncyCastleVersion" to libs.versions.bouncycastle.get(),
         )
         for ((name, value) in propertiesToExpand) {
             inputs.property(name, value)
@@ -408,6 +390,8 @@ tasks {
             }
         }
 
+        relocate("com.microsoft.playwright", "${baseTargetPackage}.com.microsoft.playwright")
+
         /*
         Disable Kotlin Module remapping to allow our own 'KotlinModuleMetadataVersionBasedSkippingTransformer' to run
          */
@@ -418,25 +402,7 @@ tasks {
              * These files are required only at compilation time, but we include the modules only for runtime
              * Hack for not limiting LV to 1.8 for those modules. To be removed after KT-70247
              */
-            pivotVersion = KotlinMetadataPivotVersion(1, 9, 0)
-        }
-        asmDeprecation {
-            val exclusions = listOf(
-                "org.jetbrains.kotlin.gradle.**", // part of the plugin
-                "org.jetbrains.kotlin.statistics.**", // part of the plugin
-                "org.jetbrains.kotlin.tooling.**", // part of the plugin
-                "org.jetbrains.kotlin.org.**", // already shadowed dependencies
-                "org.jetbrains.kotlin.com.**", // already shadowed dependencies
-                "org.jetbrains.kotlin.it.unimi.**", // already shadowed dependencies
-                "org.jetbrains.kotlin.internal.**", // already internal package
-            )
-            val deprecationMessage = """
-                You're using a Kotlin compiler class bundled into KGP for its internal needs.
-                This is discouraged and will not be supported in future releases.
-                The class in this artifact is scheduled for removal in Kotlin 2.2. Please define dependency on it in an alternative way.
-                See https://kotl.in/gradle/internal-compiler-symbols for more details
-            """.trimIndent()
-            deprecateClassesByPattern("org.jetbrains.kotlin.**", deprecationMessage, exclusions)
+            pivotVersion = KotlinMetadataPivotVersion(2, 2, 0)
         }
     }
     GradlePluginVariant.values().forEach { variant ->
@@ -478,10 +444,8 @@ tasks.named("validatePlugins") {
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5) {
+    testTask() {
         workingDir = rootDir
-        @OptIn(TemporaryTestFederationApi::class)
-        isSmokeTest = true
     }
 }
 
@@ -498,12 +462,6 @@ gradlePlugin {
                     configurationCache = true
                 }
             }
-        }
-        create("kotlinJsPlugin") {
-            id = "org.jetbrains.kotlin.js"
-            description = "Kotlin JS plugin"
-            displayName = description
-            implementationClass = "org.jetbrains.kotlin.gradle.plugin.KotlinJsPluginWrapper"
         }
         create("kotlinMultiplatformPlugin") {
             id = "org.jetbrains.kotlin.multiplatform"
@@ -580,31 +538,203 @@ gradlePlugin {
     }
 }
 
-// Gradle plugins functional tests
+testing {
+    suites {
+        withType<JvmTestSuite>().configureEach {
+            useJUnitJupiter()
+
+            dependencies {
+                implementation("org.jetbrains.kotlin:kotlin-test-junit5")
+                implementation(libs.junit.jupiter.api)
+                implementation(libs.junit.jupiter.params)
+            }
+
+            targets.configureEach {
+                testTask.configure {
+                    javaLauncher.convention(project.getToolchainLauncherFor(JdkMajorVersion.JDK_21_0))
+                }
+            }
+        }
+
+        val test = named<JvmTestSuite>("test") {
+            dependencies {
+                implementation(testFixtures(project(":kotlin-build-common")))
+                implementation(testFixtures(project(":compiler:test-infrastructure-utils")))
+                implementation(libs.slf4j.api)
+
+                compileOnly("org.jetbrains.kotlin:kotlin-stdlib")
+                compileOnly("org.jetbrains.kotlin:kotlin-reflect")
+                compileOnly.addKgpGradleApiDependency()
+
+                runtimeOnly(gradleApi())
+            }
+
+            targets.configureEach {
+                testTask.configure {
+                    val kgpNpmToolingPackageJson = kgpNpmTooling.npmToolingProjectDir.file("package.json")
+                    inputs.file(kgpNpmToolingPackageJson)
+                        .withPropertyName("kgpNpmToolingPackageJson")
+                        .withPathSensitivity(PathSensitivity.NAME_ONLY)
+                        .normalizeLineEndings()
+                    jvmArgumentProviders.add {
+                        listOf("-DkgpNpmToolingPackageJson=${kgpNpmToolingPackageJson.orNull?.asFile?.invariantSeparatorsPath}")
+                    }
+                }
+            }
+        }
+
+        register<JvmTestSuite>("functionalTest") {
+            dependencies {
+                implementation(project())
+                implementation(testFixtures(project()))
+
+                implementation(testFixtures(project(":kotlin-build-common")))
+                implementation(testFixtures(project(":compiler:test-infrastructure-utils")))
+                implementation(project(":kotlin-compiler-runner"))
+                implementation(project(":kotlin-gradle-plugin-tcs-android"))
+                implementation(project(":kotlin-tooling-metadata"))
+                implementation(testFixtures(project(":kotlin-gradle-plugin-idea")))
+                implementation("com.github.gundy:semver4j:0.16.4:nodeps") {
+                    exclude(group = "*")
+                }
+                implementation(project(":compose-compiler-gradle-plugin"))
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json") {
+                    version {
+                        strictly(GradlePluginVariant.GRADLE_MIN.compatibleKotlinxJsonSerializationVersion)
+                    }
+                }
+                implementation(intellijPlatformUtil())
+                implementation(libs.junit.jupiter.engine)
+
+                compileOnly(libs.android.gradle.plugin.gradle)
+                compileOnly(libs.android.gradle.plugin.gradle.api)
+                compileOnly(libs.android.tools.common)
+                compileOnly.addKgpGradleApiDependency()
+
+                runtimeOnly(libs.android.gradle.plugin.gradle.latest)
+                runtimeOnly(libs.android.gradle.plugin.gradle.api.latest)
+                runtimeOnly(gradleApi())
+                runtimeOnly(libs.apache.commons.compress) // is required for `TarArchiveOutputStream` in `NativeVersionValueSourceTest`
+                runtimeOnly(libs.org.tukaani.xz) // is required for `PackKotlinArchiveTaskTest`
+            }
+
+            targets.configureEach {
+                testTask.configure {
+                    shouldRunAfter(test)
+
+                    systemProperty("kotlinVersion", kotlinBuildProperties.kotlinVersion.get())
+
+                    testFederation {
+                        smokeTests { includeAll() }
+                    }
+
+                    // These two lines are required for AGP 9+ to work with current KGP in tests
+                    systemProperty("org.gradle.project.android.builtInKotlin", "false")
+                    systemProperty("org.gradle.project.android.newDsl", "false")
+
+                    // Fixme: KT-87883
+                    systemProperty("org.gradle.project.android.sourceset.disallowProvider", "false")
+
+                    /* Provide a temp kotlin native distribution for the tests */
+                    useProvidedNativeBootstrapDistribution { distribution ->
+                        doFirst {
+                            systemProperty("kotlin.native.home", distribution.get().root)
+                        }
+                    }
+
+                    // Publish Kotlin build artifacts to <root>/build/repo and pass its path to the test JVM.
+                    // Content is tracked via classpath normalization (jar/metadata hashes, no absolute paths).
+                    // Both dev and CI use the same path — no maven.repo.local involved.
+                    dependsOnKotlinGradlePluginPublishToBuildRepo()
+                    val buildRepoDir = rootProject.isolated.projectDirectory.dir("build/repo")
+                    addClasspathDirectoryProperty(
+                        directory = buildRepoDir,
+                        classpath = project.fileTree(buildRepoDir) { exclude("**/*.md5", "**/*.sha1") },
+                        property = "kotlinBuildRepo",
+                    )
+
+                    androidSdkProvisioner {
+                        provideToThisTaskAsSystemProperty(ProvisioningType.SDK)
+                        dependsOn(acceptLicensesTask)
+                    }
+
+                    maxParallelForks = if (kotlinBuildProperties.isTeamcityBuild.get()) 2 else 8
+                    maxHeapSize = testMaxHeapSizeLarge.toJvmArg() // KT-72460 to investigate why we need to change heap size
+
+                    testLogging {
+                        events("passed", "skipped", "failed")
+                    }
+
+                    addClasspathProperty(
+                        project.files(layout.projectDirectory.dir("src/functionalTest/resources")),
+                        "resourcesPath"
+                    )
+
+                    addFileProperty(
+                        rootProject.isolated.projectDirectory.file("kotlin-native/konan/konan.properties"),
+                        "konanProperties"
+                    )
+                }
+            }
+        }
+
+        register<JvmTestSuite>("lincheckTest") {
+            dependencies {
+                implementation(project())
+                implementation(libs.lincheck)
+                runtimeOnly(gradleApi())
+            }
+
+            targets.configureEach {
+                testTask.configure {
+                    shouldRunAfter(test)
+
+                    jvmArgs(
+                        "--add-opens", "java.base/jdk.internal.misc=ALL-UNNAMED",
+                        "--add-exports", "java.base/jdk.internal.util=ALL-UNNAMED",
+                        "--add-exports", "java.base/sun.security.action=ALL-UNNAMED"
+                    )
+                }
+            }
+        }
+
+        register<JvmTestSuite>("archTest") {
+            dependencies {
+                implementation(libs.archunit)
+                implementation(project(":kotlin-gradle-plugin-arch-test-utils"))
+            }
+
+            targets.configureEach {
+                testTask.configure {
+                    shouldRunAfter(test)
+                    configureArchUnit(
+                        task = this,
+                        sources = files(
+                            project.sourceSets.main.map { it.output.classesDirs },
+                            project.sourceSets.common.map { it.output.classesDirs },
+                            GradlePluginVariant.entries.map { variant ->
+                                project.sourceSets.named(variant.sourceSetName).map { it.output.classesDirs }
+                            },
+                        ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+tasks.check {
+    dependsOn(testing.suites)
+}
 
 // Workaround for KT-75550
-tasks.named("gradle813Jar") {
+tasks.named("gradle96Jar") {
     enabled = false
 }
 
-val gradlePluginVariantForFunctionalTests = GradlePluginVariant.GRADLE_813
-val gradlePluginVariantSourceSet = sourceSets.getByName(gradlePluginVariantForFunctionalTests.sourceSetName)
-val functionalTestSourceSet = sourceSets.create("functionalTest") {
-    compileClasspath += gradlePluginVariantSourceSet.output
-    runtimeClasspath += gradlePluginVariantSourceSet.output
+val gradlePluginVariantForFunctionalTests = GradlePluginVariant.GRADLE_96
 
-    configurations.getByName(implementationConfigurationName) {
-        extendsFrom(configurations.getByName(gradlePluginVariantSourceSet.implementationConfigurationName))
-        extendsFrom(configurations.getByName(testSourceSet.implementationConfigurationName))
-    }
-
-    configurations.getByName(runtimeOnlyConfigurationName) {
-        extendsFrom(configurations.getByName(gradlePluginVariantSourceSet.runtimeOnlyConfigurationName))
-        extendsFrom(configurations.getByName(testSourceSet.runtimeOnlyConfigurationName))
-    }
-}
-
-sourceSets.getByName("testFixtures") {
+sourceSets.testFixtures {
     /*
      * testFixtures source set is closer to regular dependencies,
      * so that it already has access to main and its transitive API dependencies.
@@ -616,11 +746,13 @@ sourceSets.getByName("testFixtures") {
      * Also, it prevents compilation problems due to dependencies from the test source set of too high LV (like compiler modules).
      */
     dependencies {
-        add(implementationConfigurationName, commonDependency("org.jetbrains.kotlin:kotlin-reflect")) { isTransitive = false }
-        add(implementationConfigurationName, gradleApi())
+        add(implementationConfigurationName, kotlin("reflect"))
+        addKgpGradleApiDependency(compileOnlyConfigurationName)
         add(implementationConfigurationName, libs.junit.jupiter.api)
     }
 }
+
+removeGradleApiDependencyFromTestConfiguration()
 
 // Enforce lowest jvm version to make testFixtures compatible with KGP-IT injections
 val testFixturesCompilation = kotlin.target.compilations.getByName("testFixtures")
@@ -633,116 +765,44 @@ testFixturesCompilation.compileTaskProvider.configure {
         configureGradleCompatibility()
     }
 }
+testFixturesCompilation.enableKotlinSerializationPlugin()
 
-val functionalTestCompilation = kotlin.target.compilations.getByName("functionalTest")
-functionalTestCompilation.compileJavaTaskProvider.configure {
-    sourceCompatibility = JavaLanguageVersion.of(17).toString()
-    targetCompatibility = JavaLanguageVersion.of(17).toString()
-}
-functionalTestCompilation.compileTaskProvider.configure {
-    with(this as KotlinCompile) {
-        kotlinJavaToolchain.toolchain.use(project.getToolchainLauncherFor(JdkMajorVersion.JDK_17_0))
+jvmToolchains {
+    configureForSourceSet("functionalTest") {
+        jdkVersion = JdkMajorVersion.JDK_17_0
+        targetBytecodeVersion = JdkMajorVersion.JDK_17_0
+    }
+
+    configureForSourceSet("test") {
+        jdkVersion = JdkMajorVersion.JDK_17_0
+        targetBytecodeVersion = JdkMajorVersion.JDK_17_0
     }
 }
 
-functionalTestCompilation.configurations.pluginConfiguration.dependencies.add(
-    dependencies.create("org.jetbrains.kotlin:kotlin-serialization-compiler-plugin-embeddable:${libs.versions.kotlin.`for`.gradle.plugins.compilation.get()}")
-)
+val functionalTestCompilation = kotlin.target.compilations.getByName("functionalTest")
+functionalTestCompilation.enableKotlinSerializationPlugin()
 functionalTestCompilation.associateWith(kotlin.target.compilations.getByName(gradlePluginVariantForFunctionalTests.sourceSetName))
 functionalTestCompilation.associateWith(kotlin.target.compilations.getByName("common"))
 functionalTestCompilation.associateWith(testFixturesCompilation)
-
-tasks.register<Test>("functionalTest") {
-    systemProperty("kotlinVersion", rootProject.extra["kotlinVersion"] as String)
-    systemProperty("konanProperties", rootDir.resolve("kotlin-native/konan/konan.properties"))
-    useJUnitPlatform()
-
-    @OptIn(TemporaryTestFederationApi::class)
-    isSmokeTest = true
+configurations.named(functionalTestCompilation.compileDependencyConfigurationName) {
+    // Reject the main source set Gradle API dependency brought transitevely via test fixtures
+    exclude("dev.gradleplugins", "gradle-api")
 }
 
-tasks.register<Test>("functionalUnitTest") {
-    include("**/org/jetbrains/kotlin/gradle/unitTests/**")
-    systemProperty("kotlinVersion", rootProject.extra["kotlinVersion"] as String)
-    systemProperty("konanProperties", rootDir.resolve("kotlin-native/konan/konan.properties"))
+val lincheckTestCompilation = kotlin.target.compilations.getByName("lincheckTest")
+lincheckTestCompilation.associateWith(kotlin.target.compilations.getByName(gradlePluginVariantForFunctionalTests.sourceSetName))
+lincheckTestCompilation.associateWith(kotlin.target.compilations.getByName("common"))
+lincheckTestCompilation.associateWith(testFixturesCompilation)
+configurations.named(lincheckTestCompilation.compileDependencyConfigurationName) {
+    // Reject the main source set Gradle API dependency brought transitevely via test fixtures
+    exclude("dev.gradleplugins", "gradle-api")
 }
 
-tasks.register<Test>("functionalRegressionTest") {
-    include("**/org/jetbrains/kotlin/gradle/regressionTests/**")
-}
-
-tasks.register<Test>("functionalDependencyResolutionTest") {
-    include("**/org/jetbrains/kotlin/gradle/dependencyResolutionTests/**")
-}
+val archTestCompilation = kotlin.target.compilations.getByName("archTest")
+archTestCompilation.associateWith(kotlin.target.compilations.getByName("common"))
 
 val acceptLicensesTask = with(androidSdkProvisioner) {
     registerAcceptLicensesTask()
-}
-
-tasks.withType<Test>().configureEach {
-    if (!name.startsWith("functional")) return@configureEach
-
-    group = JavaBasePlugin.VERIFICATION_GROUP
-    description = "Runs functional tests"
-    testClassesDirs = functionalTestSourceSet.output.classesDirs
-    classpath = functionalTestSourceSet.runtimeClasspath
-    workingDir = projectDir
-    dependsOnKotlinGradlePluginInstall()
-    androidSdkProvisioner {
-        provideToThisTaskAsSystemProperty(ProvisioningType.SDK)
-        dependsOn(acceptLicensesTask)
-    }
-    maxParallelForks = 8
-    maxHeapSize = "4G" // KT-72460 to investigate why we need to change heap size
-
-    testLogging {
-        events("passed", "skipped", "failed")
-    }
-
-    systemProperty("resourcesPath", layout.projectDirectory.dir("src/functionalTest/resources").asFile)
-
-    //region custom Maven Local directory
-    // The Maven Local dir that Gradle uses can be customised via system property `maven.repo.local`.
-    // The functional tests require artifacts are published to Maven Local.
-    // To make sure the tests uses the same `maven.repo.local` as is configured
-    // in the buildscript, forward the value of `maven.repo.local` into the test process.
-    val mavenRepoLocal = providers.systemProperty("maven.repo.local").orNull
-    if (mavenRepoLocal != null) {
-        // Only set `maven.repo.local` if it's present in the buildscript,
-        // to avoid `maven.repo.local` being `null`.
-        systemProperty("maven.repo.local", mavenRepoLocal)
-    }
-    //endregion
-}
-
-dependencies {
-    val implementation = project.configurations.getByName(functionalTestSourceSet.implementationConfigurationName)
-    val compileOnly = project.configurations.getByName(functionalTestSourceSet.compileOnlyConfigurationName)
-
-    implementation(libs.android.gradle.plugin.gradle)
-    implementation(libs.android.gradle.plugin.gradle.api)
-    compileOnly(libs.android.tools.common)
-    implementation(gradleKotlinDsl())
-    implementation(project(":kotlin-gradle-plugin-tcs-android"))
-    implementation(project(":kotlin-tooling-metadata"))
-    implementation(project.dependencies.testFixtures(project(":kotlin-gradle-plugin-idea")))
-    implementation("com.github.gundy:semver4j:0.16.4:nodeps") {
-        exclude(group = "*")
-    }
-    implementation("org.reflections:reflections:0.10.2")
-    implementation(project(":compose-compiler-gradle-plugin"))
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json") {
-        version {
-            strictly(GradlePluginVariant.GRADLE_MIN.compatibleKotlinxJsonSerializationVersion)
-        }
-    }
-    implementation(intellijPlatformUtil())
-    implementation(libs.junit.jupiter.engine)
-}
-
-tasks.named("check") {
-    dependsOn("functionalTest")
-    dependsOn("lincheckTest")
 }
 
 fun avoidPublishingTestFixtures() {
@@ -760,16 +820,25 @@ tasks.withType<Jar>().configureEach {
 }
 
 kotlin {
-    target.compilations.getByName("common").configurations.pluginConfiguration.dependencies.add(
-        dependencies.create("org.jetbrains.kotlin:kotlin-serialization-compiler-plugin-embeddable:${libs.versions.kotlin.`for`.gradle.plugins.compilation.get()}")
-    )
+    target.compilations.getByName("common").enableKotlinSerializationPlugin()
 }
 
 val generateKgpBuildConstants = registerGenerateKgpBuildConstantsTask {
     defaultYarnVersion = libs.versions.yarn
+    defaultNodeJsVersion = nodejsLtsVersion
 }
 
 kotlin.sourceSets.common {
     @OptIn(ExperimentalKotlinGradlePluginApi::class)
     generatedKotlin.srcDir(generateKgpBuildConstants)
+
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    generatedKotlin.srcDir(tasks.generateNpmVersionsKotlinClass)
+
+    resources.srcDir(tasks.prepareKgpNpmToolingLockFiles)
+}
+
+node {
+    version = nodejsVersion
+    distBaseUrl.set(null as String?)
 }

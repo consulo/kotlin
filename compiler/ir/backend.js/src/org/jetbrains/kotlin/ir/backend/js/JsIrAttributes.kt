@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.ir.backend.js
 
+import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.backend.js.utils.findDefaultConstructorForReflection
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationParent
 import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -21,10 +21,11 @@ import org.jetbrains.kotlin.ir.irFlag
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrRichFunctionReference
+import org.jetbrains.kotlin.name.ClassId
 
 var IrClass.localClassName: String? by irAttribute(copyByDefault = true)
 
-var IrClass.originalClassId: String? by irAttribute(copyByDefault = true)
+var IrClass.originalClassId: ClassId? by irAttribute(copyByDefault = true)
 
 /**
  * Whether the class's ES6 constructor requires an additional `box` value parameter.
@@ -83,11 +84,6 @@ var IrValueDeclaration.valueParameterForOldEnumConstructor: IrValueParameter? by
 var IrEnumEntry.correspondingField: IrField? by irAttribute(copyByDefault = false)
 var IrField.correspondingEnumEntry: IrEnumEntry? by irAttribute(copyByDefault = false)
 
-/**
- * If the object being lowered is nested inside an enum class, we want to also initialize the enum entries when initializing the object.
- */
-var IrClass.initEntryInstancesFun: IrSimpleFunction? by irAttribute(copyByDefault = false)
-
 var IrClass.hasPureInitialization: Boolean? by irAttribute(copyByDefault = false)
 
 /**
@@ -111,3 +107,27 @@ var IrSimpleFunction.originalCallableReferenceClass: IrClass? by irAttribute(cop
  * For anonymous classes representing callable references contains it's preceding [IrRichFunctionReference] node.
  */
 var IrClass.originalCallableReference: IrRichFunctionReference? by irAttribute(copyByDefault = false)
+
+/**
+ * For effect analysis. Never partial (except during [org.jetbrains.kotlin.ir.backend.js.lower.EffectAnalysisLowering]),
+ * always includes the effects of the child elements.
+ */
+var IrElement.effects: Effects? by irAttribute(copyByDefault = false)
+
+/**
+ * For classes with initialized static members, contains a reference to a function with static initializers (static_init).
+ */
+var IrClass.staticInitFunction: IrSimpleFunction? by irAttribute(copyByDefault = false)
+
+/**
+ * Marks that [org.jetbrains.kotlin.ir.backend.js.lower.WebStaticInitializersDeclarationLowering] has already processed this class.
+ * The attribute exists to process each class no more than once, regardless of module lowering instance that processed static initializer
+ * of a specific class.
+ */
+internal var IrClass.staticInitializerProcessed: Boolean by irFlag(copyByDefault = false)
+
+/**
+ * Marks function declarations processed by [org.jetbrains.kotlin.ir.backend.js.lower.PurifyObjectInstanceGettersLowering] as such that
+ * needs removal.
+ */
+internal var IrSimpleFunction.isLeftoverAfterObjectPurification: Boolean by irFlag(copyByDefault = false)

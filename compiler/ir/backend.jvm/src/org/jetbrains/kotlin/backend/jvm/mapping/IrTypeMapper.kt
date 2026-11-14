@@ -8,17 +8,14 @@ package org.jetbrains.kotlin.backend.jvm.mapping
 import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
 import org.jetbrains.kotlin.backend.jvm.classNameOverride
+import org.jetbrains.kotlin.backend.jvm.ir.isInlineClass
 import org.jetbrains.kotlin.backend.jvm.ir.representativeUpperBound
 import org.jetbrains.kotlin.backend.jvm.localClassType
 import org.jetbrains.kotlin.builtins.functions.BuiltInFunctionArity
 import org.jetbrains.kotlin.codegen.AsmUtil
 import org.jetbrains.kotlin.codegen.sanitizeNameIfNeeded
 import org.jetbrains.kotlin.codegen.signature.JvmSignatureWriter
-import org.jetbrains.kotlin.codegen.state.KotlinTypeMapper
 import org.jetbrains.kotlin.codegen.state.KotlinTypeMapperBase
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
-import org.jetbrains.kotlin.descriptors.ClassifierDescriptor
-import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrScriptSymbol
@@ -29,6 +26,9 @@ import org.jetbrains.kotlin.ir.util.isSuspendFunction
 import org.jetbrains.kotlin.load.kotlin.TypeMappingMode
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.types.AbstractTypeMapper
+import org.jetbrains.kotlin.types.AbstractTypeMapper.hasNothingInNonContravariantPosition
+import org.jetbrains.kotlin.types.AbstractTypeMapper.writeFormalTypeParameter
+import org.jetbrains.kotlin.types.AbstractTypeMapper.writeGenericArguments
 import org.jetbrains.kotlin.types.TypeMappingContext
 import org.jetbrains.kotlin.types.TypeSystemCommonBackendContextForTypeMapping
 import org.jetbrains.kotlin.types.model.KotlinTypeMarker
@@ -40,22 +40,9 @@ import org.jetbrains.kotlin.backend.jvm.ir.isRawType as isRawTypeImpl
 import org.jetbrains.kotlin.ir.types.isKClass as isKClassImpl
 import org.jetbrains.kotlin.ir.util.isSuspendFunction as isSuspendFunctionImpl
 
-open class IrTypeMapper(private val context: JvmBackendContext) : KotlinTypeMapperBase(), TypeMappingContext<JvmSignatureWriter> {
+open class IrTypeMapper(val context: JvmBackendContext) : KotlinTypeMapperBase(), TypeMappingContext<JvmSignatureWriter> {
     override val typeSystem: IrTypeSystemContext = context.typeSystem
     override val typeContext: TypeSystemCommonBackendContextForTypeMapping = IrTypeCheckerContextForTypeMapping(context)
-
-    override fun mapClass(classifier: ClassifierDescriptor): Type =
-        when (classifier) {
-            is ClassDescriptor ->
-                mapClass(context.referenceClass(classifier).owner)
-            is TypeParameterDescriptor ->
-                mapType(context.referenceTypeParameter(classifier).defaultType)
-            else ->
-                error("Unknown descriptor: $classifier")
-        }
-
-    override fun mapTypeCommon(type: KotlinTypeMarker, mode: TypeMappingMode): Type =
-        mapType(type as IrType, mode)
 
     private fun computeClassLikeDeclarationInternalNameAsString(irClassLikeDeclaration: IrDeclarationBase): String {
         irClassLikeDeclaration.localClassType?.internalName?.let {
@@ -128,30 +115,24 @@ open class IrTypeMapper(private val context: JvmBackendContext) : KotlinTypeMapp
 
     fun writeFormalTypeParameters(irParameters: List<IrTypeParameter>, sw: JvmSignatureWriter) {
         if (sw.skipGenericSignature()) return
-        with(KotlinTypeMapper) {
-            for (typeParameter in irParameters) {
-                typeSystem.writeFormalTypeParameter(typeParameter.symbol, sw) { type, mode ->
-                    mapType(type as IrType, mode, sw)
-                }
+        for (typeParameter in irParameters) {
+            typeSystem.writeFormalTypeParameter(typeParameter.symbol, sw) { type, mode ->
+                mapType(type as IrType, mode, sw)
             }
         }
     }
 
     fun boxType(irType: IrType): Type {
         val irClass = irType.classOrNull?.owner
-        if (irClass != null && irClass.isSingleFieldValueClass) {
+        if (irClass != null && irClass.isInlineClass) {
             return mapTypeAsDeclaration(irType)
         }
         val type = AbstractTypeMapper.mapType(this, irType)
         return AsmUtil.boxPrimitiveType(type) ?: type
     }
 
-    open fun mapType(
-        type: IrType,
-        mode: TypeMappingMode = TypeMappingMode.DEFAULT,
-        sw: JvmSignatureWriter? = null,
-        materialized: Boolean = true
-    ): Type = AbstractTypeMapper.mapType(this, type, mode, sw, materialized)
+    override fun mapType(type: IrType, mode: TypeMappingMode, sw: JvmSignatureWriter?, materialized: Boolean): Type =
+        AbstractTypeMapper.mapType(this, type, mode, sw, materialized)
 
     override fun JvmSignatureWriter.writeGenericType(type: KotlinTypeMarker, asmType: Type, mode: TypeMappingMode) {
         if (type is IrErrorType) {
@@ -160,7 +141,7 @@ open class IrTypeMapper(private val context: JvmBackendContext) : KotlinTypeMapp
         }
 
         if (type !is IrSimpleType) return
-        if (skipGenericSignature() || hasNothingInNonContravariantPosition(type) || type.arguments.isEmpty() || type.isRawTypeImpl()) {
+        if (skipGenericSignature() || typeSystem.hasNothingInNonContravariantPosition(type) || type.arguments.isEmpty() || type.isRawTypeImpl()) {
             writeAsmType(asmType)
             return
         }
@@ -188,10 +169,6 @@ open class IrTypeMapper(private val context: JvmBackendContext) : KotlinTypeMapp
         }
 
         writeClassEnd()
-    }
-
-    private fun hasNothingInNonContravariantPosition(irType: IrType): Boolean = with(KotlinTypeMapper) {
-        typeSystem.hasNothingInNonContravariantPosition(irType)
     }
 
     private fun writeInnerParts(
@@ -234,10 +211,8 @@ open class IrTypeMapper(private val context: JvmBackendContext) : KotlinTypeMapp
         parameters: List<IrTypeParameterSymbol>,
         mode: TypeMappingMode,
     ) {
-        with(KotlinTypeMapper) {
-            typeSystem.writeGenericArguments(sw, arguments, parameters, mode) { type, sw, mode ->
-                mapType(type as IrType, mode, sw)
-            }
+        typeSystem.writeGenericArguments(sw, arguments, parameters, mode) { type, sw, mode ->
+            mapType(type as IrType, mode, sw)
         }
     }
 }

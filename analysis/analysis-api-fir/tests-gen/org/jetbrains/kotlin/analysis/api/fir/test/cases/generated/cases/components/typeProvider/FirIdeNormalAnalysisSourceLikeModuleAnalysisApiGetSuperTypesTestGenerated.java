@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.typeProvider.AbstractAnalysisApiGetSuperTypesTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.typeProvider.AbstractAnalysisApiGetSuperTypesTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirIdeNormalAnalysisSourceLikeModuleAnalysisApiGetSuperTypesTestGen
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -70,6 +68,54 @@ public class FirIdeNormalAnalysisSourceLikeModuleAnalysisApiGetSuperTypesTestGen
   }
 
   @Test
+  @TestMetadata("capturedTypeInProjection.kt")
+  public void testCapturedTypeInProjection() {
+    run("capturedTypeInProjection.kt");
+  }
+
+  @Test
+  @TestMetadata("capturedTypeInProjectionWithMultipleBounds.kt")
+  public void testCapturedTypeInProjectionWithMultipleBounds() {
+    run("capturedTypeInProjectionWithMultipleBounds.kt");
+  }
+
+  @Test
+  @TestMetadata("capturedTypeNotWithinBounds.kt")
+  public void testCapturedTypeNotWithinBounds() {
+    run("capturedTypeNotWithinBounds.kt");
+  }
+
+  @Test
+  @TestMetadata("capturedTypeOutProjection.kt")
+  public void testCapturedTypeOutProjection() {
+    run("capturedTypeOutProjection.kt");
+  }
+
+  @Test
+  @TestMetadata("capturedTypeOutProjectionNullable.kt")
+  public void testCapturedTypeOutProjectionNullable() {
+    run("capturedTypeOutProjectionNullable.kt");
+  }
+
+  @Test
+  @TestMetadata("capturedTypeOutProjectionNullableArgument.kt")
+  public void testCapturedTypeOutProjectionNullableArgument() {
+    run("capturedTypeOutProjectionNullableArgument.kt");
+  }
+
+  @Test
+  @TestMetadata("capturedTypeOutProjectionWithMultipleBounds.kt")
+  public void testCapturedTypeOutProjectionWithMultipleBounds() {
+    run("capturedTypeOutProjectionWithMultipleBounds.kt");
+  }
+
+  @Test
+  @TestMetadata("capturedTypeStarProjectionWithMultipleBounds.kt")
+  public void testCapturedTypeStarProjectionWithMultipleBounds() {
+    run("capturedTypeStarProjectionWithMultipleBounds.kt");
+  }
+
+  @Test
   @TestMetadata("contravariant.kt")
   public void testContravariant() {
     run("contravariant.kt");
@@ -103,6 +149,30 @@ public class FirIdeNormalAnalysisSourceLikeModuleAnalysisApiGetSuperTypesTestGen
   @TestMetadata("invariant.kt")
   public void testInvariant() {
     run("invariant.kt");
+  }
+
+  @Test
+  @TestMetadata("nullableIntType.kt")
+  public void testNullableIntType() {
+    run("nullableIntType.kt");
+  }
+
+  @Test
+  @TestMetadata("nullableTypeParameter.kt")
+  public void testNullableTypeParameter() {
+    run("nullableTypeParameter.kt");
+  }
+
+  @Test
+  @TestMetadata("nullableTypeParameterMultipleBounds.kt")
+  public void testNullableTypeParameterMultipleBounds() {
+    run("nullableTypeParameterMultipleBounds.kt");
+  }
+
+  @Test
+  @TestMetadata("nullableUserType.kt")
+  public void testNullableUserType() {
+    run("nullableUserType.kt");
   }
 
   @Test
@@ -145,5 +215,17 @@ public class FirIdeNormalAnalysisSourceLikeModuleAnalysisApiGetSuperTypesTestGen
   @TestMetadata("typeParameter.kt")
   public void testTypeParameter() {
     run("typeParameter.kt");
+  }
+
+  @Test
+  @TestMetadata("typeParameterWithNullableBound.kt")
+  public void testTypeParameterWithNullableBound() {
+    run("typeParameterWithNullableBound.kt");
+  }
+
+  @Test
+  @TestMetadata("typeParameterWithStarProjectedUpperBound.kt")
+  public void testTypeParameterWithStarProjectedUpperBound() {
+    run("typeParameterWithStarProjectedUpperBound.kt");
   }
 }

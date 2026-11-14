@@ -1,23 +1,35 @@
+@file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+
+import org.gradle.kotlin.dsl.support.serviceOf
+
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("multiplatform")
+    id("binaryen-configuration")
 }
 
-@OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+val buildFeatures = serviceOf<BuildFeatures>()
 kotlin {
     jvm()
     js {
-        binaries.executable()
+        if (!buildFeatures.isolatedProjects.active.get()) {
+            binaries.executable()
+        }
     }
     wasmJs {
-        binaries.executable()
+        if (!buildFeatures.isolatedProjects.active.get()) {
+            binaries.executable()
+        }
     }
+
     if (kotlinBuildProperties.isInIdeaSync.get()) {
         // this magic is needed because of explicit dependency of common
         // source set on the stdlib
         val hostOs = System.getProperty("os.name")
         val isMingwX64 = hostOs.startsWith("Windows")
 
-        @Suppress("DEPRECATION")
+        @Suppress("DEPRECATION", "DEPRECATION_ERROR")
         when {
             hostOs == "Mac OS X" -> macosX64("native")
             hostOs == "Linux" -> linuxX64("native")
@@ -31,16 +43,12 @@ kotlin {
     }
 
     sourceSets {
-        val commonMain by getting {
+        val commonMain = getByName("commonMain") {
             dependencies {
                 implementation(kotlinStdlib())
             }
         }
     }
-}
-
-dependencies {
-    implicitDependenciesOnJdkVariantsOfBootstrapStdlib(project)
 }
 
 sourceSets {

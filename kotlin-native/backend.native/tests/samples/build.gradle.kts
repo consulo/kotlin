@@ -2,11 +2,11 @@ buildscript {
     repositories {
         mavenCentral()
 
-        val kotlinCompilerRepo: String? by rootProject
+        val kotlinCompilerRepo = rootProject.findProperty("kotlinCompilerRepo") as String?
         kotlinCompilerRepo?.let { maven(it) }
     }
 
-    val kotlin_version: String by rootProject
+    val kotlin_version = rootProject.property("kotlin_version") as String
     dependencies {
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
     }
@@ -16,7 +16,7 @@ allprojects {
     repositories {
         mavenCentral()
 
-        val kotlinCompilerRepo: String? by rootProject
+        val kotlinCompilerRepo = rootProject.findProperty("kotlinCompilerRepo") as String?
         kotlinCompilerRepo?.let { maven(it) }
     }
 
@@ -35,11 +35,11 @@ val isWindows = hostOs.startsWith("Windows")
 
 val localRepo = rootProject.file("build/.m2-local")
 
-val clean by tasks.creating(Delete::class) {
+val clean = tasks.create("clean", Delete::class) {
     delete(localRepo)
 }
 
-val buildSamplesWithPlatformLibs by tasks.creating {
+val buildSamplesWithPlatformLibs = tasks.create("buildSamplesWithPlatformLibs") {
     dependsOn(":csvparser:assemble")
     if (!isWindows) {
         dependsOn(":curl:assemble")
@@ -50,6 +50,9 @@ val buildSamplesWithPlatformLibs by tasks.creating {
     if (isMacos || isLinux) {
         dependsOn(":echoServer:assemble") //https://youtrack.jetbrains.com/issue/KT-63721/
         dependsOn(":nonBlockingEchoServer:assemble")
+    }
+
+    if (isLinux) {
         dependsOn(":tensorflow:assemble")
     }
 

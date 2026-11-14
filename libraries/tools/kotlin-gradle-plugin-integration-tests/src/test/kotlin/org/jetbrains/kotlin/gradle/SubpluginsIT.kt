@@ -9,11 +9,15 @@ import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.checkBytecodeContains
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerPlugins
 import org.junit.jupiter.api.DisplayName
 
 @DisplayName("Other plugins tests")
+@MustRunOnChangesInCompilerPlugins
 class SubpluginsIT : KGPBaseTest() {
 
+    @TestMetadata("kotlinGradleSubplugin")
     @OtherGradlePluginTests
     @DisplayName("Subplugin example works as expected")
     @GradleTest
@@ -21,22 +25,24 @@ class SubpluginsIT : KGPBaseTest() {
         project(
             "kotlinGradleSubplugin",
             gradleVersion,
-            buildOptions = defaultBuildOptions.copy(configurationCache = BuildOptions.ConfigurationCacheValue.DISABLED),
+            buildOptions = defaultBuildOptions.copy(
+                configurationCache = BuildOptions.ConfigurationCacheValue.DISABLED,
+                isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED,
+            ),
         ) {
             build("compileKotlin", "build") {
                 assertTasksExecuted(":compileKotlin")
                 assertOutputContains("ExampleSubplugin loaded")
-                assertOutputContains("Project component registration: exampleValue")
             }
 
             build("compileKotlin", "build") {
                 assertTasksUpToDate(":compileKotlin")
                 assertOutputContains("ExampleSubplugin loaded")
-                assertOutputDoesNotContain("Project component registration: exampleValue")
             }
         }
     }
 
+    @TestMetadata("kotlinGradleSubplugin")
     @OtherGradlePluginTests
     @DisplayName("Subplugin example works as expected with configuration cache")
     @GradleTest
@@ -48,23 +54,22 @@ class SubpluginsIT : KGPBaseTest() {
             build("compileKotlin", "build") {
                 assertTasksExecuted(":compileKotlin")
                 assertOutputContains("ExampleSubplugin loaded")
-                assertOutputContains("Project component registration: exampleValue")
             }
 
             build("compileKotlin", "build") {
                 assertTasksUpToDate(":compileKotlin")
                 assertConfigurationCacheReused()
                 assertOutputDoesNotContain("ExampleSubplugin loaded")
-                assertOutputDoesNotContain("Project component registration: exampleValue")
             }
         }
     }
 
+    @TestMetadata("allOpenSimple")
     @OtherGradlePluginTests
     @DisplayName("Allopen plugin opens classes and methods")
-    @GradleTest
-    fun testAllOpenPlugin(gradleVersion: GradleVersion) {
-        project("allOpenSimple", gradleVersion) {
+    @GradleWithCompilerVersionTest
+    fun testAllOpenPlugin(gradleVersion: GradleVersion, compilerVersion: String) {
+        project("allOpenSimple", gradleVersion, compilerVersion = compilerVersion) {
             build("assemble") {
                 val classesDir = kotlinClassesDir()
                 val openClass = classesDir.resolve("test/OpenClass.class")
@@ -87,11 +92,12 @@ class SubpluginsIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("allOpenSpring")
     @OtherGradlePluginTests
     @DisplayName("Kotlin Spring plugin opens classes and methods")
-    @GradleTest
-    fun testKotlinSpringPlugin(gradleVersion: GradleVersion) {
-        project("allOpenSpring", gradleVersion) {
+    @GradleWithCompilerVersionTest
+    fun testKotlinSpringPlugin(gradleVersion: GradleVersion, compilerVersion: String) {
+        project("allOpenSpring", gradleVersion, compilerVersion = compilerVersion) {
             build("assemble") {
 
                 val classesDir = kotlinClassesDir()
@@ -116,6 +122,7 @@ class SubpluginsIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("noArgJpa")
     @OtherGradlePluginTests
     @DisplayName("Jpa plugin generates no-arg constructor with open class")
     @GradleTest
@@ -137,38 +144,42 @@ class SubpluginsIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("noArgKt18668")
     @OtherGradlePluginTests
     @DisplayName("NoArg: Don't invoke initializers by default")
-    @GradleTest
-    fun testNoArgKt18668(gradleVersion: GradleVersion) {
-        project("noArgKt18668", gradleVersion) {
+    @GradleWithCompilerVersionTest
+    fun testNoArgKt18668(gradleVersion: GradleVersion, compilerVersion: String) {
+        project("noArgKt18668", gradleVersion, compilerVersion = compilerVersion) {
             build("assemble")
         }
     }
 
+    @TestMetadata("samWithReceiverSimple")
     @OtherGradlePluginTests
     @DisplayName("sam-with-receiver works")
-    @GradleTest
-    fun testSamWithReceiverSimple(gradleVersion: GradleVersion) {
-        project("samWithReceiverSimple", gradleVersion) {
+    @GradleWithCompilerVersionTest
+    fun testSamWithReceiverSimple(gradleVersion: GradleVersion, compilerVersion: String) {
+        project("samWithReceiverSimple", gradleVersion, compilerVersion = compilerVersion) {
             build("assemble")
         }
     }
 
+    @TestMetadata("assignmentSimple")
     @OtherGradlePluginTests
     @DisplayName("assignment works")
-    @GradleTest
-    fun testAssignmentSimple(gradleVersion: GradleVersion) {
-        project("assignmentSimple", gradleVersion) {
+    @GradleWithCompilerVersionTest
+    fun testAssignmentSimple(gradleVersion: GradleVersion, compilerVersion: String) {
+        project("assignmentSimple", gradleVersion, compilerVersion = compilerVersion) {
             build("assemble")
         }
     }
 
+    @TestMetadata("allOpenFromNestedBuildscript")
     @OtherGradlePluginTests
     @DisplayName("Allopen plugin works when classpath dependency is not declared in current or root project ")
-    @GradleTest
-    fun testAllOpenFromNestedBuildscript(gradleVersion: GradleVersion) {
-        project("allOpenFromNestedBuildscript", gradleVersion) {
+    @GradleWithCompilerVersionTest
+    fun testAllOpenFromNestedBuildscript(gradleVersion: GradleVersion, compilerVersion: String) {
+        project("allOpenFromNestedBuildscript", gradleVersion, compilerVersion = compilerVersion) {
             build("testClasses") {
                 val nestedSubproject = subProject("a/b")
                 assertFileExists(nestedSubproject.kotlinClassesDir().resolve("MyClass.class"))
@@ -177,11 +188,12 @@ class SubpluginsIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("allOpenFromScript")
     @OtherGradlePluginTests
     @DisplayName("Allopen applied from script works")
-    @GradleTest
-    fun testAllopenFromScript(gradleVersion: GradleVersion) {
-        project("allOpenFromScript", gradleVersion) {
+    @GradleWithCompilerVersionTest
+    fun testAllopenFromScript(gradleVersion: GradleVersion, compilerVersion: String) {
+        project("allOpenFromScript", gradleVersion, compilerVersion = compilerVersion) {
             build("testClasses") {
                 assertFileExists(kotlinClassesDir().resolve("MyClass.class"))
                 assertFileExists(kotlinClassesDir(sourceSet = "test").resolve("MyTestClass.class"))
@@ -189,16 +201,18 @@ class SubpluginsIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kapt/android-dagger")
     @AndroidGradlePluginTests
     @DisplayName("KT-39809: kapt subplugin legacy loading does not fail the build")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testKotlinVersionDowngradeInSupbrojectKt39809(
         gradleVersion: GradleVersion,
         agpVersion: String,
         providedJdk: JdkVersions.ProvidedJdk
     ) {
         project(
-            "kapt2/android-dagger",
+            "kapt/android-dagger",
             gradleVersion,
             buildOptions = defaultBuildOptions.copy(androidVersion = agpVersion),
             buildJdk = providedJdk.location
@@ -222,42 +236,44 @@ class SubpluginsIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("lombokProject")
     @OtherGradlePluginTests
     @DisplayName("Lombok plugin is working")
-    @GradleTest
-    fun testLombokPlugin(gradleVersion: GradleVersion) {
-        project("lombokProject", gradleVersion) {
+    @GradleWithCompilerVersionTest
+    fun testLombokPlugin(gradleVersion: GradleVersion, compilerVersion: String) {
+        project("lombokProject", gradleVersion, compilerVersion = compilerVersion) {
             listOf(
                 subProject("yeskapt").buildGradle,
                 subProject("nokapt").buildGradle,
                 subProject("withconfig").buildGradle
             ).forEach { buildGradle ->
                 buildGradle.modify {
-                    val freefairLombokVersion = if (gradleVersion < GradleVersion.version(TestVersions.Gradle.G_8_0)) {
-                        "5.3.3.3"
-                    } else {
-                        "8.4"
-                    }
+                    val freefairLombokVersion = "8.4"
                     it.replace("<freefair_lombok_version>", freefairLombokVersion)
+                }
+            }
+            if (compilerVersion < "2.5") {
+                listOf(subProject("yeskapt").buildGradle, subProject("withconfig").buildGradle).forEach {
+                    it.append(
+                        """
+                        kapt {
+                            detectMemoryLeaks = "default"
+                        }
+                        """.trimIndent()
+                    )
                 }
             }
             build("build")
         }
     }
 
+    @TestMetadata("buildSrcUsingKotlinCompilationAndKotlinPlugin")
     @OtherGradlePluginTests
     @DisplayName("KT-51378: Using 'kotlin-dsl' with latest plugin version in buildSrc module")
-    @GradleTest
-    fun testBuildSrcKotlinDSL(gradleVersion: GradleVersion) {
-        val languageVersionForBuildSrc = if (gradleVersion > GradleVersion.version(TestVersions.Gradle.G_8_2)) {
-            KotlinVersion.firstNonDeprecated.name
-        } else {
-            // Those Gradle versions embed Kotlin compiler <= 1.8.20, so are subject to KT-56526
-            // 2.0 is the highest version that can be used there
-            @Suppress("DEPRECATION")
-            KotlinVersion.KOTLIN_2_0
-        }
-        project("buildSrcUsingKotlinCompilationAndKotlinPlugin", gradleVersion) {
+    @GradleWithCompilerVersionTest
+    fun testBuildSrcKotlinDSL(gradleVersion: GradleVersion, compilerVersion: String) {
+        val languageVersionForBuildSrc = KotlinVersion.firstNonDeprecated.name
+        project("buildSrcUsingKotlinCompilationAndKotlinPlugin", gradleVersion, compilerVersion = compilerVersion) {
             subProject("buildSrc").buildGradleKts.modify {
                 //language=kts
                 """
@@ -265,7 +281,7 @@ class SubpluginsIT : KGPBaseTest() {
                 }
                 
                 buildscript {
-                    val kotlin_version: String by extra
+                    val kotlin_version = extra["kotlin_version"]
                     repositories {
                         mavenLocal()
                     }

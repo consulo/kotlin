@@ -8,15 +8,14 @@ plugins {
 
 description = "Binary Compatibility Validator compat - track ABI changes"
 
-repositories {
-    mavenCentral { setUrl("https://cache-redirector.jetbrains.com/maven-central") }
-    gradlePluginPortal()
-}
-
 kotlin {
     @OptIn(ExperimentalKotlinGradlePluginApi::class, ExperimentalBuildToolsApi::class)
-    compilerVersion = libs.versions.kotlin.`for`.gradle.plugins.compilation
+    compilerVersion = embeddedKotlinVersion
+    @Suppress("DEPRECATION")
+    coreLibrariesVersion = embeddedKotlinVersion
     jvmToolchain(17)
+
+    compilerOptions.allWarningsAsErrors = true
 }
 
 dependencies {
@@ -25,7 +24,7 @@ dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-gradle-plugin:${project.bootstrapKotlinVersion}")
 }
 
-val generateBcvProperties by tasks.registering {
+val generateBcvProperties = tasks.register("generateBcvProperties") {
     val generatedSrcDir = layout.buildDirectory.dir("src/generated/kotlin")
     outputs.dir(generatedSrcDir).withPropertyName("generatedSrcDir")
     outputs.cacheIf { true }
@@ -68,12 +67,15 @@ tasks.withType<AbstractArchiveTask>().configureEach {
     isReproducibleFileOrder = true
 }
 
-project.configurations.named(org.jetbrains.kotlin.gradle.plugin.PLUGIN_CLASSPATH_CONFIGURATION_NAME + "Main") {
-    resolutionStrategy {
-        eachDependency {
-            if (this.requested.group == "org.jetbrains.kotlin") useVersion(libs.versions.kotlin.`for`.gradle.plugins.compilation.get())
+listOf(
+    org.jetbrains.kotlin.gradle.plugin.PLUGIN_CLASSPATH_CONFIGURATION_NAME + "Main",
+    "compilePluginsBlocksPluginClasspathElements",
+).forEach { confName ->
+    project.configurations.named(confName) {
+        resolutionStrategy {
+            eachDependency {
+                if (this.requested.group == "org.jetbrains.kotlin") useVersion(embeddedKotlinVersion)
+            }
         }
     }
 }
-
-kotlin.compilerOptions.moduleName.value(project.name)

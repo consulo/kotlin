@@ -7,13 +7,17 @@ package org.jetbrains.kotlin.scripting.definitions
 
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.util.io.FileUtilRt
+import java.io.File
 import kotlin.reflect.KClass
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.ScriptingHostConfiguration
 import kotlin.script.experimental.host.createScriptDefinitionFromTemplate
+import kotlin.script.experimental.host.withDefaultsFrom
+import kotlin.script.experimental.jvm.JvmDependency
 import kotlin.script.experimental.jvm.baseClassLoader
 import kotlin.script.experimental.jvm.jvm
-import kotlin.script.templates.standard.ScriptTemplateWithArgs
+import kotlin.script.experimental.jvm.util.KotlinJars
+import kotlin.script.experimental.templates.ScriptWithArgs
 
 // Transitional class/implementation - migrating to the new API
 // TODO: name could be confused with KotlinScriptDefinition, discuss naming
@@ -122,8 +126,13 @@ abstract class ScriptDefinition : UserDataHolderBase() {
         private val baseHostConfiguration: ScriptingHostConfiguration,
         private val definition: kotlin.script.experimental.host.ScriptDefinition,
     ) : FromConfigurationsBase() {
-        override val hostConfiguration: ScriptingHostConfiguration
-            get() = definition.compilationConfiguration[ScriptCompilationConfiguration.hostConfiguration] ?: baseHostConfiguration
+        /**
+         * The definition wins over [baseHostConfiguration], which is only a discovery-time default,
+         * unlike the explicit host configuration of a compiler (see `effectiveHostConfiguration`).
+         */
+        override val hostConfiguration: ScriptingHostConfiguration by lazy {
+            definition.compilationConfiguration[ScriptCompilationConfiguration.hostConfiguration].withDefaultsFrom(baseHostConfiguration)
+        }
 
         override val compilationConfiguration: ScriptCompilationConfiguration get() = definition.compilationConfiguration
         override val evaluationConfiguration: ScriptEvaluationConfiguration get() = definition.evaluationConfiguration
@@ -139,18 +148,30 @@ abstract class ScriptDefinition : UserDataHolderBase() {
     )
 
     companion object {
-        fun getDefault(hostConfiguration: ScriptingHostConfiguration) = object : FromConfigurations(
-            hostConfiguration,
-            @Suppress("DEPRECATION")
-            ScriptCompilationConfigurationFromLegacyTemplate(
+        fun getDefault(hostConfiguration: ScriptingHostConfiguration): FromConfigurations =
+            getDefault(hostConfiguration, KotlinJars.scriptingCommonOrNull)
+
+        /**
+         * [scriptingCommon] is the `kotlin-scripting-common` jar with the [ScriptWithArgs] base class; it becomes the dependency
+         * of the definition. Hosts that know the jar location better than [KotlinJars] (e.g. the CLI compiler, which can run
+         * as a native image, where the jar cannot be located from the loaded classes) should pass it explicitly.
+         */
+        fun getDefault(hostConfiguration: ScriptingHostConfiguration, scriptingCommon: File?): FromConfigurations =
+            object : FromConfigurations(
                 hostConfiguration,
-                ScriptTemplateWithArgs::class
-            ),
-            ScriptEvaluationConfigurationFromHostConfiguration(
-                hostConfiguration
-            )
-        ) {
-            override val isDefault = true
-        }
+                ScriptCompilationConfiguration {
+                    hostConfiguration(hostConfiguration)
+                    baseClass(KotlinType(ScriptWithArgs::class))
+                    scriptingCommon?.let { dependencies(JvmDependency(it)) }
+                    ide {
+                        acceptedLocations(ScriptAcceptedLocation.Sources, ScriptAcceptedLocation.Tests)
+                    }
+                },
+                ScriptEvaluationConfigurationFromHostConfiguration(
+                    hostConfiguration
+                )
+            ) {
+                override val isDefault = true
+            }
     }
 }

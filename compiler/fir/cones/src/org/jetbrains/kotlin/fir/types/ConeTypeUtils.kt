@@ -9,7 +9,6 @@ import org.jetbrains.kotlin.fir.renderer.ConeFullyQualifiedIdRenderer
 import org.jetbrains.kotlin.fir.renderer.ConeIdShortRenderer
 import org.jetbrains.kotlin.fir.renderer.ConeTypeRendererForDebugging
 import org.jetbrains.kotlin.fir.renderer.ConeTypeRendererForReadability
-import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.types.model.TypeConstructorMarker
@@ -49,7 +48,8 @@ val ConeKotlinType.isMarkedNullable: Boolean
         is ConeIntegerLiteralType -> isMarkedNullable
         is ConeTypeVariableType -> isMarkedNullable
         is ConeDefinitelyNotNullType -> false
-        is ConeIntersectionType -> false
+        is ConeIntersectionType -> intersectedTypes.all { it.isMarkedNullable }
+        is ConeUnionType -> primaryType.isMarkedNullable
         is ConeStubType -> isMarkedNullable
     }
 
@@ -90,7 +90,16 @@ inline fun ConeKotlinType.forEachType(
 
             is ConeDefinitelyNotNullType -> stack.add(next.original)
             is ConeIntersectionType -> stack.addAll(next.intersectedTypes)
-            else -> next.typeArguments.forEach { if (it is ConeKotlinTypeProjection) stack.add(it.type) }
+            is ConeUnionType -> {
+                stack.add(next.primaryType)
+                stack.addAll(next.richErrorTypes)
+            }
+            is ConeClassLikeType -> next.typeArguments.forEach { if (it is ConeKotlinTypeProjection) stack.add(it.type) }
+            is ConeCapturedType,
+            is ConeIntegerLiteralType,
+            is ConeTypeParameterType,
+            is ConeStubType,
+            is ConeTypeVariableType -> {}
         }
     }
 }
@@ -108,7 +117,14 @@ private fun ConeKotlinType.contains(predicate: (ConeKotlinType) -> Boolean, visi
         is ConeFlexibleType -> lowerBound.contains(predicate, visited) || !isTrivial && upperBound.contains(predicate, visited)
         is ConeDefinitelyNotNullType -> original.contains(predicate, visited)
         is ConeIntersectionType -> intersectedTypes.any { it.contains(predicate, visited) }
-        else -> typeArguments.any { it is ConeKotlinTypeProjection && it.type.contains(predicate, visited) }
+        is ConeClassLikeType -> typeArguments.any { it is ConeKotlinTypeProjection && it.type.contains(predicate, visited) }
+        is ConeUnionType -> primaryType.contains(predicate, visited) || richErrorTypes.any { it.contains(predicate, visited) }
+        is ConeCapturedType,
+        is ConeIntegerLiteralType,
+        is ConeTypeParameterType,
+        is ConeStubType,
+        is ConeTypeVariableType -> false
+
     }
 }
 
@@ -138,10 +154,12 @@ fun ConeKotlinType.lowerBoundIfFlexible(): ConeRigidType {
     }
 }
 
-fun ConeIntersectionType.withUpperBound(upperBound: ConeKotlinType): ConeIntersectionType {
+@OptIn(DelicateIntersectionConstructor::class)
+fun ConeIntersectionType.withUpperBound(upperBound: ConeKotlinType?): ConeIntersectionType {
     return ConeIntersectionType(intersectedTypes, upperBoundForApproximation = upperBound)
 }
 
+@OptIn(DelicateIntersectionConstructor::class)
 inline fun ConeIntersectionType.mapTypes(func: (ConeKotlinType) -> ConeKotlinType): ConeIntersectionType {
     return ConeIntersectionType(intersectedTypes.map(func), upperBoundForApproximation?.let(func))
 }
@@ -149,7 +167,6 @@ inline fun ConeIntersectionType.mapTypes(func: (ConeKotlinType) -> ConeKotlinTyp
 fun ConeClassLikeType.withArguments(typeArguments: Array<out ConeTypeProjection>): ConeClassLikeType = when (this) {
     is ConeClassLikeTypeImpl -> ConeClassLikeTypeImpl(lookupTag, typeArguments, isMarkedNullable, attributes)
     is ConeErrorType -> this
-    else -> error("Unknown cone type: ${this::class}")
 }
 
 fun ConeKotlinType.toTypeProjection(variance: Variance): ConeTypeProjection =
@@ -214,5 +231,6 @@ fun ConeRigidType.getConstructor(): ConeTypeConstructorMarker {
         is ConeStubType -> this.constructor
         is ConeDefinitelyNotNullType -> original.getConstructor()
         is ConeIntegerLiteralType -> this
+        is ConeUnionType -> this
     }
 }

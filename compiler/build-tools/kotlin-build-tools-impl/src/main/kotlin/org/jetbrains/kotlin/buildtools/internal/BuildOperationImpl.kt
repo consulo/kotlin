@@ -5,51 +5,150 @@
 
 package org.jetbrains.kotlin.buildtools.internal
 
-import org.jetbrains.kotlin.buildtools.api.BuildOperation
-import org.jetbrains.kotlin.buildtools.api.ExecutionPolicy
-import org.jetbrains.kotlin.buildtools.api.KotlinLogger
-import org.jetbrains.kotlin.buildtools.api.ProjectId
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+import org.jetbrains.kotlin.buildtools.api.*
 import org.jetbrains.kotlin.buildtools.api.trackers.BuildMetricsCollector
+import org.jetbrains.kotlin.buildtools.internal.serializability.*
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSourceLocation
+import org.jetbrains.kotlin.cli.common.messages.MessageCollectorWithDiagnosticId
+import org.jetbrains.kotlin.daemon.common.CompilerServicesFacadeBase
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 @OptIn(ExperimentalAtomicApi::class)
-internal abstract class BuildOperationImpl<R> : BuildOperation<R>, BuildOperation.Builder {
-    protected abstract val options: Options
+@Serializable
+internal abstract class BuildOperationImpl<R> : BuildOperation<R>, BuildOperation.Builder, BtaSerializable {
+    protected constructor() : super()
+    protected constructor(other: BuildOperationImpl<R>) {
+        metricsCollector = other.metricsCollector
+        kgpMetricsCollector = other.kgpMetricsCollector
+        kgpMetricsCollectorOut = other.kgpMetricsCollectorOut
+        enableClassloaderCache = other.enableClassloaderCache
+    }
+
+    protected open val options: Options get() = Options(this::class) // to be removed when subclasses are also converted to serializable
+
+    @Transient
+    internal var metricsCollector: BuildMetricsCollector? = null
+        set(value) {
+            hasMetricsCollector = value != null
+            field = value
+        }
+
+    private var hasMetricsCollector = false
+
+    internal var kgpMetricsCollector: Boolean = false
+
+    internal var kgpMetricsCollectorOut: ByteArray? = null
+
+    internal var enableClassloaderCache: Boolean = false
+
+    @Transient
     private val executionStarted = AtomicBoolean(false)
 
+    protected open val warningsAsError: Boolean
+        get() = false
+
+    @Transient
+    open val compilerMessageRenderer: CompilerMessageRenderer = DefaultCompilerMessageRenderer
+
+    override fun beforeSerialization(logger: KotlinLogger): List<MessageVisitor> = buildList {
+        metricsCollector?.let { add(MetricsCollectorVisitor(it)) }
+    }
+
+    override fun afterDeserialization(messageReporter: (Message) -> Unit, compilerFacade: CompilerServicesFacadeBase?) {
+        if (hasMetricsCollector) {
+            metricsCollector = MessageReportingMetricsCollector(messageReporter)
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
     @UseFromImplModuleRestricted
-    override fun <V> get(key: BuildOperation.Option<V>): V = options[key.id]
+    override fun <V> get(key: BuildOperation.Option<V>): V = when (key.id) {
+        "METRICS_COLLECTOR" -> metricsCollector
+        "XX_KGP_METRICS_COLLECTOR" -> kgpMetricsCollector
+        "XX_KGP_METRICS_COLLECTOR_OUT" -> kgpMetricsCollectorOut
+        "ENABLE_CLASSLOADER_CACHE" -> enableClassloaderCache
+        else -> throwPropertyNotFound(key.id)
+    } as V
 
     @UseFromImplModuleRestricted
     override fun <V> set(key: BuildOperation.Option<V>, value: V) {
-        options[key] = value
+        checkOptionIsAvailableForVersion(key)
+        when (key.id) {
+            "METRICS_COLLECTOR" -> metricsCollector = value.cast()
+            "XX_KGP_METRICS_COLLECTOR" -> kgpMetricsCollector = value.cast()
+            "XX_KGP_METRICS_COLLECTOR_OUT" -> kgpMetricsCollectorOut = value.cast()
+            "ENABLE_CLASSLOADER_CACHE" -> enableClassloaderCache = value.cast()
+            else -> throwPropertyNotFound(key.id)
+        }
     }
 
-    fun execute(projectId: ProjectId, executionPolicy: ExecutionPolicy, logger: KotlinLogger? = null): R {
+    internal fun execute(
+        projectId: ProjectId,
+        executionPolicy: ExecutionPolicy,
+        logger: KotlinLogger? = null,
+        executionContext: ExecutionContext,
+    ): R {
         check(executionStarted.compareAndSet(expectedValue = false, newValue = true)) {
             "Build operation $this already started execution."
         }
-        return executeImpl(projectId, executionPolicy, logger)
+        return executeImpl(projectId, executionPolicy, logger, executionContext)
     }
 
-    abstract fun executeImpl(projectId: ProjectId, executionPolicy: ExecutionPolicy, logger: KotlinLogger? = null): R
+    internal abstract fun executeImpl(
+        projectId: ProjectId,
+        executionPolicy: ExecutionPolicy,
+        logger: KotlinLogger? = null,
+        executionContext: ExecutionContext,
+    ): R
 
-    operator fun <V> get(key: Option<V>): V = options[key]
+    /**
+     * `true` if this operation uses [org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreApplicationEnvironment], so the [org.jetbrains.kotlin.buildtools.api.KotlinToolchains.BuildSession] can reuse it across operations.
+     *
+     * The value is checked only for in-process executions. The daemon uses `keepalive` mechanism of the compiler to cache it for the entire
+     * lifetime of the daemon.
+     */
+    internal abstract val usesApplicationEnvironment: Boolean
 
-    @OptIn(UseFromImplModuleRestricted::class)
-    operator fun <V> set(key: Option<V>, value: V) {
-        options[key] = value
+    protected open fun createMessageCollector(logger: KotlinLogger): MessageCollectorWithDiagnosticId =
+        DoNothingMessageCollector()
+
+    protected open fun createCompilerServicesFacade(
+        logger: KotlinLogger,
+        messageCollector: MessageCollectorWithDiagnosticId
+    ): CompilerServicesFacadeBase? = null
+}
+
+private class DoNothingMessageCollector : MessageCollectorWithDiagnosticId {
+    override fun report(
+        severity: CompilerMessageSeverity,
+        message: String,
+        location: CompilerMessageSourceLocation?,
+        diagnosticId: String?,
+    ) {
+
     }
 
-    class Option<V> : BaseOptionWithDefault<V> {
-        constructor(id: String) : super(id)
-        constructor(id: String, default: V) : super(id, default = default)
+    override fun clear() {
+
     }
 
-    companion object {
-        val METRICS_COLLECTOR: Option<BuildMetricsCollector?> = Option("METRICS_COLLECTOR", default = null)
-        val XX_KGP_METRICS_COLLECTOR: Option<Boolean> = Option("XX_KGP_METRICS_COLLECTOR", default = false)
-        val XX_KGP_METRICS_COLLECTOR_OUT: Option<ByteArray?> = Option("XX_KGP_METRICS_COLLECTOR_OUT", default = null)
+    override fun hasErrors(): Boolean {
+        return false
+    }
+}
+
+private class MessageReportingMetricsCollector(private val messageReporter: (Message) -> Unit) : BuildMetricsCollector {
+    override fun collectMetric(
+        name: String,
+        type: BuildMetricsCollector.ValueType,
+        value: Long,
+    ) {
+        messageReporter(
+            Message.CollectMetricMessage(name, type, value)
+        )
     }
 }

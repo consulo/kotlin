@@ -8,26 +8,28 @@ package org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.FileSystemOperations
+import org.gradle.api.file.RegularFile
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.IgnoreEmptyDirectories
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
-import org.gradle.process.ExecOperations
-import org.gradle.work.DisableCachingByDefault
-import javax.inject.Inject
-import org.gradle.api.provider.Property
-import org.gradle.api.provider.Provider
-import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.Optional
-import org.jetbrains.kotlin.gradle.plugin.mpp.apple.AppleSdk
-import org.jetbrains.kotlin.gradle.utils.lowerCamelCaseName
 import java.io.File
-import kotlin.text.startsWith
-
+import org.gradle.work.DisableCachingByDefault
+import org.gradle.work.NormalizeLineEndings
+import org.jetbrains.kotlin.gradle.utils.lowerCamelCaseName
+import javax.inject.Inject
+import org.gradle.workers.WorkerExecutor
+import org.jetbrains.kotlin.gradle.utils.contentEqualsIgnoringLineEndings
 
 @DisableCachingByDefault(because = "KT-84827 - SwiftPM import doesn't support caching yet")
 internal abstract class FetchSyntheticImportProjectPackages : DefaultTask() {
@@ -36,6 +38,7 @@ internal abstract class FetchSyntheticImportProjectPackages : DefaultTask() {
      * Refetch when Package manifests of local SwiftPM dependencies change
      */
     @get:InputFiles
+    @get:NormalizeLineEndings
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val localPackageManifests: ConfigurableFileCollection
 
@@ -48,6 +51,7 @@ internal abstract class FetchSyntheticImportProjectPackages : DefaultTask() {
     // For some reason FileTree still invalidates on random directories without this annotation even though directories are not tracked...
     @get:IgnoreEmptyDirectories
     @get:InputFiles
+    @get:NormalizeLineEndings
     @get:PathSensitive(PathSensitivity.RELATIVE)
     val inputManifests
         get() = syntheticImportProjectRoot
@@ -65,97 +69,157 @@ internal abstract class FetchSyntheticImportProjectPackages : DefaultTask() {
         project.layout.buildDirectory.dir("kotlin/swiftPMCheckout")
     )
 
+    @get:OutputFile
+    protected val workspaceStateJson = swiftPMDependenciesCheckout.map { checkoutDir ->
+        checkoutDir.file("workspace-state.json")
+    }
+
+    @get:Input
+    val gitIgnoreCheckoutDir: Property<Boolean> = project.objects.property(Boolean::class.java).convention(false)
+
+    /**
+     * When `true` (project is being imported by the IDE) a failure of `swift package resolve` is
+     * downgraded to a warning instead of failing the whole IDE import. See KT-85468.
+     */
+    @get:Input
+    val ideaSyncEnabled: Property<Boolean> = project.objects.property(Boolean::class.java).convention(false)
+
+    /**
+     * Written only when resolve fails leniently during IDE sync, so the task is not considered
+     * up-to-date and the next regular build retries. Mirrors CInteropProcess.errorFileProvider.
+     */
+    @get:OutputFile
+    val ideImportError: Provider<RegularFile> = syntheticImportProjectRoot.file("swiftPMImportResolve_error.out")
+
+    init {
+        // KT-85468: a lenient failure during IDE sync writes an error file; while it exists the
+        // task must not be up-to-date so the next build retries the resolve.
+        testExecutionHooks.convention(SwiftImportExecutionHooks.NONE)
+        outputs.upToDateWhen { !ideImportError.get().asFile.exists() }
+        // Shared resolve outputs are @Internal to avoid overlapping outputs across coordinated tasks. The local copies can
+        // survive deletion of the root build directory, so also use the shared marker files for the up-to-date decision.
+        outputs.upToDateWhen {
+            syntheticPackageFingerprint.readFingerprintOrNull()?.incrementalFingerprint?.let { fingerprint ->
+                coordinationService.get().sharedSwiftResolveOutputsExist(fingerprint)
+            } ?: true
+        }
+    }
+
     /**
      * Invalidate fetch when Package.swift or Package.resolved files changed.
      */
     @get:OutputFile
     val syntheticLockFile = syntheticImportProjectRoot.file("Package.resolved")
 
-    /**
-     * Additional arguments to pass to `xcodebuild` when resolving SwiftPM dependencies.
-     *
-     * Generally used in test to:
-     * To avoid cache collisions between test runs, we generate a unique package name (and therefore URL) for each execution.
-     * e.g "Revision ... for TestPackageA version 1.0.0 does not match previously recorded value ..."
-     * or
-     * Optional SwiftPM repository cache override.
-     * Passed to `xcodebuild` as:
-     * -packageCachePath <dir>
-     * Used in tests to avoid collisions with the global cache at `~/Library/Caches/org.swift.swiftpm/repositories`.
-     *
-     */
-    @get:Internal
-    abstract val additionalXcodeArgs: ListProperty<String>
-
     @get:Internal
     abstract val additionalSwiftPackageResolveArgs: ListProperty<String>
 
+    @get:Nested
+    abstract val syntheticPackageFingerprint: SwiftImportFingerprintInput
+
     @get:Internal
-    protected val swiftPMDependenciesCheckoutLogs: DirectoryProperty = project.objects.directoryProperty().convention(
-        project.layout.buildDirectory.dir("kotlin/swiftPMCheckoutDD")
-    )
+    abstract val coordinationService: Property<SwiftImportFingerprintedCoordinationService>
+
+    @get:Internal
+    abstract val testExecutionHooks: Property<SwiftImportExecutionHooks>
+
+    @get:Internal
+    abstract val testExecutionService: Property<SwiftImportTestExecutionService>
 
     @get:Inject
-    protected abstract val execOps: ExecOperations
+    abstract val fs: FileSystemOperations
+
+    @get:Inject
+    protected abstract val workerExecutor: WorkerExecutor
+
+    @get:Internal
+    abstract val persistedPackageResolved: RegularFileProperty
 
     @TaskAction
-    fun generateSwiftPMSyntheticImportProjectAndFetchPackages() {
-        checkoutSwiftPMDependencies()
-    }
+    fun fetchPackages() {
+        val errorFile = ideImportError.get().asFile
+        errorFile.delete()
 
-    private fun checkoutSwiftPMDependencies() {
-        // Do a pre-resolution step using swift package resolve because of issue with xcodebuild and lock files
-        execOps.exec { exec ->
-            exec.workingDir(syntheticImportProjectRoot.get().asFile)
-
-            val args = mutableListOf("/usr/bin/swift", "package", "resolve")
-            if (additionalSwiftPackageResolveArgs.isPresent) {
-                args.addAll(additionalSwiftPackageResolveArgs.get())
-            }
-
-            val environmentToFilter = listOf(
-                "SDKROOT",
+        if (!syntheticPackageFingerprint.fingerprintFile.isPresent) {
+            submitSwiftResolveWorkAction(
+                ownerSyntheticImportProjectRoot = syntheticImportProjectRoot.get().asFile,
+                ownerSwiftPMDependenciesCheckout = swiftPMDependenciesCheckout.get().asFile,
+                syntheticPackageHash = null,
             )
-            environmentToFilter.forEach {
-                if (exec.environment.containsKey(it)) {
-                    exec.environment.remove(it)
+            return
+        }
+
+        testExecutionHooks.get().beforeSwiftResolveClaim()
+
+        val claim = coordinationService.get().claimOrJoinSwiftResolve(
+            packageHash = syntheticPackageFingerprint.readFingerprint().incrementalFingerprint,
+        )
+        when (claim) {
+            is CoordinationClaim.Existing -> {
+                coordinationService.get().awaitSwiftResolveOwnerStarted(claim.bucket.key)
+                workerExecutor.noIsolation().submit(SwiftResolveAwaitWorkAction::class.java) {
+                    it.sourcePackageResolvedFile.set(claim.bucket.ownerPackageResolvedFile)
+                    it.destinationPackageResolved.set(syntheticLockFile.get().asFile)
+                    it.sourceWorkspaceStateFile.set(claim.bucket.ownerWorkspaceStateFile)
+                    it.destinationWorkspaceStateFile.set(workspaceStateJson.get().asFile)
+                    it.syntheticPackageHash.set(claim.bucket.key)
+                    it.coordinationService.set(coordinationService)
+                    it.testExecutionService.set(testExecutionService)
+                    it.ideaSyncEnabled.set(ideaSyncEnabled)
+                    it.errorFile.set(errorFile)
                 }
             }
 
-            exec.commandLine(args)
+            is CoordinationClaim.Owner -> {
+                testExecutionHooks.get().beforeSwiftResolveOwnerWorkerSubmission()
+                runOwnerSwiftResolve(
+                    claim.bucket.ownerSyntheticImportProjectRoot,
+                    claim.bucket.ownerSwiftPMDependenciesCheckout,
+                    claim.bucket.key,
+                )
+            }
         }
 
-        execOps.exec {
-            it.workingDir(syntheticImportProjectRoot.get().asFile)
-            /**
-             * See KT-83863:
-             * Avoid using `-onlyUsePackageVersionsFromResolvedFile`.
-             * That flag forces SwiftPM to strictly use the versions from `Package.resolved`
-             * and fail if the resolved file is considered out-of-date relative to the
-             * current `Package.swift`. Because our synthetic `Package.swift` is regenerated,
-             * SwiftPM may detect the lock file as stale and abort resolution instead of
-             * reusing the locked versions.
-             *
-             * After changes in KT-83863:
-             *`xcodebuild -resolvePackageDependencies` may reuse an existing `Package.resolved`
-             * without materializing repositories in `-clonedSourcePackagesDirPath/checkouts`.
-             * Therefore the checkout directory is not guaranteed to exist after the resolve
-             * step and should not be relied on as a task postcondition.
-             */
-            val args = mutableListOf(
-                "xcodebuild", "-resolvePackageDependencies",
-                "-scheme", GenerateSyntheticLinkageImportProject.SYNTHETIC_IMPORT_TARGET_MAGIC_NAME,
-                XCODEBUILD_SWIFTPM_CHECKOUT_PATH_PARAMETER, swiftPMDependenciesCheckout.get().asFile.path,
-                "-derivedDataPath", swiftPMDependenciesCheckoutLogs.get().asFile.path,
-            )
+    }
 
-            if (additionalXcodeArgs.isPresent) {
-                args.addAll(additionalXcodeArgs.get())
+    private fun runOwnerSwiftResolve(
+        syntheticImportProjectRoot: File,
+        swiftPMDependenciesCheckout: File,
+        syntheticPackageHash: SwiftResolveBucketMapKey,
+    ) {
+        submitSwiftResolveWorkAction(
+            ownerSyntheticImportProjectRoot = syntheticImportProjectRoot,
+            ownerSwiftPMDependenciesCheckout = swiftPMDependenciesCheckout,
+            syntheticPackageHash = syntheticPackageHash,
+        )
+    }
+
+    fun submitSwiftResolveWorkAction(
+        ownerSyntheticImportProjectRoot: File,
+        ownerSwiftPMDependenciesCheckout: File,
+        syntheticPackageHash: SwiftResolveBucketMapKey?,
+    ) {
+        val isCoordinationEnabled = syntheticPackageHash != null
+        workerExecutor.noIsolation().submit(SwiftResolveWorkAction::class.java) { params ->
+            params.syntheticImportProjectRoot.set(ownerSyntheticImportProjectRoot)
+            params.swiftPMDependenciesCheckout.set(ownerSwiftPMDependenciesCheckout)
+            params.additionalSwiftPackageResolveArgs.set(additionalSwiftPackageResolveArgs)
+            params.gitIgnoreCheckoutDir.set(gitIgnoreCheckoutDir)
+            params.coordinationEnabled.set(isCoordinationEnabled)
+            params.ideaSyncEnabled.set(ideaSyncEnabled)
+            params.errorFile.set(ideImportError)
+            params.testExecutionService.set(testExecutionService)
+            params.persistedPackageResolved.set(persistedPackageResolved)
+            params.syntheticLockFile.set(syntheticLockFile)
+            params.workspaceStateJson.set(workspaceStateJson)
+
+            if (isCoordinationEnabled) {
+                params.coordinationService.set(coordinationService)
+                params.syntheticPackageHash.set(syntheticPackageHash!!)
             }
-
-            it.commandLine(args)
         }
     }
+
 
     companion object {
         const val TASK_NAME = "fetchSyntheticImportProjectPackages"
@@ -163,6 +227,7 @@ internal abstract class FetchSyntheticImportProjectPackages : DefaultTask() {
             "fetchUmbrellaPackageIdentifierFor",
             identifier
         )
+
         const val XCODEBUILD_SWIFTPM_CHECKOUT_PATH_PARAMETER = "-clonedSourcePackagesDirPath"
     }
 }

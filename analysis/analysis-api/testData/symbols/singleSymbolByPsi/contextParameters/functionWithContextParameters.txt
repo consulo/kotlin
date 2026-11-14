@@ -1,14 +1,17 @@
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /foo
-  compilerVisibility: Public
   contextParameters: [
     KaContextParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
       isActual: false
+      isCompanion: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -17,6 +20,8 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: parameter1
       origin: SOURCE
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: [
@@ -25,18 +30,22 @@ KaNamedFunctionSymbol:
         ]
         typeArguments: []
         type: @R|Anno|(position = <strcat>(String(1), String(2)) [evaluated = String(12)])  kotlin/String
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(functionWithContextParameters.kt)
       getContainingJvmClassName: FunctionWithContextParametersKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
     KaContextParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
       isActual: false
+      isCompanion: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -45,6 +54,8 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: parameter2
       origin: SOURCE
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
@@ -58,11 +69,12 @@ KaNamedFunctionSymbol:
             type: @R|Anno|(position = String(str) [evaluated = String(str)])  kotlin/Int
         ]
         type: kotlin/collections/List<@R|Anno|(position = String(str) [evaluated = String(str)])  kotlin/Int>
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(functionWithContextParameters.kt)
       getContainingJvmClassName: FunctionWithContextParametersKt
       getContainingModule: KaSourceModule "Sources of main"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   contextReceivers: [
@@ -94,6 +106,7 @@ KaNamedFunctionSymbol:
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -108,6 +121,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: foo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -120,6 +135,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: FunctionWithContextParametersKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: foo
   importableFqName: foo

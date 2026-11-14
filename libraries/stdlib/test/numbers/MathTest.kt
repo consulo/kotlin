@@ -39,6 +39,8 @@ private val Float.ulpCommon: Float
 class DoubleMathTest {
 
     @Test fun trigonometric() {
+        assertEquals(6.283185307179586, TAU)
+
         assertEquals(0.0, sin(0.0))
         assertAlmostEquals(0.0, sin(PI))
 
@@ -153,7 +155,7 @@ class DoubleMathTest {
             392890.22 to 73.24147345684439
         )
 
-        for ((x, result) in testingPairs) {
+        for ([x, result] in testingPairs) {
             assertEquals(result, cbrt(x), if (result.isFinite()) 2.0 * result.ulp else 0.0)
             assertEquals(cbrt(-x), -cbrt(x))
         }
@@ -166,10 +168,12 @@ class DoubleMathTest {
         assertTrue(hypot(Double.NaN, 0.0).isNaN())
 
         assertEquals(1.0, Double.NaN.pow(0.0))
+        assertEquals(1.0, Double.NaN.pow(-0.0))
         assertEquals(1.0, Double.POSITIVE_INFINITY.pow(0))
         assertEquals(49.0, 7.0.pow(2))
         assertEquals(0.25, 2.0.pow(-2))
         assertTrue(0.0.pow(Double.NaN).isNaN())
+        assertTrue(1.0.pow(Double.NaN).isNaN())
         assertTrue(Double.NaN.pow(-1).isNaN())
         assertTrue((-7.0).pow(1 / 3.0).isNaN())
         assertTrue(1.0.pow(Double.POSITIVE_INFINITY).isNaN())
@@ -228,13 +232,34 @@ class DoubleMathTest {
     }
 
     @Test fun rounding() {
-        for (value in listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, 0.0, 1.0, -10.0)) {
+        val intBoundary = 2.0.pow(52)
+
+        // Special & integral values
+        for (value in listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, 0.0, 1.0, -10.0, intBoundary, -intBoundary)) {
             assertEquals(value, ceil(value))
             assertEquals(value, floor(value))
             assertEquals(value, truncate(value))
             assertEquals(value, round(value))
         }
+        // Custom NaNs: two signaling, one silent
+        for (bits in longArrayOf(0x7ff0_0000_0000_0001L, -0x000f_ffff_ffff_ffffL, 0x7ff8000000000001L)) {
+            val value = Double.fromBits(bits)
+
+            // isNaN is the only thing we can be sure of here, because some behaviors like signaling NaN quieting are platform-dependent.
+            assertTrue(ceil(value).isNaN())
+            assertTrue(floor(value).isNaN())
+            assertTrue(truncate(value).isNaN())
+            assertTrue(round(value).isNaN())
+        }
+
         val data = arrayOf( //   v floor trunc round  ceil
+                doubleArrayOf( 0.3,  0.0,  0.0,  0.0,  1.0),
+                doubleArrayOf(-0.3, -1.0, -0.0, -0.0, -0.0),
+                doubleArrayOf( 0.5,  0.0,  0.0,  0.0,  1.0),
+                doubleArrayOf(-0.5, -1.0, -0.0, -0.0, -0.0),
+                doubleArrayOf( 0.8,  0.0,  0.0,  1.0,  1.0),
+                doubleArrayOf(-0.8, -1.0, -0.0, -1.0, -0.0),
+
                 doubleArrayOf( 1.3,  1.0,  1.0,  1.0,  2.0),
                 doubleArrayOf(-1.3, -2.0, -1.0, -1.0, -1.0),
                 doubleArrayOf( 1.5,  1.0,  1.0,  2.0,  2.0),
@@ -247,9 +272,14 @@ class DoubleMathTest {
                 doubleArrayOf( 2.5,  2.0,  2.0,  2.0,  3.0),
                 doubleArrayOf(-2.5, -3.0, -2.0, -2.0, -2.0),
                 doubleArrayOf( 2.8,  2.0,  2.0,  3.0,  3.0),
-                doubleArrayOf(-2.8, -3.0, -2.0, -3.0, -2.0)
+                doubleArrayOf(-2.8, -3.0, -2.0, -3.0, -2.0),
+
+                doubleArrayOf(intBoundary - 0.5, intBoundary - 1.0, intBoundary - 1.0, intBoundary, intBoundary),
+                doubleArrayOf(-intBoundary + 0.5, -intBoundary, -intBoundary + 1.0, -intBoundary, -intBoundary + 1.0),
+                doubleArrayOf(intBoundary + 1.0, intBoundary + 1.0, intBoundary + 1.0, intBoundary + 1.0, intBoundary + 1.0),
+                doubleArrayOf(-intBoundary - 1.0, -intBoundary - 1.0, -intBoundary - 1.0, -intBoundary - 1.0, -intBoundary - 1.0),
         )
-        for ((v, f, t, r, c) in data) {
+        for ([v, f, t, r, c] in data) {
             assertEquals(f, floor(v), "floor($v)")
             assertEquals(t, truncate(v), "truncate($v)")
             assertEquals(r, round(v), "round($v)")
@@ -270,7 +300,7 @@ class DoubleMathTest {
         assertEquals(Long.MAX_VALUE, Double.POSITIVE_INFINITY.roundToLong())
         assertEquals(Long.MIN_VALUE, Double.NEGATIVE_INFINITY.roundToLong())
 
-        assertFails { Double.NaN.roundToLong() }
+        assertFailsWith<IllegalArgumentException> { Double.NaN.roundToLong() }
 
         assertEquals(1, 1.0.roundToInt())
         assertEquals(1, 1.1.roundToInt())
@@ -284,7 +314,81 @@ class DoubleMathTest {
         assertEquals(Int.MAX_VALUE, Double.POSITIVE_INFINITY.roundToInt())
         assertEquals(Int.MIN_VALUE, Double.NEGATIVE_INFINITY.roundToInt())
 
-        assertFails { Double.NaN.roundToInt() }
+        assertFailsWith<IllegalArgumentException> { Double.NaN.roundToInt() }
+    }
+
+    @Test fun roundingConversionNearHalfIntegers() {
+        val cases = listOf(
+            0.0 to 0L,
+            -0.0 to 0L,
+            Double.MIN_VALUE to 0L,
+            -Double.MIN_VALUE to 0L,
+            0.49999999999999994 to 0L,
+            0.5 to 1L,
+            0.5000000000000001 to 1L,
+            -0.49999999999999994 to 0L,
+            -0.5 to 0L,
+            -0.5000000000000001 to -1L,
+            1.4999999999999998 to 1L,
+            1.5 to 2L,
+            -1.5 to -1L,
+            -1.5000000000000002 to -2L
+        )
+        for ([value, expected] in cases) {
+            assertEquals(expected, value.roundToLong(), "$value.roundToLong()")
+            assertEquals(
+                expected.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt(),
+                value.roundToInt(), "$value.roundToInt()"
+            )
+        }
+    }
+
+    @Test fun roundingConversionAtIntegralPrecision() {
+        // The spacing reaches one at 2^52. Adding 0.5 can change an odd integer.
+        val cases = listOf(
+            4503599627370495.5 to 4503599627370496L,
+            4503599627370497.0 to 4503599627370497L,
+            9007199254740991.0 to 9007199254740991L,
+            -4503599627370495.5 to -4503599627370495L,
+            -4503599627370497.0 to -4503599627370497L,
+            -9007199254740991.0 to -9007199254740991L
+        )
+        for ([value, expected] in cases) {
+            assertEquals(expected, value.roundToLong(), "$value.roundToLong()")
+            assertEquals(
+                expected.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt(),
+                value.roundToInt(), "$value.roundToInt()"
+            )
+        }
+    }
+
+    @Test fun roundingConversionAtIntegerLimits() {
+        val intCases = listOf(
+            2147483646.5 to Int.MAX_VALUE,
+            2147483647.0 to Int.MAX_VALUE,
+            2147483647.5 to Int.MAX_VALUE,
+            2147483648.0 to Int.MAX_VALUE,
+            -2147483647.5 to -2147483647,
+            -2147483648.0 to Int.MIN_VALUE,
+            -2147483648.5 to Int.MIN_VALUE
+        )
+        for ([value, expected] in intCases) {
+            assertEquals(expected, value.roundToInt(), "$value.roundToInt()")
+        }
+
+        // Long.MAX_VALUE.toDouble() is 2^63, which is already outside the Long range.
+        val limit = Long.MAX_VALUE.toDouble()
+        val longCases = listOf(
+            limit.nextDown() to 9223372036854774784L,
+            limit to Long.MAX_VALUE,
+            limit.nextUp() to Long.MAX_VALUE,
+            (-limit).nextUp() to -9223372036854774784L,
+            -limit to Long.MIN_VALUE,
+            (-limit).nextDown() to Long.MIN_VALUE
+        )
+        for ([value, expected] in longCases) {
+            assertEquals(expected, value.roundToLong(), "$value.roundToLong()")
+        }
     }
 
     @Test fun absoluteValue() {
@@ -368,26 +472,63 @@ class DoubleMathTest {
             if (toZero != 0.0) {
                 assertEquals(value, toZero + toZero.ulp.withSign(toZero))
             }
+        }
 
-            assertEquals(Double.POSITIVE_INFINITY, Double.MAX_VALUE.nextUp())
-            assertEquals(Double.MAX_VALUE, Double.POSITIVE_INFINITY.nextDown())
+        assertEquals(Double.POSITIVE_INFINITY, Double.MAX_VALUE.nextUp())
+        assertEquals(Double.MAX_VALUE, Double.POSITIVE_INFINITY.nextDown())
 
-            assertEquals(Double.NEGATIVE_INFINITY, (-Double.MAX_VALUE).nextDown())
-            assertEquals((-Double.MAX_VALUE), Double.NEGATIVE_INFINITY.nextUp())
+        assertEquals(Double.NEGATIVE_INFINITY, (-Double.MAX_VALUE).nextDown())
+        assertEquals((-Double.MAX_VALUE), Double.NEGATIVE_INFINITY.nextUp())
 
-            assertTrue(Double.NaN.ulp.isNaN())
-            assertTrue(Double.NaN.nextDown().isNaN())
-            assertTrue(Double.NaN.nextUp().isNaN())
-            assertTrue(Double.NaN.nextTowards(0.0).isNaN())
+        assertTrue(Double.NaN.nextDown().isNaN())
+        assertTrue(Double.NaN.nextUp().isNaN())
+        assertTrue(Double.NaN.nextTowards(0.0).isNaN())
+    }
 
-            assertEquals(Double.MIN_VALUE, (0.0).ulp)
-            assertEquals(Double.MIN_VALUE, (-0.0).ulp)
-            assertEquals(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY.ulp)
-            assertEquals(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY.ulp)
+    @Test
+    fun ulp() {
+        assertTrue(Double.NaN.ulp.isNaN())
 
-            val maxUlp = 2.0.pow(971)
-            assertEquals(maxUlp, Double.MAX_VALUE.ulp)
-            assertEquals(maxUlp, (-Double.MAX_VALUE).ulp)
+        val customQuietNaN = Double.fromBits(Double.NaN.toBits() or 1L)
+        assertTrue(customQuietNaN.ulp.isNaN())
+
+        val customSignalingNaN = Double.fromBits(Double.NaN.toBits() or (1L shl 63))
+        assertTrue(customSignalingNaN.ulp.isNaN())
+
+        assertEquals(Double.MIN_VALUE, (0.0).ulp)
+        assertEquals(Double.MIN_VALUE, (-0.0).ulp)
+        assertEquals(Double.MIN_VALUE, Double.MIN_VALUE.ulp)
+        assertEquals(Double.MIN_VALUE, (-Double.MIN_VALUE).ulp)
+        assertEquals(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY.ulp)
+        assertEquals(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY.ulp)
+
+        val maxUlp = 2.0.pow(971)
+        assertEquals(maxUlp, Double.MAX_VALUE.ulp)
+        assertEquals(maxUlp, (-Double.MAX_VALUE).ulp)
+
+        // subnormal-normal boundary
+        val minNormalMagnitude = Double.fromBits(0x0010_0000_0000_0000L)
+        for (normal in [minNormalMagnitude, -minNormalMagnitude]) {
+            val subnormal = if (normal > 0) minNormalMagnitude.nextDown() else normal.nextUp()
+
+            // minNormal.ulp is already Double.MIN_VALUE, can't go below that
+            assertEquals(1.0, normal.ulp / subnormal.ulp)
+        }
+
+        // power-of-two boundaries
+        for (power in doubleArrayOf(-300.0, -50.0, -10.0, 0.0, 10.0, 50.0, 300.0)) {
+            val magnitude = 2.0.pow(power)
+            magnitude.let {
+                val previousUlp = it.nextDown().ulp
+
+                assertEquals(2.0, it.ulp / previousUlp)
+            }
+
+            (-magnitude).let {
+                val previousUlp = it.nextUp().ulp
+
+                assertEquals(2.0, it.ulp / previousUlp)
+            }
         }
     }
 }
@@ -524,7 +665,7 @@ class FloatMathTest {
             392890.22f to 73.24147f
         )
 
-        for ((x, result) in testingPairs) {
+        for ([x, result] in testingPairs) {
             assertEquals(result, cbrt(x), if (result.isFinite()) 2.0f * result.ulpCommon else 0.0f)
             assertEquals(cbrt(-x), -cbrt(x))
         }
@@ -537,10 +678,12 @@ class FloatMathTest {
         assertTrue(hypot(Float.NaN, 0.0F).isNaN())
 
         assertEquals(1.0F, Float.NaN.pow(0.0F))
+        assertEquals(1.0F, Float.NaN.pow(-0.0F))
         assertEquals(1.0F, Float.POSITIVE_INFINITY.pow(0))
         assertEquals(49.0F, 7.0F.pow(2))
         assertEquals(0.25F, 2.0F.pow(-2))
         assertTrue(0.0F.pow(Float.NaN).isNaN())
+        assertTrue(1.0F.pow(Float.NaN).isNaN())
         assertTrue(Float.NaN.pow(-1).isNaN())
         assertTrue((-7.0F).pow(1 / 3.0F).isNaN())
         assertTrue(1.0F.pow(Float.POSITIVE_INFINITY).isNaN())
@@ -595,13 +738,34 @@ class FloatMathTest {
     }
 
     @Test fun rounding() {
-        for (value in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, 0.0F, 1.0F, -10.0F)) {
+        val intBoundary = 2.0F.pow(23)
+
+        // Special & integral values
+        for (value in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, 0.0F, 1.0F, -10.0F, intBoundary, -intBoundary)) {
             assertEquals(value, ceil(value))
             assertEquals(value, floor(value))
             assertEquals(value, truncate(value))
             assertEquals(value, round(value))
         }
+        // Custom NaNs: two signaling, one silent
+        for (bits in intArrayOf(0x7f80_0001, -0x007f_ffff, 0x7fc00001)) {
+            val value = Float.fromBits(bits)
+
+            // isNaN is the only thing we can be sure of here, because some behaviors like signaling NaN quieting are platform-dependent.
+            assertTrue(ceil(value).isNaN())
+            assertTrue(floor(value).isNaN())
+            assertTrue(truncate(value).isNaN())
+            assertTrue(round(value).isNaN())
+        }
+
         val data = arrayOf( //   v floor trunc round  ceil
+                floatArrayOf( 0.3F,  0.0F,  0.0F,  0.0F,  1.0F),
+                floatArrayOf(-0.3F, -1.0F, -0.0F, -0.0F, -0.0F),
+                floatArrayOf( 0.5F,  0.0F,  0.0F,  0.0F,  1.0F),
+                floatArrayOf(-0.5F, -1.0F, -0.0F, -0.0F, -0.0F),
+                floatArrayOf( 0.8F,  0.0F,  0.0F,  1.0F,  1.0F),
+                floatArrayOf(-0.8F, -1.0F, -0.0F, -1.0F, -0.0F),
+
                 floatArrayOf( 1.3F,  1.0F,  1.0F,  1.0F,  2.0F),
                 floatArrayOf(-1.3F, -2.0F, -1.0F, -1.0F, -1.0F),
                 floatArrayOf( 1.5F,  1.0F,  1.0F,  2.0F,  2.0F),
@@ -614,9 +778,14 @@ class FloatMathTest {
                 floatArrayOf( 2.5F,  2.0F,  2.0F,  2.0F,  3.0F),
                 floatArrayOf(-2.5F, -3.0F, -2.0F, -2.0F, -2.0F),
                 floatArrayOf( 2.8F,  2.0F,  2.0F,  3.0F,  3.0F),
-                floatArrayOf(-2.8F, -3.0F, -2.0F, -3.0F, -2.0F)
+                floatArrayOf(-2.8F, -3.0F, -2.0F, -3.0F, -2.0F),
+
+                floatArrayOf(intBoundary - 0.5F, intBoundary - 1.0F, intBoundary - 1.0F, intBoundary, intBoundary),
+                floatArrayOf(-intBoundary + 0.5F, -intBoundary, -intBoundary + 1.0F, -intBoundary, -intBoundary + 1.0F),
+                floatArrayOf(intBoundary + 1.0F, intBoundary + 1.0F, intBoundary + 1.0F, intBoundary + 1.0F, intBoundary + 1.0F),
+                floatArrayOf(-intBoundary - 1.0F, -intBoundary - 1.0F, -intBoundary - 1.0F, -intBoundary - 1.0F, -intBoundary - 1.0F),
         )
-        for ((v, f, t, r, c) in data) {
+        for ([v, f, t, r, c] in data) {
             assertEquals(f, floor(v), "floor($v)")
             assertEquals(t, truncate(v), "truncate($v)")
             assertEquals(r, round(v), "round($v)")
@@ -637,7 +806,7 @@ class FloatMathTest {
         assertEquals(Long.MAX_VALUE, Float.POSITIVE_INFINITY.roundToLong())
         assertEquals(Long.MIN_VALUE, Float.NEGATIVE_INFINITY.roundToLong())
 
-        assertFails { Float.NaN.roundToLong() }
+        assertFailsWith<IllegalArgumentException> { Float.NaN.roundToLong() }
 
         assertEquals(1, 1.0F.roundToInt())
         assertEquals(1, 1.1F.roundToInt())
@@ -651,7 +820,81 @@ class FloatMathTest {
         assertEquals(Int.MAX_VALUE, Float.POSITIVE_INFINITY.roundToInt())
         assertEquals(Int.MIN_VALUE, Float.NEGATIVE_INFINITY.roundToInt())
 
-        assertFails { Float.NaN.roundToInt() }
+        assertFailsWith<IllegalArgumentException> { Float.NaN.roundToInt() }
+    }
+
+    @Test fun roundingConversionNearHalfIntegers() {
+        val cases = listOf(
+            0.0f to 0L,
+            -0.0f to 0L,
+            Float.MIN_VALUE to 0L,
+            -Float.MIN_VALUE to 0L,
+            0.49999997f to 0L,
+            0.5f to 1L,
+            0.50000006f to 1L,
+            -0.49999997f to 0L,
+            -0.5f to 0L,
+            -0.50000006f to -1L,
+            1.4999999f to 1L,
+            1.5f to 2L,
+            -1.5f to -1L,
+            -1.5000001f to -2L
+        )
+        for ([value, expected] in cases) {
+            assertEquals(expected, value.roundToLong(), "$value.roundToLong()")
+            assertEquals(
+                expected.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt(),
+                value.roundToInt(), "$value.roundToInt()"
+            )
+        }
+    }
+
+    @Test fun roundingConversionAtIntegralPrecision() {
+        // The spacing reaches one at 2^23. Adding 0.5 can change an odd integer.
+        val cases = listOf(
+            8388607.5f to 8388608L,
+            8388609f to 8388609L,
+            16777215f to 16777215L,
+            -8388607.5f to -8388607L,
+            -8388609f to -8388609L,
+            -16777215f to -16777215L
+        )
+        for ([value, expected] in cases) {
+            assertEquals(expected, value.roundToLong(), "$value.roundToLong()")
+            assertEquals(
+                expected.coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt(),
+                value.roundToInt(), "$value.roundToInt()"
+            )
+        }
+    }
+
+    @Test fun roundingConversionAtIntegerLimits() {
+        // Construct exact Float32 boundaries; JS uses Number for Float values.
+        val intLimit = Float.fromBits(0x4f000000) // 2^31
+        val intCases = listOf(
+            Float.fromBits(intLimit.toBits() - 1) to 2147483520,
+            intLimit to Int.MAX_VALUE,
+            Float.fromBits(intLimit.toBits() + 1) to Int.MAX_VALUE,
+            -Float.fromBits(intLimit.toBits() - 1) to -2147483520,
+            -intLimit to Int.MIN_VALUE,
+            -Float.fromBits(intLimit.toBits() + 1) to Int.MIN_VALUE
+        )
+        for ([value, expected] in intCases) {
+            assertEquals(expected, value.roundToInt(), "$value.roundToInt()")
+        }
+
+        val longLimit = Float.fromBits(0x5f000000) // 2^63
+        val longCases = listOf(
+            Float.fromBits(longLimit.toBits() - 1) to 9223371487098961920L,
+            longLimit to Long.MAX_VALUE,
+            Float.fromBits(longLimit.toBits() + 1) to Long.MAX_VALUE,
+            -Float.fromBits(longLimit.toBits() - 1) to -9223371487098961920L,
+            -longLimit to Long.MIN_VALUE,
+            -Float.fromBits(longLimit.toBits() + 1) to Long.MIN_VALUE
+        )
+        for ([value, expected] in longCases) {
+            assertEquals(expected, value.roundToLong(), "$value.roundToLong()")
+        }
     }
 
     @Test fun absoluteValue() {

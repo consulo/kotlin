@@ -11,7 +11,6 @@ import kotlinx.collections.immutable.toPersistentList
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.config.AnalysisFlags
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.classId
@@ -24,6 +23,7 @@ import org.jetbrains.kotlin.fir.expressions.FirStatement
 import org.jetbrains.kotlin.fir.extensions.*
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeTypeParameterSupertype
+import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnionTypeInSupertype
 import org.jetbrains.kotlin.fir.resolve.providers.firProvider
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.LocalClassesNavigationInfo
 import org.jetbrains.kotlin.fir.scopes.FirScope
@@ -37,7 +37,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirTypeAliasSymbol
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.buildErrorTypeRef
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitBuiltinTypeRef
-import org.jetbrains.kotlin.fir.visitors.FirDefaultTransformer
+import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.fir.visitors.FirDefaultVisitor
 import org.jetbrains.kotlin.util.PrivateForInline
 import org.jetbrains.kotlin.utils.addIfNotNull
@@ -101,7 +101,7 @@ private class FirApplySupertypesTransformer(
     private val supertypeComputationSession: SupertypeComputationSession,
     private val session: FirSession,
     private val scopeSession: ScopeSession,
-) : FirDefaultTransformer<Any?>() {
+) : FirTransformer<Any?>() {
 
     override fun <E : FirElement> transformElement(element: E, data: Any?): E {
         return element
@@ -128,8 +128,15 @@ private class FirApplySupertypesTransformer(
     }
 
     private fun applyResolvedSupertypesToClass(firClass: FirClass) {
-        if (firClass.superTypeRefs.any { it !is FirResolvedTypeRef || it is FirImplicitBuiltinTypeRef }) {
-            val supertypeRefs = supertypeComputationSession.getResolvedSupertypeRefs(firClass)
+        val resolvedSupertypeRefs = supertypeComputationSession.getResolvedSupertypeRefs(firClass)
+        // Extensions may add supertypes even when every existing supertype was already resolved (i.e. implicit Enum<E> supertype).
+        // KT-88578
+        val hasGeneratedSupertypes = resolvedSupertypeRefs.size != firClass.superTypeRefs.size
+        if (
+            hasGeneratedSupertypes ||
+            firClass.superTypeRefs.any { it !is FirResolvedTypeRef || it is FirImplicitBuiltinTypeRef }
+        ) {
+            val supertypeRefs = resolvedSupertypeRefs
                 .map { supertypeComputationSession.expandTypealiasInPlace(it, session) }
             firClass.replaceSuperTypeRefs(supertypeRefs)
         }
@@ -203,7 +210,9 @@ open class FirSupertypeResolverVisitor(
 
     @PrivateForInline
     val classDeclarationsStack: ArrayDeque<FirClass> = ArrayDeque()
-    private var replSnippet: FirReplSnippet? = null
+
+    @PrivateForInline
+    var replSnippet: FirReplSnippet? = null
 
     init {
         containingDeclarations.forEach {
@@ -272,7 +281,7 @@ open class FirSupertypeResolverVisitor(
         forStaticNestedClass: Boolean,
     ): PersistentList<FirScope> {
         resolveAllSupertypesForOuterClass(outerClass)
-        return prepareScopes(outerClass, forStaticNestedClass).pushAll(
+        return prepareScopes(outerClass, forStaticNestedClass).pushingAll(
             createOtherScopesForNestedClassesOrCompanion(
                 klass = outerClass,
                 session = session,
@@ -307,6 +316,7 @@ open class FirSupertypeResolverVisitor(
         }
     }
 
+    @OptIn(PrivateForInline::class)
     private fun prepareScopes(classLikeDeclaration: FirClassLikeDeclaration, forStaticNestedClass: Boolean): PersistentList<FirScope> {
         val classId = classLikeDeclaration.symbol.classId
         val classModuleSession = classLikeDeclaration.moduleData.session
@@ -339,7 +349,7 @@ open class FirSupertypeResolverVisitor(
 
         return when {
             forStaticNestedClass -> result
-            else -> result.pushIfNotNull(classLikeDeclaration.typeParametersScope())
+            else -> result.pushingIfNotNull(classLikeDeclaration.typeParametersScope())
         }
     }
 
@@ -409,13 +419,20 @@ open class FirSupertypeResolverVisitor(
         }
     }
 
-    override fun visitReplSnippet(replSnippet: FirReplSnippet, data: Any?) {
+    @OptIn(PrivateForInline::class)
+    inline fun <T> withReplSnippet(replSnippet: FirReplSnippet, body: () -> T): T {
         val original = this.replSnippet
         this.replSnippet = replSnippet
-        try {
-            visitDeclarationContent(replSnippet, data)
+        return try {
+            body()
         } finally {
             this.replSnippet = original
+        }
+    }
+
+    override fun visitReplSnippet(replSnippet: FirReplSnippet, data: Any?) {
+        withReplSnippet(replSnippet) {
+            visitDeclarationContent(replSnippet, data)
         }
     }
 
@@ -430,8 +447,8 @@ open class FirSupertypeResolverVisitor(
         return resolveSpecificClassLikeSupertypes(classLikeDeclaration) { transformer, configuration ->
             supertypeRefs.mapTo(mutableListOf()) {
                 val superTypeRef = it.transform<FirTypeRef, TypeResolutionConfiguration>(transformer, configuration)
-                val typeParameterType = superTypeRef.coneTypeSafe<ConeTypeParameterType>()
-                val typealiasSymbol = superTypeRef.coneTypeSafe<ConeClassLikeType>()?.toTypeAliasSymbol(session)
+                val coneType = superTypeRef.coneType.unwrapToSimpleTypeUsingLowerBound()
+                val typealiasSymbol = coneType.toTypeAliasSymbol(session)
                 if (resolveRecursively && typealiasSymbol != null) {
                     // Jump to typealiases in supertypes of class-like types.
                     // We need to make sure that by the time we want to fully expand typealiases in supertypes
@@ -439,10 +456,15 @@ open class FirSupertypeResolverVisitor(
                     visitTypeAlias(typealiasSymbol.fir, null)
                 }
                 when {
-                    typeParameterType != null ->
+                    coneType is ConeTypeParameterType ->
                         buildErrorTypeRef {
                             source = superTypeRef.source
-                            diagnostic = ConeTypeParameterSupertype(typeParameterType.lookupTag.typeParameterSymbol)
+                            diagnostic = ConeTypeParameterSupertype(coneType.lookupTag.typeParameterSymbol)
+                        }
+                    coneType is ConeUnionType ->
+                        buildErrorTypeRef {
+                            source = superTypeRef.source
+                            diagnostic = ConeUnionTypeInSupertype
                         }
                     superTypeRef !is FirResolvedTypeRef ->
                         createErrorTypeRef(
@@ -478,7 +500,7 @@ open class FirSupertypeResolverVisitor(
         for (extension in supertypeGenerationExtensions) {
             if (extension.needTransformSupertypes(klass)) {
                 extension.computeAdditionalSupertypes(klass, supertypeRefs, typeResolveService).mapTo(supertypeRefs) {
-                    it.toFirResolvedTypeRef(klass.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated))
+                    it.toFirResolvedTypeRef(klass.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated.Default))
                 }
             }
         }
@@ -516,7 +538,7 @@ open class FirSupertypeResolverVisitor(
                     if (newSupertypes.isNotEmpty()) {
                         someTypesWereGenerated = true
                         superTypes += newSupertypes.map {
-                            it.toFirResolvedTypeRef(klass.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated))
+                            it.toFirResolvedTypeRef(klass.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated.Default))
                         }
                     }
                 }
@@ -582,7 +604,7 @@ open class FirSupertypeResolverVisitor(
     }
 }
 
-private fun createErrorTypeRef(sourceElement: KtSourceElement?, message: String, kind: DiagnosticKind) = buildErrorTypeRef {
+private fun createErrorTypeRef(sourceElement: KtSourceElement?, message: String, kind: DiagnosticKind): FirErrorTypeRef = buildErrorTypeRef {
     source = sourceElement
     diagnostic = ConeSimpleDiagnostic(message, kind)
 }
@@ -896,7 +918,7 @@ sealed class SupertypeComputationStatus {
 
 private typealias ScopePersistentList = PersistentList<FirScope>
 
-private fun <E> PersistentList<E>.push(element: E): PersistentList<E> = add(0, element)
-private fun <E> PersistentList<E>.pushAll(collection: Collection<E>): PersistentList<E> = addAll(0, collection)
+private fun <E> PersistentList<E>.pushing(element: E): PersistentList<E> = addingAt(0, element)
+private fun <E> PersistentList<E>.pushingAll(collection: Collection<E>): PersistentList<E> = addingAllAt(0, collection)
 
-private fun ScopePersistentList.pushIfNotNull(scope: FirScope?): ScopePersistentList = if (scope == null) this else push(scope)
+private fun ScopePersistentList.pushingIfNotNull(scope: FirScope?): ScopePersistentList = if (scope == null) this else pushing(scope)

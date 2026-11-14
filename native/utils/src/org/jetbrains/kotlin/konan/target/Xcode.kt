@@ -19,8 +19,10 @@ package org.jetbrains.kotlin.konan.target
 import org.jetbrains.kotlin.konan.KonanExternalToolFailure
 import org.jetbrains.kotlin.konan.MissingXcodeException
 import org.jetbrains.kotlin.konan.exec.Command
-import org.jetbrains.kotlin.konan.file.File
+import java.io.File
 import java.util.Locale
+import kotlin.io.path.Path
+import kotlin.io.path.absolutePathString
 
 data class XcodeVersion(val major: Int, val minor: Int) : Comparable<XcodeVersion> {
     override fun compareTo(other: XcodeVersion): Int {
@@ -43,7 +45,7 @@ data class XcodeVersion(val major: Int, val minor: Int) : Comparable<XcodeVersio
             )
         }
 
-        val maxTested = XcodeVersion(26, 0)
+        val maxTested = XcodeVersion(27, 0)
     }
 }
 
@@ -83,24 +85,53 @@ interface Xcode {
 
         fun findCurrent(): Xcode = xcodeOverride ?: defaultCurrent()
 
-        fun defaultCurrent(): Xcode = CurrentXcode()
+        fun defaultCurrent(): Xcode = InstalledXcode()
+
+        /**
+         * The whole Xcode installed at [developerDir] (a `…/Contents/Developer` path), with every `xcrun`/
+         * `xcode-select` query routed to it via `DEVELOPER_DIR`. Used on the build side (see the build's
+         * `XcodeValueSource`) to snapshot a provisioned Xcode inside a Gradle `ValueSource`, so its toolchain/SDK
+         * paths are resolved once, configuration-cache-safely, instead of shelling out at configuration time.
+         */
+        fun forDeveloperDir(developerDir: String): Xcode = InstalledXcode(developerDir)
     }
 }
 
-internal class CurrentXcode : Xcode {
+/**
+ * The Xcode selected for the current process. By default this is the system selection (`xcode-select`); when
+ * [developerDir] is given it is passed as `DEVELOPER_DIR` to every `xcrun`/`xcode-select` invocation, so all paths,
+ * the version and the simulator runtimes are resolved from that specific Xcode instead — e.g. a whole Xcode
+ * provisioned under `$KONAN_DATA_DIR/dependencies/xcode_<version>_<build>`.
+ */
+internal class InstalledXcode(private val developerDir: String? = null) : Xcode {
+
+    private val environment: Map<String, String> =
+        developerDir?.let { mapOf("DEVELOPER_DIR" to it) } ?: emptyMap()
 
     override val toolchain by lazy {
         val ldPath = xcrun("-f", "ld") // = $toolchain/usr/bin/ld
-        File(ldPath).parentFile.parentFile.absolutePath
+        Path(ldPath).parent.parent.absolutePathString()
     }
+
+    // The selected Xcode.app bundle (its `Contents/Developer` is what `xcode-select -print-path` returns), or `null`
+    // for a Command-Line-Tools-only selection whose developer dir is not inside an `.app` bundle.
+    internal val xcodeApp: File?
+        get() = try {
+            val developerPath = Command(listOf("/usr/bin/xcode-select", "-print-path"), environment = environment)
+                .getOutputLines().firstOrNull()?.trim()
+            developerPath?.let { File(it).parentFile?.parentFile?.takeIf { app -> app.exists() && app.name.endsWith(".app") } }
+        } catch (e: Exception) {
+            null
+        }
 
     override val additionalTools: String by lazy {
         val bitcodeBuildToolPath = xcrun("-f", "bitcode-build-tool")
-        File(bitcodeBuildToolPath).parentFile.parentFile.absolutePath
+        Path(bitcodeBuildToolPath).parent.parent.absolutePathString()
     }
 
     override val simulatorRuntimes: String by lazy {
-        Command("/usr/bin/xcrun", "simctl", "list", "runtimes", "-j").getOutputLines().joinToString(separator = "\n")
+        Command(listOf("/usr/bin/xcrun", "simctl", "list", "runtimes", "-j"), environment = environment)
+            .getOutputLines().joinToString(separator = "\n")
     }
     override val macosxSdk by lazy { getSdkPath("macosx") }
     override val iphoneosSdk by lazy { getSdkPath("iphoneos") }
@@ -119,6 +150,11 @@ internal class CurrentXcode : Xcode {
         get() = bash("""/usr/libexec/PlistBuddy "$(xcode-select -print-path)/../Info.plist" -c "Print :CFBundleShortVersionString"""")
             .parseXcodeVersion()
 
+    // ProductBuildVersion (e.g. "17E192") of the selected Xcode, read from its version.plist — the same source the CI
+    // agent images use to name $KONAN_DATA_DIR/dependencies/xcode_<version>_<build> (vm-templates symlink-xcode.sh).
+    internal val productBuildVersion: String
+        get() = bash("""/usr/libexec/PlistBuddy "$(xcode-select -print-path)/../version.plist" -c "Print :ProductBuildVersion"""").trim()
+
     override val version by lazy {
         try {
             bundleVersion
@@ -128,7 +164,7 @@ internal class CurrentXcode : Xcode {
     }
 
     private fun xcrun(vararg args: String): String = try {
-        Command("/usr/bin/xcrun", *args).getOutputLines().first()
+        Command(listOf("/usr/bin/xcrun", *args), environment = environment).getOutputLines().first()
     } catch (e: KonanExternalToolFailure) {
         // TODO: we should make the message below even more clear and actionable.
         //  Maybe add a link to the documentation.
@@ -141,7 +177,8 @@ internal class CurrentXcode : Xcode {
         throw MissingXcodeException(message, e)
     }
 
-    private fun bash(command: String): String = Command("/bin/bash", "-c", command).getOutputLines().joinToString("\n")
+    private fun bash(command: String): String =
+        Command(listOf("/bin/bash", "-c", command), environment = environment).getOutputLines().joinToString("\n")
 
     private fun getSdkPath(sdk: String) = xcrun("--sdk", sdk, "--show-sdk-path")
 

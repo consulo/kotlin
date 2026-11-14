@@ -15,12 +15,13 @@ import org.jetbrains.kotlin.fir.diagnostics.ConeDiagnostic
 import org.jetbrains.kotlin.fir.diagnostics.FirDiagnosticHolder
 import org.jetbrains.kotlin.fir.resolve.FirResolvedSymbolOrigin
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.FirTypeProjection
 import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.fir.visitors.FirVisitor
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 
 /**
  * Generated from: [org.jetbrains.kotlin.fir.tree.generator.FirTree.errorResolvedQualifier]
@@ -45,19 +46,54 @@ abstract class FirErrorResolvedQualifier : FirResolvedQualifier(), FirDiagnostic
     abstract override val annotations: List<FirAnnotation>
     abstract override val packageFqName: FqName
     abstract override val relativeClassFqName: FqName?
-    abstract override val classId: ClassId?
-    abstract override val symbol: FirClassLikeSymbol<*>?
-    abstract override val explicitParent: FirResolvedQualifier?
-    abstract override val isNullableLHSForCallableReference: Boolean
-    abstract override val resolvedLHSTypeForCallableReferenceOrNull: ConeKotlinType?
-    abstract override val resolvedToCompanionObject: Boolean
     /**
-     * If true, the qualifier is resolved to an object or companion object and can be used as an expression.
+     * If not null, refers to the class or **unexpanded** typealias with the name denoted by the qualifier.
+     *
+     * If it's null, [this] is a package qualifier.
      */
-    abstract override val canBeValue: Boolean
-    abstract override val isFullyQualified: Boolean
+    abstract override val qualifierSymbol: FirClassLikeSymbol<*>?
+    /**
+     * ### During resolution
+     *
+     * If the [qualifierSymbol] resolves to a named object (or a typealias of that object),
+     * it's the symbol of that named object.
+     *
+     * If the [qualifierSymbol] resolves to a class with companion object (or a typealias of that class),
+     * it's the symbol of the companion object.
+     *
+     * Otherwise `null`.
+     *
+     * A not-null value indicates that the qualifier _can_ be used as an expression.
+     *
+     * ### After resolution
+     *
+     * Same as above but **if and only if** the qualifier is used as an expression.
+     */
+    abstract override val accessedObjectSymbol: FirRegularClassSymbol?
+    abstract override val explicitParent: FirResolvedQualifier?
+    abstract override val isNullableLhsForCallableReference: Boolean
+    abstract override val resolvedLhsTypeForCallableReferenceOrNull: ConeKotlinType?
+    /**
+     * ### During resolution
+     *
+     * True, if [qualifierSymbol] refers to a class (or typealias of) with a companion object.
+     *
+     * ### After resolution
+     *
+     * Same as above **and** the qualifier is used as an expression.
+     *
+     * Technically this property is redundant because the information can be deduced from the combination of
+     * [qualifierSymbol] and [accessedObjectSymbol], but it would require carefully expanding type aliases and comparing
+     * symbols.
+     */
+    abstract override val resolvedToCompanionObject: Boolean
     abstract override val nonFatalDiagnostics: List<ConeDiagnostic>
     abstract override val resolvedSymbolOrigin: FirResolvedSymbolOrigin?
+    /**
+     * Having a non-null value in a case when the qualifier should be considered as a candidate for CSR.
+     * It might be different from the name of [qualifierSymbol], e.g., when the qualifier is resolved via an import alias.
+     */
+    abstract override val originalNameForContextSensitiveResolution: Name?
     abstract override val typeArguments: List<FirTypeProjection>
     abstract override val diagnostic: ConeDiagnostic
 
@@ -74,17 +110,19 @@ abstract class FirErrorResolvedQualifier : FirResolvedQualifier(), FirDiagnostic
 
     abstract override fun replaceAnnotations(newAnnotations: List<FirAnnotation>)
 
-    abstract override fun replaceIsNullableLHSForCallableReference(newIsNullableLHSForCallableReference: Boolean)
+    abstract override fun replaceAccessedObjectSymbol(newAccessedObjectSymbol: FirRegularClassSymbol?)
 
-    abstract override fun replaceResolvedLHSTypeForCallableReferenceOrNull(newResolvedLHSTypeForCallableReferenceOrNull: ConeKotlinType?)
+    abstract override fun replaceIsNullableLhsForCallableReference(newIsNullableLhsForCallableReference: Boolean)
+
+    abstract override fun replaceResolvedLhsTypeForCallableReferenceOrNull(newResolvedLhsTypeForCallableReferenceOrNull: ConeKotlinType?)
 
     abstract override fun replaceResolvedToCompanionObject(newResolvedToCompanionObject: Boolean)
-
-    abstract override fun replaceCanBeValue(newCanBeValue: Boolean)
 
     abstract override fun replaceNonFatalDiagnostics(newNonFatalDiagnostics: List<ConeDiagnostic>)
 
     abstract override fun replaceResolvedSymbolOrigin(newResolvedSymbolOrigin: FirResolvedSymbolOrigin?)
+
+    abstract override fun replaceOriginalNameForContextSensitiveResolution(newOriginalNameForContextSensitiveResolution: Name?)
 
     abstract override fun replaceTypeArguments(newTypeArguments: List<FirTypeProjection>)
 

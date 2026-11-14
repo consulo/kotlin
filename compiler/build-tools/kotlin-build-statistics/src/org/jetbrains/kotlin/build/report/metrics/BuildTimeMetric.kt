@@ -124,9 +124,7 @@ object STORE_BUILD_INFO : GradleBuildTimeMetric(INCREMENTAL_COMPILATION_DAEMON, 
 object JAR_SNAPSHOT : GradleBuildTimeMetric(INCREMENTAL_COMPILATION_DAEMON, "ABI JAR Snapshot support", name = "JAR_SNAPSHOT") {
     private fun readResolve(): Any = JAR_SNAPSHOT
 }
-object SET_UP_ABI_SNAPSHOTS : GradleBuildTimeMetric(JAR_SNAPSHOT, "Set up ABI snapshot", name = "SET_UP_ABI_SNAPSHOTS") {
-    private fun readResolve(): Any = SET_UP_ABI_SNAPSHOTS
-}
+
 object IC_ANALYZE_JAR_FILES : GradleBuildTimeMetric(JAR_SNAPSHOT, "Analyze jar files", name = "IC_ANALYZE_JAR_FILES") {
     private fun readResolve(): Any = IC_ANALYZE_JAR_FILES
 }
@@ -271,6 +269,12 @@ object IR_SERIALIZATION : GradleBuildTimeMetric(COMPILER_PERFORMANCE, "Compiler 
 object KLIB_WRITING : GradleBuildTimeMetric(COMPILER_PERFORMANCE, "Compiler Klib writing", name = "KLIB_WRITING") {
     private fun readResolve(): Any = KLIB_WRITING
 }
+object KLIB_METADATA_WRITING : GradleBuildTimeMetric(COMPILER_PERFORMANCE, "Compiler Klib metadata writing", name = "KLIB_METADATA_WRITING") {
+    private fun readResolve(): Any = KLIB_METADATA_WRITING
+}
+object IR_LINKING : GradleBuildTimeMetric(COMPILER_PERFORMANCE, "Compiler IR linking", name = "IR_LINKING") {
+    private fun readResolve(): Any = IR_LINKING
+}
 object CODE_GENERATION : GradleBuildTimeMetric(COMPILER_PERFORMANCE, "Compiler code generation", name = "CODE_GENERATION") {
     private fun readResolve(): Any = CODE_GENERATION
 }
@@ -397,4 +401,8 @@ object SAVE_CLASSPATH_ENTRY_SNAPSHOT : GradleBuildTimeMetric(
     name = "SAVE_CLASSPATH_ENTRY_SNAPSHOT"
 ) {
     private fun readResolve(): Any = SAVE_CLASSPATH_ENTRY_SNAPSHOT
+}
+
+object GRADLE_CONFIGURATION_TIME: GradleBuildTimeMetric(parent = null, "Gradle configuration time", name = "GRADLE_CONFIGURATION_TIME") {
+    private fun readResolve(): Any = GRADLE_CONFIGURATION_TIME
 }

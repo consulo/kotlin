@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.psi;
 
-import com.google.common.collect.ImmutableSet;
 import com.intellij.lang.ASTNode;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.JavaPsiFacade;
@@ -15,9 +14,10 @@ import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.LocalSearchScope;
 import com.intellij.psi.search.PackageScope;
 import com.intellij.psi.search.SearchScope;
-import com.intellij.psi.stubs.IStubElementType;
+import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.IncorrectOperationException;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -27,16 +27,23 @@ import org.jetbrains.kotlin.name.FqName;
 import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.psi.psiUtil.KtPsiUtilKt;
 import org.jetbrains.kotlin.psi.stubs.KotlinStubWithFqName;
-import org.jetbrains.kotlin.psi.utils.OperatorTokens;
-import org.jetbrains.kotlin.util.OperatorNameConventions;
 
-import java.util.Set;
-
+/**
+ * Base implementation of {@link KtNamedDeclaration} that may be backed either by the AST tree or by a stub.
+ *
+ * <p>The stub carries the declaration's fully qualified name, so the name can be queried without parsing the source. This is an internal
+ * implementation base class of the Kotlin PSI, not intended for direct use or subclassing outside of the PSI implementation.
+ *
+ * @param <T> the type of stub backing this declaration, carrying its fully qualified name
+ */
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
 public abstract class KtNamedDeclarationStub<T extends KotlinStubWithFqName<?>> extends KtDeclarationStub<T> implements KtNamedDeclaration {
-    public KtNamedDeclarationStub(@NotNull T stub, @NotNull IStubElementType nodeType) {
+    @KtImplementationDetail
+    public KtNamedDeclarationStub(@NotNull T stub, @NotNull IElementType nodeType) {
         super(stub, nodeType);
     }
 
+    @KtImplementationDetail
     public KtNamedDeclarationStub(@NotNull ASTNode node) {
         super(node);
     }
@@ -75,35 +82,22 @@ public abstract class KtNamedDeclarationStub<T extends KotlinStubWithFqName<?>> 
         return findChildByType(KtTokens.IDENTIFIER);
     }
 
-    private static final Set<String> FUNCTIONLIKE_CONVENTIONS = ImmutableSet.of(
-            OperatorNameConventions.INVOKE.asString(),
-            OperatorNameConventions.GET.asString()
-    );
-
-    private static boolean shouldDropOperatorKeyword(String oldName, String newName) {
-        return !OperatorTokens.isConventionName(Name.identifier(newName)) ||
-               FUNCTIONLIKE_CONVENTIONS.contains(oldName) != FUNCTIONLIKE_CONVENTIONS.contains(newName);
-    }
-
+    /**
+     * Renames this declaration, quoting the new name in backticks if needed.
+     * <p>
+     * When {@link KtPsiMutationService} is registered, as in the IntelliJ Kotlin plugin, the renaming may also adjust the declaration,
+     * e.g., drop the {@code operator} modifier if the new name is not an operator convention. Without the service, it only replaces the
+     * name identifier.
+     */
     @Override
     public PsiElement setName(@NonNls @NotNull String name) throws IncorrectOperationException {
+        KtPsiMutationService mutationService = KtPsiMutationService.getInstanceOrNull();
+        if (mutationService != null) return mutationService.setNamedDeclarationStubName(this, name);
+
         PsiElement identifier = getNameIdentifier();
         if (identifier == null) return null;
 
-        KtModifierList modifierList = getModifierList();
-        if (modifierList != null && modifierList.hasModifier(KtTokens.OPERATOR_KEYWORD)) {
-            if (shouldDropOperatorKeyword(getName(), name)) {
-                removeModifier(KtTokens.OPERATOR_KEYWORD);
-            }
-        }
-
-        PsiElement newIdentifier = new KtPsiFactory(getProject()).createNameIdentifierIfPossible(KtPsiUtilKt.quoteIfNeeded(name));
-        if (newIdentifier != null) {
-            KtPsiUtilKt.astReplace(identifier, newIdentifier);
-        }
-        else {
-            identifier.delete();
-        }
+        identifier.replace(new KtPsiFactory(getProject()).createNameIdentifier(KtPsiUtilKt.quoteIfNeeded(name)));
         return this;
     }
 
@@ -188,7 +182,11 @@ public abstract class KtNamedDeclarationStub<T extends KotlinStubWithFqName<?>> 
         SearchScope scope = super.getUseScope();
 
         KtClassOrObject classOrObject = KtPsiUtilKt.getContainingClassOrObject(this);
-        if (classOrObject != null) {
+        boolean isInterface = classOrObject instanceof KtClass && ((KtClass) classOrObject).isInterface();
+
+        // Interfaces can be extended by non-private classes in the same file, even if the interface is private.
+        // This means declarations within such an interface might be accessible from other files.
+        if (classOrObject != null && !isInterface) {
             scope = scope.intersectWith(classOrObject.getUseScope());
         }
 

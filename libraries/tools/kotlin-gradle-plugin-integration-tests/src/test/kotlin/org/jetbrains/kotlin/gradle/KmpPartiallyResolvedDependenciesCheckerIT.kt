@@ -11,10 +11,9 @@ import org.jetbrains.kotlin.gradle.testbase.GradleAndroidTest
 import org.jetbrains.kotlin.gradle.testbase.GradleTest
 import org.jetbrains.kotlin.gradle.testbase.KGPBaseTest
 import org.jetbrains.kotlin.gradle.testbase.MppGradlePluginTests
-import org.jetbrains.kotlin.gradle.testbase.TestVersions
+import org.jetbrains.kotlin.gradle.testbase.TestProject
 import org.jetbrains.kotlin.gradle.testbase.assertHasDiagnostic
 import org.jetbrains.kotlin.gradle.testbase.assertNoDiagnostic
-import org.jetbrains.kotlin.gradle.testbase.assertOutputContains
 import org.jetbrains.kotlin.gradle.testbase.assertOutputDoesNotContain
 import org.jetbrains.kotlin.gradle.testbase.assertTasksExecuted
 import org.jetbrains.kotlin.gradle.testbase.build
@@ -22,7 +21,6 @@ import org.jetbrains.kotlin.gradle.testbase.buildAndFail
 import org.jetbrains.kotlin.gradle.testbase.buildScriptInjection
 import org.jetbrains.kotlin.gradle.testbase.compileStubSourceWithSourceSetName
 import org.jetbrains.kotlin.gradle.testbase.disableIsolatedProjectsBecauseOfJsAndWasmKT75899
-import org.jetbrains.kotlin.gradle.testbase.disableIsolatedProjectsForKmpDependenciesChecker
 import org.jetbrains.kotlin.gradle.testbase.plugins
 import org.jetbrains.kotlin.gradle.testbase.project
 import org.jetbrains.kotlin.gradle.testbase.settingsBuildScriptInjection
@@ -35,10 +33,12 @@ import org.jetbrains.kotlin.gradle.uklibs.includeBuild
 import org.jetbrains.kotlin.gradle.uklibs.publish
 import org.jetbrains.kotlin.gradle.uklibs.publishJava
 import org.jetbrains.kotlin.gradle.util.resolveIdeDependencies
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 
 @DisplayName("Tests for diagnostic about partially unresolved KMP dependencies")
 @MppGradlePluginTests
+@MustRunOnChangesInGradle
 class KmpPartiallyResolvedDependenciesCheckerIT : KGPBaseTest() {
 
     @GradleTest
@@ -84,18 +84,58 @@ class KmpPartiallyResolvedDependenciesCheckerIT : KGPBaseTest() {
         }
 
         consumer.resolveIdeDependencies(
-            buildOptions = defaultBuildOptions.copy(configurationCache = ConfigurationCacheValue.DISABLED),
+            buildOptions = defaultBuildOptions.copy(
+                configurationCache = ConfigurationCacheValue.DISABLED,
+                isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED,
+            ),
         ) { container ->
             container["commonMain"].assertMatches(
                 kotlinStdlibDependencies,
-                unresolvedDependenciesDiagnosticMatcher(dependencyName = "foo:empty"),
+                unresolvedDependenciesDiagnosticMatcher(dependencyName = "foo:empty:1.0"),
             )
         }
     }
 
     @GradleTest
     fun `partially resolved kmp dependencies checker - smoke test project dependency`(gradleVersion: GradleVersion) {
-        val consumer = project("empty", gradleVersion) {
+        val consumer = projectWithPartiallyResolvedDependency(gradleVersion)
+
+        consumer.buildAndFail("compileKotlinJvm") {
+            assertHasDiagnostic(KotlinToolingDiagnostics.PartiallyResolvedKmpDependencies)
+        }
+
+        consumer.build("compileKotlinLinuxArm64") {
+            assertHasDiagnostic(KotlinToolingDiagnostics.PartiallyResolvedKmpDependencies)
+        }
+    }
+
+    @GradleTest
+    fun `partially resolved kmp dependencies checker - diagnostic is disabled in a sufficiently large project`(gradleVersion: GradleVersion) {
+        val consumer = projectWithPartiallyResolvedDependency(gradleVersion)
+        /**
+         * See [org.jetbrains.kotlin.gradle.plugin.diagnostics.checkers.KmpPartiallyResolvedDependenciesChecker.MAX_KMP_PROJECTS]
+         */
+        repeat(org.jetbrains.kotlin.gradle.plugin.diagnostics.checkers.KmpPartiallyResolvedDependenciesChecker.MAX_KMP_PROJECTS) { index ->
+            val subproject = project("empty", gradleVersion) {
+                plugins {
+                    kotlin("multiplatform")
+                }
+                buildScriptInjection {
+                    project.applyMultiplatform {
+                        jvm()
+                    }
+                }
+            }
+            consumer.include(subproject, "kmp$index")
+        }
+
+        consumer.buildAndFail("compileKotlinJvm") {
+            assertNoDiagnostic(KotlinToolingDiagnostics.PartiallyResolvedKmpDependencies)
+        }
+    }
+
+    private fun projectWithPartiallyResolvedDependency(gradleVersion: GradleVersion): TestProject =
+        project("empty", gradleVersion) {
             val producer = project("empty", gradleVersion) {
                 plugins {
                     kotlin("multiplatform")
@@ -124,16 +164,6 @@ class KmpPartiallyResolvedDependenciesCheckerIT : KGPBaseTest() {
 
             include(producer, "producer")
         }
-
-        consumer.buildAndFail("compileKotlinJvm") {
-            assertHasDiagnostic(KotlinToolingDiagnostics.PartiallyResolvedKmpDependencies)
-        }
-
-        consumer.build("compileKotlinLinuxArm64") {
-            assertHasDiagnostic(KotlinToolingDiagnostics.PartiallyResolvedKmpDependencies)
-        }
-    }
-
 
     @GradleTest
     fun `partially resolved kmp dependencies checker - smoke test included build`(gradleVersion: GradleVersion) {
@@ -192,7 +222,6 @@ class KmpPartiallyResolvedDependenciesCheckerIT : KGPBaseTest() {
     ) {
         val buildOpions = defaultBuildOptions
             .copy(androidVersion = agpVersion)
-            .disableIsolatedProjectsForKmpDependenciesChecker(gradleVersion)
         val consumer = project("empty", gradleVersion, buildOpions) {
             val producer = project("empty", gradleVersion) {
                 plugins {
@@ -319,7 +348,7 @@ class KmpPartiallyResolvedDependenciesCheckerIT : KGPBaseTest() {
                 project.applyMultiplatform {
                     jvm()
                     iosArm64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                    // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                     iosX64()
 
                     sourceSets.commonMain.dependencies {
@@ -351,7 +380,7 @@ class KmpPartiallyResolvedDependenciesCheckerIT : KGPBaseTest() {
                     project.applyMultiplatform {
                         jvm()
                         iosArm64()
-                        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                        // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                         iosX64()
                         sourceSets.getByName("commonMain").compileStubSourceWithSourceSetName()
                         sourceSets.commonMain.dependencies {
@@ -415,7 +444,7 @@ class KmpPartiallyResolvedDependenciesCheckerIT : KGPBaseTest() {
                     project.applyMultiplatform {
                         jvm()
                         iosArm64()
-                        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                        // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                         iosX64()
                         sourceSets.getByName("commonMain").compileStubSourceWithSourceSetName()
                         sourceSets.commonMain.dependencies {
@@ -460,4 +489,69 @@ class KmpPartiallyResolvedDependenciesCheckerIT : KGPBaseTest() {
         }
     }
 
+    @GradleTest
+    fun `KT-84533_project_dependency_replaces_module`(
+        gradleVersion: GradleVersion,
+    ) {
+        val producer = project("empty", gradleVersion) {
+            plugins {
+                kotlin("multiplatform")
+            }
+
+            settingsBuildScriptInjection {
+                settings.rootProject.name = "producer"
+            }
+
+            buildScriptInjection {
+                project.group = "foo"
+                project.version = "2.0"
+
+                project.applyMultiplatform {
+                    jvm()
+                    linuxX64()
+
+                    if (project.providers.gradleProperty("enableIosArm64OnProducer").isPresent) {
+                        iosArm64()
+                    }
+                    sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
+                }
+            }
+        }
+
+        val publishedProducer = producer.publish(
+            "-PenableIosArm64OnProducer",
+            publisherConfiguration = PublisherConfiguration(group = "foo", version = "1.0"),
+        )
+
+        val consumer = project("empty", gradleVersion) {
+            addPublishedProjectToRepositories(publishedProducer)
+            include(producer, "producer")
+            plugins {
+                kotlin("multiplatform")
+            }
+            buildScriptInjection {
+                project.applyMultiplatform {
+                    jvm()
+                    iosArm64()
+
+                    sourceSets.commonMain.dependencies {
+                        api(publishedProducer.rootCoordinate)
+                    }
+                    sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
+
+                    sourceSets.iosArm64Main.dependencies {
+                        api(project(":producer"))
+                    }
+                }
+            }
+        }
+
+        consumer.build("compileKotlinIosArm64", "-PenableIosArm64OnProducer") {
+            assertNoDiagnostic(KotlinToolingDiagnostics.PartiallyResolvedKmpDependencies)
+        }
+
+        consumer.buildAndFail("compileKotlinIosArm64") {
+            assertHasDiagnostic(KotlinToolingDiagnostics.PartiallyResolvedKmpDependencies)
+        }
+    }
 }

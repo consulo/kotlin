@@ -10,7 +10,7 @@ import com.intellij.psi.*
 import com.intellij.psi.impl.light.LightTypeElement
 import org.jetbrains.kotlin.asJava.classes.cannotModify
 import org.jetbrains.kotlin.asJava.elements.KtLightElementBase
-import org.jetbrains.kotlin.light.classes.symbol.toArrayIfNotEmptyOrDefault
+import org.jetbrains.kotlin.light.classes.symbol.utils.toArrayIfNotEmptyOrDefault
 import org.jetbrains.kotlin.psi.KtElement
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater
 
@@ -79,6 +79,7 @@ internal class LightTypeElementWithParent(
     type: PsiType,
 ) : LightTypeElement(lightParent.manager, type) {
     override fun getParent(): PsiElement = lightParent
+    override fun getContainingFile(): PsiFile? = lightParent.containingFile
 
     /**
      * Avoids delegating to [LightTypeElement.isValid][com.intellij.psi.impl.light.LightTypeElement.isValid]
@@ -121,7 +122,16 @@ internal class SymbolPsiLiteral(
     private val psiLiteral: PsiLiteralExpression,
 ) : SymbolPsiAnnotationMemberValue(kotlinOrigin, lightParent), PsiLiteralExpression {
     override fun getValue(): Any? = psiLiteral.value
+
+    /**
+     * The text of the argument as written in the Kotlin source, e.g., `FeatureConstants.FLAG` or `4u`, or the Java text of the
+     * value if there is no source.
+     *
+     * Unlike [getValue], which is the value as the JVM backend stores it, e.g., `4` for `4u`, the text is intentionally not
+     * converted to Java: clients such as Lint inspect the argument as written, see KT-74733.
+     */
     override fun getText(): String = kotlinOrigin?.text ?: psiLiteral.text
+
     override fun getType(): PsiType? = psiLiteral.type
     override fun getReference(): PsiReference? = references.firstOrNull()
     override fun getReferences(): Array<out PsiReference> = kotlinOrigin?.references ?: PsiReference.EMPTY_ARRAY

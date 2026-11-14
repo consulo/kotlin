@@ -43,6 +43,8 @@ enum class JvmTarget(
     JVM_24("24", Opcodes.V16 + 8),
     JVM_25("25", Opcodes.V16 + 9),
     JVM_26("26", Opcodes.V16 + 10),
+    JVM_27("27", Opcodes.V16 + 11),
+    JVM_28("28", Opcodes.V16 + 12),
     ;
 
     override fun toString() = description
@@ -68,3 +70,10 @@ enum class JvmTarget(
             entries - JVM_1_6
     }
 }
+
+/**
+ * Whether value classes (JEP 401) are available with [jvmTarget]: they are a preview feature since JVM 28, so they also need JVM preview
+ * features to be enabled ([isJvmPreviewEnabled]).
+ */
+fun isJvmTargetValhallaCompatible(jvmTarget: JvmTarget, isJvmPreviewEnabled: Boolean): Boolean =
+    isJvmPreviewEnabled && jvmTarget >= JvmTarget.JVM_28

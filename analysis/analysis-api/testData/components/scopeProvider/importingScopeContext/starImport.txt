@@ -16,11 +16,11 @@ scopes:
     packages: 0
     classifiers: 1
       KaNamedClassSymbol:
+        anchorPsi: KtClass
         annotations: []
         classId: other/A
         classKind: CLASS
         companionObject: null
-        compilerVisibility: Public
         contextReceivers: []
         isActual: false
         isData: false
@@ -29,10 +29,13 @@ scopes:
         isFun: false
         isInline: false
         isInner: false
+        isValue: false
         location: TOP_LEVEL
         modality: FINAL
         name: A
         origin: SOURCE
+        psi: KtClass
+        realPsi: KtClass
         superTypes: [
           KaUsualClassType:
             annotations: []
@@ -43,15 +46,16 @@ scopes:
         visibility: PUBLIC
     callables: 1
       KaNamedFunctionSymbol:
+        anchorPsi: KtNamedFunction
         annotations: []
         callableId: other/b
-        compilerVisibility: Public
         contextParameters: []
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
         isActual: false
         isBuiltinFunctionInvoke: false
+        isCompanion: false
         isExpect: false
         isExtension: false
         isExternal: false
@@ -66,6 +70,8 @@ scopes:
         modality: FINAL
         name: b
         origin: SOURCE
+        psi: KtNamedFunction
+        realPsi: KtNamedFunction
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
@@ -77,4 +83,3 @@ scopes:
     constructors: 0
 
   DefaultStarImportingScope, index = 5
-

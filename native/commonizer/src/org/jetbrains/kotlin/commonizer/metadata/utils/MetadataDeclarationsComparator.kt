@@ -23,7 +23,6 @@ import kotlin.reflect.KProperty1
  * The entry point is [MetadataDeclarationsComparator.Companion.compare] function.
  */
 // TODO: extract to kotlinx-metadata-klib library?
-@OptIn(ExperimentalAnnotationsInMetadata::class)
 class MetadataDeclarationsComparator private constructor(private val config: Config) {
 
     interface Config {
@@ -57,9 +56,7 @@ class MetadataDeclarationsComparator private constructor(private val config: Con
     sealed interface PathElement {
         data object Root : PathElement
 
-        class Module(val moduleA: KlibModuleMetadata, val moduleB: KlibModuleMetadata) : PathElement {
-            override fun toString() = "Module ${moduleA.name}"
-        }
+        data object Module : PathElement
 
         class Package(
             val packageFqName: String,
@@ -223,8 +220,6 @@ class MetadataDeclarationsComparator private constructor(private val config: Con
         }
 
         companion object {
-            val ModuleName by EntityKindImpl
-
             val Classifier by EntityKindImpl
 
             val Class by EntityKindImpl
@@ -335,7 +330,7 @@ class MetadataDeclarationsComparator private constructor(private val config: Con
             val missingInB: Boolean get() = !missingInA
 
             override fun toString() = buildString {
-                val (missing, existing) = if (missingInA) "A" to "B" else "B" to "A"
+                val [missing, existing] = if (missingInA) "A" to "B" else "B" to "A"
                 appendNameKind().appendLine(" is missing in ($missing)")
                 val existentValueText = when (val existentValue = existentValue) {
                     is KmType -> existentValue.dumpToString(dumpExtras = true)
@@ -365,12 +360,7 @@ class MetadataDeclarationsComparator private constructor(private val config: Con
         metadataB: KlibModuleMetadata
     ): Result {
         val rootContext = Context(PathElement.Root)
-
-        compareValues(rootContext, metadataA.name, metadataB.name, EntityKind.ModuleName)
-        if (mismatches.isNotEmpty())
-            return toResult()
-
-        val moduleContext = rootContext.next(PathElement.Module(metadataA, metadataB))
+        val moduleContext = rootContext.next(PathElement.Module)
 
         compareModuleFragmentLists(moduleContext, metadataA.fragments, metadataB.fragments)
 

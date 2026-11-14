@@ -39,18 +39,27 @@ object Comparators {
     }.thenComparing(stableInitComparator)
         .thenComparing(stableFunctionComparator)
 
-    val stableBridgeComparator: Comparator<SirBridge> = Comparator<SirBridge> { lhs, rhs ->
+    val stableBridgeComparator: Comparator<SirBridge> = Comparator { lhs: SirBridge, rhs: SirBridge ->
         when (lhs) {
             is SirFunctionBridge -> {
                 when (rhs) {
                     is SirFunctionBridge -> lhs.name.compareTo(rhs.name)
+                    is SirReverseFunctionBridge -> 1
                     is SirTypeBindingBridge -> 1
                 }
             }
             is SirTypeBindingBridge -> {
                 when (rhs) {
                     is SirFunctionBridge -> -1
+                    is SirReverseFunctionBridge -> -1
                     is SirTypeBindingBridge -> lhs.name.compareTo(rhs.name)
+                }
+            }
+            is SirReverseFunctionBridge -> {
+                when (rhs) {
+                    is SirFunctionBridge -> -1
+                    is SirTypeBindingBridge -> 1
+                    is SirReverseFunctionBridge -> lhs.name.compareTo(rhs.name)
                 }
             }
         }
@@ -67,6 +76,7 @@ object Comparators {
             is SirUnsupportedType -> "SirUnsupportedType"
             is SirFunctionalType -> "SirFunctionalType"
             is SirTupleType -> "SirTupleType"
+            is SirType.Metatype -> "SirTypeType"
         }
 
     private inline fun <T, reified R> Comparator<T>.thenComparing(comparator: Comparator<R>): Comparator<T> {

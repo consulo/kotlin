@@ -9,12 +9,15 @@ import org.gradle.api.tasks.Internal
 import org.gradle.work.DisableCachingByDefault
 import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.targets.js.AbstractSetupTask
+import org.jetbrains.kotlin.gradle.targets.web.ObsoleteJsAndWasmToolingProvisioning
 import org.jetbrains.kotlin.gradle.utils.getFile
 import java.io.File
 import javax.inject.Inject
 
 @DisableCachingByDefault
-internal abstract class SwcSetupTask
+@InternalKotlinGradlePluginApi
+@ObsoleteJsAndWasmToolingProvisioning
+abstract class SwcSetupTask
 @Inject
 internal constructor(
     settings: SwcEnvSpec,
@@ -43,8 +46,9 @@ internal constructor(
         File(executable.get()).setExecutable(true)
     }
 
+    @InternalKotlinGradlePluginApi
+    @ObsoleteJsAndWasmToolingProvisioning
     companion object {
-        @InternalKotlinGradlePluginApi
         const val BASE_NAME: String = "swcSetup"
     }
 }

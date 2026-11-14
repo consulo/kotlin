@@ -20,13 +20,15 @@ import org.jetbrains.kotlin.backend.konan.llvm.localHash
 import org.jetbrains.kotlin.backend.konan.lower.DECLARATION_ORIGIN_BRIDGE_METHOD
 import org.jetbrains.kotlin.backend.konan.lower.bridgeTarget
 import org.jetbrains.kotlin.backend.konan.lower.getDefaultValueForOverriddenBuiltinFunction
+import org.jetbrains.kotlin.backend.konan.lower.isEagerStaticInitializer
 import org.jetbrains.kotlin.backend.konan.util.CustomBitSet
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.*
-import org.jetbrains.kotlin.ir.objcinterop.*
+import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrGetField
+import org.jetbrains.kotlin.ir.objcinterop.getExternalObjCMethodInfo
+import org.jetbrains.kotlin.ir.objcinterop.isObjCClass
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.types.isNothing
@@ -34,7 +36,7 @@ import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
-import org.jetbrains.kotlin.library.metadata.impl.KlibResolvedModuleDescriptorsFactoryImpl.Companion.FORWARD_DECLARATIONS_MODULE_NAME
+import org.jetbrains.kotlin.library.metadata.FORWARD_DECLARATIONS_MODULE_NAME
 
 internal object DataFlowIR {
     abstract class Type(
@@ -102,6 +104,7 @@ internal object DataFlowIR {
         val RETURNS_UNIT = 4
         val RETURNS_NOTHING = 8
         val EXPLICITLY_EXPORTED = 16
+        val IS_EAGER_STATIC_INITIALIZER = 32
     }
 
     class FunctionParameter(val type: Type, val boxFunction: FunctionSymbol?, val unboxFunction: FunctionSymbol?)
@@ -120,6 +123,7 @@ internal object DataFlowIR {
         val returnsUnit = attributes.and(FunctionAttributes.RETURNS_UNIT) != 0
         val returnsNothing = attributes.and(FunctionAttributes.RETURNS_NOTHING) != 0
         val explicitlyExported = attributes.and(FunctionAttributes.EXPLICITLY_EXPORTED) != 0
+        val isEagerStaticInitializer = attributes.and(FunctionAttributes.IS_EAGER_STATIC_INITIALIZER) != 0
 
         val irFunction: IrSimpleFunction? get() = irDeclaration as? IrSimpleFunction
         val irFile: IrFile? get() = irDeclaration?.fileOrNull
@@ -225,8 +229,8 @@ internal object DataFlowIR {
         class StaticCall(callee: FunctionSymbol, arguments: List<Edge>, returnType: Type, irCallSite: IrCall?)
             : Call(callee, arguments, returnType, irCallSite)
 
-        open class VirtualCall(callee: FunctionSymbol, arguments: List<Edge>,
-                               val receiverType: Type, returnType: Type, irCallSite: IrCall?)
+        sealed class VirtualCall(callee: FunctionSymbol, arguments: List<Edge>,
+                                 val receiverType: Type, returnType: Type, irCallSite: IrCall?)
             : Call(callee, arguments, returnType, irCallSite)
 
         class VtableCall(callee: FunctionSymbol, receiverType: Type, val calleeVtableIndex: Int,
@@ -455,7 +459,7 @@ internal object DataFlowIR {
         }
     }
 
-    class SymbolTable(val context: Context, val module: Module) {
+    class SymbolTable(val context: NativeBackendContext, val module: Module) {
         private val TAKE_NAMES = true // Take fqNames for all functions and types (for debug purposes).
 
         private inline fun takeName(block: () -> String) = if (TAKE_NAMES) block() else null
@@ -515,10 +519,9 @@ internal object DataFlowIR {
             )
         }
 
-        @OptIn(ObsoleteDescriptorBasedAPI::class)
         fun mapClassReferenceType(irClass: IrClass): Type {
             // Do not try to devirtualize ObjC classes.
-            if (irClass.module.name == FORWARD_DECLARATIONS_MODULE_NAME || irClass.isObjCClass())
+            if (irClass.moduleFragment.name == FORWARD_DECLARATIONS_MODULE_NAME || irClass.isObjCClass())
                 return Type.Virtual
 
             val isFinal = irClass.isFinalClass
@@ -529,7 +532,7 @@ internal object DataFlowIR {
             require(!sealed) { "The symbol table has been sealed. irClass = ${irClass.render()}" }
             val placeToClassTable = true
             val symbolTableIndex = if (placeToClassTable) module.numberOfClasses++ else -1
-            val type = if (irClass.isExported())
+            val type = if (irClass.isExported)
                 Type.Public(localHash(name.toByteArray()), privateTypeIndex++, isFinal, isAbstract,
                         module, symbolTableIndex, irClass, takeName { name })
             else
@@ -638,13 +641,17 @@ internal object DataFlowIR {
                 attributes = attributes or FunctionAttributes.RETURNS_NOTHING
             if (it.hasAnnotation(RuntimeNames.exportForCppRuntime)
                     || it.hasAnnotation(RuntimeNames.exportedBridge)
+                    || it.hasAnnotation(RuntimeNames.bindReverseBridgeToMethod)
                     || it.getExternalObjCMethodInfo() != null // TODO-DCE-OBJC-INIT
                     || it.hasAnnotation(RuntimeNames.objCMethodImp)) {
                 attributes = attributes or FunctionAttributes.EXPLICITLY_EXPORTED
             }
+            if (function.isEagerStaticInitializer) {
+                attributes = attributes or FunctionAttributes.IS_EAGER_STATIC_INITIALIZER
+            }
             val symbol = when {
                 it.isExternal || it.isBuiltInOperator -> {
-                    FunctionSymbol.External(localHash(name.toByteArray()), attributes, it, takeName { name }, it.isExported()).apply {
+                    FunctionSymbol.External(localHash(name.toByteArray()), attributes, it, takeName { name }, it.isExported).apply {
                         escapes  = it.escapes
                         pointsTo = it.pointsTo
                     }
@@ -661,7 +668,7 @@ internal object DataFlowIR {
                     val placeToFunctionsTable = !isAbstract && irClass != null
                             && (it.isOverridableOrOverrides || bridgeTarget != null || function.isSpecial || !irClass.isFinalClass)
                     val symbolTableIndex = if (placeToFunctionsTable) module.numberOfFunctions++ else -1
-                    val functionSymbol = if (it.isExported())
+                    val functionSymbol = if (it.isExported)
                         FunctionSymbol.Public(localHash(name.toByteArray()), module, symbolTableIndex, attributes, it, bridgeTargetSymbol, takeName { name })
                     else
                         FunctionSymbol.Private(privateFunIndex++, module, symbolTableIndex, attributes, it, bridgeTargetSymbol, takeName { name })

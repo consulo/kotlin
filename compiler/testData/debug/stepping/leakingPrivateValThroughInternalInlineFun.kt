@@ -9,7 +9,7 @@ fun box(): String {
     return foo()
 }
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:9 box
 // test.kt:6 box
 // test.kt:9 box
@@ -26,7 +26,6 @@ fun box(): String {
 
 // EXPECTATIONS JS_IR
 // test.kt:9 box
-// test.kt:1 access$<get-a>$tTestKt
 
 // EXPECTATIONS WASM
 // test.kt:9 $box (11)

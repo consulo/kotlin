@@ -1,12 +1,15 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
+    id("test-inputs-check")
 }
 
-val beforePluginClasspath: Configuration by configurations.creating
-val middlePluginClasspath: Configuration by configurations.creating
-val afterPluginClasspath: Configuration by configurations.creating
+val beforePluginClasspath: Configuration = configurations.create("beforePluginClasspath")
+val middlePluginClasspath: Configuration = configurations.create("middlePluginClasspath")
+val afterPluginClasspath: Configuration = configurations.create("afterPluginClasspath")
+val dataframeRuntimeClasspath: Configuration = configurations.create("dataframeRuntimeClasspath")
 
 dependencies {
     testFixturesApi(testFixtures(project(":kotlin-allopen-compiler-plugin")))
@@ -15,6 +18,7 @@ dependencies {
     testFixturesApi(testFixtures(project(":kotlin-lombok-compiler-plugin")))
     testFixturesApi(testFixtures(project(":kotlin-noarg-compiler-plugin")))
     testFixturesApi(testFixtures(project(":kotlin-power-assert-compiler-plugin")))
+    testFixturesApi(testFixtures(project(":kotlin-dataframe-compiler-plugin")))
     testFixturesApi(testFixtures(project(":plugins:parcelize:parcelize-compiler")))
     testFixturesApi(testFixtures(project(":plugins:plugin-sandbox")))
 
@@ -23,7 +27,6 @@ dependencies {
     testFixturesApi(platform(libs.junit.bom))
     testFixturesApi(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
-    testRuntimeOnly(libs.junit.vintage.engine)
 
     testRuntimeOnly(commonDependency("org.codehaus.woodstox:stax2-api"))
     testRuntimeOnly(commonDependency("com.fasterxml:aalto-xml"))
@@ -32,36 +35,56 @@ dependencies {
     beforePluginClasspath(project(":plugins:test-plugins:before"))
     middlePluginClasspath(project(":plugins:test-plugins:middle"))
     afterPluginClasspath(project(":plugins:test-plugins:after"))
+
+    dataframeRuntimeClasspath(libs.dataframe.core.dev)
+    dataframeRuntimeClasspath(libs.dataframe.csv.dev)
 }
 
 optInToExperimentalCompilerApi()
 
 sourceSets {
     "main" { none() }
-    "test" { generatedTestDir() }
+    "test" {
+        projectDefault()
+        generatedTestDir()
+    }
     "testFixtures" { projectDefault() }
 }
 
 runtimeJar()
 sourcesJar()
-testsJar()
 
 projectTests {
     testTask(
-        jUnitMode = JUnitMode.JUnit5,
-        defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_1_8, JdkMajorVersion.JDK_11_0, JdkMajorVersion.JDK_17_0, JdkMajorVersion.JDK_21_0)
+        defineJDKEnvVariables = listOf(
+            JdkMajorVersion.JDK_1_8,
+            JdkMajorVersion.JDK_11_0,
+            JdkMajorVersion.JDK_17_0,
+            JdkMajorVersion.JDK_21_0
+        )
     ) {
-        dependsOn(":dist")
-        workingDir = rootDir
         useJUnitPlatform()
 
         addClasspathProperty(beforePluginClasspath, "plugin.classpath.before")
         addClasspathProperty(middlePluginClasspath, "plugin.classpath.middle")
         addClasspathProperty(afterPluginClasspath, "plugin.classpath.after")
+        addClasspathProperty(dataframeRuntimeClasspath, "kotlin.dataframe.plugin.test.classpath")
     }
 
     testGenerator("org.jetbrains.kotlin.compiler.plugins.TestGeneratorKt")
 
+    testData(isolated, "testData")
+
     withJvmStdlibAndReflect()
     withPluginSandboxAnnotations()
+    withTestJar()
+    withMockJdkAnnotationsJar()
+    withMockJdkRuntime()
+    withStdlibCommon()
+    withThirdPartyAnnotations()
+    withThirdPartyJsr305()
+    withThirdPartyJava8Annotations()
+    withStdlibCommon()
+    withJsRuntime()
+    withWasmRuntime()
 }

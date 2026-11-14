@@ -1,29 +1,35 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.stubBased.deserialization
 
 import com.intellij.extapi.psi.StubBasedPsiElementBase
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.stubs.Stub
 import com.intellij.psi.stubs.StubElement
+import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtRealPsiSourceElement
+import org.jetbrains.kotlin.KtSourceElement
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaLibraryModule
+import org.jetbrains.kotlin.analysis.low.level.api.fir.projectStructure.LLFirModuleData
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.builder.FirRegularClassBuilder
+import org.jetbrains.kotlin.fir.declarations.builder.buildNamedFunction
 import org.jetbrains.kotlin.fir.declarations.builder.buildOuterClassTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.builder.buildRegularClass
-import org.jetbrains.kotlin.fir.declarations.builder.buildNamedFunction
 import org.jetbrains.kotlin.fir.declarations.comparators.FirMemberDeclarationComparator
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusWithLazyEffectiveVisibility
 import org.jetbrains.kotlin.fir.declarations.utils.*
 import org.jetbrains.kotlin.fir.deserialization.addCloneForArrayIfNeeded
+import org.jetbrains.kotlin.fir.correspondingProperty
 import org.jetbrains.kotlin.fir.deserialization.applyKDoc
 import org.jetbrains.kotlin.fir.deserialization.deserializationExtension
-import org.jetbrains.kotlin.fir.deserialization.kdocText
 import org.jetbrains.kotlin.fir.deserialization.toLazyEffectiveVisibility
 import org.jetbrains.kotlin.fir.resolve.transformers.setLazyPublishedVisibility
 import org.jetbrains.kotlin.fir.scopes.FirScopeProvider
@@ -31,24 +37,31 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
+import org.jetbrains.kotlin.fir.types.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.types.ConeRigidType
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
-import org.jetbrains.kotlin.fir.types.coneType
-import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.types.toLookupTag
 import org.jetbrains.kotlin.fir.utils.exceptions.withConeTypeEntry
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.library.KlibConstants.KLIB_DEFAULT_COMPONENT_NAME
+import org.jetbrains.kotlin.library.KlibConstants.KLIB_MANIFEST_FILE_NAME
+import org.jetbrains.kotlin.library.readKonanLibraryVersioning
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.psi.*
-import org.jetbrains.kotlin.psi.stubs.elements.KotlinValueClassRepresentation
+import org.jetbrains.kotlin.psi.KtImplementationDetail
 import org.jetbrains.kotlin.psi.stubs.impl.KotlinClassStubImpl
+import org.jetbrains.kotlin.psi.stubs.impl.KotlinFullValueClassRepresentation
+import org.jetbrains.kotlin.psi.stubs.impl.KotlinInlineClassRepresentation
+import org.jetbrains.kotlin.psi.stubs.impl.KotlinRigidTypeBean
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.rethrowIntellijPlatformExceptionIfNeeded
 import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
+import java.util.Properties
 
 internal val KtModifierListOwner.visibility: Visibility
     get() = with(modifierList) {
@@ -134,8 +147,8 @@ internal fun deserializeClassToSymbol(
         isInner = classOrObject.hasModifier(KtTokens.INNER_KEYWORD)
         isCompanion = (classOrObject as? KtObjectDeclaration)?.isCompanion() == true
         isData = classOrObject.hasModifier(KtTokens.DATA_KEYWORD)
-        isInline = classOrObject.hasModifier(KtTokens.INLINE_KEYWORD)
         isValue = classOrObject.hasModifier(KtTokens.VALUE_KEYWORD)
+        isInline = classOrObject.hasModifier(KtTokens.INLINE_KEYWORD)
         isFun = classOrObject.hasModifier(KtTokens.FUN_KEYWORD)
         isExternal = classOrObject.hasModifier(KtTokens.EXTERNAL_KEYWORD)
     }
@@ -161,7 +174,9 @@ internal fun deserializeClassToSymbol(
     val classStub: KotlinClassStubImpl? = (classOrObject as? KtClass)?.compiledStub
 
     buildRegularClass {
-        source = KtRealPsiSourceElement(classOrObject)
+        val sourceElement = KtRealPsiSourceElement(classOrObject)
+
+        source = sourceElement
         this.moduleData = moduleData
         this.origin = initialOrigin
         name = classId.shortClassName
@@ -194,39 +209,52 @@ internal fun deserializeClassToSymbol(
         }
 
         classOrObject.primaryConstructor?.let { constructor ->
-            addDeclaration(memberDeserializer.loadConstructor(constructor, classOrObject, this))
-        }
+            val firConstructor = memberDeserializer.loadConstructor(constructor, classOrObject, this)
+            addDeclaration(firConstructor)
 
-        classOrObject.body?.declarations?.forEach { declaration ->
-            when (declaration) {
-                is KtConstructor<*> -> addDeclaration(memberDeserializer.loadConstructor(declaration, classOrObject, this))
-                is KtNamedFunction -> addDeclaration(memberDeserializer.loadFunction(declaration, symbol, session))
-                is KtProperty -> addDeclaration(
-                    memberDeserializer.loadProperty(
-                        property = declaration,
-                        classSymbol = symbol,
-                        isFromAnnotation = kind == ClassKind.ANNOTATION_CLASS,
-                    )
-                )
-                is KtEnumEntry -> addDeclaration(memberDeserializer.loadEnumEntry(declaration, symbol, classId))
-                is KtClassOrObject,
-                is KtTypeAlias
-                    -> {
-                    val name = declaration.name
-                        ?: errorWithAttachment("${if (declaration is KtClassOrObject) "Class" else "Typealias"} doesn't have name") {
-                            withPsiEntry(if (declaration is KtClassOrObject) "Class" else "Typealias", declaration)
-                        }
+            // A property folded into its parameter has no member declaration of its own to be built from
+            for ([index, parameter] in constructor.valueParameters.withIndex()) {
+                if (!parameter.hasValOrVar()) continue
 
-                    val nestedClassId = classId.createNestedClassId(Name.identifier(name))
-                    // Add declaration to the context to avoid redundant provider access to the class/typealias map
-                    deserializeNestedClassLikeDeclaration(
-                        nestedClassId,
-                        declaration,
-                        context.withClassLikeDeclaration(declaration),
-                    )?.fir?.let(this::addDeclaration)
-                }
+                val property = memberDeserializer.loadPropertyFromParameter(parameter, symbol)
+                firConstructor.valueParameters[index].correspondingProperty = property
+                addDeclaration(property)
             }
         }
+
+        @OptIn(KtExperimentalApi::class)
+        classOrObject.body
+            ?.declarationsAndCompanionBlocks
+            ?.asSequence()
+            ?.flatMap { if (it is KtCompanionBlock) it.declarations else listOf(it) }
+            ?.forEach { declaration ->
+                when (declaration) {
+                    is KtConstructor<*> -> addDeclaration(memberDeserializer.loadConstructor(declaration, classOrObject, this))
+                    is KtNamedFunction -> addDeclaration(memberDeserializer.loadFunction(declaration, symbol, session))
+                    is KtProperty -> addDeclaration(
+                        memberDeserializer.loadProperty(
+                            property = declaration,
+                            classSymbol = symbol,
+                            isFromAnnotation = kind == ClassKind.ANNOTATION_CLASS,
+                        )
+                    )
+                    is KtEnumEntry -> addDeclaration(memberDeserializer.loadEnumEntry(declaration, symbol, classId))
+                    is KtClassLikeDeclaration -> {
+                        val name = declaration.name
+                            ?: errorWithAttachment("${if (declaration is KtClassOrObject) "Class" else "Typealias"} doesn't have name") {
+                                withPsiEntry(if (declaration is KtClassOrObject) "Class" else "Typealias", declaration)
+                            }
+
+                        val nestedClassId = classId.createNestedClassId(Name.identifier(name))
+                        // Add declaration to the context to avoid redundant provider access to the class/typealias map
+                        deserializeNestedClassLikeDeclaration(
+                            nestedClassId,
+                            declaration,
+                            context.withClassLikeDeclaration(declaration),
+                        )?.fir?.let(this::addDeclaration)
+                    }
+                }
+            }
 
         if (classKind == ClassKind.ENUM_CLASS) {
             generateValuesFunction(
@@ -240,10 +268,7 @@ internal fun deserializeClassToSymbol(
         }
 
         addCloneForArrayIfNeeded(classId, context.dispatchReceiver, session)
-
-        if (classId == StandardClassIds.Enum) {
-            addCloneForEnumIfNeeded(classOrObject, context.dispatchReceiver)
-        }
+        addCloneForEnumIfNeeded(classId, classOrObject, sourceElement, context.dispatchReceiver)
 
         session.deserializationExtension?.run {
             configureDeserializedClass(classId)
@@ -268,13 +293,18 @@ internal fun deserializeClassToSymbol(
         }
     }.apply {
         if (classStub != null) {
-            if (isInlineOrValue) {
-                valueClassRepresentation = classStub.deserializeValueClassRepresentation(this)
-            }
-
             val clsStubCompiledToJvmDefaultImplementation = classStub.isClsStubCompiledToJvmDefaultImplementation
             if (clsStubCompiledToJvmDefaultImplementation) {
                 symbol.fir.isNewPlaceForBodyGeneration = true
+            }
+        }
+
+        if (isValue) {
+            valueClassRepresentation = if (classOrObject is KtObjectDeclaration) {
+                // A value object declares no underlying properties, as it has no primary constructor parameters to declare them as
+                FullValueClassRepresentation(underlyingPropertyNamesToTypes = emptyList())
+            } else {
+                classStub?.deserializeValueClassRepresentation(this, context.typeDeserializer)
             }
         }
 
@@ -292,41 +322,47 @@ internal fun deserializeClassToSymbol(
     }
 }
 
-private fun KotlinClassStubImpl.deserializeValueClassRepresentation(klass: FirRegularClass): ValueClassRepresentation<ConeRigidType>? {
-    val constructor by lazy(LazyThreadSafetyMode.NONE) {
-        klass.declarations.firstNotNullOfOrNull { declaration ->
-            (declaration as? FirConstructor)?.takeIf(FirConstructor::isPrimary)
-        } ?: errorWithAttachment("Value class must have primary constructor") {
-            withFirEntry("class", klass)
-        }
-    }
+private fun KotlinClassStubImpl.deserializeValueClassRepresentation(
+    klass: FirRegularClass,
+    typeDeserializer: StubBasedFirTypeDeserializer,
+): ValueClassRepresentation<ConeRigidType>? = when (val representation = valueClassRepresentation) {
+    null -> null
 
-    if (valueClassRepresentation == KotlinValueClassRepresentation.INLINE_CLASS) {
-        val parameter = constructor.valueParameters.single()
-        return InlineClassRepresentation(parameter.name, parameter.coneRigidType())
-    }
+    is KotlinInlineClassRepresentation -> InlineClassRepresentation(
+        underlyingPropertyName = representation.underlyingPropertyName,
+        underlyingType = typeDeserializer.underlyingType(representation.underlyingType, klass),
+    )
 
-    @OptIn(SuspiciousValueClassCheck::class)
-    if (klass.isValue) {
-        return MultiFieldValueClassRepresentation(constructor.valueParameters.map { parameter ->
-            parameter.name to parameter.coneRigidType()
-        })
-    }
-
-    return null
+    is KotlinFullValueClassRepresentation -> FullValueClassRepresentation(
+        underlyingPropertyNamesToTypes = representation.underlyingPropertyNamesToTypes
+            ?.map { [name, type] -> name to typeDeserializer.underlyingType(type, klass) }
+    )
 }
 
-private fun FirValueParameter.coneRigidType(): ConeRigidType {
-    val type = returnTypeRef.coneType
-    requireWithAttachment(type is ConeRigidType, { "Underlying type must be rigid type" }) {
+private fun StubBasedFirTypeDeserializer.underlyingType(bean: KotlinRigidTypeBean, klass: FirRegularClass): ConeRigidType {
+    val type = type(bean) ?: errorWithAttachment("Cannot determine the underlying type of a value class") {
+        withEntry("underlyingType", bean.toString())
+        withFirEntry("class", klass)
+    }
+
+    requireWithAttachment(type is ConeRigidType, { "Underlying type must be a rigid type" }) {
         withConeTypeEntry("type", type)
-        withFirEntry("valueParameter", this@coneRigidType)
+        withFirEntry("class", klass)
     }
 
     return type
 }
 
-private fun FirRegularClassBuilder.addCloneForEnumIfNeeded(classOrObject: KtClassOrObject, dispatchReceiver: ConeClassLikeType?) {
+private fun FirRegularClassBuilder.addCloneForEnumIfNeeded(
+    classId: ClassId,
+    classOrObject: KtClassOrObject,
+    classSourceElement: KtSourceElement,
+    dispatchReceiver: ConeClassLikeType?,
+) {
+    if (classId != StandardClassIds.Enum) {
+        return
+    }
+
     val hasCloneFunction = classOrObject.declarations
         .any { it is KtNamedFunction && it.name == "clone" && it.valueParameters.isEmpty() }
 
@@ -334,13 +370,19 @@ private fun FirRegularClassBuilder.addCloneForEnumIfNeeded(classOrObject: KtClas
         return
     }
 
+    if (!requiresSyntheticEnumClone(moduleData)) {
+        return
+    }
+
     val anyLookupId = StandardClassIds.Any.toLookupTag()
     val cloneCallableId = StandardClassIds.Callables.clone
+
+    val sourceElement = classSourceElement.fakeElement(KtFakeSourceElementKind.EnumGeneratedDeclaration.CloneFunction)
 
     declarations += buildNamedFunction {
         moduleData = this@addCloneForEnumIfNeeded.moduleData
         origin = this@addCloneForEnumIfNeeded.origin
-        source = this@addCloneForEnumIfNeeded.source
+        source = sourceElement
 
         resolvePhase = FirResolvePhase.ANALYZED_DEPENDENCIES
 
@@ -360,3 +402,47 @@ private fun FirRegularClassBuilder.addCloneForEnumIfNeeded(classOrObject: KtClas
         dispatchReceiverType = dispatchReceiver!!
     }
 }
+
+/**
+ * Whether the `clone()` member has to be synthesized for the `kotlin.Enum` coming from [moduleData].
+ *
+ * Standard libraries built before Kotlin 2.1 – before the built-ins were rewritten as `expect`/`actual` (KT-65526) – do not
+ * declare `clone()` on `kotlin.Enum` for non-JVM platforms, while their common `kotlin.Enum` still exposes it. Because of that
+ * asymmetry, every `expect`/`actual` enum reports a false-positive `NO_ACTUAL_CLASS_MEMBER_FOR_EXPECTED_CLASS` for the missing
+ * `clone()`. To stay consistent with such legacy standard libraries, we re-introduce the synthetic `clone()` for them
+ * (KT-65417).
+ *
+ * Modern (2.1+) standard libraries declare no `clone()` on `kotlin.Enum` on either side, so the member must not be synthesized.
+ */
+private fun requiresSyntheticEnumClone(moduleData: FirModuleData): Boolean {
+    val libraryModule = (moduleData as? LLFirModuleData)?.ktModule as? KaLibraryModule ?: return false
+    val compilerVersion = libraryModule.binaryVirtualFiles.firstNotNullOfOrNull { it.klibCompilerVersion() } ?: return false
+    return isPre21StdlibVersion(compilerVersion)
+}
+
+/**
+ * Reads the `compiler_version` from the klib manifest reachable from this klib root [VirtualFile], or `null` if it cannot be determined.
+ */
+private fun VirtualFile.klibCompilerVersion(): String? {
+    val manifestFile = findFileByRelativePath("$KLIB_DEFAULT_COMPONENT_NAME/$KLIB_MANIFEST_FILE_NAME") ?: return null
+    val versioning = try {
+        manifestFile.inputStream.use { Properties().apply { load(it) } }.readKonanLibraryVersioning()
+    } catch (e: Exception) {
+        rethrowIntellijPlatformExceptionIfNeeded(e)
+        return null
+    }
+    return versioning.compilerVersion
+}
+
+/**
+ * Whether [compilerVersion] (a klib `compiler_version` such as `2.0.0-RC2-200`) denotes a Kotlin release older than 2.1, i.e.
+ * one that predates the `expect`/`actual` built-ins rewrite.
+ */
+private fun isPre21StdlibVersion(compilerVersion: String): Boolean {
+    val [major, minor] = COMPILER_VERSION_REGEX.find(compilerVersion)?.destructured ?: return false
+    val majorNumber = major.toIntOrNull() ?: return false
+    val minorNumber = minor.toIntOrNull() ?: return false
+    return majorNumber < 2 || majorNumber == 2 && minorNumber < 1
+}
+
+private val COMPILER_VERSION_REGEX = Regex("""^(\d+)\.(\d+)""")

@@ -6,6 +6,8 @@
 package org.jetbrains.kotlin.swiftexport.standalone
 
 import org.jetbrains.kotlin.analysis.api.klib.reader.createKaModulesForStandaloneAnalysis
+import org.jetbrains.kotlin.library.KLIB_PROPERTY_INTEROP
+import org.jetbrains.kotlin.library.loader.KlibLoader
 import org.jetbrains.kotlin.library.metadata.KlibInputModule
 import org.jetbrains.kotlin.sir.SirModule
 import org.jetbrains.kotlin.sir.builder.buildModule
@@ -16,6 +18,7 @@ import org.jetbrains.kotlin.sir.providers.utils.SimpleUnsupportedDeclarationRepo
 import org.jetbrains.kotlin.sir.providers.utils.UnsupportedDeclarationReporter
 import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftExportConfig
 import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftModuleConfig
+import org.jetbrains.kotlin.swiftexport.standalone.config.SwiftModuleExportMode
 import org.jetbrains.kotlin.swiftexport.standalone.translation.TranslationResult
 import org.jetbrains.kotlin.swiftexport.standalone.translation.translateCrossReferencingModulesTransitively
 import org.jetbrains.kotlin.swiftexport.standalone.translation.translateModulePublicApi
@@ -154,21 +157,41 @@ private fun translateModules(
     inputModules: Set<InputModule>,
     config: SwiftExportConfig,
 ): List<TranslationResult> {
-    val allModules = inputModules + config.stdlibInputModule
-    val kaModules = createKaModulesForStandaloneAnalysis(allModules, config.targetPlatform, config.platformLibsInputModule)
-    val explicitModulesTranslationResults = allModules
-        .filter { it.config.shouldBeFullyExported }
-        .map { translateModulePublicApi(it, kaModules, config) }
-    val transitiveExportRoots = allModules
-        .filterNot { it.config.shouldBeFullyExported }
-        .mapNotNull { kaModules.inputsToModules[it] }
-        .associateWith { inputModule ->
-            explicitModulesTranslationResults
-                .flatMap { it.externalTypeDeclarationReferences[inputModule] ?: emptyList() }
-        }
-    val transitiveModulesTranslationResults = translateCrossReferencingModulesTransitively(transitiveExportRoots, kaModules, config)
-    return explicitModulesTranslationResults + transitiveModulesTranslationResults
+    val [cinteropReexportLibs, ordinaryInputs] = inputModules
+        .partition { it.isCinteropLibrary() }
+        .let { it.first.toSet() to it.second.toSet() }
+
+    val allModules = ordinaryInputs + config.stdlibInputModule
+    val kaModules = createKaModulesForStandaloneAnalysis(
+        inputs = allModules,
+        targetPlatform = config.targetPlatform,
+        platformLibraries = config.platformLibsInputModule,
+        cinteropReexportLibraries = cinteropReexportLibs,
+    )
+    kaModules.use { kaModules ->
+        val explicitModulesTranslationResults = allModules
+            .filter { it.config.exportMode == SwiftModuleExportMode.Full }
+            .map { translateModulePublicApi(it, kaModules, config) }
+        val transitiveExportRoots = allModules
+            .filterNot { it.config.exportMode == SwiftModuleExportMode.Full }
+            .mapNotNull { kaModules.inputsToModules[it] }
+            .associateWith { inputModule ->
+                explicitModulesTranslationResults
+                    .flatMap { it.externalTypeDeclarationReferences[inputModule] ?: emptyList() }
+            }
+        val transitiveModulesTranslationResults = translateCrossReferencingModulesTransitively(transitiveExportRoots, kaModules, config)
+        return explicitModulesTranslationResults + transitiveModulesTranslationResults
+    }
 }
+
+/**
+ * A cinterop klib (`interop=true` in its manifest) whose types come from pre-existing ObjC modules. Such a
+ * module is re-exported rather than translated: Swift Export imports the ObjC modules the klib declares
+ * (manifest `modules`) and references its types bare. Detected from the manifest, so callers need not flag it.
+ */
+private fun InputModule.isCinteropLibrary(): Boolean =
+    KlibLoader { libraryPaths(path.toString()) }.load().librariesStdlibFirst.singleOrNull()
+        ?.manifestProperties?.getProperty(KLIB_PROPERTY_INTEROP) == "true"
 
 private fun Collection<TranslationResult>.createModuleForPackages(config: SwiftExportConfig): SirModule = buildModule {
     name = config.moduleForPackagesName
@@ -184,7 +207,6 @@ private fun writeKotlinPackagesModule(
 ): SwiftExportModule.SwiftOnly {
     val swiftSources = SirPrinter(
         stableDeclarationsOrder = true,
-        renderDocComments = false,
     ).print(
         sirModule
     ).swiftSource

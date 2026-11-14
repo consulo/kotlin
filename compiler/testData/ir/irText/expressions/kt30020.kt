@@ -1,7 +1,8 @@
 // LANGUAGE: -ForbidParenthesizedLhsInAssignments
 // WITH_STDLIB
-// IGNORE_BACKEND: JS_IR, JS_IR_ES6
+// DUMP_IR_DIFFERENCE: JS_IR, JKLIB
 // ^ MutableList has js specific methods
+// ^ JKlib tests compile against JDK 17 instead of the mock JDK.
 
 interface X {
     val xs: MutableList<Any>

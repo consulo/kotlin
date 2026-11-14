@@ -10,11 +10,11 @@
 
 package org.jetbrains.kotlin.ir.declarations.impl
 
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrExternalPackageFragment
+import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.symbols.IrExternalPackageFragmentSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.name.FqName
@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.name.FqName
 class IrExternalPackageFragmentImpl(
     override val symbol: IrExternalPackageFragmentSymbol,
     override var packageFqName: FqName,
+    override var module: IrModuleFragment,
 ) : IrExternalPackageFragment() {
     override var startOffset: Int
         get() = UNDEFINED_OFFSET
@@ -39,15 +40,6 @@ class IrExternalPackageFragmentImpl(
 
     @UnsafeDuringIrConstructionAPI
     override val declarations: MutableList<IrDeclaration> = ArrayList()
-
-    companion object {
-        @Deprecated(
-            message = "Use org.jetbrains.kotlin.ir.declarations.createEmptyExternalPackageFragment instead",
-            replaceWith = ReplaceWith("createEmptyExternalPackageFragment", "org.jetbrains.kotlin.ir.declarations.createEmptyExternalPackageFragment")
-        )
-        fun createEmptyExternalPackageFragment(module: ModuleDescriptor, fqName: FqName): IrExternalPackageFragment =
-            org.jetbrains.kotlin.ir.declarations.createEmptyExternalPackageFragment(module, fqName)
-    }
 
     init {
         symbol.bind(this)

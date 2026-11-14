@@ -38,7 +38,7 @@ fun <K, V : Any> Iterable<K>.keysToMapExceptNulls(value: (K) -> V?): Map<K, V> {
 
 fun <K> Iterable<K>.mapToIndex(): Map<K, Int> {
     val map = LinkedHashMap<K, Int>()
-    for ((index, k) in this.withIndex()) {
+    for ([index, k] in this.withIndex()) {
         map[k] = index
     }
     return map
@@ -126,3 +126,5 @@ fun <E : Any> MutableList<E?>.setSize(newSize: Int) {
         }
     }
 }
+
+inline fun <E> buildSmartList(build: MutableList<E>.() -> Unit): List<E> = SmartList<E>().apply(build)

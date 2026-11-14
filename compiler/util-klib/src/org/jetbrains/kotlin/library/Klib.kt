@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.library
 
 import org.jetbrains.kotlin.library.components.KlibIrComponent
 import org.jetbrains.kotlin.library.components.KlibMetadataComponent
-import org.jetbrains.kotlin.konan.file.File as KlibFile
+import java.nio.file.Path
 
 /**
  * [Klib] represents an instance of Kotlin library (Klib) that can be read by the compiler or any other tools.
@@ -26,17 +26,30 @@ import org.jetbrains.kotlin.konan.file.File as KlibFile
  * val metadata: KlibMetadataComponent = klib.metadata // A shortcut for `klib.getComponent(KlibMetadataComponent.ID)!!`
  * ```
  */
-interface Klib {
+interface Klib: KlibComponentsContainer {
     /**
-     * The [KlibFile] that points to the library location on the file system.
+     * The [Path] that points to the library location on the file system.
+     *
+     * This path is exactly the same "raw" path as was supplied by the user in compiler's CLI invocation.
+     * To get the canonical path use [canonicalPath].
      */
-    val location: KlibFile
+    val path: Path
+
+    /**
+     * The canonical [Path] that points to the library location on the file system.
+     *
+     * This is the unique, normalized representation of [path] after resolving any ambiguities.
+     * It does not necessarily match to the "raw" path that was supplied by the user in compiler's CLI invocation.
+     */
+    val canonicalPath: Path
 
     /**
      * Read/write attributes associated with the current instance of [Klib].
      */
     val attributes: KlibAttributes
+}
 
+interface KlibComponentsContainer {
     /**
      * Get a specific [KlibComponent] by its [kind]. Return `null` if the component is not found.
      */
@@ -57,7 +70,7 @@ interface KlibComponent {
         /**
          * Create an instance [KlibComponentLayout] for the current component.
          */
-        fun createLayout(root: KlibFile): KCL
+        fun createLayout(root: Path): KCL
 
         /**
          * Create an instance of the component.
@@ -72,8 +85,8 @@ interface KlibComponent {
  * The layout of a [KlibComponent]: Implementations of this abstract class provide access to the component's files by
  * the paths computed from the given [root].
  *
- * Important: The [root] is not necessarily the same as [Klib.location]. For example, a Klib could be a ZIP archive file.
- * In this case [root] points to the root of the virtual file system inside the archive, whereas [Klib.location] points
+ * Important: The [root] is not necessarily the same as [Klib.path]. For example, a Klib could be a ZIP archive file.
+ * In this case [root] points to the root of the virtual file system inside the archive, whereas [Klib.path] points
  * to the archive file itself. So, it is highly important to compute paths exactly based on [root].
  */
-abstract class KlibComponentLayout(val root: KlibFile)
+abstract class KlibComponentLayout(val root: Path)

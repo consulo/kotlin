@@ -2,6 +2,7 @@
  * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.stubBased.deserialization
 
@@ -19,28 +20,27 @@ import org.jetbrains.kotlin.fir.diagnostics.DiagnosticKind
 import org.jetbrains.kotlin.fir.expressions.builder.buildAnnotation
 import org.jetbrains.kotlin.fir.expressions.builder.buildAnnotationArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.builder.buildLiteralExpression
-import org.jetbrains.kotlin.fir.symbols.ConeTypeParameterLookupTag
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirTypeParameterSymbol
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
-import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
-import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
 import org.jetbrains.kotlin.fir.utils.exceptions.withConeTypeEntry
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.KtImplementationDetail
 import org.jetbrains.kotlin.psi.psiUtil.hasSuspendModifier
+import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
 import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
-import org.jetbrains.kotlin.psi.stubs.elements.KtStubElementTypes
 import org.jetbrains.kotlin.psi.stubs.impl.*
 import org.jetbrains.kotlin.types.ConstantValueKind
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 internal class StubBasedFirTypeDeserializer(
@@ -88,7 +88,7 @@ internal class StubBasedFirTypeDeserializer(
                 }
             }
 
-            for ((index, typeParameter) in typeParameters.withIndex()) {
+            for ([index, typeParameter] in typeParameters.withIndex()) {
                 val builder = builders[index]
                 builder.apply {
                     typeParameter.extendsBound?.let { bounds.add(typeRef(it)) }
@@ -115,8 +115,8 @@ internal class StubBasedFirTypeDeserializer(
 
     fun type(typeReference: KtTypeReference): ConeKotlinType {
         val annotations = annotationDeserializer.loadAnnotations(
-            typeReference,
-            StubBasedAnnotationDeserializer.TYPE_ANNOTATIONS_FILTER,
+            ktAnnotated = typeReference,
+            useSiteTargetFilter = StubBasedAnnotationDeserializer.TYPE_ANNOTATIONS_FILTER,
         ).toMutableList()
 
         val parentStub = typeReference.compiledStub.parentStub
@@ -143,7 +143,7 @@ internal class StubBasedFirTypeDeserializer(
                 val lookupTag =
                     typeParametersByName[type.typeParameterName]?.toLookupTag() ?: parent?.typeParameterSymbol(type.typeParameterName)
                     ?: return null
-                return ConeTypeParameterTypeImpl(lookupTag, isMarkedNullable = type.nullable).let {
+                return ConeTypeParameterType(lookupTag, isMarkedNullable = type.nullable).let {
                     if (type.definitelyNotNull)
                         ConeDefinitelyNotNullType.create(it, moduleData.session.typeContext, avoidComprehensiveCheck = true) ?: it
                     else
@@ -243,7 +243,7 @@ internal class StubBasedFirTypeDeserializer(
         val constructor = typeSymbol(typeReference) ?: return null
         val isNullable = typeReference.typeElement is KtNullableType
         if (constructor is ConeTypeParameterLookupTag) {
-            return ConeTypeParameterTypeImpl(constructor, isMarkedNullable = isNullable, attributes).let {
+            return ConeTypeParameterType(constructor, isMarkedNullable = isNullable, attributes).let {
                 if (typeReference.typeElement?.unwrapNullability() is KtIntersectionType) {
                     ConeDefinitelyNotNullType.create(it, moduleData.session.typeContext, avoidComprehensiveCheck = true) ?: it
                 } else it
@@ -252,24 +252,14 @@ internal class StubBasedFirTypeDeserializer(
         if (constructor !is ConeClassLikeLookupTag) return null
 
         val typeElement = typeReference.typeElement?.unwrapNullability()
-        val arguments = when (typeElement) {
-            is KtUserType -> buildList {
-                // The type for Outer<T>.Inner<S> needs to have type args <S, T>
-                var current: KtUserType? = typeElement
-                while (current != null) {
-                    current.typeArguments.forEach { add(typeArgument(it)) }
-                    current = current.qualifier
-                }
-            }.toTypedArray()
-            is KtFunctionType -> buildList {
-                typeElement.contextReceiversTypeReferences.mapTo(this) { type(it).toTypeProjection(Variance.INVARIANT) }
-                typeElement.receiver?.let { add(type(it.typeReference).toTypeProjection(Variance.INVARIANT)) }
-                typeElement.parameters.mapTo(this) { type(it.typeReference!!).toTypeProjection(Variance.INVARIANT) }
-                add(type(typeElement.returnTypeReference!!).toTypeProjection(Variance.INVARIANT))
-            }.toTypedArray()
-            else -> errorWithAttachment("not supported ${typeElement?.let { it::class }}") {
-                withPsiEntry("typeElement", typeElement)
+        val arguments = typeElement?.mapTypeArguments { argumentTypeReference, projectionKind ->
+            if (projectionKind == KtProjectionKind.STAR) {
+                ConeStarProjection
+            } else {
+                typeArgument(type(argumentTypeReference!!), projectionKind)
             }
+        }?.toTypedArray() ?: errorWithAttachment("not supported ${typeElement?.let { it::class }}") {
+            withPsiEntry("typeElement", typeElement)
         }
 
         return ConeClassLikeTypeImpl(
@@ -298,12 +288,17 @@ internal class StubBasedFirTypeDeserializer(
         simpleType(typeReference, attributes) ?: ConeErrorType(ConeSimpleDiagnostic("?!id:0", DiagnosticKind.DeserializationError))
 
     private fun KtFunctionType.isSuspend(): Boolean {
-        val parent = parent as? KtElementImplStub<*>
-            ?: error("Expected parent of KtTypeElement to have type KtElementImplStub<*>, but actual $parent")
+        // `suspend` may sit on the enclosing type reference or on any nullable type in between, and each of them may
+        // carry more than one modifier list, so all of them have to be examined.
+        val parent = parent
+        requireWithAttachment(
+            condition = parent is KtModifierListOwnerStub<*>,
+            message = { "Expected parent of ${KtTypeElement::class.simpleName} to have type ${KtModifierListOwnerStub::class.simpleName}, but actual ${parent?.let { it::class.simpleName }}" }
+        ) {
+            withPsiEntry("parent", parent)
+        }
 
-        @Suppress("DEPRECATION") // KT-78356
-        val modifiers = parent.getStubOrPsiChildren(KtStubElementTypes.MODIFIER_LIST, KtStubElementTypes.MODIFIER_LIST.arrayFactory)
-        return modifiers.any { it.hasSuspendModifier() }
+        return parent.allModifierLists.any { it.hasSuspendModifier() }
     }
 
     private fun typeSymbol(typeReference: KtTypeReference): ConeClassifierLookupTag? {
@@ -346,16 +341,6 @@ internal class StubBasedFirTypeDeserializer(
     private fun getComposableFunctionClassId(arity: Int): ClassId {
         val name = Name.identifier("$composableFunctionPrefix$arity")
         return ClassId(internalComposePackageFqName, name)
-    }
-
-
-    private fun typeArgument(projection: KtTypeProjection): ConeTypeProjection {
-        if (projection.projectionKind == KtProjectionKind.STAR) {
-            return ConeStarProjection
-        }
-
-        val type = type(projection.typeReference!!)
-        return typeArgument(type, projection.projectionKind)
     }
 
     private fun typeArgument(
@@ -411,4 +396,80 @@ internal fun KtUserType.classId(): ClassId {
         FqName.fromSegments(classFragments),
         isLocal = false
     )
+}
+
+/**
+ * Maps type arguments of [this] type element in the order of the arguments of the [ConeClassLikeType] which
+ * [StubBasedFirTypeDeserializer] builds for it, or returns `null` if the element has no type arguments of its own (e.g., `T & Any`).
+ *
+ * [transform] receives the type reference of an argument (`null` for a star projection) and its projection kind.
+ */
+private inline fun <R> KtTypeElement.mapTypeArguments(
+    transform: (typeReference: KtTypeReference?, projectionKind: KtProjectionKind) -> R,
+): List<R>? = when (this) {
+    is KtUserType -> buildList {
+        // The type for Outer<T>.Inner<S> needs to have type args <S, T>
+        var current: KtUserType? = this@mapTypeArguments
+        while (current != null) {
+            current.typeArguments.forEach { add(transform(it.typeReference, it.projectionKind)) }
+            current = current.qualifier
+        }
+    }
+
+    is KtFunctionType -> buildList {
+        contextReceiversTypeReferences.forEach { add(transform(it, KtProjectionKind.NONE)) }
+        receiver?.let { add(transform(it.typeReference, KtProjectionKind.NONE)) }
+        parameters.forEach { add(transform(it.typeReference, KtProjectionKind.NONE)) }
+        add(transform(returnTypeReference, KtProjectionKind.NONE))
+    }
+
+    else -> null
+}
+
+/**
+ * Returns the part of [this] type which corresponds to [nestedTypeReference], a type reference nested in [typeReference],
+ * or `null` if there is no such part.
+ *
+ * [this] type has to be deserialized from [typeReference] by [StubBasedFirTypeDeserializer], as the type arguments are matched
+ * with the PSI by [mapTypeArguments].
+ */
+internal fun ConeKotlinType.findNestedType(typeReference: KtTypeReference, nestedTypeReference: KtTypeReference): ConeKotlinType? {
+    if (typeReference === nestedTypeReference) return this
+
+    val path = nestedTypeReference.parentsWithSelf
+        .takeWhile { it !== typeReference }
+        .filterIsInstance<KtTypeReference>()
+        .toSet()
+
+    return findNestedType(typeReference, nestedTypeReference, path)
+}
+
+private fun ConeKotlinType.findNestedType(
+    typeReference: KtTypeReference,
+    nestedTypeReference: KtTypeReference,
+    path: Set<KtTypeReference>,
+): ConeKotlinType? {
+    if (typeReference === nestedTypeReference) return this
+
+    // The PSI of a flexible type represents its lower bound
+    val type = lowerBoundIfFlexible()
+    val typeElement = typeReference.typeElement?.unwrapNullability() ?: return null
+
+    // `T & Any` is deserialized as a definitely non-nullable type, which has no part for `Any`
+    if (typeElement is KtIntersectionType) {
+        val leftTypeReference = typeElement.getLeftTypeRef()?.takeIf { it in path } ?: return null
+        val originalType = (type as? ConeDefinitelyNotNullType)?.original ?: type
+        return originalType.findNestedType(leftTypeReference, nestedTypeReference, path)
+    }
+
+    val argumentTypeReferences = typeElement.mapTypeArguments { argumentTypeReference, _ -> argumentTypeReference } ?: return null
+
+    val typeArguments = (type as? ConeClassLikeType)?.typeArguments ?: return null
+    if (typeArguments.size != argumentTypeReferences.size) return null
+
+    val index = argumentTypeReferences.indexOfFirst { it != null && it in path }
+    if (index == -1) return null
+
+    val argumentType = typeArguments[index].type ?: return null
+    return argumentType.findNestedType(argumentTypeReferences[index]!!, nestedTypeReference, path)
 }

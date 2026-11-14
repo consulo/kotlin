@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.standalone.fir.test.configurators.Analy
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.expressionInfoProvider.AbstractIsUsedAsExpressionTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.expressionInfoProvider.AbstractIsUsedAsExpressionTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirStandaloneNormalAnalysisSourceModuleIsUsedAsExpressionTestGenera
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirStandaloneModeTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.Source,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Standalone,
@@ -787,6 +785,36 @@ public class FirStandaloneNormalAnalysisSourceModuleIsUsedAsExpressionTestGenera
   @TestMetadata("doubleColonLHS.kt")
   public void testDoubleColonLHS() {
     run("doubleColonLHS.kt");
+  }
+
+  @Test
+  @TestMetadata("doubleColonLHSAnnotation.kt")
+  public void testDoubleColonLHSAnnotation() {
+    run("doubleColonLHSAnnotation.kt");
+  }
+
+  @Test
+  @TestMetadata("doubleColonLHSInterface.kt")
+  public void testDoubleColonLHSInterface() {
+    run("doubleColonLHSInterface.kt");
+  }
+
+  @Test
+  @TestMetadata("doubleColonLHSReceiver.kt")
+  public void testDoubleColonLHSReceiver() {
+    run("doubleColonLHSReceiver.kt");
+  }
+
+  @Test
+  @TestMetadata("doubleColonLHSTypeAlias.kt")
+  public void testDoubleColonLHSTypeAlias() {
+    run("doubleColonLHSTypeAlias.kt");
+  }
+
+  @Test
+  @TestMetadata("doubleColonLHSTypeParameter.kt")
+  public void testDoubleColonLHSTypeParameter() {
+    run("doubleColonLHSTypeParameter.kt");
   }
 
   @Test

@@ -22,3 +22,23 @@ FILE fqName:<root> fileName:/dynamicArrayIncrementDecrement.kt
           receiver: DYN_OP operator=ARRAY_ACCESS type=dynamic
             receiver: GET_VAR 'd: dynamic declared in <root>.testArrayIncrementDecrement' type=dynamic origin=IMPLICIT_ARGUMENT
             0: CONST String type=kotlin.String value="postfixDecr"
+      TYPE_OP type=kotlin.Unit origin=IMPLICIT_COERCION_TO_UNIT typeOperand=kotlin.Unit
+        DYN_OP operator=PREFIX_INCREMENT type=dynamic
+          receiver: DYN_OP operator=ARRAY_ACCESS type=dynamic
+            receiver: GET_VAR 'd: dynamic declared in <root>.testArrayIncrementDecrement' type=dynamic origin=IMPLICIT_ARGUMENT
+            0: CONST String type=kotlin.String value="prefixIncr"
+      TYPE_OP type=kotlin.Unit origin=IMPLICIT_COERCION_TO_UNIT typeOperand=kotlin.Unit
+        DYN_OP operator=PREFIX_DECREMENT type=dynamic
+          receiver: DYN_OP operator=ARRAY_ACCESS type=dynamic
+            receiver: GET_VAR 'd: dynamic declared in <root>.testArrayIncrementDecrement' type=dynamic origin=IMPLICIT_ARGUMENT
+            0: CONST String type=kotlin.String value="prefixDecr"
+      TYPE_OP type=kotlin.Unit origin=IMPLICIT_COERCION_TO_UNIT typeOperand=kotlin.Unit
+        DYN_OP operator=POSTFIX_INCREMENT type=dynamic
+          receiver: DYN_OP operator=ARRAY_ACCESS type=dynamic
+            receiver: GET_VAR 'd: dynamic declared in <root>.testArrayIncrementDecrement' type=dynamic origin=IMPLICIT_ARGUMENT
+            0: CONST String type=kotlin.String value="postfixIncr"
+      TYPE_OP type=kotlin.Unit origin=IMPLICIT_COERCION_TO_UNIT typeOperand=kotlin.Unit
+        DYN_OP operator=POSTFIX_DECREMENT type=dynamic
+          receiver: DYN_OP operator=ARRAY_ACCESS type=dynamic
+            receiver: GET_VAR 'd: dynamic declared in <root>.testArrayIncrementDecrement' type=dynamic origin=IMPLICIT_ARGUMENT
+            0: CONST String type=kotlin.String value="postfixDecr"

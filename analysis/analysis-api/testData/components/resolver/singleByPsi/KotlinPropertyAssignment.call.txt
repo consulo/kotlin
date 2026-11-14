@@ -1,6 +1,6 @@
 <caret_1>:
   KtNameReferenceExpression(71,80): 'something'
-    KaCallResolutionSuccess:
+    KaSimpleCallResolutionSuccess:
       call = KaSimpleVariableAccessCall:
         contextArguments = []
         dispatchReceiver = KaExplicitReceiverValue:
@@ -21,7 +21,7 @@
 
 <caret_2>:
   KtNameReferenceExpression(88,97): 'something'
-    KaCallResolutionSuccess:
+    KaSimpleCallResolutionSuccess:
       call = KaSimpleVariableAccessCall:
         contextArguments = []
         dispatchReceiver = KaExplicitReceiverValue:
@@ -43,7 +43,7 @@
 
 <caret_3>:
   KtNameReferenceExpression(108,117): 'something'
-    KaCallResolutionSuccess:
+    KaSimpleCallResolutionSuccess:
       call = KaSimpleVariableAccessCall:
         contextArguments = []
         dispatchReceiver = KaExplicitReceiverValue:
@@ -64,7 +64,7 @@
 
 <caret_4>:
   KtNameReferenceExpression(129,138): 'something'
-    KaCallResolutionSuccess:
+    KaSimpleCallResolutionSuccess:
       call = KaSimpleVariableAccessCall:
         contextArguments = []
         dispatchReceiver = KaExplicitReceiverValue:
@@ -85,7 +85,7 @@
 
 <caret_5>:
   KtNameReferenceExpression(149,158): 'something'
-    KaCallResolutionSuccess:
+    KaSimpleCallResolutionSuccess:
       call = KaSimpleVariableAccessCall:
         contextArguments = []
         dispatchReceiver = KaExplicitReceiverValue:
@@ -107,16 +107,19 @@
 
 <caret_6>:
   KtNameReferenceExpression(164,173): 'something'
-    KaCallResolutionSuccess:
+    KaSimpleCallResolutionSuccess:
       call = KaSimpleVariableAccessCall:
         contextArguments = []
         dispatchReceiver = KaImplicitReceiverValue:
           symbol = KaReceiverParameterSymbol:
+            anchorPsi: KtTypeReference
             annotations: []
             callableId: null
-            compilerVisibility: Public
+            contextParameters: []
             contextReceivers: []
             isActual: false
+            isCompanion: false
+            isDelegated: false
             isExpect: false
             isExtension: false
             isExternal: false
@@ -126,11 +129,14 @@
             name: <receiver>
             origin: SOURCE
             owningCallableSymbol: KaNamedFunctionSymbol(/foo)
+            psi: KtTypeReference
+            realPsi: KtTypeReference
             receiverParameter: null
             returnType: KaUsualClassType:
               annotations: []
               typeArguments: []
               type: A
+            typeParameters: []
             visibility: PUBLIC
           type = A
         extensionReceiver = null

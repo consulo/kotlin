@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.attributes.KlibPackaging
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
+import org.jetbrains.kotlin.gradle.plugin.mpp.archive.KarLayout
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.gradle.plugin.statistics.KotlinNativeCacheMetrics
 import org.jetbrains.kotlin.gradle.plugin.statistics.NativeLinkTaskMetrics
@@ -98,9 +99,9 @@ internal fun KotlinNativeCompilation.resolvableApiConfiguration(): Configuration
             extendsFrom(apiConfiguration)
             val compileConfiguration = compilation.internal.configurations.compileDependencyConfiguration
             compileConfiguration.copyAttributesTo(project.providers, this)
-            if (project.kotlinPropertiesProvider.useNonPackedKlibs) {
-                KlibPackaging.setAttributeTo(project, attributes, false)
-            }
+            KlibPackaging.setAttributeTo(project, attributes, false)
+            // Added to the classpath after this copy, like the klib packaging above.
+            attributes.attribute(KarLayout.Attributes.state, KarLayout.Attributes.State.PLATFORM_ARTIFACTS_EXTRACTED)
         }
 }
 
@@ -125,6 +126,7 @@ private fun Project.createLinkTask(binary: NativeBinary) {
         task.toolOptions.freeCompilerArgs.value(compilationCompilerOptions.options.freeCompilerArgs)
         task.toolOptions.freeCompilerArgs.addAll(providers.provider { PropertiesProvider(project).nativeLinkArgs })
         task.runViaBuildToolsApi.value(false).disallowChanges() // K/N is not yet supported
+        task.generateCompilerRefIndex.value(false).disallowChanges() // CRI requires BTA, which is not supported for K/N
         task.kotlinNativeProvider.set(task.chooseKotlinNativeProvider(enabledOnCurrentHost, task.konanTarget, project))
 
         // Frameworks actively uses symlinks.
@@ -149,10 +151,10 @@ private fun Project.createLinkTask(binary: NativeBinary) {
                 }
             )
             .disallowChanges()
+        KotlinNativeCacheMetrics.collectMetrics(this, task.disableCache)
     }
 
     NativeLinkTaskMetrics.collectMetrics(this)
-    KotlinNativeCacheMetrics.collectMetrics(this, linkTask.flatMap { it.disableCache })
 
     if (binary !is TestExecutable) {
         tasks.named(binary.compilation.target.artifactsTaskName).dependsOn(linkTask)

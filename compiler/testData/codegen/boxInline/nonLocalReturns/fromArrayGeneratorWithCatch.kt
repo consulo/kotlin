@@ -1,4 +1,3 @@
-// WASM_FAILS_IN: WasmEdge
 
 // FILE: 1.kt
 inline fun runReturning(f: () -> Nothing): Nothing = f()

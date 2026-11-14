@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.gradle.api.Project
@@ -29,13 +27,13 @@ class TestApiDependenciesCheckerTest {
 
                 linuxX64()
                 mingwX64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-                macosX64()
 
                 js { browser() }
 
                 wasmJs { browser() }
-                wasmWasi { nodejs() }
+                wasmWasi {
+                    wasmtime()
+                }
             }
 
             configure()
@@ -96,8 +94,8 @@ class TestApiDependenciesCheckerTest {
         }
 
         project.assertTestApiDependencyWarning(
-            "- org.jetbrains.kotlinx:atomicfu:latest.release (source sets: jsTest, jvmTest, linuxX64Test, macosX64Test, mingwX64Test, wasmJsTest, wasmWasiTest)",
-            "- org.jetbrains.kotlinx:kotlinx-serialization-json:latest.release (source sets: linuxX64Test, macosX64Test, mingwX64Test)",
+            "- org.jetbrains.kotlinx:atomicfu:latest.release (source sets: jsTest, jvmTest, linuxX64Test, mingwX64Test, wasmJsTest, wasmWasiTest)",
+            "- org.jetbrains.kotlinx:kotlinx-serialization-json:latest.release (source sets: linuxX64Test, mingwX64Test)",
             "- org.jetbrains.kotlinx:kotlinx-html:latest.release (source sets: jsTest)",
         )
     }
@@ -162,8 +160,8 @@ class TestApiDependenciesCheckerTest {
         }
 
         project.assertTestApiDependencyWarning(
-            "- org.jetbrains.kotlinx:atomicfu:latest.release (source sets: jsTest, jvmTest, linuxX64Test, macosX64Test, mingwX64Test, wasmJsTest, wasmWasiTest)",
-            "- org.jetbrains.kotlinx:kotlinx-serialization-json:latest.release (source sets: linuxX64Test, macosX64Test, mingwX64Test)",
+            "- org.jetbrains.kotlinx:atomicfu:latest.release (source sets: jsTest, jvmTest, linuxX64Test, mingwX64Test, wasmJsTest, wasmWasiTest)",
+            "- org.jetbrains.kotlinx:kotlinx-serialization-json:latest.release (source sets: linuxX64Test, mingwX64Test)",
             "- org.jetbrains.kotlinx:kotlinx-html:latest.release (source sets: jsTest)",
         )
     }

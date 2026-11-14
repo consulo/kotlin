@@ -2,24 +2,32 @@
 description = "Kotlin \"main\" script definition tests"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
 }
 
-val kotlinxSerializationGradlePluginClasspath by configurations.creating
+val kotlinxSerializationGradlePluginClasspath = configurations.create("kotlinxSerializationGradlePluginClasspath")
 
 dependencies {
-    testImplementation(project(":kotlin-main-kts"))
+    testImplementation(project(":kotlin-main-kts")) {
+        exclude(group = "org.jetbrains.kotlin", module = "kotlin-scripting-compiler-embeddable")
+    }
     testCompileOnly(project(":compiler:cli"))
     testCompileOnly(project(":kotlin-scripting-jvm-host-unshaded"))
     testImplementation(kotlinStdlib("jdk8"))
-    testImplementation(libs.junit4)
-    testImplementation(kotlinTest("junit"))
-    testImplementation(projectTests(":kotlin-scripting-compiler"))
-    testImplementation(project(":kotlin-compiler-embeddable"))
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter.api)
+    testRuntimeOnly(libs.junit.jupiter.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(testFixtures(project(":compiler:test-infrastructure-utils")))
+    testImplementation(testFixtures(project(":plugins:scripting:scripting-tests")))
     testImplementation(project(":kotlin-scripting-common"))
     testImplementation(project(":kotlin-scripting-jvm"))
+    testRuntimeOnly(project(":kotlin-scripting-compiler"))
+    testRuntimeOnly(project(":kotlin-compiler"))
     kotlinxSerializationGradlePluginClasspath(project(":kotlinx-serialization-compiler-plugin.embeddable")) { isTransitive = false }
+    testImplementation(intellijCore())
 }
 
 sourceSets {
@@ -28,7 +36,7 @@ sourceSets {
 }
 
 projectTests {
-    testTask(parallel = true, jUnitMode = JUnitMode.JUnit4) {
+    testTask {
         dependsOn(":dist", ":kotlinx-serialization-compiler-plugin.embeddable:embeddable")
         workingDir = rootDir
         val localKotlinxSerializationPluginClasspath: FileCollection = kotlinxSerializationGradlePluginClasspath
@@ -38,4 +46,7 @@ projectTests {
     }
 
     withJvmStdlibAndReflect()
+    @OptIn(KotlinCompilerDistUsage::class)
+    withDist()
+    withMainKtsJar()
 }

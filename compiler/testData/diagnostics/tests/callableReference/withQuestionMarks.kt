@@ -1,6 +1,7 @@
 // RUN_PIPELINE_TILL: FRONTEND
-// DIAGNOSTICS: -UNUSED_VARIABLE
-// Issue: KT-35075
+// ISSUE: KT-35075
+// WITH_STDLIB
+// LANGUAGE: +CallableReferencesWithBoundCompanionDontWinOverDefaultImports
 
 fun foo() {}
 
@@ -24,7 +25,6 @@ fun main() {
     val x16 = <!SAFE_CALLABLE_REFERENCE_CALL!><!SAFE_CALLABLE_REFERENCE_CALL!><!SAFE_CALLABLE_REFERENCE_CALL!><!UNRESOLVED_REFERENCE!>logger<!>!!?::<!UNRESOLVED_REFERENCE!>info<!><!>?::<!UNRESOLVED_REFERENCE!>print<!><!>?::<!UNRESOLVED_REFERENCE!>print<!><!>
     val x17 = <!SAFE_CALLABLE_REFERENCE_CALL!><!SAFE_CALLABLE_REFERENCE_CALL!><!UNRESOLVED_REFERENCE!>logger<!>::info<!NOT_NULL_ASSERTION_ON_CALLABLE_REFERENCE!>!!<!>?::<!UNRESOLVED_REFERENCE!>print<!><!>?::<!UNRESOLVED_REFERENCE!>print<!><!>
 
-    // It must be OK
     val x18 = String?::hashCode <!USELESS_ELVIS!>?: ::foo<!>
     val x19 = String::hashCode <!USELESS_ELVIS!>?: ::foo<!>
     val x20 = String?::hashCode::hashCode

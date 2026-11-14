@@ -20,6 +20,7 @@ package org.jetbrains.kotlin.library.abi.parser
 
 import org.jetbrains.kotlin.library.abi.*
 import org.jetbrains.kotlin.library.abi.impl.*
+import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import java.io.File
 import java.text.ParseException
 
@@ -126,6 +127,7 @@ class KlibDumpParser(klibDump: String, private val filePath: String? = null) {
         val modality =
             cursor.parseAbiModality()
                 ?: throw parseException("Unable to parse modality for property")
+        cursor.parseSymbol("companion")
         val kind =
             cursor.parsePropertyKind() ?: throw parseException("Unable to parse kind for property")
         val qualifiedName = parseAbiQualifiedName(parentQualifiedName)
@@ -223,8 +225,10 @@ class KlibDumpParser(klibDump: String, private val filePath: String? = null) {
         val modifiers = cursor.parseFunctionModifiers()
         val isInline = modifiers.contains("inline")
         val isSuspend = modifiers.contains("suspend")
+        val isCompanion = modifiers.contains("companion")
         cursor.parseFunctionKind()
         val typeParams = cursor.parseTypeParams() ?: emptyList()
+        val companionExtensionsClass = runIf(isCompanion) { cursor.parseCompanionExtensionsClass() }
         val contextAndReceiverParams = cursor.parseContextAndReceiverParams()
         val abiQualifiedName =
             if (isGetterOrSetter) {
@@ -246,6 +250,8 @@ class KlibDumpParser(klibDump: String, private val filePath: String? = null) {
             typeParameters = typeParams,
             valueParameters = contextAndReceiverParams + valueParameters,
             returnType = returnType,
+            companionExtensionsClass = companionExtensionsClass,
+            declarationOrigin = AbiDeclarationOrigin.OTHER, // declaration origins aren't part of klib dumps
         )
     }
 
@@ -268,6 +274,7 @@ class KlibDumpParser(klibDump: String, private val filePath: String? = null) {
             annotations = AbiAnnotationListImpl.EMPTY, // annotations aren't part of klib dumps
             isInline = false, // constructors cannot be inline
             valueParameters = valueParameters,
+            declarationOrigin = AbiDeclarationOrigin.OTHER, // declaration origins aren't part of klib dumps
         )
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -9,6 +9,9 @@ import org.jetbrains.kotlin.js.backend.JsToStringGenerationVisitor
 import org.jetbrains.kotlin.js.common.isValidES5Identifier
 import org.jetbrains.kotlin.js.common.makeValidES5Identifier
 import org.jetbrains.kotlin.js.config.ModuleKind
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
+import org.jetbrains.kotlin.utils.addToStdlib.partitionIsInstance
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 
 
@@ -93,6 +96,7 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
     private fun ExportedDeclaration.toTypeScript(indent: String, prefix: String = ""): String =
         attributes.toTypeScript(indent) + indent + when (this) {
             is ErrorDeclaration -> generateTypeScriptString()
+            is ExportedTypeAlias -> generateTypeScriptString(indent, prefix)
             is ExportedConstructor -> generateTypeScriptString(indent)
             is ExportedConstructSignature -> generateTypeScriptString(indent)
             is ExportedNamespace -> generateTypeScriptString(indent, prefix)
@@ -104,7 +108,13 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
         }
 
     private fun Iterable<ExportedAttribute>.toTypeScript(indent: String): String {
-        return joinToString("\n") { it.toTypeScript(indent) }
+        val [deprecatedAttributes, other] = partitionIsInstance<_, ExportedAttribute.DeprecatedAttribute>()
+        val documentationAttribute = other.firstIsInstanceOrNull<ExportedAttribute.Documentation>()
+            ?.also { docs -> docs.sections.addAll(deprecatedAttributes.map { tsDeprecated(it.message) }) }
+
+        val mergedAttributes = if (documentationAttribute != null) other else this
+
+        return mergedAttributes.joinToString("\n") { it.toTypeScript(indent) }
             .run { if (isNotEmpty()) plus("\n") else this }
     }
 
@@ -118,9 +128,18 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
 
     private fun ExportedAttribute.toTypeScript(indent: String): String {
         return when (this) {
-            is ExportedAttribute.DeprecatedAttribute -> indent + tsDeprecated(message)
             is ExportedAttribute.DefaultExport -> ""
+            is ExportedAttribute.Documentation -> buildTSDocComment(sections, indent)
+            is ExportedAttribute.DeprecatedAttribute -> buildDeprecatedOnlyComment(message, indent)
         }
+    }
+
+    private fun buildDeprecatedOnlyComment(message: String, indent: String): String =
+        "$indent/** ${tsDeprecated(message)} */"
+
+    private fun buildTSDocComment(sections: List<String>, indent: String): String {
+        if (sections.isEmpty() || sections.all { it.isBlank() }) return ""
+        return "$indent/**\n$indent * " + sections.joinToString("\n$indent * ") + "\n$indent */"
     }
 
     private fun ErrorDeclaration.generateTypeScriptString(): String {
@@ -140,7 +159,7 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
     }
 
     private fun String.asEscapedIdentifier(): String {
-        return JsToStringGenerationVisitor.javaScriptString(this, true).toString()
+        return JsToStringGenerationVisitor.javaScriptString(this, true)
     }
 
     private val ExportedMember.propertyMemberName: String
@@ -268,18 +287,25 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
     private fun ExportedObject.generateTypeScriptString(indent: String, prefix: String): String {
         val shouldGenerateObjectWithGetInstance = isEsModules && !isExternal && isTopLevel
         val constructorTypeReference =
-            if (shouldGenerateObjectWithGetInstance) MetadataConstructor else "$name.$Metadata.$MetadataConstructor"
+            if (shouldGenerateObjectWithGetInstance)
+                FqName(MetadataConstructor)
+            else
+                FqName.fromSegments(listOf(name, Metadata, MetadataConstructor))
 
         val substitutionOfObjectTypeToItsShapeClass = mapOf<ExportedType, ExportedType>(
             ExportedType.TypeOf(
                 ExportedType.ClassType(
-                    name,
+                    FqName(name),
                     emptyList(),
                     classId = originalClassId,
                 )
             )
-                    to ExportedType.ClassType(MetadataConstructor, emptyList())
+                    to ExportedType.ClassType(FqName(MetadataConstructor), emptyList())
         )
+
+        val [staticMembers, instanceMembers] = if (shouldGenerateObjectWithGetInstance) {
+            members.partition { it is ExportedMember && it.isStatic }
+        } else emptyList<ExportedDeclaration>() to members
 
         val classContainingShape = ExportedRegularClass(
             name = MetadataConstructor,
@@ -291,7 +317,7 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
             nestedClasses = emptyList(),
             superClasses = superClasses.map { it.replaceTypes(substitutionOfObjectTypeToItsShapeClass) },
             superInterfaces = superInterfaces,
-            members = members + ExportedConstructor(emptyList(), ExportedVisibility.PRIVATE),
+            members = instanceMembers + ExportedConstructor(emptyList(), ExportedVisibility.PRIVATE),
             originalClassId = originalClassId,
         )
 
@@ -302,7 +328,7 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
             isExternal = isExternal,
             requireMetadata = false,
             typeParameters = typeParameters,
-            nestedClasses = nestedClasses,
+            nestedClasses = if (shouldGenerateObjectWithGetInstance) emptyList() else nestedClasses,
             superClasses = listOfNotNull(
                 ExportedType.ObjectsParentType(ExportedType.ClassType(constructorTypeReference, emptyList()))
             ),
@@ -318,21 +344,23 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
                 isExternal = isExternal,
                 requireMetadata = false,
                 typeParameters = typeParameters,
-                nestedClasses = emptyList(),
+                nestedClasses = nestedClasses,
                 superClasses = emptyList(),
                 members = listOf(
                     ExportedField(
                         name = ExportedMemberName.Identifier(getInstance),
                         type = ExportedType.Function(
                             emptyList(),
-                            ExportedType.TypeOf(ExportedType.ClassType("$name.$Metadata.$MetadataType", emptyList()))
+                            ExportedType.TypeOf(
+                                ExportedType.ClassType(FqName.fromSegments(listOf(name, Metadata, MetadataType)), emptyList())
+                            )
                         ),
                         isMember = true,
                         mutable = false,
                         isStatic = true,
                     ),
                     ExportedConstructor(emptyList(), ExportedVisibility.PRIVATE),
-                ),
+                ) + staticMembers,
                 originalClassId = originalClassId,
             )
         }
@@ -346,6 +374,11 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
         return "$objectClass\n$objectMetadata${generateDefaultExportIfNeed(name, indent)}"
     }
 
+    private fun ExportedTypeAlias.generateTypeScriptString(indent: String, prefix: String): String {
+        val renderedTypeParameters = renderTypeParameters(typeParameters, includeVariance = true)
+        return "${prefix}type $name$renderedTypeParameters = ${aliasedType.toTypeScript(indent)};"
+    }
+
     private fun ExportedRegularClass.generateTypeScriptString(indent: String, prefix: String): String {
         val keyword = if (isInterface) "interface" else "class"
         val superInterfacesKeyword = if (isInterface) "extends" else "implements"
@@ -353,7 +386,7 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
         val superClassClause = superClasses.toExtendsClause(indent)
         val superInterfacesClause = superInterfaces.toImplementsClause(superInterfacesKeyword, indent)
 
-        val (membersForNamespace, classMembers) = members.partition {
+        val [membersForNamespace, classMembers] = members.partition {
             it is ExportedNamespace || isInterface && it is ExportedMember && it.isStatic
         }
 
@@ -387,7 +420,7 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
                 type = ExportedType.ConstructorType(
                     typeParameters,
                     ExportedType.ClassType(
-                        name,
+                        FqName(name),
                         typeParameters.map(ExportedType::TypeParameterRef),
                         originalClassId,
                     )
@@ -426,7 +459,7 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
             val originallyDefinedSuperClass = implicitlyExportedClassesString.takeIf { it.isNotEmpty() }?.let { "/* $it */ " }.orEmpty()
             val transitivelyDefinedSuperClass = when (val parentType = single { it !is ExportedType.ImplicitlyExportedType }) {
                 is ExportedType.ClassType -> ExportedType.ClassType(
-                    "${parentType.name}.$Metadata.$MetadataConstructor",
+                    FqName.fromSegments(listOf(parentType.name.asString(), Metadata, MetadataConstructor)),
                     parentType.arguments,
                     parentType.classId,
                 )
@@ -438,7 +471,7 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
     }
 
     private fun List<ExportedType>.toImplementsClause(superInterfacesKeyword: String, indent: String): String {
-        val (exportedInterfaces, nonExportedInterfaces) = partition { it !is ExportedType.ImplicitlyExportedType }
+        val [exportedInterfaces, nonExportedInterfaces] = partition { it !is ExportedType.ImplicitlyExportedType }
         val listOfNonExportedInterfaces = nonExportedInterfaces.joinToString(", ") {
             (it as ExportedType.ImplicitlyExportedType).type.toTypeScript(indent, true)
         }
@@ -487,7 +520,25 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
             "abstract new " + renderTypeParameters(typeParameters, includeVariance = false) + "() => ${returnType.toTypeScript(indent, isInCommentContext)}"
 
         is ExportedType.ClassType -> {
-            name + if (arguments.isNotEmpty()) "<${arguments.joinToString(", ") { it.toTypeScript(indent, isInCommentContext) }}>" else ""
+            val className = buildString {
+                name.pathSegments().forEachIndexed { index, segment ->
+                    segment.asString().let {
+                        when {
+                            it.isValidES5Identifier() -> {
+                                if (index > 0) append(".")
+                                append(it)
+                            }
+                            index > 0 -> append("[", it.asEscapedIdentifier(), "]")
+                            else -> append(it.asEscapedIdentifier())
+                        }
+                    }
+                }
+            }
+            val typeArguments =
+                if (arguments.isNotEmpty()) "<${arguments.joinToString(", ") { it.toTypeScript(indent, isInCommentContext) }}>"
+                else ""
+
+            className + typeArguments
         }
 
 
@@ -540,6 +591,6 @@ public class ExportModelToTsDeclarations(private val moduleKind: ModuleKind) {
             .apply { attributes += ExportedAttribute.DeprecatedAttribute("$Metadata is used for internal purposes, please don't use it in your code, because it can be removed at any moment") }
 
     private fun tsDeprecated(message: String): String {
-        return "/** @deprecated $message */"
+        return "@deprecated $message"
     }
 }

@@ -8,16 +8,14 @@ package org.jetbrains.kotlin.gradle.targets.js.ir
 import org.gradle.api.Action
 import org.gradle.api.tasks.Copy
 import org.gradle.language.base.plugins.LifecycleBasePlugin
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.targets.js.KotlinWasmTargetType
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBinaryMode
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrSubTarget.Companion.DISTRIBUTION_TASK_NAME
 import org.jetbrains.kotlin.gradle.targets.js.npm.npmProject
-import org.jetbrains.kotlin.gradle.tasks.IncrementalSyncTask
+import org.jetbrains.kotlin.gradle.targets.web.WebIsolatedProjectsSupport
+import org.jetbrains.kotlin.gradle.targets.web.webIsolatedProjectsSupport
 import org.jetbrains.kotlin.gradle.tasks.dependsOn
-import org.jetbrains.kotlin.gradle.utils.named
 
-@OptIn(ExperimentalWasmDsl::class)
 class LibraryConfigurator(private val subTarget: KotlinJsIrSubTarget) : SubTargetConfigurator<Copy, Nothing> {
     private val project = subTarget.target.project
     private val target = subTarget.target
@@ -38,7 +36,12 @@ class LibraryConfigurator(private val subTarget: KotlinJsIrSubTarget) : SubTarge
                 ) {
                     val destinationDir = binary.distribution.outputDirectory
 
-                    if (subTarget is KotlinJsIrNpmBasedSubTarget && target.wasmTargetType != KotlinWasmTargetType.WASI) {
+                    if (
+                        subTarget is KotlinJsIrNpmBasedSubTarget &&
+                        target.wasmTargetType != KotlinWasmTargetType.WASI &&
+                        // The public package.json task is only registered by RootResolver npm dependency management.
+                        project.webIsolatedProjectsSupport == WebIsolatedProjectsSupport.Off
+                    ) {
                         val npmProject = compilation.npmProject
                         it.from(project.tasks.named(npmProject.publicPackageJsonTaskName))
                     }

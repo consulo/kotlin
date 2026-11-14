@@ -1,13 +1,16 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // WITH_STDLIB
 // ISSUE: KT-68688
+// LANGUAGE: -FullValueClasses -ExplicitInlineValueClassesSyntaxRequiredOnAllPlatforms
+// LANGUAGE: -StrictEquals
+//  ^^^ KT-88389
 
 // MODULE: m1-common
 // FILE: common.kt
 
 // Value classes can't be written without a constructor. That's why `private constructor` is allowed
 // Oh, private properties of value classes are allowed as well for the same reason. Have fun
-expect value class Value private constructor(private val x: Int)
+expect <!INLINE_VALUE_CLASS_WITHOUT_EXPLICIT_INLINE_WARNING!>value<!> class Value private constructor(private val x: Int)
 
 // MODULE: m2-jvm()()(m1-common)
 // FILE: jvm.kt

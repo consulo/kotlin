@@ -9,7 +9,6 @@ import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirModuleData
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
 import org.jetbrains.kotlin.fir.declarations.FirVariable
@@ -45,56 +44,77 @@ interface DestructuringContext<T> {
     ): FirExpression = buildExpression()
 }
 
+/**
+ * @param isMember whether the entries are members of a class or a file even in a local context, e.g., in a local class.
+ *   It is the case for top-level and member destructuring declarations outside of scripts.
+ * @param isCompanionBlockMember whether the entries are static members declared in a companion block.
+ */
 context(c: DestructuringContext<T>)
-fun <T> AbstractRawFirBuilder<*>.addDestructuringVariables(
+fun <T> AbstractRawFirBuilder<*, *>.addDestructuringVariables(
     destination: MutableList<in FirVariable>,
+    context: Context<*>,
     moduleData: FirModuleData,
     container: FirVariable,
     entries: List<T>,
-    isNameBased: Boolean,
+    kind: DestructuringKind,
     isTmpVariable: Boolean,
     forceLocal: Boolean,
+    isMember: Boolean = false,
+    isCompanionBlockMember: Boolean = false,
     configure: (FirVariable) -> Unit = {}
 ) {
     if (isTmpVariable) {
         destination += container
     }
-    for ((index, entry) in entries.withIndex()) {
+    for ([index, entry] in entries.withIndex()) {
         destination += buildDestructuringVariable(
+            context,
             moduleData,
             container,
             entry,
-            isNameBased,
+            kind,
             forceLocal,
             index,
+            isMember,
+            isCompanionBlockMember,
             configure,
         )
     }
 }
 
+enum class DestructuringKind {
+    NameBased,
+    PositionalWithSquareBrackets,
+    PositionalWithParentheses,
+}
+
 context(c: DestructuringContext<T>)
-fun <T> AbstractRawFirBuilder<*>.buildDestructuringVariable(
+fun <T> AbstractRawFirBuilder<*, *>.buildDestructuringVariable(
+    context: Context<*>,
     moduleData: FirModuleData,
     container: FirVariable,
     entry: T,
-    isNameBased: Boolean,
+    kind: DestructuringKind,
     forceLocal: Boolean,
     index: Int,
+    isMember: Boolean = false,
+    isCompanionBlockMember: Boolean = false,
     configure: (FirVariable) -> Unit = {}
 ): FirVariable = with(c) {
     buildProperty {
-        val localEntries = forceLocal || context.inLocalContext
+        val inLocalContext = forceLocal || context.inLocalContext
+        val localEntries = inLocalContext && !isMember
         symbol = when {
             localEntries -> FirLocalPropertySymbol()
             else -> FirRegularPropertySymbol(callableIdForName(entry.name))
         }
-        withContainerSymbol(symbol, localEntries) {
+        context.withContainerSymbol(symbol, localEntries) {
             this.moduleData = moduleData
             origin = FirDeclarationOrigin.Source
             returnTypeRef = entry.returnTypeRef
             name = entry.name
             initializer = interceptExpressionBuilding(entry.source) {
-                if (isNameBased) {
+                if (kind == DestructuringKind.NameBased) {
                     val entryFakeSource = entry.source.fakeElement(KtFakeSourceElementKind.DesugaredNameBasedDestructuring)
                     val initializerFakeSource = entry.initializerSource?.fakeElement(KtFakeSourceElementKind.DesugaredNameBasedDestructuring) ?: entryFakeSource
 
@@ -117,37 +137,54 @@ fun <T> AbstractRawFirBuilder<*>.buildDestructuringVariable(
                         }
                     }
                 } else {
-                    container.toComponentCall(entry.source, index)
+                    container.toComponentCall(
+                        entrySource = entry.source,
+                        index = index,
+                        initializerName = entry.initializerName ?: entry.name,
+                        isShortFormWithParentheses = kind == DestructuringKind.PositionalWithParentheses
+                    )
                 }
             }
             this.isVar = entry.isVar
             source = entry.source
-            status = FirDeclarationStatusImpl(if (localEntries) Visibilities.Local else Visibilities.Public, Modality.FINAL)
-            isLocal = localEntries
+            status = FirDeclarationStatusImpl(if (localEntries) Visibilities.Local else Visibilities.Public, Modality.FINAL).apply {
+                isStatic = isCompanionBlockMember
+            }
+
+            isLocal = inLocalContext
             context.containerSymbolIfAny?.let { entry.extractAnnotationsTo(this, it) }
             if (!localEntries) {
-                dispatchReceiverType = currentDispatchReceiverType()
+                if (!isCompanionBlockMember) {
+                    dispatchReceiverType = currentDispatchReceiverType(context)
+                }
+
                 getter = FirDefaultPropertyGetter(
-                    source = source?.fakeElement(KtFakeSourceElementKind.DefaultAccessor),
+                    source = source?.fakeElement(KtFakeSourceElementKind.DefaultAccessor.Getter),
                     moduleData = moduleData,
                     origin = FirDeclarationOrigin.Source,
                     propertyTypeRef = returnTypeRef,
-                    visibility = Visibilities.Public,
                     propertySymbol = symbol,
-                    modality = Modality.FINAL,
+                    status = FirDeclarationStatusImpl(Visibilities.Public, Modality.FINAL).apply { isStatic = isCompanionBlockMember },
                 )
                 if (entry.isVar) {
                     setter = FirDefaultPropertySetter(
-                        source = source?.fakeElement(KtFakeSourceElementKind.DefaultAccessor),
+                        source = source?.fakeElement(KtFakeSourceElementKind.DefaultAccessor.Setter),
                         moduleData = moduleData,
                         origin = FirDeclarationOrigin.Source,
                         propertyTypeRef = returnTypeRef,
-                        visibility = Visibilities.Public,
                         propertySymbol = symbol,
-                        modality = Modality.FINAL,
+                        status = FirDeclarationStatusImpl(Visibilities.Public, Modality.FINAL).apply { isStatic = isCompanionBlockMember },
                     )
                 }
             }
         }
-    }.also(configure)
+    }.also {
+        if (isCompanionBlockMember) {
+            it.initContainingClassAttr(context)
+            it.getter?.initContainingClassAttr(context)
+            it.setter?.initContainingClassAttr(context)
+        }
+
+        configure(it)
+    }
 }

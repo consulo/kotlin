@@ -8,23 +8,31 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.compiler.based
 import org.jetbrains.kotlin.analysis.low.level.api.fir.AbstractFirOutOfContentRootLazyBodiesCalculatorTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.AbstractLLSourceAnnotationArgumentsCalculatorTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.AbstractLLSourceLikeLazyBodiesCalculatorTest
+import org.jetbrains.kotlin.analysis.low.level.api.fir.AbstractLLSourceLikeRawFirBuilderLazyBodiesTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.AbstractLLSourceLikeStubBasedResolutionTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.compiler.based.*
 import org.jetbrains.kotlin.generators.dsl.TestGroup
 import org.jetbrains.kotlin.generators.dsl.junit5.generateTestGroupSuiteWithJUnit5
+import org.jetbrains.kotlin.generators.tests.provider
 import org.jetbrains.kotlin.generators.util.TestGeneratorUtil
 import org.jetbrains.kotlin.generators.util.TestGeneratorUtil.KT_OR_KTS
 import org.jetbrains.kotlin.generators.util.TestGeneratorUtil.canFreezeIDE
 import org.jetbrains.kotlin.spec.utils.GeneralConfiguration
 import org.jetbrains.kotlin.spec.utils.tasks.detectDirsWithTestsMapFileOnly
 import org.jetbrains.kotlin.test.utils.CUSTOM_TEST_DATA_EXTENSION_PATTERN
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerPlugins
 
 fun main(args: Array<String>) {
     val generatedTestRoot = args[0]
     generateTestGroupSuiteWithJUnit5(args) {
-        testGroup(generatedTestRoot, "compiler/fir/raw-fir/psi2fir/testData") {
+        testGroup(generatedTestRoot, "compiler/fir/raw-fir/testData") {
+            // REPL snippets are not supported by the Analysis API
+            fun TestGroup.TestClass.rawBuilderInit() {
+                model("rawBuilder", pattern = KT_OR_KTS, excludedPattern = TestGeneratorUtil.REPL_KTS)
+            }
+
             testClass<AbstractLLSourceLikeLazyBodiesCalculatorTest> {
-                model("rawBuilder", pattern = KT_OR_KTS)
+                rawBuilderInit()
             }
 
             testClass<AbstractFirOutOfContentRootLazyBodiesCalculatorTest> {
@@ -32,30 +40,15 @@ fun main(args: Array<String>) {
             }
 
             testClass<AbstractLLSourceAnnotationArgumentsCalculatorTest> {
-                model("rawBuilder", pattern = KT_OR_KTS)
+                rawBuilderInit()
             }
 
             testClass<AbstractLLSourceLikeStubBasedResolutionTest> {
-                model("rawBuilder", pattern = KT_OR_KTS)
-            }
-        }
-
-        testGroup(generatedTestRoot, "compiler/fir/analysis-tests/testData") {
-            fun TestGroup.TestClass.modelInit() {
-                model("resolve", pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME.canFreezeIDE, excludeDirs = listOf("headerMode"))
-                model("resolveWithStdlib", pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME.canFreezeIDE)
+                rawBuilderInit()
             }
 
-            testClass<AbstractLLDiagnosticsTest>(suiteTestClassName = "LLDiagnosticsFirTestGenerated") {
-                modelInit()
-            }
-
-            testClass<AbstractLLReversedDiagnosticsTest>(suiteTestClassName = "LLReversedDiagnosticsFirTestGenerated") {
-                modelInit()
-            }
-
-            testClass<AbstractLLPartialDiagnosticsTest>(suiteTestClassName = "LLPartialDiagnosticsFirTestGenerated") {
-                modelInit()
+            testClass<AbstractLLSourceLikeRawFirBuilderLazyBodiesTest> {
+                rawBuilderInit()
             }
         }
 
@@ -63,36 +56,81 @@ fun main(args: Array<String>) {
             this.run {
                 fun TestGroup.TestClass.scriptDiagnosticsInit() {
                     model(
-                        "diagnostics/testScripts",
+                        "diagnostics/scriptsWithCustomDefinitions",
                         pattern = TestGeneratorUtil.KTS,
                         excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN,
                     )
                 }
 
-                testClass<AbstractLLScriptWithCustomDefDiagnosticsTest> {
+                testClass<AbstractLLScriptWithCustomDefDiagnosticsTest>(
+                    annotations = listOf(provider<MustRunOnChangesInCompilerPlugins>())
+                ) {
                     scriptDiagnosticsInit()
                 }
 
-                testClass<AbstractLLReversedScriptWithCustomDefDiagnosticsTest>() {
+                testClass<AbstractLLReversedScriptWithCustomDefDiagnosticsTest>(
+                    annotations = listOf(provider<MustRunOnChangesInCompilerPlugins>())
+                ) {
                     scriptDiagnosticsInit()
                 }
             }
 
+
             this.run {
                 fun TestGroup.TestClass.scriptCustomDefBackBoxInit() {
                     model(
-                        "codegen/testScripts",
+                        "codegen/scriptsWithCustomDefinitions",
                         excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN,
                         pattern = KT_OR_KTS,
                     )
                 }
 
-                testClass<AbstractLLScriptWithCustomDefBlackBoxTest> {
+                testClass<AbstractLLScriptWithCustomDefBlackBoxTest>(
+                    annotations = listOf(provider<MustRunOnChangesInCompilerPlugins>())
+                ) {
                     scriptCustomDefBackBoxInit()
                 }
 
-                testClass<AbstractLLReversedScriptWithCustomDefBlackBoxTest>() {
+                testClass<AbstractLLReversedScriptWithCustomDefBlackBoxTest>(
+                    annotations = listOf(provider<MustRunOnChangesInCompilerPlugins>())
+                ) {
                     scriptCustomDefBackBoxInit()
+                }
+            }
+
+            this.run {
+                fun TestGroup.TestClass.scriptBlackBoxInit() {
+                    model("codegen/scripting", pattern = TestGeneratorUtil.KTS)
+                }
+
+                testClass<AbstractLLScriptBlackBoxTest> {
+                    scriptBlackBoxInit()
+                }
+
+                testClass<AbstractLLReversedScriptBlackBoxTest> {
+                    scriptBlackBoxInit()
+                }
+            }
+
+            this.run {
+                fun TestGroup.TestClass.diagnosticsGeneralInit() {
+                    model(
+                        "diagnostics/general",
+                        excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN,
+                        pattern = KT_OR_KTS.canFreezeIDE,
+                    )
+                }
+
+                testClass<AbstractLLDiagnosticsTest>("LLDiagnosticsForScriptsTestGenerated") {
+                    diagnosticsGeneralInit()
+                }
+
+                testClass<AbstractLLReversedDiagnosticsTest>("LLReversedDiagnosticsForScriptsTestGenerated") {
+                    diagnosticsGeneralInit()
+                }
+
+                testClass<AbstractLLPartialDiagnosticsTest>("LLPartialDiagnosticsForScriptsTestGenerated") {
+                    diagnosticsGeneralInit()
                 }
             }
         }
@@ -100,10 +138,12 @@ fun main(args: Array<String>) {
         testGroup(generatedTestRoot, "compiler/testData/diagnostics") {
             fun TestGroup.TestClass.modelInitWasmJs() {
                 model("wasmTests", excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN)
+                model("tests/defaultArguments", excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN)
             }
 
             fun TestGroup.TestClass.modelInitWasmWasi() {
                 model("wasmWasiTests", excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN)
+                model("tests/defaultArguments", excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN)
             }
 
             testClass<AbstractLLWasmJsDiagnosticsTest>(suiteTestClassName = "LLWasmJsDiagnosticsFe10TestGenerated") {
@@ -146,25 +186,36 @@ fun main(args: Array<String>) {
                 model(
                     "diagnostics/tests",
                     excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN,
-                    pattern = KT_OR_KTS,
+                    pattern = KT_OR_KTS.canFreezeIDE,
+                    excludeDirs = listOf("headerMode", "jvm/duplicateJvmSignature", "jvm/exposedPrivate")
+                )
+                model(
+                    "diagnostics/tests/jvm/duplicateJvmSignature/javaInterop",
+                    excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN,
+                    pattern = KT_OR_KTS.canFreezeIDE,
                 )
                 model(
                     "diagnostics/testsWithStdLib",
                     excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN,
                     excludeDirs = listOf("native"),
-                    pattern = KT_OR_KTS,
+                    pattern = KT_OR_KTS.canFreezeIDE,
+                )
+                model(
+                    "diagnostics/testsWithAnyBackend",
+                    excludedPattern = CUSTOM_TEST_DATA_EXTENSION_PATTERN,
+                    pattern = KT_OR_KTS.canFreezeIDE,
                 )
             }
 
-            testClass<AbstractLLDiagnosticsTest>(suiteTestClassName = "LLDiagnosticsFe10TestGenerated") {
+            testClass<AbstractLLDiagnosticsTest> {
                 modelInit()
             }
 
-            testClass<AbstractLLReversedDiagnosticsTest>(suiteTestClassName = "LLReversedDiagnosticsFe10TestGenerated") {
+            testClass<AbstractLLReversedDiagnosticsTest> {
                 modelInit()
             }
 
-            testClass<AbstractLLPartialDiagnosticsTest>(suiteTestClassName = "LLPartialDiagnosticsFe10TestGenerated") {
+            testClass<AbstractLLPartialDiagnosticsTest> {
                 modelInit()
             }
 
@@ -196,18 +247,12 @@ fun main(args: Array<String>) {
                 model("codegen/boxModernJdk")
             }
 
-            this.run {
-                fun TestGroup.TestClass.scriptBlackBoxInit() {
-                    model("codegen/script", pattern = TestGeneratorUtil.KTS)
-                }
+            testClass<AbstractLLMetadataDiagnosticsTest> {
+                model("diagnostics/metadataDiagnosticTests", pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME.canFreezeIDE)
+            }
 
-                testClass<AbstractLLScriptBlackBoxTest> {
-                    scriptBlackBoxInit()
-                }
-
-                testClass<AbstractLLReversedScriptBlackBoxTest> {
-                    scriptBlackBoxInit()
-                }
+            testClass<AbstractLLReversedMetadataDiagnosticsTest> {
+                model("diagnostics/metadataDiagnosticTests", pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME.canFreezeIDE)
             }
         }
 

@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactory3
 import org.jetbrains.kotlin.diagnostics.rendering.appendDeprecationWarningSuffix
 import org.jetbrains.kotlin.diagnostics.reportOn
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.analysis.checkers.MppCheckerKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.*
@@ -46,7 +47,7 @@ object FirQualifiedAccessJavaNullabilityWarningChecker : FirQualifiedAccessExpre
             suppressWarnings = { actualTypeForComparison -> shouldSuppressWarningForExtensionReceiver(symbol, actualTypeForComparison) }
         )
 
-        for ((contextArgument, contextParameter) in expression.contextArguments.zip(symbol.contextParameterSymbols)) {
+        for ([contextArgument, contextParameter] in expression.contextArguments.zip(symbol.contextParameterSymbols)) {
             contextArgument.checkExpressionForEnhancedTypeMismatch(
                 expectedType = substitutor.substituteOrSelf(contextParameter.resolvedReturnType),
                 FirJvmErrors.TYPE_MISMATCH_BASED_ON_JAVA_ANNOTATIONS
@@ -54,7 +55,8 @@ object FirQualifiedAccessJavaNullabilityWarningChecker : FirQualifiedAccessExpre
         }
 
         if (expression is FirFunctionCall) {
-            expression.resolvedArgumentMapping?.forEach { (argument, parameter) ->
+            expression.resolvedArgumentMapping?.forEach { [argument, parameter] ->
+                if (argument is FirAnonymousFunctionExpression && argument.anonymousFunction.isLambda) return@forEach
                 argument.checkExpressionForEnhancedTypeMismatch(
                     expectedType = substitutor.substituteOrSelf(parameter.returnTypeRef.coneType),
                     FirJvmErrors.TYPE_MISMATCH_BASED_ON_JAVA_ANNOTATIONS
@@ -74,7 +76,7 @@ private fun checkDispatchReceiver(
     if (actualDispatchReceiverType == null || expectedDispatchReceiverType == null) return
 
     val substitutor = enhancedForWarningSubstitutor()
-    val enhancedDispatchReceiverType = substitutor.substituteOrNull(actualDispatchReceiverType) ?: return
+    val enhancedDispatchReceiverType = substitutor.substituteOrSelf(actualDispatchReceiverType)
 
     if (!actualDispatchReceiverType.canLowerBoundBeNull() && enhancedDispatchReceiverType.canLowerBoundBeNull()) {
 
@@ -149,7 +151,7 @@ private fun checkDispatchReceiver(
 
 context(context: CheckerContext)
 private fun ConeKotlinType.canLowerBoundBeNull(): Boolean {
-    return lowerBoundIfFlexible().canBeNull(context.session)
+    return lowerBoundIfFlexible().canBeNull()
 }
 
 /**
@@ -252,7 +254,7 @@ object FirReturnJavaNullabilityWarningChecker : FirReturnExpressionChecker(MppCh
 context(context: CheckerContext, reporter: DiagnosticReporter)
 private fun FirExpression.checkConditionForEnhancedTypeMismatch() {
     checkExpressionForEnhancedTypeMismatch(
-        context.session.builtinTypes.booleanType.coneType,
+        StandardTypes.Boolean,
         FirJvmErrors.TYPE_MISMATCH_BASED_ON_JAVA_ANNOTATIONS
     )
 }
@@ -266,7 +268,7 @@ internal fun FirExpression.checkExpressionForEnhancedTypeMismatch(
     if (expectedType == null) return
     val actualType = resolvedType
 
-    val (actualTypeForComparison, expectedTypeForComparison) = getEnhancedTypesForComparison(actualType, expectedType)
+    val [actualTypeForComparison, expectedTypeForComparison] = getEnhancedTypesForComparison(actualType, expectedType)
         ?: return
 
     if (!actualTypeForComparison.isSubtypeOf(context.session.typeContext, expectedTypeForComparison) &&
@@ -302,15 +304,22 @@ private fun buildSuffix(
             actualType.isEnhancedTypeForWarningDeprecation || expectedType.isEnhancedTypeForWarningDeprecation -> {
                 appendDeprecationWarningSuffix(LanguageFeature.SupportJavaErrorEnhancementOfArgumentsOfWarningLevelEnhanced)
             }
-            actualType.isExplicitTypeArgumentMadeFlexibleSynthetically() || expectedType.isExplicitTypeArgumentMadeFlexibleSynthetically() -> {
-                appendDeprecationWarningSuffix(LanguageFeature.DontMakeExplicitNullableJavaTypeArgumentsFlexible)
+            else -> {
+                val feature = actualType.featureFromExplicitTypeArgumentMadeFlexibleSynthetically()
+                    ?: expectedType.featureFromExplicitTypeArgumentMadeFlexibleSynthetically()
+                if (feature != null) {
+                    appendDeprecationWarningSuffix(feature)
+                }
             }
         }
     }
 }
 
 private fun ConeKotlinType.isExplicitTypeArgumentMadeFlexibleSynthetically(): Boolean =
-    attributes.explicitTypeArgumentIfMadeFlexibleSynthetically?.relevantFeature == LanguageFeature.DontMakeExplicitNullableJavaTypeArgumentsFlexible
+    attributes.explicitTypeArgumentIfMadeFlexibleSynthetically != null
+
+private fun ConeKotlinType.featureFromExplicitTypeArgumentMadeFlexibleSynthetically(): LanguageFeature? =
+    attributes.explicitTypeArgumentIfMadeFlexibleSynthetically?.relevantFeature
 
 context(context: CheckerContext)
 private fun getEnhancedTypesForComparison(
@@ -336,8 +345,5 @@ private fun getEnhancedTypesForComparison(
 
 context(context: CheckerContext)
 private fun enhancedForWarningSubstitutor(): EnhancedForWarningConeSubstitutor {
-    return EnhancedForWarningConeSubstitutor(
-        context.session.typeContext,
-        useExplicitTypeArgumentIfMadeFlexibleSyntheticallyWithFeature = LanguageFeature.DontMakeExplicitNullableJavaTypeArgumentsFlexible
-    )
+    return EnhancedForWarningConeSubstitutor(context.session.typeContext)
 }

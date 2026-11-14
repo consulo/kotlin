@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.incremental
 
 import com.google.common.io.Closer
+import org.jetbrains.kotlin.compilerRunner.OutputItemsCollectorImpl
 import org.jetbrains.kotlin.incremental.components.SubtypeTracker
 import org.jetbrains.kotlin.incremental.storage.BasicMapsOwner
 import org.jetbrains.kotlin.serialization.SerializerExtensionProtocol
@@ -45,6 +46,18 @@ abstract class IncrementalCachesManager<PlatformCache : AbstractIncrementalCache
     val lookupCache: LookupStorage = LookupStorage(lookupCacheDir, icContext).apply { registerCache() }
     val compilerPluginFilesCache: CompilerPluginFilesCache = CompilerPluginFilesCache(compilerPluginFilesCacheDir, icContext).apply { registerCache() }
     abstract val platformCache: PlatformCache
+
+    init {
+        icContext.compilerGeneratedSyntheticSources.addAll(compilerPluginFilesCache.getSourceFilesGeneratedByPlugins())
+    }
+
+    open fun recordCompilerPluginFilesCaches(outputItemsCollector: OutputItemsCollectorImpl) {
+        compilerPluginFilesCache.let {
+            it.recordSourceFilesReferencedByPlugins(outputItemsCollector.sourcesReferencedByCompilerPlugin)
+            it.recordOutputFilesGeneratedByPlugins(outputItemsCollector.outputsFileGeneratedForPlugin)
+            it.recordSourceFilesGeneratedByPlugins(outputItemsCollector.sourceFileGeneratedForPlugin)
+        }
+    }
 
     @Suppress("UnstableApiUsage")
     @Synchronized

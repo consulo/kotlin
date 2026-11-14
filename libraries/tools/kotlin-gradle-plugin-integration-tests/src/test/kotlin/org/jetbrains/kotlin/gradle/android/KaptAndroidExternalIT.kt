@@ -5,20 +5,25 @@
 
 package org.jetbrains.kotlin.gradle.android
 
-import org.gradle.api.JavaVersion
-import org.gradle.api.logging.LogLevel
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.KaptBaseIT
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerPlugins
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import kotlin.io.path.appendText
 
 @DisplayName("Android with kapt external dependencies tests")
 @AndroidGradlePluginTests
+@MustRunOnChangesInGradle
+@MustRunOnChangesInCompilerPlugins
 open class KaptAndroidExternalIT : KaptBaseIT() {
 
+    @TestMetadata("kapt/android-dagger")
     @DisplayName("kapt works with dagger")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testDagger(
         gradleVersion: GradleVersion,
         agpVersion: String,
@@ -35,11 +40,7 @@ open class KaptAndroidExternalIT : KaptBaseIT() {
                 assertFileInProjectExists("app/build/generated/source/kapt/debug/com/example/dagger/kotlin/DaggerApplicationComponent.java")
                 assertFileInProjectExists("app/build/generated/source/kapt/debug/com/example/dagger/kotlin/ui/HomeActivity_MembersInjector.java")
 
-                val daggerJavaClassesDir = if (gradleVersion < GradleVersion.version(TestVersions.Gradle.G_8_5)) {
-                    "app/build/intermediates/javac/debug/classes/com/example/dagger/kotlin/"
-                } else {
-                    "app/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/example/dagger/kotlin/"
-                }
+                val daggerJavaClassesDir = "app/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes/com/example/dagger/kotlin/"
 
                 assertFileInProjectExists(daggerJavaClassesDir + "DaggerApplicationComponent.class")
 
@@ -48,6 +49,7 @@ open class KaptAndroidExternalIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/android-dbflow")
     @DisplayName("kapt works with DbFlow")
     @GradleAndroidTest
     fun testDbFlow(
@@ -73,6 +75,7 @@ open class KaptAndroidExternalIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/android-realm")
     @DisplayName("kapt works with realm")
     @GradleAndroidTest
     fun testRealm(
@@ -88,14 +91,6 @@ open class KaptAndroidExternalIT : KaptBaseIT() {
                 .copy(androidVersion = agpVersion, freeArgs = listOf("-Prealm_version=$realmVersion")),
             buildJdk = jdkVersion.location,
         ) {
-            if (gradleVersion <= GradleVersion.version(TestVersions.Gradle.G_7_6)) {
-                // The Transform API uses incremental APIs deprecated since Gradle 7.5
-                gradleProperties.appendText(
-                    """
-                    android.experimental.legacyTransform.forceNonIncremental=true
-                    """.trimIndent()
-                )
-            }
             build("assembleDebug") {
                 assertKaptSuccessful()
                 assertFileInProjectExists("build/generated/source/kapt/debug/io/realm/io_realm_examples_kotlin_model_CatRealmProxy.java")
@@ -110,8 +105,10 @@ open class KaptAndroidExternalIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/android-databinding")
     @DisplayName("kapt works with databinding")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     open fun testDatabinding(
         gradleVersion: GradleVersion,
         agpVersion: String,
@@ -121,8 +118,7 @@ open class KaptAndroidExternalIT : KaptBaseIT() {
             "android-databinding".withPrefix,
             gradleVersion,
             buildOptions = defaultBuildOptions.copy(androidVersion = agpVersion),
-            // remove the `if` when we drop support for [TestVersions.AGP.AGP_42]
-            buildJdk = if (jdkVersion.version >= JavaVersion.VERSION_11) jdkVersion.location else jdk11Info.javaHome
+            buildJdk = jdkVersion.location,
         ) {
             // Remove the once minimal supported AGP version will be 8.1.0: https://issuetracker.google.com/issues/260059413
             gradleProperties.appendText(
@@ -148,8 +144,10 @@ open class KaptAndroidExternalIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/androidx-navigation-safe-args")
     @DisplayName("KT-30735: kapt works with androidx.navigation.safeargs")
     @GradleAndroidTest
+    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_813)
     fun testAndroidxNavigationSafeArgs(
         gradleVersion: GradleVersion,
         agpVersion: String,
@@ -169,6 +167,7 @@ open class KaptAndroidExternalIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/android-databinding-androidX")
     @DisplayName("kapt works with androidx")
     @GradleAndroidTest
     fun testDatabindingWithAndroidX(
@@ -179,7 +178,8 @@ open class KaptAndroidExternalIT : KaptBaseIT() {
         project(
             "android-databinding-androidX".withPrefix,
             gradleVersion,
-            buildOptions = defaultBuildOptions.copy(androidVersion = agpVersion),
+            buildOptions = defaultBuildOptions
+                .copy(androidVersion = agpVersion),
             buildJdk = jdkVersion.location
         ) {
             build("kaptDebugKotlin") {
@@ -188,6 +188,7 @@ open class KaptAndroidExternalIT : KaptBaseIT() {
         }
     }
 
+    @TestMetadata("kapt/mpp-android-kapt")
     @DisplayName("KT-61622: common sources are attached in MPP + Android project")
     @GradleAndroidTest
     open fun testMppAndroidKapt(
@@ -199,7 +200,7 @@ open class KaptAndroidExternalIT : KaptBaseIT() {
             "mpp-android-kapt".withPrefix,
             gradleVersion,
             buildOptions = defaultBuildOptions
-                .copy(androidVersion = agpVersion, logLevel = LogLevel.DEBUG),
+                .copy(androidVersion = agpVersion),
             buildJdk = jdkVersion.location
         ) {
             build(":shared:compileDebugKotlinAndroid") {

@@ -21,12 +21,11 @@ fun copyK2JVMCompilerArguments(from: K2JVMCompilerArguments, to: K2JVMCompilerAr
     to.classpath = from.classpath
     to.defaultScriptExtension = from.defaultScriptExtension
     to.destination = from.destination
+    to.directJavaActualization = from.directJavaActualization
     to.disableStandardScript = from.disableStandardScript
-    to.doNotClearBindingContext = from.doNotClearBindingContext
     to.emitJvmTypeAnnotations = from.emitJvmTypeAnnotations
     to.enableDebugMode = from.enableDebugMode
     to.enableJvmPreview = from.enableJvmPreview
-    to.enhanceTypeParameterTypesToDefNotNull = from.enhanceTypeParameterTypesToDefNotNull
     to.enhancedCoroutinesDebugging = from.enhancedCoroutinesDebugging
     to.expression = from.expression
     to.friendPaths = from.friendPaths.copyOf()
@@ -34,6 +33,7 @@ fun copyK2JVMCompilerArguments(from: K2JVMCompilerArguments, to: K2JVMCompilerAr
     to.includeRuntime = from.includeRuntime
     to.indyAllowAnnotatedLambdas = from.indyAllowAnnotatedLambdas
     to.inheritMultifileParts = from.inheritMultifileParts
+    to.javaDirect = from.javaDirect
     to.javaModulePath = from.javaModulePath
     to.javaPackagePrefix = from.javaPackagePrefix
     to.javaParameters = from.javaParameters
@@ -47,10 +47,7 @@ fun copyK2JVMCompilerArguments(from: K2JVMCompilerArguments, to: K2JVMCompilerAr
     to.jvmDefaultStable = from.jvmDefaultStable
     to.jvmExposeBoxed = from.jvmExposeBoxed
     to.jvmTarget = from.jvmTarget
-    to.klibLibraries = from.klibLibraries
     to.lambdas = from.lambdas
-    @Suppress("DEPRECATION")
-    to.linkViaSignatures = from.linkViaSignatures
     to.moduleName = from.moduleName
     to.noCallAssertions = from.noCallAssertions
     to.noJdk = from.noJdk
@@ -73,16 +70,15 @@ fun copyK2JVMCompilerArguments(from: K2JVMCompilerArguments, to: K2JVMCompilerAr
     to.strictMetadataVersionSemantics = from.strictMetadataVersionSemantics
     to.stringConcat = from.stringConcat
     to.supportCompatqualCheckerFrameworkAnnotations = from.supportCompatqualCheckerFrameworkAnnotations
-    to.suppressDeprecatedJvmTargetWarning = from.suppressDeprecatedJvmTargetWarning
     to.suppressMissingBuiltinsError = from.suppressMissingBuiltinsError
-    to.typeEnhancementImprovementsInStrictMode = from.typeEnhancementImprovementsInStrictMode
     to.useFastJarFileSystem = from.useFastJarFileSystem
     to.useInlineScopesNumbers = from.useInlineScopesNumbers
+    to.useMetadataOnIncrementalClasspath = from.useMetadataOnIncrementalClasspath
     to.useOldClassFilesReading = from.useOldClassFilesReading
     to.useOldInlineClassesManglingScheme = from.useOldInlineClassesManglingScheme
     to.useTypeTable = from.useTypeTable
+    to.valhallaValueClasses = from.valhallaValueClasses
     to.validateBytecode = from.validateBytecode
-    to.valueClasses = from.valueClasses
     to.whenExpressionsGeneration = from.whenExpressionsGeneration
 
     return to

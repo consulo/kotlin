@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.ir.backend.js
 
 import org.jetbrains.kotlin.backend.common.CommonBackendContext
 import org.jetbrains.kotlin.backend.common.InlineClassesUtils
+import org.jetbrains.kotlin.descriptors.ValueClassBackendAgnosticApi
 import org.jetbrains.kotlin.ir.backend.js.utils.isDispatchReceiver
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
@@ -39,9 +40,20 @@ interface JsCommonBackendContext : CommonBackendContext {
     val externalPackageFragment: MutableMap<IrFileSymbol, IrFile>
     val additionalExportedDeclarations: Set<IrDeclaration>
     val bodilessBuiltInsPackageFragment: IrPackageFragment
+
+    /**
+     * This exists to allow caching in [Effects]. During an effect analysis pass,
+     * we can't cache the values of cells because their dependencies can change (invalidating the cache).
+     * @see Effects
+     * @see org.jetbrains.kotlin.ir.backend.js.lower.EffectAnalysisLowering
+     */
+    var effectAnalysisFinished: Boolean
 }
 
 interface JsCommonInlineClassesUtils : InlineClassesUtils {
+    @OptIn(ValueClassBackendAgnosticApi::class)
+    override fun isClassInlineLike(klass: IrClass): Boolean =
+        klass.isInlineClass(treatCompatibleFullValueClassesAsInline = true)
 
     /**
      * Returns the inlined class for the given type, or `null` if the type is not inlined.

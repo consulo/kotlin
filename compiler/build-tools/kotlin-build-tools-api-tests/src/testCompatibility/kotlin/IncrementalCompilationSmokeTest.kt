@@ -5,39 +5,44 @@
 
 package org.jetbrains.kotlin.buildtools.tests
 
+import org.jetbrains.kotlin.buildtools.api.SourcesChanges
 import org.jetbrains.kotlin.buildtools.api.arguments.CommonToolArguments.Companion.VERBOSE
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmCompilationOperation
 import org.jetbrains.kotlin.buildtools.tests.compilation.BaseCompilationTest
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertCompiledSources
+import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertLogContainsPatterns
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertLogContainsSubstringExactlyTimes
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertOutputs
-import org.jetbrains.kotlin.buildtools.tests.compilation.model.DefaultStrategyAgnosticCompilationTest
-import org.jetbrains.kotlin.buildtools.tests.compilation.model.LogLevel
+import org.jetbrains.kotlin.buildtools.tests.compilation.model.*
 import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.assertNoOutputSetChanges
-import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.scenario
+import org.jetbrains.kotlin.buildtools.tests.compilation.scenario.jvmScenario
+import org.jetbrains.kotlin.buildtools.tests.compilation.util.unwrap
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunAlways
 import org.jetbrains.kotlin.tooling.core.KotlinToolingVersion
-import org.junit.jupiter.api.Assumptions
+import org.junit.jupiter.api.Assumptions.assumeFalse
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.condition.OS
+import java.nio.file.Path
+import kotlin.io.path.name
+import kotlin.io.path.walk
+import kotlin.io.path.writeText
 
+@MustRunAlways
 class IncrementalCompilationSmokeTest : BaseCompilationTest() {
     @DisplayName("IC works with the externally tracked changes, similarly to Gradle")
-    @DefaultStrategyAgnosticCompilationTest
-    @TestMetadata("jvm-module-1")
-    fun multiModuleExternallyTracked(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        runMultiModuleTest(strategyConfig, useTrackedModules = false)
+    @DefaultStrategyAndPlatformAgnosticScenarioTest
+    @TestMetadata("basic-multimodule-project/module-1")
+    fun multiModuleExternallyTracked(scenario: ScenarioCreator) {
+        runMultiModuleTest(scenario, useTrackedModules = false)
     }
 
     @DisplayName("IC works with the changes tracking via our internal machinery, similarly to Maven")
-    @DefaultStrategyAgnosticCompilationTest
-    @TestMetadata("jvm-module-1")
-    fun multiModuleInternallyTracked(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        val kotlinToolchain = strategyConfig.first
-        Assumptions.assumeTrue(
-            KotlinToolingVersion(kotlinToolchain.getCompilerVersion()) >= KotlinToolingVersion(2, 1, 20, "Beta1"),
-            "Internal tracking is supported only since Kotlin 2.1.20-Beta1: KT-70556, the current version is ${kotlinToolchain.getCompilerVersion()}"
-        )
-        runMultiModuleTest(strategyConfig, useTrackedModules = true)
+    @DefaultStrategyAndPlatformAgnosticScenarioTest
+    @TestMetadata("basic-multimodule-project/module-1")
+    fun multiModuleInternallyTracked(scenario: ScenarioCreator) {
+        runMultiModuleTest(scenario, useTrackedModules = true)
     }
 
     @DisplayName("IC works with a mixed Java+Kotlin project via our internal machinery, similarly to Maven")
@@ -45,7 +50,7 @@ class IncrementalCompilationSmokeTest : BaseCompilationTest() {
     @TestMetadata("kotlin-java-mixed")
     fun mixedModuleInternallyTracked(strategyConfig: CompilerExecutionStrategyConfiguration) {
         val kotlinToolchain = strategyConfig.first
-        Assumptions.assumeTrue(
+        assumeTrue(
             KotlinToolingVersion(kotlinToolchain.getCompilerVersion()) >= KotlinToolingVersion(2, 1, 20, "Beta1"),
             "Internal tracking is supported only since Kotlin 2.1.20-Beta1: KT-70556, the current version is ${kotlinToolchain.getCompilerVersion()}"
         )
@@ -59,8 +64,98 @@ class IncrementalCompilationSmokeTest : BaseCompilationTest() {
         runMixedModuleTest(strategyConfig, useTrackedModules = false)
     }
 
+    @DisplayName("Basic IC setup works for JS project")
+    @BtaV2StrategyAgnosticCompilationTest
+    @TestMetadata("js-ic-basic")
+    fun jsBasicIcWorks(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        jsProject(strategyConfig) {
+            val libModule = module("js-ic-basic-lib")
+            val appModule = module("js-ic-basic-app", dependencies = listOf(libModule))
+
+            val libSources = libModule.sourcesDirectory.walk().filter { it.name.endsWith(".kt") }.toList()
+
+            libModule.compileIncrementally(SourcesChanges.ToBeCalculated)
+            appModule.compileIncrementally(SourcesChanges.ToBeCalculated)
+
+            val modifiedFile = libSources.find { file -> file.name == "A.kt" } ?: error("No A.kt file in test project")
+            modifiedFile.writeText(
+                """
+                    class A {
+                        val x = "a"
+                    }
+                """.trimIndent()
+            )
+            libModule.compileIncrementally(SourcesChanges.ToBeCalculated) {
+                val expectedCompiledSources = setOf("A.kt", "useAInLibMain.kt")
+                assertCompiledSources(expectedCompiledSources)
+            }
+            appModule.compileIncrementally(SourcesChanges.Known(libModule.outputDirectory.walk().map(Path::toFile).toList(), emptyList())) {
+                val expectedCompiledSources = setOf("useAInAppMain.kt")
+                assertCompiledSources(expectedCompiledSources)
+            }
+        }
+    }
+
+    @DisplayName("Basic IC setup works for Wasm project")
+    @BtaV2StrategyAgnosticCompilationTest
+    @TestMetadata("js-ic-basic")
+    fun wasmBasicIcWorks(strategyConfig: CompilerExecutionStrategyConfiguration) {
+        wasmProject(strategyConfig) {
+            val libModule = module("js-ic-basic-lib")
+            val appModule = module("js-ic-basic-app", dependencies = listOf(libModule))
+
+            val libSources = libModule.sourcesDirectory.walk().filter { it.name.endsWith(".kt") }.toList()
+
+            libModule.compileIncrementally(SourcesChanges.ToBeCalculated)
+            appModule.compileIncrementally(SourcesChanges.ToBeCalculated)
+
+            val modifiedFile = libSources.find { file -> file.name == "A.kt" } ?: error("No A.kt file in test project")
+            modifiedFile.writeText(
+                """
+                    class A {
+                        val x = "a"
+                    }
+                """.trimIndent()
+            )
+            libModule.compileIncrementally(SourcesChanges.ToBeCalculated) {
+                val expectedCompiledSources = setOf("A.kt", "useAInLibMain.kt")
+                assertCompiledSources(expectedCompiledSources)
+            }
+            appModule.compileIncrementally(SourcesChanges.Known(libModule.outputDirectory.walk().map(Path::toFile).toList(), emptyList())) {
+                val expectedCompiledSources = setOf("useAInAppMain.kt")
+                assertCompiledSources(expectedCompiledSources)
+            }
+        }
+    }
+
+    @DisplayName("Removing a public declaration from a dependency recompiles and fails its dependent usages")
+    @DefaultStrategyAndPlatformAgnosticScenarioTest
+    @TestMetadata("ic-scenarios/removed-declaration/lib")
+    fun removedDeclarationRecompilesDependents(scenario: ScenarioCreator) {
+        scenario {
+            val lib = module("ic-scenarios/removed-declaration/lib")
+            val app = module(
+                "ic-scenarios/removed-declaration/app",
+                dependencies = listOf(lib),
+            )
+
+            lib.replaceFileWithVersion("api.kt", "remove-fun")
+
+            lib.compile {
+                assertCompiledSources("api.kt")
+            }
+            app.compile {
+                expectFail()
+                assertLogContainsPatterns(
+                    LogLevel.ERROR,
+                    ".*[Uu]nresolved reference.*removedApi.*".toRegex(RegexOption.DOT_MATCHES_ALL),
+                )
+            }
+        }
+    }
+
     private fun runMixedModuleTest(strategyConfig: CompilerExecutionStrategyConfiguration, useTrackedModules: Boolean) {
-        scenario(strategyConfig) {
+        jvmScenario(strategyConfig) {
             val compilerArgumentsConf: (JvmCompilationOperation.Builder) -> Unit = {
                 it.compilerArguments[VERBOSE] = true
             }
@@ -75,7 +170,7 @@ class IncrementalCompilationSmokeTest : BaseCompilationTest() {
             module1.compile {
                 assertCompiledSources("main.kt", "bpkg/BClass.kt")
                 assertOutputs("bpkg/MainKt.class", "bpkg/BClass.class")
-                if (strategyConfig.first::class.simpleName != "KotlinToolchainsV1Adapter") { // v1 is not producing some logs and that's expected
+                if (strategyConfig.first.unwrap()::class.simpleName != "KotlinToolchainsV1Adapter") { // v1 is not producing some logs and that's expected
                     val count = if (useTrackedModules) {
                         1
                     } else {
@@ -87,18 +182,28 @@ class IncrementalCompilationSmokeTest : BaseCompilationTest() {
         }
     }
 
-    private fun runMultiModuleTest(strategyConfig: CompilerExecutionStrategyConfiguration, useTrackedModules: Boolean) {
-        scenario(strategyConfig) {
+    private fun runMultiModuleTest(scenario: ScenarioCreator, useTrackedModules: Boolean) {
+        scenario {
+            assumeFalse(
+                KotlinToolingVersion(kotlinToolchains.getCompilerVersion()) == KotlinToolingVersion("2.2.21") && OS.MAC.isCurrentOs,
+                "Known failure on Mac with 2.2.21"
+            )
+            if (useTrackedModules) {
+                assumeTrue(
+                    KotlinToolingVersion(kotlinToolchains.getCompilerVersion()) >= KotlinToolingVersion(2, 1, 20, "Beta1"),
+                    "Internal tracking is supported only since Kotlin 2.1.20-Beta1: KT-70556, the current version is ${kotlinToolchains.getCompilerVersion()}"
+                )
+            }
             val module1 = if (useTrackedModules) {
-                trackedModule("jvm-module-1")
+                trackedModule("basic-multimodule-project/module-1")
             } else {
-                module("jvm-module-1")
+                module("basic-multimodule-project/module-1")
             }
 
             val module2 = if (useTrackedModules) {
-                trackedModule("jvm-module-2", listOf(module1))
+                trackedModule("basic-multimodule-project/module-2", listOf(module1))
             } else {
-                module("jvm-module-2", listOf(module1))
+                module("basic-multimodule-project/module-2", listOf(module1))
             }
 
             module1.createPredefinedFile("secret.kt", "new-file")
@@ -106,11 +211,13 @@ class IncrementalCompilationSmokeTest : BaseCompilationTest() {
             module1.deleteFile("baz.kt")
             module1.compile {
                 assertCompiledSources("secret.kt", "bar.kt")
-                // SecretKt is added, BazKt is removed
-                assertOutputs("SecretKt.class", "Bar.class", "FooKt.class")
+                if (this is JvmCompilationOperation.Builder) {
+                    // SecretKt is added, BazKt is removed
+                    assertOutputs("SecretKt.class", "Bar.class", "FooKt.class")
+                }
             }
             module2.compile {
-                assertCompiledSources( "b.kt")
+                assertCompiledSources("b.kt")
                 assertNoOutputSetChanges()
             }
         }

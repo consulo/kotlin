@@ -7,15 +7,12 @@ plugins {
     id("com.github.johnrengelman.shadow") version "4.0.3" apply false
 }
 
-repositories {
-    mavenCentral()
-}
 
-val baseProtobuf by configurations.creating
-val baseProtobufSources by configurations.creating
-val protobufPatches by configurations.creating
+val baseProtobuf = configurations.create("baseProtobuf")
+val baseProtobufSources = configurations.create("baseProtobufSources")
+val protobufPatches = configurations.create("protobufPatches")
 
-val protobufVersion: String by rootProject.extra
+val protobufVersion = rootProject.extra["protobufVersion"] as String
 val protobufJarPrefix = "protobuf-$protobufVersion"
 
 val renamedSources = "$buildDir/renamedSrc/"

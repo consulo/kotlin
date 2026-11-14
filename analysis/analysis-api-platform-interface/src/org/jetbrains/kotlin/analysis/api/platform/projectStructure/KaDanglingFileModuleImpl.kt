@@ -1,24 +1,24 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.platform.projectStructure
 
 import com.intellij.openapi.project.Project
+import com.intellij.psi.createSmartPointer
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.KaPlatformInterface
+import org.jetbrains.kotlin.analysis.api.impl.base.util.withKaModuleEntry
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileModule
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaDanglingFileResolutionMode
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
-import org.jetbrains.kotlin.analysis.api.utils.errors.withKaModuleEntry
-import org.jetbrains.kotlin.analysis.api.utils.errors.withPsiEntry
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.psi.KtCodeFragment
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.psiUtil.createSmartPointer
 import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 /**
  * The default implementation of the dangling file module, which provides all knowledge from the context module.
@@ -33,7 +33,6 @@ public class KaDanglingFileModuleImpl(
 ) : KaDanglingFileModule, KaModuleBase() {
     override val isCodeFragment: Boolean = files.any { it is KtCodeFragment }
 
-    @Suppress("DEPRECATION")
     private val fileRefs = files.map { it.createSmartPointer() }
 
     init {
@@ -49,7 +48,7 @@ public class KaDanglingFileModuleImpl(
             ) {
                 withKaModuleEntry("contextModule", contextModule)
                 withEntryGroup("this") {
-                    files.forEachIndexed { index, file -> withPsiEntry("file_$index", file, module = null) }
+                    files.forEachIndexed { index, file -> withPsiEntry("file_$index", file) }
                     withEntry("resolutionMode", resolutionMode.toString())
                 }
             }

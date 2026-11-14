@@ -1,14 +1,15 @@
 description = "Parcelize compiler plugin"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
 
 dependencies {
     compileOnly(project(":compiler:util"))
     compileOnly(project(":compiler:plugin-api"))
-    compileOnly(project(":compiler:frontend"))
-    compileOnly(project(":compiler:frontend.java"))
+    compileOnly(project(":compiler:frontend.common-psi"))
     compileOnly(project(":compiler:backend"))
     compileOnly(project(":plugins:parcelize:parcelize-runtime"))
     runtimeOnly(project(":kotlin-compiler-embeddable"))

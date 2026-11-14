@@ -49,15 +49,16 @@ KaVariableSignature:
 
 Declaration Scope:
 KaNamedFunctionSymbol:
+  anchorPsi: PsiMethodImpl
   annotations: []
   callableId: /JavaClass.getValue
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: false
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -72,6 +73,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: getValue
   origin: JAVA_SOURCE
+  psi: PsiMethodImpl
+  realPsi: null
   receiverParameter: null
   returnType: KaFlexibleType:
     annotations: []
@@ -80,15 +83,16 @@ KaNamedFunctionSymbol:
   valueParameters: []
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Any.equals
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -103,6 +107,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: equals
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -111,15 +117,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -131,24 +139,29 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: other
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Any?
+      typeParameters: []
       visibility: PUBLIC
   ]
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Any.hashCode
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -163,6 +176,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: hashCode
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -172,15 +187,16 @@ KaNamedFunctionSymbol:
   valueParameters: []
   visibility: PUBLIC
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: kotlin/Any.toString
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -195,6 +211,8 @@ KaNamedFunctionSymbol:
   modality: OPEN
   name: toString
   origin: LIBRARY
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -204,18 +222,21 @@ KaNamedFunctionSymbol:
   valueParameters: []
   visibility: PUBLIC
 KaSyntheticJavaPropertySymbol:
+  anchorPsi: null
   annotations: []
   backingFieldSymbol: null
   callableId: /JavaClass.value
-  compilerVisibility: Public
+  contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: PsiMethodImpl
     annotations: []
     callableId: /JavaClass.getValue
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -225,10 +246,13 @@ KaSyntheticJavaPropertySymbol:
     location: PROPERTY
     modality: OPEN
     origin: JAVA_SYNTHETIC_PROPERTY
+    psi: PsiMethodImpl
+    realPsi: null
     receiverParameter: null
     returnType: KaFlexibleType:
       annotations: []
       type: kotlin/Int!
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
   hasBackingField: true
@@ -236,11 +260,11 @@ KaSyntheticJavaPropertySymbol:
   hasSetter: false
   initializer: null
   isActual: false
-  isDelegatedProperty: false
+  isCompanion: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isOverride: false
   isStatic: false
   isVal: true
@@ -250,6 +274,8 @@ KaSyntheticJavaPropertySymbol:
   modality: OPEN
   name: value
   origin: JAVA_SYNTHETIC_PROPERTY
+  psi: null
+  realPsi: null
   receiverParameter: null
   returnType: KaFlexibleType:
     annotations: []

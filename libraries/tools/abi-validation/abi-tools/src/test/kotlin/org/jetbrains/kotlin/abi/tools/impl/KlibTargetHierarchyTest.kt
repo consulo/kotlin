@@ -8,7 +8,7 @@ package org.jetbrains.kotlin.abi.tools.impl
 import org.jetbrains.kotlin.abi.tools.KlibTarget
 import org.jetbrains.kotlin.abi.tools.impl.klib.TargetHierarchy
 import org.jetbrains.kotlin.konan.target.KonanTarget
-import org.junit.Test
+import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -50,7 +50,9 @@ class KlibTargetHierarchyTest {
 
     @Test
     fun testAllTargetsAreMapped() {
-        val notMappedTargets = KonanTarget.predefinedTargets.keys.subtract(KlibTarget.supportedKonanNames())
+        val notMappedTargets = KonanTarget.predefinedTargets.keys
+            .subtract(KlibTarget.supportedKonanNames())
+            .minus(KonanTarget.WATCHOS_ARM32.name) // KT-87513. Deprecated with error, not supported by ABI tools
         assertEquals(emptySet(), notMappedTargets,
             "Following targets are not mapped: $notMappedTargets")
     }

@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.konan.test.diagnostics
 
 import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.test.Fir2IrCliNativeFacade
 import org.jetbrains.kotlin.konan.test.FirCliNativeFacade
@@ -24,21 +23,18 @@ import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.builders.klibArtifactsHandlersStep
 import org.jetbrains.kotlin.test.builders.loweredIrHandlersStep
 import org.jetbrains.kotlin.test.cli.CliDirectives.CHECK_COMPILER_OUTPUT
-import org.jetbrains.kotlin.test.configuration.DEFAULT_UNUSED_DIAGNOSTICS
 import org.jetbrains.kotlin.test.configuration.enableLazyResolvePhaseChecking
-import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives.DIAGNOSTICS
-import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.LANGUAGE
 import org.jetbrains.kotlin.test.directives.NativeEnvironmentConfigurationDirectives.WITH_PLATFORM_LIBS
 import org.jetbrains.kotlin.test.directives.TestPhaseDirectives.LATEST_PHASE_IN_PIPELINE
 import org.jetbrains.kotlin.test.directives.configureFirParser
+import org.jetbrains.kotlin.test.frontend.fir.FirFailingTestSuppressor
 import org.jetbrains.kotlin.test.frontend.fir.FirOutputArtifact
 import org.jetbrains.kotlin.test.model.DependencyKind
 import org.jetbrains.kotlin.test.model.FrontendFacade
 import org.jetbrains.kotlin.test.model.FrontendKind
 import org.jetbrains.kotlin.test.model.FrontendKinds
 import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerTest
-import org.jetbrains.kotlin.test.services.LibraryProvider
 import org.jetbrains.kotlin.test.services.PhasedPipelineChecker
 import org.jetbrains.kotlin.test.services.TestPhase
 import org.junit.jupiter.api.Assumptions
@@ -61,12 +57,12 @@ abstract class AbstractDiagnosticsNativeTestBase(
             dependencyKind = DependencyKind.Source
         }
         defaultDirectives {
-            LATEST_PHASE_IN_PIPELINE with TestPhase.BACKEND
-            DIAGNOSTICS with DEFAULT_UNUSED_DIAGNOSTICS.map { "-$it" }
+            LATEST_PHASE_IN_PIPELINE with TestPhase.CODEGEN
         }
-        useAfterAnalysisCheckers(
+        useFailureSuppressors(
             ::BlackBoxCodegenSuppressor,
             ::PhasedPipelineChecker,
+            ::FirFailingTestSuppressor,
         )
         baseNativeDiagnosticTestConfiguration(frontend)
 
@@ -77,7 +73,6 @@ abstract class AbstractDiagnosticsNativeTestBase(
 
         defaultDirectives {
             LANGUAGE + "+EnableDfaWarningsInK2"
-            +FirDiagnosticsDirectives.FIR_IDENTICAL
         }
     }
 
@@ -109,8 +104,6 @@ abstract class AbstractNativeDiagnosticsWithBackendTestBase(parser: FirParser) :
             targetBackend = TargetBackend.NATIVE
         }
 
-        useAdditionalService(::LibraryProvider)
-
         facadeStep(::Fir2IrCliNativeFacade)
         facadeStep(::NativePreSerializationLoweringCliFacade)
         loweredIrHandlersStep { useHandlers(::IrDiagnosticsHandler) }
@@ -118,18 +111,6 @@ abstract class AbstractNativeDiagnosticsWithBackendTestBase(parser: FirParser) :
 
         klibArtifactsHandlersStep {
             useHandlers(::KlibBackendDiagnosticsHandler)
-        }
-    }
-}
-
-abstract class AbstractNativeDiagnosticsWithBackendWithInlinedFunInKlibTestBase : AbstractNativeDiagnosticsWithBackendTestBase(FirParser.LightTree) {
-    override fun configure(builder: TestConfigurationBuilder) = with(builder) {
-        super.configure(builder)
-        defaultDirectives {
-            LANGUAGE with listOf(
-                "+${LanguageFeature.IrIntraModuleInlinerBeforeKlibSerialization.name}",
-                "+${LanguageFeature.IrCrossModuleInlinerBeforeKlibSerialization.name}"
-            )
         }
     }
 }

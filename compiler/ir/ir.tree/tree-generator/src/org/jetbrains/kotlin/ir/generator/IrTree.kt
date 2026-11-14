@@ -47,9 +47,9 @@ import org.jetbrains.kotlin.ir.generator.model.Element.Category.*
 import org.jetbrains.kotlin.ir.generator.model.ListField
 import org.jetbrains.kotlin.ir.generator.model.ListField.Mutability.MutableList
 import org.jetbrains.kotlin.ir.generator.model.ListField.Mutability.Var
+import org.jetbrains.kotlin.ir.generator.model.MapField
 import org.jetbrains.kotlin.ir.generator.model.SimpleField
 import org.jetbrains.kotlin.ir.generator.model.symbol.Symbol
-import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
@@ -424,6 +424,9 @@ object IrTree : AbstractTreeBuilder() {
     val functionWithLateBinding: Element by declarationWithLateBinding(simpleFunctionSymbol) {
         parent(simpleFunction)
     }
+    val constructorWithLateBinding: Element by declarationWithLateBinding(constructorSymbol) {
+        parent(constructor)
+    }
     val propertyWithLateBinding: Element by declarationWithLateBinding(propertySymbol) {
         parent(property)
     }
@@ -596,6 +599,7 @@ object IrTree : AbstractTreeBuilder() {
         +field("isOperator", boolean)
         +field("isInfix", boolean)
         +referencedSymbol("correspondingPropertySymbol", propertySymbol, nullable = true)
+        +referencedSymbol("companionExtensionClass", classSymbol, nullable = true)
     }
     val typeAlias: Element by element(Declaration) {
         parent(declarationBase)
@@ -626,6 +630,9 @@ object IrTree : AbstractTreeBuilder() {
 
         +declaredSymbol(packageFragmentSymbol)
         +field("packageFqName", type<FqName>())
+        +field("module", moduleFragment, isChild = false) {
+            deepCopyExcludeFromConstructor = true
+        }
     }
     val externalPackageFragment: Element by element(Declaration) {
         transformByChildren = true
@@ -637,10 +644,8 @@ object IrTree : AbstractTreeBuilder() {
             Each declaration is contained either in some [${file.render()}], or in some [${externalPackageFragment.render()}].
             Declarations coming from dependencies are located in [${externalPackageFragment.render()}].
             
-            It can be used for obtaining a module descriptor, which contains the information about
-            the module from which the declaration came. It would be more correct to have a link to some
-            [${moduleFragment.render()}] instead, which would make [${moduleFragment.render()}] the only source of truth about modules,
-            but this is how things are now.
+            It can be used for obtaining an [${moduleFragment.render()}], which contains the information about
+            the module from which the declaration came.
             
             Also, it can be used for checking whether some declaration is external (by checking whether its top
             level parent is an [${externalPackageFragment.render()}]). But it is not possible
@@ -661,9 +666,6 @@ object IrTree : AbstractTreeBuilder() {
         parent(metadataSourceOwner)
 
         +declaredSymbol(fileSymbol)
-        +field("module", moduleFragment, isChild = false) {
-            deepCopyExcludeFromApply = true
-        }
         +field("fileEntry", type(Packages.tree, "IrFileEntry"))
     }
 
@@ -744,8 +746,11 @@ object IrTree : AbstractTreeBuilder() {
         parent(constructorCall)
         parent(type<AnnotationMarker>())
 
-        +field("classId", type<ClassId>(), nullable = true)
-        +field("argumentMapping", StandardTypes.map.withArgs(type<Name>(), expression))
+        +referencedSymbol("classSymbol", classSymbol, mutable = false)
+        +mapField("argumentMapping", type<Name>(), expression.copy(nullable = true), mutability = MapField.Mutability.ImmutableMap)
+        +referencedSymbol("symbol", type = constructorSymbol) {
+            optInAnnotation = deprecatedCompilerApi.withArgument("deprecatedSince", "org.jetbrains.kotlin.CompilerVersionOfApiDeprecation._2_4_20")
+        }
     }
     val getSingletonValue: Element by element(Expression) {
         nameInVisitorMethod = "SingletonReference"
@@ -1036,8 +1041,8 @@ object IrTree : AbstractTreeBuilder() {
     val const: Element by element(Expression) {
         parent(expression)
 
-        +field("kind", type(Packages.exprs, "IrConstKind"))
-        +field("value", anyType, nullable = true)
+        +field("kind", type(Packages.exprs, "IrConstKind"), mutable = false)
+        +field("value", anyType, nullable = true, mutable = false)
     }
     val constantValue: Element by element(Expression) {
         transformByChildren = true

@@ -79,7 +79,23 @@ KtUserType(166,173): 'MyClass'
   NO_CANDIDATES
 
 KtNameReferenceExpression(166,173): 'MyClass'
-  NO_CANDIDATES
+  KaApplicableCallCandidate:
+    candidate = KaDelegatedConstructorCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      kind = SUPER_CALL
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = MyClass
+        symbol = <constructor>(): MyClass
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
+    isInBestCandidates = true
 
 KtValueArgumentList(173,175): '()'
   NO_CANDIDATES
@@ -206,7 +222,7 @@ KtConstantExpression(310,311): '1'
   NO_CANDIDATES
 
 KtOperationReferenceExpression(312,329): 'infixEnumConsumer'
-  KaApplicableCallCandidateInfo:
+  KaApplicableCallCandidate:
     candidate = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -267,7 +283,7 @@ KtProperty(345,389): 'val r2 = 1 infixEnumConsumer InheritorObject'
   NO_CANDIDATES
 
 KtBinaryExpression(354,389): '1 infixEnumConsumer InheritorObject'
-  KaApplicableCallCandidate:
+  KaInapplicableCallCandidate:
     candidate = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -301,13 +317,14 @@ KtBinaryExpression(354,389): '1 infixEnumConsumer InheritorObject'
           contextParameters = []
           callableId = null)
       }
+    diagnostic = ERROR<INAPPLICABLE_CANDIDATE: Inapplicable candidate(s): fun Int.infixEnumConsumer(arg: MyEnum): Unit>
     isInBestCandidates = true
 
 KtConstantExpression(354,355): '1'
   NO_CANDIDATES
 
 KtOperationReferenceExpression(356,373): 'infixEnumConsumer'
-  KaApplicableCallCandidateInfo:
+  KaInapplicableCallCandidate:
     candidate = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -341,6 +358,7 @@ KtOperationReferenceExpression(356,373): 'infixEnumConsumer'
           contextParameters = []
           callableId = null)
       }
+    diagnostic = ERROR<INAPPLICABLE_CANDIDATE: Inapplicable candidate(s): fun Int.infixEnumConsumer(arg: MyEnum): Unit>
     isInBestCandidates = true
 
 KtNameReferenceExpression(374,389): 'InheritorObject'
@@ -390,7 +408,7 @@ KtConstantExpression(403,404): '1'
   NO_CANDIDATES
 
 KtOperationReferenceExpression(405,418): 'infixConsumer'
-  KaApplicableCallCandidateInfo:
+  KaApplicableCallCandidate:
     candidate = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []

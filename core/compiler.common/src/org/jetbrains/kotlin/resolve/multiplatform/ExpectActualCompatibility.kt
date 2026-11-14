@@ -61,6 +61,8 @@ sealed class ExpectActualIncompatibility<out D>(open val reason: String) {
         override val reason: Nothing get() = error("This incompatibility should be reported with ACTUAL_IGNORABILITY_NOT_MATCH_EXPECT diagnostic")
     }
 
+    object EqualityBoundsAreDifferent : ExpectActualIncompatibility<Nothing>("the equality bounds are different")
+
     // Functions
     object FunctionModifiersDifferent : ExpectActualIncompatibility<Nothing>("the modifiers are different (suspend)")
     object FunctionModifiersNotSubset :
@@ -82,7 +84,7 @@ sealed class ExpectActualIncompatibility<out D>(open val reason: String) {
     object ClassKind :
         ExpectActualIncompatibility<Nothing>("the class kinds are different (class, interface, object, enum, annotation)")
 
-    object ClassModifiers : ExpectActualIncompatibility<Nothing>("the modifiers are different (companion, inner, inline, value)")
+    object ClassModifiers : ExpectActualIncompatibility<Nothing>("the modifiers are different (companion, inner, inline, value, error)")
     object FunInterfaceModifier :
         ExpectActualIncompatibility<Nothing>("the 'actual' declaration for 'fun expect interface' is not a functional interface")
 

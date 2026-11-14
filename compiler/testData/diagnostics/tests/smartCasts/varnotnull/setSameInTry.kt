@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +SoundSmartCastsAfterTry
+// RUN_PIPELINE_TILL: CODEGEN
 
 fun foo() {
     var s: String?

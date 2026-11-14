@@ -9,9 +9,12 @@ import org.gradle.testkit.runner.BuildResult
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.replaceText
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 
 @DisplayName("Tasks don't have unnamed inputs and outputs")
+@MustRunOnChangesInGradle
 class UnnamedTaskInputsIT : KGPBaseTest() {
 
     override val defaultBuildOptions: BuildOptions
@@ -19,6 +22,7 @@ class UnnamedTaskInputsIT : KGPBaseTest() {
 
     private val localBuildCacheDir get() = workingDir.resolve("custom-jdk-build-cache-2")
 
+    @TestMetadata("simpleProject")
     @JvmGradlePluginTests
     @DisplayName("JVM")
     @GradleTest
@@ -32,6 +36,7 @@ class UnnamedTaskInputsIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlin-js-nodejs-project")
     @JsGradlePluginTests
     @DisplayName("JS")
     @GradleTest
@@ -54,6 +59,7 @@ class UnnamedTaskInputsIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("hierarchical-mpp-multi-modules")
     @MppGradlePluginTests
     @DisplayName("MPP")
     @GradleTest
@@ -66,22 +72,18 @@ class UnnamedTaskInputsIT : KGPBaseTest() {
         ) {
             enableLocalBuildCache(localBuildCacheDir)
 
-            if (!isWithJavaSupported) {
-                subProject("bottom-mpp").buildGradle.replaceText("withJava()", "")
-                subProject("top-mpp").buildGradle.replaceText("withJava()", "")
-            }
-
-            build("assemble", "-Pkotlin.internal.suppressGradlePluginErrors=KotlinTargetAlreadyDeclaredError") {
+            build("assemble", buildOptions = buildOptions.suppressingGradlePluginErrors("KotlinTargetAlreadyDeclaredError")) {
                 assertNoUnnamedInputsOutputs()
             }
         }
     }
 
+    @TestMetadata("kapt/simple")
     @OtherGradlePluginTests
     @DisplayName("Kapt")
     @GradleTest
     fun inputsKapt(gradleVersion: GradleVersion) {
-        project("kapt2/simple", gradleVersion) {
+        project("kapt/simple", gradleVersion) {
             enableLocalBuildCache(localBuildCacheDir)
 
             build("assemble") {

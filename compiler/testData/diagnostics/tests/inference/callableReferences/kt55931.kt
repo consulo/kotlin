@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // ISSUE: KT-55931
-// SKIP_TXT
 
 fun fun1() {}
 fun fun2() {}

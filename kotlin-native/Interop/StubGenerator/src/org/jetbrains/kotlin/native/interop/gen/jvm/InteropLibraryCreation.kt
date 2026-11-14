@@ -4,6 +4,8 @@
  */
 package org.jetbrains.kotlin.native.interop.gen.jvm
 
+import org.jetbrains.kotlin.backend.common.IdSignaturesExtractor.ExtractedSignatures
+import org.jetbrains.kotlin.backend.common.includeSignatureIndex
 import org.jetbrains.kotlin.config.KlibAbiCompatibilityLevel
 import org.jetbrains.kotlin.config.KotlinCompilerVersion
 import org.jetbrains.kotlin.konan.library.writer.includeBitcode
@@ -21,20 +23,22 @@ import org.jetbrains.kotlin.library.uniqueName
 import org.jetbrains.kotlin.library.writer.KlibWriter
 import org.jetbrains.kotlin.library.writer.includeMetadata
 import org.jetbrains.kotlin.util.toCInteropKlibMetadataVersion
+import java.nio.file.Path
 import java.util.*
 
 fun createInteropLibrary(
-    serializedMetadata: SerializedMetadata,
-    outputPath: String,
-    moduleName: String,
-    nativeBitcodeFiles: List<String>,
-    target: KonanTarget,
-    manifest: Properties,
-    dependencies: List<KotlinLibrary>,
-    nopack: Boolean,
-    shortName: String?,
-    staticLibraries: List<String>,
-    klibAbiCompatibilityLevel: KlibAbiCompatibilityLevel,
+        serializedMetadata: SerializedMetadata,
+        outputPath: Path,
+        moduleName: String,
+        nativeBitcodeFiles: List<Path>,
+        target: KonanTarget,
+        manifest: Properties,
+        dependencies: List<KotlinLibrary>,
+        nopack: Boolean,
+        shortName: String?,
+        staticLibraries: List<Path>,
+        klibAbiCompatibilityLevel: KlibAbiCompatibilityLevel,
+        topLevelSignatures: ExtractedSignatures,
 ) {
     KlibWriter {
         format(if (nopack) KlibFormat.Directory else KlibFormat.ZipArchive)
@@ -57,5 +61,6 @@ fun createInteropLibrary(
         includeMetadata(serializedMetadata)
         includeBitcode(target, nativeBitcodeFiles)
         includeNativeIncludedBinaries(target, staticLibraries)
+        includeSignatureIndex(topLevelSignatures)
     }.writeTo(outputPath)
 }

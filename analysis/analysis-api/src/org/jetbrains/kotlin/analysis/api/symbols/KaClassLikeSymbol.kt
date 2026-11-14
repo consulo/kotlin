@@ -11,11 +11,8 @@ import org.jetbrains.kotlin.analysis.api.base.KaContextReceiversOwner
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KaDeclarationContainerSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KaNamedSymbol
-import org.jetbrains.kotlin.analysis.api.symbols.markers.KaTypeParameterOwnerSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 import org.jetbrains.kotlin.analysis.api.types.KaType
-import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
@@ -73,15 +70,16 @@ public abstract class KaTypeParameterSymbol : KaClassifierSymbol(), KaNamedSymbo
      */
     public abstract val isReified: Boolean
 
+    abstract override fun createPointer(): KaSymbolPointer<KaTypeParameterSymbol>
+
+    //region Implementation details
     final override val modality: KaSymbolModality get() = withValidityAssertion { KaSymbolModality.FINAL }
+    final override val visibility: KaSymbolVisibility get() = withValidityAssertion { KaSymbolVisibility.LOCAL }
     final override val isActual: Boolean get() = withValidityAssertion { false }
     final override val isExpect: Boolean get() = withValidityAssertion { false }
     final override val isExternal: Boolean get() = withValidityAssertion { false }
 
-    @KaExperimentalApi
-    final override val compilerVisibility: Visibility get() = withValidityAssertion { Visibilities.Local }
-
-    abstract override fun createPointer(): KaSymbolPointer<KaTypeParameterSymbol>
+    //endregion
 }
 
 /**
@@ -96,6 +94,13 @@ public sealed class KaClassLikeSymbol : KaClassifierSymbol() {
      */
     public abstract val classId: ClassId?
 
+    /**
+     * The declaration's type parameters.
+     *
+     * See [Generics](https://kotlinlang.org/docs/generics.html)
+     */
+    public abstract val typeParameters: List<KaTypeParameterSymbol>
+
     abstract override fun createPointer(): KaSymbolPointer<KaClassLikeSymbol>
 }
 
@@ -104,12 +109,7 @@ public sealed class KaClassLikeSymbol : KaClassifierSymbol() {
  */
 @OptIn(KaImplementationDetail::class)
 @SubclassOptInRequired(KaImplementationDetail::class)
-public abstract class KaTypeAliasSymbol : KaClassLikeSymbol(), KaNamedSymbol, KaTypeParameterOwnerSymbol {
-    final override val modality: KaSymbolModality
-        get() = withValidityAssertion { KaSymbolModality.FINAL }
-
-    final override val isExternal: Boolean get() = withValidityAssertion { false }
-
+public abstract class KaTypeAliasSymbol : KaClassLikeSymbol(), KaNamedSymbol {
     /**
      * The type this type alias expands to, which is the right-hand side of the `typealias` declaration. The type alias's [typeParameters]
      * will be contained in the resulting [KaType] unless they're unused.
@@ -117,6 +117,13 @@ public abstract class KaTypeAliasSymbol : KaClassLikeSymbol(), KaNamedSymbol, Ka
     public abstract val expandedType: KaType
 
     abstract override fun createPointer(): KaSymbolPointer<KaTypeAliasSymbol>
+
+    //region Implementation details
+    final override val modality: KaSymbolModality
+        get() = withValidityAssertion { KaSymbolModality.FINAL }
+
+    final override val isExternal: Boolean get() = withValidityAssertion { false }
+    //endregion
 }
 
 /**
@@ -173,21 +180,22 @@ public sealed class KaClassSymbol : KaClassLikeSymbol(), KaDeclarationContainerS
  */
 @SubclassOptInRequired(KaImplementationDetail::class)
 public abstract class KaAnonymousObjectSymbol : KaClassSymbol() {
+    abstract override fun createPointer(): KaSymbolPointer<KaAnonymousObjectSymbol>
+
+    //region Implementation details
     final override val classKind: KaClassKind get() = withValidityAssertion { KaClassKind.ANONYMOUS_OBJECT }
     final override val classId: ClassId? get() = withValidityAssertion { null }
+    final override val typeParameters: List<KaTypeParameterSymbol> get() = withValidityAssertion { emptyList() }
     final override val location: KaSymbolLocation get() = withValidityAssertion { KaSymbolLocation.LOCAL }
     final override val modality: KaSymbolModality get() = withValidityAssertion { KaSymbolModality.FINAL }
-
-    @KaExperimentalApi
-    final override val compilerVisibility: Visibility get() = withValidityAssertion { Visibilities.Local }
+    final override val visibility: KaSymbolVisibility get() = withValidityAssertion { KaSymbolVisibility.LOCAL }
 
     final override val isExpect: Boolean get() = withValidityAssertion { false }
     final override val isActual: Boolean get() = withValidityAssertion { false }
     final override val isExternal: Boolean get() = withValidityAssertion { false }
 
     final override val name: Name? get() = withValidityAssertion { null }
-
-    abstract override fun createPointer(): KaSymbolPointer<KaAnonymousObjectSymbol>
+    //endregion
 }
 
 /**
@@ -197,7 +205,6 @@ public abstract class KaAnonymousObjectSymbol : KaClassSymbol() {
 @OptIn(KaImplementationDetail::class, KaExperimentalApi::class)
 @SubclassOptInRequired(KaImplementationDetail::class)
 public abstract class KaNamedClassSymbol : KaClassSymbol(),
-    KaTypeParameterOwnerSymbol,
     KaNamedSymbol,
     KaContextReceiversOwner {
 
@@ -212,9 +219,54 @@ public abstract class KaNamedClassSymbol : KaClassSymbol(),
     public abstract val isData: Boolean
 
     /**
-     * Whether the class is an [inline class](https://kotlinlang.org/docs/inline-classes.html).
+     * Whether the class uses Kotlin's single-field [inline value class](https://kotlinlang.org/docs/inline-classes.html) representation.
+     *
+     * This is a declaration-level property. It does not predict whether a value is boxed at a particular use site, nor whether a backend
+     * can optimize a compatible
+     * [full value class](https://github.com/Kotlin/KEEP/blob/main/proposals/KEEP-0454-better-immutability-value-classes-MFVC.md)
+     * to an unboxed form. In particular, a full value class with exactly one primary property still returns `false`. Use [isValue] to
+     * recognize both inline and full value classes.
+     *
+     * For valid declarations, this property is `true` for all of the following:
+     *
+     * - A single-property `inline value class` on every target, with the experimental `FullValueClasses` language feature either enabled
+     *   or disabled. This syntax requires language version 2.5 or later.
+     * - A single-property `@JvmInline value class` on every target, with the experimental `FullValueClasses` language feature either
+     *   enabled or disabled. This covers JVM modules as well as common modules, including ones that do not target JVM.
+     * - An unannotated single-property `value class` on Common or a non-JVM target with `FullValueClasses` disabled.
+     * - The deprecated `inline class` form on every target, with `FullValueClasses` either enabled or disabled.
+     *
+     * This property is `false` for full value classes and value objects. With `FullValueClasses` enabled, a `value class` with neither the
+     * `inline` modifier nor `@JvmInline` uses the full representation on every target, even if it has exactly one primary property.
+     *
+     * @see isValue
      */
     public abstract val isInline: Boolean
+
+    /**
+     * Whether the class is any Kotlin value declaration: an inline value class, a
+     * [full value class](https://github.com/Kotlin/KEEP/blob/main/proposals/KEEP-0454-better-immutability-value-classes-MFVC.md),
+     * or a value object.
+     *
+     * This property describes language-level value semantics independently of runtime representation. It does not imply that values are
+     * unboxed: boxing depends on the target and use site.
+     *
+     * For valid declarations, this property is `true` for all of the following:
+     *
+     * - A single-property inline value class. This includes an `inline value class` on every target, a `@JvmInline value class` on every
+     *   target, an unannotated `value class` on Common or a non-JVM target with the experimental `FullValueClasses` language feature
+     *   disabled, and the deprecated `inline class` form on every target.
+     * - A `value class` with neither the `inline` modifier nor `@JvmInline` compiled with `FullValueClasses` enabled, regardless of its
+     *   number of primary properties or target platform.
+     * - A `value object` compiled with `FullValueClasses` enabled.
+     *
+     * This property is `false` for ordinary Kotlin classes and Java classes. To distinguish inline from full value declarations, use
+     * [isInline].
+     *
+     * @see isInline
+     */
+    @KaExperimentalApi
+    public abstract val isValue: Boolean
 
     /**
      * Indicates whether the class is a [functional interface](https://kotlinlang.org/docs/fun-interfaces.html)
@@ -318,8 +370,8 @@ public enum class KaClassKind {
      *
      * ```kotlin
      * val runnable = object : Runnable {
-     *  *     override fun run() {}
-     *  * }
+     *     override fun run() {}
+     * }
      * ```
      *
      * @see KaAnonymousObjectSymbol

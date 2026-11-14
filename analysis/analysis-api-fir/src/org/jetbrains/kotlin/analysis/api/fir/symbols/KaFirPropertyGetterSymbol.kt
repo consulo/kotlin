@@ -8,14 +8,14 @@ package org.jetbrains.kotlin.analysis.api.fir.symbols
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationList
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
 import org.jetbrains.kotlin.analysis.api.fir.hasRegularGetter
-import org.jetbrains.kotlin.analysis.api.impl.base.symbols.pointers.KaBasePropertyGetterSymbolPointer
+import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirPropertyGetterSymbolPointer
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.KaPropertyGetterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaReceiverParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolModality
+import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 import org.jetbrains.kotlin.analysis.api.types.KaType
-import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirSymbolEntry
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.psi.KtProperty
@@ -40,6 +40,9 @@ internal class KaFirPropertyGetterSymbol(
     override val isExpect: Boolean
         get() = isExpectImpl
 
+    override val isExtension: Boolean
+        get() = withValidityAssertion { false }
+
     override val isNotDefault: Boolean
         get() = withValidityAssertion { true }
 
@@ -53,15 +56,15 @@ internal class KaFirPropertyGetterSymbol(
     override val isOverride: Boolean
         get() = isOverrideImpl
 
-    @Deprecated("Use `isCustom` instead", replaceWith = ReplaceWith("isCustom"))
+    @Deprecated("Use `isNotDefault` instead", replaceWith = ReplaceWith("isNotDefault"))
     override val hasBody: Boolean
         get() = hasBodyImpl
 
     override val modality: KaSymbolModality
         get() = modalityImpl
 
-    override val compilerVisibility: Visibility
-        get() = compilerVisibilityImpl
+    override val visibility: KaSymbolVisibility
+        get() = compilerVisibilityImpl.asKaSymbolVisibility
 
     override val returnType: KaType
         get() = returnTypeImpl
@@ -80,7 +83,7 @@ internal class KaFirPropertyGetterSymbol(
 
     override fun createPointer(): KaSymbolPointer<KaPropertyGetterSymbol> = withValidityAssertion {
         psiBasedSymbolPointerOfTypeIfSource<KaPropertyGetterSymbol>()
-            ?: KaBasePropertyGetterSymbolPointer(propertySymbolPointer = owningKaProperty.createPointer(), originalSymbol = this)
+            ?: KaFirPropertyGetterSymbolPointer(propertySymbolPointer = owningKaProperty.createPointer(), originalSymbol = this)
     }
 
     override fun equals(other: Any?): Boolean = psiOrSymbolEquals(other)

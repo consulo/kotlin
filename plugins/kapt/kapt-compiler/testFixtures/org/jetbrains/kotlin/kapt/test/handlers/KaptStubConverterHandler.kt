@@ -11,16 +11,16 @@ import com.sun.tools.javac.util.Log
 import org.jetbrains.kotlin.kapt.KaptContextForStubGeneration
 import org.jetbrains.kotlin.kapt.base.javac.KaptJavaLogBase
 import org.jetbrains.kotlin.kapt.test.KaptContextBinaryArtifact
+import org.jetbrains.kotlin.kapt.test.KaptTestDirectives
 import org.jetbrains.kotlin.kapt.test.KaptTestDirectives.EXPECTED_ERROR
 import org.jetbrains.kotlin.kapt.test.KaptTestDirectives.NON_EXISTENT_CLASS
-import org.jetbrains.kotlin.kapt.test.messageCollectorProvider
 import org.jetbrains.kotlin.kapt.util.prettyPrint
-import org.jetbrains.kotlin.test.model.FrontendKinds
+import org.jetbrains.kotlin.test.directives.TestDumpDirectives
+import org.jetbrains.kotlin.test.directives.assertEqualsToDump
+import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
-import org.jetbrains.kotlin.test.services.defaultsProvider
 import org.jetbrains.kotlin.test.util.trimTrailingWhitespacesAndAddNewlineAtEOF
-import org.jetbrains.kotlin.test.utils.withExtension
 import java.util.*
 
 class KaptStubConverterHandler(testServices: TestServices) : BaseKaptHandler(testServices) {
@@ -28,9 +28,12 @@ class KaptStubConverterHandler(testServices: TestServices) : BaseKaptHandler(tes
         const val FILE_SEPARATOR = "\n\n////////////////////\n\n"
     }
 
+    override val directiveContainers: List<DirectivesContainer>
+        get() = listOf(TestDumpDirectives, KaptTestDirectives)
+
     override fun processModule(module: TestModule, info: KaptContextBinaryArtifact) {
         val generateNonExistentClass = NON_EXISTENT_CLASS in module.directives
-        val kaptContext = info.kaptContext
+        val kaptContext = info.kaptContext ?: assertions.fail { "KAPT context is not created" }
 
         val convertedFiles = convert(module, kaptContext, generateNonExistentClass)
 
@@ -44,17 +47,7 @@ class KaptStubConverterHandler(testServices: TestServices) : BaseKaptHandler(tes
 
         checkErrors(module, kaptContext, actual)
 
-        val isFir = testServices.defaultsProvider.frontendKind == FrontendKinds.FIR
-        val testDataFile = module.files.first().originalFile
-        val firFile = testDataFile.withExtension("fir.txt")
-        val txtFile = testDataFile.withExtension("txt")
-        val expectedFile = if (isFir && firFile.exists()) firFile else txtFile
-
-        assertions.assertEqualsToFile(expectedFile, actual)
-
-        if (isFir && firFile.exists() && txtFile.exists() && txtFile.readText() == firFile.readText()) {
-            assertions.fail { ".fir.txt and .txt golden files are identical. Remove $firFile." }
-        }
+        assertEqualsToDump(extension = "txt", actual)
     }
 
     private fun KaptStubConverterHandler.checkErrors(
@@ -91,12 +84,7 @@ class KaptStubConverterHandler(testServices: TestServices) : BaseKaptHandler(tes
             assertions.fail { "There were errors during kapt:\n$actualErrorsStr\n\nStubs:\n\n$actualStubs" }
         } else {
             val expectedErrorsStr = expectedErrors.joinToString(System.lineSeparator()) { it.toDirectiveView() }
-            if (expectedErrorsStr != actualErrorsStr) {
-                assertions.assertEquals(expectedErrorsStr, actualErrorsStr) {
-                    System.err.println(testServices.messageCollectorProvider.getErrorStream(module).toString("UTF8"))
-                    "Expected error matching failed"
-                }
-            }
+            assertions.assertEquals(expectedErrorsStr, actualErrorsStr) { "Expected error matching failed" }
         }
     }
 

@@ -14,9 +14,7 @@ package org.jetbrains.kotlin.cli.common
 
 import java.io.File
 import org.jetbrains.kotlin.cli.common.config.ContentRoot
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.modules.ModuleChunk
-import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
 import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
@@ -26,19 +24,6 @@ object CLIConfigurationKeys {
     // Roots, including dependencies and own sources.
     @JvmField
     val CONTENT_ROOTS = CompilerConfigurationKey.create<List<ContentRoot>>("CONTENT_ROOTS")
-
-    // Used by kotest, Realm, Dokka, KSP compiler plugins.
-    @Deprecated(
-        "Please use CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY instead",
-        ReplaceWith("CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY", "org.jetbrains.kotlin.config.CommonConfigurationKeys"),
-        DeprecationLevel.ERROR,
-    )
-    @JvmField
-    val MESSAGE_COLLECTOR_KEY = CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY
-
-    // Used by compiler plugins to access delegated message collector in GroupingMessageCollector.
-    @JvmField
-    val ORIGINAL_MESSAGE_COLLECTOR_KEY = CompilerConfigurationKey.create<MessageCollector>("ORIGINAL_MESSAGE_COLLECTOR_KEY")
 
     @JvmField
     val DIAGNOSTICS_COLLECTOR = CompilerConfigurationKey.create<BaseDiagnosticsCollector>("DIAGNOSTICS_COLLECTOR")
@@ -51,10 +36,6 @@ object CLIConfigurationKeys {
 
     @JvmField
     val ALLOW_KOTLIN_PACKAGE = CompilerConfigurationKey.create<Boolean>("ALLOW_KOTLIN_PACKAGE")
-
-    // Used in Eclipse plugin (see KotlinCLICompiler).
-    @JvmField
-    val INTELLIJ_PLUGIN_ROOT = CompilerConfigurationKey.create<String>("INTELLIJ_PLUGIN_ROOT")
 
     // See K2MetadataCompilerArguments.
     @JvmField
@@ -69,10 +50,6 @@ object CLIConfigurationKeys {
 
     @JvmField
     val SCRIPT_MODE = CompilerConfigurationKey.create<Boolean>("SCRIPT_MODE")
-
-    // Runs Kotlin REPL (deprecated).
-    @JvmField
-    val REPL_MODE = CompilerConfigurationKey.create<Boolean>("REPL_MODE")
 
     @JvmField
     val KOTLIN_PATHS = CompilerConfigurationKey.create<KotlinPaths>("KOTLIN_PATHS")
@@ -102,10 +79,6 @@ var CompilerConfiguration.contentRoots: List<ContentRoot>
     get() = getList(CLIConfigurationKeys.CONTENT_ROOTS)
     set(value) { put(CLIConfigurationKeys.CONTENT_ROOTS, value) }
 
-var CompilerConfiguration.originalMessageCollectorKey: MessageCollector?
-    get() = get(CLIConfigurationKeys.ORIGINAL_MESSAGE_COLLECTOR_KEY)
-    set(value) { put(CLIConfigurationKeys.ORIGINAL_MESSAGE_COLLECTOR_KEY, requireNotNull(value) { "nullable values are not allowed" }) }
-
 var CompilerConfiguration.diagnosticsCollector: BaseDiagnosticsCollector
     get() = getOrDefault(CLIConfigurationKeys.DIAGNOSTICS_COLLECTOR) { error("diagnostic collector is not initialized") }
     set(value) { put(CLIConfigurationKeys.DIAGNOSTICS_COLLECTOR, value) }
@@ -122,10 +95,6 @@ var CompilerConfiguration.allowKotlinPackage: Boolean
     get() = getBoolean(CLIConfigurationKeys.ALLOW_KOTLIN_PACKAGE)
     set(value) { put(CLIConfigurationKeys.ALLOW_KOTLIN_PACKAGE, value) }
 
-var CompilerConfiguration.intellijPluginRoot: String?
-    get() = get(CLIConfigurationKeys.INTELLIJ_PLUGIN_ROOT)
-    set(value) { put(CLIConfigurationKeys.INTELLIJ_PLUGIN_ROOT, requireNotNull(value) { "nullable values are not allowed" }) }
-
 var CompilerConfiguration.metadataDestinationDirectory: File?
     get() = get(CLIConfigurationKeys.METADATA_DESTINATION_DIRECTORY)
     set(value) { put(CLIConfigurationKeys.METADATA_DESTINATION_DIRECTORY, requireNotNull(value) { "nullable values are not allowed" }) }
@@ -141,10 +110,6 @@ var CompilerConfiguration.printVersion: Boolean
 var CompilerConfiguration.scriptMode: Boolean
     get() = getBoolean(CLIConfigurationKeys.SCRIPT_MODE)
     set(value) { put(CLIConfigurationKeys.SCRIPT_MODE, value) }
-
-var CompilerConfiguration.replMode: Boolean
-    get() = getBoolean(CLIConfigurationKeys.REPL_MODE)
-    set(value) { put(CLIConfigurationKeys.REPL_MODE, value) }
 
 var CompilerConfiguration.kotlinPaths: KotlinPaths?
     get() = get(CLIConfigurationKeys.KOTLIN_PATHS)

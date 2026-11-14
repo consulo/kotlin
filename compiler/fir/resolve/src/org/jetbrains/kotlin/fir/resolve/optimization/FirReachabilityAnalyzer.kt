@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.fir.declarations.FirNamedFunction
 import org.jetbrains.kotlin.fir.visitors.*
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.name.ClassIdBasedLocality
+import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.ClassKind
 
@@ -143,6 +144,18 @@ class FirReachabilityAnalyzer(private val session: FirSession) : FirVisitorVoid(
     }
 
     override fun visitRegularClass(regularClass: FirRegularClass) {
+        if (regularClass.status.modality == Modality.SEALED) {
+            val nestedClasses = regularClass.declarations.filterIsInstance<FirRegularClass>().associateBy { it.symbol.classId }
+            regularClass.getSealedClassInheritors(session).forEach { inheritorClassId ->
+                val localNestedClass = nestedClasses[inheritorClassId]
+                if (localNestedClass != null) {
+                    mark(localNestedClass.symbol)
+                } else {
+                    mark(session.symbolProvider.getClassLikeSymbolByClassId(inheritorClassId))
+                }
+            }
+        }
+
         regularClass.annotations.forEach { it.accept(this) }
         regularClass.superTypeRefs.forEach { it.accept(this) }
         regularClass.typeParameters.forEach { it.accept(this) }
@@ -151,6 +164,11 @@ class FirReachabilityAnalyzer(private val session: FirSession) : FirVisitorVoid(
         regularClass.declarations.forEach { decl ->
             if (decl is FirConstructor && decl.isPrimary){
                 // It is required for every class to have a primary constructor.
+                mark(decl.symbol)
+            }
+            if (decl.origin == FirDeclarationOrigin.Synthetic.DelegateField) {
+                // Synthetic delegate fields (e.g. $$delegate_0) are required for FirDelegatedMemberScope
+                // to generate delegated members.
                 mark(decl.symbol)
             }
             if (shouldPreserveAnchor(decl)) {
@@ -195,7 +213,7 @@ class FirReachabilityAnalyzer(private val session: FirSession) : FirVisitorVoid(
 
     override fun visitResolvedQualifier(resolvedQualifier: FirResolvedQualifier) {
         visitElement(resolvedQualifier)
-        mark(resolvedQualifier.symbol)
+        mark(resolvedQualifier.qualifierSymbol)
     }
 
     override fun visitCallableReferenceAccess(callableReferenceAccess: FirCallableReferenceAccess) {

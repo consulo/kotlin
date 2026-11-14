@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
+import org.jetbrains.kotlin.ir.backend.js.ir.JsIrBuilder
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.FunctionWithJsFuncAnnotationInliner
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.translateJsCodeIntoStatementList
 import org.jetbrains.kotlin.ir.backend.js.utils.emptyScope
@@ -28,7 +29,6 @@ import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.isInlineParameter
 import org.jetbrains.kotlin.ir.util.parentDeclarationsWithSelf
-import org.jetbrains.kotlin.ir.util.toIrConst
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.IrVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
@@ -225,7 +225,7 @@ private class JsCodeOutlineTransformer(
             return null
 
         val jsCodeArg = expression.arguments[0] ?: compilationException("Expected js code string", expression)
-        val jsStatements = translateJsCodeIntoStatementList(jsCodeArg, container) ?: return null
+        val jsStatements = translateJsCodeIntoStatementList(jsCodeArg, container, convertVarsToLets = false) ?: return null
 
         // Collect used Kotlin local variables and parameters.
         val scope = JsScopesCollector().apply { acceptList(jsStatements) }
@@ -250,9 +250,9 @@ private class JsCodeOutlineTransformer(
 
         // Building JS Ast function
         val newFun = createJsFunction(jsStatements, kotlinLocalsUsedInJs)
-        val (jsFunCode, sourceMap) = printJsCodeWithDebugInfo(newFun)
-        annotation.arguments[0] = jsFunCode.toIrConst(loweringContext.irBuiltIns.stringType)
-        annotation.arguments[1] = sourceMap.toIrConst(loweringContext.irBuiltIns.stringType)
+        val [jsFunCode, sourceMap] = printJsCodeWithDebugInfo(newFun)
+        annotation.arguments[0] = JsIrBuilder.buildString(loweringContext.irBuiltIns.stringType, jsFunCode)
+        annotation.arguments[1] = JsIrBuilder.buildString(loweringContext.irBuiltIns.stringType, sourceMap)
 
         return with(loweringContext.createIrBuilder(container.symbol)) {
             irCall(outlinedFunction).apply {
@@ -261,7 +261,7 @@ private class JsCodeOutlineTransformer(
         }
     }
 
-    private fun addSpecialAnnotation(outlinedFunction: IrSimpleFunction): IrConstructorCall {
+    private fun addSpecialAnnotation(outlinedFunction: IrSimpleFunction): IrAnnotation {
         val builder = loweringContext.createIrBuilder(outlinedFunction.symbol)
         val annotation = builder.irAnnotation(
             symbols.jsOutlinedFunctionAnnotationSymbol.constructors.first(),
@@ -351,7 +351,7 @@ class JsScopesCollector : RecursiveJsVisitor() {
     override fun visitVars(x: JsVars) {
         super.visitVars(x)
         val currentScope = functionsStack.last()
-        x.vars.flatMap { it.assignable.names }.forEach { name ->
+        x.vars.flatMap { it.declarable.names }.forEach { name ->
             currentScope.add(name.ident)
         }
     }
@@ -361,7 +361,7 @@ class JsScopesCollector : RecursiveJsVisitor() {
         val newScope = Scope(parentScope).apply {
             val funcName = x.name?.ident
             if (funcName != null) add(funcName)
-            x.parameters.flatMap { it.assignable.names }.forEach { name ->
+            x.parameters.flatMap { it.declarable.names }.forEach { name ->
                 add(name.ident)
             }
         }

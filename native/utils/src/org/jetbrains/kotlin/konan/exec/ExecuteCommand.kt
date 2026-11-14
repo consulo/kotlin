@@ -24,7 +24,20 @@ import java.lang.ProcessBuilder.Redirect
 import java.nio.file.Files
 
 
-open class Command(initialCommand: List<String>, val redirectInputFile: File? = null) {
+open class Command(
+    initialCommand: List<String>,
+    val redirectInputFile: File? = null,
+    /**
+     * Working directory for the spawned process. When `null`, the current process working directory is inherited.
+     * See [ProcessBuilder.directory].
+     */
+    val workingDirectory: File? = null,
+    /**
+     * Extra environment variables for the spawned process, merged into the inherited environment (values here win).
+     * See [ProcessBuilder.environment].
+     */
+    val environment: Map<String, String> = emptyMap(),
+) {
 
     constructor(tool: String) : this(listOf(tool)) 
     constructor(vararg command: String) : this(command.toList<String>()) 
@@ -58,11 +71,13 @@ open class Command(initialCommand: List<String>, val redirectInputFile: File? = 
         stdError = emptyList()
         val builder = ProcessBuilder(command)
 
+        workingDirectory?.let { builder.directory(it) }
+        builder.environment().putAll(environment)
         builder.redirectOutput(Redirect.INHERIT)
         if (redirectInputFile == null) {
-          builder.redirectInput(Redirect.INHERIT)
+            builder.redirectInput(Redirect.INHERIT)
         } else {
-          builder.redirectInput(redirectInputFile)
+            builder.redirectInput(redirectInputFile)
         }
 
         val process = builder.start()
@@ -95,10 +110,12 @@ open class Command(initialCommand: List<String>, val redirectInputFile: File? = 
         try {
             val builder = ProcessBuilder(command)
 
+            workingDirectory?.let { builder.directory(it) }
+            builder.environment().putAll(environment)
             if (redirectInputFile == null) {
-              builder.redirectInput(Redirect.INHERIT)
+                builder.redirectInput(Redirect.INHERIT)
             } else {
-              builder.redirectInput(redirectInputFile)
+                builder.redirectInput(redirectInputFile)
             }
             builder.redirectError(Redirect.INHERIT)
             builder.redirectOutput(Redirect.to(outputFile))

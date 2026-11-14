@@ -43,3 +43,54 @@ annotation class BtaV2StrategyAgnosticCompilationTest
     BtaVersionsCompilationTestArgumentProvider::class
 )
 annotation class BtaVersionsOnlyCompilationTest
+
+/**
+ * Annotation for parameterized tests that evaluate compilation behavior using only BTAv2 on all supported platforms
+ * This involves the variants: [daemon, in-process] x [jvm, js]
+ */
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER)
+@Retention(AnnotationRetention.RUNTIME)
+@ParameterizedTest(name = "{0}: {displayName}")
+@ArgumentsSource(
+    BtaV2StrategyAndPlatformAgnosticCompilationTestArgumentProvider::class
+)
+annotation class BtaV2StrategyAndPlatformAgnosticCompilationTest
+
+/**
+ * Annotation for parameterized tests that evaluate compilation behavior using only BTAv2 on all supported platforms,
+ * without fixing an execution policy. The test receives a [ProjectWithPolicyCreator] and the `KotlinToolchains`, and
+ * chooses the execution policy itself (e.g. in-process, to observe in-process compiler state a daemon run would not
+ * expose).
+ */
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER)
+@Retention(AnnotationRetention.RUNTIME)
+@ParameterizedTest(name = "{0}: {displayName}")
+@ArgumentsSource(
+    BtaV2PlatformAgnosticCompilationTestArgumentProvider::class
+)
+annotation class BtaV2PlatformAgnosticCompilationTest
+
+
+/**
+ * Annotation for parameterized tests that evaluate compilation behavior using both BTA implementations on all supported platforms
+ * This involves the variants: [daemon, in-process] x [jvm, js]
+ */
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER)
+@Retention(AnnotationRetention.RUNTIME)
+@ParameterizedTest(name = "{0}: {displayName}")
+@ArgumentsSource(
+    DefaultStrategyAndPlatformAgnosticProjectTestArgumentProvider::class
+)
+annotation class DefaultStrategyAndPlatformAgnosticCompilationTest
+
+/**
+ * Annotation for parameterized tests that evaluate incremental compilation scenarios on all supported platforms
+ * This involves the variants: [daemon, in-process] x [jvm, js]
+ */
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER)
+@Retention(AnnotationRetention.RUNTIME)
+@ParameterizedTest(name = "{0}: {displayName}")
+@ArgumentsSource(
+    DefaultStrategyAndPlatformAgnosticScenarioTestArgumentProvider::class
+)
+annotation class DefaultStrategyAndPlatformAgnosticScenarioTest

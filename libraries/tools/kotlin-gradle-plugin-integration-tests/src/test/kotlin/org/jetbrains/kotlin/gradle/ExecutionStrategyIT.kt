@@ -6,13 +6,18 @@ import org.gradle.kotlin.dsl.withType
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.internals.asFinishLogMessage
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.extraProperties
 import org.jetbrains.kotlin.gradle.tasks.AbstractKotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilerExecutionStrategy
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.checkedReplace
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInBuildToolsApi
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerInfrastructure
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
+import kotlin.io.path.absolutePathString
 import kotlin.io.path.appendText
 import kotlin.io.path.createFile
 import kotlin.io.path.createParentDirectories
@@ -89,7 +94,9 @@ class ExecutionStrategyJvmIT : ExecutionStrategyIT() {
     }
 }
 
+@MustRunOnChangesInBuildToolsApi
 abstract class ExecutionStrategyIT : KGPDaemonsBaseTest() {
+    @TestMetadata("kotlinBuiltins")
     @DisplayName("Compilation via Kotlin daemon")
     @GradleTest
     fun testDaemon(gradleVersion: GradleVersion) {
@@ -100,6 +107,7 @@ abstract class ExecutionStrategyIT : KGPDaemonsBaseTest() {
         )
     }
 
+    @TestMetadata("kotlinBuiltins")
     @DisplayName("Compilation via Kotlin daemon with fallback strategy")
     @GradleTest
     fun testDaemonFallbackStrategy(gradleVersion: GradleVersion) {
@@ -111,6 +119,7 @@ abstract class ExecutionStrategyIT : KGPDaemonsBaseTest() {
         )
     }
 
+    @TestMetadata("kotlinBuiltins")
     @DisplayName("Compilation via Kotlin daemon with disabled fallback strategy")
     @GradleTest
     fun testDaemonFallbackStrategyDisabled(gradleVersion: GradleVersion) {
@@ -130,13 +139,16 @@ abstract class ExecutionStrategyIT : KGPDaemonsBaseTest() {
                 "build",
                 "-Pkotlin.daemon.jvmargs=-Xmxqwerty",
             ) {
+                assertHasDiagnostic(KotlinToolingDiagnostics.KotlinCompilationInDaemonHasFailed)
+
                 assertOutputContains("Invalid maximum heap size: -Xmxqwerty")
-                assertOutputContains("Failed to compile with Kotlin daemon.")
-                assertOutputContains("Fallback strategy (compiling without Kotlin daemon) is turned off.")
+                assertOutputContains("Failed to compile with Kotlin daemon")
+                assertOutputContains("Fallback strategy (kotlin.daemon.useFallbackStrategy=false, compiling without Kotlin daemon) is turned off.")
             }
         }
     }
 
+    @TestMetadata("kotlinBuiltins")
     @DisplayName("Compilation via Kotlin daemon with disabled fallback strategy via task property")
     @GradleTest
     fun testDaemonFallbackStrategyDisabledTaskProperty(gradleVersion: GradleVersion) {
@@ -144,7 +156,8 @@ abstract class ExecutionStrategyIT : KGPDaemonsBaseTest() {
             projectName = "kotlinBuiltins",
             gradleVersion = gradleVersion,
             enableKotlinDaemonMemoryLimitInMb = null,
-            addHeapDumpOptions = false
+            addHeapDumpOptions = false,
+            buildOptions = defaultBuildOptions.copy(isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED)
         ) {
             setupProject(this)
 
@@ -165,13 +178,16 @@ abstract class ExecutionStrategyIT : KGPDaemonsBaseTest() {
                 "build",
                 "-Pkotlin.daemon.jvmargs=-Xmxqwerty",
             ) {
+                assertHasDiagnostic(KotlinToolingDiagnostics.KotlinCompilationInDaemonHasFailed)
+
                 assertOutputContains("Invalid maximum heap size: -Xmxqwerty")
-                assertOutputContains("Failed to compile with Kotlin daemon.")
-                assertOutputContains("Fallback strategy (compiling without Kotlin daemon) is turned off.")
+                assertOutputContains("Failed to compile with Kotlin daemon")
+                assertOutputContains("Fallback strategy (kotlin.daemon.useFallbackStrategy=false, compiling without Kotlin daemon) is turned off.")
             }
         }
     }
 
+    @TestMetadata("kotlinBuiltins")
     @DisplayName("Compilation inside Gradle daemon configured via task property")
     @GradleTest
     fun testInProcessTaskProperty(gradleVersion: GradleVersion) {
@@ -191,6 +207,7 @@ abstract class ExecutionStrategyIT : KGPDaemonsBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinBuiltins")
     @DisplayName("Compilation inside Gradle daemon")
     @GradleTest
     fun testInProcess(gradleVersion: GradleVersion) {
@@ -200,8 +217,10 @@ abstract class ExecutionStrategyIT : KGPDaemonsBaseTest() {
         )
     }
 
+    @TestMetadata("kotlinBuiltins")
     @DisplayName("KT-75820: The legacy in-process mode properly reports compilation warnings/errors")
     @GradleTest
+    @MustRunOnChangesInCompilerInfrastructure
     fun testInProcessWithCompilationWarning(gradleVersion: GradleVersion) {
         project(
             projectName = "kotlinBuiltins",
@@ -222,7 +241,18 @@ abstract class ExecutionStrategyIT : KGPDaemonsBaseTest() {
             build("build") {
                 val mainKt = subProject("app").kotlinSourcesDir().resolve("main.kt")
                 // ensure warnings are properly parsed
-                assertOutputContains("w: ${mainKt.toRealPath().toUri()}:9:5 'constructor(): A' is deprecated. deprecated for test")
+                if (gradleVersion == GradleVersion.version(TestVersions.Gradle.G_8_14)) {
+                    assertOutputContains("w: ${mainKt.toRealPath().toUri()}:9:5 'constructor(): A' is deprecated. deprecated for test")
+                } else {
+                    assertOutputContains(
+                        """
+                        Problem found: Kotlin compiler: DEPRECATION (id: kotlin:compiler:warning:DEPRECATION)
+                          Kotlin compiler warning
+                            'constructor(): A' is deprecated. deprecated for test.
+                            Location: ${mainKt.toRealPath().absolutePathString().normalizePath()}
+                        """.trimIndent().normalizeLineEndings()
+                    )
+                }
             }
         }
     }
@@ -280,13 +310,13 @@ abstract class ExecutionStrategyIT : KGPDaemonsBaseTest() {
                 assertOutputContains(expectedFinishStrategy.asFinishLogMessage)
                 checkOutput(this@project)
 
+
                 if (testFallbackStrategy) {
+                    assertHasDiagnostic(KotlinToolingDiagnostics.KotlinCompilationInDaemonHasFailed)
                     assertOutputContains("Invalid maximum heap size: -Xmxqwerty")
-                    assertOutputContains("Using fallback strategy: Compile without Kotlin daemon")
+                    assertOutputContains("Using fallback strategy (kotlin.daemon.useFallbackStrategy=true): Compile without Kotlin daemon")
                 } else if (executionStrategy == KotlinCompilerExecutionStrategy.DAEMON) {
-                    // 256m is the default value for Gradle 5.0+
-                    val defaultJvmSettingsForGivenGradleVersion =
-                        if (gradleVersion < GradleVersion.version(TestVersions.Gradle.G_8_0)) "256" else "384"
+                    val defaultJvmSettingsForGivenGradleVersion = "384"
                     assertKotlinDaemonJvmOptions(
                         listOf("-XX:MaxMetaspaceSize=${defaultJvmSettingsForGivenGradleVersion}m", "-ea")
                     )
@@ -335,10 +365,6 @@ class NoActiveThreadsAfterCompilerInvocationIT : KGPDaemonsBaseTest() {
     @GradleTest
     fun testBta(gradleVersion: GradleVersion) = test(gradleVersion, buildOptions = defaultBuildOptions.copy(runViaBuildToolsApi = true))
 
-    @DisplayName("KT-84152: In-process compilation should not leave active threads")
-    @GradleTest
-    fun testNonBta(gradleVersion: GradleVersion) = test(gradleVersion, buildOptions = defaultBuildOptions.copy(runViaBuildToolsApi = false))
-
     private fun test(
         gradleVersion: GradleVersion,
         buildOptions: BuildOptions
@@ -350,6 +376,7 @@ class NoActiveThreadsAfterCompilerInvocationIT : KGPDaemonsBaseTest() {
                 // model builder below breaks configuration cache in Gradle 9+,
                 // making it configuration cache friendly isn't necessary for this test
                 configurationCache = BuildOptions.ConfigurationCacheValue.DISABLED,
+                isolatedProjects = BuildOptions.IsolatedProjectsMode.DISABLED,
                 compilerExecutionStrategy = KotlinCompilerExecutionStrategy.IN_PROCESS
             )
         ) {

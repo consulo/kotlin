@@ -1,3 +1,5 @@
+// KT-86026 TODO: Rework testdata to move functions/globals definitions from .def/.h into separate source files
+
 // TARGET_BACKEND: NATIVE
 // MODULE: cinterop
 // FILE: structAnonym.def

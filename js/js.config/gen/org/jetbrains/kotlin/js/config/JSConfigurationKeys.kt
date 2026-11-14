@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.config.CompilerConfigurationKey
 import org.jetbrains.kotlin.incremental.js.IncrementalDataProvider
 import org.jetbrains.kotlin.incremental.js.IncrementalNextRoundChecker
 import org.jetbrains.kotlin.incremental.js.IncrementalResultsConsumer
+import org.jetbrains.kotlin.name.FqName
 
 object JSConfigurationKeys {
     @JvmField
@@ -39,8 +40,10 @@ object JSConfigurationKeys {
     @JvmField
     val USE_DEBUGGER_CUSTOM_FORMATTERS = CompilerConfigurationKey.create<Boolean>("USE_DEBUGGER_CUSTOM_FORMATTERS")
 
+    // Parameters for running the JS codegen. The codegen will be run once per each configuration.
+    // Using more than one configuration is only supported in tests.
     @JvmField
-    val ARTIFACT_CONFIGURATION = CompilerConfigurationKey.create<WebArtifactConfiguration>("ARTIFACT_CONFIGURATION")
+    val ARTIFACT_CONFIGURATIONS = CompilerConfigurationKey.create<List<WebArtifactConfiguration>>("ARTIFACT_CONFIGURATIONS")
 
     @JvmField
     val OUTPUT_DIR = CompilerConfigurationKey.create<File>("OUTPUT_DIR")
@@ -83,17 +86,6 @@ object JSConfigurationKeys {
     @JvmField
     val FRIEND_PATHS_DISABLED = CompilerConfigurationKey.create<Boolean>("FRIEND_PATHS_DISABLED")
 
-    @JvmField
-    val METADATA_ONLY = CompilerConfigurationKey.create<Boolean>("METADATA_ONLY")
-
-    // Enable additional checkers.
-    @JvmField
-    val DEVELOPER_MODE = CompilerConfigurationKey.create<Boolean>("DEVELOPER_MODE")
-
-    // Generate comments with file path at the start of each file block.
-    @JvmField
-    val GENERATE_COMMENTS_WITH_FILE_PATH = CompilerConfigurationKey.create<Boolean>("GENERATE_COMMENTS_WITH_FILE_PATH")
-
     // Generate polyfills for newest properties, methods and classes from ES6+.
     @JvmField
     val GENERATE_POLYFILLS = CompilerConfigurationKey.create<Boolean>("GENERATE_POLYFILLS")
@@ -134,9 +126,6 @@ object JSConfigurationKeys {
     val DUMP_REACHABILITY_INFO_TO_FILE = CompilerConfigurationKey.create<String>("DUMP_REACHABILITY_INFO_TO_FILE")
 
     @JvmField
-    val FAKE_OVERRIDE_VALIDATOR = CompilerConfigurationKey.create<Boolean>("FAKE_OVERRIDE_VALIDATOR")
-
-    @JvmField
     val PROPERTY_LAZY_INITIALIZATION = CompilerConfigurationKey.create<Boolean>("PROPERTY_LAZY_INITIALIZATION")
 
     // Translate lambdas into inline anonymous functions.
@@ -152,6 +141,9 @@ object JSConfigurationKeys {
 
     @JvmField
     val USE_ES6_CLASSES = CompilerConfigurationKey.create<Boolean>("USE_ES6_CLASSES")
+
+    @JvmField
+    val USE_ES6_CONST_LET = CompilerConfigurationKey.create<Boolean>("USE_ES6_CONST_LET")
 
     // List of KLibs for this linking phase.
     @JvmField
@@ -194,19 +186,23 @@ object JSConfigurationKeys {
 
     // Specify whether the 'main' function should be called upon execution.
     @JvmField
-    val CALL_MAIN_MODE = CompilerConfigurationKey.create<String>("CALL_MAIN_MODE")
+    val CALL_MAIN = CompilerConfigurationKey.create<Boolean>("CALL_MAIN")
 
     @JvmField
     val IC_CACHE_DIRECTORY = CompilerConfigurationKey.create<String>("IC_CACHE_DIRECTORY")
 
     @JvmField
-    val IC_CACHE_READ_ONLY = CompilerConfigurationKey.create<Boolean>("IC_CACHE_READ_ONLY")
-
-    @JvmField
-    val PRESERVE_IC_ORDER = CompilerConfigurationKey.create<Boolean>("PRESERVE_IC_ORDER")
-
-    @JvmField
     val IC_FILES_TO_LOAD = CompilerConfigurationKey.create<Set<String>>("IC_FILES_TO_LOAD")
+
+    @JvmField
+    val ADDITIONAL_EXPORTED_DECLARATION_NAMES = CompilerConfigurationKey.create<Set<FqName>>("ADDITIONAL_EXPORTED_DECLARATION_NAMES")
+
+    @JvmField
+    val EXPORT_UNTYPED_AS_UNKNOWN = CompilerConfigurationKey.create<Boolean>("EXPORT_UNTYPED_AS_UNKNOWN")
+
+    // Enable DCE for unused properties
+    @JvmField
+    val DCE_UNUSED_PROPERTIES = CompilerConfigurationKey.create<Boolean>("DCE_UNUSED_PROPERTIES")
 
 }
 
@@ -234,9 +230,9 @@ var CompilerConfiguration.useDebuggerCustomFormatters: Boolean
     get() = getBoolean(JSConfigurationKeys.USE_DEBUGGER_CUSTOM_FORMATTERS)
     set(value) { put(JSConfigurationKeys.USE_DEBUGGER_CUSTOM_FORMATTERS, value) }
 
-var CompilerConfiguration.artifactConfiguration: WebArtifactConfiguration?
-    get() = get(JSConfigurationKeys.ARTIFACT_CONFIGURATION)
-    set(value) { put(JSConfigurationKeys.ARTIFACT_CONFIGURATION, requireNotNull(value) { "nullable values are not allowed" }) }
+var CompilerConfiguration.artifactConfigurations: List<WebArtifactConfiguration>
+    get() = getList(JSConfigurationKeys.ARTIFACT_CONFIGURATIONS)
+    set(value) { put(JSConfigurationKeys.ARTIFACT_CONFIGURATIONS, value) }
 
 var CompilerConfiguration.outputDir: File?
     get() = get(JSConfigurationKeys.OUTPUT_DIR)
@@ -286,18 +282,6 @@ var CompilerConfiguration.friendPathsDisabled: Boolean
     get() = getBoolean(JSConfigurationKeys.FRIEND_PATHS_DISABLED)
     set(value) { put(JSConfigurationKeys.FRIEND_PATHS_DISABLED, value) }
 
-var CompilerConfiguration.metadataOnly: Boolean
-    get() = getBoolean(JSConfigurationKeys.METADATA_ONLY)
-    set(value) { put(JSConfigurationKeys.METADATA_ONLY, value) }
-
-var CompilerConfiguration.developerMode: Boolean
-    get() = getBoolean(JSConfigurationKeys.DEVELOPER_MODE)
-    set(value) { put(JSConfigurationKeys.DEVELOPER_MODE, value) }
-
-var CompilerConfiguration.generateCommentsWithFilePath: Boolean
-    get() = getBoolean(JSConfigurationKeys.GENERATE_COMMENTS_WITH_FILE_PATH)
-    set(value) { put(JSConfigurationKeys.GENERATE_COMMENTS_WITH_FILE_PATH, value) }
-
 var CompilerConfiguration.generatePolyfills: Boolean
     get() = getBoolean(JSConfigurationKeys.GENERATE_POLYFILLS)
     set(value) { put(JSConfigurationKeys.GENERATE_POLYFILLS, value) }
@@ -338,10 +322,6 @@ var CompilerConfiguration.dumpReachabilityInfoToFile: String?
     get() = get(JSConfigurationKeys.DUMP_REACHABILITY_INFO_TO_FILE)
     set(value) { putIfNotNull(JSConfigurationKeys.DUMP_REACHABILITY_INFO_TO_FILE, value) }
 
-var CompilerConfiguration.fakeOverrideValidator: Boolean
-    get() = getBoolean(JSConfigurationKeys.FAKE_OVERRIDE_VALIDATOR)
-    set(value) { put(JSConfigurationKeys.FAKE_OVERRIDE_VALIDATOR, value) }
-
 var CompilerConfiguration.propertyLazyInitialization: Boolean
     get() = getBoolean(JSConfigurationKeys.PROPERTY_LAZY_INITIALIZATION)
     set(value) { put(JSConfigurationKeys.PROPERTY_LAZY_INITIALIZATION, value) }
@@ -361,6 +341,10 @@ var CompilerConfiguration.optimizeGeneratedJs: Boolean
 var CompilerConfiguration.useEs6Classes: Boolean
     get() = getBoolean(JSConfigurationKeys.USE_ES6_CLASSES)
     set(value) { put(JSConfigurationKeys.USE_ES6_CLASSES, value) }
+
+var CompilerConfiguration.useEs6ConstLet: Boolean
+    get() = getBoolean(JSConfigurationKeys.USE_ES6_CONST_LET)
+    set(value) { put(JSConfigurationKeys.USE_ES6_CONST_LET, value) }
 
 var CompilerConfiguration.includes: String?
     get() = get(JSConfigurationKeys.INCLUDES)
@@ -402,23 +386,27 @@ var CompilerConfiguration.minimizedMemberNames: Boolean
     get() = getBoolean(JSConfigurationKeys.MINIMIZED_MEMBER_NAMES)
     set(value) { put(JSConfigurationKeys.MINIMIZED_MEMBER_NAMES, value) }
 
-var CompilerConfiguration.callMainMode: String?
-    get() = get(JSConfigurationKeys.CALL_MAIN_MODE)
-    set(value) { put(JSConfigurationKeys.CALL_MAIN_MODE, requireNotNull(value) { "nullable values are not allowed" }) }
+var CompilerConfiguration.callMain: Boolean
+    get() = get(JSConfigurationKeys.CALL_MAIN, true)
+    set(value) { put(JSConfigurationKeys.CALL_MAIN, value) }
 
 var CompilerConfiguration.icCacheDirectory: String?
     get() = get(JSConfigurationKeys.IC_CACHE_DIRECTORY)
     set(value) { putIfNotNull(JSConfigurationKeys.IC_CACHE_DIRECTORY, value) }
 
-var CompilerConfiguration.icCacheReadOnly: Boolean
-    get() = getBoolean(JSConfigurationKeys.IC_CACHE_READ_ONLY)
-    set(value) { put(JSConfigurationKeys.IC_CACHE_READ_ONLY, value) }
-
-var CompilerConfiguration.preserveIcOrder: Boolean
-    get() = getBoolean(JSConfigurationKeys.PRESERVE_IC_ORDER)
-    set(value) { put(JSConfigurationKeys.PRESERVE_IC_ORDER, value) }
-
 var CompilerConfiguration.icFilesToLoad: Set<String>
     get() = getSet(JSConfigurationKeys.IC_FILES_TO_LOAD)
     set(value) { put(JSConfigurationKeys.IC_FILES_TO_LOAD, value) }
+
+var CompilerConfiguration.additionalExportedDeclarationNames: Set<FqName>
+    get() = getSet(JSConfigurationKeys.ADDITIONAL_EXPORTED_DECLARATION_NAMES)
+    set(value) { put(JSConfigurationKeys.ADDITIONAL_EXPORTED_DECLARATION_NAMES, value) }
+
+var CompilerConfiguration.exportUntypedAsUnknown: Boolean
+    get() = getBoolean(JSConfigurationKeys.EXPORT_UNTYPED_AS_UNKNOWN)
+    set(value) { put(JSConfigurationKeys.EXPORT_UNTYPED_AS_UNKNOWN, value) }
+
+var CompilerConfiguration.dceUnusedProperties: Boolean
+    get() = getBoolean(JSConfigurationKeys.DCE_UNUSED_PROPERTIES)
+    set(value) { put(JSConfigurationKeys.DCE_UNUSED_PROPERTIES, value) }
 

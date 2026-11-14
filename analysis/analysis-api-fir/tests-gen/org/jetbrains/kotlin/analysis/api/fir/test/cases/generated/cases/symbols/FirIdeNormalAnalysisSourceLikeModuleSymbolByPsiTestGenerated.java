@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.symbols.AbstractSymbolByPsiTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.symbols.AbstractSymbolByPsiTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,7 +33,6 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByPsiTestGenerated extend
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -164,6 +162,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByPsiTestGenerated extend
   @TestMetadata("classWithTypeParamsAndSupertypes.kt")
   public void testClassWithTypeParamsAndSupertypes() {
     run("classWithTypeParamsAndSupertypes.kt");
+  }
+
+  @Test
+  @TestMetadata("danglingTypeConstraint.kt")
+  public void testDanglingTypeConstraint() {
+    run("danglingTypeConstraint.kt");
   }
 
   @Test
@@ -425,6 +429,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByPsiTestGenerated extend
   }
 
   @Test
+  @TestMetadata("jvmExposeBoxedInternalDeclarations.kt")
+  public void testJvmExposeBoxedInternalDeclarations() {
+    run("jvmExposeBoxedInternalDeclarations.kt");
+  }
+
+  @Test
   @TestMetadata("jvmField.kt")
   public void testJvmField() {
     run("jvmField.kt");
@@ -623,6 +633,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByPsiTestGenerated extend
   }
 
   @Test
+  @TestMetadata("typeParameterOnAnonymousObject.kt")
+  public void testTypeParameterOnAnonymousObject() {
+    run("typeParameterOnAnonymousObject.kt");
+  }
+
+  @Test
   @TestMetadata("typeParameters.kt")
   public void testTypeParameters() {
     run("typeParameters.kt");
@@ -632,6 +648,36 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByPsiTestGenerated extend
   @TestMetadata("typeParametersStressTest.kt")
   public void testTypeParametersStressTest() {
     run("typeParametersStressTest.kt");
+  }
+
+  @Test
+  @TestMetadata("valueClassAsContextParameter.kt")
+  public void testValueClassAsContextParameter() {
+    run("valueClassAsContextParameter.kt");
+  }
+
+  @Test
+  @TestMetadata("valueClassCompanionBlockMembers.kt")
+  public void testValueClassCompanionBlockMembers() {
+    run("valueClassCompanionBlockMembers.kt");
+  }
+
+  @Test
+  @TestMetadata("valueClassCompanionExtensions.kt")
+  public void testValueClassCompanionExtensions() {
+    run("valueClassCompanionExtensions.kt");
+  }
+
+  @Test
+  @TestMetadata("valueClassInSignature.kt")
+  public void testValueClassInSignature() {
+    run("valueClassInSignature.kt");
+  }
+
+  @Test
+  @TestMetadata("valueClassMembers.kt")
+  public void testValueClassMembers() {
+    run("valueClassMembers.kt");
   }
 
   @Test

@@ -14,11 +14,15 @@ package org.jetbrains.kotlin.wasm.config
 
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.platform.wasm.WasmTarget
 
 object WasmConfigurationKeys {
     @JvmField
     val WASM_ENABLE_ARRAY_RANGE_CHECKS = CompilerConfigurationKey.create<Boolean>("WASM_ENABLE_ARRAY_RANGE_CHECKS")
+
+    @JvmField
+    val WASM_DISABLE_ARRAY_RANGE_CHECKS_SAFE_ELIMINATION = CompilerConfigurationKey.create<Boolean>("WASM_DISABLE_ARRAY_RANGE_CHECKS_SAFE_ELIMINATION")
 
     @JvmField
     val WASM_ENABLE_ASSERTS = CompilerConfigurationKey.create<Boolean>("WASM_ENABLE_ASSERTS")
@@ -33,7 +37,13 @@ object WasmConfigurationKeys {
     val WASM_USE_TRAPS_INSTEAD_OF_EXCEPTIONS = CompilerConfigurationKey.create<Boolean>("WASM_USE_TRAPS_INSTEAD_OF_EXCEPTIONS")
 
     @JvmField
+    val WASM_IC_GENERATE_UNCHANGED_MODULES = CompilerConfigurationKey.create<Boolean>("WASM_IC_GENERATE_UNCHANGED_MODULES")
+
+    @JvmField
     val WASM_USE_NEW_EXCEPTION_PROPOSAL = CompilerConfigurationKey.create<Boolean>("WASM_USE_NEW_EXCEPTION_PROPOSAL")
+
+    @JvmField
+    val WASM_USE_STACK_SWITCHING_PROPOSAL = CompilerConfigurationKey.create<Boolean>("WASM_USE_STACK_SWITCHING_PROPOSAL")
 
     // Don't use WebAssembly.JSTag for throwing and catching exceptions
     @JvmField
@@ -74,11 +84,23 @@ object WasmConfigurationKeys {
     @JvmField
     val WASM_GENERATE_CLOSED_WORLD_MULTIMODULE = CompilerConfigurationKey.create<Boolean>("WASM_GENERATE_CLOSED_WORLD_MULTIMODULE")
 
+    // FQ Name of the test `box` function to be exported and called by the compiler test infrastructure.
+    @JvmField
+    val WASM_TEST_BOX_FUNCTION_TO_EXPORT = CompilerConfigurationKey.create<FqName>("WASM_TEST_BOX_FUNCTION_TO_EXPORT")
+
+    // Emit native Wasm tail-call instructions (return_call / return_call_ref) for non-tailrec tail calls.
+    @JvmField
+    val WASM_ENABLE_TAIL_CALLS = CompilerConfigurationKey.create<Boolean>("WASM_ENABLE_TAIL_CALLS")
+
 }
 
 var CompilerConfiguration.wasmEnableArrayRangeChecks: Boolean
     get() = getBoolean(WasmConfigurationKeys.WASM_ENABLE_ARRAY_RANGE_CHECKS)
     set(value) { put(WasmConfigurationKeys.WASM_ENABLE_ARRAY_RANGE_CHECKS, value) }
+
+var CompilerConfiguration.wasmDisableArrayRangeChecksSafeElimination: Boolean
+    get() = getBoolean(WasmConfigurationKeys.WASM_DISABLE_ARRAY_RANGE_CHECKS_SAFE_ELIMINATION)
+    set(value) { put(WasmConfigurationKeys.WASM_DISABLE_ARRAY_RANGE_CHECKS_SAFE_ELIMINATION, value) }
 
 var CompilerConfiguration.wasmEnableAsserts: Boolean
     get() = getBoolean(WasmConfigurationKeys.WASM_ENABLE_ASSERTS)
@@ -96,9 +118,17 @@ var CompilerConfiguration.wasmUseTrapsInsteadOfExceptions: Boolean
     get() = getBoolean(WasmConfigurationKeys.WASM_USE_TRAPS_INSTEAD_OF_EXCEPTIONS)
     set(value) { put(WasmConfigurationKeys.WASM_USE_TRAPS_INSTEAD_OF_EXCEPTIONS, value) }
 
+var CompilerConfiguration.wasmIcGenerateUnchangedModules: Boolean
+    get() = getBoolean(WasmConfigurationKeys.WASM_IC_GENERATE_UNCHANGED_MODULES)
+    set(value) { put(WasmConfigurationKeys.WASM_IC_GENERATE_UNCHANGED_MODULES, value) }
+
 var CompilerConfiguration.wasmUseNewExceptionProposal: Boolean
     get() = getBoolean(WasmConfigurationKeys.WASM_USE_NEW_EXCEPTION_PROPOSAL)
     set(value) { put(WasmConfigurationKeys.WASM_USE_NEW_EXCEPTION_PROPOSAL, value) }
+
+var CompilerConfiguration.wasmUseStackSwitchingProposal: Boolean
+    get() = getBoolean(WasmConfigurationKeys.WASM_USE_STACK_SWITCHING_PROPOSAL)
+    set(value) { put(WasmConfigurationKeys.WASM_USE_STACK_SWITCHING_PROPOSAL, value) }
 
 var CompilerConfiguration.wasmNoJsTag: Boolean
     get() = getBoolean(WasmConfigurationKeys.WASM_NO_JS_TAG)
@@ -143,4 +173,12 @@ var CompilerConfiguration.wasmInternalLocalVariablePrefix: String?
 var CompilerConfiguration.wasmGenerateClosedWorldMultimodule: Boolean
     get() = getBoolean(WasmConfigurationKeys.WASM_GENERATE_CLOSED_WORLD_MULTIMODULE)
     set(value) { put(WasmConfigurationKeys.WASM_GENERATE_CLOSED_WORLD_MULTIMODULE, value) }
+
+var CompilerConfiguration.wasmTestBoxFunctionToExport: FqName?
+    get() = get(WasmConfigurationKeys.WASM_TEST_BOX_FUNCTION_TO_EXPORT)
+    set(value) { put(WasmConfigurationKeys.WASM_TEST_BOX_FUNCTION_TO_EXPORT, requireNotNull(value) { "nullable values are not allowed" }) }
+
+var CompilerConfiguration.wasmEnableTailCalls: Boolean
+    get() = getBoolean(WasmConfigurationKeys.WASM_ENABLE_TAIL_CALLS)
+    set(value) { put(WasmConfigurationKeys.WASM_ENABLE_TAIL_CALLS, value) }
 

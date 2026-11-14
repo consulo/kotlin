@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +ExpectedTypeFromCast
+// RUN_PIPELINE_TILL: CODEGEN
 
 class X<S> {
     fun <T : S> foo(): T = TODO()

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -79,28 +79,6 @@ public interface KaTypeParametersRenderer {
     }
 
     @KaExperimentalApi
-    @Deprecated("Use 'WITHOUT_BOUNDS' instead.")
-    public object WIHTOUT_BOUNDS : KaTypeParametersRenderer {
-        override fun renderTypeParameters(
-            analysisSession: KaSession,
-            symbol: KaDeclarationSymbol,
-            declarationRenderer: KaDeclarationRenderer,
-            printer: PrettyPrinter,
-        ) {
-            WITHOUT_BOUNDS.renderTypeParameters(analysisSession, symbol, declarationRenderer, printer)
-        }
-
-        override fun renderWhereClause(
-            analysisSession: KaSession,
-            symbol: KaDeclarationSymbol,
-            declarationRenderer: KaDeclarationRenderer,
-            printer: PrettyPrinter,
-        ) {
-            WITHOUT_BOUNDS.renderWhereClause(analysisSession, symbol, declarationRenderer, printer)
-        }
-    }
-
-    @KaExperimentalApi
     public object WITH_BOUNDS_IN_WHERE_CLAUSE : KaTypeParametersRenderer {
         override fun renderTypeParameters(
             analysisSession: KaSession,
@@ -147,7 +125,7 @@ public interface KaTypeParametersRenderer {
                         declarationRenderer.keywordsRenderer.renderKeyword(analysisSession, KtTokens.WHERE_KEYWORD, symbol, printer)
                     },
                     {
-                        printer.printCollection(allBounds) { (typeParameter, bound) ->
+                        printer.printCollection(allBounds) { [typeParameter, bound] ->
                             " : ".separated(
                                 { declarationRenderer.nameRenderer.renderName(analysisSession, typeParameter, declarationRenderer, printer) },
                                 {

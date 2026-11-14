@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_VARIABLE -NOTHING_TO_INLINE -UNUSED_PARAMETER
-// SKIP_TXT
 // WITH_COROUTINES
 import kotlin.coroutines.*
 import kotlin.coroutines.intrinsics.*

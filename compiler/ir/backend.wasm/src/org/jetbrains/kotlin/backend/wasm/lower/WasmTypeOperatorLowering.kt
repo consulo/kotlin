@@ -287,7 +287,7 @@ class WasmBaseTypeOperatorTransformer(val context: WasmBackendContext) : IrEleme
         }
 
         if (toType == symbols.voidType) {
-            return builder.irCall(symbols.findVoidConsumer(value.type)).apply {
+            return builder.irCall(symbols.consumeAnyIntoVoid).apply {
                 arguments[0] = value
             }
         }
@@ -337,6 +337,16 @@ class WasmBaseTypeOperatorTransformer(val context: WasmBackendContext) : IrEleme
     private fun shouldGenerateKotlinCast(expression: IrExpression, toType: IrType): Boolean {
         if (toType.isNullableAny()) return false
         if (toType.isTypeParameter()) return false
+        // For the cases of casts of callable references to return Unit type, such as
+        //
+        // fun suspect(): Dummy { ... }
+        // ::suspect as () -> Unit
+        //
+        // just need to return a Unit instance +builder.irCall(unitGetInstance)
+        // instead of trying to cast to Unit
+        //
+        // also fixes testData/codegen/box/basics/unchecked_cast10.kt
+        if (toType.isUnit()) return false
 
         val argumentType = when (expression) {
             is IrCall -> {

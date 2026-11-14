@@ -48,9 +48,8 @@ open class BenchmarkExtension @Inject constructor(project: Project) {
      */
     val prefixBenchmarksWithApplicationName: Property<Boolean> = project.objects.property(Boolean::class.java).convention(true)
 
-    val konanRun by project.tasks.registering(RunKotlinNativeTask::class)
-    val getCodeSize by project.tasks.registering(CodeSizeTask::class)
-    val konanJsonReport by project.tasks.registering(JsonReportTask::class)
+    val getCodeSize = project.tasks.register("getCodeSize", CodeSizeTask::class.java)
+    val konanJsonReport = project.tasks.register("konanJsonReport", JsonReportTask::class.java)
 
     val benchmarkSemaphore = project.gradle.sharedServices.registerIfAbsent(BENCHMARK_SEMAPHORE_NAME, BenchmarkSemaphore::class.java) {
         maxParallelUsages.set(1) // Benchmarks should not be executed in parallel to each other: this will skew their results
@@ -73,45 +72,10 @@ abstract class BenchmarkingPlugin : Plugin<Project> {
         createExtension()
 
         kotlin.apply {
-            sourceSets.commonMain.dependencies {
-                // All benchmarks require a benchmarks launcher.
-                // swiftinterop benchmarks also have to export it via ObjCExport => api instead of implementation dependency
-                api(project.dependencies.project(":benchmarksLauncher"))
-            }
             compilerOptions {
                 freeCompilerArgs.addAll(benchmark.compilerOpts)
                 freeCompilerArgs.addAll(compilerArgs)
             }
-        }
-
-        benchmark.konanRun.configure {
-            group = BENCHMARKING_GROUP
-            description = "Runs the benchmark for Kotlin/Native."
-
-            reportFile.set(layout.buildDirectory.file("nativeBenchResults.json"))
-            verbose.convention(logger.isInfoEnabled)
-            baseOnly.convention(project.baseOnly)
-            if (project.dryRun) {
-                filterRegex.set("^$")
-            } else {
-                filter.convention(project.filter)
-                filterRegex.convention(project.filterRegex)
-            }
-            warmupCount.convention(nativeWarmup)
-            repeatCount.convention(attempts)
-            repeatingType.set(benchmark.repeatingType)
-            if (benchmark.prefixBenchmarksWithApplicationName.get()) {
-                arguments.add("-p")
-                arguments.add(benchmark.applicationName.map { "$it::" })
-            }
-            useCSet.convention(project.useCSet)
-
-            usesService(benchmark.benchmarkSemaphore)
-
-            // We do not want to cache benchmarking runs; we want the task to run whenever requested.
-            outputs.upToDateWhen { false }
-
-            finalizedBy(benchmark.konanJsonReport)
         }
 
         benchmark.getCodeSize.configure {
@@ -127,7 +91,6 @@ abstract class BenchmarkingPlugin : Plugin<Project> {
             description = "Builds the benchmarking report for Kotlin/Native."
 
             benchmarksReports.from(benchmark.getCodeSize)
-            benchmarksReports.from(benchmark.konanRun.map { it.reportFile.get() })
             compilerVersion.set(project.compilerVersion)
             if (buildType.optimized) {
                 compilerFlags.add("-opt")
@@ -138,7 +101,7 @@ abstract class BenchmarkingPlugin : Plugin<Project> {
             reportFile.set(layout.buildDirectory.file(nativeJson))
         }
 
-        val nativeReportElements by configurations.creating {
+        val nativeReportElements = configurations.create("nativeReportElements") {
             isCanBeConsumed = true
             isCanBeResolved = false
             attributes {

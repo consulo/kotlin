@@ -26,6 +26,20 @@ KtFile: enumEntryContent.kt
             PsiElement(class)('class')
             PsiWhiteSpace(' ')
             PsiElement(IDENTIFIER)('NestedClass')
+            PRIMARY_CONSTRUCTOR
+              VALUE_PARAMETER_LIST
+                PsiElement(LPAR)('(')
+                VALUE_PARAMETER
+                  PsiElement(val)('val')
+                  PsiWhiteSpace(' ')
+                  PsiElement(IDENTIFIER)('parameter')
+                  PsiElement(COLON)(':')
+                  PsiWhiteSpace(' ')
+                  TYPE_REFERENCE
+                    USER_TYPE
+                      REFERENCE_EXPRESSION
+                        PsiElement(IDENTIFIER)('Int')
+                PsiElement(RPAR)(')')
             PsiWhiteSpace(' ')
             CLASS_BODY
               PsiElement(LBRACE)('{')
@@ -66,7 +80,7 @@ KtFile: enumEntryContent.kt
             BLOCK
               PsiElement(LBRACE)('{')
               PsiWhiteSpace('\n            ')
-              FUN
+              FUNCTION
                 PsiElement(fun)('fun')
                 PsiWhiteSpace(' ')
                 PsiElement(IDENTIFIER)('initFunction')
@@ -110,7 +124,7 @@ KtFile: enumEntryContent.kt
                     CLASS_BODY
                       PsiElement(LBRACE)('{')
                       PsiWhiteSpace('\n                ')
-                      FUN
+                      FUNCTION
                         PsiElement(fun)('fun')
                         PsiWhiteSpace(' ')
                         PsiElement(IDENTIFIER)('literalFunction')
@@ -136,7 +150,7 @@ KtFile: enumEntryContent.kt
               PsiWhiteSpace('\n        ')
               PsiElement(RBRACE)('}')
           PsiWhiteSpace('\n\n        ')
-          FUN
+          FUNCTION
             PsiElement(fun)('fun')
             PsiWhiteSpace(' ')
             PsiElement(IDENTIFIER)('foo')

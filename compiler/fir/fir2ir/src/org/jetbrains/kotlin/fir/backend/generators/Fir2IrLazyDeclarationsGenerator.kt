@@ -5,20 +5,20 @@
 
 package org.jetbrains.kotlin.fir.backend.generators
 
-import org.jetbrains.kotlin.fir.backend.*
+import org.jetbrains.kotlin.fir.*
+import org.jetbrains.kotlin.fir.backend.Fir2IrComponents
+import org.jetbrains.kotlin.fir.backend.PropertySymbols
+import org.jetbrains.kotlin.fir.backend.isStubPropertyForPureField
+import org.jetbrains.kotlin.fir.backend.toIrType
 import org.jetbrains.kotlin.fir.backend.utils.convertWithOffsets
 import org.jetbrains.kotlin.fir.backend.utils.declareThisReceiverParameter
 import org.jetbrains.kotlin.fir.backend.utils.irOrigin
-import org.jetbrains.kotlin.fir.containingClassLookupTag
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.contextParametersForFunctionOrContainingProperty
-import org.jetbrains.kotlin.fir.isSubstitutionOrIntersectionOverride
+import org.jetbrains.kotlin.fir.declarations.utils.isCompanionExtension
 import org.jetbrains.kotlin.fir.lazy.*
-import org.jetbrains.kotlin.fir.lazy.Fir2IrLazyConstructor
-import org.jetbrains.kotlin.fir.render
-import org.jetbrains.kotlin.fir.unwrapUseSiteSubstitutionOverrides
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.IrParameterKind
+import org.jetbrains.kotlin.ir.isJavaValueClass
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.util.SYNTHETIC_OFFSET
 import org.jetbrains.kotlin.ir.util.classId
@@ -67,7 +67,7 @@ class Fir2IrLazyDeclarationsGenerator(private val c: Fir2IrComponents) : Fir2IrC
                 this@buildList
             )
 
-            fir.receiverParameter?.let {
+            fir.receiverParameter?.takeUnless { fir.isCompanionExtension }?.let {
                 this += irFunction.declareThisReceiverParameter(
                     thisType = it.typeRef.toIrType(),
                     thisOrigin = irFunction.origin,
@@ -168,6 +168,7 @@ class Fir2IrLazyDeclarationsGenerator(private val c: Fir2IrComponents) : Fir2IrC
 
         // NB: this is needed to prevent recursions in case of self bounds
         irClass.prepareTypeParameters()
+        irClass.isJavaValueClass = firClass.isJavaValueClass == true
 
         return irClass
     }

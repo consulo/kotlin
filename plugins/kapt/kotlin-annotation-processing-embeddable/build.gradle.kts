@@ -6,6 +6,8 @@ import plugins.signLibraryPublication
 description = "Annotation Processor for Kotlin (for using with embeddable compiler)"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     `java-library`
 }
 

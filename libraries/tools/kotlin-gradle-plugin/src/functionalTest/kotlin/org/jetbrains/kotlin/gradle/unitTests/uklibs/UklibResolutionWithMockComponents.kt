@@ -9,8 +9,9 @@ import org.gradle.api.Project
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.internal.component.resolution.failure.exception.VariantSelectionByAttributesException
 import org.gradle.internal.exceptions.MultiCauseException
-import org.gradle.kotlin.dsl.maven
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.dependencyResolutionTests.kotlinBuildDeps
+import org.jetbrains.kotlin.gradle.dependencyResolutionTests.mavenCentralCacheRedirector
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.internal.dsl.KotlinMultiplatformSourceSetConventionsImpl.commonMain
 import org.jetbrains.kotlin.gradle.internal.dsl.KotlinMultiplatformSourceSetConventionsImpl.iosMain
@@ -64,12 +65,12 @@ class UklibResolutionTestsWithMockComponents {
         val consumer = uklibConsumer {
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 sourceSets.commonMain.dependencies { implementation("foo:direct:1.0") }
             }
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
         }
 
         assertEquals(
@@ -124,10 +125,10 @@ class UklibResolutionTestsWithMockComponents {
         val consumer = uklibConsumer(
             resolutionStrategy = KmpResolutionStrategy.InterlibraryUklibAndPSMResolution_PreferUklibs,
         ) {
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 js()
                 sourceSets.commonMain.dependencies { implementation("foo:direct:1.0") }
@@ -207,14 +208,14 @@ class UklibResolutionTestsWithMockComponents {
         val consumer = uklibConsumer {
             kotlin {
                 js()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 sourceSets.commonMain.dependencies { implementation("foo:direct:1.0") }
             }
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
         }
 
-        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+        // fixme: KT-89587 Clean up tests after iosX64 target deprecation
         assertEquals(
             mapOf<String, ResolvedComponentWithArtifacts>(
                 "foo:direct:1.0" to ResolvedComponentWithArtifacts(
@@ -282,7 +283,7 @@ class UklibResolutionTestsWithMockComponents {
                 jvm()
                 sourceSets.commonMain.dependencies { implementation("foo:direct:1.0") }
             }
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
         }
 
         assertEquals(
@@ -350,7 +351,7 @@ class UklibResolutionTestsWithMockComponents {
         val consumer = uklibConsumer {
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -358,7 +359,7 @@ class UklibResolutionTestsWithMockComponents {
                 wasmWasi()
                 sourceSets.commonMain.dependencies { implementation("foo:direct:1.0") }
             }
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
         }
 
         // Resolvable metadata configurations resolve as usual
@@ -380,7 +381,7 @@ class UklibResolutionTestsWithMockComponents {
         }
 
         // All the missing in producer targets resolve into metadata variant with metadata jar
-        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+        // fixme: KT-89587 Clean up tests after iosX64 target deprecation
         listOf(
             { consumer.multiplatformExtension.iosX64() },
             { consumer.multiplatformExtension.jvm() },
@@ -480,15 +481,15 @@ class UklibResolutionTestsWithMockComponents {
         val consumer = uklibConsumer {
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 sourceSets.commonMain.dependencies { implementation("foo:direct:1.0") }
             }
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
         }
 
-        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+        // fixme: KT-89587 Clean up tests after iosX64 target deprecation
         assertEquals(
             mapOf<String, ResolvedComponentWithArtifacts>(
                 "foo:direct:1.0" to ResolvedComponentWithArtifacts(
@@ -511,10 +512,10 @@ class UklibResolutionTestsWithMockComponents {
     @Test
     fun `uklib resolution - all configurations can resolve dom-api-compat`() {
         val consumer = uklibConsumer {
-            repositories.mavenLocal()
+            repositories.kotlinBuildDeps()
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -586,11 +587,11 @@ class UklibResolutionTestsWithMockComponents {
     @Test
     fun `uklib resolution - all configurations can resolve stdlib`() {
         val consumer = uklibConsumer {
-            repositories.mavenLocal()
-            repositories.mavenCentral()
+            repositories.kotlinBuildDeps()
+            repositories.mavenCentralCacheRedirector()
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -728,10 +729,10 @@ class UklibResolutionTestsWithMockComponents {
         )
 
         val consumer = uklibConsumer {
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -807,10 +808,10 @@ class UklibResolutionTestsWithMockComponents {
         )
 
         val consumer = uklibConsumer {
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -877,10 +878,10 @@ class UklibResolutionTestsWithMockComponents {
     @Test
     fun `uklib resolution - resolution with annotations`() {
         val consumer = uklibConsumer {
-            repositories.mavenCentral()
+            repositories.mavenCentralCacheRedirector()
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -944,10 +945,10 @@ class UklibResolutionTestsWithMockComponents {
     @Test
     fun `uklib resolution - resolution with legacy KMP`() {
         val consumer = uklibConsumer {
-            repositories.mavenCentral()
+            repositories.mavenCentralCacheRedirector()
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -1104,10 +1105,10 @@ class UklibResolutionTestsWithMockComponents {
         )
 
         val consumer = uklibConsumer {
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -1192,10 +1193,10 @@ class UklibResolutionTestsWithMockComponents {
         )
 
         val consumer = uklibConsumer {
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -1211,7 +1212,7 @@ class UklibResolutionTestsWithMockComponents {
                 ),
             ).prettyPrinted, consumer.multiplatformExtension.iosArm64().compilationResolution().prettyPrinted
         )
-        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+        // fixme: KT-89587 Clean up tests after iosX64 target deprecation
         assertEquals(
             mapOf<String, ResolvedComponentWithArtifacts>(
                 "foo:direct:1.0" to ResolvedComponentWithArtifacts(
@@ -1307,7 +1308,7 @@ class UklibResolutionTestsWithMockComponents {
                 wasmWasi()
                 sourceSets.commonMain.dependencies { implementation("foo:direct:1.0") }
             }
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
         }
 
         listOf(
@@ -1451,7 +1452,7 @@ class UklibResolutionTestsWithMockComponents {
                 androidTarget()
                 sourceSets.commonMain.dependencies { implementation("foo:direct:1.0") }
             }
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
         }
 
         assertEquals(
@@ -1507,7 +1508,7 @@ class UklibResolutionTestsWithMockComponents {
                 androidTarget()
                 sourceSets.commonMain.dependencies { implementation("foo:direct:1.0") }
             }
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
         }
 
         assertEquals(
@@ -1583,7 +1584,7 @@ class UklibResolutionTestsWithMockComponents {
                 androidTarget()
                 sourceSets.commonMain.dependencies { implementation("foo:direct:1.0") }
             }
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
         }
 
         assertEquals(
@@ -1648,7 +1649,7 @@ class UklibResolutionTestsWithMockComponents {
             kotlin {
                 jvm()
             }
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
             configurations.create("empty") {
                 it.isCanBeConsumed = false
                 it.dependencies.add(dependencies.create("foo:direct:1.0"))
@@ -1671,7 +1672,7 @@ class UklibResolutionTestsWithMockComponents {
                 linuxArm64()
                 js()
                 wasmWasi()
-                repositories.mavenCentral()
+                repositories.mavenCentralCacheRedirector()
                 sourceSets.commonMain {
                     dependencies {
                         implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.1.0")
@@ -2129,10 +2130,10 @@ class UklibResolutionTestsWithMockComponents {
         val consumer = uklibConsumer(
             resolutionStrategy = KmpResolutionStrategy.StandardKMPResolution,
         ) {
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()
@@ -2191,7 +2192,7 @@ class UklibResolutionTestsWithMockComponents {
         }
         val iosX64ResolutionExceptions = findMatchingExceptions(
             runCatching {
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 consumer.multiplatformExtension.iosX64().compilationResolution()
             }.exceptionOrNull() ?: error("Expect a failure"),
             VariantSelectionByAttributesException::class.java
@@ -2222,10 +2223,10 @@ class UklibResolutionTestsWithMockComponents {
         val consumer = uklibConsumer(
             resolutionStrategy = KmpResolutionStrategy.StandardKMPResolution,
         ) {
-            repositories.maven(repo)
+            repositories.maven { it.setUrl(repo) }
             kotlin {
                 iosArm64()
-                @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                 iosX64()
                 jvm()
                 js()

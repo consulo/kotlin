@@ -6,17 +6,16 @@
 package org.jetbrains.kotlin.gradle.tasks.configuration
 
 import org.jetbrains.kotlin.compilerRunner.GradleCompilerRunner
-import org.jetbrains.kotlin.gradle.dsl.KotlinJsCompilerOptions
 import org.jetbrains.kotlin.gradle.incremental.IncrementalModuleInfoBuildService
-import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilationInfo
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
-import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
-import org.jetbrains.kotlin.gradle.plugin.tcs
 import org.jetbrains.kotlin.gradle.targets.js.KotlinWasmTargetType
 import org.jetbrains.kotlin.gradle.targets.js.internal.LibraryFilterCachingService
-import org.jetbrains.kotlin.gradle.targets.js.ir.*
+import org.jetbrains.kotlin.gradle.targets.js.ir.KLIB_MODULE_NAME
+import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrCompilation
+import org.jetbrains.kotlin.gradle.targets.js.ir.WASM_TARGET
 import org.jetbrains.kotlin.gradle.tasks.Kotlin2JsCompile
+import org.jetbrains.kotlin.gradle.utils.isProjectIsolationEnabled
 import org.jetbrains.kotlin.gradle.utils.moduleName
 import org.jetbrains.kotlin.gradle.utils.providerWithLazyConvention
 
@@ -29,10 +28,17 @@ internal open class BaseKotlin2JsCompileConfig<TASK : Kotlin2JsCompile>(
     init {
         val libraryFilterCachingService = LibraryFilterCachingService.registerIfAbsent(project)
 
-        val incrementalModuleInfoProvider = IncrementalModuleInfoBuildService.registerIfAbsent(
-            project,
-            objectFactory.providerWithLazyConvention { GradleCompilerRunner.buildModulesInfo(project.gradle) },
-        )
+        val incrementalModuleInfoProvider =
+            if (project.isProjectIsolationEnabled) {
+                // Can't use if IP is enabled. As a temp workaround, disable the service.
+                // https://youtrack.jetbrains.com/issue/KT-80262/Update-JS-IC-implementation-to-support-Project-Isolation
+                null
+            } else {
+                IncrementalModuleInfoBuildService.registerIfAbsent(
+                    project,
+                    objectFactory.providerWithLazyConvention { GradleCompilerRunner.buildModulesInfo(project.gradle) },
+                )
+            }
 
         configureTask { task ->
             task.incremental = propertiesProvider.incrementalJs ?: true
@@ -41,21 +47,27 @@ internal open class BaseKotlin2JsCompileConfig<TASK : Kotlin2JsCompile>(
             configureAdditionalFreeCompilerArguments(task, compilation)
 
             task.libraryFilterCacheService.value(libraryFilterCachingService).disallowChanges()
-            task.incrementalModuleInfoProvider.value(incrementalModuleInfoProvider).disallowChanges()
-
+            if (incrementalModuleInfoProvider != null) {
+                task.incrementalModuleInfoProvider.value(incrementalModuleInfoProvider).disallowChanges()
+            }
 
             task.projectVersion.value(project.provider { project.version.toString() }).disallowChanges()
-            if (!compilation.isMain && project.kotlinPropertiesProvider.enableKlibKt64115Workaround) {
-                task.mainCompilationModuleName.value(
-                    compilation.tcs.compilation
-                        .target
-                        .compilations
-                        .getByName(KotlinCompilation.MAIN_COMPILATION_NAME)
-                        .compileTaskProvider
-                        .flatMap { (it.compilerOptions as KotlinJsCompilerOptions).moduleName }
-                )
+            when (compilation.platformType) {
+                KotlinPlatformType.js -> task.runViaBuildToolsApi.convention(propertiesProvider.runKotlinJsCompilerViaBuildToolsApi)
+                KotlinPlatformType.wasm -> task.runViaBuildToolsApi.convention(propertiesProvider.runKotlinWasmCompilerViaBuildToolsApi)
+                else -> task.runViaBuildToolsApi.value(false).disallowChanges()
             }
-            task.runViaBuildToolsApi.value(false).disallowChanges()
+            task.enableUnsafeIncrementalCompilationForMultiplatform
+                .convention(
+                    when (compilation.platformType) {
+                        KotlinPlatformType.js -> propertiesProvider.enableJsUnsafeOptimizationsForMultiplatform
+                        KotlinPlatformType.wasm -> propertiesProvider.enableWasmUnsafeOptimizationsForMultiplatform
+                        else -> project.providers.provider { false }
+                    }
+                )
+                .finalizeValueOnRead()
+            task.generateCompilerRefIndex.value(false).disallowChanges()
+            task.getIsWasmPlatform.value(compilation.platformType == KotlinPlatformType.wasm).disallowChanges()
         }
     }
 
@@ -86,10 +98,22 @@ internal open class BaseKotlin2JsCompileConfig<TASK : Kotlin2JsCompile>(
         }
 
         if (compilation.platformType == KotlinPlatformType.wasm) {
-            add(WASM_BACKEND)
-            val wasmTargetType = (compilation.origin as KotlinJsIrCompilation).target.wasmTargetType!!
-            val targetValue = if (wasmTargetType == KotlinWasmTargetType.WASI) "wasm-wasi" else "wasm-js"
-            add("$WASM_TARGET=$targetValue")
+            addAdditionalCompilerFlags(compilation)
         }
+    }
+
+    protected fun MutableList<String>.addAdditionalCompilerFlags(compilation: KotlinCompilationInfo) {
+        /**
+         * Ignore already contained arguments because duplicated `-Xwarning-level` for the same diagnostic causes a compilation error and for refinement.
+         */
+        fun addIfDoesntContain(arg: String) {
+            if (!contains(arg)) {
+                add(arg)
+            }
+        }
+
+        val wasmTargetType = (compilation.origin as KotlinJsIrCompilation).target.wasmTargetType!!
+        val targetValue = if (wasmTargetType == KotlinWasmTargetType.WASI) "wasm-wasi" else "wasm-js"
+        addIfDoesntContain("$WASM_TARGET=$targetValue")
     }
 }

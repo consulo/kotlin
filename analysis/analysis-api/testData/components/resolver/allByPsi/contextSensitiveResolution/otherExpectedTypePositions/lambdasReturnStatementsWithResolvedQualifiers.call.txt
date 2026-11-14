@@ -26,7 +26,7 @@ KtSuperTypeList(122,132): 'MySealed()'
   null
 
 KtSuperTypeCallEntry(122,132): 'MySealed()'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaDelegatedConstructorCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -44,7 +44,7 @@ KtSuperTypeCallEntry(122,132): 'MySealed()'
       valueArgumentMapping = {}
 
 KtConstructorCalleeExpression(122,130): 'MySealed'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaDelegatedConstructorCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -68,7 +68,22 @@ KtUserType(122,130): 'MySealed'
   null
 
 KtNameReferenceExpression(122,130): 'MySealed'
-  null
+  KaSimpleCallResolutionSuccess:
+    call = KaDelegatedConstructorCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      kind = SUPER_CALL
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = MySealed
+        symbol = <constructor>(): MySealed
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtValueArgumentList(130,132): '()'
   null
@@ -83,7 +98,7 @@ KtSuperTypeList(153,163): 'MySealed()'
   null
 
 KtSuperTypeCallEntry(153,163): 'MySealed()'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaDelegatedConstructorCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -101,7 +116,7 @@ KtSuperTypeCallEntry(153,163): 'MySealed()'
       valueArgumentMapping = {}
 
 KtConstructorCalleeExpression(153,161): 'MySealed'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaDelegatedConstructorCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -125,7 +140,22 @@ KtUserType(153,161): 'MySealed'
   null
 
 KtNameReferenceExpression(153,161): 'MySealed'
-  null
+  KaSimpleCallResolutionSuccess:
+    call = KaDelegatedConstructorCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      kind = SUPER_CALL
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = MySealed
+        symbol = <constructor>(): MySealed
+        valueParameters = []
+        contextParameters = []
+        callableId = null
+      typeArgumentsMapping = {}
+      valueArgumentMapping = {}
 
 KtValueArgumentList(161,163): '()'
   null
@@ -224,7 +254,7 @@ KtNameReferenceExpression(263,264): 'T'
   null
 
 KtCallExpression(267,273): 'TODO()'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -241,7 +271,7 @@ KtCallExpression(267,273): 'TODO()'
       valueArgumentMapping = {}
 
 KtNameReferenceExpression(267,271): 'TODO'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -294,7 +324,7 @@ KtNameReferenceExpression(293,294): 'X'
   null
 
 KtCallExpression(297,303): 'TODO()'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -311,7 +341,7 @@ KtCallExpression(297,303): 'TODO()'
       valueArgumentMapping = {}
 
 KtNameReferenceExpression(297,301): 'TODO'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -364,7 +394,7 @@ KtNameReferenceExpression(349,350): 'X'
   null
 
 KtCallExpression(356,433): 'myRunWithMySealed {'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -400,7 +430,7 @@ KtCallExpression(356,433): 'myRunWithMySealed {'
       }
 
 KtNameReferenceExpression(356,373): 'myRunWithMySealed'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -454,7 +484,7 @@ KtContainerNode(388,389): 'b'
   null
 
 KtNameReferenceExpression(388,389): 'b'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleVariableAccessCall:
       contextArguments = []
       dispatchReceiver = null
@@ -489,7 +519,7 @@ KtNameReferenceExpression(426,427): 'Y'
   null
 
 KtCallExpression(439,524): 'myRunWithMySealed {'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -525,7 +555,7 @@ KtCallExpression(439,524): 'myRunWithMySealed {'
       }
 
 KtNameReferenceExpression(439,456): 'myRunWithMySealed'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -579,7 +609,7 @@ KtContainerNode(471,472): 'b'
   null
 
 KtNameReferenceExpression(471,472): 'b'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleVariableAccessCall:
       contextArguments = []
       dispatchReceiver = null
@@ -608,7 +638,7 @@ KtLabelReferenceExpression(480,498): '@myRunWithMySealed'
   null
 
 KtCallExpression(499,504): 'id(X)'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -616,13 +646,13 @@ KtCallExpression(499,504): 'id(X)'
       extensionReceiver = null
       signature = KaFunctionSignature:
         receiverType = null
-        returnType = MySealed
+        returnType = MySealed.X
         symbol = /id(x: X): X
         valueParameters = [
           KaVariableSignature:
             name = x
             receiverType = null
-            returnType = MySealed
+            returnType = MySealed.X
             symbol = x: X
             contextParameters = []
             callableId = null
@@ -630,20 +660,20 @@ KtCallExpression(499,504): 'id(X)'
         contextParameters = []
         callableId = /id
       typeArgumentsMapping = {
-        X -> (MySealed)
+        X -> (MySealed.X)
       }
       valueArgumentMapping = {
         X -> (KaVariableSignature:
           name = x
           receiverType = null
-          returnType = MySealed
+          returnType = MySealed.X
           symbol = x: X
           contextParameters = []
           callableId = null)
       }
 
 KtNameReferenceExpression(499,501): 'id'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -651,13 +681,13 @@ KtNameReferenceExpression(499,501): 'id'
       extensionReceiver = null
       signature = KaFunctionSignature:
         receiverType = null
-        returnType = MySealed
+        returnType = MySealed.X
         symbol = /id(x: X): X
         valueParameters = [
           KaVariableSignature:
             name = x
             receiverType = null
-            returnType = MySealed
+            returnType = MySealed.X
             symbol = x: X
             contextParameters = []
             callableId = null
@@ -665,13 +695,13 @@ KtNameReferenceExpression(499,501): 'id'
         contextParameters = []
         callableId = /id
       typeArgumentsMapping = {
-        X -> (MySealed)
+        X -> (MySealed.X)
       }
       valueArgumentMapping = {
         X -> (KaVariableSignature:
           name = x
           receiverType = null
-          returnType = MySealed
+          returnType = MySealed.X
           symbol = x: X
           contextParameters = []
           callableId = null)
@@ -687,7 +717,7 @@ KtNameReferenceExpression(502,503): 'X'
   null
 
 KtCallExpression(513,518): 'id(Y)'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -695,13 +725,13 @@ KtCallExpression(513,518): 'id(Y)'
       extensionReceiver = null
       signature = KaFunctionSignature:
         receiverType = null
-        returnType = MySealed
+        returnType = MySealed.Y
         symbol = /id(x: X): X
         valueParameters = [
           KaVariableSignature:
             name = x
             receiverType = null
-            returnType = MySealed
+            returnType = MySealed.Y
             symbol = x: X
             contextParameters = []
             callableId = null
@@ -709,20 +739,20 @@ KtCallExpression(513,518): 'id(Y)'
         contextParameters = []
         callableId = /id
       typeArgumentsMapping = {
-        X -> (MySealed)
+        X -> (MySealed.Y)
       }
       valueArgumentMapping = {
         Y -> (KaVariableSignature:
           name = x
           receiverType = null
-          returnType = MySealed
+          returnType = MySealed.Y
           symbol = x: X
           contextParameters = []
           callableId = null)
       }
 
 KtNameReferenceExpression(513,515): 'id'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -730,13 +760,13 @@ KtNameReferenceExpression(513,515): 'id'
       extensionReceiver = null
       signature = KaFunctionSignature:
         receiverType = null
-        returnType = MySealed
+        returnType = MySealed.Y
         symbol = /id(x: X): X
         valueParameters = [
           KaVariableSignature:
             name = x
             receiverType = null
-            returnType = MySealed
+            returnType = MySealed.Y
             symbol = x: X
             contextParameters = []
             callableId = null
@@ -744,13 +774,13 @@ KtNameReferenceExpression(513,515): 'id'
         contextParameters = []
         callableId = /id
       typeArgumentsMapping = {
-        X -> (MySealed)
+        X -> (MySealed.Y)
       }
       valueArgumentMapping = {
         Y -> (KaVariableSignature:
           name = x
           receiverType = null
-          returnType = MySealed
+          returnType = MySealed.Y
           symbol = x: X
           contextParameters = []
           callableId = null)
@@ -766,7 +796,7 @@ KtNameReferenceExpression(516,517): 'Y'
   null
 
 KtCallExpression(530,593): 'myRun<MySealed> {'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -804,7 +834,7 @@ KtCallExpression(530,593): 'myRun<MySealed> {'
       }
 
 KtNameReferenceExpression(530,535): 'myRun'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -875,7 +905,7 @@ KtContainerNode(560,561): 'b'
   null
 
 KtNameReferenceExpression(560,561): 'b'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleVariableAccessCall:
       contextArguments = []
       dispatchReceiver = null
@@ -910,7 +940,7 @@ KtNameReferenceExpression(586,587): 'Y'
   null
 
 KtCallExpression(598,682): 'foo('
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -946,7 +976,7 @@ KtCallExpression(598,682): 'foo('
       }
 
 KtNameReferenceExpression(598,601): 'foo'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -988,7 +1018,7 @@ KtValueArgument(611,676): 'myRun {'
   null
 
 KtCallExpression(611,676): 'myRun {'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -1026,7 +1056,7 @@ KtCallExpression(611,676): 'myRun {'
       }
 
 KtNameReferenceExpression(611,616): 'myRun'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -1082,7 +1112,7 @@ KtContainerNode(635,636): 'b'
   null
 
 KtNameReferenceExpression(635,636): 'b'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleVariableAccessCall:
       contextArguments = []
       dispatchReceiver = null
@@ -1129,7 +1159,7 @@ KtNameReferenceExpression(695,703): 'MySealed'
   null
 
 KtCallExpression(706,759): 'myRun {'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -1167,7 +1197,7 @@ KtCallExpression(706,759): 'myRun {'
       }
 
 KtNameReferenceExpression(706,711): 'myRun'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleFunctionCall:
       contextArgumentMapping = {}
       contextArguments = []
@@ -1223,7 +1253,7 @@ KtContainerNode(726,727): 'b'
   null
 
 KtNameReferenceExpression(726,727): 'b'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleVariableAccessCall:
       contextArguments = []
       dispatchReceiver = null
@@ -1258,7 +1288,7 @@ KtNameReferenceExpression(752,753): 'Y'
   null
 
 KtCallExpression(765,818): 'myRun {'
-  KaCallResolutionError:
+  KaSimpleCallResolutionError:
     candidateCalls = [
       KaSimpleFunctionCall:
         contextArgumentMapping = {}
@@ -1299,7 +1329,7 @@ KtCallExpression(765,818): 'myRun {'
     diagnostic = ERROR<OTHER_ERROR: Inapplicable(INAPPLICABLE): /myRun>
 
 KtNameReferenceExpression(765,770): 'myRun'
-  KaCallResolutionError:
+  KaSimpleCallResolutionError:
     candidateCalls = [
       KaSimpleFunctionCall:
         contextArgumentMapping = {}
@@ -1358,7 +1388,7 @@ KtContainerNode(785,786): 'b'
   null
 
 KtNameReferenceExpression(785,786): 'b'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleVariableAccessCall:
       contextArguments = []
       dispatchReceiver = null
@@ -1387,96 +1417,90 @@ KtLabelReferenceExpression(794,800): '@myRun'
   null
 
 KtNameReferenceExpression(801,802): 'X'
-  KaCallResolutionError:
+  KaSimpleCallResolutionError:
     candidateCalls = []
     diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'X'.>
 
 KtNameReferenceExpression(811,812): 'Y'
-  KaCallResolutionError:
+  KaSimpleCallResolutionError:
     candidateCalls = []
     diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'Y'.>
 
 KtCallExpression(823,885): 'myRun {'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = MySealed.X
-          symbol = /myRun(b: () -> T): T
-          valueParameters = [
-            KaVariableSignature:
-              name = b
-              receiverType = null
-              returnType = () -> MySealed.X
-              symbol = b: () -> T
-              contextParameters = []
-              callableId = null
-          ]
-          contextParameters = []
-          callableId = /myRun
-        typeArgumentsMapping = {
-          T -> (MySealed.X)
-        }
-        valueArgumentMapping = {
-          {
-                  if (b) return@myRun MySealed.X
-                  Y
-              } -> (KaVariableSignature:
+  KaSimpleCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = MySealed
+        symbol = /myRun(b: () -> T): T
+        valueParameters = [
+          KaVariableSignature:
             name = b
             receiverType = null
-            returnType = () -> MySealed.X
+            returnType = () -> MySealed
             symbol = b: () -> T
             contextParameters = []
-            callableId = null)
-        }
-    ]
-    diagnostic = ERROR<ARGUMENT_TYPE_MISMATCH: Argument type mismatch: actual type is 'MySealed.Y', but 'MySealed.X' was expected.>
+            callableId = null
+        ]
+        contextParameters = []
+        callableId = /myRun
+      typeArgumentsMapping = {
+        T -> (MySealed)
+      }
+      valueArgumentMapping = {
+        {
+                if (b) return@myRun MySealed.X
+                Y
+            } -> (KaVariableSignature:
+          name = b
+          receiverType = null
+          returnType = () -> MySealed
+          symbol = b: () -> T
+          contextParameters = []
+          callableId = null)
+      }
 
 KtNameReferenceExpression(823,828): 'myRun'
-  KaCallResolutionError:
-    candidateCalls = [
-      KaSimpleFunctionCall:
-        contextArgumentMapping = {}
-        contextArguments = []
-        dispatchReceiver = null
-        extensionReceiver = null
-        signature = KaFunctionSignature:
-          receiverType = null
-          returnType = MySealed.X
-          symbol = /myRun(b: () -> T): T
-          valueParameters = [
-            KaVariableSignature:
-              name = b
-              receiverType = null
-              returnType = () -> MySealed.X
-              symbol = b: () -> T
-              contextParameters = []
-              callableId = null
-          ]
-          contextParameters = []
-          callableId = /myRun
-        typeArgumentsMapping = {
-          T -> (MySealed.X)
-        }
-        valueArgumentMapping = {
-          {
-                  if (b) return@myRun MySealed.X
-                  Y
-              } -> (KaVariableSignature:
+  KaSimpleCallResolutionSuccess:
+    call = KaSimpleFunctionCall:
+      contextArgumentMapping = {}
+      contextArguments = []
+      dispatchReceiver = null
+      extensionReceiver = null
+      signature = KaFunctionSignature:
+        receiverType = null
+        returnType = MySealed
+        symbol = /myRun(b: () -> T): T
+        valueParameters = [
+          KaVariableSignature:
             name = b
             receiverType = null
-            returnType = () -> MySealed.X
+            returnType = () -> MySealed
             symbol = b: () -> T
             contextParameters = []
-            callableId = null)
-        }
-    ]
-    diagnostic = ERROR<ARGUMENT_TYPE_MISMATCH: Argument type mismatch: actual type is 'MySealed.Y', but 'MySealed.X' was expected.>
+            callableId = null
+        ]
+        contextParameters = []
+        callableId = /myRun
+      typeArgumentsMapping = {
+        T -> (MySealed)
+      }
+      valueArgumentMapping = {
+        {
+                if (b) return@myRun MySealed.X
+                Y
+            } -> (KaVariableSignature:
+          name = b
+          receiverType = null
+          returnType = () -> MySealed
+          symbol = b: () -> T
+          contextParameters = []
+          callableId = null)
+      }
 
 KtLambdaArgument(829,885): '{'
   null
@@ -1497,7 +1521,7 @@ KtContainerNode(843,844): 'b'
   null
 
 KtNameReferenceExpression(843,844): 'b'
-  KaCallResolutionSuccess:
+  KaSimpleCallResolutionSuccess:
     call = KaSimpleVariableAccessCall:
       contextArguments = []
       dispatchReceiver = null

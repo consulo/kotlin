@@ -1,8 +1,9 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
     id("test-inputs-check")
-    id("project-tests-convention")
 }
 
 dependencies {
@@ -28,7 +29,7 @@ sourceSets {
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5) {
+    testTask {
         filter {
             excludeTestsMatching("org.jetbrains.kotlin.analysis.test.data.manager.fakes.*")
         }

@@ -1,7 +1,8 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -23,10 +24,7 @@ sourceSets {
 projectTests {
     testData(project(":compiler").isolated, "testData/codegen")
 
-    nativeTestTask("test") {
-        // nativeTest sets workingDir to rootDir so here we need to override it
-        workingDir = projectDir
-    }
+    nativeTestTask("test")
 
     testGenerator("org.jetbrains.kotlin.generators.tests.GenerateNativeCodegenBoxTestsKt", generateTestsInBuildDirectory = true) {
         javaLauncher.set(project.getToolchainLauncherFor(JdkMajorVersion.JDK_11_0))

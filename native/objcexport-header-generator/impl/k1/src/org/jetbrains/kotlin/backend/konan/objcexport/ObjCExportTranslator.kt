@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.backend.konan.objcexport
 
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.enumEntries
 import org.jetbrains.kotlin.backend.konan.descriptors.isArray
@@ -293,16 +294,15 @@ class ObjCExportTranslatorImpl(
                     namer.getNSEnumTypeName(descriptor)?.let { nsEnumTypeName ->
                         // Map the enum entries in declaration order, preserving the ordinal
                         auxiliaryDeclarations.add(
-                            ObjCNSEnum(
+                            ObjCNSClosedEnum(
                                 name = nsEnumTypeName.objCName,
                                 swiftName = nsEnumTypeName.swiftName,
                                 origin = ObjCExportStubOrigin(descriptor),
                                 entries = descriptor.enumEntries.mapIndexed { ordinal, entry ->
-                                    val objcEnumEntryName = entry.getObjCEnumEntryName()
-                                    val objCName = objcEnumEntryName.getName(forSwift = false) ?: namer.getEnumEntrySelector(entry)
-                                    val swiftName = objcEnumEntryName.getName(forSwift = true) ?: namer.getEnumEntrySwiftName(entry)
-                                    ObjCNSEnum.Entry(
-                                        objCName = nsEnumTypeName.objCName + objCName.replaceFirstChar { it.uppercaseChar() },
+                                    val objCName = namer.getNSClosedEnumEntryName(nsEnumTypeName.objCName, entry)
+                                    val swiftName = namer.getNSClosedEnumEntrySwiftName(entry)
+                                    ObjCNSClosedEnum.Entry(
+                                        objCName = objCName,
                                         swiftName = swiftName,
                                         value = ordinal
                                     )
@@ -623,7 +623,7 @@ class ObjCExportTranslatorImpl(
 
     private fun unifyName(initialName: String, usedNames: Set<String>): String {
         var unique = initialName.toValidObjCSwiftIdentifier()
-        while (unique in usedNames || unique in cKeywords) {
+        while (unique in usedNames || unique in cKeywords || unique in objCMacroDefinitions) {
             unique += "_"
         }
         return unique
@@ -642,7 +642,7 @@ class ObjCExportTranslatorImpl(
 
             val usedNames = mutableSetOf<String>()
 
-            valueParametersAssociated.forEach { (bridge: MethodBridgeValueParameter, p: ParameterDescriptor?) ->
+            valueParametersAssociated.forEach { [bridge: MethodBridgeValueParameter, p: ParameterDescriptor?] ->
                 val candidateName: String = when (bridge) {
                     is MethodBridgeValueParameter.Mapped -> {
                         p!!
@@ -770,6 +770,8 @@ class ObjCExportTranslatorImpl(
         } else emptyList()
 
         val visibilityComments = visibilityComments(method.visibility, "method")
+
+        @OptIn(K1Deprecation::class)
         val paramComments = method.allParameters.flatMap { parameterDescriptor ->
             parameters.find { parameter -> parameter.origin?.name == parameterDescriptor.name }?.let { parameter ->
                 mustBeDocumentedParamAttributeList(parameter, descriptor = parameterDescriptor)

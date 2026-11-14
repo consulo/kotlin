@@ -35,6 +35,18 @@ public class ContextCollectorSourceTestGenerated extends AbstractContextCollecto
   }
 
   @Test
+  @TestMetadata("anonymousObjectCompanionBlockFunction.kt")
+  public void testAnonymousObjectCompanionBlockFunction() {
+    run("anonymousObjectCompanionBlockFunction.kt");
+  }
+
+  @Test
+  @TestMetadata("anonymousObjectCompanionBlockProperty.kt")
+  public void testAnonymousObjectCompanionBlockProperty() {
+    run("anonymousObjectCompanionBlockProperty.kt");
+  }
+
+  @Test
   @TestMetadata("class.kt")
   public void testClass() {
     run("class.kt");
@@ -101,6 +113,18 @@ public class ContextCollectorSourceTestGenerated extends AbstractContextCollecto
   }
 
   @Test
+  @TestMetadata("explicitBackingField.kt")
+  public void testExplicitBackingField() {
+    run("explicitBackingField.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitBackingFieldInitializer.kt")
+  public void testExplicitBackingFieldInitializer() {
+    run("explicitBackingFieldInitializer.kt");
+  }
+
+  @Test
   @TestMetadata("extensionFunction.kt")
   public void testExtensionFunction() {
     run("extensionFunction.kt");
@@ -140,6 +164,18 @@ public class ContextCollectorSourceTestGenerated extends AbstractContextCollecto
   @TestMetadata("forLoopVariable.kt")
   public void testForLoopVariable() {
     run("forLoopVariable.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassFunction.kt")
+  public void testFullValueClassFunction() {
+    run("fullValueClassFunction.kt");
   }
 
   @Test
@@ -284,6 +320,30 @@ public class ContextCollectorSourceTestGenerated extends AbstractContextCollecto
   @TestMetadata("secondaryConstructor_superCallArgument.kt")
   public void testSecondaryConstructor_superCallArgument() {
     run("secondaryConstructor_superCallArgument.kt");
+  }
+
+  @Test
+  @TestMetadata("secondaryConstructor_superCallArgumentInnerClass.kt")
+  public void testSecondaryConstructor_superCallArgumentInnerClass() {
+    run("secondaryConstructor_superCallArgumentInnerClass.kt");
+  }
+
+  @Test
+  @TestMetadata("secondaryConstructor_superCallArgumentListInnerClass.kt")
+  public void testSecondaryConstructor_superCallArgumentListInnerClass() {
+    run("secondaryConstructor_superCallArgumentListInnerClass.kt");
+  }
+
+  @Test
+  @TestMetadata("secondaryConstructor_superCallInnerClass.kt")
+  public void testSecondaryConstructor_superCallInnerClass() {
+    run("secondaryConstructor_superCallInnerClass.kt");
+  }
+
+  @Test
+  @TestMetadata("secondaryConstructor_thisCallInnerClass.kt")
+  public void testSecondaryConstructor_thisCallInnerClass() {
+    run("secondaryConstructor_thisCallInnerClass.kt");
   }
 
   @Test
@@ -584,6 +644,12 @@ public class ContextCollectorSourceTestGenerated extends AbstractContextCollecto
     }
 
     @Test
+    @TestMetadata("superTypeCallArgumentsExpressionInnerSuperClass.kt")
+    public void testSuperTypeCallArgumentsExpressionInnerSuperClass() {
+      run("superTypeCallArgumentsExpressionInnerSuperClass.kt");
+    }
+
+    @Test
     @TestMetadata("superTypeCallArgumentsExpression_objectLiteral.kt")
     public void testSuperTypeCallArgumentsExpression_objectLiteral() {
       run("superTypeCallArgumentsExpression_objectLiteral.kt");
@@ -647,6 +713,196 @@ public class ContextCollectorSourceTestGenerated extends AbstractContextCollecto
     @TestMetadata("superTypeRefGenerics.kt")
     public void testSuperTypeRefGenerics() {
       run("superTypeRefGenerics.kt");
+    }
+  }
+
+  @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/contextCollector/classMembers")
+  @TestDataPath("$PROJECT_ROOT")
+  public class ClassMembers {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/contextCollector/classMembers/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInClassMembers() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/contextCollector/classMembers"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("bigClass_lastMember.kt")
+    public void testBigClass_lastMember() {
+      run("bigClass_lastMember.kt");
+    }
+
+    @Test
+    @TestMetadata("bigClass_trailingDanglingAnnotation.kt")
+    public void testBigClass_trailingDanglingAnnotation() {
+      run("bigClass_trailingDanglingAnnotation.kt");
+    }
+
+    @Test
+    @TestMetadata("companionObject.kt")
+    public void testCompanionObject() {
+      run("companionObject.kt");
+    }
+
+    @Test
+    @TestMetadata("dataClassGeneratedMembers.kt")
+    public void testDataClassGeneratedMembers() {
+      run("dataClassGeneratedMembers.kt");
+    }
+
+    @Test
+    @TestMetadata("delegatedSupertype.kt")
+    public void testDelegatedSupertype() {
+      run("delegatedSupertype.kt");
+    }
+
+    @Test
+    @TestMetadata("enumEntriesWithBodies_classHeader.kt")
+    public void testEnumEntriesWithBodies_classHeader() {
+      run("enumEntriesWithBodies_classHeader.kt");
+    }
+
+    @Test
+    @TestMetadata("enumEntriesWithBodies_entryArgument.kt")
+    public void testEnumEntriesWithBodies_entryArgument() {
+      run("enumEntriesWithBodies_entryArgument.kt");
+    }
+
+    @Test
+    @TestMetadata("explicitPrimaryConstructorSuperCallArgument.kt")
+    public void testExplicitPrimaryConstructorSuperCallArgument() {
+      run("explicitPrimaryConstructorSuperCallArgument.kt");
+    }
+
+    @Test
+    @TestMetadata("lambdaDestructuringBody.kt")
+    public void testLambdaDestructuringBody() {
+      run("lambdaDestructuringBody.kt");
+    }
+
+    @Test
+    @TestMetadata("lambdaDestructuringEntry.kt")
+    public void testLambdaDestructuringEntry() {
+      run("lambdaDestructuringEntry.kt");
+    }
+
+    @Test
+    @TestMetadata("localClass_capturedAssignmentBeforeTarget.kt")
+    public void testLocalClass_capturedAssignmentBeforeTarget() {
+      run("localClass_capturedAssignmentBeforeTarget.kt");
+    }
+
+    @Test
+    @TestMetadata("localClass_capturedAssignmentInSibling.kt")
+    public void testLocalClass_capturedAssignmentInSibling() {
+      run("localClass_capturedAssignmentInSibling.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedClasses_middleClassHeader.kt")
+    public void testNestedClasses_middleClassHeader() {
+      run("nestedClasses_middleClassHeader.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedClasses_middleClassModifierList.kt")
+    public void testNestedClasses_middleClassModifierList() {
+      run("nestedClasses_middleClassModifierList.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedClasses_middleClassSuperTypeList.kt")
+    public void testNestedClasses_middleClassSuperTypeList() {
+      run("nestedClasses_middleClassSuperTypeList.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedClasses_middleMember.kt")
+    public void testNestedClasses_middleMember() {
+      run("nestedClasses_middleMember.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedClasses_nestedClass.kt")
+    public void testNestedClasses_nestedClass() {
+      run("nestedClasses_nestedClass.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedClasses_topMember.kt")
+    public void testNestedClasses_topMember() {
+      run("nestedClasses_topMember.kt");
+    }
+
+    @Test
+    @TestMetadata("useSiteAnnotation_field.kt")
+    public void testUseSiteAnnotation_field() {
+      run("useSiteAnnotation_field.kt");
+    }
+
+    @Test
+    @TestMetadata("useSiteAnnotation_get.kt")
+    public void testUseSiteAnnotation_get() {
+      run("useSiteAnnotation_get.kt");
+    }
+
+    @Test
+    @TestMetadata("useSiteAnnotation_param.kt")
+    public void testUseSiteAnnotation_param() {
+      run("useSiteAnnotation_param.kt");
+    }
+
+    @Test
+    @TestMetadata("useSiteAnnotation_set.kt")
+    public void testUseSiteAnnotation_set() {
+      run("useSiteAnnotation_set.kt");
+    }
+
+    @Test
+    @TestMetadata("useSiteAnnotation_setparam.kt")
+    public void testUseSiteAnnotation_setparam() {
+      run("useSiteAnnotation_setparam.kt");
+    }
+
+    @Test
+    @TestMetadata("valConstructorParameter.kt")
+    public void testValConstructorParameter() {
+      run("valConstructorParameter.kt");
+    }
+  }
+
+  @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/contextCollector/codeFragments")
+  @TestDataPath("$PROJECT_ROOT")
+  public class CodeFragments {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/contextCollector/codeFragments/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInCodeFragments() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/contextCollector/codeFragments"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("blockCodeFragment.kt")
+    public void testBlockCodeFragment() {
+      run("blockCodeFragment.kt");
+    }
+
+    @Test
+    @TestMetadata("expressionCodeFragment.kt")
+    public void testExpressionCodeFragment() {
+      run("expressionCodeFragment.kt");
+    }
+
+    @Test
+    @TestMetadata("typeCodeFragment.kt")
+    public void testTypeCodeFragment() {
+      run("typeCodeFragment.kt");
     }
   }
 
@@ -966,6 +1222,24 @@ public class ContextCollectorSourceTestGenerated extends AbstractContextCollecto
     }
 
     @Test
+    @TestMetadata("companionBlockLevel.kt")
+    public void testCompanionBlockLevel() {
+      run("companionBlockLevel.kt");
+    }
+
+    @Test
+    @TestMetadata("companionBlockLevel2.kt")
+    public void testCompanionBlockLevel2() {
+      run("companionBlockLevel2.kt");
+    }
+
+    @Test
+    @TestMetadata("companionBlockLevel3.kt")
+    public void testCompanionBlockLevel3() {
+      run("companionBlockLevel3.kt");
+    }
+
+    @Test
     @TestMetadata("danglingContextParameterInClass.kt")
     public void testDanglingContextParameterInClass() {
       run("danglingContextParameterInClass.kt");
@@ -1065,6 +1339,118 @@ public class ContextCollectorSourceTestGenerated extends AbstractContextCollecto
   }
 
   @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/contextCollector/expressionStability")
+  @TestDataPath("$PROJECT_ROOT")
+  public class ExpressionStability {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/contextCollector/expressionStability/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInExpressionStability() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/contextCollector/expressionStability"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("stableBoundLocalValSmartCast.kt")
+    public void testStableBoundLocalValSmartCast() {
+      run("stableBoundLocalValSmartCast.kt");
+    }
+
+    @Test
+    @TestMetadata("stableLocalVal.kt")
+    public void testStableLocalVal() {
+      run("stableLocalVal.kt");
+    }
+
+    @Test
+    @TestMetadata("stablePublicVal.kt")
+    public void testStablePublicVal() {
+      run("stablePublicVal.kt");
+    }
+
+    @Test
+    @TestMetadata("stableQualifiedPropertySmartCast.kt")
+    public void testStableQualifiedPropertySmartCast() {
+      run("stableQualifiedPropertySmartCast.kt");
+    }
+
+    @Test
+    @TestMetadata("stableSmartCast.kt")
+    public void testStableSmartCast() {
+      run("stableSmartCast.kt");
+    }
+
+    @Test
+    @TestMetadata("unstableCapturedLocalVar.kt")
+    public void testUnstableCapturedLocalVar() {
+      run("unstableCapturedLocalVar.kt");
+    }
+
+    @Test
+    @TestMetadata("unstableCustomGetter.kt")
+    public void testUnstableCustomGetter() {
+      run("unstableCustomGetter.kt");
+    }
+
+    @Test
+    @TestMetadata("unstableDelegatedVal.kt")
+    public void testUnstableDelegatedVal() {
+      run("unstableDelegatedVal.kt");
+    }
+
+    @Test
+    @TestMetadata("unstableOpenVal.kt")
+    public void testUnstableOpenVal() {
+      run("unstableOpenVal.kt");
+    }
+
+    @Test
+    @TestMetadata("unstablePublicVar.kt")
+    public void testUnstablePublicVar() {
+      run("unstablePublicVar.kt");
+    }
+  }
+
+  @Nested
+  @TestMetadata("analysis/low-level-api-fir/testData/contextCollector/fileMembers")
+  @TestDataPath("$PROJECT_ROOT")
+  public class FileMembers {
+    private void run(String fileName) {
+      runTest("analysis/low-level-api-fir/testData/contextCollector/fileMembers/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInFileMembers() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testData/contextCollector/fileMembers"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("fileAnnotationArgument.kt")
+    public void testFileAnnotationArgument() {
+      run("fileAnnotationArgument.kt");
+    }
+
+    @Test
+    @TestMetadata("importDirective.kt")
+    public void testImportDirective() {
+      run("importDirective.kt");
+    }
+
+    @Test
+    @TestMetadata("packageDirective.kt")
+    public void testPackageDirective() {
+      run("packageDirective.kt");
+    }
+
+    @Test
+    @TestMetadata("topLevelDanglingModifierList.kt")
+    public void testTopLevelDanglingModifierList() {
+      run("topLevelDanglingModifierList.kt");
+    }
+  }
+
+  @Nested
   @TestMetadata("analysis/low-level-api-fir/testData/contextCollector/scripts")
   @TestDataPath("$PROJECT_ROOT")
   public class Scripts {
@@ -1134,9 +1520,69 @@ public class ContextCollectorSourceTestGenerated extends AbstractContextCollecto
     }
 
     @Test
+    @TestMetadata("bound.kt")
+    public void testBound() {
+      run("bound.kt");
+    }
+
+    @Test
+    @TestMetadata("breakFromInfiniteLoop.kt")
+    public void testBreakFromInfiniteLoop() {
+      run("breakFromInfiniteLoop.kt");
+    }
+
+    @Test
+    @TestMetadata("collectionLiteral.kt")
+    public void testCollectionLiteral() {
+      run("collectionLiteral.kt");
+    }
+
+    @Test
+    @TestMetadata("collectionLiteralWithLambda.kt")
+    public void testCollectionLiteralWithLambda() {
+      run("collectionLiteralWithLambda.kt");
+    }
+
+    @Test
+    @TestMetadata("directSink.kt")
+    public void testDirectSink() {
+      run("directSink.kt");
+    }
+
+    @Test
+    @TestMetadata("directSinkBad.kt")
+    public void testDirectSinkBad() {
+      run("directSinkBad.kt");
+    }
+
+    @Test
+    @TestMetadata("directSinkBad_callsInPlace.kt")
+    public void testDirectSinkBad_callsInPlace() {
+      run("directSinkBad_callsInPlace.kt");
+    }
+
+    @Test
+    @TestMetadata("directSink_callsInPlace.kt")
+    public void testDirectSink_callsInPlace() {
+      run("directSink_callsInPlace.kt");
+    }
+
+    @Test
     @TestMetadata("dispatchReceiver.kt")
     public void testDispatchReceiver() {
       run("dispatchReceiver.kt");
+    }
+
+    @Test
+    @TestMetadata("doWhile.kt")
+    public void testDoWhile() {
+      run("doWhile.kt");
+    }
+
+    @Test
+    @TestMetadata("doWhile2.kt")
+    public void testDoWhile2() {
+      run("doWhile2.kt");
     }
 
     @Test
@@ -1155,6 +1601,72 @@ public class ContextCollectorSourceTestGenerated extends AbstractContextCollecto
     @TestMetadata("insideLoop.kt")
     public void testInsideLoop() {
       run("insideLoop.kt");
+    }
+
+    @Test
+    @TestMetadata("localFunctionCaptured.kt")
+    public void testLocalFunctionCaptured() {
+      run("localFunctionCaptured.kt");
+    }
+
+    @Test
+    @TestMetadata("localFunctionCapturedSafe.kt")
+    public void testLocalFunctionCapturedSafe() {
+      run("localFunctionCapturedSafe.kt");
+    }
+
+    @Test
+    @TestMetadata("localVariable.kt")
+    public void testLocalVariable() {
+      run("localVariable.kt");
+    }
+
+    @Test
+    @TestMetadata("localVariableMutable.kt")
+    public void testLocalVariableMutable() {
+      run("localVariableMutable.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedSink.kt")
+    public void testNestedSink() {
+      run("nestedSink.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedSinkBad.kt")
+    public void testNestedSinkBad() {
+      run("nestedSinkBad.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedSinkBad2.kt")
+    public void testNestedSinkBad2() {
+      run("nestedSinkBad2.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedSinkBad2_callsInPlace.kt")
+    public void testNestedSinkBad2_callsInPlace() {
+      run("nestedSinkBad2_callsInPlace.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedSinkBad_callsInPlace.kt")
+    public void testNestedSinkBad_callsInPlace() {
+      run("nestedSinkBad_callsInPlace.kt");
+    }
+
+    @Test
+    @TestMetadata("nestedSink_callsInPlace.kt")
+    public void testNestedSink_callsInPlace() {
+      run("nestedSink_callsInPlace.kt");
+    }
+
+    @Test
+    @TestMetadata("noSmartCastInInference.kt")
+    public void testNoSmartCastInInference() {
+      run("noSmartCastInInference.kt");
     }
 
     @Test
@@ -1206,15 +1718,39 @@ public class ContextCollectorSourceTestGenerated extends AbstractContextCollecto
     }
 
     @Test
+    @TestMetadata("parameterSimple.kt")
+    public void testParameterSimple() {
+      run("parameterSimple.kt");
+    }
+
+    @Test
     @TestMetadata("plainCheck.kt")
     public void testPlainCheck() {
       run("plainCheck.kt");
     }
 
     @Test
+    @TestMetadata("qualifiedReference.kt")
+    public void testQualifiedReference() {
+      run("qualifiedReference.kt");
+    }
+
+    @Test
+    @TestMetadata("qualifiedReferenceNested.kt")
+    public void testQualifiedReferenceNested() {
+      run("qualifiedReferenceNested.kt");
+    }
+
+    @Test
     @TestMetadata("require.kt")
     public void testRequire() {
       run("require.kt");
+    }
+
+    @Test
+    @TestMetadata("smartCastInInference.kt")
+    public void testSmartCastInInference() {
+      run("smartCastInInference.kt");
     }
 
     @Test

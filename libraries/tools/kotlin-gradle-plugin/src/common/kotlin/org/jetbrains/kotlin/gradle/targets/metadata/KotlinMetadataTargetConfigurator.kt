@@ -89,7 +89,7 @@ class KotlinMetadataTargetConfigurator :
 
             val sourceSetsWithMetadataCompilations: Map<KotlinSourceSet, KotlinCompilation<*>> = publishedCommonSourceSets
                 .associateWith { sourceSet ->
-                    createMetadataCompilation(target, sourceSet, sourceSet in hostSpecificSourceSets)
+                    createMetadataCompilation(target, sourceSet)
                 }
                 .onEach { (sourceSet, compilation) ->
                     if (!isMetadataCompilationSupported(sourceSet)) {
@@ -170,7 +170,6 @@ class KotlinMetadataTargetConfigurator :
     private suspend fun createMetadataCompilation(
         target: KotlinMetadataTarget,
         sourceSet: KotlinSourceSet,
-        isHostSpecific: Boolean,
     ): KotlinCompilation<*> {
         val project = target.project
 
@@ -196,7 +195,7 @@ class KotlinMetadataTargetConfigurator :
             configureMetadataDependenciesForCompilation(this@apply)
 
             project.launch {
-                if (isHostSpecific) {
+                if (isNativeSourceSet) {
                     // This logic can be simplified, see KT-64523
                     val shouldBeDisabled = platformCompilations
                         .filterIsInstance<KotlinNativeCompilation>()
@@ -311,18 +310,29 @@ internal suspend fun getCommonSourceSetsForMetadataCompilation(project: Project)
         .keys
 }
 
-internal suspend fun getPublishedPlatformCompilations(project: Project): Map<KotlinUsageContext, KotlinCompilation<*>> {
+internal suspend inline fun getPublishedPlatformCompilations(
+    project: Project,
+): Map<KotlinUsageContext, KotlinCompilation<*>> =
+    getPublishedPlatformCompilations(project, targetFilter = { true })
+
+internal suspend inline fun getPublishedPlatformCompilations(
+    project: Project,
+    crossinline targetFilter: (InternalKotlinTarget) -> Boolean,
+): Map<KotlinUsageContext, KotlinCompilation<*>> {
     val result = mutableMapOf<KotlinUsageContext, KotlinCompilation<*>>()
 
-    project.multiplatformExtension.awaitTargets().withType(InternalKotlinTarget::class.java).forEach { target ->
-        if (target.platformType == KotlinPlatformType.common)
-            return@forEach
+    project.multiplatformExtension.awaitTargets()
+        .withType(InternalKotlinTarget::class.java)
+        .matching { targetFilter(it) }
+        .forEach { target ->
+            if (target.platformType == KotlinPlatformType.common)
+                return@forEach
 
-        target.kotlinComponents
-            .flatMap { component -> component.internal.usages }
-            .filter { it.includeIntoProjectStructureMetadata }
-            .forEach { usage -> result[usage] = usage.compilation }
-    }
+            target.kotlinComponents
+                .flatMap { component -> component.internal.usages }
+                .filter { it.includeIntoProjectStructureMetadata }
+                .forEach { usage -> result[usage] = usage.compilation }
+        }
 
     return result
 }

@@ -1,33 +1,36 @@
 /*
- * Copyright 2010-2015 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.android.tests
 
 import com.intellij.util.PlatformUtils
-import junit.framework.TestCase
-import junit.framework.TestSuite
+import kotlinx.coroutines.*
 import org.jetbrains.kotlin.android.tests.emulator.Emulator
 import org.jetbrains.kotlin.android.tests.gradle.GradleRunner
+import org.jetbrains.kotlin.android.tests.run.ProcessFailedException
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.capitalizeAsciiOnly
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
-import org.junit.Assert
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import java.util.Base64
 
-class CodegenTestsOnAndroidRunner private constructor(private val pathManager: PathManager) {
-    data class AndroidSuite(val flavor: String, val className: String)
+data class AndroidRuntimeTestResult(val testName: String, val failureText: String?, val elapsedTimeMs: Long)
+
+interface AndroidRuntimeTestListener {
+    fun testStarted(testName: String) {}
+    fun testFinished(result: AndroidRuntimeTestResult) {}
+}
+
+class CodegenTestsOnAndroidRunner private constructor(private val pathManager: PathManager) : AutoCloseable {
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private var emulator: Emulator? = null
+    private var gradleRunner: GradleRunner? = null
+    private var emulatorJob: Deferred<Unit>? = null
+    private var logcatJob: Deferred<Unit>? = null
+    private var adbServerStarted: Boolean = false
+    private var isStarted: Boolean = false
 
     private fun detectArch(): String {
         val arch = System.getProperty("os.arch")?.toLowerCaseAsciiOnly() ?: return Emulator.X86
@@ -38,158 +41,145 @@ class CodegenTestsOnAndroidRunner private constructor(private val pathManager: P
         }
     }
 
-    private fun runTestsInEmulator(): TestSuite {
-        val rootSuite = TestSuite("Root")
-
+    private suspend fun startEmulator() {
+        check(!isStarted) { "Android emulator is already started" }
         val emulatorType = detectArch()
         println("Using $emulatorType emulator!")
         val emulator = Emulator(pathManager, emulatorType)
-
-        emulator.createEmulator()
-
-        val gradleRunner = GradleRunner(pathManager)
-        cleanAndBuildProject(gradleRunner)
+        this.emulator = emulator
 
         try {
-            emulator.startEmulator()
+            emulator.createEmulator()
 
-            try {
-                emulator.waitEmulatorStart()
-                emulator.waitForPackageManager()
+            val gradleRunner = GradleRunner(pathManager)
+            this.gradleRunner = gradleRunner
 
-                for (flavor in flavorsToRun) {
-                    gradleRunner.installAndroidDebugTest(flavor)
-                    val className = flavor.capitalizeAsciiOnly()
-                    runTestsOnEmulator(emulator, className, TestSuite(className)).apply {
-                        rootSuite.addTest(this)
-                    }
-                }
-            } catch (e: RuntimeException) {
+            emulator.startAdbServer()
+            adbServerStarted = true
+
+            val emulatorJob = scope.async { emulator.runEmulator() }
+            this.emulatorJob = emulatorJob
+
+            emulator.waitEmulatorStart()
+            if (emulatorJob.isCompleted) {
+                emulatorJob.await()
+            }
+            emulator.waitForInstallStabilization()
+
+            logcatJob = scope.async { emulator.printLog() }
+            isStarted = true
+        } catch (e: Throwable) {
+            if (e is RuntimeException && e !is CancellationException) {
                 e.printStackTrace()
-                throw e
-            } finally {
-                emulator.stopEmulator()
+            }
+            closeStartedProcesses()
+            throw e
+        }
+    }
+
+    fun buildFlavorApks(flavorName: String) {
+        runBlocking {
+            scope.async {
+                check(isStarted) { "Android emulator is not started" }
+                val gradleRunner = gradleRunner ?: error("Gradle runner is not created")
+                throwIfBackgroundProcessFailed()
+                gradleRunner.assembleAndroidDebugTest(flavorName)
+                throwIfBackgroundProcessFailed()
+            }.await()
+        }
+    }
+
+    fun installFlavorApks(flavorName: String) {
+        runBlocking {
+            scope.async {
+                check(isStarted) { "Android emulator is not started" }
+                val emulator = emulator ?: error("Android emulator is not created")
+                val gradleRunner = gradleRunner ?: error("Gradle runner is not created")
+                throwIfBackgroundProcessFailed()
+                installAndroidDebugTestWithRetry(gradleRunner, emulator, flavorName)
+                throwIfBackgroundProcessFailed()
+            }.await()
+        }
+    }
+
+    fun runFlavorTestsAsync(
+        flavorName: String,
+        listener: AndroidRuntimeTestListener,
+    ): Deferred<List<AndroidRuntimeTestResult>> {
+        return scope.async {
+            runFlavorTestsInStartedEmulator(flavorName, listener)
+        }
+    }
+
+    private suspend fun runFlavorTestsInStartedEmulator(
+        flavorName: String,
+        listener: AndroidRuntimeTestListener,
+    ): List<AndroidRuntimeTestResult> {
+        check(isStarted) { "Android emulator is not started" }
+        val emulator = emulator ?: error("Android emulator is not created")
+
+        try {
+            throwIfBackgroundProcessFailed()
+            val className = flavorName.capitalizeAsciiOnly()
+            return runTestsOnEmulator(emulator, className, listener).also {
+                throwIfBackgroundProcessFailed()
             }
         } catch (e: RuntimeException) {
+            if (e is CancellationException) {
+                throw e
+            }
             e.printStackTrace()
             throw e
-        } finally {
-            emulator.finishEmulatorProcesses()
-        }
-
-        return rootSuite
-    }
-
-    private fun processReport(rootSuite: TestSuite, resultOutput: String, suiteName: String) {
-        try {
-            val testCases = parseInstrumentationOutput(resultOutput)
-            testCases.forEach { rootSuite.addTest(it) }
-            Assert.assertNotEquals("There is no test results in report for $suiteName", 0, testCases.size.toLong())
-        } catch (e: Throwable) {
-            throw RuntimeException("Can't parse test results for $suiteName\n$resultOutput", e)
         }
     }
 
-    private fun parseInstrumentationOutput(output: String): List<TestCase> {
-        val casePrefix = "KOTLIN_BOX_CASE|"
-        val markerPrefix = casePrefix.substringBefore('|')
-        val statusFail = "FAIL"
-        val lines = extractResultSection(output)
-        val testCases = arrayListOf<TestCase>()
-        val logicalLines = arrayListOf<String>()
-        var pendingLine: StringBuilder? = null
+    private suspend fun installAndroidDebugTestWithRetry(
+        gradleRunner: GradleRunner,
+        emulator: Emulator,
+        flavor: String,
+    ) {
+        var firstFailure: ProcessFailedException? = null
 
-        for (line in lines) {
-            val startsWithMarker = line.startsWith(markerPrefix)
-            if (startsWithMarker) {
-                pendingLine?.let { logicalLines.add(it.toString()) }
-                pendingLine = StringBuilder(line)
-                continue
-            }
+        repeat(INSTALL_ATTEMPTS) { attemptIndex ->
+            val attempt = attemptIndex + 1
+            try {
+                gradleRunner.installAndroidDebugTest(flavor)
+                return
+            } catch (e: ProcessFailedException) {
+                emulator.dumpInstallDiagnostics(
+                    "Install for flavor $flavor failed on attempt $attempt/$INSTALL_ATTEMPTS: ${e.result}"
+                )
 
-            if (pendingLine == null) {
-                pendingLine = StringBuilder(line)
-                continue
-            }
-
-            // Non-marker line is a continuation:
-            // - if previous logical line started with marker => payload split
-            // - if previous logical line did not start with marker => marker itself was split
-            if (line.isNotBlank()) {
-                pendingLine.append(line.trim())
-            }
-        }
-
-        pendingLine?.let { logicalLines.add(it.toString()) }
-
-        for (line in logicalLines) {
-            val markerIndex = line.indexOf(casePrefix)
-            if (markerIndex == -1) continue
-
-            val payload = line.substring(markerIndex)
-            val chunks = payload.split("|", limit = 4)
-            if (chunks.size < 3) continue
-
-            val testName = chunks[1]
-            val status = chunks[2]
-            val failureText = if (status == statusFail && chunks.size == 4) {
-                String(Base64.getDecoder().decode(chunks[3].replace("\\s+".toRegex(), "")))
-            } else {
-                null
-            }
-
-            testCases.add(object : TestCase(testName) {
-                @Throws(Throwable::class)
-                override fun runTest() {
-                    if (failureText != null) {
-                        Assert.fail(failureText)
-                    }
+                if (attempt == INSTALL_ATTEMPTS) {
+                    firstFailure?.let { e.addSuppressed(it) }
+                    throw e
                 }
-            })
-        }
 
-        return testCases
-    }
+                if (firstFailure == null) {
+                    firstFailure = e
+                }
 
-    private fun extractResultSection(output: String): List<String> {
-        val resultBegin = "KOTLIN_BOX_RESULTS_BEGIN"
-        val resultEnd = "KOTLIN_BOX_RESULTS_END"
-
-        val lines = output.lines()
-        val resultLines = arrayListOf<String>()
-        var collecting = false
-
-        for (rawLine in lines) {
-            val beginIdx = rawLine.indexOf(resultBegin)
-            if (beginIdx != -1) {
-                collecting = true
-                resultLines.add(rawLine.substring(beginIdx))
-                continue
-            }
-
-            if (!collecting) continue
-
-            val line = if (rawLine.startsWith("INSTRUMENTATION_RESULT: stream=")) {
-                rawLine.removePrefix("INSTRUMENTATION_RESULT: stream=")
-            } else {
-                rawLine
-            }
-            resultLines.add(line)
-
-            if (line.contains(resultEnd)) {
-                break
+                val retryDelay = emulator.installRetryDelay()
+                println("Waiting ${retryDelay.inWholeSeconds}s before retrying install for flavor $flavor...")
+                delay(retryDelay)
             }
         }
-
-        return resultLines
     }
 
-    private fun runTestsOnEmulator(emulator: Emulator, className: String, suite: TestSuite): TestSuite {
+    private suspend fun runTestsOnEmulator(
+        emulator: Emulator,
+        className: String,
+        listener: AndroidRuntimeTestListener,
+    ): List<AndroidRuntimeTestResult> {
         val platformPrefixProperty = System.setProperty(PlatformUtils.PLATFORM_PREFIX_KEY, "Idea")
+        val statusParser = InstrumentationStatusParser(listener)
         try {
-            val resultOutput = emulator.runTestsViaInstrumentation("org.jetbrains.kotlin.android.tests.$className")
-            processReport(suite, resultOutput, className)
-            return suite
+            emulator.runTestsViaInstrumentation(
+                "org.jetbrains.kotlin.android.tests.$className",
+                stdoutProcessor = statusParser::append,
+            )
+            statusParser.flush()
+            return statusParser.results(className)
         } finally {
             if (platformPrefixProperty != null) {
                 System.setProperty(PlatformUtils.PLATFORM_PREFIX_KEY, platformPrefixProperty)
@@ -197,22 +187,160 @@ class CodegenTestsOnAndroidRunner private constructor(private val pathManager: P
                 System.clearProperty(PlatformUtils.PLATFORM_PREFIX_KEY)
             }
         }
+    }
 
+    private suspend fun throwIfBackgroundProcessFailed() {
+        emulatorJob?.let { if (it.isCompleted) it.await() }
+        logcatJob?.let { if (it.isCompleted) it.await() }
+    }
+
+    private class InstrumentationStatusParser(
+        private val listener: AndroidRuntimeTestListener,
+    ) {
+        private val pendingText = StringBuilder()
+        private val statusValues = linkedMapOf<String, String>()
+        private val results = linkedMapOf<String, AndroidRuntimeTestResult>()
+        private var lastStatusKey: String? = null
+
+        fun append(chunk: String) {
+            pendingText.append(chunk)
+            while (true) {
+                val lineEnd = pendingText.indexOf("\n")
+                if (lineEnd == -1) return
+
+                val line = pendingText.substring(0, lineEnd).trimEnd('\r')
+                pendingText.delete(0, lineEnd + 1)
+                processLine(line)
+            }
+        }
+
+        fun flush() {
+            if (pendingText.isNotEmpty()) {
+                processLine(pendingText.toString().trimEnd('\r'))
+                pendingText.clear()
+            }
+        }
+
+        fun results(suiteName: String): List<AndroidRuntimeTestResult> {
+            assertNotEquals(0L, results.size.toLong(), "There is no test results in status output for $suiteName")
+            return results.values.toList()
+        }
+
+        private fun processLine(line: String) {
+            when {
+                line.startsWith(INSTRUMENTATION_STATUS_PREFIX) -> {
+                    val payload = line.removePrefix(INSTRUMENTATION_STATUS_PREFIX)
+                    val separatorIndex = payload.indexOf('=')
+                    if (separatorIndex == -1) {
+                        lastStatusKey = null
+                        return
+                    }
+
+                    val key = payload.substring(0, separatorIndex)
+                    val value = payload.substring(separatorIndex + 1)
+                    statusValues[key] = value
+                    lastStatusKey = key
+                }
+
+                line.startsWith(INSTRUMENTATION_STATUS_CODE_PREFIX) -> {
+                    reportStatusBlock()
+                    statusValues.clear()
+                    lastStatusKey = null
+                }
+
+                line.isNotBlank() && lastStatusKey != null -> {
+                    val key = lastStatusKey ?: return
+                    statusValues[key] = statusValues.getValue(key) + line.trim()
+                }
+            }
+        }
+
+        private fun reportStatusBlock() {
+            when (statusValues[EVENT_KEY]) {
+                EVENT_STARTED -> {
+                    val testName = statusValues[TEST_NAME_KEY] ?: return
+                    listener.testStarted(testName)
+                }
+
+                EVENT_FINISHED -> {
+                    val testName = statusValues[TEST_NAME_KEY] ?: return
+                    val status = statusValues[STATUS_KEY] ?: return
+                    val elapsedTimeMs = statusValues[ELAPSED_TIME_MS_KEY]?.toLongOrNull() ?: return
+                    val failureText = statusValues[FAILURE_PAYLOAD_KEY]?.let { payload ->
+                        String(Base64.getDecoder().decode(payload.replace("\\s+".toRegex(), "")))
+                    }
+                    val result = AndroidRuntimeTestResult(
+                        testName,
+                        failureText.takeIf { status == STATUS_FAIL },
+                        elapsedTimeMs,
+                    )
+                    check(results.put(result.testName, result) == null) {
+                        "Duplicate Android runtime status result for ${result.testName}"
+                    }
+                    listener.testFinished(result)
+                }
+            }
+        }
+
+        companion object {
+            private const val INSTRUMENTATION_STATUS_PREFIX = "INSTRUMENTATION_STATUS: "
+            private const val INSTRUMENTATION_STATUS_CODE_PREFIX = "INSTRUMENTATION_STATUS_CODE: "
+            private const val EVENT_KEY = "kotlinBoxEvent"
+            private const val EVENT_STARTED = "started"
+            private const val EVENT_FINISHED = "finished"
+            private const val TEST_NAME_KEY = "testName"
+            private const val STATUS_KEY = "status"
+            private const val STATUS_FAIL = "FAIL"
+            private const val ELAPSED_TIME_MS_KEY = "elapsedTimeMs"
+            private const val FAILURE_PAYLOAD_KEY = "failurePayloadBase64"
+        }
+    }
+
+    override fun close() {
+        try {
+            runBlocking {
+                closeStartedProcesses()
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    private suspend fun closeStartedProcesses() {
+        withContext(NonCancellable) {
+            logcatJob?.cancelAndJoin()
+            logcatJob = null
+            emulatorJob?.cancelAndJoin()
+            emulatorJob = null
+            if (adbServerStarted) {
+                emulator?.stopAdbServer()
+                adbServerStarted = false
+            }
+            isStarted = false
+        }
     }
 
     companion object {
-        private val flavorsToRun: List<String> = listOf(
-            "common0", "common1", "common2", "common3", "common4", "reflect0",
-        )
+        private const val INSTALL_ATTEMPTS = 2
 
         @JvmStatic
-        fun runTestsInEmulator(pathManager: PathManager): TestSuite {
-            return CodegenTestsOnAndroidRunner(pathManager).runTestsInEmulator()
-        }
-
-        private fun cleanAndBuildProject(gradleRunner: GradleRunner) {
-            gradleRunner.clean()
-            gradleRunner.assembleAndroidTest()
+        fun startEmulator(pathManager: PathManager): CodegenTestsOnAndroidRunner {
+            val runner = CodegenTestsOnAndroidRunner(pathManager)
+            try {
+                runBlocking {
+                    runner.scope.async {
+                        runner.startEmulator()
+                    }.await()
+                }
+                return runner
+            } catch (e: Throwable) {
+                try {
+                    runner.close()
+                } catch (closeException: Throwable) {
+                    e.addSuppressed(closeException)
+                }
+                throw e
+            }
         }
     }
 }

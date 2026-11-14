@@ -57,7 +57,6 @@ class TagsGeneratorChecker(testServices: TestServices) : FirAnalysisHandler(test
         testServices.moduleStructure.originalTestDataFiles.first().let { originalFile ->
             listOf(
                 originalFile.originalTestDataFile,
-                originalFile.firTestDataFile,
                 originalFile.llFirTestDataFile,
                 originalFile.reversedTestDataFile,
                 originalFile.latestLVTestDataFile
@@ -84,20 +83,11 @@ class TagsGeneratorChecker(testServices: TestServices) : FirAnalysisHandler(test
             val testDataFileContent = testDataFile.readText()
             if (testDataFileContent.contains(TAG_PREFIX)) return
 
-            if (isTeamCityBuild) {
-                testServices.assertions.fail {
-                    """GENERATED_FIR_TAGS are missing for file ${testDataFile.name}.
-                        |Please rerun the test locally to generate tags.""".trimMargin()
-                }
-            }
-
-            val wrappedTagComment = formatTagsAsMultilineComment()
-
-            testDataFile.writer().use {
-                it.append(testDataFileContent.trim())
-                it.append("\n\n")
-                it.appendLine(wrappedTagComment)
-            }
+            testServices.assertions.assertEqualsToFile(testDataFile, buildString {
+                append(testDataFileContent.trim())
+                append("\n\n")
+                appendLine(formatTagsAsMultilineComment())
+            })
         }
     }
 
@@ -305,7 +295,7 @@ private class TagsCollectorVisitor(private val session: FirSession) : FirVisitor
         if (property.delegateFieldSymbol != null) tags += FirTags.PROPERTY_DELEGATE
         if (property.source?.elementType == KtNodeTypes.DESTRUCTURING_DECLARATION) tags += FirTags.DESTRUCTURING_DECLARATION
         if (property.receiverParameter != null) tags += FirTags.PROPERTY_WITH_EXTENSION_RECEIVER
-        if (property.getter?.symbol?.isDefault == false && property.getter?.source?.kind != KtFakeSourceElementKind.DelegatedPropertyAccessor)
+        if (property.getter?.symbol?.isDefault == false && property.getter?.source?.kind !is KtFakeSourceElementKind.DelegatedPropertyAccessor)
             tags += FirTags.GETTER
         if (property.setter?.symbol?.isDefault == false) tags += FirTags.SETTER
         if (property.contextParameters.isNotEmpty()) tags += FirTags.PROPERTY_WITH_CONTEXT
@@ -619,11 +609,10 @@ private class TagsCollectorVisitor(private val session: FirSession) : FirVisitor
 
     fun isDeclarationOriginJava(origin: FirDeclarationOrigin?, source: KtSourceElement?): Boolean {
         return when (origin) {
-            is FirDeclarationOrigin.Java.Source -> true
-            is FirDeclarationOrigin.Java.Library -> true
+            is FirDeclarationOrigin.Java -> true
             is FirDeclarationOrigin.Synthetic.JavaProperty -> true
-            FirDeclarationOrigin.Enhancement, FirDeclarationOrigin.RenamedForOverride -> when (source?.kind) {
-                KtFakeSourceElementKind.EnumGeneratedDeclaration -> false
+            is FirDeclarationOrigin.Enhancement, FirDeclarationOrigin.RenamedForOverride -> when (source?.kind) {
+                is KtFakeSourceElementKind.EnumGeneratedDeclaration -> false
                 else -> true
             }
             else -> false
@@ -704,14 +693,9 @@ private class TagsCollectorVisitor(private val session: FirSession) : FirVisitor
 
     fun skipSyntheticDeclaration(source: KtSourceElement?): Boolean {
         return when (source?.kind) {
-            KtFakeSourceElementKind.EnumGeneratedDeclaration -> true
-            KtFakeSourceElementKind.DataClassGeneratedMembers -> true
-            KtFakeSourceElementKind.DesugaredPrefixInc -> true
-            KtFakeSourceElementKind.DesugaredPrefixDec -> true
-            KtFakeSourceElementKind.DesugaredPostfixInc -> true
-            KtFakeSourceElementKind.DesugaredPostfixDec -> true
-            KtFakeSourceElementKind.DesugaredPrefixIncSecondGetReference -> true
-            KtFakeSourceElementKind.DesugaredPrefixDecSecondGetReference -> true
+            is KtFakeSourceElementKind.EnumGeneratedDeclaration -> true
+            is KtFakeSourceElementKind.DataClassGeneratedMembers -> true
+            is KtFakeSourceElementKind.DesugaredIncrementOrDecrement -> true
             KtFakeSourceElementKind.ArrayAccessNameReference -> true
             KtFakeSourceElementKind.ArrayIndexExpressionReference -> true
             KtFakeSourceElementKind.ArrayTypeFromVarargParameter -> true

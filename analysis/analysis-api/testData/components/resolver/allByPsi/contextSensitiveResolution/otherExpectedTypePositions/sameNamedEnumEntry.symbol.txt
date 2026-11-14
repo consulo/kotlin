@@ -32,13 +32,25 @@ KtParameter(119,123): 'a: A'
   null
 
 KtTypeReference(122,123): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtUserType(122,123): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtNameReferenceExpression(122,123): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /A
+    ]
 
 KtBlockExpression(125,187): '{'
   null
@@ -47,7 +59,10 @@ KtWhenExpression(131,185): 'when (a) {'
   null
 
 KtNameReferenceExpression(137,138): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       a: A
     ]
@@ -59,19 +74,25 @@ KtWhenConditionWithExpression(150,153): 'A.A'
   null
 
 KtDotQualifiedExpression(150,153): 'A.A'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.A
     ]
 
 KtNameReferenceExpression(150,151): 'A'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A
     ]
 
 KtNameReferenceExpression(152,153): 'A'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.A
     ]
@@ -89,19 +110,25 @@ KtWhenConditionWithExpression(169,172): 'A.B'
   null
 
 KtDotQualifiedExpression(169,172): 'A.B'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.B
     ]
 
 KtNameReferenceExpression(169,170): 'A'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A
     ]
 
 KtNameReferenceExpression(171,172): 'B'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /A.B
     ]

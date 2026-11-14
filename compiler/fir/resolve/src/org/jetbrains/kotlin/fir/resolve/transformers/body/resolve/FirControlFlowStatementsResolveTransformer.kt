@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.fir.resolve.transformers.body.resolve
 
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.fir.FirTargetElement
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.impl.FirElseIfTrueCondition
 import org.jetbrains.kotlin.fir.expressions.impl.FirEmptyExpressionBlock
@@ -17,6 +18,7 @@ import org.jetbrains.kotlin.fir.resolve.inference.TemporaryInferenceSessionHook
 import org.jetbrains.kotlin.fir.resolve.transformers.FirSyntheticCallGenerator
 import org.jetbrains.kotlin.fir.resolve.transformers.FirWhenExhaustivenessComputer
 import org.jetbrains.kotlin.fir.types.*
+import org.jetbrains.kotlin.fir.wrapIntoNumericClassConversionIfNeeded
 
 class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyResolveTransformerDispatcher) :
     FirPartialBodyResolveTransformer(transformer) {
@@ -62,7 +64,7 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
             var completionNeeded = false
             when {
                 whenExpression.branches.isEmpty() -> {
-                    whenExpression.resultType = session.builtinTypes.unitType.coneType
+                    whenExpression.resultType = StandardTypes.Unit
                 }
                 whenExpression.isOneBranch() && data.forceFullCompletion && data !is ResolutionMode.WithExpectedType -> {
                     whenExpression = whenExpression.transformBranches(transformer, ResolutionMode.ContextIndependent)
@@ -108,7 +110,7 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
                 whenExpression = completionResult
             }
             dataFlowAnalyzer.exitWhenExpression(whenExpression, data.forceFullCompletion)
-            whenExpression.replaceReturnTypeIfNotExhaustive(session)
+            whenExpression.replaceReturnTypeIfNotExhaustive()
             whenExpression
         }
     }
@@ -195,7 +197,11 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
             else -> ResolutionMode.ContextIndependent
         }
 
-        return transformJump(returnExpression, mode)
+        return when (val transformed = transformJump(returnExpression, mode)) {
+            is FirReturnExpression if mode is ResolutionMode.WithExpectedType -> transformed
+                .also { it.replaceResult(it.result.wrapIntoNumericClassConversionIfNeeded(expectedTypeRef.coneType, session)) }
+            else -> transformed
+        }
     }
 
     override fun transformThrowExpression(
@@ -230,7 +236,7 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
         elvisExpression.transformLhs(
             transformer,
             // should be` expectedType.makeNullable()` or ResolutionMode.ContextDependent since LV >= 2.1
-            computeResolutionModeForElvisLHS(data)
+            computeResolutionModeForElvisLhs(data)
         )
         dataFlowAnalyzer.exitElvisLhs(elvisExpression)
 
@@ -270,23 +276,21 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
             isLhsNotNull = true
         }
 
-        session.typeContext.run {
-            // If the result type is a type variable type, we're part of a call argument.
-            // In that case, we could have an unresolved lambda argument on the RHS which will lead to an exception in
-            // result.rhs.resolvedType.
-            // Also, we don't want to turn type variables into DNNs because it can lead to contradictions in the constraint system.
-            // compiler/testData/diagnostics/tests/controlStructures/lambdasInExclExclAndElvis.kt breaks otherwise.
-            if (result.resolvedType.let { it !is ConeTypeVariableType && it.isNullableType() }) {
-                val rhsResolvedType = result.rhs.resolvedType
-                // This part of the code is a kind of workaround, and it probably will be resolved by KT-55692
-                if (!rhsResolvedType.refinedTypeForDataFlowOrSelf.isNullableType()) {
-                    // It's definitely not a flexible with nullable bound
-                    // Sometimes return type for special call for elvis operator might be nullable,
-                    // but result is not nullable if the right type is not nullable
-                    result.replaceConeTypeOrNull(result.resolvedType.makeConeTypeDefinitelyNotNullOrNotNull(session.typeContext))
-                } else if (isFlexibleWithNotNullable(rhsResolvedType.refinedTypeForDataFlowOrSelf)) {
-                    result.replaceConeTypeOrNull(result.resultType.makeConeFlexibleTypeWithNotNullableLowerBound(session.typeContext))
-                }
+        // If the result type is a type variable type, we're part of a call argument.
+        // In that case, we could have an unresolved lambda argument on the RHS which will lead to an exception in
+        // result.rhs.resolvedType.
+        // Also, we don't want to turn type variables into DNNs because it can lead to contradictions in the constraint system.
+        // compiler/testData/diagnostics/tests/controlStructures/lambdasInExclExclAndElvis.kt breaks otherwise.
+        if (result.resolvedType.let { it !is ConeTypeVariableType && it.canBeNull() }) {
+            val rhsResolvedType = result.rhs.resolvedType.refinedTypeForDataFlowOrSelf
+            // This part of the code is a kind of workaround, and it probably will be resolved by KT-55692
+            if (!rhsResolvedType.canBeNull()) {
+                // It's definitely not a flexible with nullable bound
+                // Sometimes return type for special call for elvis operator might be nullable,
+                // but result is not nullable if the right type is not nullable
+                result.replaceConeTypeOrNull(result.resolvedType.makeConeTypeDefinitelyNotNullOrNotNull(session.typeContext))
+            } else if (rhsResolvedType.isFlexibleWithNotNullable()) {
+                result.replaceConeTypeOrNull(result.resultType.makeConeFlexibleTypeWithNotNullableLowerBound(session.typeContext))
             }
         }
 
@@ -294,10 +298,10 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
         return result
     }
 
-    private fun ConeInferenceContext.isFlexibleWithNotNullable(rhsResolvedType: ConeKotlinType): Boolean =
-        rhsResolvedType is ConeFlexibleType && !rhsResolvedType.lowerBound.isNullableType()
+    private fun ConeKotlinType.isFlexibleWithNotNullable(): Boolean =
+        this is ConeFlexibleType && !this.lowerBound.canBeNull()
 
-    private fun computeResolutionModeForElvisLHS(
+    private fun computeResolutionModeForElvisLhs(
         data: ResolutionMode,
     ): ResolutionMode {
         val expectedType = data.expectedType
@@ -328,30 +332,26 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
     }
 
     private fun ConeKotlinType.makeConeFlexibleTypeWithNotNullableLowerBound(typeContext: ConeTypeContext): ConeKotlinType {
-        with(typeContext) {
-            return when (this@makeConeFlexibleTypeWithNotNullableLowerBound) {
-                is ConeDefinitelyNotNullType ->
-                    error("It can't happen because of the previous `isNullableType` check")
-                is ConeFlexibleType -> {
-                    if (!lowerBound.isNullableType()) {
-                        this@makeConeFlexibleTypeWithNotNullableLowerBound
-                    } else {
-                        ConeFlexibleType(
-                            lowerBound.makeConeTypeDefinitelyNotNullOrNotNull(typeContext),
-                            upperBound,
-                            isTrivial = false,
-                        )
-                    }
+        return when (this) {
+            is ConeDefinitelyNotNullType ->
+                error("It can't happen because of the previous `isNullableType` check")
+            is ConeFlexibleType -> {
+                if (!lowerBound.canBeNull()) {
+                    this
+                } else {
+                    ConeFlexibleType(
+                        lowerBound.makeConeTypeDefinitelyNotNullOrNotNull(typeContext),
+                        upperBound,
+                        isTrivial = false,
+                    )
                 }
-                is ConeIntersectionType -> ConeIntersectionType(
-                    intersectedTypes.map { it.makeConeFlexibleTypeWithNotNullableLowerBound(typeContext) }
-                )
-                is ConeRigidType -> ConeFlexibleType(
-                    makeConeTypeDefinitelyNotNullOrNotNull(typeContext),
-                    this@makeConeFlexibleTypeWithNotNullableLowerBound,
-                    isTrivial = false,
-                )
             }
+            is ConeIntersectionType -> mapTypes { it.makeConeFlexibleTypeWithNotNullableLowerBound(typeContext) }
+            is ConeRigidType -> ConeFlexibleType(
+                makeConeTypeDefinitelyNotNullOrNotNull(typeContext),
+                this,
+                isTrivial = false,
+            )
         }
     }
 }

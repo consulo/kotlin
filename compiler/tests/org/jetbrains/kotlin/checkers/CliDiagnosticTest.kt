@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.checkers
 
 import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArgumentsConfigurator
+import org.jetbrains.kotlin.cli.common.arguments.Freezable
 import org.jetbrains.kotlin.cli.common.arguments.checkApiAndLanguageVersion
 import org.jetbrains.kotlin.cli.common.fromConfiguration
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
@@ -17,8 +18,8 @@ import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.test.utils.checkRules
-import org.junit.Assert
-import org.junit.Test
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.fail
 
 class CliDiagnosticTest {
     @Test
@@ -42,7 +43,7 @@ class CliDiagnosticTest {
             errors.checkRules("language/API version correctness", message, 0)
         }
         if (errors.isNotEmpty()) {
-            Assert.fail(
+            fail(
                 errors.joinToString(
                     "\n\n",
                     postfix = "\n\nSee https://youtrack.jetbrains.com/articles/KT-A-610 for the style guide.\n\n"
@@ -69,25 +70,22 @@ class CliDiagnosticTest {
 
     private val argumentVariants = buildList<CommonCompilerArguments> {
         val v1 = CommonCompilerArgumentsStub().apply {
-            suppressApiVersionGreaterThanLanguageVersionError = false
             suppressVersionWarnings = false
             progressiveMode = true
         }
         val v2 = CommonCompilerArgumentsStub().apply {
-            suppressApiVersionGreaterThanLanguageVersionError = true
-            suppressVersionWarnings = false
-        }
-        val v3 = CommonCompilerArgumentsStub().apply {
-            suppressApiVersionGreaterThanLanguageVersionError = false
             suppressVersionWarnings = true
         }
         add(v1)
         add(v2)
-        add(v3)
     }
 
-    private class CommonCompilerArgumentsStub() : CommonCompilerArguments() {
+    private class CommonCompilerArgumentsStub : CommonCompilerArguments() {
         override val configurator: CommonCompilerArgumentsConfigurator
             get() = TODO("Not yet implemented")
+
+        override fun copyOf(): Freezable {
+            TODO("Not yet implemented")
+        }
     }
 }

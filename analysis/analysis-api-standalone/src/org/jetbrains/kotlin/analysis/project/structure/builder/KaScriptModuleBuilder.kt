@@ -5,10 +5,10 @@
 
 package org.jetbrains.kotlin.analysis.project.structure.builder
 
-import com.intellij.openapi.project.Project
+import org.jetbrains.kotlin.analysis.api.standalone.internals.KaInternalsProvider
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
+import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaScriptModule
-import org.jetbrains.kotlin.analysis.project.structure.impl.KaScriptModuleImpl
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettings
@@ -20,30 +20,21 @@ import kotlin.contracts.contract
 
 @KaExperimentalApi
 @KtModuleBuilderDsl
-public class KtScriptModuleBuilder(private val project: Project) : KtModuleBuilder() {
+@SubclassOptInRequired(KaImplementationDetail::class)
+public abstract class KtScriptModuleBuilder : KtModuleBuilder() {
     public lateinit var file: KtFile
+
+    abstract override fun build(): KaScriptModule
 
     public var languageVersionSettings: LanguageVersionSettings =
         LanguageVersionSettingsImpl(LanguageVersion.LATEST_STABLE, ApiVersion.LATEST)
-
-    override fun build(): KaScriptModule {
-        return KaScriptModuleImpl(
-            directRegularDependencies,
-            directDependsOnDependencies,
-            directFriendDependencies,
-            platform,
-            project,
-            file,
-            languageVersionSettings
-        )
-    }
 }
 
 @KaExperimentalApi
 @OptIn(ExperimentalContracts::class)
-public inline fun KtModuleProviderBuilder.buildKtScriptModule(init: KtScriptModuleBuilder.() -> Unit): KaScriptModule {
+public inline fun KaModuleContainerBuilder.buildKtScriptModule(init: KtScriptModuleBuilder.() -> Unit): KaScriptModule {
     contract {
         callsInPlace(init, InvocationKind.EXACTLY_ONCE)
     }
-    return KtScriptModuleBuilder(project).apply(init).build()
+    return KaInternalsProvider.instance.getScriptModuleBuilder(project).apply(init).build()
 }

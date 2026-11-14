@@ -15,22 +15,25 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
-import org.jetbrains.kotlin.gradle.targets.js.MultiplePluginDeclarationDetector
+import org.jetbrains.kotlin.gradle.targets.js.internal.checkIsJsToolingProject
+import org.jetbrains.kotlin.gradle.targets.js.internal.jsToolingProject
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.TasksRequirements
 import org.jetbrains.kotlin.gradle.targets.js.npm.*
 import org.jetbrains.kotlin.gradle.targets.js.npm.resolver.KotlinRootNpmResolver
 import org.jetbrains.kotlin.gradle.targets.js.npm.resolver.PACKAGE_JSON_UMBRELLA_TASK_NAME
-import org.jetbrains.kotlin.gradle.targets.js.npm.resolver.implementing
 import org.jetbrains.kotlin.gradle.targets.js.npm.tasks.KotlinNpmCachesSetup
 import org.jetbrains.kotlin.gradle.targets.js.npm.tasks.KotlinNpmInstallTask
 import org.jetbrains.kotlin.gradle.targets.js.npm.tasks.RootPackageJsonTask
 import org.jetbrains.kotlin.gradle.targets.web.HasPlatformDisambiguator
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 import org.jetbrains.kotlin.gradle.tasks.registerTask
+import org.jetbrains.kotlin.gradle.tasks.withType
 import org.jetbrains.kotlin.gradle.utils.getFile
 import org.jetbrains.kotlin.gradle.utils.providerWithLazyConvention
 import kotlin.reflect.KClass
 
+@ObsoleteNpmDependencyModel
 internal class NodeJsRootPluginApplier(
     private val platformDisambiguate: HasPlatformDisambiguator,
     private val nodeJsRootKlass: KClass<out BaseNodeJsRootExtension>,
@@ -46,10 +49,8 @@ internal class NodeJsRootPluginApplier(
 ) {
 
     fun apply(project: Project) {
-        MultiplePluginDeclarationDetector.detect(project)
-
-        check(project == project.rootProject) {
-            "${this::class.java.name} can be applied only to root project"
+        checkIsJsToolingProject(project) {
+            "Cannot register ${this::class.simpleName} in ${project.displayName}. It can only be registered in ${project.jsToolingProject().displayName}."
         }
 
         project.plugins.apply(BasePlugin::class.java)
@@ -58,7 +59,6 @@ internal class NodeJsRootPluginApplier(
             nodeJsRootName,
             nodeJsRootKlass.java,
             project,
-            { singleNodeJsPluginApply(project) },
             rootDirectoryName,
         )
 
@@ -295,25 +295,6 @@ internal class NodeJsRootPluginApplier(
             listOf(npm.storePackageLockTaskProvider)
         ).disallowChanges()
 
-        @Suppress("DEPRECATION")
-        project.tasks.register(
-            platformDisambiguate.extensionName(
-                "node" + org.jetbrains.kotlin.gradle.tasks.CleanDataTask.NAME_SUFFIX,
-                prefix = null,
-            ),
-            org.jetbrains.kotlin.gradle.tasks.CleanDataTask::class.java
-        ) {
-            it.doFirst {
-                it.logger.warn(org.jetbrains.kotlin.gradle.tasks.CleanDataTask.Companion.deprecationMessage(it.path))
-            }
-
-            it.cleanableStoreProvider = nodeJs
-                .installationDirectory
-                .map { org.jetbrains.kotlin.gradle.tasks.internal.CleanableStore.Companion[it.asFile.path] }
-            it.group = NodeJsRootPlugin.TASKS_GROUP_NAME
-            it.description = "Clean unused local node version"
-        }
-
         beforePackageManager(project)
 
         val propertiesProvider = PropertiesProvider.Companion(project)
@@ -365,8 +346,8 @@ internal class NodeJsRootPluginApplier(
         rootPackageJson: TaskProvider<RootPackageJsonTask>,
     ) {
         val fn: (Project) -> Unit = {
-            it.tasks.implementing(RequiresNpmDependencies::class)
-                .forEach {}
+            it.tasks.withType<RequiresNpmDependenciesTask>()
+                .forEach { _ -> }
         }
         rootPackageJson.configure {
             project.allprojects
@@ -390,6 +371,7 @@ internal class NodeJsRootPluginApplier(
     }
 }
 
+@ObsoleteNpmDependencyModel
 internal fun NodeJsEnvironmentTask.configureNodeJsEnvironmentTasks(
     nodeJsRoot: BaseNodeJsRootExtension,
     nodeJs: BaseNodeJsEnvSpec,

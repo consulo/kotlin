@@ -12,18 +12,21 @@
         <list>
           <option value=":compiler:cli-base:generateCliArguments" />
           <option value=":generators:generateCompilerArgumentsCopy" />
-          <option value=":compiler:build-tools:kotlin-build-tools-impl:generateBtaArguments" />
-          <option value=":compiler:build-tools:kotlin-build-tools-api:generateBtaArguments" />
+          <option value=":compiler:build-tools:kotlin-build-tools-impl:generateBtaSources" />
+          <option value=":compiler:build-tools:kotlin-build-tools-api:generateBtaSources" />
           <option value=":compiler:build-tools:kotlin-build-tools-api:apiDump" />
-          <option value=":compiler:build-tools:kotlin-build-tools-compat:generateBtaArguments" />
+          <option value=":compiler:frontend.common-psi:generateFeatureToFlagMap" />
         </list>
       </option>
       <option name="vmOptions" />
     </ExternalSystemSettings>
     <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
     <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+    <ExternalSystemDebugDisabled>false</ExternalSystemDebugDisabled>
     <DebugAllEnabled>false</DebugAllEnabled>
     <RunAsTest>false</RunAsTest>
+    <GradleProfilingDisabled>false</GradleProfilingDisabled>
+    <GradleCoverageDisabled>false</GradleCoverageDisabled>
     <method v="2" />
   </configuration>
 </component>

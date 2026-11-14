@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.konan.test.blackbox
 
 import com.intellij.testFramework.TestDataPath
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.config.nativeBinaryOptions.GC
 import org.jetbrains.kotlin.config.nativeBinaryOptions.GCSchedulerType
 import org.jetbrains.kotlin.konan.target.Family
@@ -28,7 +29,7 @@ import kotlin.time.Duration
 
 @TestDataPath("\$PROJECT_ROOT")
 class FrameworkTest : AbstractNativeSimpleTest() {
-    private val testSuiteDir = File("native/native.tests/testData/framework")
+    private val testSuiteDir = ForTestCompileRuntime.transformTestDataPath("native/native.tests/testData/framework")
     private val extras = TestCase.NoTestRunnerExtras("There's no entrypoint in Swift program")
     private val testCompilationFactory = TestCompilationFactory()
 
@@ -108,7 +109,7 @@ class FrameworkTest : AbstractNativeSimpleTest() {
     @Test
     fun testStdlib() {
         val testName = "stdlib"
-        val testCase = generateObjCFramework(testName)
+        val testCase = generateObjCFramework(testName, testCompilerArgs = listOf("-Xdisable-ir-checkers=IrVisibilityChecker"))
         compileAndRunSwift(testName, testCase)
     }
 
@@ -411,6 +412,86 @@ class FrameworkTest : AbstractNativeSimpleTest() {
     }
 
     @Test
+    fun testExtensionsFromSeveralModules() {
+        Assumptions.assumeTrue(targets.testTarget.family.isAppleFamily)
+        val testName = "extensionsFromSeveralModules"
+        val testDir = testSuiteDir.resolve(testName)
+        fun library(name: String, dependencies: List<TestCompilationArtifact.KLIB>) = compileToLibrary(
+            testDir.resolve(name),
+            buildDir.resolve(name),
+            TestCompilerArgs("-module-name", name),
+            dependencies.map { it.asLibraryDependency() },
+        )
+        val receivers = library("receivers", emptyList())
+        val first = library("first", listOf(receivers))
+        val second = library("second", listOf(receivers))
+
+        val moduleName = "ExtensionsFromSeveralModules"
+        val testCase = generateObjCFrameworkTestCase(
+            TestKind.STANDALONE_NO_TR, extras, moduleName,
+            listOf(testDir.resolve("$testName.kt")),
+            TestCompilerArgs("-module-name", moduleName, "-Xbinary=bundleId=$testName"),
+            givenDependencies = setOf(
+                TestModule.Given(receivers.klibFile),
+                TestModule.Given(first.klibFile, setOf(TestModule.Given(receivers.klibFile))),
+                TestModule.Given(second.klibFile, setOf(TestModule.Given(receivers.klibFile))),
+            ),
+        )
+        testCompilationFactory
+            .testCaseToObjCFrameworkCompilation(testCase, testRunSettings, exportedLibraries = listOf(receivers, first, second))
+            .result.assertSuccess()
+
+        compileAndRunSwift(testName, testCase)
+    }
+
+    @Test
+    fun testExtensionOverride() {
+        Assumptions.assumeTrue(targets.testTarget.family.isAppleFamily)
+        val testName = "extensionOverride"
+        val testDir = testSuiteDir.resolve(testName)
+        val receivers = compileToLibrary(
+            testDir.resolve("receivers"),
+            buildDir.resolve("receivers"),
+            TestCompilerArgs("-module-name", "receivers"),
+            emptyList(),
+        )
+
+        val moduleName = "ExtensionOverride"
+        val checks = TestRunChecks.Default(testRunSettings.get<Timeouts>().executionTimeout).copy(
+            exitCodeCheck = TestRunCheck.ExitCode.Expected(134),
+            outputMatcher = TestRunCheck.OutputMatcher { it.contains("Overriding fromFramework] can't be overridden: it is final") },
+        )
+        val testCase = generateObjCFrameworkTestCase(
+            TestKind.STANDALONE_NO_TR, extras, moduleName,
+            listOf(testDir.resolve("$testName.kt")),
+            TestCompilerArgs("-module-name", moduleName, "-Xbinary=bundleId=$testName"),
+            givenDependencies = setOf(TestModule.Given(receivers.klibFile)),
+            checks = checks,
+        )
+        testCompilationFactory
+            .testCaseToObjCFrameworkCompilation(testCase, testRunSettings, exportedLibraries = listOf(receivers))
+            .result.assertSuccess()
+
+        compileAndRunSwift(testName, testCase)
+    }
+
+    @Test
+    fun testCompanionBlocksAndExtensions() {
+        // Companion blocks and extensions are not available to ObjC Export. This test compiles the framework and uses it from Swift
+        // to check that the generated binary is okay.
+        val testName = "companionBlocksAndExtensions"
+        val testCase = generateObjCFramework(testName, listOf("-XXLanguage:+CompanionBlocks", "-XXLanguage:+CompanionExtensions"))
+        compileAndRunSwift(testName, testCase)
+    }
+
+    @Test
+    fun testFullValueClasses() {
+        val testName = "fullValueClasses"
+        val testCase = generateObjCFramework(testName, listOf("-XXLanguage:+FullValueClasses"))
+        compileAndRunSwift(testName, testCase)
+    }
+
+    @Test
     fun objCExportTest() {
         objCExportTestImpl("", emptyList(), emptyList(), false)
     }
@@ -441,8 +522,12 @@ class FrameworkTest : AbstractNativeSimpleTest() {
 
     @Test
     fun objCExportTestStatic() {
+        // KT-90792: the darwin platform lib cache uses symbols from libresolv but doesn't list it in linkerOpts on some platforms.
+        // The linkage doesn't enable -dead_strip which would've removed those usages => we need to link it explicitly.
+        val workaroundForKT90792 = listOf("-Xlinker", "-lresolv")
+
         objCExportTestImpl("Static", listOf("-Xbinary=objcExportSuspendFunctionLaunchThreadRestriction=main"),
-                           listOf("-D", "DISALLOW_SUSPEND_ANY_THREAD"), true)
+                           listOf("-D", "DISALLOW_SUSPEND_ANY_THREAD") + workaroundForKT90792, true)
     }
 
     @Test
@@ -516,6 +601,7 @@ class FrameworkTest : AbstractNativeSimpleTest() {
                     "-Xexport-kdoc",
                     "-Xbinary=bundleId=foo.bar",
                     "-module-name", frameworkName,
+                    "-Xdisable-ir-checkers=IrVisibilityChecker",
                 )
             ),
             givenDependencies = setOf(TestModule.Given(library.klibFile)),

@@ -12,7 +12,7 @@ fun box() {
     AWithCompanion.compPropVal
 }
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:12 box
 // test.kt:7 <clinit>
 // test.kt:7 getCompPropVal
@@ -37,7 +37,9 @@ fun box() {
 
 // EXPECTATIONS WASM
 // test.kt:12 $box (19)
-// test.kt:7 $Companion.<init> (26)
-// test.kt:8 $Companion.<init> (5)
+// test.kt:7 $AWithCompanion$static_init (26)
+// test.kt:7 $AWithCompanion$Companion.<init> (26)
+// test.kt:8 $AWithCompanion$Companion.<init> (5)
+// test.kt:7 $AWithCompanion$static_init (26)
 // test.kt:12 $box (19)
 // test.kt:13 $box (1)

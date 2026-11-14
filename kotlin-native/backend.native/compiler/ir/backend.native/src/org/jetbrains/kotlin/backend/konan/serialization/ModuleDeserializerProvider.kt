@@ -5,22 +5,22 @@
 
 package org.jetbrains.kotlin.backend.konan.serialization
 
+import org.jetbrains.kotlin.backend.common.serialization.kotlinLibrary
 import org.jetbrains.kotlin.backend.konan.CachedLibraries
-import org.jetbrains.kotlin.backend.konan.ir.konanLibrary
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.moduleDescriptor
 import org.jetbrains.kotlin.ir.declarations.path
 import org.jetbrains.kotlin.ir.util.getPackageFragment
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.library.KotlinLibrary
+import org.jetbrains.kotlin.library.metadata.isCInteropLibrary
 
 /**
  * A wrapper class around [KonanIrLinker] that provides access to [KonanPartialModuleDeserializer].
  * Usually this is needed to access data stored in compiler caches like class layout information.
  */
 internal class ModuleDeserializerProvider(
-        private val libraryBeingCached: PartialCacheInfo?,
+        private val librariesBeingCached: Map<KotlinLibrary, PartialCacheInfo>,
         private val cachedLibraries: CachedLibraries,
         private val linker: KonanIrLinker,
 ) {
@@ -30,12 +30,18 @@ internal class ModuleDeserializerProvider(
      */
     fun getDeserializerOrNull(declaration: IrDeclaration): KonanPartialModuleDeserializer? {
         val packageFragment = declaration.getPackageFragment()
-        val moduleDescriptor = packageFragment.moduleDescriptor
-        val klib = packageFragment.konanLibrary
-        val declarationBeingCached = packageFragment is IrFile && klib != null && libraryBeingCached?.klib == klib
+        val klib = packageFragment.module.kotlinLibrary
+        val libraryBeingCached = librariesBeingCached[klib]
+        val isFromLibraryBeingCached = klib != null && libraryBeingCached?.klib == klib
+        val declarationBeingCached = packageFragment is IrFile && isFromLibraryBeingCached
                 && libraryBeingCached.strategy.contains(packageFragment.path)
-        return if (klib != null && !moduleDescriptor.isFromCInteropLibrary() && cachedLibraries.isLibraryCached(klib) && !declarationBeingCached) {
-            linker.moduleDeserializers[moduleDescriptor] ?: error("No module deserializer for ${declaration.render()}")
+        return if (klib != null
+                && !klib.isCInteropLibrary()
+                // Only libraries participating in this compilation may have incomplete caches.
+                && cachedLibraries.isLibraryCached(klib, allowIncomplete = isFromLibraryBeingCached)
+                && !declarationBeingCached
+        ) {
+            linker.findKonanModuleDeserializer(klib) ?: error("No module deserializer for ${declaration.render()}")
         } else {
             null
         }
@@ -45,6 +51,6 @@ internal class ModuleDeserializerProvider(
      * @return a [KonanPartialModuleDeserializer] for the corresponding [library]. Null if it is a cinterop library.
      */
     fun getDeserializerOrNull(library: KotlinLibrary): KonanPartialModuleDeserializer? {
-        return linker.klibToModuleDeserializerMap[library]
+        return linker.findKonanModuleDeserializer(library)
     }
 }

@@ -3,13 +3,14 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:OptIn(KtImplementationDetail::class)
+@file:OptIn(KtIdeApi::class, KtImplementationDetail::class)
 
 package org.jetbrains.kotlin.psi.stubs
 
 import com.intellij.psi.stubs.NamedStub
 import com.intellij.psi.stubs.PsiFileStub
 import com.intellij.psi.stubs.StubElement
+import com.intellij.psi.tree.IElementType
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -40,12 +41,17 @@ interface KotlinStubElement<T : KtElement> : StubElement<T> {
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinFileStub : PsiFileStub<KtFile>, KotlinStubElement<KtFile> {
+    @KtIdeApi
     fun getPackageFqName(): FqName = (kind as? KotlinFileStubKind.WithPackage)?.packageFqName ?: FqName.ROOT
+
+    @KtImplementationDetail
     fun isScript(): Boolean = kind is KotlinFileStubKind.WithPackage.Script
 
+    @KtImplementationDetail
     fun findImportsByAlias(alias: String): List<KotlinImportDirectiveStub>
 
     /** @see KotlinFileStubKind */
+    @KtIdeApi
     val kind: KotlinFileStubKind
 }
 
@@ -54,28 +60,25 @@ interface KotlinPlaceHolderStub<T : KtElement> : KotlinStubElement<T>
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinPlaceHolderWithTextStub<T : KtElement> : KotlinPlaceHolderStub<T> {
+    @KtImplementationDetail
     val text: String
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinStubWithFqName<T : KtNamedDeclaration> : NamedStub<T>, KotlinStubElement<T> {
+    @KtIdeApi
     val fqName: FqName?
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinClassifierStub<T : KtClassLikeDeclaration> : KotlinStubElement<T> {
+    @KtImplementationDetail
     val classId: ClassId?
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinTypeAliasStub : KotlinClassifierStub<KtTypeAlias>, KotlinStubWithFqName<KtTypeAlias> {
-    val isTopLevel: Boolean
-}
-
-@SubclassOptInRequired(KtImplementationDetail::class)
-interface KotlinClassOrObjectStub<T : KtClassOrObject> : KotlinClassifierStub<T>, KotlinStubWithFqName<T> {
-    val isLocal: Boolean get() = classId == null
-    val superNames: List<String>
+    @KtImplementationDetail
     val isTopLevel: Boolean
 
     /**
@@ -84,41 +87,65 @@ interface KotlinClassOrObjectStub<T : KtClassOrObject> : KotlinClassifierStub<T>
      * Currently, KDoc is only available for decompiled declaration.
      * For source ones one can read the KDoc content from the PSI directly.
      */
+    @KtImplementationDetail
+    val kdocText: String?
+}
+
+@SubclassOptInRequired(KtImplementationDetail::class)
+interface KotlinClassOrObjectStub<T : KtClassOrObject> : KotlinClassifierStub<T>, KotlinStubWithFqName<T> {
+    @KtIdeApi
+    val superNames: List<String>
+
+    @KtIdeApi
+    val isTopLevel: Boolean
+
+    /**
+     * Raw KDoc text, if available.
+     *
+     * Currently, KDoc is only available for decompiled declaration.
+     * For source ones one can read the KDoc content from the PSI directly.
+     */
+    @KtImplementationDetail
     val kdocText: String?
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinClassStub : KotlinClassOrObjectStub<KtClass> {
+    @KtIdeApi
     val isInterface: Boolean
 
     /**
      * When we build [KotlinClassStub] for source stubs, this function always returns `false`. For binary stubs, it returns whether
      * the binary class was compiled with `-jvm-default={enable|no-compatibility}` option or not.
      */
+    @KtImplementationDetail
     val isClsStubCompiledToJvmDefaultImplementation: Boolean
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinObjectStub : KotlinClassOrObjectStub<KtObjectDeclaration> {
+    @KtIdeApi
     val isObjectLiteral: Boolean
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinValueArgumentStub<T : KtValueArgument> : KotlinPlaceHolderStub<T> {
+    @KtImplementationDetail
     val isSpread: Boolean
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
-interface KotlinContractEffectStub : KotlinPlaceHolderStub<KtContractEffect>
-
-@SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinAnnotationEntryStub : KotlinStubElement<KtAnnotationEntry> {
+    @KtIdeApi
     val shortName: String?
+
+    @KtImplementationDetail
     val hasValueArguments: Boolean
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinAnnotationUseSiteTargetStub : KotlinStubElement<KtAnnotationUseSiteTarget> {
+    @KtImplementationDetail
     val useSiteTarget: String
 }
 
@@ -128,31 +155,37 @@ interface KotlinAnnotationUseSiteTargetStub : KotlinStubElement<KtAnnotationUseS
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinDeclarationWithBodyStub<T : KtDeclarationWithBody> : KotlinStubElement<T> {
     /**
-     * Whether the declaration may have a contract.
-     * **false** means that the declaration is definitely having no contract,
-     * but **true** doesn't guarantee that the declaration has a contract.
+     * Whether the declaration may have a contract. **false** means that the declaration definitely has no contract, but **true** doesn't
+     * guarantee that the declaration has a contract.
      */
+    @KtImplementationDetail
     val mayHaveContract: Boolean
 
     /**
      * Whether the declaration has a block body or no bodies at all.
      */
+    @KtImplementationDetail
     val hasNoExpressionBody: Boolean
 
     /**
      * Whether the declaration has a body (expression or block).
      */
+    @KtImplementationDetail
     val hasBody: Boolean
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinFunctionStub : KotlinCallableStubBase<KtNamedFunction>, KotlinDeclarationWithBodyStub<KtNamedFunction> {
+    @KtImplementationDetail
     val hasTypeParameterListBeforeFunctionName: Boolean
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinConstructorStub<T : KtConstructor<T>> : KotlinCallableStubBase<T>, KotlinDeclarationWithBodyStub<T> {
+    @KtImplementationDetail
     val isDelegatedCallToThis: Boolean
+
+    @KtImplementationDetail
     val isExplicitDelegationCall: Boolean
 }
 
@@ -161,13 +194,19 @@ interface KotlinImportAliasStub : NamedStub<KtImportAlias>, KotlinStubElement<Kt
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinImportDirectiveStub : KotlinStubElement<KtImportDirective> {
+    @KtImplementationDetail
     val isAllUnder: Boolean
+
+    @KtImplementationDetail
     val importedFqName: FqName?
+
+    @KtImplementationDetail
     val isValid: Boolean
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinModifierListStub : KotlinStubElement<KtDeclarationModifierList> {
+    @KtIdeApi
     fun hasModifier(modifierToken: KtModifierKeywordToken): Boolean
 
     /**
@@ -201,37 +240,116 @@ interface KotlinModifierListStub : KotlinStubElement<KtDeclarationModifierList> 
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinNameReferenceExpressionStub : KotlinStubElement<KtNameReferenceExpression> {
+    @KtImplementationDetail
     val referencedName: String
+}
+
+@KtImplementationDetail
+interface KotlinOperationReferenceExpressionStub : KotlinStubElement<KtOperationReferenceExpression> {
+    /**
+     * The name of the referenced operation.
+     *
+     * For operator symbols, this is the symbol itself (e.g., `-` for [org.jetbrains.kotlin.lexer.KtTokens.MINUS]).
+     * For infix function calls, this is the function name (e.g., `shl`).
+     *
+     * @see org.jetbrains.kotlin.psi.KtOperationReferenceExpression.getReferencedName
+     */
+    val referencedName: String
+
+    /**
+     * The token type of the referenced operation.
+     *
+     * For infix function calls, this is [org.jetbrains.kotlin.lexer.KtTokens.IDENTIFIER].
+     *
+     * @see org.jetbrains.kotlin.psi.KtOperationReferenceExpression.getReferencedNameElementType
+     */
+    val operationToken: IElementType
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinEnumEntrySuperclassReferenceExpressionStub : KotlinStubElement<KtEnumEntrySuperclassReferenceExpression> {
+    @KtImplementationDetail
     val referencedName: String
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinParameterStub : KotlinStubWithFqName<KtParameter> {
+    @KtImplementationDetail
     val isMutable: Boolean
+
+    @KtIdeApi
     val hasValOrVar: Boolean
+
+    @KtImplementationDetail
     val hasDefaultValue: Boolean
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinPropertyAccessorStub : KotlinDeclarationWithBodyStub<KtPropertyAccessor> {
+    @KtImplementationDetail
     val isGetter: Boolean
+
+    /**
+     * Raw KDoc text, if available.
+     *
+     * Currently, KDoc is only available for decompiled declaration.
+     * For source ones one can read the KDoc content from the PSI directly.
+     */
+    @KtImplementationDetail
+    val kdocText: String?
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinBackingFieldStub : KotlinStubElement<KtBackingField> {
+    @KtImplementationDetail
     val hasInitializer: Boolean
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
-interface KotlinPropertyStub : KotlinCallableStubBase<KtProperty> {
+interface KotlinDestructuringDeclarationStub : KotlinStubElement<KtDestructuringDeclaration> {
+    @KtImplementationDetail
     val isVar: Boolean
-    val hasDelegate: Boolean
-    val hasDelegateExpression: Boolean
+
+    @KtImplementationDetail
     val hasInitializer: Boolean
+
+    @KtImplementationDetail
+    val hasSquareBrackets: Boolean
+
+    @KtImplementationDetail
+    val isFullForm: Boolean
+}
+
+@SubclassOptInRequired(KtImplementationDetail::class)
+interface KotlinDestructuringDeclarationEntryStub : KotlinStubWithFqName<KtDestructuringDeclarationEntry> {
+    /**
+     * Whether the entry is mutable, either via its own `var` keyword or via the `var` keyword of its destructuring declaration.
+     */
+    @KtImplementationDetail
+    val isVar: Boolean
+
+    /**
+     * Whether the entry is named by a single underscore (`_`) that is not quoted with backticks, so it is an unused entry.
+     */
+    @KtImplementationDetail
+    val isSingleUnderscore: Boolean
+}
+
+@SubclassOptInRequired(KtImplementationDetail::class)
+interface KotlinPropertyStub : KotlinCallableStubBase<KtProperty> {
+    @KtImplementationDetail
+    val isVar: Boolean
+
+    @KtImplementationDetail
+    val hasDelegate: Boolean
+
+    @KtImplementationDetail
+    val hasDelegateExpression: Boolean
+
+    @KtImplementationDetail
+    val hasInitializer: Boolean
+
+    @KtImplementationDetail
     val hasReturnTypeRef: Boolean
 
     /**
@@ -240,12 +358,16 @@ interface KotlinPropertyStub : KotlinCallableStubBase<KtProperty> {
      *
      * Returns **null** if the information is not available (e.g., for source stubs or unsupported platforms).
      */
+    @KtImplementationDetail
     val hasBackingField: Boolean?
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinCallableStubBase<TDeclaration : KtCallableDeclaration> : KotlinStubWithFqName<TDeclaration> {
+    @KtIdeApi
     val isTopLevel: Boolean
+
+    @KtIdeApi
     val isExtension: Boolean
 
     /**
@@ -254,12 +376,14 @@ interface KotlinCallableStubBase<TDeclaration : KtCallableDeclaration> : KotlinS
      * Currently, KDoc is only available for decompiled declaration.
      * For source ones one can read the KDoc content from the PSI directly.
      */
+    @KtImplementationDetail
     val kdocText: String?
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinTypeParameterStub : KotlinStubWithFqName<KtTypeParameter>
 
+@KtImplementationDetail
 enum class ConstantValueKind {
     NULL,
     BOOLEAN_CONSTANT,
@@ -270,12 +394,12 @@ enum class ConstantValueKind {
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinConstantExpressionStub : KotlinStubElement<KtConstantExpression> {
+    @KtImplementationDetail
     val kind: ConstantValueKind
+
+    @KtImplementationDetail
     val value: String
 }
-
-@SubclassOptInRequired(KtImplementationDetail::class)
-interface KotlinClassLiteralExpressionStub : KotlinStubElement<KtClassLiteralExpression>
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinCollectionLiteralExpressionStub : KotlinStubElement<KtCollectionLiteralExpression> {
@@ -286,11 +410,13 @@ interface KotlinCollectionLiteralExpressionStub : KotlinStubElement<KtCollection
      *
      * @see org.jetbrains.kotlin.psi.KtCollectionLiteralExpression.getInnerExpressions
      */
+    @KtImplementationDetail
     val innerExpressionCount: Int
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinTypeProjectionStub : KotlinStubElement<KtTypeProjection> {
+    @KtImplementationDetail
     val projectionKind: KtProjectionKind
 }
 
@@ -302,19 +428,13 @@ interface KotlinFunctionTypeStub : KotlinStubElement<KtFunctionType>
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinScriptStub : KotlinStubWithFqName<KtScript> {
+    @KtIdeApi
     override val fqName: FqName
-
-    /**
-     * Whether the script is a REPL snippet.
-     *
-     * @see KtScript.isReplSnippet
-     */
-    @KtImplementationDetail
-    val isReplSnippet: Boolean
 }
 
 @SubclassOptInRequired(KtImplementationDetail::class)
 interface KotlinContextReceiverStub : KotlinStubElement<KtContextReceiver> {
+    @KtImplementationDetail
     val label: String?
 }
 
@@ -326,6 +446,7 @@ interface KotlinStringInterpolationPrefixStub : KotlinStubElement<KtStringInterp
      * For example, a single `$` in string interpolation would have count of 1,
      * while `$$` would have count of 2.
      */
+    @KtImplementationDetail
     val dollarSignCount: Int
 }
 
@@ -341,5 +462,6 @@ interface KotlinBlockStringTemplateEntryStub : KotlinPlaceHolderWithTextStub<KtB
      * fun foo() {}
      * ```
      */
+    @KtImplementationDetail
     val hasMultipleExpressions: Boolean
 }

@@ -127,14 +127,16 @@ private inline fun <Node> LazySchemeStorage<Node>.getOrPut(
  */
 interface ErrorReporter<Node> {
     /**
-     * Report a call node applier is not correct.
+     * Report that a call node is not compatible with the appliers expected by the body containing
+     * the call.
      */
-    fun reportCallError(node: Node, expected: String, received: String)
+    fun reportCallError(node: Node, expected: Set<String>, received: Set<String>)
 
     /**
-     * Report that the value or lambda passed to a parameter to a call was not correct.
+     * Report that a value or lambda passed as a call argument is not compatible with the appliers
+     * expected by the corresponding parameter.
      */
-    fun reportParameterError(node: Node, index: Int, expected: String, received: String)
+    fun reportParameterError(node: Node, index: Int, expected: Set<String>, received: Set<String>)
 
     /**
      * Log internal errors detected that indicate problems in the inference algorithm or when the
@@ -221,9 +223,6 @@ class ApplierInferencer<Type, Node>(
             anyParameters = anyParameters
         )
 
-    // Produce a token that can be used in error messages.
-    private val Binding.safeToken: String get() = token ?: "unbound"
-
     /**
      * Perform structural unification of two call bindings. All bindings that are in the same
      * structural place must unify or there is an error in the source. That is the targets are
@@ -235,9 +234,14 @@ class ApplierInferencer<Type, Node>(
     private fun Bindings.unify(call: Node?, a: CallBindings, b: CallBindings): Boolean {
         if (!unify(a.target, b.target)) {
             if (call != null) {
-                val aName = a.target.safeToken
-                val bName = b.target.safeToken
-                errorReporter.reportCallError(call, aName, bName)
+                // It's not possible for unification to fail when either `a.target` or `b.target`
+                // are allowed to be bound to every token, so within this if-branch,
+                // `.effectiveConstraints.allowedTokens` must be safe to access on both targets.
+                errorReporter.reportCallError(
+                    call,
+                    a.target.effectiveConstraints.allowedTokens,
+                    b.target.effectiveConstraints.allowedTokens
+                )
             }
             return false
         }
@@ -253,16 +257,15 @@ class ApplierInferencer<Type, Node>(
             val bp = b.parameters[i]
             if (!unify(null, ap, bp)) {
                 if (call != null) {
-                    val aToken = ap.target.token
-                    val bToken = bp.target.token
-                    if (aToken != null && bToken != null) {
-                        errorReporter.reportParameterError(
-                            call,
-                            i,
-                            bp.target.token!!,
-                            ap.target.token!!
-                        )
-                    } else unify(call, ap, bp)
+                    // It's not possible for unification to fail when either `ap.target` or
+                    // `bp.target` are allowed to be bound to every token, so within this if-branch,
+                    // `.effectiveConstraints.allowedTokens` must be safe to access on both targets.
+                    errorReporter.reportParameterError(
+                        call,
+                        i,
+                        bp.target.effectiveConstraints.allowedTokens,
+                        ap.target.effectiveConstraints.allowedTokens
+                    )
                 }
             }
         }
@@ -436,7 +439,7 @@ class ApplierInferencer<Type, Node>(
             // Try communicate resolved target bindings to lambda's type to produce more accurate
             // errors. This cause an error to be produced in the lambda if the lambda applier is
             // not what the parameter requires instead on the lambda itself.
-            for ((parameterBinding, argument) in callBinding.parameters.zip(arguments)) {
+            for ([parameterBinding, argument] in callBinding.parameters.zip(arguments)) {
                 if (
                     nodeAdapter.kindOf(argument) == NodeKind.Lambda &&
                     parameterBinding.target.token != null

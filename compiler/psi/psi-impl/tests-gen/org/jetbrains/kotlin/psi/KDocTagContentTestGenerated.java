@@ -34,9 +34,27 @@ public class KDocTagContentTestGenerated extends AbstractKDocTagContentTest {
   }
 
   @Test
+  @TestMetadata("codeBlockWithBlockComment.kt")
+  public void testCodeBlockWithBlockComment() {
+    run("codeBlockWithBlockComment.kt");
+  }
+
+  @Test
   @TestMetadata("CodeBlocks.kt")
   public void testCodeBlocks() {
     run("CodeBlocks.kt");
+  }
+
+  @Test
+  @TestMetadata("CodeSpanWithLineBreaks.kt")
+  public void testCodeSpanWithLineBreaks() {
+    run("CodeSpanWithLineBreaks.kt");
+  }
+
+  @Test
+  @TestMetadata("complexAnnotationClassNonJvm.kt")
+  public void testComplexAnnotationClassNonJvm() {
+    run("complexAnnotationClassNonJvm.kt");
   }
 
   @Test
@@ -133,6 +151,18 @@ public class KDocTagContentTestGenerated extends AbstractKDocTagContentTest {
   @TestMetadata("IncompleteIndentedList.kt")
   public void testIncompleteIndentedList() {
     run("IncompleteIndentedList.kt");
+  }
+
+  @Test
+  @TestMetadata("kt86184.kt")
+  public void testKt86184() {
+    run("kt86184.kt");
+  }
+
+  @Test
+  @TestMetadata("kt89933.kt")
+  public void testKt89933() {
+    run("kt89933.kt");
   }
 
   @Test
@@ -241,5 +271,11 @@ public class KDocTagContentTestGenerated extends AbstractKDocTagContentTest {
   @TestMetadata("TwoTags.kt")
   public void testTwoTags() {
     run("TwoTags.kt");
+  }
+
+  @Test
+  @TestMetadata("unclosedCodeBlocks.kt")
+  public void testUnclosedCodeBlocks() {
+    run("unclosedCodeBlocks.kt");
   }
 }

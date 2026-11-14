@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.fir.builder.FirAnnotationContainerBuilder
 import org.jetbrains.kotlin.fir.builder.FirBuilderDsl
 import org.jetbrains.kotlin.fir.builder.toMutableOrEmpty
+import org.jetbrains.kotlin.fir.diagnostics.ConeDiagnostic
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.impl.FirTypeOperatorCallImpl
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
@@ -24,10 +25,11 @@ import org.jetbrains.kotlin.fir.types.FirTypeRef
 class FirTypeOperatorCallBuilder : FirCallBuilder, FirAnnotationContainerBuilder, FirExpressionBuilder {
     override var source: KtSourceElement? = null
     override var coneTypeOrNull: ConeKotlinType? = null
-    override val annotations: MutableList<FirAnnotation> = mutableListOf()
+    override val annotations: MutableList<FirAnnotation> = []
     override var argumentList: FirArgumentList = FirEmptyArgumentList
     lateinit var operation: FirOperation
     lateinit var conversionTypeRef: FirTypeRef
+    val nonFatalDiagnostics: MutableList<ConeDiagnostic> = []
 
     override fun build(): FirTypeOperatorCall {
         return FirTypeOperatorCallImpl(
@@ -37,6 +39,7 @@ class FirTypeOperatorCallBuilder : FirCallBuilder, FirAnnotationContainerBuilder
             argumentList,
             operation,
             conversionTypeRef,
+            nonFatalDiagnostics.toMutableOrEmpty(),
         )
     }
 

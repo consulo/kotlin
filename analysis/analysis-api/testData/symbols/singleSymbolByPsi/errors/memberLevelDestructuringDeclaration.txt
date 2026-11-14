@@ -1,15 +1,20 @@
 KaDestructuringDeclarationSymbol:
+  anchorPsi: KtDestructuringDeclaration
   annotations: []
-  compilerVisibility: Local
-  entries: []
+  entries: [
+    KaKotlinPropertySymbol(/B.a)
+    KaKotlinPropertySymbol(/B.b)
+  ]
   isActual: false
   isExpect: false
   isExternal: false
   location: LOCAL
   modality: FINAL
   origin: SOURCE
+  psi: KtDestructuringDeclaration
+  realPsi: KtDestructuringDeclaration
   visibility: LOCAL
   getContainingFileSymbol: KaFileSymbol(memberLevelDestructuringDeclaration.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: null

@@ -1,10 +1,10 @@
 FILE[kind=File[packageFqName=<root>]]
   PACKAGE_DIRECTIVE
   IMPORT_LIST
-  CLASS[classId=/AnnotationsOnParenthesizedTypes, fqName=AnnotationsOnParenthesizedTypes, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=AnnotationsOnParenthesizedTypes, superNames=[]]
+  CLASS[classId=/AnnotationsOnParenthesizedTypes, fqName=AnnotationsOnParenthesizedTypes, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=AnnotationsOnParenthesizedTypes, superNames=[]]
     MODIFIER_LIST[public]
     CLASS_BODY
-      FUN[fqName=AnnotationsOnParenthesizedTypes.receiverArgument, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=true, isTopLevel=false, mayHaveContract=false, name=receiverArgument]
+      FUNCTION[fqName=AnnotationsOnParenthesizedTypes.receiverArgument, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=true, isTopLevel=false, mayHaveContract=false, name=receiverArgument]
         TYPE_REFERENCE
           USER_TYPE
             REFERENCE_EXPRESSION[referencedName=B]
@@ -20,7 +20,7 @@ FILE[kind=File[packageFqName=<root>]]
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=C]
         VALUE_PARAMETER_LIST
-      FUN[fqName=AnnotationsOnParenthesizedTypes.parameter, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=parameter]
+      FUNCTION[fqName=AnnotationsOnParenthesizedTypes.parameter, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=parameter]
         VALUE_PARAMETER_LIST
           VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=a]
             TYPE_REFERENCE
@@ -32,7 +32,7 @@ FILE[kind=File[packageFqName=<root>]]
                         REFERENCE_EXPRESSION[referencedName=A]
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=C]
-      FUN[fqName=AnnotationsOnParenthesizedTypes.parameterArgument, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=parameterArgument]
+      FUNCTION[fqName=AnnotationsOnParenthesizedTypes.parameterArgument, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=parameterArgument]
         VALUE_PARAMETER_LIST
           VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=a]
             TYPE_REFERENCE
@@ -49,7 +49,7 @@ FILE[kind=File[packageFqName=<root>]]
                                 REFERENCE_EXPRESSION[referencedName=A]
                       USER_TYPE
                         REFERENCE_EXPRESSION[referencedName=C]
-      FUN[fqName=AnnotationsOnParenthesizedTypes.returnValue, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=returnValue]
+      FUNCTION[fqName=AnnotationsOnParenthesizedTypes.returnValue, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=returnValue]
         VALUE_PARAMETER_LIST
         TYPE_REFERENCE
           MODIFIER_LIST[]
@@ -60,7 +60,10 @@ FILE[kind=File[packageFqName=<root>]]
                     REFERENCE_EXPRESSION[referencedName=A]
           USER_TYPE
             REFERENCE_EXPRESSION[referencedName=C]
-      FUN[fqName=AnnotationsOnParenthesizedTypes.returnTypeParameterValue, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=true, isExtension=false, isTopLevel=false, mayHaveContract=false, name=returnTypeParameterValue]
+        POSTFIX_EXPRESSION
+          NULL[kind=NULL, value=null]
+          OPERATION_REFERENCE[operationToken=EXCLEXCL, referencedName=!!]
+      FUNCTION[fqName=AnnotationsOnParenthesizedTypes.returnTypeParameterValue, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=true, isExtension=false, isTopLevel=false, mayHaveContract=false, name=returnTypeParameterValue]
         TYPE_PARAMETER_LIST
           TYPE_PARAMETER[fqName=null, name=T]
         VALUE_PARAMETER_LIST
@@ -73,7 +76,10 @@ FILE[kind=File[packageFqName=<root>]]
                     REFERENCE_EXPRESSION[referencedName=A]
           USER_TYPE
             REFERENCE_EXPRESSION[referencedName=T]
-      FUN[fqName=AnnotationsOnParenthesizedTypes.returnArgument, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=returnArgument]
+        POSTFIX_EXPRESSION
+          NULL[kind=NULL, value=null]
+          OPERATION_REFERENCE[operationToken=EXCLEXCL, referencedName=!!]
+      FUNCTION[fqName=AnnotationsOnParenthesizedTypes.returnArgument, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=returnArgument]
         VALUE_PARAMETER_LIST
         TYPE_REFERENCE
           USER_TYPE
@@ -89,6 +95,9 @@ FILE[kind=File[packageFqName=<root>]]
                             REFERENCE_EXPRESSION[referencedName=A]
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=C]
+        POSTFIX_EXPRESSION
+          NULL[kind=NULL, value=null]
+          OPERATION_REFERENCE[operationToken=EXCLEXCL, referencedName=!!]
       PROPERTY[fqName=AnnotationsOnParenthesizedTypes.lambdaType, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=true, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=lambdaType]
         TYPE_REFERENCE
           MODIFIER_LIST[]
@@ -103,6 +112,9 @@ FILE[kind=File[packageFqName=<root>]]
             TYPE_REFERENCE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=C]
+        POSTFIX_EXPRESSION
+          NULL[kind=NULL, value=null]
+          OPERATION_REFERENCE[operationToken=EXCLEXCL, referencedName=!!]
       PROPERTY[fqName=AnnotationsOnParenthesizedTypes.lambdaParameter, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=true, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=lambdaParameter]
         TYPE_REFERENCE
           FUNCTION_TYPE
@@ -120,6 +132,9 @@ FILE[kind=File[packageFqName=<root>]]
             TYPE_REFERENCE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=C]
+        POSTFIX_EXPRESSION
+          NULL[kind=NULL, value=null]
+          OPERATION_REFERENCE[operationToken=EXCLEXCL, referencedName=!!]
       PROPERTY[fqName=AnnotationsOnParenthesizedTypes.lambdaReturnValue, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=true, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=lambdaReturnValue]
         TYPE_REFERENCE
           FUNCTION_TYPE
@@ -133,6 +148,9 @@ FILE[kind=File[packageFqName=<root>]]
                         REFERENCE_EXPRESSION[referencedName=A]
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=C]
+        POSTFIX_EXPRESSION
+          NULL[kind=NULL, value=null]
+          OPERATION_REFERENCE[operationToken=EXCLEXCL, referencedName=!!]
       PROPERTY[fqName=AnnotationsOnParenthesizedTypes.lambdaReceiver, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=true, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=lambdaReceiver]
         TYPE_REFERENCE
           FUNCTION_TYPE
@@ -150,6 +168,9 @@ FILE[kind=File[packageFqName=<root>]]
             TYPE_REFERENCE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=C]
+        POSTFIX_EXPRESSION
+          NULL[kind=NULL, value=null]
+          OPERATION_REFERENCE[operationToken=EXCLEXCL, referencedName=!!]
       PROPERTY[fqName=AnnotationsOnParenthesizedTypes.lambdaTypeWithNullableReceiver, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=true, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=lambdaTypeWithNullableReceiver]
         TYPE_REFERENCE
           FUNCTION_TYPE
@@ -168,7 +189,10 @@ FILE[kind=File[packageFqName=<root>]]
             TYPE_REFERENCE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=C]
-  CLASS[classId=/A, fqName=A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=A, superNames=[]]
+        POSTFIX_EXPRESSION
+          NULL[kind=NULL, value=null]
+          OPERATION_REFERENCE[operationToken=EXCLEXCL, referencedName=!!]
+  CLASS[classId=/A, fqName=A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=A, superNames=[]]
     MODIFIER_LIST[annotation]
       ANNOTATION_ENTRY[hasValueArguments=true, shortName=Target]
         CONSTRUCTOR_CALLEE
@@ -184,7 +208,7 @@ FILE[kind=File[packageFqName=<root>]]
             DOT_QUALIFIED_EXPRESSION
               REFERENCE_EXPRESSION[referencedName=AnnotationTarget]
               REFERENCE_EXPRESSION[referencedName=TYPE_PARAMETER]
-  CLASS[classId=/B, fqName=B, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=true, isLocal=false, isTopLevel=true, name=B, superNames=[]]
+  CLASS[classId=/B, fqName=B, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=true, isTopLevel=true, name=B, superNames=[]]
     TYPE_PARAMETER_LIST
       TYPE_PARAMETER[fqName=null, name=T]
-  CLASS[classId=/C, fqName=C, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=true, isLocal=false, isTopLevel=true, name=C, superNames=[]]
+  CLASS[classId=/C, fqName=C, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=true, isTopLevel=true, name=C, superNames=[]]

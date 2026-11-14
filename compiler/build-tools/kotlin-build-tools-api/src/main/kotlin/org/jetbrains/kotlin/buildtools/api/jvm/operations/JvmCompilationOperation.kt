@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.buildtools.api.internal.BaseOption
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmIncrementalCompilationConfiguration
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmPlatformToolchain
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmSnapshotBasedIncrementalCompilationConfiguration
+import org.jetbrains.kotlin.buildtools.api.jvm.KaptConfiguration
 import org.jetbrains.kotlin.buildtools.api.trackers.CompilerLookupTracker
 import java.nio.file.Path
 import kotlin.contracts.ExperimentalContracts
@@ -76,7 +77,7 @@ public interface JvmCompilationOperation : BaseCompilationOperation, Cancellable
          *
          * @since 2.3.20
          */
-        public val compilerArguments: JvmCompilerArguments.Builder
+        public override val compilerArguments: JvmCompilerArguments.Builder
 
         /**
          * Get the value for option specified by [key] if it was previously [set] or if it has a default value.
@@ -100,7 +101,7 @@ public interface JvmCompilationOperation : BaseCompilationOperation, Cancellable
          *
          * @since 2.3.20
          */
-        public fun build(): JvmCompilationOperation
+        public override fun build(): JvmCompilationOperation
 
         /**
          * Creates the configuration object for snapshot-based incremental compilation (IC) in JVM projects.
@@ -130,14 +131,14 @@ public interface JvmCompilationOperation : BaseCompilationOperation, Cancellable
          * Creates the configuration object for snapshot-based incremental compilation (IC) in JVM projects.
          *
          * @deprecated The shrunkClasspathSnapshot parameter is no longer used. Use the 3-parameter overload instead.
-         * Will be promoted to an error in KT-83937.
+         * Will be removed in KT-88357.
          * @see org.jetbrains.kotlin.buildtools.api.jvm.JvmSnapshotBasedIncrementalCompilationConfiguration
          * @since 2.3.20
          */
         @Deprecated(
             message = "The shrunkClasspathSnapshot parameter is no longer required",
             replaceWith = ReplaceWith("snapshotBasedIcConfigurationBuilder(workingDirectory, sourcesChanges, dependenciesSnapshotFiles)"),
-            level = DeprecationLevel.WARNING
+            level = DeprecationLevel.ERROR
         )
         public fun snapshotBasedIcConfigurationBuilder(
             workingDirectory: Path,
@@ -161,7 +162,10 @@ public interface JvmCompilationOperation : BaseCompilationOperation, Cancellable
      * @see set
      * @see JvmCompilationOperation.Companion
      */
-    public class Option<V> internal constructor(id: String) : BaseOption<V>(id)
+    public class Option<V> internal constructor(
+        id: String,
+        public val availableSinceVersion: KotlinReleaseVersion,
+    ) : BaseOption<V>(id)
 
     /**
      * Get the value for option specified by [key] if it was previously [set] or if it has a default value.
@@ -185,7 +189,7 @@ public interface JvmCompilationOperation : BaseCompilationOperation, Cancellable
          */
         @JvmField
         public val INCREMENTAL_COMPILATION: Option<JvmIncrementalCompilationConfiguration?> =
-            Option("INCREMENTAL_COMPILATION")
+            Option("INCREMENTAL_COMPILATION", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * Adds a tracker that will be informed whenever the compiler makes lookups for references.
@@ -198,7 +202,7 @@ public interface JvmCompilationOperation : BaseCompilationOperation, Cancellable
             )
         )
         @JvmField
-        public val LOOKUP_TRACKER: Option<CompilerLookupTracker?> = Option("LOOKUP_TRACKER")
+        public val LOOKUP_TRACKER: Option<CompilerLookupTracker?> = Option("LOOKUP_TRACKER", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * An array of additional Kotlin script extensions (on top of the default `kt` and `kts`).
@@ -206,7 +210,7 @@ public interface JvmCompilationOperation : BaseCompilationOperation, Cancellable
          * The extension should not contain the leading dot (an example of a valid value `bar` for the `foo.bar` file)
          */
         @JvmField
-        public val KOTLINSCRIPT_EXTENSIONS: Option<Array<String>?> = Option("KOTLINSCRIPT_EXTENSIONS")
+        public val KOTLINSCRIPT_EXTENSIONS: Option<Array<String>?> = Option("KOTLINSCRIPT_EXTENSIONS", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * Controls at which logging level to display the command line arguments passed to the compiler.
@@ -221,10 +225,13 @@ public interface JvmCompilationOperation : BaseCompilationOperation, Cancellable
             )
         )
         @JvmField
-        public val COMPILER_ARGUMENTS_LOG_LEVEL: Option<CompilerArgumentsLogLevel> = Option("COMPILER_ARGUMENTS_LOG_LEVEL")
+        public val COMPILER_ARGUMENTS_LOG_LEVEL: Option<CompilerArgumentsLogLevel> =
+            Option("COMPILER_ARGUMENTS_LOG_LEVEL", KotlinReleaseVersion(2, 3, 0))
 
         /**
          * Enables the Compiler Reference Index generation during the compilation.
+         *
+         * @since 2.3.20
          */
         @Deprecated(
             "Use `BaseCompilationOperation.GENERATE_COMPILER_REF_INDEX` instead",
@@ -234,9 +241,30 @@ public interface JvmCompilationOperation : BaseCompilationOperation, Cancellable
             )
         )
         @JvmField
-        public val GENERATE_COMPILER_REF_INDEX: Option<Boolean> = Option("GENERATE_COMPILER_REF_INDEX")
+        public val GENERATE_COMPILER_REF_INDEX: Option<Boolean> = Option("GENERATE_COMPILER_REF_INDEX", KotlinReleaseVersion(2, 3, 20))
+
+        /**
+         * Represents an option for configuring the KAPT (Kotlin Annotation Processing Tool) behavior
+         * in a [JvmCompilationOperation].
+         *
+         * Obtain a builder for [KaptConfiguration] from [JvmPlatformToolchain.kaptCompilerPluginBuilder].
+         *
+         * @since 2.5.20
+         */
+        @JvmField
+        @ExperimentalBuildToolsApi
+        public val KAPT_CONFIGURATION: Option<KaptConfiguration?> = Option("KAPT_CONFIGURATION", KotlinReleaseVersion(2, 5, 0))
+
     }
 
+    // KT-86102 [BTA] Move CompilerArgumentsLogLevel to BaseCompilationOperation
+    /**
+     * Log levels for compiler arguments.
+     *
+     * For historical and backward compatibility reasons this enum is placed in the [JvmCompilationOperation] class, however
+     * it can be used with any operation that is a [BaseCompilationOperation] with the
+     * [BaseCompilationOperation.COMPILER_ARGUMENTS_LOG_LEVEL] option.
+     */
     public enum class CompilerArgumentsLogLevel {
         ERROR,
         WARNING,
@@ -272,7 +300,7 @@ public inline fun JvmCompilationOperation.Builder.snapshotBasedIcConfiguration(
  * Convenience function for creating a [JvmSnapshotBasedIncrementalCompilationConfiguration] with options configured by [builderAction].
  *
  * @deprecated The shrunkClasspathSnapshot parameter is no longer required. Use the 3-parameter overload instead.
- * Will be promoted to an error in KT-83937.
+ * Will be removed in KT-88357.
  * @return an immutable `JvmSnapshotBasedIncrementalCompilationConfiguration`.
  * @see JvmCompilationOperation.Builder.snapshotBasedIcConfigurationBuilder
  * @since 2.3.20
@@ -280,7 +308,7 @@ public inline fun JvmCompilationOperation.Builder.snapshotBasedIcConfiguration(
 @Deprecated(
     message = "The shrunkClasspathSnapshot parameter is no longer required",
     replaceWith = ReplaceWith("snapshotBasedIcConfiguration(workingDirectory, sourcesChanges, dependenciesSnapshotFiles, builderAction)"),
-    level = DeprecationLevel.WARNING
+    level = DeprecationLevel.ERROR
 )
 @OptIn(ExperimentalContracts::class)
 @ExperimentalBuildToolsApi
@@ -294,7 +322,7 @@ public inline fun JvmCompilationOperation.Builder.snapshotBasedIcConfiguration(
     contract {
         callsInPlace(builderAction, InvocationKind.EXACTLY_ONCE)
     }
-    @Suppress("DEPRECATION")
+    @Suppress("DEPRECATION_ERROR")
     return snapshotBasedIcConfigurationBuilder(workingDirectory, sourcesChanges, dependenciesSnapshotFiles, shrunkClasspathSnapshot).apply(
         builderAction
     ).build()

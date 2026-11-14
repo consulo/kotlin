@@ -56,28 +56,55 @@ KtParameter(146,158): 'val error: E'
   null
 
 KtTypeReference(157,158): 'E'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      E
+    ]
 
 KtUserType(157,158): 'E'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      E
+    ]
 
 KtNameReferenceExpression(157,158): 'E'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      E
+    ]
 
 KtSuperTypeList(161,179): 'Either<E, Nothing>'
   null
 
 KtSuperTypeEntry(161,179): 'Either<E, Nothing>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either
+    ]
 
 KtTypeReference(161,179): 'Either<E, Nothing>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either
+    ]
 
 KtUserType(161,179): 'Either<E, Nothing>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either
+    ]
 
 KtNameReferenceExpression(161,167): 'Either'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either
+    ]
 
 KtTypeArgumentList(167,179): '<E, Nothing>'
   null
@@ -86,25 +113,49 @@ KtTypeProjection(168,169): 'E'
   null
 
 KtTypeReference(168,169): 'E'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      E
+    ]
 
 KtUserType(168,169): 'E'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      E
+    ]
 
 KtNameReferenceExpression(168,169): 'E'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      E
+    ]
 
 KtTypeProjection(171,178): 'Nothing'
   null
 
 KtTypeReference(171,178): 'Nothing'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Nothing
+    ]
 
 KtUserType(171,178): 'Nothing'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Nothing
+    ]
 
 KtNameReferenceExpression(171,178): 'Nothing'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Nothing
+    ]
 
 KtClass(184,241): 'data class Right<out A>(val value: A): Either<Nothing, A>'
   null
@@ -131,28 +182,55 @@ KtParameter(208,220): 'val value: A'
   null
 
 KtTypeReference(219,220): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      A
+    ]
 
 KtUserType(219,220): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      A
+    ]
 
 KtNameReferenceExpression(219,220): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      A
+    ]
 
 KtSuperTypeList(223,241): 'Either<Nothing, A>'
   null
 
 KtSuperTypeEntry(223,241): 'Either<Nothing, A>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either
+    ]
 
 KtTypeReference(223,241): 'Either<Nothing, A>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either
+    ]
 
 KtUserType(223,241): 'Either<Nothing, A>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either
+    ]
 
 KtNameReferenceExpression(223,229): 'Either'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either
+    ]
 
 KtTypeArgumentList(229,241): '<Nothing, A>'
   null
@@ -161,25 +239,49 @@ KtTypeProjection(230,237): 'Nothing'
   null
 
 KtTypeReference(230,237): 'Nothing'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Nothing
+    ]
 
 KtUserType(230,237): 'Nothing'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Nothing
+    ]
 
 KtNameReferenceExpression(230,237): 'Nothing'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Nothing
+    ]
 
 KtTypeProjection(239,240): 'A'
   null
 
 KtTypeReference(239,240): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      A
+    ]
 
 KtUserType(239,240): 'A'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      A
+    ]
 
 KtNameReferenceExpression(239,240): 'A'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      A
+    ]
 
 KtNamedFunction(245,529): 'fun foo(s: Either<String, Int>) {'
   null
@@ -191,13 +293,25 @@ KtParameter(253,275): 's: Either<String, Int>'
   null
 
 KtTypeReference(256,275): 'Either<String, Int>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either
+    ]
 
 KtUserType(256,275): 'Either<String, Int>'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either
+    ]
 
 KtNameReferenceExpression(256,262): 'Either'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either
+    ]
 
 KtTypeArgumentList(262,275): '<String, Int>'
   null
@@ -206,25 +320,49 @@ KtTypeProjection(263,269): 'String'
   null
 
 KtTypeReference(263,269): 'String'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtUserType(263,269): 'String'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtNameReferenceExpression(263,269): 'String'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/String
+    ]
 
 KtTypeProjection(271,274): 'Int'
   null
 
 KtTypeReference(271,274): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(271,274): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(271,274): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtBlockExpression(277,529): '{'
   null
@@ -242,49 +380,76 @@ KtIsExpression(298,307): 's is Left'
   null
 
 KtNameReferenceExpression(298,299): 's'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       s: Either<kotlin.String, kotlin.Int>
     ]
 
 KtOperationReferenceExpression(300,302): 'is'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtTypeReference(303,307): 'Left'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Left
+    ]
 
 KtUserType(303,307): 'Left'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Left
+    ]
 
 KtNameReferenceExpression(303,307): 'Left'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Left
+    ]
 
 KtDotQualifiedExpression(311,325): 's.error.length'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val length: kotlin.Int
     ]
 
 KtDotQualifiedExpression(311,318): 's.error'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val error: E
     ]
 
 KtNameReferenceExpression(311,312): 's'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       s: Either<kotlin.String, kotlin.Int>
     ]
 
 KtNameReferenceExpression(313,318): 'error'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val error: E
     ]
 
 KtNameReferenceExpression(319,325): 'length'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val length: kotlin.Int
     ]
@@ -299,49 +464,76 @@ KtIsExpression(334,344): 's is Right'
   null
 
 KtNameReferenceExpression(334,335): 's'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       s: Either<kotlin.String, kotlin.Int>
     ]
 
 KtOperationReferenceExpression(336,338): 'is'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtTypeReference(339,344): 'Right'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Right
+    ]
 
 KtUserType(339,344): 'Right'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Right
+    ]
 
 KtNameReferenceExpression(339,344): 'Right'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Right
+    ]
 
 KtBinaryExpression(348,359): 's.value * 1'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int.times(<dispatch receiver>: kotlin.Int, other: kotlin.Int): kotlin.Int
     ]
 
 KtDotQualifiedExpression(348,355): 's.value'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val value: A
     ]
 
 KtNameReferenceExpression(348,349): 's'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       s: Either<kotlin.String, kotlin.Int>
     ]
 
 KtNameReferenceExpression(350,355): 'value'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val value: A
     ]
 
 KtOperationReferenceExpression(356,357): '*'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int.times(<dispatch receiver>: kotlin.Int, other: kotlin.Int): kotlin.Int
     ]
@@ -359,22 +551,40 @@ KtIsExpression(375,385): 's !is Left'
   null
 
 KtNameReferenceExpression(375,376): 's'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       s: Either<kotlin.String, kotlin.Int>
     ]
 
 KtOperationReferenceExpression(377,380): '!is'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtTypeReference(381,385): 'Left'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Left
+    ]
 
 KtUserType(381,385): 'Left'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Left
+    ]
 
 KtNameReferenceExpression(381,385): 'Left'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Left
+    ]
 
 KtContainerNodeForControlStructureBody(387,415): '{'
   null
@@ -383,25 +593,31 @@ KtBlockExpression(387,415): '{'
   null
 
 KtDotQualifiedExpression(397,409): 's.hashCode()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Any.hashCode(<dispatch receiver>: kotlin.Any): kotlin.Int
     ]
 
 KtNameReferenceExpression(397,398): 's'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       s: Either<kotlin.String, kotlin.Int>
     ]
 
 KtCallExpression(399,409): 'hashCode()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Any.hashCode(<dispatch receiver>: kotlin.Any): kotlin.Int
     ]
 
 KtNameReferenceExpression(399,407): 'hashCode'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Any.hashCode(<dispatch receiver>: kotlin.Any): kotlin.Int
     ]
@@ -416,7 +632,7 @@ KtContainerNode(425,443): '1 == "".hashCode()'
   null
 
 KtBinaryExpression(425,443): '1 == "".hashCode()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int.equals(<dispatch receiver>: kotlin.Int, other: kotlin.Any?): kotlin.Boolean
     ]
@@ -425,13 +641,16 @@ KtConstantExpression(425,426): '1'
   null
 
 KtOperationReferenceExpression(427,429): '=='
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int.equals(<dispatch receiver>: kotlin.Int, other: kotlin.Any?): kotlin.Boolean
     ]
 
 KtDotQualifiedExpression(430,443): '"".hashCode()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Any.hashCode(<dispatch receiver>: kotlin.Any): kotlin.Int
     ]
@@ -440,13 +659,16 @@ KtStringTemplateExpression(430,432): '""'
   null
 
 KtCallExpression(433,443): 'hashCode()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Any.hashCode(<dispatch receiver>: kotlin.Any): kotlin.Int
     ]
 
 KtNameReferenceExpression(433,441): 'hashCode'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Any.hashCode(<dispatch receiver>: kotlin.Any): kotlin.Int
     ]
@@ -464,61 +686,88 @@ KtBinaryExpressionWithTypeRHS(455,464): 's as Left'
   null
 
 KtNameReferenceExpression(455,456): 's'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       s: Either<kotlin.String, kotlin.Int>
     ]
 
 KtOperationReferenceExpression(457,459): 'as'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtTypeReference(460,464): 'Left'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Left
+    ]
 
 KtUserType(460,464): 'Left'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Left
+    ]
 
 KtNameReferenceExpression(460,464): 'Left'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Left
+    ]
 
 KtDotQualifiedExpression(473,487): 's.error.length'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val length: kotlin.Int
     ]
 
 KtDotQualifiedExpression(473,480): 's.error'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val error: E
     ]
 
 KtNameReferenceExpression(473,474): 's'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       s: Either<kotlin.String, kotlin.Int>
     ]
 
 KtNameReferenceExpression(475,480): 'error'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val error: E
     ]
 
 KtNameReferenceExpression(481,487): 'length'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val length: kotlin.Int
     ]
 
 KtSafeQualifiedExpression(499,527): '(s as? Right)?.value?.div(1)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int.div(<dispatch receiver>: kotlin.Int, other: kotlin.Int): kotlin.Int
     ]
 
 KtSafeQualifiedExpression(499,519): '(s as? Right)?.value'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val value: A
     ]
@@ -530,37 +779,61 @@ KtBinaryExpressionWithTypeRHS(500,511): 's as? Right'
   null
 
 KtNameReferenceExpression(500,501): 's'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       s: Either<kotlin.String, kotlin.Int>
     ]
 
 KtOperationReferenceExpression(502,505): 'as?'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtTypeReference(506,511): 'Right'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Right
+    ]
 
 KtUserType(506,511): 'Right'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Right
+    ]
 
 KtNameReferenceExpression(506,511): 'Right'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /Either.Right
+    ]
 
 KtNameReferenceExpression(514,519): 'value'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val value: A
     ]
 
 KtCallExpression(521,527): 'div(1)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int.div(<dispatch receiver>: kotlin.Int, other: kotlin.Int): kotlin.Int
     ]
 
 KtNameReferenceExpression(521,524): 'div'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int.div(<dispatch receiver>: kotlin.Int, other: kotlin.Int): kotlin.Int
     ]

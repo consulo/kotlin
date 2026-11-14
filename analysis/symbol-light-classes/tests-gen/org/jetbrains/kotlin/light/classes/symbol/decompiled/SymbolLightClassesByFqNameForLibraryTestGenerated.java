@@ -119,6 +119,18 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
   }
 
   @Test
+  @TestMetadata("classAndCompanionPropertyClashByFieldName.kt")
+  public void testClassAndCompanionPropertyClashByFieldName() {
+    run("classAndCompanionPropertyClashByFieldName.kt");
+  }
+
+  @Test
+  @TestMetadata("classAndCompanionPropertyClashByVisibility.kt")
+  public void testClassAndCompanionPropertyClashByVisibility() {
+    run("classAndCompanionPropertyClashByVisibility.kt");
+  }
+
+  @Test
   @TestMetadata("classJvmFieldAndCompanionJvmFieldProperty.kt")
   public void testClassJvmFieldAndCompanionJvmFieldProperty() {
     run("classJvmFieldAndCompanionJvmFieldProperty.kt");
@@ -182,6 +194,12 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
   @TestMetadata("dataClassWithValueClass.kt")
   public void testDataClassWithValueClass() {
     run("dataClassWithValueClass.kt");
+  }
+
+  @Test
+  @TestMetadata("DefaultImplsWithExtensionMembers.kt")
+  public void testDefaultImplsWithExtensionMembers() {
+    run("DefaultImplsWithExtensionMembers.kt");
   }
 
   @Test
@@ -260,6 +278,12 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
   @TestMetadata("EnumEntry.kt")
   public void testEnumEntry() {
     run("EnumEntry.kt");
+  }
+
+  @Test
+  @TestMetadata("enumEntryAndCompanionDelegatedProperty.kt")
+  public void testEnumEntryAndCompanionDelegatedProperty() {
+    run("enumEntryAndCompanionDelegatedProperty.kt");
   }
 
   @Test
@@ -356,6 +380,12 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
   @TestMetadata("JvmStatic.kt")
   public void testJvmStatic() {
     run("JvmStatic.kt");
+  }
+
+  @Test
+  @TestMetadata("jvmSyntheticFields.kt")
+  public void testJvmSyntheticFields() {
+    run("jvmSyntheticFields.kt");
   }
 
   @Test
@@ -467,12 +497,6 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
   }
 
   @Test
-  @TestMetadata("SuperTypeWithBoundKotlinCollection.kt")
-  public void testSuperTypeWithBoundKotlinCollection() {
-    run("SuperTypeWithBoundKotlinCollection.kt");
-  }
-
-  @Test
   @TestMetadata("SuspendFunctionTypeAsAnnotationArgument.kt")
   public void testSuspendFunctionTypeAsAnnotationArgument() {
     run("SuspendFunctionTypeAsAnnotationArgument.kt");
@@ -500,6 +524,18 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
   @TestMetadata("valueClassAsContextParameter.kt")
   public void testValueClassAsContextParameter() {
     run("valueClassAsContextParameter.kt");
+  }
+
+  @Test
+  @TestMetadata("valueClassDelegatedPropertyInObject.kt")
+  public void testValueClassDelegatedPropertyInObject() {
+    run("valueClassDelegatedPropertyInObject.kt");
+  }
+
+  @Test
+  @TestMetadata("valueClassFieldClashWithCompanionObject.kt")
+  public void testValueClassFieldClashWithCompanionObject() {
+    run("valueClassFieldClashWithCompanionObject.kt");
   }
 
   @Test
@@ -637,6 +673,188 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
   }
 
   @Nested
+  @TestMetadata("analysis/symbol-light-classes/testData/lightClassByFqName/companionBlocks")
+  @TestDataPath("$PROJECT_ROOT")
+  public class CompanionBlocks {
+    private void run(String fileName) {
+      runTest("analysis/symbol-light-classes/testData/lightClassByFqName/companionBlocks/" + fileName);
+    }
+
+    @Test
+    public void testAllFilesPresentInCompanionBlocks() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/symbol-light-classes/testData/lightClassByFqName/companionBlocks"), Pattern.compile("^([^.]+)\\.kt$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("CompanionBlock.kt")
+    public void testCompanionBlock() {
+      run("CompanionBlock.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockDelegatedProperty.kt")
+    public void testCompanionBlockDelegatedProperty() {
+      run("CompanionBlockDelegatedProperty.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockDeprecated.kt")
+    public void testCompanionBlockDeprecated() {
+      run("CompanionBlockDeprecated.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockFieldClash.kt")
+    public void testCompanionBlockFieldClash() {
+      run("CompanionBlockFieldClash.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockFieldClashByFieldName.kt")
+    public void testCompanionBlockFieldClashByFieldName() {
+      run("CompanionBlockFieldClashByFieldName.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockFieldClashByVisibility.kt")
+    public void testCompanionBlockFieldClashByVisibility() {
+      run("CompanionBlockFieldClashByVisibility.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockFieldClashInsideValueClass.kt")
+    public void testCompanionBlockFieldClashInsideValueClass() {
+      run("CompanionBlockFieldClashInsideValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockHidingFunctionWithValueClass.kt")
+    public void testCompanionBlockHidingFunctionWithValueClass() {
+      run("CompanionBlockHidingFunctionWithValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockInInterface.kt")
+    public void testCompanionBlockInInterface() {
+      run("CompanionBlockInInterface.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockInInterfaceConstField.kt")
+    public void testCompanionBlockInInterfaceConstField() {
+      run("CompanionBlockInInterfaceConstField.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockInInterfaceInlineWithDefaultArgument.kt")
+    public void testCompanionBlockInInterfaceInlineWithDefaultArgument() {
+      run("CompanionBlockInInterfaceInlineWithDefaultArgument.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockInInterfaceInlineWithDefaultArgumentJvmDefaultDisable.kt")
+    public void testCompanionBlockInInterfaceInlineWithDefaultArgumentJvmDefaultDisable() {
+      run("CompanionBlockInInterfaceInlineWithDefaultArgumentJvmDefaultDisable.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockInInterfaceInlineWithDefaultArgumentJvmDefaultNoCompatibility.kt")
+    public void testCompanionBlockInInterfaceInlineWithDefaultArgumentJvmDefaultNoCompatibility() {
+      run("CompanionBlockInInterfaceInlineWithDefaultArgumentJvmDefaultNoCompatibility.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockInInterfaceJvmField.kt")
+    public void testCompanionBlockInInterfaceJvmField() {
+      run("CompanionBlockInInterfaceJvmField.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockInInterfacePrivateJvmDefaultDisable.kt")
+    public void testCompanionBlockInInterfacePrivateJvmDefaultDisable() {
+      run("CompanionBlockInInterfacePrivateJvmDefaultDisable.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockInInterfaceProperties.kt")
+    public void testCompanionBlockInInterfaceProperties() {
+      run("CompanionBlockInInterfaceProperties.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockInInterfaceWithDefaultImpls.kt")
+    public void testCompanionBlockInInterfaceWithDefaultImpls() {
+      run("CompanionBlockInInterfaceWithDefaultImpls.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockInsideFullValueClass.kt")
+    public void testCompanionBlockInsideFullValueClass() {
+      run("CompanionBlockInsideFullValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockInsideValueClass.kt")
+    public void testCompanionBlockInsideValueClass() {
+      run("CompanionBlockInsideValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockJvmName.kt")
+    public void testCompanionBlockJvmName() {
+      run("CompanionBlockJvmName.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockMultiple.kt")
+    public void testCompanionBlockMultiple() {
+      run("CompanionBlockMultiple.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockOperatorInvokeAndOf.kt")
+    public void testCompanionBlockOperatorInvokeAndOf() {
+      run("CompanionBlockOperatorInvokeAndOf.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockOverloads.kt")
+    public void testCompanionBlockOverloads() {
+      run("CompanionBlockOverloads.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockVisibility.kt")
+    public void testCompanionBlockVisibility() {
+      run("CompanionBlockVisibility.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockWithCompanionObject.kt")
+    public void testCompanionBlockWithCompanionObject() {
+      run("CompanionBlockWithCompanionObject.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockWithConstAndJvmField.kt")
+    public void testCompanionBlockWithConstAndJvmField() {
+      run("CompanionBlockWithConstAndJvmField.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockWithLateinit.kt")
+    public void testCompanionBlockWithLateinit() {
+      run("CompanionBlockWithLateinit.kt");
+    }
+
+    @Test
+    @TestMetadata("CompanionBlockWithReceiver.kt")
+    public void testCompanionBlockWithReceiver() {
+      run("CompanionBlockWithReceiver.kt");
+    }
+  }
+
+  @Nested
   @TestMetadata("analysis/symbol-light-classes/testData/lightClassByFqName/delegation")
   @TestDataPath("$PROJECT_ROOT")
   public class Delegation {
@@ -761,6 +979,212 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
   }
 
   @Nested
+  @TestMetadata("analysis/symbol-light-classes/testData/lightClassByFqName/fullValueClasses")
+  @TestDataPath("$PROJECT_ROOT")
+  public class FullValueClasses {
+    private void run(String fileName) {
+      runTest("analysis/symbol-light-classes/testData/lightClassByFqName/fullValueClasses/" + fileName);
+    }
+
+    @Test
+    @TestMetadata("abstractFullValueClass.kt")
+    public void testAbstractFullValueClass() {
+      run("abstractFullValueClass.kt");
+    }
+
+    @Test
+    public void testAllFilesPresentInFullValueClasses() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/symbol-light-classes/testData/lightClassByFqName/fullValueClasses"), Pattern.compile("^([^.]+)\\.kt$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("constructorWithFullValueClass.kt")
+    public void testConstructorWithFullValueClass() {
+      run("constructorWithFullValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("constructorWithFullValueClassAsProperty.kt")
+    public void testConstructorWithFullValueClassAsProperty() {
+      run("constructorWithFullValueClassAsProperty.kt");
+    }
+
+    @Test
+    @TestMetadata("dataClassWithFullValueClass.kt")
+    public void testDataClassWithFullValueClass() {
+      run("dataClassWithFullValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassAsContextParameter.kt")
+    public void testFullValueClassAsContextParameter() {
+      run("fullValueClassAsContextParameter.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassDefaultParameters.kt")
+    public void testFullValueClassDefaultParameters() {
+      run("fullValueClassDefaultParameters.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassInParametersWithJvmName.kt")
+    public void testFullValueClassInParametersWithJvmName() {
+      run("fullValueClassInParametersWithJvmName.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassInheritor.kt")
+    public void testFullValueClassInheritor() {
+      run("fullValueClassInheritor.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassInsideDefaultImpl.kt")
+    public void testFullValueClassInsideDefaultImpl() {
+      run("fullValueClassInsideDefaultImpl.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassInsideDelegatedClass.kt")
+    public void testFullValueClassInsideDelegatedClass() {
+      run("fullValueClassInsideDelegatedClass.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassInsideStaticMembers.kt")
+    public void testFullValueClassInsideStaticMembers() {
+      run("fullValueClassInsideStaticMembers.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassJvmOverloads.kt")
+    public void testFullValueClassJvmOverloads() {
+      run("fullValueClassJvmOverloads.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassMembers.kt")
+    public void testFullValueClassMembers() {
+      run("fullValueClassMembers.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassSecondaryConstructors.kt")
+    public void testFullValueClassSecondaryConstructors() {
+      run("fullValueClassSecondaryConstructors.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithCompanion.kt")
+    public void testFullValueClassWithCompanion() {
+      run("fullValueClassWithCompanion.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithCustomAnyMembers.kt")
+    public void testFullValueClassWithCustomAnyMembers() {
+      run("fullValueClassWithCustomAnyMembers.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithDelegatedSuperInterface.kt")
+    public void testFullValueClassWithDelegatedSuperInterface() {
+      run("fullValueClassWithDelegatedSuperInterface.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithFinalToStringInSuperclass.kt")
+    public void testFullValueClassWithFinalToStringInSuperclass() {
+      run("fullValueClassWithFinalToStringInSuperclass.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithFullValueClass.kt")
+    public void testFullValueClassWithFullValueClass() {
+      run("fullValueClassWithFullValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithInlineClass.kt")
+    public void testFullValueClassWithInlineClass() {
+      run("fullValueClassWithInlineClass.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithInternalParam.kt")
+    public void testFullValueClassWithInternalParam() {
+      run("fullValueClassWithInternalParam.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithPrivateParam.kt")
+    public void testFullValueClassWithPrivateParam() {
+      run("fullValueClassWithPrivateParam.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueClassWithSuperInterface.kt")
+    public void testFullValueClassWithSuperInterface() {
+      run("fullValueClassWithSuperInterface.kt");
+    }
+
+    @Test
+    @TestMetadata("fullValueObject.kt")
+    public void testFullValueObject() {
+      run("fullValueObject.kt");
+    }
+
+    @Test
+    @TestMetadata("genericFullValueClass.kt")
+    public void testGenericFullValueClass() {
+      run("genericFullValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("inlineClassWithFullValueClass.kt")
+    public void testInlineClassWithFullValueClass() {
+      run("inlineClassWithFullValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("internalFullValueClass.kt")
+    public void testInternalFullValueClass() {
+      run("internalFullValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("privateFullValueClass.kt")
+    public void testPrivateFullValueClass() {
+      run("privateFullValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("regularClassWithFullValueSuperclass.kt")
+    public void testRegularClassWithFullValueSuperclass() {
+      run("regularClassWithFullValueSuperclass.kt");
+    }
+
+    @Test
+    @TestMetadata("sealedFullValueClass.kt")
+    public void testSealedFullValueClass() {
+      run("sealedFullValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("singleFieldFullValueClass.kt")
+    public void testSingleFieldFullValueClass() {
+      run("singleFieldFullValueClass.kt");
+    }
+
+    @Test
+    @TestMetadata("varargAndFullValueClass.kt")
+    public void testVarargAndFullValueClass() {
+      run("varargAndFullValueClass.kt");
+    }
+  }
+
+  @Nested
   @TestMetadata("analysis/symbol-light-classes/testData/lightClassByFqName/ideRegression")
   @TestDataPath("$PROJECT_ROOT")
   public class IdeRegression {
@@ -783,18 +1207,6 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
     @TestMetadata("ImplementingCharSequenceAndNumber.kt")
     public void testImplementingCharSequenceAndNumber() {
       run("ImplementingCharSequenceAndNumber.kt");
-    }
-
-    @Test
-    @TestMetadata("ImplementingMap.kt")
-    public void testImplementingMap() {
-      run("ImplementingMap.kt");
-    }
-
-    @Test
-    @TestMetadata("ImplementingMutableSet.kt")
-    public void testImplementingMutableSet() {
-      run("ImplementingMutableSet.kt");
     }
 
     @Test
@@ -863,6 +1275,12 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
     @TestMetadata("FileFacade.kt")
     public void testFileFacade() {
       run("FileFacade.kt");
+    }
+
+    @Test
+    @TestMetadata("FullValueClasses.kt")
+    public void testFullValueClasses() {
+      run("FullValueClasses.kt");
     }
 
     @Test
@@ -993,6 +1411,18 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
     @TestMetadata("allOpen.kt")
     public void testAllOpen() {
       run("allOpen.kt");
+    }
+
+    @Test
+    @TestMetadata("companionWithFoo.kt")
+    public void testCompanionWithFoo() {
+      run("companionWithFoo.kt");
+    }
+
+    @Test
+    @TestMetadata("companionWithFooInInterface.kt")
+    public void testCompanionWithFooInInterface() {
+      run("companionWithFooInInterface.kt");
     }
 
     @Test

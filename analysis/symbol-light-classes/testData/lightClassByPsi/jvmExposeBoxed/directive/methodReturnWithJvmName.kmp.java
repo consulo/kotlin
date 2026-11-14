@@ -1,5 +1,4 @@
 public final class Foo /* Foo*/ {
-  @<error>()
   @kotlin.jvm.JvmExposeBoxed()
   @org.jetbrains.annotations.NotNull()
   public final @org.jetbrains.annotations.NotNull() StringWrapper thenamedoesnotmatter();//  thenamedoesnotmatter()
@@ -7,7 +6,7 @@ public final class Foo /* Foo*/ {
   public  Foo();//  .ctor()
 }
 
-@<error>()
+@kotlin.jvm.JvmInline()
 public final class StringWrapper /* StringWrapper*/ {
   @org.jetbrains.annotations.NotNull()
   private final @org.jetbrains.annotations.NotNull() java.lang.String s;

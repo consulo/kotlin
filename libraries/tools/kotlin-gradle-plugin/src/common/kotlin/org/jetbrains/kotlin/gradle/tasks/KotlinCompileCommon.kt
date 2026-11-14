@@ -80,13 +80,6 @@ abstract class KotlinCompileCommon @Inject constructor(
     @get:Input
     abstract override val moduleName: Property<String>
 
-    @Suppress("DeprecatedCallableAddReplaceWith")
-    @Deprecated("KTIJ-25227: Necessary override for IDEs < 2023.2", level = DeprecationLevel.ERROR)
-    override fun setupCompilerArgs(args: K2MetadataCompilerArguments, defaultsOnly: Boolean, ignoreClasspathResolutionErrors: Boolean) {
-        @Suppress("DEPRECATION_ERROR")
-        super.setupCompilerArgs(args, defaultsOnly, ignoreClasspathResolutionErrors)
-    }
-
     override fun createCompilerArguments(context: CreateCompilerArgumentsContext) = context.create<K2MetadataCompilerArguments> {
         primitive { args ->
             args.multiPlatform = multiPlatformEnabled.get()
@@ -106,6 +99,7 @@ abstract class KotlinCompileCommon @Inject constructor(
             args.destination = destinationDirectory.get().asFile.normalize().absolutePath
 
             explicitApiMode.orNull?.run { args.explicitApi = toCompilerValue() }
+            returnValueCheckerMode.orNull?.run { args.returnValueChecker = toCompilerValue() }
 
             KotlinCommonCompilerOptionsHelper.fillCompilerArguments(compilerOptions, args)
 
@@ -162,7 +156,9 @@ abstract class KotlinCompileCommon @Inject constructor(
             defaultCompilerClasspath, gradleMessageCollector, outputItemCollector,
             reportingSettings = reportingSettings(),
             outputFiles = allOutputFiles(),
-            compilerArgumentsLogLevel = kotlinCompilerArgumentsLogLevel.get()
+            compilerArgumentsLogLevel = kotlinCompilerArgumentsLogLevel.get(),
+            toolingDiagnosticsCollector = toolingDiagnosticsCollector,
+            toolingDiagnosticsContext = toolingDiagnosticsContext,
         )
         compilerRunner.runMetadataCompilerAsync(args, environment)
         compilerRunner.errorsFiles?.let { gradleMessageCollector.flush(it) }

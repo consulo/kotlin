@@ -6,9 +6,13 @@
 package org.jetbrains.kotlin.ir.backend.js.utils
 
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.backend.js.*
+import org.jetbrains.kotlin.ir.backend.js.JsCommonBackendContext
+import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
+import org.jetbrains.kotlin.ir.backend.js.JsLoweredDeclarationOrigin
 import org.jetbrains.kotlin.ir.backend.js.ir.JsIrBuilder
 import org.jetbrains.kotlin.ir.backend.js.ir.isExported
+import org.jetbrains.kotlin.ir.backend.js.lower.hasDefaultArgumentBridge
+import org.jetbrains.kotlin.ir.backend.js.objectGetInstanceFunction
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.types.getClass
@@ -31,9 +35,9 @@ fun IrFunction.hasStableJsName(context: JsIrBackendContext): Boolean {
     }
 
     if (
-        origin == JsLoweredDeclarationOrigin.JS_SHADOWED_EXPORT ||
         origin == JsLoweredDeclarationOrigin.BRIDGE_WITHOUT_STABLE_NAME ||
-        origin == JsLoweredDeclarationOrigin.BRIDGE_PROPERTY_ACCESSOR
+        origin == JsLoweredDeclarationOrigin.BRIDGE_PROPERTY_ACCESSOR ||
+        hasDefaultArgumentBridge
     ) {
         return false
     }
@@ -52,11 +56,6 @@ fun IrFunction.hasStableJsName(context: JsIrBackendContext): Boolean {
 
     return (isEffectivelyExternal() || getJsName() != null || getJsSymbol() != null || isExported(context)) && namedOrMissingGetter
 }
-
-fun IrFunction.isEqualsInheritedFromAny(): Boolean =
-    name == OperatorNameConventions.EQUALS &&
-            hasShape(dispatchReceiver = true, regularParameters = 1) &&
-            parameters[1].type.isNullableAny()
 
 val IrValueDeclaration.isDispatchReceiver: Boolean
     get() = this is IrValueParameter && kind == IrParameterKind.DispatchReceiver
@@ -86,9 +85,6 @@ fun IrBody.prependFunctionCall(
 
 fun JsCommonBackendContext.findUnitGetInstanceFunction(): IrSimpleFunction =
     irBuiltIns.unitClass.owner.objectGetInstanceFunction!!
-
-fun JsCommonBackendContext.findUnitInstanceField(): IrField =
-    irBuiltIns.unitClass.owner.objectInstanceField!!
 
 val JsCommonBackendContext.compileSuspendAsJsGenerator: Boolean
     get() = this is JsIrBackendContext && configuration[JSConfigurationKeys.COMPILE_SUSPEND_AS_JS_GENERATOR] == true

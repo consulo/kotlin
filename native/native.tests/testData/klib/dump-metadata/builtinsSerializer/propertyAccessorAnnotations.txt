@@ -1,5 +1,4 @@
 library {
-  // module name: <propertyAccessorAnnotations.kt>
 
   library fragment {
     // package name: test

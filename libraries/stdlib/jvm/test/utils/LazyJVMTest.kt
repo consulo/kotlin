@@ -27,7 +27,12 @@ class LazyJVMTest {
 
         val threads = 3
         val barrier = CyclicBarrier(threads)
-        val accessThreads = List(threads) { thread { barrier.await(); lazy.value } }
+        val accessThreads = List(threads) {
+            thread {
+                barrier.await()
+                val _ = lazy.value
+            }
+        }
         accessThreads.forEach { it.join() }
 
         assertEquals(1, counter.get())
@@ -59,12 +64,12 @@ class LazyJVMTest {
         val lazy1 = lazy(lock, initializer)
         val lazy2 = lazy(lock, initializer)
 
-        val accessThreads = listOf(lazy1, lazy2).map { thread { it.value } }
+        val accessThreads = listOf(lazy1, lazy2).map { thread { val _ = it.value } }
         accessThreads.forEach { it.join() }
 
         assertEquals(2, counter.get())
         @Suppress("NAME_SHADOWING")
-        for ((counter, initialized) in runs) {
+        for ([counter, initialized] in runs) {
             assertEquals(initialized, counter == 2, "Expected uninitialized on first, initialized on second call: initialized=$initialized, counter=$counter")
         }
     }
@@ -85,7 +90,7 @@ class LazyJVMTest {
                      List(threads) { lazy(lock, initializer) }
                  },
                  access = { lazies, runnerIndex -> lazies[runnerIndex].value },
-                 validate = { result -> result.all { (id, initialized) -> initialized == (id != 1) } })
+                 validate = { result -> result.all { [id, initialized] -> initialized == (id != 1) } })
     }
 
     @Test fun publishOnceLazy() {
@@ -108,7 +113,12 @@ class LazyJVMTest {
         val lazy = lazy(LazyThreadSafetyMode.PUBLICATION, initializer)
 
         val barrier = CyclicBarrier(threads)
-        val accessThreads = List(threads) { thread { barrier.await(); lazy.value } }
+        val accessThreads = List(threads) {
+            thread {
+                barrier.await()
+                val _ = lazy.value
+            }
+        }
         val result = run { while (!lazy.isInitialized()) Thread.sleep(1); lazy.value }
         accessThreads.forEach { it.join() }
 
@@ -168,6 +178,6 @@ class LazyJVMTest {
 
         runners.forEach { it.join() }
 
-        assertTrue(invalidResults.isEmpty(), invalidResults.joinToString("\n") { (index, result) -> "At run #$index: $result" })
+        assertTrue(invalidResults.isEmpty(), invalidResults.joinToString("\n") { [index, result] -> "At run #$index: $result" })
     }
 }

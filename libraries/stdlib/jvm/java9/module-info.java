@@ -11,6 +11,7 @@ module kotlin.stdlib {
     exports kotlin.contracts;
     exports kotlin.coroutines;
     exports kotlin.coroutines.cancellation;
+    exports kotlin.coroutines.debug;
     exports kotlin.coroutines.intrinsics;
     exports kotlin.coroutines.jvm.internal;
     exports kotlin.enums;
@@ -26,6 +27,7 @@ module kotlin.stdlib {
     exports kotlin.sequences;
     exports kotlin.system;
     exports kotlin.text;
+    exports kotlin.text.unicode;
     exports kotlin.time;
     exports kotlin.uuid;
 

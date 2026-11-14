@@ -7,6 +7,8 @@ package org.jetbrains.kotlin.types.model
 
 import org.jetbrains.kotlin.builtins.functions.AllowedToUsedOnlyInK1
 import org.jetbrains.kotlin.builtins.functions.FunctionTypeKind
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.resolve.checkers.EmptyIntersectionTypeChecker
 import org.jetbrains.kotlin.resolve.checkers.EmptyIntersectionTypeInfo
 import org.jetbrains.kotlin.types.TypeCheckerState
@@ -55,6 +57,14 @@ fun Variance.convertVariance(): TypeVariance {
         Variance.INVARIANT -> TypeVariance.INV
         Variance.IN_VARIANCE -> TypeVariance.IN
         Variance.OUT_VARIANCE -> TypeVariance.OUT
+    }
+}
+
+fun TypeVariance.convertVariance(): Variance {
+    return when (this) {
+        TypeVariance.INV -> Variance.INVARIANT
+        TypeVariance.IN -> Variance.IN_VARIANCE
+        TypeVariance.OUT -> Variance.OUT_VARIANCE
     }
 }
 
@@ -218,6 +228,12 @@ interface TypeSystemInferenceExtensionContext : TypeSystemContext, TypeSystemBui
         captureStatus: CaptureStatus
     ): CapturedTypeMarker
 
+    fun createCapturedTypeForSelfReferentialSupertypes(
+        typeVariable: TypeVariableTypeConstructorMarker,
+        supertypes: List<KotlinTypeMarker>,
+        status: CaptureStatus,
+    ): CapturedTypeMarker?
+
     fun createStubTypeForBuilderInference(typeVariable: TypeVariableMarker): StubTypeMarker
     fun createStubTypeForTypeVariablesInSubtyping(typeVariable: TypeVariableMarker): StubTypeMarker
 
@@ -347,52 +363,12 @@ interface TypeSystemInferenceExtensionContext : TypeSystemContext, TypeSystemBui
         }
 
     /**
-     * This flag handles the LowerConstraint returned for the case Foo(?) <: (T..T?)
-     *
-     * With this flag (K2 +PreciseSimplificationFlexibleLowerConstraint),
-     * we use precise (Foo!!..Foo?) <: T for nullable type and (Foo!!..Foo) <: T for non-null type.
-     *
-     * Without it (K1 or K2 -PreciseSimplificationToFlexibleLowerConstraint), we use Foo <: T for nullable type instead
-     * and it can lead to information loss. E.g. with initial constraints T = Bar, Bar? <: U, U? <: (T..T?)
-     * we infer a lower constraint U <: T and get Bar? <: Bar contradiction.
-     *
-     * Currently (both in K1 and K2), this problem is mitigated with so-called TypePreservingVisibilityWrtHack,
-     * that allows us to use flexible types for not-null explicit type arguments of Java type parameters
-     *
-     * TODO: consider dropping in 2.5 timeframe together with the corresponding feature (KT-84664)
-     */
-    fun usePreciseSimplificationToFlexibleLowerConstraint(): Boolean
-
-    fun simplifyFlexibleUpperConstraintWithDnnBoundToNullable(): Boolean
-
-    /**
      * It's only relevant for K2 (and is not expected to be implemented properly in other contexts)
      */
     fun KotlinTypeMarker.convertToNonRaw(): KotlinTypeMarker
 
     @K2Only
     fun createSubstitutionFromSubtypingStubTypesToTypeVariables(): TypeSubstitutorMarker
-
-    fun createCapturedStarProjectionForSelfType(
-        typeVariable: TypeVariableTypeConstructorMarker,
-        typesForRecursiveTypeParameters: List<KotlinTypeMarker>,
-    ): SimpleTypeMarker? {
-        val typeParameter = typeVariable.typeParameter ?: return null
-        val starProjection = createStarProjection(typeParameter)
-        val superType = intersectTypes(
-            typesForRecursiveTypeParameters.map { type ->
-                type.replaceArgumentsDeeply {
-                    when (val typeConstructor = it.getType()?.typeConstructor()) {
-                        typeVariable -> starProjection
-                        is TypeVariableTypeConstructorMarker -> createTypeArgument(createUninferredType(typeConstructor), it.getVariance())
-                        else -> it
-                    }
-                }
-            }
-        )
-
-        return createCapturedType(starProjection, listOf(superType), lowerType = null, CaptureStatus.FROM_EXPRESSION)
-    }
 
     fun createSubstitutorForSuperTypes(baseType: KotlinTypeMarker): TypeSubstitutorMarker?
 
@@ -405,7 +381,6 @@ interface TypeSystemInferenceExtensionContext : TypeSystemContext, TypeSystemBui
 
     val lexicographicVariableReadinessCalculation: Boolean get() = false
 }
-
 
 class ArgumentList(initialSize: Int) : ArrayList<TypeArgumentMarker>(initialSize), TypeArgumentListMarker
 
@@ -506,6 +481,7 @@ interface TypeSystemContext : TypeSystemOptimizationContext {
     fun TypeConstructorMarker.getParameters(): List<TypeParameterMarker>
     fun TypeConstructorMarker.supertypes(): Collection<KotlinTypeMarker>
     fun TypeConstructorMarker.isIntersection(): Boolean
+    fun TypeConstructorMarker.isUnion(): Boolean = false
     fun TypeConstructorMarker.isClassTypeConstructor(): Boolean
     fun TypeConstructorMarker.isInterface(): Boolean
     fun TypeConstructorMarker.isIntegerLiteralTypeConstructor(): Boolean
@@ -515,6 +491,8 @@ interface TypeSystemContext : TypeSystemOptimizationContext {
     fun TypeConstructorMarker.isAnonymous(): Boolean
     fun TypeConstructorMarker.getTypeParameterClassifier(): TypeParameterMarker?
     fun TypeConstructorMarker.isTypeParameterTypeConstructor(): Boolean
+    fun TypeConstructorMarker.getPrimaryTypeOfUnion(): KotlinTypeMarker? = null
+    fun TypeConstructorMarker.getRichErrorsOfUnion(): List<KotlinTypeMarker> = emptyList()
 
     val TypeVariableTypeConstructorMarker.typeParameter: TypeParameterMarker?
 
@@ -620,9 +598,15 @@ interface TypeSystemContext : TypeSystemOptimizationContext {
         }
     }
 
-    fun TypeConstructorMarker.isAnyConstructor(): Boolean
-    fun TypeConstructorMarker.isNothingConstructor(): Boolean
-    fun TypeConstructorMarker.isArrayConstructor(): Boolean
+    fun TypeConstructorMarker.isClassWithId(classId: ClassId): Boolean
+
+    fun TypeConstructorMarker.isAnyConstructor(): Boolean = isClassWithId(StandardClassIds.Any)
+    fun TypeConstructorMarker.isNonErrorConstructor(): Boolean = isClassWithId(StandardClassIds.NonError)
+    fun TypeConstructorMarker.isRichErrorConstructor(): Boolean = isClassWithId(StandardClassIds.RichError)
+    fun TypeConstructorMarker.isNothingConstructor(): Boolean = isClassWithId(StandardClassIds.Nothing)
+    fun TypeConstructorMarker.isArrayConstructor(): Boolean = isClassWithId(StandardClassIds.Array)
+
+    fun TypeConstructorMarker.isRichErrorClass(): Boolean = false
 
     // TODO: Consider making `LanguageFeature` accessible from this module.
     fun KotlinTypeMarker.withNewTypeSince(languageFeature: Any, newType: KotlinTypeMarker): KotlinTypeMarker = this
@@ -659,6 +643,8 @@ interface TypeSystemContext : TypeSystemOptimizationContext {
      * @returns substituted type or [type] if there were no substitution
      */
     fun TypeSubstitutorMarker.safeSubstitute(type: KotlinTypeMarker): KotlinTypeMarker
+
+    fun TypeSubstitutorMarker.substituteOrNull(type: KotlinTypeMarker): KotlinTypeMarker? = safeSubstitute(type).takeIf { it !== type }
 
     /** See [CustomSubtypingCallback] */
     val customSubtypingCallback: CustomSubtypingCallback? get() = null

@@ -3,10 +3,9 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
+import kotlinx.serialization.SerializationException
 import org.gradle.api.Project
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.internal.project.ProjectInternal
@@ -16,35 +15,82 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.getExtension
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.CleanSwiftImportFingerprintArtifacts
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.ConvertSyntheticSwiftPMImportProjectIntoDefFile
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.ComputeLocalPackageDependencyInputFiles
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.DumpXcodeBuildArgs
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.FetchSyntheticImportProjectPackages
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.FingerprintSyntheticPackage
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.GenerateSyntheticLinkageImportProject
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.FingerprintXcodeBuild
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.SerializeSwiftPMDependenciesMetadataForLockFiles
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.SwiftPMImportExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.SwiftPMDependency
-import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.SyncPackageResolvedTask
-import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.swiftPMDependenciesForLockFilesResolvableMetadataConfiguration
-import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.transitiveSwiftPMDependenciesProvider
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.ValidateLocalSwiftPMDependencies
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.transitiveSwiftPMMetadataProvider
 import org.jetbrains.kotlin.gradle.util.*
+import org.jetbrains.kotlin.gradle.utils.lowerCamelCaseName
 import org.jetbrains.kotlin.konan.target.HostManager
 import kotlin.test.Test
 import java.nio.file.Files
 import org.jetbrains.kotlin.gradle.utils.normalizedAbsoluteFile
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assumptions
-import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.assertThrows
-import java.io.FileNotFoundException
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertContains
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNotSame
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class SwiftPMImportUnitTests {
 
     @BeforeTest
     fun runOnMacOSOnly() {
         Assumptions.assumeTrue(HostManager.hostIsMac, "macOS host required for this test")
+    }
+
+    @Test
+    fun `no synchronization does not register fingerprint artifacts cleanup task`() {
+        val project = swiftPMImportProject(
+            swiftPMDependencies = {
+                packageResolvedSynchronization = noSynchronization()
+            }
+        )
+        project.evaluate()
+
+        assertNull(project.tasks.findByName(CleanSwiftImportFingerprintArtifacts.TASK_NAME))
+        val cleanTask = project.tasks.getByName("clean")
+        assertFalse(
+            cleanTask.taskDependencies.getDependencies(cleanTask).any {
+                it.name == CleanSwiftImportFingerprintArtifacts.TASK_NAME
+            }
+        )
+    }
+
+    @Test
+    fun `default identifier registers fingerprint artifacts cleanup task and wires clean dependency`() {
+        val project = swiftPMImportProject()
+        project.evaluate()
+
+        project.assertFingerprintArtifactsCleanupIsRegistered()
+    }
+
+    @Test
+    fun `explicit identifier registers fingerprint artifacts cleanup task and wires clean dependency`() {
+        val project = swiftPMImportProject(
+            swiftPMDependencies = {
+                packageResolvedSynchronization = identifier("custom")
+            }
+        )
+        project.evaluate()
+
+        project.assertFingerprintArtifactsCleanupIsRegistered()
     }
 
     @Test
@@ -165,9 +211,24 @@ class SwiftPMImportUnitTests {
         )
 
         project.evaluate()
+        // No diagnostics at configuration time — validation runs when the task executes
+        project.assertNoDiagnostics()
 
-        // Verify diagnostic is emitted
-        project.assertContainsDiagnostic(KotlinToolingDiagnostics.SwiftPMLocalPackageDirectoryNotFound)
+        val validateTask = project.tasks.findByName(ValidateLocalSwiftPMDependencies.TASK_NAME)
+        assertNotNull(validateTask, "${ValidateLocalSwiftPMDependencies.TASK_NAME} should be registered")
+        assertIs<ValidateLocalSwiftPMDependencies>(validateTask)
+
+        val computeTask = project.tasks.withType(ComputeLocalPackageDependencyInputFiles::class.java).single()
+        val nonExistentDir = project.projectDir.resolve("nonExistentDirectory").normalizedAbsoluteFile()
+        assertTrue(
+            nonExistentDir in computeTask.localPackages.get().map { it.normalizedAbsoluteFile() }.toSet(),
+            "Non-existent local package dir should still be wired into computeLocalPackageDependencyInputFiles"
+        )
+
+        val exception = assertFailsWith<Exception> {
+            validateTask.validate()
+        }
+        assertContains(exception.message.orEmpty(), KotlinToolingDiagnostics.SwiftPMLocalPackageDirectoryNotFound.id)
     }
 
     @Test
@@ -188,8 +249,16 @@ class SwiftPMImportUnitTests {
         )
         project.evaluate()
 
-        // Verify diagnostic is emitted
-        project.assertContainsDiagnostic(KotlinToolingDiagnostics.SwiftPMLocalPackageMissingManifest)
+        project.assertNoDiagnostics()
+
+        val validateTask = project.tasks.findByName(ValidateLocalSwiftPMDependencies.TASK_NAME)
+        assertNotNull(validateTask)
+        assertIs<ValidateLocalSwiftPMDependencies>(validateTask)
+
+        val exception = assertFailsWith<Exception> {
+            validateTask.validate()
+        }
+        assertContains(exception.message.orEmpty(), KotlinToolingDiagnostics.SwiftPMLocalPackageMissingManifest.id)
     }
 
     @Test
@@ -208,7 +277,16 @@ class SwiftPMImportUnitTests {
         )
         project.evaluate()
 
-        project.assertContainsDiagnostic(KotlinToolingDiagnostics.SwiftPMLocalPackageMissingManifest)
+        project.assertNoDiagnostics()
+
+        val validateTask = project.tasks.findByName(ValidateLocalSwiftPMDependencies.TASK_NAME)
+        assertNotNull(validateTask)
+        assertIs<ValidateLocalSwiftPMDependencies>(validateTask)
+
+        val exception = assertFailsWith<Exception> {
+            validateTask.validate()
+        }
+        assertContains(exception.message.orEmpty(), KotlinToolingDiagnostics.SwiftPMLocalPackageMissingManifest.id)
     }
 
     @Test
@@ -366,7 +444,16 @@ class SwiftPMImportUnitTests {
 
         project.evaluate()
 
-        project.assertContainsDiagnostic(KotlinToolingDiagnostics.SwiftPMLocalPackageDirectoryNotFound)
+        project.assertNoDiagnostics()
+
+        val validateTask = project.tasks.findByName(ValidateLocalSwiftPMDependencies.TASK_NAME)
+        assertNotNull(validateTask)
+        assertIs<ValidateLocalSwiftPMDependencies>(validateTask)
+
+        val exception = assertFailsWith<Exception> {
+            validateTask.validate()
+        }
+        assertContains(exception.message.orEmpty(), KotlinToolingDiagnostics.SwiftPMLocalPackageDirectoryNotFound.id)
     }
 
     @Test
@@ -393,68 +480,16 @@ class SwiftPMImportUnitTests {
         )
         project.evaluate()
 
-        project.assertContainsDiagnostic(KotlinToolingDiagnostics.SwiftPMLocalPackageInvalidName)
-    }
+        project.assertNoDiagnostics()
 
-    @Test
-    fun `test fetchSyntheticImportProjectPackages depends on syncPackageSwiftLockFileToSyntheticSwiftPMPackage when noSynchronization is set`() {
-        val project = swiftPMImportProject(
-            swiftPMDependencies = { layout ->
+        val validateTask = project.tasks.findByName(ValidateLocalSwiftPMDependencies.TASK_NAME)
+        assertNotNull(validateTask)
+        assertIs<ValidateLocalSwiftPMDependencies>(validateTask)
 
-                packageResolvedSynchronization = noSynchronization()
-
-                localSwiftPackage(
-                    directory = layout.projectDirectory.dir("my-custom-pkg"),
-                    products = listOf("ManifestPackage"),
-                )
-            }
-        )
-        project.evaluate()
-
-        val fetchTask = project.tasks.findByName(FetchSyntheticImportProjectPackages.TASK_NAME)
-        val syncLockFileToPSyntheticSwiftPMPackageTask =
-            project.tasks.findByName(SyncPackageResolvedTask.SYNC_PERSISTED_PACKAGE_RESOLVED_TO_SYNTHETIC_TASK_NAME)
-
-        assertNotNull(fetchTask, "${FetchSyntheticImportProjectPackages.TASK_NAME} should be registered")
-        assertNotNull(
-            syncLockFileToPSyntheticSwiftPMPackageTask,
-            "${SyncPackageResolvedTask.SYNC_PERSISTED_PACKAGE_RESOLVED_TO_SYNTHETIC_TASK_NAME} should be registered"
-        )
-
-        fetchTask.assertDependsOn(
-            syncLockFileToPSyntheticSwiftPMPackageTask
-        )
-    }
-
-    @Test
-    fun `test syncPackageSwiftLockFileToProjectDirectory depends on fetchSyntheticImportProjectPackages when noSynchronization is set`() {
-        val project = swiftPMImportProject(
-            swiftPMDependencies = { layout ->
-
-                packageResolvedSynchronization = noSynchronization()
-
-                localSwiftPackage(
-                    directory = layout.projectDirectory.dir("my-custom-pkg"),
-                    products = listOf("ManifestPackage"),
-                )
-            }
-        )
-
-        project.evaluate()
-
-        val fetchTask = project.tasks.findByName(FetchSyntheticImportProjectPackages.TASK_NAME)
-        val syncLockFileToProjectDirectoryTask =
-            project.tasks.findByName(SyncPackageResolvedTask.SYNC_SYNTHETIC_PACKAGE_RESOLVED_TO_PERSISTED_TASK_NAME)
-
-        assertNotNull(fetchTask, "${FetchSyntheticImportProjectPackages.TASK_NAME} should be registered")
-        assertNotNull(
-            syncLockFileToProjectDirectoryTask,
-            "${SyncPackageResolvedTask.SYNC_SYNTHETIC_PACKAGE_RESOLVED_TO_PERSISTED_TASK_NAME} should be registered"
-        )
-
-        syncLockFileToProjectDirectoryTask.assertDependsOn(
-            fetchTask
-        )
+        val exception = assertFailsWith<Exception> {
+            validateTask.validate()
+        }
+        assertContains(exception.message.orEmpty(), KotlinToolingDiagnostics.SwiftPMLocalPackageInvalidName.id)
     }
 
     @Test
@@ -554,6 +589,82 @@ class SwiftPMImportUnitTests {
     }
 
     @Test
+    fun `swiftPM interproject metadata task dependencies - lock serialization depends on regular metadata and root depends on serialization for locks` () {
+        val rootProject = buildProjectWithMPP {
+            kotlin {
+                iosSimulatorArm64()
+
+                swiftPMDependencies {
+                    swiftPackage("foo", "1.0.0", listOf())
+                }
+            }
+        }.evaluate()
+
+        buildProjectWithMPP(
+            projectBuilder = {
+                withParent(rootProject)
+                withName("subprojectTransitive")
+            }
+        ) {
+            kotlin {
+                iosSimulatorArm64()
+
+                swiftPMDependencies {
+                    swiftPackage("foo", "1.0.0", listOf())
+                }
+            }
+        }.evaluate()
+
+        val subprojectDirect = buildProjectWithMPP(
+            projectBuilder = {
+                withName("subprojectDirect")
+                withParent(rootProject)
+            }
+        ) {
+            kotlin {
+                iosSimulatorArm64()
+                swiftPMDependencies {
+                    swiftPackage("foo", "1.0.0", listOf())
+                }
+
+                sourceSets.commonMain.dependencies {
+                    implementation(project(":subprojectTransitive"))
+                }
+            }
+        }.evaluate()
+
+        buildProjectWithMPP(
+            projectBuilder = {
+                withName("subprojectUnrelated")
+                withParent(rootProject)
+            }
+        ) {
+            kotlin {
+                iosSimulatorArm64()
+            }
+        }.evaluate()
+
+        // Subproject's direct serialization for umbrella should a dependency on regular serialize metadata task because it has a dependency on subproject transitive
+        assertEquals(
+            setOf(":subprojectTransitive:serializeSwiftPMDependenciesMetadata"),
+            subprojectDirect.tasks.withType(SerializeSwiftPMDependenciesMetadataForLockFiles::class.java)
+                .single().taskDependencies.getDependencies(null).map { it.path }.toSet(),
+        )
+
+        // Then umbrella task should be in the root and should depend on everyone
+        assertEquals(
+            setOf(
+                ":serializeSwiftPMDependenciesMetadataForLockFiles",
+                ":subprojectTransitive:serializeSwiftPMDependenciesMetadataForLockFiles",
+                ":subprojectDirect:serializeSwiftPMDependenciesMetadataForLockFiles",
+                ":subprojectUnrelated:serializeSwiftPMDependenciesMetadataForLockFiles",
+            ),
+            rootProject.tasks.withType(GenerateSyntheticLinkageImportProject::class.java)
+                .single { "Umbrella" in it.name }.taskDependencies.getDependencies(null).map { it.path }.toSet(),
+        )
+    }
+
+    @Test
     fun `KT-85517 - swiftPM metadata resolution doesn't fail on accidentally resolve outgoing variants without Usage`() {
         val rootProject = buildProject {
             plugins.apply("java-library")
@@ -582,7 +693,7 @@ class SwiftPMImportUnitTests {
         ).evaluate()
 
         assertDoesNotThrow {
-            swiftPMConsumer.transitiveSwiftPMDependenciesProvider().get()
+            swiftPMConsumer.transitiveSwiftPMMetadataProvider().get()
         }
     }
 
@@ -637,6 +748,406 @@ class SwiftPMImportUnitTests {
             umbrellaTask.taskDependencies.getDependencies(umbrellaTask)
         }
     }
+
+    @Test
+    fun `test umbrella fetch task is registered with correct gitignore configuration`() {
+        val identifier = "default"
+        val project = swiftPMImportProject(
+            swiftPMDependencies = { layout ->
+                localSwiftPackage(
+                    directory = layout.projectDirectory.dir("my-custom-pkg"),
+                    products = listOf("ManifestPackage"),
+                )
+            }
+        ).evaluate()
+
+
+        val umbrellaFetchTask = project.tasks.findByName(
+            FetchSyntheticImportProjectPackages.fetchUmbrellaPackageTaskName(identifier)
+        )
+
+        val syntheticFetchTask = project.tasks.findByName(
+            FetchSyntheticImportProjectPackages.TASK_NAME
+        )
+
+        val convertDefTask = project.tasks.findByName(
+            lowerCamelCaseName(
+                ConvertSyntheticSwiftPMImportProjectIntoDefFile.TASK_NAME,
+                "iphonesimulator"
+            )
+        )
+
+        assertNotNull(umbrellaFetchTask, "Umbrella fetch task should be registered")
+        assertIs<FetchSyntheticImportProjectPackages>(umbrellaFetchTask)
+
+        assertNotNull(syntheticFetchTask, "Synthetic fetch task should be registered")
+        assertIs<FetchSyntheticImportProjectPackages>(syntheticFetchTask)
+
+        assertNotNull(convertDefTask, "Convert task should be registered")
+        assertIs<ConvertSyntheticSwiftPMImportProjectIntoDefFile>(convertDefTask)
+
+        assertTrue(
+            umbrellaFetchTask.gitIgnoreCheckoutDir.get(),
+            "Umbrella fetch task should enable gitIgnoreCheckoutDir"
+        )
+    }
+
+
+    @Test
+    fun `test umbrella fetch task is registered separately per identifier with isolated checkout dirs`() {
+        val fuzzIdentifier = "fuzzLock"
+        val buzzIdentifier = "buzzLock"
+        val rootProject = buildProject { configureRepositoriesForTests() }
+
+        val fuzzProject = swiftPMImportProject(
+            projectBuilder = { withParent(rootProject); withName("fuzz") },
+            swiftPMDependencies = { layout ->
+                packageResolvedSynchronization = identifier(fuzzIdentifier)
+                localSwiftPackage(
+                    directory = layout.projectDirectory.dir("my-pkg"),
+                    products = listOf("FuzzPackage")
+                )
+            }
+        ).evaluate()
+
+        val buzzProject = swiftPMImportProject(
+            projectBuilder = { withParent(rootProject); withName("buzz") },
+            swiftPMDependencies = { layout ->
+                packageResolvedSynchronization = identifier(buzzIdentifier)
+                localSwiftPackage(
+                    directory = layout.projectDirectory.dir("buzz-pkg"),
+                    products = listOf("BuzzPackage")
+                )
+            }
+        ).evaluate()
+
+        val umbrellaFuzzFetchTask = fuzzProject.tasks.findByName(
+            FetchSyntheticImportProjectPackages.fetchUmbrellaPackageTaskName(fuzzIdentifier)
+        )
+        val umbrellaBuzzFetchTask = buzzProject.tasks.findByName(
+            FetchSyntheticImportProjectPackages.fetchUmbrellaPackageTaskName(buzzIdentifier)
+        )
+
+        val syntheticFuzzFetchTask = fuzzProject.tasks.findByName(
+            FetchSyntheticImportProjectPackages.TASK_NAME
+        )
+        val syntheticBuzzFetchTask = buzzProject.tasks.findByName(
+            FetchSyntheticImportProjectPackages.TASK_NAME
+        )
+
+        val fuzzConvertDefTask = fuzzProject.tasks.findByName(
+            lowerCamelCaseName(
+                ConvertSyntheticSwiftPMImportProjectIntoDefFile.TASK_NAME,
+                "iphonesimulator"
+            )
+        )
+
+        val buzzConvertDefTask = buzzProject.tasks.findByName(
+            lowerCamelCaseName(
+                ConvertSyntheticSwiftPMImportProjectIntoDefFile.TASK_NAME,
+                "iphonesimulator"
+            )
+        )
+
+        assertNotNull(umbrellaFuzzFetchTask)
+        assertNotNull(umbrellaBuzzFetchTask)
+        assertIs<FetchSyntheticImportProjectPackages>(umbrellaFuzzFetchTask)
+        assertIs<FetchSyntheticImportProjectPackages>(umbrellaBuzzFetchTask)
+        assertNotSame(umbrellaFuzzFetchTask, umbrellaBuzzFetchTask, "Each identifier must have its own umbrella fetch task instance")
+
+        assertNotNull(syntheticFuzzFetchTask)
+        assertNotNull(syntheticBuzzFetchTask)
+        assertIs<FetchSyntheticImportProjectPackages>(syntheticFuzzFetchTask)
+        assertIs<FetchSyntheticImportProjectPackages>(syntheticBuzzFetchTask)
+
+
+        assertNotNull(fuzzConvertDefTask, "Fuzz convert task should be registered")
+        assertIs<ConvertSyntheticSwiftPMImportProjectIntoDefFile>(fuzzConvertDefTask)
+
+        assertNotNull(buzzConvertDefTask, "Buzz convert task should be registered")
+        assertIs<ConvertSyntheticSwiftPMImportProjectIntoDefFile>(buzzConvertDefTask)
+
+        assertTrue(umbrellaFuzzFetchTask.gitIgnoreCheckoutDir.get(), "Fuzz fetch task should enable gitIgnoreCheckoutDir")
+        assertTrue(umbrellaBuzzFetchTask.gitIgnoreCheckoutDir.get(), "Buzz fetch task should enable gitIgnoreCheckoutDir")
+    }
+
+    @Test
+    fun `fetch task call triggers synthetic package fingerprint task`() {
+
+        val project = swiftPMImportProject(
+            multiplatform = {
+                iosArm64()
+                iosSimulatorArm64()
+            },
+            preApplyCode = {
+                val localPackageDir = project.projectDir.resolve("mapsPackage")
+                localPackageDir.mkdirs()
+                localPackageDir.resolve("Package.swift").writeText(
+                    """
+                    // swift-tools-version: 5.9
+                    import PackageDescription
+                    let package = Package(name: "MapsPackage")
+                    """.trimIndent()
+                )
+            },
+            swiftPMDependencies = { layout ->
+                localSwiftPackage(
+                    directory = layout.projectDirectory.dir("mapsPackage"),
+                    products = listOf("MapsPackage"),
+                    packageName = "MapsPackage",
+                )
+            }
+
+        ).evaluate()
+
+
+        val iphoneSimulatorFingerprintTask = project.tasks.findByName(
+            FingerprintSyntheticPackage.TASK_NAME
+        )
+
+        val iphoneSimulatorDumpTask = project.tasks.findByName(
+            lowerCamelCaseName(DumpXcodeBuildArgs.TASK_NAME, "iphonesimulator")
+        )
+
+        val iphoneosDumpTask = project.tasks.findByName(
+            lowerCamelCaseName(DumpXcodeBuildArgs.TASK_NAME, "iphoneos")
+        )
+
+        val fetchTask = project.tasks.findByName(
+            "fetchSyntheticImportProjectPackages"
+        )
+
+        assertIs<FetchSyntheticImportProjectPackages>(fetchTask)
+        assertIs<FingerprintSyntheticPackage>(iphoneSimulatorFingerprintTask)
+
+        assertIs<DumpXcodeBuildArgs>(iphoneosDumpTask)
+        assertIs<DumpXcodeBuildArgs>(iphoneSimulatorDumpTask)
+
+        fetchTask.assertDependsOn(
+            iphoneSimulatorFingerprintTask,
+        )
+
+        assertEquals(
+            iphoneSimulatorFingerprintTask.syntheticPackageFingerprintFile.get().asFile,
+            iphoneSimulatorDumpTask.syntheticPackageFingerprint.fingerprintFile.get().asFile,
+            "Fingerprint hash and dump task for iphonesimulator should match"
+        )
+    }
+
+    @Test
+    fun `project with noSync package resolved synchronization should not register coordination tasks`() {
+        val project = swiftPMImportProject(
+            swiftPMDependencies = { layout ->
+                packageResolvedSynchronization = noSynchronization()
+
+                localSwiftPackage(
+                    directory = layout.projectDirectory.dir("my-custom-pkg"),
+                    products = listOf("ManifestPackage"),
+                )
+            }
+        ).evaluate()
+
+        val syntheticPackageGenerationTask = project.tasks.findByName(
+            GenerateSyntheticLinkageImportProject.syntheticImportProjectGenerationTaskName
+        )
+
+        assertIs<GenerateSyntheticLinkageImportProject>(syntheticPackageGenerationTask)
+
+        assertFalse(
+            syntheticPackageGenerationTask.syntheticPackageFingerprint.fingerprintFile.isPresent,
+            message = "Synthetic package fingerprint should not be set for synthetic package generation when noSynchronization is set"
+        )
+
+        val fetchSyntheticPackageTask = project.tasks.findByName(
+            FetchSyntheticImportProjectPackages.TASK_NAME
+        )
+
+        assertIs<FetchSyntheticImportProjectPackages>(fetchSyntheticPackageTask)
+
+        assertFalse(
+            fetchSyntheticPackageTask.syntheticPackageFingerprint.fingerprintFile.isPresent,
+            message = "Synthetic package fingerprint should not be set for fetch task when noSynchronization is set"
+        )
+
+        val dumpXcodebuildTask = project.tasks.findByName(
+            lowerCamelCaseName(
+                DumpXcodeBuildArgs.TASK_NAME,
+                "iphonesimulator"
+            )
+        )
+
+        assertIs<DumpXcodeBuildArgs>(dumpXcodebuildTask)
+
+        assertFalse(
+            dumpXcodebuildTask.syntheticPackageFingerprint.fingerprintFile.isPresent,
+            message = "Synthetic package fingerprint should not be set for dump task when noSynchronization is set"
+        )
+
+        assertFalse(
+            dumpXcodebuildTask.xcodebuildFingerprint.fingerprintFile.isPresent,
+            message = "Xcodebuild fingerprint should not be set for dump task when noSynchronization is set"
+        )
+    }
+
+    @Test
+    fun `projects use correct synthetic package fingerprint and xcodebuild fingerprint`() {
+
+        val rootProject = buildProject { configureRepositoriesForTests() }
+
+        swiftPMImportProject(
+            projectBuilder = {
+                withParent(rootProject)
+                withName("kmp-maps")
+            },
+            preApplyCode = {
+                val localPackageDir = project.projectDir.resolve("mapsPackage")
+                localPackageDir.mkdirs()
+                localPackageDir.resolve("Package.swift").writeText(
+                    """
+                    // swift-tools-version: 5.9
+                    import PackageDescription
+                    let package = Package(name: "MapsPackage")
+                    """.trimIndent()
+                )
+            },
+            swiftPMDependencies = { layout ->
+                localSwiftPackage(
+                    directory = layout.projectDirectory.dir("mapsPackage"),
+                    products = listOf("MapsPackage"),
+                    packageName = "MapsPackage",
+                )
+            }
+        )
+
+        val leftProject = swiftPMImportProject(
+            projectBuilder = {
+                withParent(rootProject)
+                withName("left")
+            },
+            multiplatform = {
+                iosSimulatorArm64()
+                sourceSets.getByName("iosSimulatorArm64Main").dependencies {
+                    implementation(project(":kmp-maps"))
+                }
+            }
+        )
+
+        leftProject.evaluate()
+
+        val leftProjectSyntheticPackageFingerprint = leftProject.tasks.findByName(
+            FingerprintSyntheticPackage.TASK_NAME
+        )
+
+        assertIs<FingerprintSyntheticPackage>(leftProjectSyntheticPackageFingerprint)
+
+        val leftProjectSyntheticPackageGenerate = leftProject.tasks.findByName(
+            GenerateSyntheticLinkageImportProject.syntheticImportProjectGenerationTaskName
+        )
+
+        assertIs<GenerateSyntheticLinkageImportProject>(leftProjectSyntheticPackageGenerate)
+
+        val leftProjectFetchTask = leftProject.tasks.findByName(
+            FetchSyntheticImportProjectPackages.TASK_NAME
+        )
+
+        assertIs<FetchSyntheticImportProjectPackages>(leftProjectFetchTask)
+
+        val leftProjectXcodebuildFingerprint = leftProject.tasks.findByName(
+            lowerCamelCaseName(FingerprintXcodeBuild.TASK_NAME, "iphonesimulator")
+        )
+
+        assertIs<FingerprintXcodeBuild>(leftProjectXcodebuildFingerprint)
+
+        val leftProjectXcodeDumpTask = leftProject.tasks.findByName(
+            lowerCamelCaseName(
+                DumpXcodeBuildArgs.TASK_NAME,
+                "iphonesimulator",
+            )
+        )
+
+        assertIs<DumpXcodeBuildArgs>(leftProjectXcodeDumpTask)
+
+        val leftProjectConvertTask = leftProject.tasks.findByName(
+            lowerCamelCaseName(
+                ConvertSyntheticSwiftPMImportProjectIntoDefFile.TASK_NAME,
+                "iphonesimulator",
+            )
+        )
+
+        assertIs<ConvertSyntheticSwiftPMImportProjectIntoDefFile>(leftProjectConvertTask)
+
+        assertEquals(
+            leftProjectSyntheticPackageFingerprint.syntheticPackageFingerprintFile.get().asFile,
+            leftProjectSyntheticPackageGenerate.syntheticPackageFingerprint.fingerprintFile.get().asFile,
+            "Generate synthetic package tasks should use the same synthetic package fingerprint as the fingerprint task in the same project"
+        )
+
+        assertEquals(
+            leftProjectSyntheticPackageGenerate.syntheticPackageFingerprint.fingerprintFile.get().asFile,
+            leftProjectFetchTask.syntheticPackageFingerprint.fingerprintFile.get().asFile,
+            "Fetch task should use the same synthetic package fingerprint as the generate task in the same project"
+        )
+
+        assertEquals(
+            leftProjectXcodebuildFingerprint.syntheticPackageFingerprint.fingerprintFile.get().asFile,
+            leftProjectFetchTask.syntheticPackageFingerprint.fingerprintFile.get().asFile,
+            "Xcodebuild fingerprint task should use the same synthetic package fingerprint as the fetch task in the same project"
+        )
+
+        assertEquals(
+            leftProjectXcodeDumpTask.xcodebuildFingerprint.fingerprintFile.get().asFile,
+            leftProjectXcodebuildFingerprint.xcodebuildFingerprintFile.get().asFile,
+            "Dump task should use the same xcodebuild fingerprint as the fingerprint task in the same project"
+        )
+
+        assertEquals(
+            leftProjectConvertTask.xcodebuildFingerprint.fingerprintFile.get().asFile,
+            leftProjectXcodeDumpTask.xcodebuildFingerprint.fingerprintFile.get().asFile,
+            "Convert task should use the same xcodebuild fingerprint as the dump task in the same project"
+        )
+
+
+    }
+
+    @Test
+    fun `KT-89622 - cleanup supports fingerprint created by Kotlin 2_4_20`() {
+        val project = swiftPMImportProject()
+        project.evaluate()
+
+        val cleanupTask = project.tasks.getByName(
+            CleanSwiftImportFingerprintArtifacts.TASK_NAME
+        )
+        assertIs<CleanSwiftImportFingerprintArtifacts>(cleanupTask)
+
+        val fingerprintFile = project.layout.buildDirectory
+            .file("kotlin/syntheticPackageFingerprint")
+            .get()
+            .asFile
+
+        fingerprintFile.parentFile.mkdirs()
+        fingerprintFile.writeText(
+            """
+        5a8709a16f
+        5a8709a16f
+        """.trimIndent()
+        )
+
+        assertDoesNotThrow {
+            cleanupTask.clean()
+        }
+    }
+}
+
+private fun ProjectInternal.assertFingerprintArtifactsCleanupIsRegistered() {
+    val cleanupTask = tasks.findByName(CleanSwiftImportFingerprintArtifacts.TASK_NAME)
+    assertNotNull(cleanupTask, "${CleanSwiftImportFingerprintArtifacts.TASK_NAME} should be registered")
+    assertIs<CleanSwiftImportFingerprintArtifacts>(cleanupTask)
+
+    val cleanTask = tasks.getByName("clean")
+    assertTrue(
+        cleanupTask in cleanTask.taskDependencies.getDependencies(cleanTask),
+        "clean should depend on ${CleanSwiftImportFingerprintArtifacts.TASK_NAME}",
+    )
 }
 
 private fun ProjectInternal.swiftPmLocalDependencies(): List<SwiftPMDependency.Local> {
@@ -654,7 +1165,10 @@ private fun ProjectInternal.assertLocalPackageTasksConfigured(expectedPackageDir
         message = "${ComputeLocalPackageDependencyInputFiles::class.java.simpleName}.${ComputeLocalPackageDependencyInputFiles::localPackages.name} should match configured local packages"
     )
 
-    val fetchTask = tasks.withType(FetchSyntheticImportProjectPackages::class.java).single()
+    val fetchTask = tasks.withType(FetchSyntheticImportProjectPackages::class.java).single {
+        it.name.equals(FetchSyntheticImportProjectPackages.TASK_NAME, ignoreCase = true)
+    }
+
     val expectedManifests = expectedDirs.map { it.resolve("Package.swift").normalizedAbsoluteFile() }.toSet()
     val manifestFiles = fetchTask.localPackageManifests.files.map { it.normalizedAbsoluteFile() }.toSet()
     assertEquals(
@@ -662,6 +1176,11 @@ private fun ProjectInternal.assertLocalPackageTasksConfigured(expectedPackageDir
         actual = manifestFiles,
         message = "${FetchSyntheticImportProjectPackages::class.java.simpleName}.${FetchSyntheticImportProjectPackages::localPackageManifests.name} should match configured package manifests"
     )
+
+    val validateTask = tasks.findByName(ValidateLocalSwiftPMDependencies.TASK_NAME)
+    assertNotNull(validateTask, "${ValidateLocalSwiftPMDependencies.TASK_NAME} task should be registered")
+    assertIs<ValidateLocalSwiftPMDependencies>(validateTask)
+    computeTask.assertDependsOn(validateTask)
 }
 
 private fun swiftPMImportProject(

@@ -1,10 +1,10 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
 }
-
-project.configureJvmToolchain(JdkMajorVersion.JDK_1_8)
 
 dependencies {
     api(project(":core:metadata.jvm"))

@@ -1,6 +1,4 @@
 // RUN_PIPELINE_TILL: FRONTEND
-// LANGUAGE: +SuspendFunctionAsSupertype
-// SKIP_TXT
 // DIAGNOSTICS: -ABSTRACT_MEMBER_NOT_IMPLEMENTED
 
 import kotlin.reflect.*

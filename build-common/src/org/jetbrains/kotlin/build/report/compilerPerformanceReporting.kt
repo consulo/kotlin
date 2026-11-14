@@ -31,6 +31,8 @@ fun BuildMetricsReporter<BuildTimeMetric, BuildPerformanceMetric>.reportPerforma
             PhaseType.IrPreLowering -> IR_PRE_LOWERING
             PhaseType.IrSerialization -> IR_SERIALIZATION
             PhaseType.KlibWriting -> KLIB_WRITING
+            PhaseType.KlibMetadataWriting -> KLIB_METADATA_WRITING
+            PhaseType.IrLinking -> IR_LINKING
             PhaseType.IrLowering -> {
                 codegenTime += time
                 IR_LOWERING
@@ -43,7 +45,7 @@ fun BuildMetricsReporter<BuildTimeMetric, BuildPerformanceMetric>.reportPerforma
 
         addTimeMetricNs(gradleBuildTime, time.nanos)
 
-        moduleStats.dynamicStats?.filter { it.parentPhaseType == phaseType }?.forEach { (_, name, time) ->
+        moduleStats.dynamicStats?.filter { it.parentPhaseType == phaseType }?.forEach { (val name, val time) ->
             addTimeMetricNs(CustomBuildTimeMetric.createIfDoesNotExistAndReturn(name, gradleBuildTime), time.nanos)
         }
 

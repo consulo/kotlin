@@ -7,32 +7,21 @@ package org.jetbrains.kotlin.backend.konan
 
 import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.backend.common.reportLoadingProblemsIfAny
-import org.jetbrains.kotlin.backend.common.serialization.IrKlibBytesSource
-import org.jetbrains.kotlin.backend.common.serialization.IrLibraryFileFromBytes
-import org.jetbrains.kotlin.backend.common.serialization.codedInputStream
-import org.jetbrains.kotlin.backend.common.serialization.deserializeFileEntryName
-import org.jetbrains.kotlin.backend.common.serialization.fileEntry
+import org.jetbrains.kotlin.backend.common.serialization.*
 import org.jetbrains.kotlin.backend.common.serialization.proto.IrFile
 import org.jetbrains.kotlin.backend.konan.driver.NativeCompilerDriver
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
+import org.jetbrains.kotlin.cli.CliDiagnostics
 import org.jetbrains.kotlin.cli.common.config.kotlinSourceRoots
-import org.jetbrains.kotlin.cli.common.prohibitExportKlibToOlderAbiVersionAtSecondStage
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
+import org.jetbrains.kotlin.cli.report
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.moduleName
 import org.jetbrains.kotlin.config.zipFileSystemAccessor
-import org.jetbrains.kotlin.konan.config.compileFromBitcode
-import org.jetbrains.kotlin.konan.config.exportedLibraries
-import org.jetbrains.kotlin.konan.config.filesToCache
-import org.jetbrains.kotlin.konan.config.generateTestRunner
-import org.jetbrains.kotlin.konan.config.konanIncludedLibraries
-import org.jetbrains.kotlin.konan.config.konanLibraries
-import org.jetbrains.kotlin.konan.config.konanLibraryToAddToCache
-import org.jetbrains.kotlin.konan.config.listTargets
-import org.jetbrains.kotlin.konan.config.makePerFileCache
+import org.jetbrains.kotlin.konan.config.*
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.library.KotlinAbiVersion
+import org.jetbrains.kotlin.library.KotlinAbiVersion.Companion.FIRST_SUPPORTED_COMPILER_VERSION
 import org.jetbrains.kotlin.library.components.irOrFail
 import org.jetbrains.kotlin.library.loader.KlibLoader
 import org.jetbrains.kotlin.library.uniqueName
@@ -49,8 +38,7 @@ private val softDeprecatedTargets = setOf(
 
 private const val DEPRECATION_LINK = "https://kotl.in/native-targets-tiers"
 
-interface CompilationSpawner {
-    fun spawn(configuration: CompilerConfiguration)
+fun interface CompilationSpawner {
     fun spawn(arguments: List<String>, setupConfiguration: CompilerConfiguration.() -> Unit)
 }
 
@@ -67,7 +55,7 @@ class KonanDriver(
 
         if (isCompilingFromBitcode && hasSourceRoots) {
             configuration.report(
-                    CompilerMessageSeverity.WARNING,
+                    CliDiagnostics.KONAN_ARGUMENT_WARNING,
                     "Source files will be ignored by the compiler when compiling from bitcode"
             )
         }
@@ -79,6 +67,7 @@ class KonanDriver(
                 configuration.makePerFileCache -> {
                     val result = KlibLoader {
                         libraryPaths(libPath)
+                        minPermittedAbiVersion(KotlinAbiVersion.FIRST_SUPPORTED, FIRST_SUPPORTED_COMPILER_VERSION)
                         maxPermittedAbiVersion(KotlinAbiVersion.CURRENT)
                         configuration.zipFileSystemAccessor?.let(::zipFileSystemAccessor)
                     }.load()
@@ -102,7 +91,7 @@ class KonanDriver(
             configuration.filesToCache = fileNames
         }
 
-        var config = NativeSecondStageCompilationConfig(project, configuration)
+        val config = NativeSecondStageCompilationConfig(project, configuration)
 
         if (configuration.listTargets) {
             config.targetManager.list()
@@ -114,24 +103,22 @@ class KonanDriver(
         val hasCompilerInput = configuration.kotlinSourceRoots.isNotEmpty()
                 || hasIncludedLibraries
                 || configuration.exportedLibraries.isNotEmpty()
-                || config.libraryToCache != null
                 || config.compileFromBitcode?.isNotEmpty() == true
                 || isProducingExecutableFromLibraries
 
-        if (!hasCompilerInput) return
+        // Return early if no input was provided.
+        if (!hasCompilerInput && config.librariesToCache.isEmpty()) return
 
         if (isProducingExecutableFromLibraries && configuration.generateTestRunner != TestRunnerKind.NONE) {
-            configuration.report(CompilerMessageSeverity.STRONG_WARNING,
+            configuration.report(CliDiagnostics.KONAN_ARGUMENT_STRONG_WARNING,
                     "Use `-Xinclude=<path-to-klib>` to pass libraries that contain tests.")
         }
 
         // Avoid showing warning twice in 2-phase compilation.
         if (config.produce != CompilerOutputKind.LIBRARY && config.target in softDeprecatedTargets) {
-            configuration.report(CompilerMessageSeverity.STRONG_WARNING,
+            configuration.report(CliDiagnostics.KONAN_ARGUMENT_STRONG_WARNING,
                     "target ${config.target} is deprecated and will be removed soon. See: $DEPRECATION_LINK")
         }
-
-        configuration.prohibitExportKlibToOlderAbiVersionAtSecondStage()
 
         ensureModuleName(config)
 
@@ -147,20 +134,36 @@ class KonanDriver(
 
         val cacheBuilder = CacheBuilder(config, compilationSpawner)
         if (cacheBuilder.needToBuild()) {
+            // Build missing caches.
             cacheBuilder.build()
-            config = NativeSecondStageCompilationConfig(project, configuration) // TODO: Just set freshly built caches.
+
+            // Reload `CacheSupport` inside `NativeSecondStageCompilationConfig` to reflect the up-to-date state of just built caches.
+            // This is important for further correct compilation of the resulting binary.
+            config.reloadCacheSupport()
+
+            // Parallel cache build might have already built our asked-to-build cache. Check for that and return early if true.
+            if (!hasCompilerInput && config.librariesToCache.isEmpty())
+                return
         }
 
         if (!config.produce.isHeaderCache) {
             config.cacheSupport.checkConsistency()
         }
 
+        // The code that is reused from the caches is not inspected by the partial linkage engine in this compilation,
+        // so the issues detected at the moment those caches were built have to be reported once again (KT-78253).
+        // Note: A compilation that produces a cache stores the issues in that cache directory instead;
+        // they are replayed by the compilations that consume it.
+        if (!config.produce.isCache)
+            replayPartialLinkageIssuesFromCaches(config, cacheBuilder::wasRebuiltInThisRun)
+
         NativeCompilerDriver(performanceManager).run(config, environment)
     }
 
     private fun ensureModuleName(config: NativeSecondStageCompilationConfig) {
         if (environment.getSourceFiles().isEmpty()) {
-            val libraries = config.resolvedLibraries.getFullList()
+            // Note: The order of libraries is not important.
+            val libraries = config.loadedKlibs.all
             val moduleName = config.moduleId
             if (libraries.any { it.uniqueName == moduleName }) {
                 val kexeModuleName = "${moduleName}_kexe"

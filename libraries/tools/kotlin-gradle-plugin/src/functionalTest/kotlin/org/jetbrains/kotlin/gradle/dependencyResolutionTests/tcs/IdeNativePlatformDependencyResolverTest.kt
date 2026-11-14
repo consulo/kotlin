@@ -3,8 +3,6 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.dependencyResolutionTests.tcs
 
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
@@ -13,24 +11,21 @@ import org.jetbrains.kotlin.gradle.idea.testFixtures.tcs.binaryCoordinates
 import org.jetbrains.kotlin.gradle.internal.properties.nativeProperties
 import org.jetbrains.kotlin.gradle.plugin.ide.dependencyResolvers.IdeNativePlatformDependencyResolver
 import org.jetbrains.kotlin.gradle.util.buildProjectWithMPP
-import org.jetbrains.kotlin.gradle.util.provisionKotlinNativeDistribution
+import org.jetbrains.kotlin.gradle.util.withTemporaryKotlinNativeHome
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget.LINUX_X64
 import org.jetbrains.kotlin.konan.target.KonanTarget.MACOS_ARM64
 import org.junit.jupiter.api.Assumptions
-import org.junit.jupiter.api.BeforeEach
 import kotlin.test.Test
 
 class IdeNativePlatformDependencyResolverTest {
-    // workaround for tests that don't unpack Kotlin Native when using local repo: KT-77580
-    @BeforeEach
-    fun setUp() {
-        provisionKotlinNativeDistribution()
-    }
 
     @Test
     fun `test - posix on linux`() {
-        val project = buildProjectWithMPP()
+        val project = buildProjectWithMPP(preApplyCode = {
+            withTemporaryKotlinNativeHome()
+        })
+
         val kotlin = project.multiplatformExtension
         kotlin.applyDefaultHierarchyTemplate()
         kotlin.linuxX64()
@@ -55,7 +50,9 @@ class IdeNativePlatformDependencyResolverTest {
     @Test
     fun `test - CoreFoundation on macos`() {
         Assumptions.assumeTrue(HostManager.hostIsMac, "Macos host required for this test")
-        val project = buildProjectWithMPP()
+        val project = buildProjectWithMPP(preApplyCode = {
+            withTemporaryKotlinNativeHome()
+        })
         val kotlin = project.multiplatformExtension
         kotlin.applyDefaultHierarchyTemplate()
         kotlin.macosArm64()

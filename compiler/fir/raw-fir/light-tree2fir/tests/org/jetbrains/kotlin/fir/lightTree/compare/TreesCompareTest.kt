@@ -6,31 +6,28 @@
 package org.jetbrains.kotlin.fir.lightTree.compare
 
 import com.intellij.openapi.util.io.FileUtil
-import com.intellij.openapi.vfs.CharsetToolkit
 import com.intellij.testFramework.TestDataPath
 import com.intellij.util.PathUtil
-import junit.framework.TestCase
 import org.jetbrains.kotlin.*
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.fir.builder.AbstractRawFirBuilderTestCase
 import org.jetbrains.kotlin.fir.builder.StubFirScopeProvider
+import org.jetbrains.kotlin.fir.builder.test.COMPILER_DIAGNOSTICS_TEST_DATA_DIRECTORY
+import org.jetbrains.kotlin.fir.builder.test.splitTestDataIntoFiles
+import org.jetbrains.kotlin.fir.builder.test.toStrippedCompilerDiagnosticsTestDataFiles
 import org.jetbrains.kotlin.fir.lightTree.LightTree2Fir
-import org.jetbrains.kotlin.fir.lightTree.walkTopDown
-import org.jetbrains.kotlin.fir.lightTree.walkTopDownWithTestData
 import org.jetbrains.kotlin.fir.renderer.FirRenderer
 import org.jetbrains.kotlin.fir.session.FirSessionFactoryHelper
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.test.JUnit3RunnerWithInners
+import org.jetbrains.kotlin.test.util.walkRepositoryKotlinFilesWithTestData
+import org.jetbrains.kotlin.test.util.walkRepositoryKotlinFilesWithoutTestData
 import org.jetbrains.kotlin.test.utils.isCustomTestData
-import org.junit.runner.RunWith
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 import java.io.File
 
 @TestDataPath("\$PROJECT_ROOT")
-@RunWith(JUnit3RunnerWithInners::class)
 class TreesCompareTest : AbstractRawFirBuilderTestCase() {
-    companion object {
-        private val DIAGNOSTIC_IN_TESTDATA_PATTERN = Regex("<!>|<!(.*?(\\(\".*?\"\\)|\\(\\))??)+(?<!<)!>")
-    }
-
     private fun compareBase(path: String, withTestData: Boolean, compareFir: (File) -> Boolean) {
         var counter = 0
         var errorCounter = 0
@@ -45,18 +42,18 @@ class TreesCompareTest : AbstractRawFirBuilderTestCase() {
                 counter++
             }
         }
-        println("BASE PATH: $path")
+        println("BASE PATH: ${File(path).normalize().absolutePath}")
         if (!withTestData) {
-            path.walkTopDown(onEachFile)
+            path.walkRepositoryKotlinFilesWithoutTestData(onEachFile)
         } else {
-            path.walkTopDownWithTestData(onEachFile)
+            path.walkRepositoryKotlinFilesWithTestData(onEachFile)
         }
         println("All scanned files: $counter")
         println("Files that aren't equal to FIR: $errorCounter")
         if (errorCounter > 0) {
             println(differentFiles)
         }
-        TestCase.assertEquals(0, errorCounter)
+        assertEquals(0, errorCounter)
     }
 
     private fun compareAll() {
@@ -68,12 +65,13 @@ class TreesCompareTest : AbstractRawFirBuilderTestCase() {
             scopeProvider = StubFirScopeProvider,
             diagnosticsReporter = null
         )
-        compareBase(System.getProperty("user.dir"), withTestData = false) { file ->
-            val (text, linesMapping) = file.inputStream().reader(Charsets.UTF_8).use {
+        // Back from /compiler/fir/raw-fir/<module>
+        compareBase(System.getProperty("user.dir") + "/../../../..", withTestData = false) { file ->
+            val [text, linesMapping] = file.inputStream().reader(Charsets.UTF_8).use {
                 it.readSourceFileWithMapping()
             }
-            splitText(file.path, text.toString().trim()).forEach { pair ->
-                val (filePath, fileText) = pair
+            splitTestDataIntoFiles(file.path, text.toString().trim()).forEach { pair ->
+                val [filePath, fileText] = pair
 
                 //psi
                 val ktFile = createPsiFile(FileUtil.getNameWithoutExtension(PathUtil.getFileName(filePath)), fileText) as KtFile
@@ -82,7 +80,7 @@ class TreesCompareTest : AbstractRawFirBuilderTestCase() {
                     .replace("<ERROR TYPE REF:.*?>".toRegex(), "<ERROR TYPE REF>")
 
                 //light tree
-                val firFileFromLightTree = lightTreeConverter.buildFirFile(text, KtIoFileSourceFile(file), linesMapping)
+                val firFileFromLightTree = lightTreeConverter.buildFirFile(fileText, KtIoFileSourceFile(file), linesMapping)
                 val treeFromLightTree = FirRenderer().renderElementAsString(firFileFromLightTree)
                     .replace("<ERROR TYPE REF:.*?>".toRegex(), "<ERROR TYPE REF>")
 
@@ -94,6 +92,7 @@ class TreesCompareTest : AbstractRawFirBuilderTestCase() {
         }
     }
 
+    @Test
     fun testCompareDiagnostics() {
         @OptIn(ObsoleteTestInfrastructure::class)
         val session = FirSessionFactoryHelper.createEmptySession()
@@ -103,22 +102,11 @@ class TreesCompareTest : AbstractRawFirBuilderTestCase() {
             scopeProvider = StubFirScopeProvider,
             diagnosticsReporter = null
         )
-        compareBase("compiler/testData/diagnostics/tests", withTestData = true) { file ->
-            if (file.isCustomTestData) {
-                return@compareBase true
-            }
-            when (file.path.replace("\\", "/")) {
-                "compiler/testData/diagnostics/tests/constantEvaluator/constant/strings.kt" -> {
-                    // `DIAGNOSTIC_IN_TESTDATA_PATTERN` fails to correctly strip diagnostics from this file
-                    return@compareBase true
-                }
-            }
+        val absolutePath = ForTestCompileRuntime.transformTestDataPath(COMPILER_DIAGNOSTICS_TEST_DATA_DIRECTORY).path
+        compareBase(absolutePath, withTestData = true) { file ->
+            if (file.isCustomTestData) return@compareBase true
 
-            val notEditedText = FileUtil.loadFile(file, CharsetToolkit.UTF8, true).trim()
-            val text = notEditedText.replace(DIAGNOSTIC_IN_TESTDATA_PATTERN, "").replaceAfter(".java", "")
-
-            splitText(file.path, text).forEach { pair ->
-                val (filePath, fileText) = pair
+            file.toStrippedCompilerDiagnosticsTestDataFiles()?.forEach { [filePath, fileText] ->
                 //psi
                 val fileName = PathUtil.getFileName(filePath)
                 val ktFile = createPsiFile(FileUtil.getNameWithoutExtension(fileName), fileText) as KtFile
@@ -146,27 +134,8 @@ class TreesCompareTest : AbstractRawFirBuilderTestCase() {
         }
     }
 
+    @Test
     fun testCompareAll() {
         compareAll()
-    }
-
-    private fun splitText(filePath: String, text: String): List<Pair<String, String>> {
-        val fileDirective = "// FILE:"
-        val idx = text.indexOf(fileDirective)
-        if (idx > 0 && text[idx - 1] != '\n') {
-            //try to avoid splitting of sources
-            return emptyList()
-        }
-        if (idx >= 0) {
-            val result = mutableListOf<Pair<String, String>>()
-            val strings = text.drop(idx).drop(fileDirective.length).split(fileDirective)
-            for (string in strings) {
-                val newLineIdx = string.indexOf("\n")
-                if (newLineIdx < 0) return emptyList()
-                result.add(Pair(string.substring(0, newLineIdx).trim(), string.substring(newLineIdx)))
-            }
-            return result
-        }
-        return listOf(Pair(filePath, text))
     }
 }

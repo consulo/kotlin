@@ -13,7 +13,7 @@ kotlin {
         }
     }
 
-    val commonIntegrationTest by sourceSets.creating
+    val commonIntegrationTest = sourceSets.create("commonIntegrationTest")
 
     jvm {
         compilations["test"].defaultSourceSet.dependencies {
@@ -41,7 +41,6 @@ kotlin {
 
     mingwX64("mingw64")
     linuxX64("linux64")
-    macosX64("macos64")
     macosArm64("macosArm64")
     iosX64("iosX64")
     iosSimulatorArm64("iosSimulatorArm64")

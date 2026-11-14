@@ -3,7 +3,11 @@ package org.jetbrains.kotlin.konan.test.klib
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.konan.test.blackbox.support.group.UseDummyTestCaseGroupProvider
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.test.klib.assumeKlibForwardCompatibilityTestsRun
+import org.jetbrains.kotlin.test.klib.runSanityTest
+import org.jetbrains.kotlin.test.klib.runSanityTestNotMuted
 import org.junit.jupiter.api.Assumptions
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -18,15 +22,20 @@ private const val testDataRoot = "compiler/testData/klib/klib-compatibility/sani
 @TestMetadata(testDataRoot)
 @Tag("aggregate-second-stage")
 class CustomNativeCompilerSecondStageSanity : AbstractCustomNativeCompilerSecondStageTest() {
+    @BeforeEach
+    fun assumeTestsRun() {
+        assumeKlibForwardCompatibilityTestsRun(customNativeCompilerSettings.defaultLanguageVersion)
+    }
+
     @Test
     fun checkPassed() {
-        runTest(testDataRoot + "green.kt")
+        runSanityTestNotMuted(testDataRoot + "green.kt")
     }
 
     @Test
     fun checkGreenNeedsUnmuting() {
         val exception = assertThrows<AssertionError> {
-            runTest(testDataRoot + "greenNeedsUnmuting.kt")
+            runSanityTest(testDataRoot + "greenNeedsUnmuting.kt")
         }
         val expected = "Looks like this test can be unmuted. " +
                 "Remove ${customNativeCompilerSettings.defaultLanguageVersion} from the IGNORE_KLIB_FRONTEND_ERRORS_WITH_CUSTOM_SECOND_STAGE directive"
@@ -36,15 +45,15 @@ class CustomNativeCompilerSecondStageSanity : AbstractCustomNativeCompilerSecond
     @Test
     fun checkIncorrectBoxResult() {
         val exception = assertThrows<AssertionError> {
-            runTest(testDataRoot + "incorrectBoxResult.kt")
+            runSanityTest(testDataRoot + "incorrectBoxResult.kt")
         }
         assertTrue(exception.message?.contains("Test failed with: FAIL. Expected <OK>, actual <FAIL>") == true, exception.message)
     }
 
     @Test
-    fun checkNotMutedWithIgnoreBackendErrors1stStage() {
+    fun checkNotMutedWithIgnoreRuntimeErrors1stStage() {
         val exception = assertThrows<AssertionError> {
-            runTest(testDataRoot + "mutedWithIgnoreBackendErrors1stStage.kt")
+            runSanityTest(testDataRoot + "mutedWithIgnoreRuntimeErrors1stStage.kt")
         }
         assertTrue(exception.message?.contains("Test failed with: FAIL. Expected <OK>, actual <FAIL>") == true, exception.message)
     }
@@ -52,7 +61,7 @@ class CustomNativeCompilerSecondStageSanity : AbstractCustomNativeCompilerSecond
     @Test
     fun checkMutedWithIgnoreRuntimeErrors2ndStage() {
         val exception = assertThrows<TestAbortedException> {
-            runTest(testDataRoot + "mutedWithIgnoreRuntimeErrors2ndStage.kt")
+            runSanityTest(testDataRoot + "mutedWithIgnoreRuntimeErrors2ndStage.kt")
         }
         assertEquals(null, exception.message)
     }
@@ -62,7 +71,7 @@ class CustomNativeCompilerSecondStageSanity : AbstractCustomNativeCompilerSecond
         Assumptions.assumeTrue(LanguageVersion.LATEST_STABLE == customNativeCompilerSettings.defaultLanguageVersion)
         // current testdata is expected to be parsed by the current frontend. So errors must not be muted
         val exception = assertThrows<Exception> {
-            runTest(testDataRoot + "mutedDueToFrontendErrorWithCustom1stStage.kt")
+            runSanityTest(testDataRoot + "mutedDueToFrontendErrorWithCustom1stStage.kt")
         }
         assertTrue(exception.message!!.startsWith("UNRESOLVED_REFERENCE: Unresolved reference 'FAIL'. at mutedDueToFrontendErrorWithCustom1stStage.kt:"),
                    "Unexpected exception message: ${exception.message}")
@@ -73,7 +82,7 @@ class CustomNativeCompilerSecondStageSanity : AbstractCustomNativeCompilerSecond
         Assumptions.assumeFalse(LanguageVersion.LATEST_STABLE == customNativeCompilerSettings.defaultLanguageVersion)
         // Some tests cannot be compiled with previous LV, so the frontend errors must be muted
         val exception = assertThrows<TestAbortedException> {
-            runTest(testDataRoot + "mutedDueToFrontendErrorWithCustom1stStage.kt")
+            runSanityTest(testDataRoot + "mutedDueToFrontendErrorWithCustom1stStage.kt")
         }
         assertEquals(null, exception.message)
     }
@@ -81,6 +90,6 @@ class CustomNativeCompilerSecondStageSanity : AbstractCustomNativeCompilerSecond
     @Test
     fun checkRecompilePassed() {
         // `// RECOMPILE` test directive is unknown to Native testinfra, so it must not affect test runs
-        runTest(testDataRoot + "recompile.kt")
+        runSanityTestNotMuted(testDataRoot + "recompile.kt")
     }
 }

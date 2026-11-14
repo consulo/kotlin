@@ -18,7 +18,7 @@ kotlin {
     }
 
     val platformTarget = when {
-        HostManager.hostIsMac -> macosX64("platform")
+        HostManager.hostIsMac -> macosArm64("platform")
         HostManager.hostIsMingw -> mingwX64("platform")
         HostManager.hostIsLinux -> linuxX64("platform")
         else -> error("Unexpected host: ${HostManager.host}")
@@ -28,7 +28,7 @@ kotlin {
         header(file("src/nativeInterop/cinterop/sampleInterop.h"))
     }
 
-    val platformTest by sourceSets.getting
+    val platformTest = sourceSets.getByName("platformTest")
     val nativeTest = sourceSets.create("nativeTest")
     platformTest.dependsOn(nativeTest)
 }

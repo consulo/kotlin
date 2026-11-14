@@ -9,8 +9,8 @@ import org.jetbrains.kotlin.backend.common.compilationException
 import org.jetbrains.kotlin.backend.common.lower.AbstractSuspendFunctionsLowering
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
 import org.jetbrains.kotlin.ir.backend.js.BackendJsSymbols.RuntimeMetadataKind
+import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
 import org.jetbrains.kotlin.ir.backend.js.ir.isAllowedFakeOverriddenDeclaration
 import org.jetbrains.kotlin.ir.backend.js.ir.isExported
 import org.jetbrains.kotlin.ir.backend.js.ir.isOverriddenEnumProperty
@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.ir.backend.js.ir.isOverriddenExported
 import org.jetbrains.kotlin.ir.backend.js.lower.WebCallableReferenceLowering
 import org.jetbrains.kotlin.ir.backend.js.lower.coroutines.suspendArityStore
 import org.jetbrains.kotlin.ir.backend.js.lower.isEs6ConstructorReplacement
+import org.jetbrains.kotlin.ir.backend.js.lower.originalFqName
 import org.jetbrains.kotlin.ir.backend.js.objectGetInstanceFunction
 import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.*
@@ -31,13 +32,9 @@ import org.jetbrains.kotlin.js.backend.ast.*
 import org.jetbrains.kotlin.js.backend.ast.JsVars.JsVar
 import org.jetbrains.kotlin.js.common.isValidES5Identifier
 import org.jetbrains.kotlin.name.SpecialNames
-import org.jetbrains.kotlin.utils.addIfNotNull
+import org.jetbrains.kotlin.utils.*
 import org.jetbrains.kotlin.utils.addToStdlib.butIf
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
-import org.jetbrains.kotlin.utils.associateByNotNull
-import org.jetbrains.kotlin.utils.memoryOptimizedMap
-import org.jetbrains.kotlin.utils.memoryOptimizedMapNotNull
-import org.jetbrains.kotlin.utils.toSmartList
 
 class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationContext) {
     private val backendContext = context.staticContext.backendContext
@@ -49,7 +46,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
     private val baseClass: IrType? = irClass.superTypes.firstOrNull { !it.classifierOrFail.isInterface }
 
     private val classAssociatedObjects = irClass.annotations.associateByNotNull(
-        keySelector = { it.symbol.owner.constructedClass },
+        keySelector = { it.classSymbol.owner },
         valueTransform = { annotation ->
             val objectGetInstanceFunction = annotation.associatedObject()?.objectGetInstanceFunction
             objectGetInstanceFunction?.let { context.staticContext.getNameForStaticFunction(it).makeRef() }
@@ -82,7 +79,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
     }
 
     private fun JsCompositeBlock.wrapInFunction(): JsStatement {
-        val classHolderName = JsAssignable.Named(JsName("${className.ident}Class", true))
+        val classHolderName = JsDeclarable.Named(JsName("${className.ident}Class", true))
         val functionWrapper = JsFunction(emptyScope, JsBlock(), "lazy wrapper for classes in per-file").apply {
             name = className
             with(body.statements) {
@@ -144,11 +141,11 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
 
                     if (es6mode) {
                         if (declaration.isEs6ConstructorReplacement && irClass.isInterface) continue
-                        val (memberName, symbolKey, function) = generateMemberFunction(declaration)
+                        val [memberName, symbolKey, function] = generateMemberFunction(declaration)
                         function?.let { jsClass.members += it.escapedIfNeed() }
                         declaration.generateAssignmentIfMangled(memberName, symbolKey)
                     } else {
-                        val (memberName, symbolKey, function) = generateMemberFunction(declaration)
+                        val [memberName, symbolKey, function] = generateMemberFunction(declaration)
                         val memberRef = jsElementAccess(memberName, symbolKey, classPrototypeRef)
                         function?.let {
                             it.name = null
@@ -314,7 +311,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
     private fun IrSimpleFunction.isDefinedInsideExportedInterface(): Boolean {
         val irClass = parentClassOrNull ?: return false
         if (isJsExportIgnore() || correspondingPropertySymbol?.owner?.isJsExportIgnore() == true) return false
-        if (!isFakeOverride) return irClass.isExportedInterface(backendContext)
+        if (!isFakeOverride && irClass.isExportedInterface(backendContext)) return true
         return overriddenSymbols.any { it.owner.isDefinedInsideExportedInterface() }
     }
 
@@ -349,7 +346,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
         return getJsName() == null && !name.asString().isValidES5Identifier()
     }
 
-    private fun IrSimpleFunction.prototypeAccessRef(): JsExpression {
+    private fun IrSimpleFunction.prototypeAccessRef(): JsAssignableExpression {
         return jsElementAccess(name.asString(), classPrototypeRef)
     }
 
@@ -393,7 +390,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
                         missedOverrides.add(it)
                     }
                 }
-                .find { it.modality != Modality.ABSTRACT }
+                .find { it.modality != Modality.ABSTRACT && !it.isEffectivelyExternal() }
                 ?.let { realOverride ->
                     val implClassDeclaration = realOverride.parent as IrClass
 
@@ -484,7 +481,8 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
     private fun IrType.isFunctionType() = isFunctionOrKFunction() || isSuspendFunctionOrKFunction()
 
     private fun generateSimpleName(): JsStringLiteral? {
-        return irClass.name.takeIf { !it.isSpecial }?.let { JsStringLiteral(it.identifier) }
+        val originalName = irClass.originalFqName?.shortNameOrSpecial() ?: irClass.name
+        return originalName.takeIf { !it.isSpecial }?.let { JsStringLiteral(it.identifier) }
     }
 
     private fun IrSimpleFunctionSymbol.invokeWithoutNullArgs(vararg arguments: JsExpression?): JsStatement {
@@ -543,7 +541,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
             !backendContext.incrementalCacheEnabled -> {
                 JsObjectLiteral(
                     classAssociatedObjects
-                        .map { (key, objectGetInstanceFunction) ->
+                        .map { [key, objectGetInstanceFunction] ->
                             JsPropertyInitializer.KeyValue(JsIntLiteral(key.associatedObjectKey!!), objectGetInstanceFunction)
                         }
                         .toSmartList()
@@ -552,7 +550,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
             es6mode -> {
                 JsObjectLiteral(
                     classAssociatedObjects
-                        .map { (key, objectGetInstanceFunction) ->
+                        .map { [key, objectGetInstanceFunction] ->
                             JsPropertyInitializer.KeyValue(
                                 JsInvocation(
                                     context.staticContext.getNameForStaticFunction(backendContext.symbols.getAssociatedObjectId.owner).makeRef(),
@@ -570,7 +568,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
                 JsInvocation(
                     context.staticContext.getNameForStaticFunction(backendContext.symbols.makeAssociatedObjectMapES5.owner).makeRef(),
                     JsArrayLiteral(
-                        classAssociatedObjects.flatMap { (key, objectGetInstanceFunction) ->
+                        classAssociatedObjects.flatMap { [key, objectGetInstanceFunction] ->
                             listOf(key.getClassRef(context.staticContext), objectGetInstanceFunction)
                         }.toSmartList()
                     )

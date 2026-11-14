@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.analysis.low.level.api.fir
 
 import org.jetbrains.kotlin.analysis.api.projectStructure.copyOrigin
+import org.jetbrains.kotlin.analysis.low.level.api.fir.api.LLResolutionFacade
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFirFile
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getResolutionFacade
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators.AnalysisApiFirCustomScriptDefinitionTestConfigurator
@@ -15,12 +16,12 @@ import org.jetbrains.kotlin.analysis.test.framework.base.AbstractAnalysisApiBase
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.KtTestModule
 import org.jetbrains.kotlin.analysis.test.framework.services.expressionMarkerProvider
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator
+import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirResolvedImport
 import org.jetbrains.kotlin.fir.declarations.FirTowerDataContext
-import org.jetbrains.kotlin.fir.renderer.FirDeclarationRendererWithAttributes
+import org.jetbrains.kotlin.fir.renderer.FirDeclarationRendererWithSpecificAttributes
 import org.jetbrains.kotlin.fir.renderer.FirRenderer
 import org.jetbrains.kotlin.fir.renderer.FirResolvePhaseRenderer
-import org.jetbrains.kotlin.fir.resolve.dfa.RealVariable
 import org.jetbrains.kotlin.fir.scopes.*
 import org.jetbrains.kotlin.fir.scopes.impl.*
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
@@ -32,16 +33,34 @@ import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.assertions
+import org.jetbrains.kotlin.types.SmartcastStability
 
 abstract class AbstractContextCollectorTest : AbstractAnalysisApiBasedTest() {
     override fun doTestByMainFile(mainFile: KtFile, mainModule: KtTestModule, testServices: TestServices) {
-        performTestByMainFile(mainFile, mainModule, testServices, testPrefixes = emptyList(), useBodyElement = false)
-        performTestByMainFile(mainFile, mainModule, testServices, testPrefixes = listOf("body"), useBodyElement = true)
+        // In `IGNORE_SELF` mode, the copy passes see the original file's declarations as the first two passes left them.
+        // Sessions aren't cached strongly, so hold the original FIR file, and with it its session, until the copy passes are done.
+        // Otherwise, a GC in between could collect them, and the copy passes would see the original file rebuilt and unresolved.
+        val resolutionFacade = mainModule.ktModule.getResolutionFacade(mainFile.project)
+        val originalFirFile = mainFile.getOrBuildFirFile(resolutionFacade)
+
+        performTestByMainFile(
+            mainFile, originalFirFile, resolutionFacade, testServices, testPrefixes = emptyList(), useBodyElement = false,
+        )
+        performTestByMainFile(
+            mainFile, originalFirFile, resolutionFacade, testServices, testPrefixes = listOf("body"), useBodyElement = true,
+        )
 
         val fakeFile = createFileCopy(mainFile)
+        val fakeFirFile = fakeFile.getOrBuildFirFile(resolutionFacade)
 
-        performTestByMainFile(fakeFile, mainModule, testServices, testPrefixes = listOf("copy"), useBodyElement = false)
-        performTestByMainFile(fakeFile, mainModule, testServices, testPrefixes = listOf("copy", "body.copy"), useBodyElement = true)
+        performTestByMainFile(
+            fakeFile, fakeFirFile, resolutionFacade, testServices, testPrefixes = listOf("copy"), useBodyElement = false,
+        )
+        performTestByMainFile(
+            fakeFile, fakeFirFile, resolutionFacade, testServices, testPrefixes = listOf("copy", "body.copy"), useBodyElement = true,
+        )
+
+        check(mainFile.getOrBuildFirFile(resolutionFacade) === originalFirFile) { "The original FIR file must not be rebuilt" }
     }
 
     private fun createFileCopy(file: KtFile): KtFile {
@@ -56,13 +75,12 @@ abstract class AbstractContextCollectorTest : AbstractAnalysisApiBasedTest() {
 
     private fun performTestByMainFile(
         mainFile: KtFile,
-        mainModule: KtTestModule,
+        firFile: FirFile,
+        resolutionFacade: LLResolutionFacade,
         testServices: TestServices,
         testPrefixes: List<String>,
         useBodyElement: Boolean
     ) {
-        val resolutionFacade = mainModule.ktModule.getResolutionFacade(mainFile.project)
-        val firFile = mainFile.getOrBuildFirFile(resolutionFacade)
         val targetElement = testServices.expressionMarkerProvider
             .getBottommostSelectedElementOfType(mainFile, KtElement::class)
 
@@ -71,7 +89,7 @@ abstract class AbstractContextCollectorTest : AbstractAnalysisApiBasedTest() {
 
         val firRenderer = FirRenderer(
             resolvePhaseRenderer = FirResolvePhaseRenderer(),
-            declarationRenderer = FirDeclarationRendererWithPartialBodyResolveState()
+            declarationRenderer = FirDeclarationRendererWithSpecificAttributes(["PartialBodyAnalysisStateKey"]),
         )
 
         val actualText = buildString {
@@ -84,21 +102,16 @@ abstract class AbstractContextCollectorTest : AbstractAnalysisApiBasedTest() {
     }
 }
 
-private class FirDeclarationRendererWithPartialBodyResolveState : FirDeclarationRendererWithAttributes() {
-    override fun attributeTypesToIds(): List<Pair<String, Int>> {
-        return super.attributeTypesToIds().filter { it.first == "PartialBodyAnalysisStateKey" }
-    }
-}
-
 internal object ElementContextRenderer {
     fun render(context: ContextCollector.Context, builder: StringBuilder) = with(builder) {
         renderTowerDataContext(context.towerDataContext)
+        renderExpressionStability(context.expressionStability)
         renderSmartCasts(context.smartCasts)
     }
 
     private fun StringBuilder.renderTowerDataContext(towerDataContext: FirTowerDataContext) {
         appendBlock("Tower Data Context:") {
-            for ((index, towerDataElement) in towerDataContext.towerDataElements.withIndex()) {
+            for ([index, towerDataElement] in towerDataContext.towerDataElements.withIndex()) {
                 appendBlock("Element $index") {
                     for (scope in towerDataElement.scope?.flatten().orEmpty()) {
                         appendBlock("Scope: " + scope.javaClass.simpleName) {
@@ -199,23 +212,31 @@ internal object ElementContextRenderer {
         }
     }
 
-    private fun StringBuilder.renderSmartCasts(smartCasts: Map<RealVariable, Set<ConeKotlinType>>) {
+    private fun StringBuilder.renderSmartCasts(smartCasts: List<ContextCollector.SmartCast>) {
         if (smartCasts.isEmpty()) {
             return
         }
 
         appendBlock("Smart Casts:") {
-            for ((realVariable, types) in smartCasts) {
-                appendSymbol(realVariable.symbol).appendLine()
+            for (smartCast in smartCasts) {
+                appendSymbol(smartCast.realVariable.symbol).appendLine()
+                append("Stability: ").append(smartCast.stability).appendLine()
 
                 appendBlock("Types:") {
-                    for (type in types) {
+                    for (type in smartCast.upperTypes) {
                         appendType(type).appendLine()
                     }
                 }
-
             }
         }
+    }
+
+    private fun StringBuilder.renderExpressionStability(stability: SmartcastStability?) {
+        if (stability == null) {
+            return
+        }
+
+        append("Expression Stability: ").append(stability).appendLine()
     }
 
     private fun StringBuilder.appendBlock(title: String? = null, block: StringBuilder.() -> Unit): StringBuilder {
@@ -273,4 +294,3 @@ abstract class AbstractContextCollectorScriptTest : AbstractContextCollectorTest
     override val configurator: AnalysisApiTestConfigurator =
         AnalysisApiFirCustomScriptDefinitionTestConfigurator(analyseInDependentSession = false)
 }
-

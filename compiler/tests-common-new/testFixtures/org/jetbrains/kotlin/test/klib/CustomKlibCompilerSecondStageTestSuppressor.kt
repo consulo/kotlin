@@ -7,41 +7,36 @@ package org.jetbrains.kotlin.test.klib
 
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.test.WrappedException
-import org.jetbrains.kotlin.test.backend.handlers.JsBinaryArtifactHandler
 import org.jetbrains.kotlin.test.backend.handlers.NoFirCompilationErrorsHandler
 import org.jetbrains.kotlin.test.directives.JsEnvironmentConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.directives.model.StringDirective
-import org.jetbrains.kotlin.test.klib.CustomKlibCompilerTestDirectives.IGNORE_KLIB_FRONTEND_ERRORS_WITH_CUSTOM_SECOND_STAGE
 import org.jetbrains.kotlin.test.klib.CustomKlibCompilerTestDirectives.IGNORE_KLIB_BACKEND_ERRORS_WITH_CUSTOM_SECOND_STAGE
+import org.jetbrains.kotlin.test.klib.CustomKlibCompilerTestDirectives.IGNORE_KLIB_FRONTEND_ERRORS_WITH_CUSTOM_SECOND_STAGE
 import org.jetbrains.kotlin.test.klib.CustomKlibCompilerTestDirectives.IGNORE_KLIB_RUNTIME_ERRORS_WITH_CUSTOM_SECOND_STAGE
-import org.jetbrains.kotlin.test.model.AfterAnalysisChecker
 import org.jetbrains.kotlin.test.model.BinaryArtifactHandler
+import org.jetbrains.kotlin.test.model.TestFailureSuppressor
 import org.jetbrains.kotlin.test.services.TestServices
+import org.jetbrains.kotlin.test.services.assertions
 import org.jetbrains.kotlin.test.services.moduleStructure
+import org.jetbrains.kotlin.test.testInfraError
 import org.junit.jupiter.api.Assumptions
 
 /**
  * Mute (ignore) tests where the custom compiler failed to compile test data in the second (backend) stage.
- * It's only allowed to mute such tests for a specific version of the custom compiler specified in
- *   [IGNORE_KLIB_BACKEND_ERRORS_WITH_CUSTOM_SECOND_STAGE] directive.
+ * It's only allowed to mute such tests for a specific version of the custom compiler specified in either directive:
+ *   - [IGNORE_KLIB_FRONTEND_ERRORS_WITH_CUSTOM_SECOND_STAGE], or
+ *   - [IGNORE_KLIB_BACKEND_ERRORS_WITH_CUSTOM_SECOND_STAGE], or
+ *   - [IGNORE_KLIB_RUNTIME_ERRORS_WITH_CUSTOM_SECOND_STAGE].
  */
 class CustomKlibCompilerSecondStageTestSuppressor(
     testServices: TestServices,
     private val defaultLanguageVersion: LanguageVersion,
-) : AfterAnalysisChecker(testServices) {
+) : TestFailureSuppressor(testServices) {
     override val directiveContainers: List<DirectivesContainer>
         get() = listOf(CustomKlibCompilerTestDirectives)
 
     override fun suppressIfNeeded(failedAssertions: List<WrappedException>): List<WrappedException> {
-        if (failedAssertions.isEmpty()) {
-            return buildList {
-                addAll(testServices.createUnmutingErrorIfNeeded(IGNORE_KLIB_FRONTEND_ERRORS_WITH_CUSTOM_SECOND_STAGE, defaultLanguageVersion))
-                addAll(testServices.createUnmutingErrorIfNeeded(IGNORE_KLIB_BACKEND_ERRORS_WITH_CUSTOM_SECOND_STAGE, defaultLanguageVersion))
-                addAll(testServices.createUnmutingErrorIfNeeded(IGNORE_KLIB_RUNTIME_ERRORS_WITH_CUSTOM_SECOND_STAGE, defaultLanguageVersion))
-            }.map { it.wrap() }
-        }
-
         val newFailedAssertions = failedAssertions.flatMap { wrappedException ->
             when (wrappedException) {
                 is WrappedException.FromHandler -> when (wrappedException.handler) {
@@ -64,10 +59,22 @@ class CustomKlibCompilerSecondStageTestSuppressor(
                     )
                     else -> processException(wrappedException, IGNORE_KLIB_FRONTEND_ERRORS_WITH_CUSTOM_SECOND_STAGE)
                 }
+                // In the grouped (two-stage) pipeline the second-stage backend compilation runs as a grouping
+                // facade, so a compilation failure there is a backend error.
+                is WrappedException.FromGroupingFacade -> processException(
+                    wrappedException,
+                    IGNORE_KLIB_BACKEND_ERRORS_WITH_CUSTOM_SECOND_STAGE
+                )
+                // In the grouped (two-stage) pipeline the box is executed by a grouping-stage handler,
+                // so a failure there is an execution (runtime) error.
+                is WrappedException.FromGroupingHandler -> processException(
+                    wrappedException,
+                    IGNORE_KLIB_RUNTIME_ERRORS_WITH_CUSTOM_SECOND_STAGE
+                )
                 is WrappedException.FromAfterAnalysisChecker -> {
                     listOf(wrappedException)
                 }
-                else -> error("Yet unsupported wrapped exception type: ${wrappedException::class.qualifiedName} ")
+                else -> testInfraError("Yet unsupported wrapped exception type: ${wrappedException::class.qualifiedName} ")
             }
         }
 
@@ -77,6 +84,14 @@ class CustomKlibCompilerSecondStageTestSuppressor(
         } else {
             return newFailedAssertions
         }
+    }
+
+    override fun checkIfTestShouldBeUnmuted() {
+        testServices.assertions.assertAll(
+            { testServices.throwUnmutingErrorIfNeeded(IGNORE_KLIB_FRONTEND_ERRORS_WITH_CUSTOM_SECOND_STAGE, defaultLanguageVersion) },
+            { testServices.throwUnmutingErrorIfNeeded(IGNORE_KLIB_BACKEND_ERRORS_WITH_CUSTOM_SECOND_STAGE, defaultLanguageVersion) },
+            { testServices.throwUnmutingErrorIfNeeded(IGNORE_KLIB_RUNTIME_ERRORS_WITH_CUSTOM_SECOND_STAGE, defaultLanguageVersion) },
+        )
     }
 
     private fun processException(wrappedException: WrappedException, ignoreDirective: StringDirective): List<WrappedException> {

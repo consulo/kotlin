@@ -17,19 +17,34 @@ KtParameter(40,58): 'javaEnum: JavaEnum'
   null
 
 KtTypeReference(50,58): 'JavaEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /JavaEnum
+    ]
 
 KtUserType(50,58): 'JavaEnum'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /JavaEnum
+    ]
 
 KtNameReferenceExpression(50,58): 'JavaEnum'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      /JavaEnum
+    ]
 
 KtWhenExpression(62,114): 'when (javaEnum) {'
   null
 
 KtNameReferenceExpression(68,76): 'javaEnum'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       javaEnum: JavaEnum
     ]
@@ -41,12 +56,15 @@ KtWhenConditionWithExpression(84,91): 'first()'
   null
 
 KtCallExpression(84,91): 'first()'
-  KaSymbolResolutionError:
+  KaSimpleSymbolResolutionError:
     candidateSymbols = []
     diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'first'.>
 
 KtNameReferenceExpression(84,89): 'first'
-  KaSymbolResolutionError:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionError:
     candidateSymbols = []
     diagnostic = ERROR<UNRESOLVED_REFERENCE: Unresolved reference 'first'.>
 
@@ -63,7 +81,10 @@ KtWhenConditionWithExpression(101,107): 'second'
   null
 
 KtNameReferenceExpression(101,107): 'second'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: Used
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var second: JavaEnum!
     ]

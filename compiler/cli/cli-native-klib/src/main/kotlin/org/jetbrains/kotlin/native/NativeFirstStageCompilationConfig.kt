@@ -9,33 +9,59 @@ import org.jetbrains.kotlin.backend.common.LoadedNativeKlibs
 import org.jetbrains.kotlin.backend.konan.NativeCompilationConfig
 import org.jetbrains.kotlin.backend.konan.driver.NativePhaseContext
 import org.jetbrains.kotlin.backend.konan.serialization.loadNativeKlibs
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.cli.common.diagnosticsCollector
+import org.jetbrains.kotlin.cli.reportLog
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.messageCollector
+import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.config.moduleName
 import org.jetbrains.kotlin.config.perfManager
+import org.jetbrains.kotlin.io.readProperties
+import org.jetbrains.kotlin.ir.IrDiagnosticReporter
+import org.jetbrains.kotlin.ir.KtDiagnosticReporterWithImplicitIrBasedContext
 import org.jetbrains.kotlin.konan.config.konanManifestAddend
 import org.jetbrains.kotlin.konan.config.konanTarget
-import org.jetbrains.kotlin.konan.file.File
-import org.jetbrains.kotlin.konan.properties.Properties
-import org.jetbrains.kotlin.konan.properties.loadProperties
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.util.PerformanceManager
+import java.util.Properties
+import kotlin.io.path.Path
+import kotlin.io.path.name
 
-class NativeFirstStageCompilationConfig(
+class NativeFirstStageCompilationConfig private constructor(
     override val configuration: CompilerConfiguration,
     override val target: KonanTarget,
-    val loadedKlibs: LoadedNativeKlibs,
+    override val loadedKlibs: LoadedNativeKlibs,
 ) : NativeCompilationConfig {
 
     override val moduleId: String
-        get() = configuration.moduleName ?: File(outputPath).name
+        get() = configuration.moduleName ?: Path(outputPath).name
 
     override val manifestProperties: Properties?
         get() = configuration.konanManifestAddend?.let {
-            File(it).loadProperties()
+            Path(it).readProperties()
         }
+
+    fun withConfiguration(newConfiguration: CompilerConfiguration): NativeFirstStageCompilationConfig {
+        return NativeFirstStageCompilationConfig(newConfiguration, target, loadedKlibs)
+    }
+
+    companion object {
+        operator fun invoke(configuration: CompilerConfiguration): NativeFirstStageCompilationConfig {
+            val targetName = configuration.konanTarget
+            val target = if (targetName != null) {
+                KonanTarget.predefinedTargets[targetName]
+                    ?: error("Unknown target: $targetName")
+            } else {
+                HostManager.host
+            }
+
+            return NativeFirstStageCompilationConfig(
+                configuration = configuration,
+                target = target,
+                loadedKlibs = loadNativeKlibs(configuration, target),
+            )
+        }
+    }
 }
 
 class NativeFirstStagePhaseContext(
@@ -43,27 +69,21 @@ class NativeFirstStagePhaseContext(
 ) : NativePhaseContext {
     override var inVerbosePhase: Boolean = false
 
-    override val messageCollector: MessageCollector
-        get() = config.configuration.messageCollector
+    override val diagnosticReporter: IrDiagnosticReporter = KtDiagnosticReporterWithImplicitIrBasedContext(
+        config.configuration.diagnosticsCollector,
+        config.configuration.languageVersionSettings
+    )
+
+    override fun log(message: String) {
+        config.configuration.reportLog(message)
+    }
 
     override val performanceManager: PerformanceManager?
         get() = config.configuration.perfManager
 
     override fun dispose() {}
-}
 
-internal fun createFirstStageCompilationConfig(configuration: CompilerConfiguration): NativeFirstStageCompilationConfig {
-    val targetName = configuration.konanTarget
-    val target = if (targetName != null) {
-        KonanTarget.predefinedTargets[targetName]
-            ?: error("Unknown target: $targetName")
-    } else {
-        HostManager.host
+    fun withConfiguration(newConfiguration: CompilerConfiguration): NativeFirstStagePhaseContext {
+        return NativeFirstStagePhaseContext(config.withConfiguration(newConfiguration))
     }
-
-    return NativeFirstStageCompilationConfig(
-        configuration = configuration,
-        target = target,
-        loadedKlibs = loadNativeKlibs(configuration, target),
-    )
 }

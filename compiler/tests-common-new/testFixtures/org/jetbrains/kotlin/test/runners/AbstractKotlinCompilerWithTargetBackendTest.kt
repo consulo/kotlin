@@ -6,10 +6,16 @@
 package org.jetbrains.kotlin.test.runners
 
 import org.jetbrains.kotlin.test.TargetBackend
+import org.jetbrains.kotlin.test.TargetBackend.*
 import org.jetbrains.kotlin.test.TestInfrastructureInternals
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
+import org.jetbrains.kotlin.testFederation.*
 
-abstract class AbstractKotlinCompilerWithTargetBackendTest(
+@RequiresOptIn("Consider using predefined inheritors of this class with properly configured test domains. " +
+            "If they don't suite please specify domains yourself")
+annotation class UnspecifiedTargetBackend
+
+abstract class AbstractKotlinCompilerWithTargetBackendTest @UnspecifiedTargetBackend constructor(
     val targetBackend: TargetBackend,
 ) : AbstractKotlinCompilerTest() {
     @TestInfrastructureInternals
@@ -30,3 +36,32 @@ abstract class AbstractKotlinCompilerWithTargetBackendTest(
         }
     }
 }
+
+
+@OptIn(UnspecifiedTargetBackend::class)
+@MustRunOnChangesInJvm
+abstract class AbstractKotlinCompilerJvmTest : AbstractKotlinCompilerWithTargetBackendTest(JVM)
+
+@OptIn(UnspecifiedTargetBackend::class)
+@MustRunOnChangesInJs
+abstract class AbstractKotlinCompilerJsTest(targetBackend: TargetBackend) : AbstractKotlinCompilerWithTargetBackendTest(targetBackend) {
+    init {
+        require(targetBackend == JS_IR || targetBackend == JS_IR_ES6)
+    }
+}
+
+@OptIn(UnspecifiedTargetBackend::class)
+@MustRunOnChangesInWasm
+abstract class AbstractKotlinCompilerWasmTest(targetBackend: TargetBackend) : AbstractKotlinCompilerWithTargetBackendTest(targetBackend) {
+    init {
+        require(targetBackend == WASM || targetBackend == WASM_JS || targetBackend == WASM_WASI)
+    }
+}
+
+@OptIn(UnspecifiedTargetBackend::class)
+@MustRunOnChangesInNative
+abstract class AbstractKotlinCompilerNativeTest : AbstractKotlinCompilerWithTargetBackendTest(TargetBackend.NATIVE)
+
+@OptIn(UnspecifiedTargetBackend::class)
+@MustRunOnChangesInCommonBackend
+abstract class AbstractKotlinCompilerJKlibTest : AbstractKotlinCompilerWithTargetBackendTest(TargetBackend.JKLIB)

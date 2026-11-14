@@ -12,9 +12,9 @@ import test.collections.behaviors.*
 class ComplexMapJsTest : MapJsTest() {
     // Helper function with generic parameter to force to use ComlpexHashMap
     fun <K : kotlin.Comparable<K>> doTest() {
-        HashMap<K, Int>()
-        HashMap<K, Int>(3)
-        HashMap<K, Int>(3, 0.5f)
+        val _ = HashMap<K, Int>()
+        val _ = HashMap<K, Int>(3)
+        val _ = HashMap<K, Int>(3, 0.5f)
         @Suppress("UNCHECKED_CAST")
         val map = HashMap<K, Int>(createTestMap() as HashMap<K, Int>)
 
@@ -35,9 +35,9 @@ class ComplexMapJsTest : MapJsTest() {
 
 class PrimitiveMapJsTest : MapJsTest() {
     @Test override fun constructors() {
-        HashMap<String, Int>()
-        HashMap<String, Int>(3)
-        HashMap<String, Int>(3, 0.5f)
+        val _ = HashMap<String, Int>()
+        val _ = HashMap<String, Int>(3)
+        val _ = HashMap<String, Int>(3, 0.5f)
 
         val map = HashMap<String, Int>(createTestMap())
 
@@ -76,9 +76,9 @@ class PrimitiveMapJsTest : MapJsTest() {
 
 class LinkedHashMapJsTest : LinkedMapJsTest() {
     @Test override fun constructors() {
-        LinkedHashMap<String, Int>()
-        LinkedHashMap<String, Int>(3)
-        LinkedHashMap<String, Int>(3, 0.5f)
+        val _ = LinkedHashMap<String, Int>()
+        val _ = LinkedHashMap<String, Int>(3)
+        val _ = LinkedHashMap<String, Int>(3, 0.5f)
 
         val map = LinkedHashMap<String, Int>(createTestMap())
 
@@ -379,7 +379,7 @@ abstract class MapJsTest {
         val values = map.values
         val entries = map.entries
 
-        val (key, value) = map.entries.first()
+        val [key, value] = map.entries.first()
 
         map.remove(key)
         assertFalse(key in keys, "remove from map")
@@ -396,14 +396,14 @@ abstract class MapJsTest {
         assertFalse(value in values)
         assertFalse(entries.any { it.key == key })
 
-        val (key2, value2) = map.entries.first()
+        val [key2, value2] = map.entries.first()
         values -= value2
         assertFalse(key2 in map, "remove from values")
         assertFalse(map.containsValue(value2))
         assertFalse(entries.any { it.value == value2 })
 
         val entry = map.entries.first()
-        val (key3, value3) = entry
+        val [key3, value3] = entry
         entries -= entry
         assertFalse(key3 in map, "remove from entries")
         assertFalse(key3 in keys)
@@ -417,7 +417,7 @@ abstract class MapJsTest {
     @Test fun mapCollectionPropertiesDoNotSupportAdd() {
         val map = createTestMutableMap()
         val entry = map.entries.first()
-        val (key, value) = entry
+        val [key, value] = entry
 
         assertFailsWith<UnsupportedOperationException> { map.entries += entry }
         assertFailsWith<UnsupportedOperationException> { map.keys += key }
@@ -503,7 +503,7 @@ abstract class MapJsTest {
 abstract class LinkedMapJsTest : MapJsTest() {
     private fun <T> assertSameOrder(expected: Collection<T>, actual: Collection<T>, message: String) {
         assertEquals(expected.size, actual.size, "$message; different elements count")
-        expected.zip(actual).forEachIndexed { index, (a, b) ->
+        expected.zip(actual).forEachIndexed { index, [a, b] ->
             assertEquals(a, b, "$message; wrong element at index $index")
         }
     }
@@ -572,7 +572,7 @@ abstract class LinkedMapJsTest : MapJsTest() {
         val iter = map.iterator()
 
         val toRemove = listOf(true, true, false, true)
-        for ((i, remove) in toRemove.withIndex()) {
+        for ([i, remove] in toRemove.withIndex()) {
             assertEquals<Map.Entry<*, *>>(FakeEntry(KEYS[i], VALUES[i]), iter.next(), "element ${KEYS[i]}")
             if (remove) {
                 iter.remove()

@@ -5,17 +5,18 @@
 
 package org.jetbrains.kotlin.incremental
 
+import org.jetbrains.kotlin.K1Deprecation
 import org.jetbrains.kotlin.build.GeneratedFile
 import org.jetbrains.kotlin.build.GeneratedJvmClass
 import org.jetbrains.kotlin.build.report.BuildReporter
 import org.jetbrains.kotlin.build.report.debug
+import org.jetbrains.kotlin.build.report.events.ScopeExpansionReason
 import org.jetbrains.kotlin.build.report.info
 import org.jetbrains.kotlin.build.report.metrics.BuildPerformanceMetric
 import org.jetbrains.kotlin.build.report.metrics.BuildTimeMetric
+import org.jetbrains.kotlin.build.report.reportMarkDirty
 import org.jetbrains.kotlin.build.report.reportPerformanceData
-import org.jetbrains.kotlin.build.report.warn
 import org.jetbrains.kotlin.buildtools.api.ExperimentalBuildToolsApi
-import org.jetbrains.kotlin.buildtools.api.cri.CriToolchain.Companion.DATA_PATH
 import org.jetbrains.kotlin.buildtools.api.cri.CriToolchain.Companion.FILE_IDS_TO_PATHS_FILENAME
 import org.jetbrains.kotlin.buildtools.api.cri.CriToolchain.Companion.LOOKUPS_FILENAME
 import org.jetbrains.kotlin.buildtools.api.cri.CriToolchain.Companion.SUBTYPES_FILENAME
@@ -25,10 +26,12 @@ import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.messages.MessageCollectorImpl
 import org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
+import org.jetbrains.kotlin.cli.jvm.plugins.PluginsLoader
 import org.jetbrains.kotlin.config.Services
 import org.jetbrains.kotlin.incremental.DifferenceCalculatorForPackageFacade.Companion.getVisibleTypeAliasFqNames
 import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
 import org.jetbrains.kotlin.incremental.components.ICFileMappingTracker
+import org.jetbrains.kotlin.incremental.components.ICJvmCommonMetadataTracker
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.incremental.components.SubtypeTracker
 import org.jetbrains.kotlin.incremental.javaInterop.JavaInteropCoordinator
@@ -57,8 +60,9 @@ abstract class IncrementalJvmCompilerRunnerBase(
     outputDirs: Collection<File>?,
     kotlinSourceFilesExtensions: Set<String>,
     icFeatures: IncrementalCompilationFeatures,
-    private val generateCompilerRefIndex: Boolean = false,
+    private val compilerRefIndexDirectory: File? = null,
     compilationCanceledStatus: CompilationCanceledStatus? = null,
+    pluginsLoader: PluginsLoader?,
 ) : IncrementalCompilerRunner<K2JVMCompilerArguments, IncrementalJvmCachesManager>(
     workingDir,
     "caches-jvm",
@@ -68,17 +72,17 @@ abstract class IncrementalJvmCompilerRunnerBase(
     kotlinSourceFilesExtensions = kotlinSourceFilesExtensions,
     icFeatures = icFeatures,
     compilationCanceledStatus = compilationCanceledStatus,
+    pluginsLoader = pluginsLoader,
 ) {
     override val shouldStoreFullFqNamesInLookupCache = true
 
     protected val messageCollector = MessageCollectorImpl()
     internal val javaInteropCoordinator = JavaInteropCoordinator.getImplementation(
-        icFeatures.usePreciseJavaTracking,
         reporter,
         messageCollector,
     )
 
-    private val subtypeTracker = if (generateCompilerRefIndex) SubtypeTrackerImpl() else null
+    private val subtypeTracker = if (compilerRefIndexDirectory != null) SubtypeTrackerImpl() else null
 
     override fun createCacheManager(icContext: IncrementalCompilationContext, args: K2JVMCompilerArguments) =
         IncrementalJvmCachesManager(
@@ -92,11 +96,11 @@ abstract class IncrementalJvmCompilerRunnerBase(
         services: Services,
         caches: IncrementalJvmCachesManager,
         generatedFiles: List<GeneratedFile>,
-        changesCollector: ChangesCollector
+        changesCollector: ChangesCollector,
     ) {
         updateIncrementalCache(
             generatedFiles, caches.platformCache, changesCollector,
-            services[JavaClassesTracker::class.java] as? JavaClassesTrackerImpl
+            services[ICJvmCommonMetadataTracker::class.java] as? ICJvmCommonMetadataTrackerImpl
         )
     }
 
@@ -109,8 +113,11 @@ abstract class IncrementalJvmCompilerRunnerBase(
     override fun additionalDirtyFiles(
         caches: IncrementalJvmCachesManager,
         generatedFiles: List<GeneratedFile>,
-        services: Services
-    ): Iterable<File> {
+        services: Services,
+        dirtySources: Set<File>,
+    ): List<File> {
+        if (generatedFiles.isEmpty()) return emptyList()
+
         val cache = caches.platformCache
         val result = HashSet<File>()
 
@@ -151,7 +158,11 @@ abstract class IncrementalJvmCompilerRunnerBase(
             }
         }
 
-        return result
+        result.addAll(cache.getObsoleteMultifileClasses().flatMap(::partsByFacadeName))
+
+        val filteredResult = result.filter { it !in dirtySources }
+        reporter.reportMarkDirty(filteredResult, ScopeExpansionReason.SHARED_CLASS_NAME)
+        return filteredResult
     }
 
     override fun runWithNoDirtyKotlinSources(caches: IncrementalJvmCachesManager): Boolean =
@@ -182,6 +193,8 @@ abstract class IncrementalJvmCompilerRunnerBase(
             val targetToCache = mapOf(targetId to caches.platformCache)
             val incrementalComponents = IncrementalCompilationComponentsImpl(targetToCache)
             register(IncrementalCompilationComponents::class.java, incrementalComponents)
+            register(ICJvmCommonMetadataTracker::class.java, ICJvmCommonMetadataTrackerImpl())
+            @OptIn(K1Deprecation::class)
             javaInteropCoordinator.makeJavaClassesTracker(caches.platformCache)?.let {
                 register(JavaClassesTracker::class.java, it)
             }
@@ -190,6 +203,15 @@ abstract class IncrementalJvmCompilerRunnerBase(
     override fun performWorkBeforeCompilation(compilationMode: CompilationMode, args: K2JVMCompilerArguments) {
         super.performWorkBeforeCompilation(compilationMode, args)
 
+        /*
+         * This is required because JVM dependencies are handled using the IJ infrastructure in the compiler, which creates
+         * one big index over all possible binaries and then allows to restrict it for callers using search scopes.
+         *
+         * So in IC one big `JvmPackagePartProvider` is created for both regular classpath and incremental classpath,
+         * which is then split into two symbol providers.
+         *
+         * When we stop using IJ for JVM dependencies traversal, we can remove this hack (OSIP-191).
+         */
         if (compilationMode is CompilationMode.Incremental) {
             args.classpathAsList = listOf(args.destinationAsFile) + args.classpathAsList
         }
@@ -202,7 +224,7 @@ abstract class IncrementalJvmCompilerRunnerBase(
         services: Services,
         messageCollector: MessageCollector,
         allSources: List<File>,
-        isIncremental: Boolean
+        isIncremental: Boolean,
     ): Pair<ExitCode, Collection<File>> {
         val compiler = K2JVMCompiler()
         val freeArgsBackup = args.freeArgs.toList()
@@ -221,12 +243,12 @@ abstract class IncrementalJvmCompilerRunnerBase(
         compilationMode: CompilationMode,
     ) {
         super.generateCompilerRefIndexIfNeeded(services, sourceFilesPathConverter, compilationMode)
-        if (!generateCompilerRefIndex) return
+        val criDir = compilerRefIndexDirectory ?: return
 
         reporter.info { "Generating Compiler Reference Index..." }
 
         val serializer = CriDataSerializerImpl()
-        val criDir = File(workingDir, DATA_PATH).apply { mkdirs() }
+        criDir.mkdirs()
 
         val lookupsFile = File(criDir, LOOKUPS_FILENAME)
         val fileIdsToPathsFile = File(criDir, FILE_IDS_TO_PATHS_FILENAME)

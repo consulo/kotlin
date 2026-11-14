@@ -2,9 +2,9 @@ plugins {
     base
 }
 
-val artifactsVersion: String by project
-val artifactsRepo: String by project
-val kotlin_libs: String by project
+val artifactsVersion = project.property("artifactsVersion") as String
+val artifactsRepo = project.property("artifactsRepo") as String
+val kotlin_libs = project.property("kotlin_libs") as String
 
 repositories {
     maven(url = artifactsRepo)
@@ -25,7 +25,7 @@ val modules = listOf(
 )
 
 
-val extractLibs by tasks.registering(Task::class)
+val extractLibs = tasks.register("extractLibs", Task::class)
 
 
 modules.forEach { module ->
@@ -64,7 +64,7 @@ dependencies {
         isTransitive = false
     }
 }
-val extractStdlibCommonMain by tasks.registering(org.gradle.jvm.tasks.Jar::class) {
+val extractStdlibCommonMain = tasks.register<org.gradle.jvm.tasks.Jar>("extractStdlibCommonMain") {
     archiveBaseName.set("kotlin-stdlib-common")
     archiveExtension.set("klib")
     destinationDirectory.set(file("$kotlin_libs/kotlin-stdlib-common"))

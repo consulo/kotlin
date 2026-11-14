@@ -10,11 +10,13 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.*
 import org.gradle.internal.hash.FileHasher
 import org.gradle.work.DisableCachingByDefault
+import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.gradle.logging.kotlinInfo
 import org.jetbrains.kotlin.gradle.plugin.statistics.UrlRepoConfigurationMetrics
 import org.jetbrains.kotlin.gradle.plugin.statistics.UsesBuildFusService
 import org.jetbrains.kotlin.gradle.targets.js.internal.calculateDirHash
 import org.jetbrains.kotlin.gradle.targets.js.internal.toHex
+import org.jetbrains.kotlin.gradle.targets.web.ObsoleteJsAndWasmToolingProvisioning
 import org.jetbrains.kotlin.gradle.utils.getFile
 import org.jetbrains.kotlin.gradle.utils.mapOrNull
 import java.io.File
@@ -22,6 +24,7 @@ import java.net.URI
 import javax.inject.Inject
 
 @DisableCachingByDefault
+@ObsoleteJsAndWasmToolingProvisioning
 abstract class AbstractSetupTask<Env : AbstractEnv, Spec : EnvSpec<Env>>(
     spec: Spec,
 ) : DefaultTask(), UsesBuildFusService {
@@ -89,6 +92,7 @@ abstract class AbstractSetupTask<Env : AbstractEnv, Spec : EnvSpec<Env>>(
     internal var configuration: Provider<Configuration>? = null
 
     @get:Classpath
+    @get:NormalizeLineEndings
     @get:Optional
     val dist: File? by lazy {
         if (!shouldDownload.get()) return@lazy null
@@ -112,7 +116,6 @@ abstract class AbstractSetupTask<Env : AbstractEnv, Spec : EnvSpec<Env>>(
         }
     }
 
-    @Suppress("unused")
     @TaskAction
     fun exec() {
         if (!shouldDownload.get()) return
@@ -131,7 +134,7 @@ abstract class AbstractSetupTask<Env : AbstractEnv, Spec : EnvSpec<Env>>(
     private fun <T> withUrlRepo(action: () -> T): T {
         val repo = downloadBaseUrlProvider.orNull?.let {
             project.repositories.ivy { repo ->
-                repo.name = "Distributions at ${it}"
+                repo.name = "Distributions at $it"
                 repo.url = URI(it)
 
                 repo.isAllowInsecureProtocol = allowInsecureProtocol.get()
@@ -156,22 +159,15 @@ abstract class AbstractSetupTask<Env : AbstractEnv, Spec : EnvSpec<Env>>(
         fileHasher: FileHasher,
         extract: (File) -> Unit,
     ) {
-        var distHash: String? = null
-        val upToDate = destinationHashFile.let { file ->
-            if (file.exists()) {
-                file.useLines { seq ->
-                    val list = seq.first().split(" ")
-                    list.size == 3 &&
-                            list[0] == CACHE_VERSION &&
-                            list[1] == fileHasher.calculateDirHash(destination) &&
-                            list[2] == fileHasher.hash(dist).toByteArray().toHex().also { distHash = it }
-                }
-            } else false
-        }
+        val upToDate = isUpToDate(
+            destinationHashFile = destinationHashFile,
+            destination = destination,
+            dist = dist,
+        )
 
-        if (upToDate) {
-            return
-        }
+        if (upToDate) return
+
+        logger.info("[$path] Extracting distribution ${dist.name} to $destination")
 
         if (destination.isDirectory) {
             destination.deleteRecursively()
@@ -184,12 +180,55 @@ abstract class AbstractSetupTask<Env : AbstractEnv, Spec : EnvSpec<Env>>(
                     " " +
                     fileHasher.calculateDirHash(destination)!! +
                     " " +
-                    (distHash ?: fileHasher.hash(dist).toByteArray().toHex())
+                    fileHasher.hash(dist).toByteArray().toHex()
         )
+    }
+
+    private fun isUpToDate(
+        destinationHashFile: File,
+        destination: File,
+        dist: File,
+    ): Boolean {
+        fun notUpToDate(reason: String): Boolean {
+            logger.info("[$path] ${destination.name} Not up-to-date: $reason")
+            return false
+        }
+
+        if (!destinationHashFile.exists()) {
+            return notUpToDate("no hash file $destinationHashFile")
+        }
+
+        val cacheData = destinationHashFile.useLines { seq ->
+            seq.firstOrNull().orEmpty().split(" ")
+        }
+
+        if (cacheData.size != 3) {
+            return notUpToDate("invalid format ${destinationHashFile.readText()}")
+        }
+
+        if (cacheData[0] != CACHE_VERSION) {
+            return notUpToDate("cache version mismatch ${cacheData[0]} != $CACHE_VERSION")
+        }
+
+        val expectedDestDirHash = cacheData[1]
+        val currentDestDirHash = fileHasher.calculateDirHash(destination)
+        if (expectedDestDirHash != currentDestDirHash) {
+            return notUpToDate("destination hash mismatch expected:$expectedDestDirHash != current:$currentDestDirHash")
+        }
+
+        val expectedDistHash = cacheData[2]
+        val currentDistHash = fileHasher.hash(dist).toByteArray().toHex()
+        if (expectedDistHash != currentDistHash) {
+            return notUpToDate("distribution hash mismatch expected:$expectedDistHash != current:$currentDistHash")
+        }
+
+        logger.info("[$path] Distribution is up-to-date at $destination")
+        return true
     }
 
     abstract fun extract(archive: File)
 
+    @ObsoleteJsAndWasmToolingProvisioning
     companion object {
         const val CACHE_VERSION = "2"
     }

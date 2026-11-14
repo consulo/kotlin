@@ -1,19 +1,17 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.fir.components
 
-import org.jetbrains.kotlin.analysis.api.components.KaCompletionCandidateChecker
 import org.jetbrains.kotlin.analysis.api.components.KaCompletionExtensionCandidateChecker
 import org.jetbrains.kotlin.analysis.api.components.KaExtensionApplicabilityResult
 import org.jetbrains.kotlin.analysis.api.components.KaExtensionApplicabilityResult.*
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
 import org.jetbrains.kotlin.analysis.api.fir.symbols.KaFirSymbol
 import org.jetbrains.kotlin.analysis.api.fir.utils.createSubstitutorFromTypeArguments
-import org.jetbrains.kotlin.analysis.api.impl.base.components.KaBaseSessionComponent
-import org.jetbrains.kotlin.analysis.api.impl.base.components.withPsiValidityAssertion
+import org.jetbrains.kotlin.analysis.api.internals.KaInternalsCompletionCandidateChecker
 import org.jetbrains.kotlin.analysis.api.lifetime.KaLifetimeToken
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
@@ -33,7 +31,7 @@ import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.expressions.FirSafeCallExpression
 import org.jetbrains.kotlin.fir.expressions.builder.buildExpressionStub
-import org.jetbrains.kotlin.fir.resolve.DoubleColonLHS
+import org.jetbrains.kotlin.fir.resolve.CallableReferenceLhsAsType
 import org.jetbrains.kotlin.fir.resolve.calls.ImplicitReceiverValue
 import org.jetbrains.kotlin.fir.resolve.calls.candidate.FirErrorReferenceWithCandidate
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
@@ -47,7 +45,7 @@ import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 internal class KaFirCompletionCandidateChecker(
     override val analysisSessionProvider: () -> KaFirSession
-) : KaBaseSessionComponent<KaFirSession>(), KaCompletionCandidateChecker, KaFirSessionComponent {
+) : KaFirSessionComponent(), KaInternalsCompletionCandidateChecker {
     override fun createExtensionCandidateChecker(
         originalFile: KtFile,
         nameExpression: KtSimpleNameExpression,
@@ -113,7 +111,7 @@ private class KaFirCompletionExtensionCandidateChecker(
                 explicitReceiver = explicitReceiverInfo?.receiverExpression,
                 allowUnsafeCall = true,
                 allowUnstableSmartCast = true,
-                callableReferenceLHS = explicitReceiverInfo?.callableReferenceLHS
+                callableReferenceLhsAsType = explicitReceiverInfo?.callableReferenceLhsAsType
             )
 
             val firResolvedCall = candidateResolver.resolveSingleCandidate(resolutionParameters) ?: return null
@@ -174,14 +172,14 @@ private class KaFirCompletionExtensionCandidateChecker(
 
         val receiverExpressionFir = receiverExpression.getOrBuildFirOfType<FirExpression>(resolutionFacade)
 
-        val callableReferenceLHS =
+        val callableReferenceLhsAsType =
             if (containingCallableReference != null) {
                 val callableReferenceFir = containingCallableReference.getOrBuildFirOfType<FirCallableReferenceAccess>(resolutionFacade)
                 val resolver = SingleCandidateResolver(firCallSiteSession, firOriginalFile)
                 val components = resolver.bodyResolveComponents
                 val context = components.context
-                context.withFile(firOriginalFile, components) {
-                    components.doubleColonExpressionResolver.resolveDoubleColonLHS(callableReferenceFir)
+                context.withFile(firOriginalFile, holder = components) {
+                    components.callableReferenceLhsResolver.resolveLhsAsType(callableReferenceFir)
                 }
             } else {
                 null
@@ -190,7 +188,7 @@ private class KaFirCompletionExtensionCandidateChecker(
         val refinedReceiverExpression =
             if (containingCallableReference != null &&
                 receiverExpressionFir is FirResolvedQualifier &&
-                callableReferenceLHS is DoubleColonLHS.Type
+                callableReferenceLhsAsType != null
             ) {
                 /**
                  * If it's a callable reference completion and the LHS is a regular name reference,
@@ -208,18 +206,18 @@ private class KaFirCompletionExtensionCandidateChecker(
                  */
                 buildExpressionStub {
                     source = receiverExpressionFir.source
-                    coneTypeOrNull = callableReferenceLHS.type
+                    coneTypeOrNull = callableReferenceLhsAsType.type
                 }
             } else {
                 receiverExpressionFir
             }
 
-        return ExplicitReceiverInfo(refinedReceiverExpression, callableReferenceLHS)
+        return ExplicitReceiverInfo(refinedReceiverExpression, callableReferenceLhsAsType)
     }
 
     private data class ExplicitReceiverInfo(
         val receiverExpression: FirExpression?,
-        val callableReferenceLHS: DoubleColonLHS? = null
+        val callableReferenceLhsAsType: CallableReferenceLhsAsType? = null
     )
 }
 

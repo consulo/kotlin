@@ -1,11 +1,10 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // MODULE: m1-common
 // FILE: common.kt
 
 import kotlin.reflect.KClass
 
 expect annotation class Anno(
-    // CLASS_LITERAL_LHS_NOT_A_CLASS is reported because we have multiple platforms one of which isn't JVM.
     val ka: KClass<*> = Array<Array<Array<Int>>>::class,
 )
 

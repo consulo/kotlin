@@ -10,11 +10,14 @@ import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.testing.*
+import org.jetbrains.kotlin.gradle.util.computeTransformedLibraryVersionChecksum
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import kotlin.test.assertEquals
 
 @MppGradlePluginTests
 @DisplayName("Test the GMT runtime behavior")
+@MustRunOnChangesInGradle
 class KmpResolutionIT : KGPBaseTest() {
 
     /**
@@ -1359,7 +1362,7 @@ class KmpResolutionIT : KGPBaseTest() {
             js()
             jvm()
             iosArm64()
-            @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+            // fixme: KT-89587 Clean up tests after iosX64 target deprecation
             iosX64()
             linuxArm64()
             linuxX64()
@@ -1370,7 +1373,11 @@ class KmpResolutionIT : KGPBaseTest() {
         }
 
 
-        val transitiveProducer = project("empty", gradleVersion) {
+        val transitiveProducer = project(
+            "empty",
+            gradleVersion,
+            buildOptions = defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
+        ) {
             settingsBuildScriptInjection {
                 settings.rootProject.name = "transitive"
             }
@@ -1400,7 +1407,11 @@ class KmpResolutionIT : KGPBaseTest() {
             }
         }.publish(publisherConfiguration = PublisherConfiguration(group = "foo"))
 
-        return project("empty", gradleVersion) {
+        return project(
+            "empty",
+            gradleVersion,
+            buildOptions = defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
+        ) {
             settingsBuildScriptInjection {
                 settings.rootProject.name = "consumer"
             }
@@ -1410,6 +1421,7 @@ class KmpResolutionIT : KGPBaseTest() {
             consumerConfiguration()
             buildScriptInjection {
                 project.computeTransformedLibraryChecksum(false)
+                project.computeTransformedLibraryVersionChecksum(enable = false)
                 project.applyMultiplatform {
                     consumedTargetConfiguration()
                     sourceSets.commonMain.get().dependencies {

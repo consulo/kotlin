@@ -1,5 +1,10 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
+}
+
 description = 'Kotlin Standard Library JDK 8 extension'
 
 apply plugin: 'kotlin'
@@ -37,8 +42,8 @@ sourceSets {
 dependencies {
     moduleTestApi project(':kotlin-stdlib')
     moduleTestApi project(':kotlin-stdlib-jdk7')
-    moduleTestCompileOnly project
-    moduleTestApi RepoDependencies.kotlinTest(project, "junit")
+    moduleTestCompileOnly(project(project.path))
+    moduleTestApi RepoDependencies.kotlinTest(project, "junit5")
     moduleTestApi "org.ow2.asm:asm:9.0"
 }
 
@@ -76,7 +81,8 @@ check.dependsOn(tasks.register("moduleInfoTest", Test) {test ->
     test.group = "verification"
     test.testClassesDirs = sourceSets.moduleTest.output.classesDirs
     test.classpath = files(sourceSets.moduleTest.runtimeClasspath, tasks.jar)
-    test.javaLauncher.set(JvmToolchain.getToolchainLauncherFor(project, JdkMajorVersion.JDK_9_0))
+    test.javaLauncher.set(JvmToolchain.getToolchainLauncherFor(project, JdkMajorVersion.JDK_11_0))
+    test.useJUnitPlatform()
     doFirst {
         test.systemProperty("stdlibJars", test.classpath.filter { it.name.contains('kotlin-stdlib') }.join(File.pathSeparator))
     }

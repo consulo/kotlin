@@ -7,11 +7,17 @@ package org.jetbrains.kotlin.test
 
 import org.jetbrains.kotlin.test.NonGroupingTestRunner.Companion.shouldRun
 import org.jetbrains.kotlin.test.model.*
+import org.jetbrains.kotlin.test.services.TestPhase
 
 sealed class TestStep<InputArtifact, OutputArtifact>
         where InputArtifact : ResultingArtifact<InputArtifact>,
               OutputArtifact : ResultingArtifact<OutputArtifact> {
     abstract val inputArtifactKind: TestArtifactKind<InputArtifact>
+
+    /**
+     * The kind of the artifact produced by this step, or `null` if the step produces nothing (i.e. it's a handlers step).
+     */
+    abstract val outputArtifactKind: TestArtifactKind<*>?
 
     sealed interface FacadeStep<InputArtifact, OutputArtifact>
             where InputArtifact : ResultingArtifact<InputArtifact>,
@@ -28,10 +34,6 @@ sealed class TestStep<InputArtifact, OutputArtifact>
             where InputArtifact : ResultingArtifact<InputArtifact>,
                   OutputArtifact : ResultingArtifact<OutputArtifact> {
 
-        open fun shouldProcessModule(module: TestModule, inputArtifact: ResultingArtifact<*>): Boolean {
-            return inputArtifact.kind == inputArtifactKind
-        }
-
         abstract fun processModule(
             module: TestModule,
             inputArtifact: InputArtifact,
@@ -46,9 +48,8 @@ sealed class TestStep<InputArtifact, OutputArtifact>
             override val inputArtifactKind: TestArtifactKind<InputArtifact>
                 get() = facade.inputKind
 
-            override fun shouldProcessModule(module: TestModule, inputArtifact: ResultingArtifact<*>): Boolean {
-                return super.shouldProcessModule(module, inputArtifact) && facade.shouldTransform(module)
-            }
+            override val outputArtifactKind: TestArtifactKind<OutputArtifact>
+                get() = facade.outputKind
 
             override fun processModule(
                 module: TestModule,
@@ -71,16 +72,19 @@ sealed class TestStep<InputArtifact, OutputArtifact>
 
         class HandlersStep<InputArtifact : ResultingArtifact<InputArtifact>>(
             override val inputArtifactKind: TestArtifactKind<InputArtifact>,
-            override val handlers: List<AnalysisHandler<InputArtifact>>
+            override val handlers: List<AnalysisHandler<InputArtifact>>,
+            val stepPhase: TestPhase?,
         ) : NonGroupingStep<InputArtifact, Nothing>(), TestStep.HandlersStep<InputArtifact> {
             init {
                 for (handler in handlers) {
-                    require(handler.artifactKind == inputArtifactKind) {
+                    checkTestInfrastructure(handler.artifactKind == inputArtifactKind) {
                         "Artifact kind mismatch. Artifact kind of each handler must match input artifact kind ($inputArtifactKind). " +
                                 "In handler $handler artifact kind is ${handler.artifactKind}"
                     }
                 }
             }
+
+            override val outputArtifactKind: TestArtifactKind<*>? get() = null
 
             override fun processModule(
                 module: TestModule,
@@ -94,7 +98,7 @@ sealed class TestStep<InputArtifact, OutputArtifact>
                         try {
                             outputHandler.processModule(module, inputArtifact)
                         } catch (e: Throwable) {
-                            exceptions += WrappedException.FromHandler(e, module, outputHandler)
+                            exceptions += WrappedException.FromHandler(e, module, outputHandler, stepPhase)
                             if (outputHandler.failureDisablesNextSteps) {
                                 shouldRunNextSteps = false
                             }
@@ -110,20 +114,22 @@ sealed class TestStep<InputArtifact, OutputArtifact>
         }
     }
 
-    sealed class GroupingPhaseStep<InputArtifact, OutputArtifact> : TestStep<InputArtifact, OutputArtifact>()
+    sealed class GroupingStageStep<InputArtifact, OutputArtifact> : TestStep<InputArtifact, OutputArtifact>()
             where InputArtifact : ResultingArtifact<InputArtifact>,
                   OutputArtifact : ResultingArtifact<OutputArtifact> {
 
         abstract fun process(inputArtifact: InputArtifact, thereWereExceptionsOnPreviousSteps: Boolean): StepResult<out OutputArtifact>
 
         class FacadeStep<InputArtifact, OutputArtifact>(
-            override val facade: AbstractGroupingPhaseTestFacade<InputArtifact, OutputArtifact>,
-        ) : GroupingPhaseStep<InputArtifact, OutputArtifact>(), TestStep.FacadeStep<InputArtifact, OutputArtifact>
+            override val facade: AbstractGroupingStageTestFacade<InputArtifact, OutputArtifact>,
+        ) : GroupingStageStep<InputArtifact, OutputArtifact>(), TestStep.FacadeStep<InputArtifact, OutputArtifact>
                 where InputArtifact : ResultingArtifact<InputArtifact>,
                       OutputArtifact : ResultingArtifact<OutputArtifact> {
             override val inputArtifactKind: TestArtifactKind<InputArtifact>
                 get() = facade.inputKind
 
+            override val outputArtifactKind: TestArtifactKind<OutputArtifact>
+                get() = facade.outputKind
 
             override fun process(
                 inputArtifact: InputArtifact,
@@ -144,16 +150,18 @@ sealed class TestStep<InputArtifact, OutputArtifact>
 
         class HandlersStep<InputArtifact : ResultingArtifact<InputArtifact>>(
             override val inputArtifactKind: TestArtifactKind<InputArtifact>,
-            override val handlers: List<GroupingPhaseHandler<InputArtifact>>
-        ) : GroupingPhaseStep<InputArtifact, Nothing>(), TestStep.HandlersStep<InputArtifact> {
+            override val handlers: List<GroupingStageHandler<InputArtifact>>
+        ) : GroupingStageStep<InputArtifact, Nothing>(), TestStep.HandlersStep<InputArtifact> {
             init {
                 for (handler in handlers) {
-                    require(handler.artifactKind == inputArtifactKind) {
+                    checkTestInfrastructure(handler.artifactKind == inputArtifactKind) {
                         "Artifact kind mismatch. Artifact kind of each handler must match input artifact kind ($inputArtifactKind). " +
                                 "In handler $handler artifact kind is ${handler.artifactKind}"
                     }
                 }
             }
+
+            override val outputArtifactKind: TestArtifactKind<*>? get() = null
 
             override fun process(
                 inputArtifact: InputArtifact,
@@ -196,5 +204,3 @@ sealed class TestStep<InputArtifact, OutputArtifact>
         data object NoArtifactFromFacade : StepResult<Nothing>()
     }
 }
-
-

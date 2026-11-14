@@ -16,9 +16,7 @@
 
 package org.jetbrains.kotlin.kapt.stubs
 
-import com.sun.tools.javac.tree.JCTree
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
-import org.jetbrains.kotlin.backend.jvm.extensions.JvmIrDeclarationOrigin
 import org.jetbrains.kotlin.backend.jvm.ir.fileParent
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.*
@@ -31,7 +29,6 @@ import org.jetbrains.kotlin.kapt.KaptContextForStubGeneration
 import org.jetbrains.kotlin.kapt.base.stubs.KaptStubLineInformation
 import org.jetbrains.kotlin.kapt.base.stubs.KotlinPosition
 import org.jetbrains.kotlin.kapt.base.stubs.LineInfoMap
-import org.jetbrains.kotlin.kapt.base.stubs.getJavacSignature
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.org.objectweb.asm.tree.ClassNode
@@ -51,7 +48,7 @@ class KaptLineMappingCollector(private val kaptContext: KaptContextForStubGenera
         oos.writeInt(KaptStubLineInformation.METADATA_VERSION)
 
         oos.writeInt(lineInfo.size)
-        for ((fqName, kotlinPosition) in lineInfo) {
+        for ([fqName, kotlinPosition] in lineInfo) {
             oos.writeUTF(fqName)
             oos.writeUTF(kotlinPosition.path)
             oos.writeBoolean(kotlinPosition.isRelativePath)
@@ -59,7 +56,7 @@ class KaptLineMappingCollector(private val kaptContext: KaptContextForStubGenera
         }
 
         oos.writeInt(signatureInfo.size)
-        for ((javacSignature, methodDesc) in signatureInfo) {
+        for ([javacSignature, methodDesc] in signatureInfo) {
             oos.writeUTF(javacSignature)
             oos.writeUTF(methodDesc)
         }
@@ -80,8 +77,8 @@ class KaptLineMappingCollector(private val kaptContext: KaptContextForStubGenera
         register(field, clazz.name + "#" + field.name)
     }
 
-    fun registerSignature(declaration: JCTree.JCMethodDecl, method: MethodNode) {
-        signatureInfo[declaration.getJavacSignature()] = method.name + method.desc
+    fun registerSignature(signature: String, method: MethodNode) {
+        signatureInfo[signature] = method.name + method.desc
     }
 
     fun getPosition(clazz: ClassNode): KotlinPosition? = lineInfo[clazz.name]
@@ -89,8 +86,7 @@ class KaptLineMappingCollector(private val kaptContext: KaptContextForStubGenera
     fun getPosition(clazz: ClassNode, field: FieldNode): KotlinPosition? = lineInfo[clazz.name + "#" + field.name]
 
     private fun register(asmNode: Any, fqName: String) {
-        val origin = kaptContext.origins[asmNode]
-        val ir = (origin as? JvmIrDeclarationOrigin)?.declaration ?: return
+        val ir = kaptContext.origins[asmNode]?.declaration ?: return
         val offset = computeOffset(ir)
 
         lineInfo[fqName] = KotlinPosition(ir.fileParent.fileEntry.name, isRelativePath = false, offset)

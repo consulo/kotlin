@@ -13,10 +13,11 @@ import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.ScriptCompilationConfiguration
 import kotlin.script.experimental.api.ScriptDiagnostic
 import kotlin.script.experimental.host.ScriptingHostConfiguration
-import kotlin.script.templates.ScriptTemplateDefinition
 
 const val SCRIPT_DEFINITION_MARKERS_PATH = "META-INF/kotlin/script/templates/"
 const val SCRIPT_DEFINITION_MARKERS_EXTENSION_WITH_DOT = ".classname"
+
+private const val LEGACY_SCRIPT_TEMPLATE_DEFINITION_ANNOTATION_NAME = "ScriptTemplateDefinition"
 
 typealias MessageReporter = (ScriptDiagnostic.Severity, String) -> Unit
 
@@ -63,15 +64,21 @@ private fun scriptTemplatesDiscoverySequence(
             try {
                 when {
                     dep.isFile && dep.extension == "jar" -> { // checking for extension is the compiler current behaviour, so the same logic is implemented here
-                        JarFile(dep).use { jar ->
-                            if (jar.getJarEntry(SCRIPT_DEFINITION_MARKERS_PATH) != null) {
+                        // the jar is closed before yielding the definitions, otherwise it would be kept open
+                        // for as long as the consumer holds the iterator, and leaked completely if the sequence
+                        // is abandoned before the exhaustion
+                        val definitions = JarFile(dep).use { jar ->
+                            if (jar.getJarEntry(SCRIPT_DEFINITION_MARKERS_PATH) == null) emptyList()
+                            else {
                                 val definitionNames = jar.entries().asSequence().mapNotNull {
                                     if (it.isDirectory || !it.name.startsWith(SCRIPT_DEFINITION_MARKERS_PATH)) null
                                     else it.name.removePrefix(SCRIPT_DEFINITION_MARKERS_PATH).removeSuffix(
                                         SCRIPT_DEFINITION_MARKERS_EXTENSION_WITH_DOT
                                     )
                                 }.toList()
-                                val (loadedDefinitions, notFoundClasses) =
+                                (
+                                    val loadedDefinitions = loaded, val notFoundClasses = notFound
+                                ) =
                                     definitionNames.partitionLoadJarDefinitions(
                                         jar,
                                         classpathWithLoader,
@@ -84,21 +91,23 @@ private fun scriptTemplatesDiscoverySequence(
                                         "Configure scripting: unable to find script definitions [${notFoundClasses.joinToString(", ")}]"
                                     )
                                 }
-                                loadedDefinitions.forEach {
-                                    yield(it)
-                                }
+                                loadedDefinitions
                             }
                         }
+                        yieldAll(definitions)
                     }
                     dep.isDirectory -> {
                         defferedDirDependencies.add(dep) // there is no way to know that the dependency is fully "used" so we add it to the list anyway
                         val discoveryMarkers = File(dep, SCRIPT_DEFINITION_MARKERS_PATH).listFiles()
                         if (discoveryMarkers?.isEmpty() == false) {
-                            val (foundDefinitionClasses, notFoundDefinitions) = discoveryMarkers.map {
-                                it.name.removeSuffix(
-                                    SCRIPT_DEFINITION_MARKERS_EXTENSION_WITH_DOT
-                                )
-                            }.partitionLoadDirDefinitions(dep, classpathWithLoader, hostConfiguration, messageReporter)
+                            (
+                                val foundDefinitionClasses = loaded, val notFoundDefinitions = notFound
+                            ) =
+                                discoveryMarkers.map {
+                                    it.name.removeSuffix(
+                                        SCRIPT_DEFINITION_MARKERS_EXTENSION_WITH_DOT
+                                    )
+                                }.partitionLoadDirDefinitions(dep, classpathWithLoader, hostConfiguration, messageReporter)
                             foundDefinitionClasses.forEach {
                                 yield(it)
                             }
@@ -120,8 +129,12 @@ private fun scriptTemplatesDiscoverySequence(
         for (dep in defferedDirDependencies) {
             if (remainingDefinitionCandidates.isEmpty()) break
             try {
-                val (foundDefinitionClasses, notFoundDefinitions) =
-                    remainingDefinitionCandidates.partitionLoadDirDefinitions(dep, classpathWithLoader, hostConfiguration, messageReporter)
+                (val foundDefinitionClasses = loaded, val notFoundDefinitions = notFound) = remainingDefinitionCandidates.partitionLoadDirDefinitions(
+                    dep,
+                    classpathWithLoader,
+                    hostConfiguration,
+                    messageReporter
+                )
                 foundDefinitionClasses.forEach {
                     yield(it)
                 }
@@ -152,7 +165,7 @@ fun loadScriptTemplatesFromClasspath(
     if (scriptTemplates.isEmpty()) emptySequence()
     else sequence {
         // trying the direct classloading from baseClassloader first, since this is the most performant variant
-        val (initialLoadedDefinitions, initialNotFoundTemplates) = scriptTemplates.partitionMapNotNull {
+        val [initialLoadedDefinitions, initialNotFoundTemplates] = scriptTemplates.partitionMapNotNull {
             loadScriptDefinition(
                 baseClassLoader,
                 it,
@@ -172,24 +185,27 @@ fun loadScriptTemplatesFromClasspath(
             if (remainingTemplates.isEmpty()) break
 
             try {
-                val (loadedDefinitions, notFoundTemplates) = when {
-                    dep.isFile && dep.extension == "jar" -> { // checking for extension is the compiler current behaviour, so the same logic is implemented here
-                        JarFile(dep).use { jar ->
-                            remainingTemplates.partitionLoadJarDefinitions(jar, classpathWithLoader, hostConfiguration, messageReporter)
+                (
+                    val loadedDefinitions = loaded, val notFoundTemplates = notFound
+                ) =
+                    when {
+                        dep.isFile && dep.extension == "jar" -> { // checking for extension is the compiler current behaviour, so the same logic is implemented here
+                            JarFile(dep).use { jar ->
+                                remainingTemplates.partitionLoadJarDefinitions(jar, classpathWithLoader, hostConfiguration, messageReporter)
+                            }
+                        }
+                        dep.isDirectory -> {
+                            remainingTemplates.partitionLoadDirDefinitions(dep, classpathWithLoader, hostConfiguration, messageReporter)
+                        }
+                        else -> {
+                            // assuming that invalid classpath entries will be reported elsewhere anyway, so do not spam user with additional warnings here
+                            messageReporter(ScriptDiagnostic.Severity.DEBUG, "Configure scripting: Unknown classpath entry $dep")
+                            DefinitionsLoadPartitionResult(
+                                listOf(),
+                                remainingTemplates
+                            )
                         }
                     }
-                    dep.isDirectory -> {
-                        remainingTemplates.partitionLoadDirDefinitions(dep, classpathWithLoader, hostConfiguration, messageReporter)
-                    }
-                    else -> {
-                        // assuming that invalid classpath entries will be reported elsewhere anyway, so do not spam user with additional warnings here
-                        messageReporter(ScriptDiagnostic.Severity.DEBUG, "Configure scripting: Unknown classpath entry $dep")
-                        DefinitionsLoadPartitionResult(
-                            listOf(),
-                            remainingTemplates
-                        )
-                    }
-                }
                 if (loadedDefinitions.isNotEmpty()) {
                     loadedDefinitions.forEach {
                         yield(it)
@@ -252,7 +268,9 @@ private fun List<String>.partitionLoadJarDefinitions(
     hostConfiguration: ScriptingHostConfiguration,
     messageReporter: MessageReporter,
 ): DefinitionsLoadPartitionResult = partitionLoadDefinitions(classpathWithLoader, hostConfiguration, messageReporter) { definitionName ->
-    jar.getJarEntry("${definitionName.replace('.', '/')}.class")?.let { jar.getInputStream(it).readBytes() }
+    jar.getJarEntry("${definitionName.replace('.', '/')}.class")?.let { entry ->
+        jar.getInputStream(entry).use { it.readBytes() }
+    }
 }
 
 private fun List<String>.partitionLoadDirDefinitions(
@@ -272,6 +290,7 @@ private fun loadScriptDefinition(
     messageReporter: MessageReporter,
 ): ScriptDefinition? {
     val anns = loadAnnotationsFromClass(templateClassBytes)
+    var legacyTemplateSkipped = false
     for (ann in anns) {
         var def: ScriptDefinition? = null
         if (ann.name == KotlinScript::class.java.simpleName) {
@@ -283,15 +302,20 @@ private fun loadScriptDefinition(
                 classpathWithLoader.classLoader,
                 messageReporter
             )
-        } else if (ann.name == ScriptTemplateDefinition::class.java.simpleName) {
-            val templateClass = classpathWithLoader.classLoader.loadClass(templateClassName).kotlin
-
-            @Suppress("DEPRECATION")
-            val compilationConfiguration: ScriptCompilationConfiguration =
-                ScriptCompilationConfigurationFromLegacyTemplate(
-                    hostConfiguration,
-                    templateClass
+        } else if (ann.name == LEGACY_SCRIPT_TEMPLATE_DEFINITION_ANNOTATION_NAME) {
+            val compilationConfiguration: ScriptCompilationConfiguration = try {
+                val templateClass = classpathWithLoader.classLoader.loadClass(templateClassName).kotlin
+                @Suppress("DEPRECATION")
+                ScriptCompilationConfigurationFromLegacyTemplate(hostConfiguration, templateClass)
+            } catch (e: LinkageError) {
+                // e.g. kotlin-script-runtime is absent, as in the relocated scripting part of the build tools
+                messageReporter(
+                    ScriptDiagnostic.Severity.INFO,
+                    "Configure scripting: legacy script template $templateClassName is skipped, it cannot be loaded: $e"
                 )
+                legacyTemplateSkipped = true
+                continue
+            }
 
             def = ScriptDefinition.FromConfigurations(
                 hostConfiguration,
@@ -307,10 +331,12 @@ private fun loadScriptDefinition(
             return def
         }
     }
-    messageReporter(
-        ScriptDiagnostic.Severity.WARNING,
-        "Configure scripting: $templateClassName is not marked with any known kotlin script annotation"
-    )
+    if (!legacyTemplateSkipped) {
+        messageReporter(
+            ScriptDiagnostic.Severity.WARNING,
+            "Configure scripting: $templateClassName is not marked with any known kotlin script annotation"
+        )
+    }
     return null
 }
 

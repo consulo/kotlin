@@ -1,6 +1,6 @@
 plugins {
+    id("common-configuration")
     kotlin("jvm")
-    id("project-tests-convention")
     kotlin("plugin.serialization")
 }
 
@@ -41,5 +41,5 @@ kotlin {
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5)
+    testTask()
 }

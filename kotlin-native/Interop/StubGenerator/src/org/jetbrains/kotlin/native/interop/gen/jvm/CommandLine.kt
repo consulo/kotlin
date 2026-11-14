@@ -16,14 +16,16 @@
 
 package org.jetbrains.kotlin.native.interop.tool
 
+import kotlinx.cinterop.callbacksLibName
 import kotlinx.cli.*
 import org.jetbrains.kotlin.config.KlibAbiCompatibilityLevel
 import org.jetbrains.kotlin.native.interop.gen.jvm.CCallMode
+import org.jetbrains.kotlin.native.interop.indexer.MacroNamesCollectingMode
 
 const val HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX = "headerFilterAdditionalSearchPrefix"
 const val NODEFAULTLIBS_DEPRECATED = "nodefaultlibs"
 const val NODEFAULTLIBS = "no-default-libs"
-const val NOENDORSEDLIBS = "no-endorsed-libs"
+const val NOSTDLIB = "nostdlib"
 const val PURGE_USER_LIBS = "Xpurge-user-libs"
 const val TEMP_DIR = "Xtemporary-files-dir"
 const val PROJECT_DIR = "Xproject-dir"
@@ -35,8 +37,10 @@ const val DUMP_BRIDGES = "Xdump-bridges"
 const val DISABLE_EXCEPTION_PRETTIFIER = "Xdisable-exception-prettifier"
 const val USER_SETUP_HINT = "Xuser-setup-hint"
 const val KONAN_DATA_DIR = "Xkonan-data-dir"
+const val KONAN_HOME = "Xkonan-home"
 const val CCALL_MODE = "Xccall-mode"
 const val KLIB_ABI_COMPATIBILITY_LEVEL = "Xklib-abi-compatibility-level"
+const val MACRO_COLLECTION_IMPL = "Xmacro-collection-impl"
 
 // TODO: unify camel and snake cases.
 // Possible solution is to accept both cases
@@ -51,15 +55,19 @@ open class CommonInteropArguments(val argParser: ArgParser) {
             .multiple().delimiter(",")
     val library by argParser.option(ArgType.String, shortName = "l", description = "path to the library to use for building")
             .multiple()
+    val nostdlib by argParser.option(ArgType.Boolean, NOSTDLIB,
+            description = "don't link the standard library from dist/klib automatically").default(false)
     val nodefaultlibs by argParser.option(ArgType.Boolean, NODEFAULTLIBS,
             description = "don't link the libraries from dist/klib automatically").default(false)
     val nodefaultlibsDeprecated by argParser.option(ArgType.Boolean, NODEFAULTLIBS_DEPRECATED,
             description = "don't link the libraries from dist/klib automatically",
             deprecatedWarning = "Old form of flag. Please, use $NODEFAULTLIBS.").default(false)
-    val noendorsedlibs by argParser.option(ArgType.Boolean, NOENDORSEDLIBS,
-            description = "don't link the endorsed libraries from dist automatically").default(false)
+
+    @Suppress("unused")
     val purgeUserLibs by argParser.option(ArgType.Boolean, PURGE_USER_LIBS,
-            description = "don't link unused libraries even explicitly specified").default(false)
+            description = "don't link unused libraries even explicitly specified",
+            deprecatedWarning = "The option is deprecated. It will be removed in one of the future releases.").default(false)
+
     val nopack by argParser.option(ArgType.Boolean, fullName = NOPACK,
             description = "Don't pack the produced library into a klib file").default(false)
     val tempDir by argParser.option(ArgType.String, TEMP_DIR,
@@ -74,6 +82,8 @@ open class CommonInteropArguments(val argParser: ArgParser) {
         ).multiple().delimiter(";")
     val konanDataDir by argParser.option(ArgType.String, KONAN_DATA_DIR,
             description = "Path to konan and dependencies root folder")
+    val konanHome by argParser.option(ArgType.String, KONAN_HOME,
+            description = "Path to custom konan home folder, where $callbacksLibName dynamic library is loaded from")
 }
 
 open class CInteropArguments(argParser: ArgParser =
@@ -149,6 +159,15 @@ open class CInteropArguments(argParser: ArgParser =
                     "${CCallMode.BOTH.name.lowercase()} - generate both (default)"
     ).default(CCallMode.BOTH)
 
+    val macroCollectionImpl by argParser.option(
+            ArgType.Choice<MacroNamesCollectingMode>(),
+            MACRO_COLLECTION_IMPL,
+            description = "Macro collection implementation: " +
+                    "${MacroNamesCollectingMode.LEGACY.name.lowercase()} - legacy cursor traversal (default), " +
+                    "${MacroNamesCollectingMode.LIBCLANGEXT.name.lowercase()} - libclangext cursor traversal (faster, experimental), " +
+                    "${MacroNamesCollectingMode.LIBCLANGEXT_PARALLEL.name.lowercase()} - libclangext cursor traversal with parallelization (faster, experimental)"
+    ).default(MacroNamesCollectingMode.LEGACY)
+
     val klibAbiCompatibilityLevel by argParser.option(
             type = ArgType.Choice(
                     choices = KlibAbiCompatibilityLevel.entries,
@@ -157,6 +176,9 @@ open class CInteropArguments(argParser: ArgParser =
             fullName = KLIB_ABI_COMPATIBILITY_LEVEL,
             description = "Generate a library compatible with the specified KLIB ABI version"
     ).default(KlibAbiCompatibilityLevel.LATEST_STABLE)
+
+    val headerMode by argParser.option(ArgType.Boolean, "Xheader-mode",
+            description = "Generate only metadata, skip bridge validation and bitcode compilation. Declarations with non-compilable C bridges will not be deprecated or excluded in this mode, deferring errors to link-time.").default(false)
 }
 
 internal fun warn(msg: String) {

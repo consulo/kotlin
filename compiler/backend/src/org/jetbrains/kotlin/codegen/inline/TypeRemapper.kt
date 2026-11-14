@@ -16,8 +16,6 @@
 
 package org.jetbrains.kotlin.codegen.inline
 
-import java.util.*
-
 //typeMapping data could be changed outside through method processing
 class TypeRemapper private constructor(
     private val typeMapping: MutableMap<String, String?>,
@@ -25,13 +23,13 @@ class TypeRemapper private constructor(
     private val isRootInlineLambda: Boolean = false
 ) {
     private val additionalMappings = hashMapOf<String, String>()
-    private val typeParametersMapping = hashMapOf<String, TypeParameterMapping<*>?>()
+    private val typeParametersMapping = hashMapOf<String, TypeParameterMapping?>()
 
     fun addMapping(type: String, newType: String) {
         typeMapping[type] = newType
     }
 
-    fun hasNoAdditionalMapping(type: String): Boolean {
+    fun hasPrimaryMapping(type: String): Boolean {
         return typeMapping.containsKey(type)
     }
 
@@ -50,11 +48,11 @@ class TypeRemapper private constructor(
         typeParametersMapping[name] = null
     }
 
-    fun registerTypeParameter(name: String, mapping: TypeParameterMapping<*>) {
+    fun registerTypeParameter(name: String, mapping: TypeParameterMapping) {
         typeParametersMapping[name] = mapping
     }
 
-    fun mapTypeParameter(name: String): TypeParameterMapping<*>? = when {
+    fun mapTypeParameter(name: String): TypeParameterMapping? = when {
         name in typeParametersMapping -> typeParametersMapping[name]
         !isRootInlineLambda -> parent?.mapTypeParameter(name)
         else -> null
@@ -62,7 +60,7 @@ class TypeRemapper private constructor(
 
     companion object {
         @JvmStatic
-        fun createRoot(formalTypeParameters: TypeParameterMappings<*>): TypeRemapper {
+        fun createRoot(formalTypeParameters: TypeParameterMappings): TypeRemapper {
             return TypeRemapper(HashMap()).apply {
                 formalTypeParameters.forEach(::registerTypeParameter)
             }

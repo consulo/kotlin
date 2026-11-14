@@ -1,6 +1,14 @@
+plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
+}
+
+val kotlinReflectVersion = kotlinBuildProperties.versionsProperty("kotlin-reflect").get()
 val resolvedBootstrap = configurations.resolvable("kotlinReflectBootstrapClasspath") {
     dependencies.addLater(providers.provider {
-        project.dependencies.create("org.jetbrains.kotlin:kotlin-reflect:${bootstrapKotlinVersion}")
+        project.dependencies.create("org.jetbrains.kotlin:kotlin-reflect:$kotlinReflectVersion") {
+            isTransitive = false
+        }
     })
 }
 

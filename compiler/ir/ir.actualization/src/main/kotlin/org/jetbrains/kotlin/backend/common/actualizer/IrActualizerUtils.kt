@@ -8,11 +8,12 @@ package org.jetbrains.kotlin.backend.common.actualizer
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.ir.IrDiagnosticReporter
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
+import org.jetbrains.kotlin.ir.atPotentiallyNonSource
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
-import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.hasAnnotation
+import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.resolve.multiplatform.ExpectActualAnnotationsIncompatibilityType
 import org.jetbrains.kotlin.resolve.multiplatform.ExpectActualIncompatibility
@@ -28,7 +29,7 @@ internal fun recordActualForExpectDeclaration(
     val actualDeclaration = actualSymbol.owner as IrDeclaration
     val registeredActual = expectActualMap.putRegular(expectSymbol, actualSymbol)
     if (registeredActual != null && registeredActual != actualSymbol) {
-        diagnosticsReporter.reportAmbiguousActuals(expectDeclaration)
+        diagnosticsReporter.reportAmbiguousActuals(expectDeclaration, registeredActual, actualSymbol)
     }
     if (expectDeclaration is IrTypeParametersContainer) {
         recordTypeParametersMapping(expectActualMap, expectDeclaration, actualDeclaration as IrTypeParametersContainer)
@@ -72,30 +73,32 @@ private fun recordTypeParametersMapping(
 ) {
     expectTypeParametersContainer.typeParameters
         .zip(actualTypeParametersContainer.typeParameters)
-        .forEach { (expectTypeParameter, actualTypeParameter) ->
+        .forEach { [expectTypeParameter, actualTypeParameter] ->
             expectActualMap.putRegular(expectTypeParameter.symbol, actualTypeParameter.symbol)
         }
 }
 
-internal fun IrDiagnosticReporter.reportMissingActual(expectSymbol: IrSymbol) {
-    reportMissingActual(expectSymbol.owner as IrDeclaration)
+internal fun IrDiagnosticReporter.reportMissingActual(expectSymbol: IrSymbol, leafFragment: IrModuleFragment) {
+    reportMissingActual(expectSymbol.owner as IrDeclaration, leafFragment)
 }
 
-@OptIn(ObsoleteDescriptorBasedAPI::class)
-internal fun IrDiagnosticReporter.reportMissingActual(irDeclaration: IrDeclaration) {
-    at(irDeclaration).report(
+internal fun IrDiagnosticReporter.reportMissingActual(irDeclaration: IrDeclaration, leafFragment: IrModuleFragment) {
+    atPotentiallyNonSource(irDeclaration).report(
         IrActualizationErrors.NO_ACTUAL_FOR_EXPECT,
-        (irDeclaration as? IrDeclarationWithName)?.name?.asString().orEmpty(),
-        irDeclaration.module
+        irDeclaration.symbol.withModule(),
+        leafFragment.toModuleInfoForDiagnostic()
     )
 }
 
-@OptIn(ObsoleteDescriptorBasedAPI::class)
-internal fun IrDiagnosticReporter.reportAmbiguousActuals(expectSymbol: IrDeclaration) {
-    at(expectSymbol).report(
+internal fun IrDiagnosticReporter.reportAmbiguousActuals(
+    expectSymbol: IrDeclaration,
+    actualSymbol1: IrSymbol,
+    actualSymbol2: IrSymbol,
+) {
+    atPotentiallyNonSource(expectSymbol).report(
         IrActualizationErrors.AMBIGUOUS_ACTUALS,
-        (expectSymbol as? IrDeclarationWithName)?.name?.asString().orEmpty(),
-        expectSymbol.module
+        expectSymbol.symbol.withModule(),
+        setOf(actualSymbol1.moduleInfoForDiagnostic(), actualSymbol2.moduleInfoForDiagnostic()),
     )
 }
 
@@ -105,11 +108,10 @@ internal fun IrDiagnosticReporter.reportExpectActualIrIncompatibility(
     incompatibility: ExpectActualIncompatibility<*>,
 ) {
     val expectDeclaration = expectSymbol.owner as IrDeclaration
-    val actualDeclaration = actualSymbol.owner as IrDeclaration
-    at(expectDeclaration).report(
+    atPotentiallyNonSource(expectDeclaration).report(
         IrActualizationErrors.EXPECT_ACTUAL_IR_INCOMPATIBILITY,
-        expectDeclaration.getNameWithAssert().asString(),
-        actualDeclaration.getNameWithAssert().asString(),
+        expectSymbol.withModule(),
+        actualSymbol.withModule(),
         incompatibility
     )
 }
@@ -120,11 +122,10 @@ internal fun IrDiagnosticReporter.reportExpectActualIrMismatch(
     incompatibility: ExpectActualMatchingCompatibility.Mismatch,
 ) {
     val expectDeclaration = expectSymbol.owner as IrDeclaration
-    val actualDeclaration = actualSymbol.owner as IrDeclaration
-    at(expectDeclaration).report(
+    atPotentiallyNonSource(expectDeclaration).report(
         IrActualizationErrors.EXPECT_ACTUAL_IR_MISMATCH,
-        expectDeclaration.getNameWithAssert().asString(),
-        actualDeclaration.getNameWithAssert().asString(),
+        expectSymbol.withModule(),
+        actualSymbol.withModule(),
         incompatibility
     )
 }
@@ -132,26 +133,26 @@ internal fun IrDiagnosticReporter.reportExpectActualIrMismatch(
 internal fun IrDiagnosticReporter.reportActualAnnotationsNotMatchExpect(
     expectSymbol: IrSymbol,
     actualSymbol: IrSymbol,
-    incompatibilityType: ExpectActualAnnotationsIncompatibilityType<IrConstructorCall>,
+    incompatibilityType: ExpectActualAnnotationsIncompatibilityType<IrAnnotation>,
     reportOn: IrSymbol,
 ) {
-    at(reportOn.owner as IrDeclaration).report(
+    atPotentiallyNonSource(reportOn.owner as IrDeclaration).report(
         IrActualizationErrors.ACTUAL_ANNOTATIONS_NOT_MATCH_EXPECT,
-        expectSymbol,
-        actualSymbol,
+        expectSymbol, // Expect symbol already has remapped parents, so we can't easily extract the correct module.
+        actualSymbol.withModule(),
         incompatibilityType,
     )
 }
 
 internal fun IrDiagnosticReporter.reportJavaDirectActualWithoutExpect(actual: IrDeclaration, reportOn: IrSymbol) {
-    at(reportOn.owner as IrDeclaration).report(
+    atPotentiallyNonSource(reportOn.owner as IrDeclaration).report(
         IrActualizationErrors.JAVA_DIRECT_ACTUAL_WITHOUT_EXPECT,
         actual.symbol
     )
 }
 
 internal fun IrDiagnosticReporter.reportKotlinActualAnnotationMissing(actual: IrDeclaration, reportOn: IrSymbol) {
-    at(reportOn.owner as IrDeclaration).report(
+    atPotentiallyNonSource(reportOn.owner as IrDeclaration).report(
         IrActualizationErrors.KOTLIN_ACTUAL_ANNOTATION_MISSING,
         actual.symbol
     )
@@ -161,7 +162,7 @@ internal fun IrDiagnosticReporter.reportJavaDirectActualizationDefaultParameters
     actualFunction: IrFunction,
     reportOn: IrSymbol,
 ) {
-    at(reportOn.owner as IrDeclaration).report(
+    atPotentiallyNonSource(reportOn.owner as IrDeclaration).report(
         IrActualizationErrors.JAVA_DIRECT_ACTUALIZATION_DEFAULT_PARAMETERS_IN_ACTUAL_FUNCTION,
         actualFunction.symbol
     )
@@ -171,7 +172,7 @@ internal fun IrDiagnosticReporter.reportJavaDirectActualizationDefaultParameters
     expectFunction: IrFunction,
     reportOn: IrSymbol,
 ) {
-    at(reportOn.owner as IrDeclaration).report(
+    atPotentiallyNonSource(reportOn.owner as IrDeclaration).report(
         IrActualizationErrors.JAVA_DIRECT_ACTUALIZATION_DEFAULT_PARAMETERS_IN_EXPECT_FUNCTION,
         expectFunction.symbol
     )
@@ -182,7 +183,7 @@ internal fun IrDiagnosticReporter.reportActualAnnotationConflictingDefaultArgume
     file: IrFile,
     actualParam: IrValueParameter,
 ) {
-    at(reportOn, file).report(
+    atPotentiallyNonSource(reportOn, file).report(
         IrActualizationErrors.ACTUAL_ANNOTATION_CONFLICTING_DEFAULT_ARGUMENT_VALUE,
         actualParam,
     )

@@ -6,8 +6,7 @@
 package org.jetbrains.kotlin.psi;
 
 import com.intellij.lang.ASTNode;
-import com.intellij.psi.PsiElement;
-import com.intellij.util.IncorrectOperationException;
+import kotlin.SubclassOptInRequired;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.psi.stubs.KotlinConstantExpressionStub;
 import org.jetbrains.kotlin.psi.utils.ConstantExpressionUtils;
@@ -21,12 +20,14 @@ import org.jetbrains.kotlin.psi.utils.ConstantExpressionUtils;
  * //      ^^
  * }</pre>
  */
-public class KtConstantExpression
-        extends KtElementImplStub<KotlinConstantExpressionStub> implements KtExpression {
+@SubclassOptInRequired(markerClass = KtImplementationDetail.class)
+public class KtConstantExpression extends KtExpressionImplStub<KotlinConstantExpressionStub> {
+    @KtImplementationDetail
     public KtConstantExpression(@NotNull ASTNode node) {
         super(node);
     }
 
+    @KtImplementationDetail
     public KtConstantExpression(@NotNull KotlinConstantExpressionStub stub) {
         super(stub, ConstantExpressionUtils.toConstantExpressionElementType(stub.getKind()));
     }
@@ -34,11 +35,6 @@ public class KtConstantExpression
     @Override
     public <R, D> R accept(@NotNull KtVisitor<R, D> visitor, D data) {
         return visitor.visitConstantExpression(this, data);
-    }
-
-    @Override
-    public PsiElement replace(@NotNull PsiElement newElement) throws IncorrectOperationException {
-        return KtExpressionImpl.Companion.replaceExpression(this, newElement, true, super::replace);
     }
 
     @Override

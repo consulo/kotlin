@@ -113,6 +113,38 @@ class Strings {
     }
 
     @Sample
+    fun elementAtOrElse() {
+        val phone = "+263783"
+
+        // in-bounds indices return the character at that position
+        assertPrints(phone.elementAtOrElse(0) { 'X' }, "+")
+        assertPrints(phone.elementAtOrElse(phone.lastIndex) { 'X' }, "3")
+
+        // an out-of-bounds index evaluates the fallback lambda
+        assertPrints(phone.elementAtOrElse(-1) { if (it < 0) '<' else '>' }, "<")
+        assertPrints(phone.elementAtOrElse(8) { if (it < 0) '<' else '>' }, ">")
+
+        // empty string always evaluates the fallback lambda
+        assertPrints("".elementAtOrElse(0) { 'X' }, "X")
+    }
+
+    @Sample
+    fun elementAtOrNull() {
+        val lion = "Lion"
+
+        // safe access returns char at the given index
+        assertPrints(lion.elementAtOrNull(0), "L")
+        assertPrints(lion.elementAtOrNull(lion.lastIndex), "n")
+
+        // index out of bounds returns null
+        assertPrints(lion.elementAtOrNull(-1), "null")
+        assertPrints(lion.elementAtOrNull(20), "null")
+
+        // empty string always returns null
+        assertPrints("".elementAtOrNull(0), "null")
+    }
+
+    @Sample
     fun filter() {
         val text = "a1b2c3d4e5"
 
@@ -122,12 +154,42 @@ class Strings {
     }
 
     @Sample
+    fun filterTo() {
+        val text = "a1b2c3"
+        val destination = StringBuilder()
+
+        text.filterTo(destination) { it.isDigit() }
+
+        assertPrints(destination, "123")
+    }
+
+    @Sample
     fun filterNot() {
         val text = "a1b2c3d4e5"
 
         val textWithoutDigits = text.filterNot { it.isDigit() }
 
         assertPrints(textWithoutDigits, "abcde")
+    }
+
+    @Sample
+    fun filterNotTo() {
+        val text = "a1b2c3"
+        val destination = StringBuilder()
+
+        text.filterNotTo(destination) { it.isDigit() }
+
+        assertPrints(destination, "abc")
+    }
+
+    @Sample
+    fun find() {
+        val text = "a1b2c3d4e5"
+
+        assertPrints(text.find { it.isLetter() }, "a")
+        assertPrints(text.find { it.isDigit() }, "1")
+        assertPrints(text.find { it.isUpperCase() }, "null")
+        assertPrints("".find { it.isLowerCase() }, "null")
     }
 
     @Sample
@@ -563,6 +625,19 @@ class Strings {
         // The string does not contain 'z'
         assertFalse('z' in text)
     }
+
+    @Sample
+    fun first() {
+        val string = "Kotlin 1.4.0"
+        assertPrints(string.first(), "K")
+        assertPrints(string.first { it.isDigit() }, "1")
+        assertPrints(string.firstOrNull { it > 'z' }, "null")
+        assertFailsWith<NoSuchElementException> { string.first { it > 'z' } }
+
+        val emptyString = ""
+        assertPrints(emptyString.firstOrNull(), "null")
+        assertFailsWith<NoSuchElementException> { emptyString.first() }
+    }
     
     @Sample
     fun last() {
@@ -991,6 +1066,15 @@ class Strings {
     }
 
     @Sample
+    fun nullableStringPlus() {
+        // null is not a string, but plus concatenates its string representation with the "Hello" string
+        assertPrints(null + "Hello", "nullHello")
+        assertPrints(null + null, "nullnull")
+        // list is converted to a String first and then concatenated with the "Numbers: " string
+        assertPrints("Numbers: " + listOf(1, 2, 3), "Numbers: [1, 2, 3]")
+    }
+
+    @Sample
     fun replaceRange() {
         val text = "Hello, world!"
 
@@ -1079,6 +1163,34 @@ class Strings {
         assertPrints(StringBuilder("****").removeSurrounding("**"), "")
         // Delimiter is single char, removes only one pair
         assertPrints(StringBuilder("!!!content!!!").removeSurrounding("!"), "!!content!!")
+    }
+
+    @Sample
+    fun indexOfFirst() {
+        val string = "Kotlin knowledge"
+
+        assertPrints(string.indexOfFirst { it == 'K' }, "0")
+        assertPrints(string.indexOfFirst { it == 'k' }, "7")
+        assertPrints(string.indexOfFirst { it == 'n' }, "5")
+        assertPrints(string.indexOfFirst { it == ' ' }, "6")
+        assertPrints(string.indexOfFirst { it == 'z' }, "-1")
+
+        val emptyString = "";
+        assertPrints(emptyString.indexOfFirst { it == 'z' }, "-1")
+    }
+
+    @Sample
+    fun indexOfLast() {
+        val string = "Kotlin knowledge"
+
+        assertPrints(string.indexOfLast { it == 'K' }, "0")
+        assertPrints(string.indexOfLast { it == 'k' }, "7")
+        assertPrints(string.indexOfLast { it == 'n' }, "8")
+        assertPrints(string.indexOfLast { it == ' ' }, "6")
+        assertPrints(string.indexOfLast { it == 'z' }, "-1")
+
+        val emptyString = "";
+        assertPrints(emptyString.indexOfLast { it == 'z' }, "-1")
     }
 
 }

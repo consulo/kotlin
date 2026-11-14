@@ -24,16 +24,10 @@ import org.jetbrains.kotlin.js.backend.ast.metadata.synthetic
 import org.jetbrains.kotlin.js.inline.util.collectLocalVariables
 import org.jetbrains.kotlin.js.translate.utils.JsAstUtils
 
-class RedundantStatementElimination(private val root: JsFunction) {
+internal class RedundantStatementElimination(private val root: JsFunction) : FunctionPostProcessorStep() {
     private val localVars = root.collectLocalVariables()
-    private var hasChanges = false
 
-    fun apply(): Boolean {
-        process()
-        return hasChanges
-    }
-
-    private fun process() {
+    override fun apply() {
         object : JsVisitorWithContextImpl() {
             override fun visit(x: JsExpressionStatement, ctx: JsContext<JsNode>): Boolean {
                 if (!x.expression.isSuspend) {
@@ -141,7 +135,6 @@ class RedundantStatementElimination(private val root: JsFunction) {
                     JsBinaryOperator.INOP,
                     JsBinaryOperator.INSTANCEOF -> listOf(expression)
 
-                    JsBinaryOperator.ASG,
                     JsBinaryOperator.ASG_ADD,
                     JsBinaryOperator.ASG_SUB,
                     JsBinaryOperator.ASG_MUL,
@@ -155,6 +148,8 @@ class RedundantStatementElimination(private val root: JsFunction) {
                     JsBinaryOperator.ASG_SHRU -> listOf(expression)
                 }
             }
+
+            is JsAssignmentOperation -> listOf(expression)
 
             is JsInvocation -> {
                 if (expression.sideEffects != SideEffectKind.AFFECTS_STATE) {
@@ -201,13 +196,13 @@ class RedundantStatementElimination(private val root: JsFunction) {
                 }
             }
 
-            is JsLiteral.JsValueLiteral -> listOf()
+            is JsLiteral.JsValueLiteral, is JsThisRef -> listOf()
 
             is JsArrayLiteral -> replaceMany(expression.expressions)
 
             is JsObjectLiteral -> expression.propertyInitializers
                 .flatMap {
-                    when (it) {
+                    when (it!!) {
                         is JsPropertyInitializer.KeyValue -> replace(it.labelExpr) + replace(it.valueExpr)
                         is JsPropertyInitializer.Spread -> replace(it.expression)
                     }

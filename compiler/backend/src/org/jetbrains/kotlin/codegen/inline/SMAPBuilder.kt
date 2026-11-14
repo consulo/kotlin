@@ -16,29 +16,30 @@ import java.util.*
 import kotlin.math.max
 
 object SMAPBuilder {
-    fun build(fileMappings: List<FileMapping>, backwardsCompatibleSyntax: Boolean): String? {
+    fun build(fileMappings: List<FileMapping>, validate: Boolean): String? {
         if (fileMappings.isEmpty()) {
             return null
         }
 
+        if (validate) {
+            for (fileMapping in fileMappings) {
+                for (rangeMapping in fileMapping.lineMappings) {
+                    rangeMapping.validate()
+                }
+            }
+        }
+
         val debugMappings = linkedMapOf<Pair<String, String>, FileMapping>()
         for (fileMapping in fileMappings) {
-            for ((_, dest, range, callSite) in fileMapping.lineMappings) {
+            for ((val _ = source, val dest, val range, val callSite) in fileMapping.lineMappings) {
                 callSite?.let { (line, file, path) ->
                     debugMappings.getOrPut(file to path) { FileMapping(file, path) }.mapNewInterval(line, dest, range)
                 }
             }
         }
 
-        // Old versions of kotlinc and the IDEA plugin have incorrect implementations of SMAPParser:
-        //   1. they require *E between strata, which is not correct syntax according to JSR-045;
-        //   2. in KotlinDebug, they use `1#2,3:4` to mean "map lines 4..6 to line 1 of #2", when in reality (and in
-        //      the non-debug stratum) this maps lines 4..6 to lines 1..3. The correct syntax is `1#2:4,3`.
         val defaultStrata = fileMappings.toSMAP(KOTLIN_STRATA_NAME, mapToFirstLine = false)
-        val debugStrata = debugMappings.values.toSMAP(KOTLIN_DEBUG_STRATA_NAME, mapToFirstLine = !backwardsCompatibleSyntax)
-        if (backwardsCompatibleSyntax && defaultStrata.isNotEmpty() && debugStrata.isNotEmpty()) {
-            return "SMAP\n${fileMappings[0].name}\n$KOTLIN_STRATA_NAME\n$defaultStrata${SMAP.END}\n$debugStrata${SMAP.END}\n"
-        }
+        val debugStrata = debugMappings.values.toSMAP(KOTLIN_DEBUG_STRATA_NAME, mapToFirstLine = true)
         return "SMAP\n${fileMappings[0].name}\n$KOTLIN_STRATA_NAME\n$defaultStrata$debugStrata${SMAP.END}\n"
     }
 
@@ -130,6 +131,8 @@ class SourceMapper(val sourceInfo: SourceInfo?) {
         fileMappings.getOrPut(name to path) { FileMapping(name, path) }
 
     fun mapLineNumber(inlineSource: SourcePosition, inlineCallSite: SourcePosition?): Int {
+        if (inlineSource.line < 0 || (inlineCallSite != null && inlineCallSite.line < 0))
+            return -1
         val fileMapping = getOrRegisterNewSource(inlineSource.file, inlineSource.path)
         val mappedLineIndex = fileMapping.mapNewLineNumber(inlineSource.line, maxUsedValue, inlineCallSite)
         maxUsedValue = max(maxUsedValue, mappedLineIndex)

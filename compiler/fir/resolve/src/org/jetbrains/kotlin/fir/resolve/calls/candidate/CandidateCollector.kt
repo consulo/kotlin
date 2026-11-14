@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -13,10 +13,9 @@ import org.jetbrains.kotlin.fir.resolve.calls.stages.ResolutionStageRunner
 import org.jetbrains.kotlin.fir.resolve.calls.tower.TowerGroup
 import org.jetbrains.kotlin.resolve.calls.tower.ApplicabilityDetail
 import org.jetbrains.kotlin.resolve.calls.tower.CandidateApplicability
-import org.jetbrains.kotlin.resolve.calls.tower.CandidateApplicability.INAPPLICABLE_ARGUMENTS_MAPPING_ERROR
-import org.jetbrains.kotlin.resolve.calls.tower.CandidateApplicability.INAPPLICABLE_WRONG_RECEIVER
 import org.jetbrains.kotlin.resolve.calls.tower.isSuccess
 import org.jetbrains.kotlin.resolve.calls.tower.shouldStopResolve
+import org.jetbrains.kotlin.util.OnlyForDefaultLanguageFeatureDisabled
 
 open class CandidateCollector(
     val components: BodyResolveComponents,
@@ -41,7 +40,12 @@ open class CandidateCollector(
      * Diagnostics that should not be bound to specific candidates but should be put to the resulting call.
      * For instance, a case when declaration order affects resolution (see KT-76240).
      */
-    private val forwardedDiagnostics: MutableList<ResolutionDiagnostic> = mutableListOf()
+    val forwardedDiagnostics: List<ResolutionDiagnostic>
+        field = mutableListOf()
+
+    fun addForwardedDiagnostic(diagnostic: ResolutionDiagnostic) {
+        forwardedDiagnostics.add(diagnostic)
+    }
 
     fun newDataSet() {
         groupNumbers.clear()
@@ -64,9 +68,10 @@ open class CandidateCollector(
             // unsuccessful ones so that we can run all stages and pick the one with the least bad applicability.
             // See FirCallResolver.reduceCandidates.
             if (applicability >= CandidateApplicability.RESOLVED_LOW_PRIORITY) {
-                candidates.clear()
+                dropOldCandidates()
             }
 
+            @OptIn(OnlyForDefaultLanguageFeatureDisabled::class)
             if (currentApplicability == CandidateApplicability.RESOLVED_NEED_PRESERVE_COMPATIBILITY &&
                 applicability > currentApplicability
             ) {
@@ -84,26 +89,21 @@ open class CandidateCollector(
          *   to fix the KT-65218, which provoked by different stdlib declarations order in CLI compilation mode and AA mode (see
          *   the issue for more details)
          */
-        if (
-            (applicability == currentApplicability && group == bestGroup) ||
-            (currentApplicability == INAPPLICABLE_ARGUMENTS_MAPPING_ERROR && applicability == INAPPLICABLE_WRONG_RECEIVER)
-        ) {
+        if ((applicability == currentApplicability && group == bestGroup) || currentApplicability < CandidateApplicability.RESOLVED_LOW_PRIORITY) {
             candidates.add(candidate)
         }
 
         return applicability
     }
 
-    fun addForwardedDiagnostic(diagnostic: ResolutionDiagnostic) {
-        forwardedDiagnostics.add(diagnostic)
-    }
-
-    fun forwardedDiagnostics(): List<ResolutionDiagnostic> = forwardedDiagnostics
-
-    fun bestCandidates(): List<Candidate> = candidates
+    open fun bestCandidates(): List<Candidate> = candidates
 
     open fun shouldStopAtTheGroup(group: TowerGroup): Boolean =
         shouldStopResolve && bestGroup < group
+
+    open fun dropOldCandidates() {
+        candidates.clear()
+    }
 
     val shouldStopResolve: Boolean
         get() = currentApplicability.shouldStopResolve

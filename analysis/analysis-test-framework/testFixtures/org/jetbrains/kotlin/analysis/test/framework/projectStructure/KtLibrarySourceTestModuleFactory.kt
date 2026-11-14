@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -7,10 +7,9 @@ package org.jetbrains.kotlin.analysis.test.framework.projectStructure
 
 import com.intellij.openapi.project.Project
 import com.intellij.psi.search.GlobalSearchScope
-import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
-import org.jetbrains.kotlin.analysis.api.impl.base.util.LibraryUtils
+import org.jetbrains.kotlin.analysis.api.fir.utils.LibraryUtils
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
-import org.jetbrains.kotlin.analysis.api.standalone.base.projectStructure.StandaloneProjectFactory
+import org.jetbrains.kotlin.analysis.api.standalone.fir.projectStructure.StandaloneProjectFactory
 import org.jetbrains.kotlin.analysis.test.framework.hasFallbackDependencies
 import org.jetbrains.kotlin.analysis.test.framework.services.environmentManager
 import org.jetbrains.kotlin.analysis.test.framework.services.libraries.compiledLibraryProvider
@@ -19,7 +18,7 @@ import org.jetbrains.kotlin.platform.isMultiPlatform
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.targetPlatform
-import org.junit.Assume
+import org.junit.jupiter.api.Assumptions
 import java.nio.file.Path
 
 /**
@@ -33,12 +32,15 @@ object KtLibrarySourceTestModuleFactory : KtTestModuleFactory {
         testServices: TestServices,
         project: Project,
     ): KtTestModule {
-        Assume.assumeFalse(
-            "Compilation of multi-platform libraries is not supported",
+        Assumptions.assumeFalse(
             testModule.targetPlatform(testServices).isMultiPlatform(),
+            "Compilation of multi-platform libraries is not supported",
         )
 
-        val (libraryJars, librarySourcesJars) = testServices.compiledLibraryProvider.compileToLibrary(testModule, dependencyBinaryRoots)
+        (val libraryJars = roots, val librarySourcesJars = sourceRoots) = testServices.compiledLibraryProvider.compileToLibrary(
+            testModule,
+            dependencyBinaryRoots
+        )
 
         require(librarySourcesJars.isNotEmpty())
 
@@ -52,7 +54,6 @@ object KtLibrarySourceTestModuleFactory : KtTestModuleFactory {
     }
 }
 
-@OptIn(KaImplementationDetail::class)
 fun createKtLibrarySourceModule(
     libraryJars: List<Path>,
     librarySourcesJars: List<Path>,

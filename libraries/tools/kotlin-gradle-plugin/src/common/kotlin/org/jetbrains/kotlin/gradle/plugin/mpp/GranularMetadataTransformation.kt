@@ -11,12 +11,15 @@ import org.gradle.api.artifacts.result.ResolvedArtifactResult
 import org.gradle.api.artifacts.result.ResolvedComponentResult
 import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.gradle.api.attributes.AttributeContainer
+import org.gradle.api.provider.Provider
 import org.gradle.api.attributes.Usage
 import org.gradle.api.file.FileCollection
 import org.gradle.api.logging.Logging
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
+import org.jetbrains.kotlin.gradle.cache.KotlinGradleTaskExecutionCache
+import org.jetbrains.kotlin.gradle.cache.kotlinGradleTaskExecutionCache
 import org.jetbrains.kotlin.gradle.plugin.mpp.uklibs.metadataFragmentAttributes
 import org.jetbrains.kotlin.gradle.plugin.mpp.uklibs.serialization.deserializeUklibFromDirectory
 import org.jetbrains.kotlin.gradle.plugin.mpp.uklibs.consumption.isFromUklib
@@ -30,6 +33,7 @@ import org.jetbrains.kotlin.gradle.plugin.internal.KotlinProjectSharedDataProvid
 import org.jetbrains.kotlin.gradle.plugin.internal.kotlinSecondaryVariantsDataSharing
 import org.jetbrains.kotlin.gradle.plugin.mpp.MetadataDependencyResolution.ChooseVisibleSourceSets.MetadataProvider.ArtifactMetadataProvider
 import org.jetbrains.kotlin.gradle.plugin.mpp.SourceSetVisibilityProvider.PlatformCompilationData
+import org.jetbrains.kotlin.gradle.plugin.mpp.archive.KarLayout
 import org.jetbrains.kotlin.gradle.plugin.mpp.internal.projectStructureMetadataResolvedConfiguration
 import org.jetbrains.kotlin.gradle.plugin.mpp.publishing.KotlinProjectCoordinatesData
 import org.jetbrains.kotlin.gradle.plugin.mpp.publishing.consumeRootModuleCoordinates
@@ -114,6 +118,9 @@ internal class GranularMetadataTransformation(
      */
     class Params private constructor(
         @get:Internal
+        val projectId: String,
+
+        @get:Internal
         val build: CurrentBuildIdentifier,
 
         @get:Input
@@ -156,12 +163,19 @@ internal class GranularMetadataTransformation(
         val computeTransformedLibraryChecksum: Boolean,
 
         @get:Input
+        val computeTransformedLibraryVersionChecksum: Boolean,
+
+        @get:Input
         val kmpResolutionStrategy: KmpResolutionStrategy,
 
         @get:Input
         val allowMatchingByRequestedCoordinates: Boolean,
+
+        @get:Internal
+        val cache: Provider<out KotlinGradleTaskExecutionCache>
     ) {
         constructor(project: Project, kotlinSourceSet: KotlinSourceSet, transformProjectDependenciesWithSourceSetMetadataOutputs: Boolean = true) : this(
+            projectId = project.path,
             build = project.currentBuild,
             sourceSetName = kotlinSourceSet.name,
             resolvedMetadataConfiguration = LazyResolvedConfigurationWithArtifacts(kotlinSourceSet.internal.resolvableMetadataConfiguration),
@@ -177,8 +191,10 @@ internal class GranularMetadataTransformation(
             transformProjectDependenciesWithSourceSetMetadataOutputs = transformProjectDependenciesWithSourceSetMetadataOutputs,
             uklibFragmentAttributes = kotlinSourceSet.metadataFragmentAttributes.map { it.convertToStringForConsumption() }.toSet(),
             computeTransformedLibraryChecksum = project.kotlinPropertiesProvider.computeTransformedLibraryChecksum,
+            computeTransformedLibraryVersionChecksum = project.kotlinPropertiesProvider.computeTransformedLibraryVersionChecksum,
             kmpResolutionStrategy = project.kotlinPropertiesProvider.kmpResolutionStrategy,
-            allowMatchingByRequestedCoordinates = project.kotlinPropertiesProvider.allowMatchingByRequestedCoordinatesInGMDT.get()
+            allowMatchingByRequestedCoordinates = project.kotlinPropertiesProvider.allowMatchingByRequestedCoordinatesInGMDT.get(),
+            cache = project.kotlinGradleTaskExecutionCache
         )
     }
 
@@ -190,12 +206,19 @@ internal class GranularMetadataTransformation(
         override fun toString(): String = "ProjectData[path='$path']"
     }
 
+    private val sourceSetVisibilityProvider = SourceSetVisibilityProvider(
+        projectId = params.projectId,
+        resolveWithLenientPSMResolutionScheme = params.kmpResolutionStrategy == KmpResolutionStrategy.InterlibraryUklibAndPSMResolution_PreferUklibs,
+        allowMatchingByRequestedCoordinates = params.allowMatchingByRequestedCoordinates,
+        cache = params.cache.get()
+    )
+
     val metadataDependencyResolutions: Iterable<MetadataDependencyResolution> by lazy { doTransform() }
 
-    val visibleSourceSetsByComponentId: Map<ComponentIdentifier, Set<String>> by lazy {
+    internal val visibleSourceSetsByKmpModuleIdentifier: Map<KmpModuleIdentifier, Set<String>> by lazy {
         metadataDependencyResolutions
             .filterIsInstance<MetadataDependencyResolution.ChooseVisibleSourceSets>()
-            .groupBy { it.dependency.id }
+            .groupBy { KmpModuleIdentifier.from(it.dependency) }
             .mapValues { (_, visibleSourceSets) -> visibleSourceSets.flatMap { it.allVisibleSourceSetNames }.toSet() }
     }
 
@@ -218,6 +241,7 @@ internal class GranularMetadataTransformation(
             val resolvedDependency: ResolvedDependencyResult = resolvedDependencyQueue.poll()
             val selectedComponent = resolvedDependency.selected
             val componentId = selectedComponent.id
+            val kmpModuleIdentifier = KmpModuleIdentifier.from(selectedComponent)
 
             if (!visitedDependencies.add(componentId)) {
                 /* Already processed this dependency */
@@ -226,7 +250,7 @@ internal class GranularMetadataTransformation(
 
             logger.debug("Transform dependency: $resolvedDependency")
             val dependencyResult = processDependency(
-                resolvedDependency, parentSourceSetVisibilityProvider.getSourceSetsVisibleInParents(componentId)
+                resolvedDependency, parentSourceSetVisibilityProvider.getSourceSetsVisibleInParents(kmpModuleIdentifier)
             )
             logger.debug("Transformation result of dependency $resolvedDependency: $dependencyResult")
 
@@ -354,6 +378,7 @@ internal class GranularMetadataTransformation(
                     ),
                     uklibDependency.module.fragments.toList(),
                     params.computeTransformedLibraryChecksum,
+                    params.computeTransformedLibraryVersionChecksum,
                 )
             )
         }
@@ -392,13 +417,11 @@ internal class GranularMetadataTransformation(
 
         val isResolvedToProject = moduleId in params.build
 
-        val sourceSetVisibility = SourceSetVisibilityProvider().getVisibleSourceSets(
-            dependency,
-            params.dependingPlatformCompilations,
-            projectStructureMetadata,
-            isResolvedToProject,
-            resolveWithLenientPSMResolutionScheme = params.kmpResolutionStrategy == KmpResolutionStrategy.InterlibraryUklibAndPSMResolution_PreferUklibs,
-            allowMatchingByRequestedCoordinates = params.allowMatchingByRequestedCoordinates
+        val sourceSetVisibility = sourceSetVisibilityProvider.getVisibleSourceSets(
+            resolvedRootMppDependency = dependency,
+            dependingPlatformCompilations = params.dependingPlatformCompilations,
+            dependencyProjectStructureMetadata = projectStructureMetadata,
+            resolvedToOtherProject = isResolvedToProject,
         )
 
         val allVisibleSourceSets = sourceSetVisibility.visibleSourceSetNames
@@ -476,6 +499,7 @@ internal class GranularMetadataTransformation(
             }
 
             logger.debug("Transform composite metadata artifact: '${compositeMetadataArtifact.file}'")
+            val isKotlinArchive = compositeMetadataArtifact.variant.attributes.getAttribute(KarLayout.Attributes.state) == KarLayout.Attributes.State.DECOMPRESSED
             ArtifactMetadataProvider(
                 CompositeMetadataArtifactImpl(
                     moduleDependencyIdentifier = dependency.toModuleDependencyIdentifier(),
@@ -483,7 +507,9 @@ internal class GranularMetadataTransformation(
                     kotlinProjectStructureMetadata = projectStructureMetadata,
                     primaryArtifactFile = compositeMetadataArtifact.file,
                     hostSpecificArtifactFilesBySourceSetName = hostSpecificMetadataArtifactBySourceSet,
-                    computeChecksum = params.computeTransformedLibraryChecksum
+                    computeChecksum = params.computeTransformedLibraryChecksum,
+                    computeVersionChecksum = params.computeTransformedLibraryVersionChecksum,
+                    archiveRelativePath = if (isKotlinArchive) KarLayout.METADATA_DIRECTORY_NAME else null,
                 )
             )
         }

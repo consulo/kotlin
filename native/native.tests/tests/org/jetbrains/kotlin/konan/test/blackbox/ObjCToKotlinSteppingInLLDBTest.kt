@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.konan.test.blackbox.support.settings.Timeouts
 import org.jetbrains.kotlin.konan.test.blackbox.support.util.ClangDistribution
 import org.jetbrains.kotlin.konan.test.blackbox.support.util.ReplLLDBSessionSpec
 import org.jetbrains.kotlin.konan.test.blackbox.support.util.compileWithClang
+import org.jetbrains.kotlin.konan.test.blackbox.support.util.knownLldbFlakinessMute
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -47,6 +48,7 @@ class ObjCToKotlinSteppingInLLDBTest : AbstractNativeSimpleTest() {
         testSteppingFromObjcToKotlin(
             """
             > b ${CLANG_FILE_NAME}:4
+            > env KONAN_LLDB_DONT_SKIP_BRIDGING_FUNCTIONS=1
             > run
             > thread step-in
             [..] stop reason = step in
@@ -132,6 +134,7 @@ class ObjCToKotlinSteppingInLLDBTest : AbstractNativeSimpleTest() {
             """
             > b ${KOTLIN_FILE_NAME}:2
             > settings set target.enable-trampoline-support false
+            > env KONAN_LLDB_DONT_SKIP_BRIDGING_FUNCTIONS=1
             > run
             > thread step-out
             [..] stop reason = step out
@@ -172,6 +175,7 @@ class ObjCToKotlinSteppingInLLDBTest : AbstractNativeSimpleTest() {
             """
             > b ${KOTLIN_FILE_NAME}:3
             > settings set target.enable-trampoline-support false
+            > env KONAN_LLDB_DONT_SKIP_BRIDGING_FUNCTIONS=1
             > run
             > thread step-over
             [..] stop reason = step over
@@ -308,8 +312,8 @@ class ObjCToKotlinSteppingInLLDBTest : AbstractNativeSimpleTest() {
             freeCompilerArgs = freeCompilerArgs,
             nominalPackageName = PackageName.EMPTY,
             checks = TestRunChecks.Default(testRunSettings.get<Timeouts>().executionTimeout).copy(
-                exitCodeCheck = TestRunCheck.ExitCode.SkipIfNot(0), // Mute if fails. See KT-84923.
-                outputMatcher = spec.let { TestRunCheck.OutputMatcher { output -> spec.checkLLDBOutput(output, testRunSettings.get()) } }
+                outputMatcher = spec.let { TestRunCheck.OutputMatcher { output -> spec.checkLLDBOutput(output, testRunSettings.get()) } },
+                knownFlakinessMute = knownLldbFlakinessMute,
             ),
             extras = TestCase.NoTestRunnerExtras(
                 "main",

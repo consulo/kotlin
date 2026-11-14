@@ -6,58 +6,69 @@
 package org.jetbrains.kotlin.cli.jklib.pipeline
 
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
+import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageDiagnostics
 import org.jetbrains.kotlin.backend.common.serialization.IrSerializationSettings
 import org.jetbrains.kotlin.backend.common.serialization.serializeModuleIntoKlib
+import org.jetbrains.kotlin.backend.jvm.JvmBackendErrors
+import org.jetbrains.kotlin.backend.jvm.JvmIrSpecialAnnotationSymbolProvider
+import org.jetbrains.kotlin.backend.jvm.JvmIrTypeSystemContext
+import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.cli.CliDiagnostics.CLASSPATH_RESOLUTION_ERROR
 import org.jetbrains.kotlin.cli.CliDiagnostics.COMPILER_ARGUMENTS_ERROR
 import org.jetbrains.kotlin.cli.common.*
 import org.jetbrains.kotlin.cli.common.arguments.K2JKlibCompilerArguments
 import org.jetbrains.kotlin.cli.common.config.addKotlinSourceRoot
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.ERROR
+import org.jetbrains.kotlin.cli.diagnosticFactoriesStorage
+import org.jetbrains.kotlin.cli.jklib.IrCompilationResult
+import org.jetbrains.kotlin.cli.jklib.config.jklibManifestProperties
+import org.jetbrains.kotlin.cli.jklib.config.jklibOutputDestination
+import org.jetbrains.kotlin.cli.jklib.config.klibPaths
 import org.jetbrains.kotlin.cli.jklib.prepareJKlibSessions
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
-import org.jetbrains.kotlin.cli.jvm.compiler.legacy.pipeline.convertToIrAndActualizeForJvm
-import org.jetbrains.kotlin.cli.jvm.compiler.legacy.pipeline.createProjectEnvironment
 import org.jetbrains.kotlin.cli.jvm.config.*
 import org.jetbrains.kotlin.cli.jvm.configureJdkHomeFromSystemProperty
 import org.jetbrains.kotlin.cli.pipeline.*
+import org.jetbrains.kotlin.cli.pipeline.jvm.JvmFrontendPipelinePhase
 import org.jetbrains.kotlin.cli.report
 import org.jetbrains.kotlin.compiler.plugin.getCompilerExtensions
 import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
 import org.jetbrains.kotlin.diagnostics.impl.deduplicating
 import org.jetbrains.kotlin.fir.DependencyListForCliModule
+import org.jetbrains.kotlin.fir.backend.Fir2IrConfiguration
+import org.jetbrains.kotlin.fir.backend.Fir2IrExtensions
+import org.jetbrains.kotlin.fir.backend.jvm.FirDirectJavaActualDeclarationExtractor
+import org.jetbrains.kotlin.fir.backend.jvm.FirJvmVisibilityConverter
 import org.jetbrains.kotlin.fir.backend.jvm.JvmFir2IrExtensions
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 import org.jetbrains.kotlin.fir.pipeline.*
 import org.jetbrains.kotlin.ir.IrDiagnosticReporter
 import org.jetbrains.kotlin.ir.KtDiagnosticReporterWithImplicitIrBasedContext
 import org.jetbrains.kotlin.ir.backend.jklib.JKlibModuleSerializer
+import org.jetbrains.kotlin.ir.backend.jvm.serialization.JvmIrMangler
 import org.jetbrains.kotlin.library.KlibFormat
 import org.jetbrains.kotlin.library.KotlinAbiVersion
 import org.jetbrains.kotlin.library.KotlinLibraryVersioning
 import org.jetbrains.kotlin.library.impl.BuiltInsPlatform
 import org.jetbrains.kotlin.library.loader.KlibLoader
 import org.jetbrains.kotlin.library.loader.reportLoadingProblemsIfAny
+import org.jetbrains.kotlin.library.metadata.metadataFlags
 import org.jetbrains.kotlin.library.writer.KlibWriter
 import org.jetbrains.kotlin.library.writer.includeIr
 import org.jetbrains.kotlin.library.writer.includeMetadata
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.metadata.deserialization.MetadataVersion
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmProtoBufUtil
+import org.jetbrains.kotlin.jvm.environment.JvmClasspath
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.util.klibMetadataVersionOrDefault
+import org.jetbrains.kotlin.util.metadataVersion
 import org.jetbrains.kotlin.utils.KotlinPaths
 import org.jetbrains.kotlin.utils.PathUtil
 import java.io.File
-
-
-val JKLIB_OUTPUT_DESTINATION = CompilerConfigurationKey.create<String>("jklib output destination")
-
-var CompilerConfiguration.jklibOutputDestination: String?
-    get() = get(JKLIB_OUTPUT_DESTINATION)
-    set(value) {
-        putIfNotNull(JKLIB_OUTPUT_DESTINATION, value)
-    }
+import kotlin.io.path.Path
+import kotlin.io.path.absolute
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.pathString
 
 object JKlibConfigurationPhase : AbstractConfigurationPhase<K2JKlibCompilerArguments>(
     name = "JKlibConfigurationPhase",
@@ -74,6 +85,11 @@ object JKlibConfigurationUpdater : ConfigurationUpdater<K2JKlibCompilerArguments
         input: ArgumentsPipelineArtifact<K2JKlibCompilerArguments>,
         configuration: CompilerConfiguration,
     ) {
+        configuration.diagnosticFactoriesStorage?.registerDiagnosticContainers(
+            PartialLinkageDiagnostics,
+            JvmBackendErrors,
+        )
+
         val arguments = input.arguments
 
         val commonSources = arguments.commonSources.toSet()
@@ -94,10 +110,9 @@ object JKlibConfigurationUpdater : ConfigurationUpdater<K2JKlibCompilerArguments
                 configureJdkHomeFromSystemProperty()
             }
             configureJdkClasspathRoots()
-            val paths = PathUtil.kotlinPathsForCompiler
             if (!arguments.noStdlib) {
                 getLibraryFromHome(
-                    paths,
+                    kotlinPaths,
                     KotlinPaths::stdlibPath,
                     PathUtil.KOTLIN_JAVA_STDLIB_JAR,
                     configuration,
@@ -106,20 +121,10 @@ object JKlibConfigurationUpdater : ConfigurationUpdater<K2JKlibCompilerArguments
                     add(CLIConfigurationKeys.CONTENT_ROOTS, JvmModulePathRoot(file))
                     add(JVMConfigurationKeys.ADDITIONAL_JAVA_MODULES, "kotlin.stdlib")
                 }
-                getLibraryFromHome(
-                    paths,
-                    KotlinPaths::scriptRuntimePath,
-                    PathUtil.KOTLIN_JAVA_SCRIPT_RUNTIME_JAR,
-                    configuration,
-                    "'-no-stdlib'",
-                )?.let { file ->
-                    add(CLIConfigurationKeys.CONTENT_ROOTS, JvmModulePathRoot(file))
-                    add(JVMConfigurationKeys.ADDITIONAL_JAVA_MODULES, "kotlin.script.runtime")
-                }
             }
             if (!arguments.noReflect && !arguments.noStdlib) {
                 getLibraryFromHome(
-                    paths,
+                    kotlinPaths,
                     KotlinPaths::reflectPath,
                     PathUtil.KOTLIN_JAVA_REFLECT_JAR,
                     configuration,
@@ -130,10 +135,7 @@ object JKlibConfigurationUpdater : ConfigurationUpdater<K2JKlibCompilerArguments
                 }
             }
             arguments.klibLibraries?.let { libraries ->
-                put(
-                    JVMConfigurationKeys.KLIB_PATHS,
-                    libraries.split(File.pathSeparator.toRegex()).filterNot(String::isEmpty),
-                )
+                klibPaths = libraries.split(File.pathSeparator.toRegex()).filterNot(String::isEmpty)
             }
             for (path in arguments.classpath?.split(File.pathSeparatorChar).orEmpty()) {
                 add(CLIConfigurationKeys.CONTENT_ROOTS, JvmClasspathRoot(File(path)))
@@ -144,11 +146,23 @@ object JKlibConfigurationUpdater : ConfigurationUpdater<K2JKlibCompilerArguments
                 if (parsedValue != null) {
                     put(JVMConfigurationKeys.SAM_CONVERSIONS, parsedValue)
                 } else {
-                    val messageCollector = getNotNull(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY)
-                    messageCollector.report(
-                        ERROR,
+                    configuration.report(
+                        COMPILER_ARGUMENTS_ERROR,
                         "Unknown `-Xsam-conversions` argument: ${it}\n." +
                                 "Supported arguments: ${JvmClosureGenerationScheme.entries.joinToString { scheme -> scheme.description }}"
+                    )
+                }
+            }
+
+            arguments.jvmTarget?.let { jvmTargetValue ->
+                val jvmTarget = JvmTarget.fromString(jvmTargetValue)
+                if (jvmTarget != null) {
+                    put(JVMConfigurationKeys.JVM_TARGET, jvmTarget)
+                } else {
+                    configuration.report(
+                        COMPILER_ARGUMENTS_ERROR,
+                        "Unknown JVM target version: $jvmTargetValue\n" +
+                                "Supported versions: ${JvmTarget.supportedValues().joinToString { it.description }}"
                     )
                 }
             }
@@ -161,7 +175,29 @@ object JKlibConfigurationUpdater : ConfigurationUpdater<K2JKlibCompilerArguments
         configuration.renderDiagnosticInternalName = arguments.renderInternalDiagnosticNames
 
         arguments.destination?.let { configuration.jklibOutputDestination = it }
+        arguments.klibManifestProperties?.let { properties ->
+            val parsedProperties = LinkedHashMap<String, String>(properties.size)
+            for (property in properties) {
+                val parts = property.split('=', limit = 2)
+                if (parts.size == 2 && parts[0].isNotEmpty()) {
+                    parsedProperties[parts[0]] = parts[1]
+                } else {
+                    configuration.report(
+                        COMPILER_ARGUMENTS_ERROR,
+                        "Invalid -Xklib-manifest-property format: '$property'. Expected '<key=value>'.",
+                    )
+                }
+            }
+            configuration.jklibManifestProperties = parsedProperties
+        }
         arguments.friendModules?.let { configuration.friendPaths = it.split(File.pathSeparator).filterNot(String::isEmpty) }
+
+        // TODO(KT-87172): call configuration.setupCommonKlibArguments() instead of manual setup.
+        configuration.zipFileSystemAccessor = arguments.getZipFileSystemAccessor(
+            zipFileAccessorCacheLimitArgument = K2JKlibCompilerArguments::klibZipFileAccessorCacheLimit,
+            configuration = configuration,
+            rootDisposable = input.rootDisposable,
+        )
     }
 }
 
@@ -174,7 +210,7 @@ object JKlibFrontendPipelinePhase : PipelinePhase<ConfigurationPipelineArtifact,
         val rootDisposable = input.rootDisposable
         val diagnosticsReporter = configuration.diagnosticsCollector
 
-        val projectEnvironment = createProjectEnvironment(
+        val projectEnvironment = JvmFrontendPipelinePhase.createProjectEnvironment(
             configuration,
             rootDisposable,
             EnvironmentConfigFiles.JVM_CONFIG_FILES,
@@ -188,7 +224,11 @@ object JKlibFrontendPipelinePhase : PipelinePhase<ConfigurationPipelineArtifact,
 
         val klibFiles = configuration.klibPaths
 
-        val klibLoadingResult = KlibLoader { libraryPaths(klibFiles) }.load()
+        val klibLoadingResult =
+            KlibLoader {
+                libraryPaths(klibFiles)
+                configuration.zipFileSystemAccessor?.let { zipFileSystemAccessor(it) }
+            }.load()
         klibLoadingResult.reportLoadingProblemsIfAny { _, message ->
             configuration.report(CLASSPATH_RESOLUTION_ERROR, message)
         }
@@ -202,11 +242,11 @@ object JKlibFrontendPipelinePhase : PipelinePhase<ConfigurationPipelineArtifact,
         val libraryList = DependencyListForCliModule.build(Name.identifier(moduleName)) {
             dependencies(configuration.jvmClasspathRoots.map { it.absolutePath })
             dependencies(configuration.jvmModularRoots.map { it.absolutePath })
-            dependencies(resolvedLibraries.map { it.libraryFile.absolutePath })
+            dependencies(resolvedLibraries.map { it.path.absolutePathString() })
             friendDependencies(configuration.friendPaths)
         }
 
-        val librariesScope = projectEnvironment.getSearchScopeForProjectLibraries()
+        val librariesClasspath = JvmClasspath.ProjectLibraries()
 
         val rootModuleName = Name.special("<$moduleName>")
 
@@ -221,13 +261,14 @@ object JKlibFrontendPipelinePhase : PipelinePhase<ConfigurationPipelineArtifact,
             metadataCompilationMode = false,
             isCommonSource = groupedSources.isCommonSourceForLt,
             fileBelongsToModule = groupedSources.fileBelongsToModuleForLt,
-            librariesScope = librariesScope,
+            librariesClasspath = librariesClasspath,
         )
 
         val outputs = sessionsWithSources.map { (session, files) ->
             val firFiles = session.buildFirViaLightTree(
                 files,
                 diagnosticsReporter,
+                useMultiplatformParsing = false,
                 reportFilesAndLines = null
             )
             resolveAndCheckFir(session, firFiles, diagnosticsReporter)
@@ -235,11 +276,8 @@ object JKlibFrontendPipelinePhase : PipelinePhase<ConfigurationPipelineArtifact,
 
         outputs.runPlatformCheckers(diagnosticsReporter)
 
-        val firFiles = outputs.flatMap { it.fir }
-        checkKotlinPackageUsageForLightTree(configuration, firFiles)
-
         return JKlibFrontendPipelineArtifact(
-            AllModulesFrontendOutput(outputs), configuration, projectEnvironment,
+            AllModulesFrontendOutput(outputs), configuration, resolvedLibraries, projectEnvironment,
             rootDisposable,
         )
     }
@@ -253,10 +291,10 @@ object JKlibFir2IrPipelinePhase : PipelinePhase<JKlibFrontendPipelineArtifact, J
         val configuration = input.configuration
         val firResult = input.frontendOutput
         val diagnosticsReporter = configuration.diagnosticsCollector
-        val fir2IrExtensions = JvmFir2IrExtensions(configuration)
+        val fir2IrExtensions = JvmFir2IrExtensions()
         val irGenerationExtensions = configuration.getCompilerExtensions(IrGenerationExtension)
 
-        val fir2IrResult = firResult.convertToIrAndActualizeForJvm(
+        val fir2IrResult = firResult.convertToIrAndActualize(
             fir2IrExtensions,
             configuration,
             diagnosticsReporter,
@@ -267,10 +305,46 @@ object JKlibFir2IrPipelinePhase : PipelinePhase<JKlibFrontendPipelineArtifact, J
             fir2IrResult,
             configuration,
             input.frontendOutput,
+            input.resolvedLibraries,
             input.projectEnvironment,
             input.rootDisposable,
         )
     }
+}
+
+private fun AllModulesFrontendOutput.convertToIrAndActualize(
+    fir2IrExtensions: Fir2IrExtensions,
+    configuration: CompilerConfiguration,
+    diagnosticsReporter: BaseDiagnosticsCollector,
+    irGeneratorExtensions: Collection<IrGenerationExtension>,
+): Fir2IrActualizedResult {
+    val fir2IrConfiguration = Fir2IrConfiguration.forJKlibCompilation(configuration, diagnosticsReporter)
+
+    return convertToIrAndActualize(
+        fir2IrExtensions,
+        fir2IrConfiguration,
+        irGeneratorExtensions,
+        JvmIrMangler,
+        FirJvmVisibilityConverter,
+        DefaultBuiltIns.Instance,
+        ::JvmIrTypeSystemContext,
+        ::JvmIrSpecialAnnotationSymbolProvider,
+        if (configuration.languageVersionSettings.getFlag(AnalysisFlags.stdlibCompilation)) {
+            { emptyList() }
+        } else {
+            { listOfNotNull(FirDirectJavaActualDeclarationExtractor.initializeIfNeeded(it)) }
+        },
+    )
+}
+
+/**
+ * Hands the lowered IR produced by FIR2IR over as the result of the IR compilation, instead of serializing the module into a KLIB.
+ */
+object JKlibIrCompilationResultPhase : PipelinePhase<JKlibFir2IrPipelineArtifact, IrCompilationResult>(
+    name = "JKlibIrCompilationResultPhase",
+) {
+    override fun executePhase(input: JKlibFir2IrPipelineArtifact): IrCompilationResult =
+        IrCompilationResult(input.result.irModuleFragment, input.result.pluginContext, input.configuration)
 }
 
 object JKlibKlibSerializationPhase : PipelinePhase<JKlibFir2IrPipelineArtifact, JKlibSerializationArtifact>(
@@ -281,7 +355,7 @@ object JKlibKlibSerializationPhase : PipelinePhase<JKlibFir2IrPipelineArtifact, 
         val fir2IrResult = input.result
         val configuration = input.configuration
         val diagnosticsReporter = configuration.diagnosticsCollector
-        val destination = File(configuration.jklibOutputDestination ?: "result.klib")
+        val destination = Path(configuration.jklibOutputDestination ?: "result.klib").absolute()
 
         val serializerOutput = serializeModuleIntoKlib(
             moduleName = fir2IrResult.irModuleFragment.name.asString(),
@@ -294,7 +368,7 @@ object JKlibKlibSerializationPhase : PipelinePhase<JKlibFir2IrPipelineArtifact, 
             cleanFiles = emptyList(),
             dependencies = emptyList(),
             createModuleSerializer = { irDiagnosticReporter: IrDiagnosticReporter ->
-                JKlibModuleSerializer(IrSerializationSettings(configuration), irDiagnosticReporter)
+                JKlibModuleSerializer(IrSerializationSettings(configuration), irDiagnosticReporter, fir2IrResult.irBuiltIns)
             },
             metadataSerializer = Fir2KlibMetadataSerializer(
                 configuration,
@@ -308,23 +382,100 @@ object JKlibKlibSerializationPhase : PipelinePhase<JKlibFir2IrPipelineArtifact, 
         val versions = KotlinLibraryVersioning(
             abiVersion = KotlinAbiVersion.CURRENT,
             compilerVersion = KotlinCompilerVersion.getVersion(),
-            metadataVersion = configuration.klibMetadataVersionOrDefault(),
+            metadataVersion = configuration.metadataVersion(),
         )
 
         KlibWriter {
+            // Skip ZIP archive creation and write directly to a directory for better performance when the generated Klib is immediately
+            // deserialized.
             format(KlibFormat.ZipArchive)
             manifest {
                 moduleName(configuration.moduleName ?: JvmProtoBufUtil.DEFAULT_MODULE_NAME)
                 versions(versions)
                 platformAndTargets(BuiltInsPlatform.JKLIB, emptyList())
+                configuration.jklibManifestProperties?.let { properties ->
+                    customProperties {
+                        for ((key, value) in properties) {
+                            setProperty(key, value)
+                        }
+                    }
+                }
+                metadataFlags(configuration.languageVersionSettings)
             }
-            includeMetadata(serializerOutput.serializedMetadata ?: error("expected serialized metadata"))
+            includeMetadata(serializerOutput.serializedMetadata)
             includeIr(serializerOutput.serializedIr)
-        }.writeTo(destination.absolutePath)
+        }.writeTo(destination)
 
 
         return JKlibSerializationArtifact(
-            destination.absolutePath,
+            destination.pathString,
+            configuration,
+            input.projectEnvironment,
+            input.rootDisposable,
+        )
+    }
+}
+
+object JKlibMetadataSerializationPhase : PipelinePhase<JKlibFrontendPipelineArtifact, JKlibSerializationArtifact>(
+    name = "JKlibMetadataSerializationPhase",
+    postActions = setOf(CheckCompilationErrors.CheckDiagnosticCollector)
+) {
+    override fun executePhase(input: JKlibFrontendPipelineArtifact): JKlibSerializationArtifact {
+        val configuration = input.configuration
+        val diagnosticsReporter = configuration.diagnosticsCollector
+        val destination = Path(configuration.jklibOutputDestination ?: "result.klib").absolute()
+
+        val rawModuleName = configuration.moduleName ?: JvmProtoBufUtil.DEFAULT_MODULE_NAME
+        val moduleName = Name.special("<$rawModuleName>").asString()
+
+        val serializerOutput = serializeModuleIntoKlib(
+            moduleName = moduleName,
+            irModuleFragment = null,
+            configuration = configuration,
+            diagnosticReporter = KtDiagnosticReporterWithImplicitIrBasedContext(
+                diagnosticsReporter.deduplicating(),
+                configuration.languageVersionSettings
+            ),
+            cleanFiles = emptyList(),
+            dependencies = emptyList(),
+            createModuleSerializer = { error("createModuleSerializer should not be called for metadata-only serialization") },
+            metadataSerializer = Fir2KlibMetadataSerializer(
+                configuration,
+                input.frontendOutput.outputs,
+                fir2IrActualizedResult = null,
+                exportKDoc = false,
+                produceHeaderKlib = true,
+            ),
+        )
+
+        val versions = KotlinLibraryVersioning(
+            abiVersion = KotlinAbiVersion.CURRENT,
+            compilerVersion = KotlinCompilerVersion.getVersion(),
+            metadataVersion = configuration.metadataVersion(),
+        )
+
+        KlibWriter {
+            format(KlibFormat.ZipArchive)
+            manifest {
+                moduleName(rawModuleName)
+                versions(versions)
+                platformAndTargets(BuiltInsPlatform.JKLIB, emptyList())
+                configuration.jklibManifestProperties?.let { properties ->
+                    customProperties {
+                        for ((key, value) in properties) {
+                            setProperty(key, value)
+                        }
+                    }
+                }
+                metadataFlags(configuration.languageVersionSettings)
+            }
+            includeMetadata(serializerOutput.serializedMetadata)
+            // serializedIr is null for metadata-only serialization; includeIr(null) is a no-op.
+            includeIr(serializerOutput.serializedIr)
+        }.writeTo(destination)
+
+        return JKlibSerializationArtifact(
+            destination.pathString,
             configuration,
             input.projectEnvironment,
             input.rootDisposable,

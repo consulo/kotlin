@@ -15,7 +15,6 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.kotlin.dsl.*
 import org.gradle.process.CommandLineArgumentProvider
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 @JvmOverloads
@@ -33,7 +32,7 @@ fun Project.configureJava9Compilation(
 
     tasks.withType<KotlinJvmCompile>().configureEach {
         if (name in kotlinCompileTaskNames) {
-            configureTaskToolchain(JdkMajorVersion.JDK_17_0)
+            kotlinJavaToolchain.toolchain.use(project.getToolchainLauncherFor(JdkMajorVersion.JDK_17_0))
             compilerOptions.jvmTarget.set(JvmTarget.fromTarget(JdkMajorVersion.JDK_9_0.targetName))
             compilerOptions.freeCompilerArgs.add("-Xjdk-release=${JdkMajorVersion.JDK_9_0.targetName}")
         }
@@ -44,7 +43,8 @@ fun Project.configureJava9Compilation(
 
         targetCompatibility = JavaVersion.VERSION_1_9.toString()
         sourceCompatibility = JavaVersion.VERSION_1_9.toString()
-        configureTaskToolchain(JdkMajorVersion.JDK_17_0)
+        options.release.set(JdkMajorVersion.JDK_9_0.majorVersion)
+        javaCompiler.set(project.getToolchainCompilerFor(JdkMajorVersion.JDK_17_0))
 
         // module-info.java should be in java9 source set by convention
         val java9SourceSet = sourceSets[sourceSetName].java
@@ -72,8 +72,7 @@ private class Java9AdditionalArgumentsProvider(
 ) : CommandLineArgumentProvider {
     override fun asArguments(): Iterable<String> = listOf(
         "--module-path", modulePath.asPath,
-        "--patch-module", "$moduleName=${moduleFiles.asPath}",
-        "--release", "9"
+        "--patch-module", "$moduleName=${moduleFiles.asPath}"
     )
 }
 
@@ -86,11 +85,11 @@ fun Project.manifestAttributes(
     manifest.attributes(
         "Implementation-Vendor" to "JetBrains",
         "Implementation-Title" to project.extensions.getByType<BasePluginExtension>().archivesName,
-        "Implementation-Version" to project.rootProject.extra["buildNumber"] as String
+        "Implementation-Version" to kotlinBuildProperties.buildNumber.get()
     )
 
     if (component != null) {
-        val kotlinLanguageVersion: String by rootProject.extra
+        val kotlinLanguageVersion: String = project.providers.gradleProperty("kotlinLanguageVersion").get()
         manifest.attributes(
             "Kotlin-Runtime-Component" to component,
             "Kotlin-Version" to kotlinLanguageVersion

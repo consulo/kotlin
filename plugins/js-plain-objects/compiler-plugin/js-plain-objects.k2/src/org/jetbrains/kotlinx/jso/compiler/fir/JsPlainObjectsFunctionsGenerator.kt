@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.resolve.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.builder.FirAnnotationContainerBuilder
@@ -44,7 +43,6 @@ import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
-import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
 import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.types.ConstantValueKind
 import org.jetbrains.kotlin.util.OperatorNameConventions
@@ -149,7 +147,8 @@ class JsPlainObjectsFunctionsGenerator(session: FirSession) : FirDeclarationGene
             name = classId.shortClassName
             symbol = FirRegularClassSymbol(classId)
             annotateWith(JsStandardClassIds.Annotations.JsExportIgnore)
-            source = owner.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated)
+            source = owner.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated.Default)
+            superTypeRefs += session.builtinTypes.anyType
         }.symbol
     }
 
@@ -240,7 +239,7 @@ class JsPlainObjectsFunctionsGenerator(session: FirSession) : FirDeclarationGene
             origin = JsPlainObjectsPluginKey.origin
             symbol = functionalSymbol
             name = callableId.callableName
-            source = jsPlainObjectInterface.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated)
+            source = jsPlainObjectInterface.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated.Default)
 
             status = FirResolvedDeclarationStatusImpl(
                 Visibilities.Public,
@@ -262,7 +261,7 @@ class JsPlainObjectsFunctionsGenerator(session: FirSession) : FirDeclarationGene
                         symbol = FirTypeParameterSymbol()
                         containingDeclarationSymbol = functionalSymbol
                     }
-                    typeParameterSubstitutionMap[it] = ConeTypeParameterTypeImpl(
+                    typeParameterSubstitutionMap[it] = ConeTypeParameterType(
                         typeParameter.symbol.toLookupTag(), isMarkedNullable = false
                     )
                     typeParameter
@@ -327,7 +326,7 @@ class JsPlainObjectsFunctionsGenerator(session: FirSession) : FirDeclarationGene
                     resolvePhase = FirResolvePhase.BODY_RESOLVE
                     containingDeclarationSymbol = this@buildNamedFunction.symbol
                     defaultValue = it.getParameterDefaultValueFromProperty()
-                    source = it.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated)
+                    source = it.source?.fakeElement(KtFakeSourceElementKind.PluginGenerated.Default)
 
                     jsName?.let { name ->
                         annotateWith(JsStandardClassIds.Annotations.JsName) {

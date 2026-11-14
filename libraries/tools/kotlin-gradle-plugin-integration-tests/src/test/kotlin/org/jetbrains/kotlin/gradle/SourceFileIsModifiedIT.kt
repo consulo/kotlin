@@ -2,26 +2,27 @@ package org.jetbrains.kotlin.gradle
 
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.test.TestMetadata
 import org.junit.jupiter.api.DisplayName
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+/**
+ * The incremental-compilation variants of these scenarios (stale class-file removal on source delete/rename) are
+ * build-system-agnostic and live in the Build Tools API tests as `SourceFileModificationTrackingTest`.
+ * What remains here is Gradle-specific: non-incremental output cleanup, task up-to-date checks, and task wiring.
+ */
 @DisplayName("Source file modifications")
 @JvmGradlePluginTests
 class SourceFileIsModifiedIT : KGPBaseTest() {
 
+    @TestMetadata("kotlinInJavaRoot")
     @DisplayName("Removed in non-incremental compilation")
     @GradleTest
     fun testClassIsRemovedNonIC(gradleVersion: GradleVersion) {
-        doTestClassIsRemoved(gradleVersion, defaultBuildOptions)
-    }
-
-    @DisplayName("Removed in incremental compilation")
-    @GradleTest
-    fun testClassIsRemovedIC(gradleVersion: GradleVersion) {
-        doTestClassIsRemoved(gradleVersion, defaultBuildOptions.copy(incremental = true))
+        doTestClassIsRemoved(gradleVersion, defaultBuildOptions.copy(incremental = false))
     }
 
     private fun doTestClassIsRemoved(
@@ -33,16 +34,11 @@ class SourceFileIsModifiedIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinInJavaRoot")
     @DisplayName("Renamed in non-incremental compilation")
     @GradleTest
     fun testClassIsRenamedNonIC(gradleVersion: GradleVersion) {
-        doTestClassIsRenamed(gradleVersion, defaultBuildOptions)
-    }
-
-    @DisplayName("Renamed in incremental compilation")
-    @GradleTest
-    fun testClassIsRenamedIC(gradleVersion: GradleVersion) {
-        doTestClassIsRenamed(gradleVersion, defaultBuildOptions.copy(incremental = true))
+        doTestClassIsRenamed(gradleVersion, defaultBuildOptions.copy(incremental = false))
     }
 
     private fun doTestClassIsRenamed(

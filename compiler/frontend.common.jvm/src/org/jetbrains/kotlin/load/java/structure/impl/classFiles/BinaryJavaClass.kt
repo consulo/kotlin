@@ -9,9 +9,12 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.SearchScope
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap
 import org.jetbrains.kotlin.builtins.PrimitiveType
+import org.jetbrains.kotlin.config.JvmTarget
+import org.jetbrains.kotlin.config.isJvmTargetValhallaCompatible
 import org.jetbrains.kotlin.load.java.structure.*
 import org.jetbrains.kotlin.load.java.structure.impl.VirtualFileBoundJavaClass
 import org.jetbrains.kotlin.load.java.structure.impl.classFiles.BinaryJavaAnnotation.Companion.computeTypeParameterBound
+import org.jetbrains.kotlin.load.kotlin.JvmClassFileVersion
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.SmartList
@@ -66,6 +69,12 @@ class BinaryJavaClass(
     override val isEnum get() = isSet(Opcodes.ACC_ENUM)
 
     override val isRecord get() = isSet(Opcodes.ACC_RECORD)
+
+    // `ACC_SUPER` is `ACC_IDENTITY` (JEP 401) only in a preview class file of JVM 28 or later; any other class is an identity class.
+    private var usesValueClassesPreview: Boolean = false
+
+    override val isValue: Boolean
+        get() = usesValueClassesPreview && !isInterface && !isSet(Opcodes.ACC_MODULE) && !isSet(Opcodes.ACC_SUPER)
 
     override val lightClassOriginKind: LightClassOriginKind? get() = null
 
@@ -125,7 +134,7 @@ class BinaryJavaClass(
             if (name == "valueOf" && desc.startsWith("(Ljava/lang/String;)")) return null
         }
 
-        val (member, visitor) = BinaryJavaMethodBase.create(name, access, desc, signature, this, context.copyForMember(), signatureParser)
+        val [member, visitor] = BinaryJavaMethodBase.create(name, access, desc, signature, this, context.copyForMember(), signatureParser)
 
         when (member) {
             is JavaMethod -> methods.add(member)
@@ -160,6 +169,9 @@ class BinaryJavaClass(
         interfaces: Array<out String>?
     ) {
         this.access = this.access or access
+        val classFileVersion = JvmClassFileVersion.fromAsmVersion(version)
+        val jvmTarget = JvmTarget.entries.find { it.majorVersion == classFileVersion.major }
+        this.usesValueClassesPreview = jvmTarget != null && isJvmTargetValhallaCompatible(jvmTarget, classFileVersion.isPreview)
         this.myInternalName = name
 
         if (signature != null) {

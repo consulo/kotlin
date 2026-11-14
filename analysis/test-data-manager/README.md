@@ -124,25 +124,27 @@ Set via `-Dkotlin.test.data.manager.mode=check|update` (managed by Gradle tasks 
 Run across all modules with the test-data-manager plugin:
 
 ```bash
-# Check mode (default) - fails if test data doesn't match
-./gradlew manageTestDataGlobally
+# Check mode - fails if test data doesn't match, writes nothing
+./gradlew checkTestData
 
-# Update mode - updates test data files
-./gradlew manageTestDataGlobally --mode=update
+# Update mode - rewrites mismatched test data files
+./gradlew updateTestData
 
 # Run only golden tests (skip all variant-specific tests)
-./gradlew manageTestDataGlobally --mode=update --golden-only
+./gradlew updateTestData -Porg.jetbrains.kotlin.testDataManager.options.goldenOnly=true
 
 # Incremental update — skip variant tests for unchanged golden paths
-./gradlew manageTestDataGlobally --mode=update --incremental
+./gradlew updateTestData -Porg.jetbrains.kotlin.testDataManager.options.incremental=true
 ```
+
+`checkTestData` verifies test data without writing; `updateTestData` rewrites mismatched files. Both take their options as `-P` properties — see the [test-data-manager convention README](../../repo/gradle-build-conventions/test-data-manager-convention/README.md) for the option list and details.
 
 ### Per-Module Execution
 
 Run on a single module:
 
 ```bash
-./gradlew :analysis:analysis-api-fir:manageTestData --mode=update
+./gradlew :analysis:analysis-api-fir:updateTestData
 ```
 
 For full CLI options, see `repo/gradle-build-conventions/test-data-manager-convention/README.md`.

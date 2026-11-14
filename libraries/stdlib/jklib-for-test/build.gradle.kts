@@ -1,25 +1,30 @@
 description = "Kotlin JKlib Stdlib for Tests"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     base
 }
 
-project.configureJvmToolchain(JdkMajorVersion.JDK_1_8)
+jvmToolchains {
+    targetBytecodeVersion = JdkMajorVersion.JDK_1_8
+}
 
 val stdlibProjectDir = file("$rootDir/libraries/stdlib")
 
-val jklibCompilerClasspath by configurations.creating {
+val jklibCompilerClasspath = configurations.create("jklibCompilerClasspath") {
     isCanBeConsumed = false
     isCanBeResolved = true
 }
 
-val substrateStdlibCompilerDependencies by configurations.creating {
+val substrateStdlibCompilerDependencies = configurations.create("substrateStdlibCompilerDependencies") {
     isCanBeConsumed = false
     isCanBeResolved = true
 }
 
 dependencies {
+    // 1. Dependencies to RUN the JKlib Compiler
     jklibCompilerClasspath(project(":compiler:cli-jklib"))
     jklibCompilerClasspath(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) {
         isTransitive = false
@@ -27,6 +32,8 @@ dependencies {
     substrateStdlibCompilerDependencies(intellijCore())
 
     // Transitive dependencies pulled by IntellijCore
+    // Required by 'NoopTelemetryManager', queried through 'CoreProgressManager'
+    substrateStdlibCompilerDependencies(libs.opentelemetry.api)
     // Used for IR interning and seriliazation and other things
     substrateStdlibCompilerDependencies(libs.intellij.fastutil)
     // Used to read XML metadata files inside META-INF
@@ -34,93 +41,48 @@ dependencies {
     substrateStdlibCompilerDependencies(commonDependency("com.fasterxml:aalto-xml"))
 }
 
-val outputKlib = layout.buildDirectory.file("libs/kotlin-stdlib-jvm-ir.klib")
+val outputKlib = layout.buildDirectory.file("libs/kotlin-stdlib-jklib-for-test.klib")
 
-val copyMinimalSources by tasks.registering(Sync::class) {
+// The stdlib is compiled from the same sources as the main compilation of the JVM `kotlin-stdlib`: all the common sources,
+// and the JVM builtins and actuals. JKlib only compiles Kotlin, so the Java part of the JVM runtime (`jvm/runtime/**/*.java`)
+// is left out and the few declarations of it that Kotlin sources reference are stubbed in `src/runtime-stubs`. The jdk7 and
+// jdk8 compilations are left out too.
+val copyStdlibSources = tasks.register("copyStdlibSources", Sync::class) {
     dependsOn(":prepare:build.version:writeStdlibVersion")
-    into(layout.buildDirectory.dir("src/genesis-minimal"))
-
-    from("src/stubs") {
-        include("kotlin/**")
-        include("kotlin/util/**")
-        into("src/common")
-    }
+    into(layout.buildDirectory.dir("src/stdlib"))
 
     from(stdlibProjectDir.resolve("src")) {
-        include(
-            "kotlin/Annotation.kt",
-            "kotlin/Annotations.kt",
-            "kotlin/Any.kt",
-            "kotlin/Array.kt",
-            "kotlin/ArrayIntrinsics.kt",
-            "kotlin/Arrays.kt",
-            "kotlin/Boolean.kt",
-            "kotlin/CharSequence.kt",
-            "kotlin/Comparable.kt",
-            "kotlin/Enum.kt",
-            "kotlin/Function.kt",
-            "kotlin/Iterator.kt",
-            "kotlin/Library.kt",
-            "kotlin/Nothing.kt",
-            "kotlin/Number.kt",
-            "kotlin/String.kt",
-            "kotlin/Throwable.kt",
-            "kotlin/Primitives.kt",
-            "kotlin/Unit.kt",
-            "kotlin/annotation/Annotations.kt",
-            "kotlin/annotations/Multiplatform.kt",
-            "kotlin/annotations/WasExperimental.kt",
-            "kotlin/annotations/ReturnValue.kt",
-            "kotlin/internal/Annotations.kt",
-            "kotlin/internal/AnnotationsBuiltin.kt",
-            "kotlin/concurrent/atomics/AtomicArrays.common.kt",
-            "kotlin/concurrent/atomics/Atomics.common.kt",
-            "kotlin/contextParameters/Context.kt",
-            "kotlin/contextParameters/ContextOf.kt",
-            "kotlin/contracts/ContractBuilder.kt",
-            "kotlin/contracts/Effect.kt",
-        )
-        into("src/common")
+        include("**/*.kt")
+        into("src/common/src")
     }
-
     from(stdlibProjectDir.resolve("common/src")) {
-        include(
-            "kotlin/ExceptionsH.kt",
-        )
-        into("src/common")
+        include("**/*.kt")
+        into("src/common/common-src")
     }
-
-    from("src/stubs/jvm/builtins") {
-        include("**")
-        into("src/jvm")
+    from(stdlibProjectDir.resolve("unsigned/src")) {
+        include("**/*.kt")
+        into("src/common/unsigned-src")
     }
-
-    from(stdlibProjectDir.resolve("jvm")) {
-        include(
-            "runtime/kotlin/NoWhenBranchMatchedException.kt",
-            "runtime/kotlin/UninitializedPropertyAccessException.kt",
-            "runtime/kotlin/TypeAliases.kt",
-            "runtime/kotlin/text/TypeAliases.kt",
-            "src/kotlin/ArrayIntrinsics.kt",
-            "src/kotlin/Unit.kt",
-            "src/kotlin/collections/TypeAliases.kt",
-            "src/kotlin/enums/EnumEntriesJVM.kt",
-            "src/kotlin/io/Serializable.kt",
-            "builtins/*.kt"
-        )
-        exclude(
-            "builtins/Char.kt",
-            "builtins/Collections.kt"
-        )
-        into("src/jvm")
+    from(stdlibProjectDir.resolve("jvm/builtins")) {
+        include("**/*.kt")
+        into("src/jvm/builtins")
     }
-
-    from(stdlibProjectDir.resolve("jvm-minimal-for-test/jvm-src")) {
-        include(
-            "minimalAtomics.kt",
-            "minimalThrowables.kt",
-        )
-        into("src/jvm")
+    from(stdlibProjectDir.resolve("jvm/src")) {
+        include("**/*.kt")
+        into("src/jvm/src")
+    }
+    from(stdlibProjectDir.resolve("jvm/runtime")) {
+        include("**/*.kt")
+        // Only declares subclasses of the Java `PropertyReference0` and `MutablePropertyReference0`.
+        exclude("kotlin/jvm/internal/localVariableReferences.kt")
+        // Replaced by stubs in `src/runtime-stubs`: its hidden `KClass<T>.java` overload has the same KLIB signature as
+        // `KClass<T & Any>.java`, since they only differ by their `@JvmName` and a definitely non-null type argument.
+        exclude("kotlin/jvm/JvmClassMapping.kt")
+        into("src/jvm/runtime")
+    }
+    from("src/runtime-stubs") {
+        include("**/*.kt")
+        into("src/jvm/runtime-stubs")
     }
 
     duplicatesStrategy = DuplicatesStrategy.FAIL
@@ -129,7 +91,6 @@ val copyMinimalSources by tasks.registering(Sync::class) {
 fun JavaExec.configureJklibCompilation(
     sourceTask: TaskProvider<Sync>,
     klibOutput: Provider<RegularFile>,
-    klibCompileClasspath: FileCollection,
 ) {
     dependsOn(sourceTask)
 
@@ -142,105 +103,55 @@ fun JavaExec.configureJklibCompilation(
         include("**/*.kt")
     }
     inputs.files(sourceTree)
-    inputs.files(klibCompileClasspath)
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("sources")
+    inputs.files(jklibCompilerClasspath)
+        .withNormalizer(ClasspathNormalizer::class)
+        .withPropertyName("jklibCompilerClasspath")
     outputs.file(klibOutput)
 
-    doFirst {
-        val allFiles = sourceTree.files
+    // Pass the source directories rather than every source file, which would exceed the Windows command line limit. The paths
+    // are relative to the working directory, so that the arguments don't depend on the location of the project.
+    workingDir = projectDir
+    val sourceRoot = sourceTask.get().destinationDir.resolve("src")
+    val commonSourceRoot = sourceRoot.resolve("common").relativeTo(projectDir).path
+    val jvmSourceRoot = sourceRoot.resolve("jvm").relativeTo(projectDir).path
 
-        val commonPathSegment = "${File.separator}common${File.separator}"
-        val commonFiles = allFiles.filter { it.path.contains(commonPathSegment) }
-        val jvmFiles = allFiles.filter { !it.path.contains(commonPathSegment) }
-
-        val jvmSourceFiles = jvmFiles.map { it.absolutePath }
-        val commonSourceFiles = commonFiles.map { it.absolutePath }
-
-        logger.lifecycle("Compiling ${jvmSourceFiles.size} JVM files and ${commonSourceFiles.size} Common files, total ${allFiles.size}")
-        logger.lifecycle("Running K2JKlibCompiler with Java version: ${System.getProperty("java.version")}")
-
-        val outputPath = outputs.files.singleFile.absolutePath
-
-        args(
-            "-no-stdlib",
-            "-Xallow-kotlin-package",
-            "-Xexpect-actual-classes",
-            "-module-name", "kotlin-stdlib",
-            "-Xstdlib-compilation",
-            "-d", outputPath,
-            "-Xmulti-platform",
-            "-opt-in=kotlin.contracts.ExperimentalContracts",
-            "-opt-in=kotlin.ExperimentalMultiplatform",
-            "-opt-in=kotlin.contracts.ExperimentalExtendedContracts",
-            "-Xcompile-builtins-as-part-of-stdlib",
-            "-Xreturn-value-checker=full",
-            "-Xcommon-sources=${(commonSourceFiles).joinToString(",")}",
-        )
-
-
-        val fullClasspath = klibCompileClasspath.files
-            .filter { it.extension == "jar" && !it.name.contains("sources") }
-            .map { it.absolutePath }
-            .joinToString(File.pathSeparator)
-
-        args("-classpath", fullClasspath)
-        args(jvmSourceFiles)
-        args(commonSourceFiles)
-    }
+    args(
+        "-no-stdlib",
+        "-Xallow-kotlin-package",
+        "-Xexpect-actual-classes",
+        "-module-name", "kotlin-stdlib",
+        "-Xstdlib-compilation",
+        "-d", klibOutput.get().asFile.relativeTo(projectDir).path,
+        "-Xmulti-platform",
+        "-opt-in=kotlin.contracts.ExperimentalContracts",
+        "-opt-in=kotlin.ExperimentalMultiplatform",
+        "-opt-in=kotlin.contracts.ExperimentalExtendedContracts",
+        "-opt-in=kotlin.ExperimentalStdlibApi",
+        "-Xmultifile-parts-inherit",
+        *dogfoodedExperimentalFeatures.toTypedArray(),
+        "-Xreturn-value-checker=full",
+        "-Xcompanion-blocks",
+        "-Xcommon-sources=$commonSourceRoot",
+        jvmSourceRoot,
+        commonSourceRoot,
+    )
 }
 
-val fullStdlibJar by configurations.creating {
-    isCanBeConsumed = false
-    isCanBeResolved = true
-    attributes {
-        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
-        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
-        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
-    }
-}
-
-val klibCompileClasspath by configurations.creating {
-    isCanBeConsumed = false
-    isCanBeResolved = true
-    attributes {
-        attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
-        attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
-        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
-    }
-}
-
-dependencies {
-    fullStdlibJar(project(":kotlin-stdlib"))
-
-    klibCompileClasspath(project(":kotlin-stdlib"))
-    klibCompileClasspath(commonDependency("org.jetbrains.kotlin:kotlin-reflect")) {
-        isTransitive = false
-    }
-}
-
-
-
-val compileStdlib by tasks.registering(JavaExec::class) {
+val compileStdlib = tasks.register("compileStdlib", JavaExec::class) {
     val javaToolchains = project.extensions.getByType(JavaToolchainService::class.java)
     javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion.set(JavaLanguageVersion.of(8))
+        languageVersion.set(JavaLanguageVersion.of(17))
     })
-    configureJklibCompilation(copyMinimalSources, outputKlib, klibCompileClasspath)
+    configureJklibCompilation(copyStdlibSources, outputKlib)
 
     args("-nowarn")
 }
 
-val compileMinimalStdlib by tasks.registering {
-    dependsOn(compileStdlib)
-}
-
-val distJKlib by configurations.creating {
+val distJKlib = configurations.create("distJKlib") {
     isCanBeConsumed = true
     isCanBeResolved = false
-}
-val distMinimalJKlib by configurations.creating {
-    isCanBeConsumed = true
-    isCanBeResolved = false
-    extendsFrom(distJKlib)
 }
 
 artifacts {

@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.expressionInfoProvider.AbstractWhenMissingCasesTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.expressionInfoProvider.AbstractWhenMissingCasesTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirIdeDependentAnalysisSourceLikeModuleWhenMissingCasesTestGenerate
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Dependent,
         AnalysisApiMode.Ide,
@@ -103,6 +101,18 @@ public class FirIdeDependentAnalysisSourceLikeModuleWhenMissingCasesTestGenerate
   @TestMetadata("enum_partial.kt")
   public void testEnum_partial() {
     run("enum_partial.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassExhaustive.kt")
+  public void testFullValueClassExhaustive() {
+    run("fullValueClassExhaustive.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassNullable.kt")
+  public void testFullValueClassNullable() {
+    run("fullValueClassNullable.kt");
   }
 
   @Test

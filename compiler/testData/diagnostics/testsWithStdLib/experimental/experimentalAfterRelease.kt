@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +OptInRelease
+// RUN_PIPELINE_TILL: CODEGEN
 
 @RequiresOptIn
 @Retention(AnnotationRetention.BINARY)

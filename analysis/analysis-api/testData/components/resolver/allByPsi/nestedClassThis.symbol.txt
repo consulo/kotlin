@@ -5,7 +5,13 @@ KtPackageDirective(0,9): 'package r'
   null
 
 KtNameReferenceExpression(8,9): 'r'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      r
+    ]
 
 KtImportList(9,9): ''
   null
@@ -29,13 +35,25 @@ KtParameter(33,43): 'val x: Int'
   null
 
 KtTypeReference(40,43): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(40,43): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(40,43): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtClassBody(45,84): '{'
   null
@@ -47,13 +65,13 @@ KtParameterList(66,68): '()'
   null
 
 KtConstructorDelegationCall(70,78): 'this(10)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(x: kotlin.Int): r.A.B
     ]
 
 KtConstructorDelegationReferenceExpression(70,74): 'this'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(x: kotlin.Int): r.A.B
     ]

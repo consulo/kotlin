@@ -2,7 +2,6 @@
  * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
-@file:OptIn(ExperimentalAnnotationsInMetadata::class)
 
 package kotlin.metadata.internal
 
@@ -61,7 +60,7 @@ private fun WriteContext.writeTypeProjection(argument: KmTypeProjection): ProtoB
     if (argument == KmTypeProjection.STAR) {
         t.projection = ProtoBuf.Type.Argument.Projection.STAR
     } else {
-        val (variance, argType) = argument
+        (val variance, val argType = type) = argument
         if (variance == null || argType == null)
             throw InconsistentKotlinMetadataException("Variance and type must be set for non-star type projection")
         if (variance == KmVariance.IN) {
@@ -114,7 +113,7 @@ private fun WriteContext.writeConstructor(kmConstructor: KmConstructor): ProtoBu
     }
     t.addAllVersionRequirement(kmConstructor.versionRequirements.mapNotNull(::writeVersionRequirement))
     t.addAllCompilerPluginData(
-        kmConstructor.compilerPluginMetadata.map { (pluginId, data) ->
+        kmConstructor.compilerPluginMetadata.map { [pluginId, data] ->
             writeCompilerPluginData(pluginId, data, this).build()
         }
     )
@@ -129,11 +128,12 @@ private fun WriteContext.writeConstructor(kmConstructor: KmConstructor): ProtoBu
     return t
 }
 
-@OptIn(ExperimentalContextParameters::class)
+@OptIn(ExperimentalContextParameters::class, ExperimentalCompanionExtensions::class)
 private fun WriteContext.writeFunction(kmFunction: KmFunction): ProtoBuf.Function.Builder {
     val t = ProtoBuf.Function.newBuilder()
     t.addAllTypeParameter(kmFunction.typeParameters.map { writeTypeParameter(it).build() })
     kmFunction.receiverParameterType?.let { t.receiverType = writeType(it).build() }
+    kmFunction.companionExtensionReceiverType?.let { t.companionExtensionReceiverType = writeType(it).build() }
 
     t.addAllContextParameter(kmFunction.contextParameters.map { writeValueParameter(it).build() })
     t.addAllContextReceiverType(kmFunction.contextParameters.map { writeType(it.type).build() })
@@ -141,7 +141,7 @@ private fun WriteContext.writeFunction(kmFunction: KmFunction): ProtoBuf.Functio
     t.returnType = writeType(kmFunction.returnType).build()
     t.addAllVersionRequirement(kmFunction.versionRequirements.mapNotNull(::writeVersionRequirement))
     t.addAllCompilerPluginData(
-        kmFunction.compilerPluginMetadata.map { (pluginId, data) ->
+        kmFunction.compilerPluginMetadata.map { [pluginId, data] ->
             writeCompilerPluginData(pluginId, data, this).build()
         }
     )
@@ -160,7 +160,7 @@ private fun WriteContext.writeFunction(kmFunction: KmFunction): ProtoBuf.Functio
     return t
 }
 
-@OptIn(ExperimentalContextParameters::class)
+@OptIn(ExperimentalContextParameters::class, ExperimentalCompanionExtensions::class)
 public fun WriteContext.writeProperty(kmProperty: KmProperty): ProtoBuf.Property.Builder {
     val t = ProtoBuf.Property.newBuilder()
 
@@ -168,6 +168,7 @@ public fun WriteContext.writeProperty(kmProperty: KmProperty): ProtoBuf.Property
         t.addTypeParameter(writeTypeParameter(tp).build())
     }
     kmProperty.receiverParameterType?.let { t.receiverType = writeType(it).build() }
+    kmProperty.companionExtensionReceiverType?.let { t.companionExtensionReceiverType = writeType(it).build() }
 
     t.addAllContextParameter(kmProperty.contextParameters.map { writeValueParameter(it).build() })
     t.addAllContextReceiverType(kmProperty.contextParameters.map { writeType(it.type).build() })
@@ -176,7 +177,7 @@ public fun WriteContext.writeProperty(kmProperty: KmProperty): ProtoBuf.Property
     t.returnType = writeType(kmProperty.returnType).build()
     t.addAllVersionRequirement(kmProperty.versionRequirements.mapNotNull { writeVersionRequirement(it) })
     t.addAllCompilerPluginData(
-        kmProperty.compilerPluginMetadata.map { (pluginId, data) ->
+        kmProperty.compilerPluginMetadata.map { [pluginId, data] ->
             writeCompilerPluginData(pluginId, data, this).build()
         }
     )
@@ -230,7 +231,7 @@ private fun WriteContext.writeTypeAlias(
     t.addAllAnnotation(typeAlias.annotations.map { it.writeAnnotation(strings).build() })
     t.addAllVersionRequirement(typeAlias.versionRequirements.mapNotNull(::writeVersionRequirement))
     t.addAllCompilerPluginData(
-        typeAlias.compilerPluginMetadata.map { (pluginId, data) ->
+        typeAlias.compilerPluginMetadata.map { [pluginId, data] ->
             writeCompilerPluginData(pluginId, data, this).build()
         }
     )
@@ -317,6 +318,7 @@ private fun WriteContext.writeEffect(
         KmEffectType.CALLS -> t.effectType = ProtoBuf.Effect.EffectType.CALLS
         KmEffectType.RETURNS_NOT_NULL -> t.effectType = ProtoBuf.Effect.EffectType.RETURNS_NOT_NULL
         KmEffectType.RETURNS_RESULT_OF -> t.effectType = ProtoBuf.Effect.EffectType.RETURNS_RESULT_OF
+        KmEffectType.RETURNS_PARAMETER -> t.effectType = ProtoBuf.Effect.EffectType.RETURNS_PARAMETER
     }
     when (effect.invocationKind) {
         KmEffectInvocationKind.AT_MOST_ONCE -> t.kind = ProtoBuf.Effect.InvocationKind.AT_MOST_ONCE
@@ -395,7 +397,7 @@ public open class ClassWriter(stringTable: StringTable, contextExtensions: List<
 
         t.addAllVersionRequirement(kmClass.versionRequirements.mapNotNull { c.writeVersionRequirement(it) })
         t.addAllCompilerPluginData(
-            kmClass.compilerPluginMetadata.map { (pluginId, data) ->
+            kmClass.compilerPluginMetadata.map { [pluginId, data] ->
                 writeCompilerPluginData(pluginId, data, c).build()
             }
         )

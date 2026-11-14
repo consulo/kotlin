@@ -38,8 +38,8 @@ enum class KaptCliOption(
     val cliToolOption: CliToolOption? = null
 ) : AbstractCliOption {
     APT_MODE_OPTION(
-        "aptMode", "<apt|stubs|stubsAndApt|compile>",
-        "Annotation processing mode: only apt, only stub generation, both, or with the subsequent compilation",
+        "aptMode", "<apt|stubs|stubsAndApt>",
+        "Annotation processing mode: only apt, only stub generation, or both",
         cliToolOption = CliToolOption("-Kapt-mode", VALUE)
     ),
 
@@ -67,38 +67,49 @@ enum class KaptCliOption(
         cliToolOption = CliToolOption("-Kapt-stubs", VALUE)
     ),
 
-    INCREMENTAL_DATA_OUTPUT_DIR_OPTION("incrementalData", "<path>", "Output path for incremental data"),
+    INCREMENTAL_DATA_OUTPUT_DIR_OPTION(
+        "incrementalData",
+        "<path>",
+        "Output path for incremental data",
+        cliToolOption = CliToolOption("-Kapt-incremental-data", VALUE)
+    ),
 
     CHANGED_FILES(
         "changedFile",
         "<path>",
         "Use only in apt mode. Changed java source file that should be processed when using incremental annotation processing.",
-        true
+        true,
+        cliToolOption = CliToolOption("-Kapt-changed-file", VALUE)
     ),
 
     COMPILED_SOURCES_DIR(
         "compiledSourcesDir",
         "<path>",
         "Use only in apt mode. Compiled sources (.class files) from previous compilation. This is typically a kotlinc or javac output.",
-        true
+        true,
+        cliToolOption = CliToolOption("-Kapt-compiled-sources-dir", VALUE)
     ),
 
     INCREMENTAL_CACHE(
         "incrementalCache",
         "<path>",
-        "Use only in apt mode. Output directory for cache necessary to support incremental annotation processing."
+        "Use only in apt mode. Output directory for cache necessary to support incremental annotation processing.",
+        cliToolOption = CliToolOption("-Kapt-incremental-cache", VALUE)
     ),
 
     CLASSPATH_CHANGES(
         "classpathChange",
         "<jvmInternalName,[jvmInternalName,...]>",
-        "Use only in apt mode. Classpath jvm internal names that changed."
+        "Use only in apt mode. Classpath jvm internal names that changed.",
+        true,
+        cliToolOption = CliToolOption("-Kapt-classpath-changes", VALUE)
     ),
 
     PROCESS_INCREMENTALLY(
         "processIncrementally",
-        "boolean",
-        "Use only in apt mode. Enables incremental apt processing"
+        "true | false",
+        "Use only in apt mode. Enables incremental apt processing",
+        cliToolOption = CliToolOption("-Kapt-process-incrementally", FLAG)
     ),
 
     ANNOTATION_PROCESSOR_CLASSPATH_OPTION(
@@ -136,13 +147,6 @@ enum class KaptCliOption(
         "<path>",
         "tools.jar file location (for JDK versions up to 1.8)",
         cliToolOption = CliToolOption("-Kapt-tools-jar-location", VALUE)
-    ),
-
-    USE_LIGHT_ANALYSIS_OPTION(
-        "useLightAnalysis",
-        "true | false",
-        "Skip body analysis if possible",
-        cliToolOption = CliToolOption("-Kapt-use-light-analysis", FLAG)
     ),
 
     CORRECT_ERROR_TYPES_OPTION(
@@ -208,6 +212,65 @@ enum class KaptCliOption(
         cliToolOption = CliToolOption("-Kapt-strip-metadata", FLAG)
     ),
 
+    STUB_WRITER_THREADS_OPTION(
+        "stubWriterThreads",
+        "<number>",
+        "Number of threads writing generated stub files, 1 (default) means sequential. " +
+                "Only used with the 'direct' stub generation scheme.",
+        cliToolOption = CliToolOption("-Kapt-stub-writer-threads", VALUE)
+    ),
+
+    ISOLATE_PROCESSORS_FROM_BUILD_CLASSPATH_OPTION(
+        "isolateProcessorsFromBuildClasspath",
+        "true | false",
+        "Hide the build process classpath from annotation processors, exposing only JDK classes",
+        cliToolOption = CliToolOption("-Kapt-isolate-processors-from-build-classpath", FLAG)
+    ),
+
+    HEADER_MODE_OPTION(
+        "headerMode",
+        "true | false",
+        "Skip function body resolution during stub generation",
+        cliToolOption = CliToolOption("-Kapt-header-mode", FLAG)
+    ),
+
+    STUB_GENERATION_SCHEME_OPTION(
+        "stubGenerationScheme",
+        "<direct|jtree>",
+        "Stub generation scheme: 'jtree' (default) is the historical scheme that uses javac AST; " +
+                "'direct' is a new experimental scheme that generates Java text directly.",
+        cliToolOption = CliToolOption("-Kapt-stub-generation-scheme", VALUE)
+    ),
+
+    DETECT_MEMORY_LEAKS_OPTION(
+        "detectMemoryLeaks",
+        "<standard|paranoid|none>",
+        "Detect memory leaks in annotation processors",
+        cliToolOption = CliToolOption("-Kapt-detect-memory-leaks", VALUE)
+    ),
+    INCLUDE_COMPILE_CLASSPATH(
+        "includeCompileClasspath",
+        "true | false",
+        "Discover annotation processors in compile classpath",
+        cliToolOption = CliToolOption("-Kapt-include-compile-classpath", FLAG)
+    ),
+
+    INFO_AS_WARNINGS_OPTION(
+        "infoAsWarnings",
+        "true | false",
+        "Show information messages as warnings",
+        cliToolOption = CliToolOption("-Kapt-info-as-warnings", FLAG)
+    ),
+
+    @Deprecated("No-op in K2")
+    USE_LIGHT_ANALYSIS_OPTION(
+        "useLightAnalysis",
+        "true | false",
+        "Skip body analysis if possible",
+        cliToolOption = CliToolOption("-Kapt-use-light-analysis", FLAG)
+    ),
+
+    @Deprecated("No-op in K2")
     USE_K2(
         "useK2",
         "true | false",
@@ -215,19 +278,10 @@ enum class KaptCliOption(
         cliToolOption = CliToolOption("-Kapt-use-k2", FLAG)
     ),
 
-    DETECT_MEMORY_LEAKS_OPTION("detectMemoryLeaks", "true | false", "Detect memory leaks in annotation processors"),
-    INCLUDE_COMPILE_CLASSPATH(
-        "includeCompileClasspath",
-        "true | false",
-        "Discover annotation processors in compile classpath"
-    ),
-
-    INFO_AS_WARNINGS_OPTION("infoAsWarnings", "true | false", "Show information messages as warnings"),
-
-    @Deprecated("Do not use in CLI")
+    @Deprecated("Do not use in CLI, use 'apOption' instead")
     APT_OPTIONS_OPTION("apoptions", "options map", "Encoded annotation processor options", false),
 
-    @Deprecated("Do not use in CLI")
+    @Deprecated("Do not use in CLI, use 'javacOption' instead")
     JAVAC_CLI_OPTIONS_OPTION("javacArguments", "javac CLI options map", "Encoded javac CLI options", false);
 
     override val required: Boolean = false

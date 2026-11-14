@@ -10,20 +10,14 @@ import org.jetbrains.kotlin.backend.common.compilationException
 import org.jetbrains.kotlin.backend.common.serialization.Hash128Bits
 import org.jetbrains.kotlin.backend.common.serialization.cityHash128
 import org.jetbrains.kotlin.backend.common.serialization.cityHash64
-import org.jetbrains.kotlin.backend.wasm.MultimoduleCompileOptions
-import org.jetbrains.kotlin.backend.wasm.WasmBackendContext
-import org.jetbrains.kotlin.backend.wasm.importedStringConstants
-import org.jetbrains.kotlin.backend.wasm.wasmStartExportName
+import org.jetbrains.kotlin.backend.wasm.*
 import org.jetbrains.kotlin.backend.wasm.utils.fitsLatin1
-import org.jetbrains.kotlin.backend.wasm.wasmInitializeExportName
 import org.jetbrains.kotlin.ir.util.IdSignature
+import org.jetbrains.kotlin.utils.addToStdlib.ifTrue
+import org.jetbrains.kotlin.wasm.WasmSpecialExportNames
 import org.jetbrains.kotlin.wasm.ir.*
-import org.jetbrains.kotlin.wasm.ir.WasmFunction
 import org.jetbrains.kotlin.wasm.ir.source.location.SourceLocation
-import java.util.IdentityHashMap
-import kotlin.collections.MutableMap
-import kotlin.collections.mutableMapOf
-import kotlin.collections.set
+import java.util.*
 
 enum class ExceptionTagType { WASM_TAG, JS_TAG, TRAP }
 
@@ -77,20 +71,16 @@ class WasmCompiledModuleFragment(
 
         createAssociatedObjectGetter(definedDeclarations = definedDeclarations, wasmElements = wasmElements)
 
-        val mainFunctionSymbols = mutableListOf<WasmFunction>()
-        forEachLinkerData {
-            it.mainFunctionWrappers.mapTo(mainFunctionSymbols) { signature ->
-                definedDeclarations.functions[signature]
-                    ?: compilationException("Cannot find symbol for main wrapper", type = null)
-            }
-        }
-
         val mainFunctionsExportName = if (wasmCommandModuleInitialization)
-            wasmInitializeExportName
+            WasmSpecialExportNames.INITIALIZE
         else
-            wasmStartExportName
+            WasmSpecialExportNames.START
 
-        exports.addAll(mainFunctionSymbols.map { WasmExport.Function(mainFunctionsExportName, it) })
+        val mainFunctions = selectMainFunctions()
+        mainFunctions.forEach { mainFunction ->
+            val mainFunction = definedDeclarations.resolve(FuncSymbol(mainFunction))
+            exports.add(WasmExport.Function(mainFunctionsExportName, mainFunction))
+        }
 
         createStringPoolField(definedDeclarations, stringPoolSizeWithGlobals)
 
@@ -157,7 +147,9 @@ class WasmCompiledModuleFragment(
     fun linkWasmCompiledFragments(
         multimoduleOptions: MultimoduleCompileOptions?,
         exceptionTagType: ExceptionTagType,
-        wasmCommandModuleInitialization: Boolean
+        wasmCommandModuleInitialization: Boolean,
+        useStackSwitching: Boolean,
+        importWasmMemoryInsteadOfExport: Boolean,
     ): WasmModule {
         val definedDeclarations = getDefinedDeclarationsFromFragments()
 
@@ -172,8 +164,14 @@ class WasmCompiledModuleFragment(
             exports.addAll(it.exports)
         }
 
-        val memories = createAndExportMemory(exports, multimoduleOptions?.stdlibModuleNameForImport)
-        val (importedMemories, definedMemories) = memories.partition { it.importPair != null }
+        val isStdlibOrMonolith = multimoduleOptions?.stdlibModuleNameForImport == null
+        val memories = createAndExportMemory(
+            importWasmMemoryInsteadOfExport = importWasmMemoryInsteadOfExport,
+            isStdlibOrMonolith = isStdlibOrMonolith,
+            definedDeclarations = definedDeclarations,
+            exports = exports,
+        )
+        val [importedMemories, definedMemories] = memories.partition { it.importPair != null }
 
         val parameterlessNoReturnFunctionType = WasmFunctionType(emptyList(), emptyList())
         definedDeclarations.functionTypes[Synthetics.FunctionHeapTypes.parameterlessNoReturnFunctionType.type] = parameterlessNoReturnFunctionType
@@ -183,7 +181,8 @@ class WasmCompiledModuleFragment(
         createAndBindSpecialITableTypes(definedDeclarations)
         createAndBindRttiTypeDeclaration(definedDeclarations)
 
-        val elements = mutableListOf<WasmElement>()
+        val elements = getUsedAsWasmRawFunctionReference(definedDeclarations)
+
         createAndExportServiceFunctions(
             definedDeclarations = definedDeclarations,
             stringEntities = stringEntities,
@@ -196,19 +195,26 @@ class WasmCompiledModuleFragment(
 
         val masterInitFunction = createMasterInitFunction(
             definedDeclarations = definedDeclarations,
-            initializeUnit = multimoduleOptions?.initializeUnit ?: true
         )
 
         val globals = getGlobals(definedDeclarations)
 
-        val tags = getTags(definedDeclarations, exceptionTagType)
-        require(tags.size <= 1) { "Having more than 1 tag is not supported" }
+        if (useStackSwitching) {
+            createContTypes(definedDeclarations, isStdlibOrMonolith)
+        }
 
-        val (importedTags, definedTags) = tags.partition { it.importPair != null }
+        val tags = getTags(
+            definedDeclarations = definedDeclarations,
+            exceptionTagType = exceptionTagType,
+            generateStackSwitchingTag =
+                useStackSwitching && isStdlibOrMonolith,
+        )
 
-        val (importedGlobals, definedGlobals) = globals.partition { it.importPair != null }
+        val [importedTags, definedTags] = tags.partition { it.importPair != null }
 
-        val (definedFunctions, importedFunctions) = partitionDefinedAndImportedFunctions(definedDeclarations)
+        val [importedGlobals, definedGlobals] = globals.partition { it.importPair != null }
+
+        val [definedFunctions, importedFunctions] = partitionDefinedAndImportedFunctions(definedDeclarations)
 
         val importsInOrder = mutableListOf<WasmNamedModuleField>()
         importsInOrder.addAll(importedFunctions)
@@ -269,7 +275,11 @@ class WasmCompiledModuleFragment(
         definedDeclarations.gcTypes[Synthetics.GcTypes.specialSlotITableType.value] = specialSlotITableType
     }
 
-    private fun getTags(definedDeclarations: DefinedDeclarationsResolver, exceptionTagType: ExceptionTagType): List<WasmTag> {
+    private fun getTags(
+        definedDeclarations: DefinedDeclarationsResolver,
+        exceptionTagType: ExceptionTagType,
+        generateStackSwitchingTag: Boolean,
+    ): List<WasmTag> {
         val exceptionTag = when (exceptionTagType) {
             ExceptionTagType.TRAP -> null
             ExceptionTagType.JS_TAG -> {
@@ -291,7 +301,33 @@ class WasmCompiledModuleFragment(
                 WasmTag(Synthetics.FunctionHeapTypes.jsExceptionTagFuncType)
             }
         }
-        return listOfNotNull(exceptionTag)
+
+        val contTagType = if (generateStackSwitchingTag) {
+            val kotlinAnyRefType = WasmRefNullType(Synthetics.HeapTypes.anyBuiltInType)
+            val contTagFuncType = WasmFunctionType(listOf(kotlinAnyRefType), listOf())
+            definedDeclarations.functionTypes[Synthetics.FunctionHeapTypes.wasmContTagFuncType.type] = contTagFuncType
+            WasmTag(Synthetics.FunctionHeapTypes.wasmContTagFuncType)
+        } else null
+
+        return listOfNotNull(exceptionTag, contTagType)
+    }
+
+    private fun createContTypes(definedDeclarations: DefinedDeclarationsResolver, isStdlibOrMonolith: Boolean) {
+        val boundContFuncType = WasmFunctionType(emptyList(), listOf(WasmRefNullType(Synthetics.HeapTypes.anyBuiltInType)))
+        definedDeclarations.functionTypes[Synthetics.FunctionHeapTypes.boundContFuncType.type] = boundContFuncType
+        definedDeclarations.gcTypes[Synthetics.HeapTypes.boundContType.type] =
+            WasmContType("cont_0", Synthetics.FunctionHeapTypes.boundContFuncType)
+
+        if (isStdlibOrMonolith) {
+            // Continuation types of `SuspendFunction{0,1,2}.invoke`
+            for (arity in 0..2) {
+                val funType = suspendFunctionInvokeWasmType(arity)
+                val funTypeSignature = getFunctionTypeSignature(funType)
+                definedDeclarations.functionTypes.putIfAbsent(funTypeSignature, funType)
+                definedDeclarations.gcTypes[getContTypeSignature(funType)] =
+                    WasmContType("cont_${arity + 2}", FunctionHeapTypeSymbol(funTypeSignature))
+            }
+        }
     }
 
     private fun getTypes(definedDeclarations: DefinedDeclarationsResolver): List<RecursiveTypeGroup> {
@@ -310,8 +346,8 @@ class WasmCompiledModuleFragment(
         val heapTypeResolver: (WasmHeapType.Type) -> WasmTypeDeclaration = definedDeclarations::resolve
 
         val recursiveGroups = with(RecursiveGroupBuilder(heapTypeResolver)) {
-            addTypes(definedDeclarations.gcTypes.values)
-            addTypes(definedDeclarations.vTableGcTypes.values)
+            addTypes(definedDeclarations.gcTypes.values.toSet())
+            addTypes(definedDeclarations.vTableGcTypes.values.toSet())
             addTypes(allFunctionTypes.values.toSet())
             build()
         }
@@ -398,12 +434,24 @@ class WasmCompiledModuleFragment(
         definedDeclarations.gcTypes[Synthetics.GcTypes.rttiType.value] = rttiTypeDeclaration
     }
 
-    private fun getGlobals(definedDeclarations: DefinedDeclarationsResolver) = mutableListOf<WasmGlobal>().apply {
+    private fun getUsedAsWasmRawFunctionReference(definedDeclarations: DefinedDeclarationsResolver) = mutableListOf<WasmElement>().apply {
+        // WebAssembly requires functions used for value via ref.func to be forward declared.
+        forEachLinkerData { linkerData ->
+            addAll(linkerData.wasmReferencedFunctions.map { key ->
+                WasmElement(
+                    type = WasmFuncRef,
+                    values = listOf(WasmTable.Value.Function(definedDeclarations.resolve(FuncSymbol(key)))),
+                    mode = WasmElement.Mode.Declarative)
+            })
+        }
+    }
+
+    private fun getGlobals(definedDeclarations: DefinedDeclarationsResolver) = mutableSetOf<WasmGlobal>().apply {
         addAll(definedDeclarations.globalFields.values)
         addAll(definedDeclarations.globalVTables.values)
         addAll(definedDeclarations.globalClassITables.values)
 
-        val rttiGlobals = mutableMapOf<IdSignature, WasmGlobal>()
+        val rttiGlobals = definedDeclarations.globalRTTI
         val rttiSuperTypes = mutableMapOf<IdSignature, IdSignature?>()
 
         wasmCompiledFileFragments.forEach { fragment ->
@@ -414,33 +462,43 @@ class WasmCompiledModuleFragment(
         fun wasmRttiGlobalOrderKey(superType: IdSignature?): Int =
             superType?.let { wasmRttiGlobalOrderKey(rttiSuperTypes[it]) + 1 } ?: 0
 
-        rttiGlobals.keys.sortedBy(::wasmRttiGlobalOrderKey).mapTo(this) { rttiGlobals[it]!! }
+        rttiGlobals.keys.sortedBy(::wasmRttiGlobalOrderKey).forEach { add(rttiGlobals[it]!!) }
 
         addAll(definedDeclarations.globalLiteralGlobals.values)
     }
 
-    private fun createAndExportMemory(exports: MutableList<WasmExport<*>>, stdlibModuleNameForImport: String?): List<WasmMemory> {
-        val memorySizeInPages = 0
-        val importPair = stdlibModuleNameForImport?.let { WasmImportDescriptor(it, WasmSymbol("memory")) }
-        val memory = WasmMemory(WasmLimits(memorySizeInPages.toUInt(), null/* "unlimited" */), importPair)
+    private fun createAndExportMemory(
+        importWasmMemoryInsteadOfExport: Boolean,
+        isStdlibOrMonolith: Boolean,
+        definedDeclarations: DefinedDeclarationsResolver,
+        exports: MutableList<WasmExport<*>>,
+    ): List<WasmMemory> {
+        if (!isStdlibOrMonolith) return emptyList()
 
-        // Need to export the memory in order to pass complex objects to the host language.
-        // Export name "memory" is a WASI ABI convention.
-        val exportMemory = WasmExport.Memory("memory", memory)
-        exports.add(exportMemory)
+        val memoryImport = importWasmMemoryInsteadOfExport.ifTrue {
+            WasmImportDescriptor("intrinsics", WasmSymbol("memory"))
+        }
+
+        val memorySizeInPages = 0
+        val memory = WasmMemory(WasmLimits(memorySizeInPages.toUInt(), null/* "unlimited" */), memoryImport)
+
+        if (importWasmMemoryInsteadOfExport) {
+            val memoryGlobal = WasmGlobal("memory", WasmExternRef, false, emptyList(), memoryImport)
+            definedDeclarations.globalFields[Synthetics.Globals.wasmMemoryGlobal.value] = memoryGlobal
+        } else {
+            // Need to export the memory in order to pass complex objects to the host language.
+            // Export name "memory" is a WASI ABI convention.
+            val exportMemory = WasmExport.Memory(WasmSpecialExportNames.MEMORY, memory)
+            exports.add(exportMemory)
+        }
         return listOf(memory)
     }
 
     private fun createMasterInitFunction(
         definedDeclarations: DefinedDeclarationsResolver,
-        initializeUnit: Boolean,
     ): WasmFunction.Defined {
         val masterInitFunction = WasmFunction.Defined("_initializeModule", Synthetics.FunctionHeapTypes.parameterlessNoReturnFunctionType)
         with(WasmExpressionBuilder(masterInitFunction.instructions)) {
-            if (initializeUnit) {
-                buildCall(Synthetics.Functions.unitGetInstanceBuiltIn, serviceCodeLocation)
-            }
-
             buildCall(Synthetics.Functions.fieldInitializerFunction, serviceCodeLocation)
 
             if (definedDeclarations.functions.containsKey(Synthetics.Functions.associatedObjectGetter.value)) {
@@ -453,6 +511,25 @@ class WasmCompiledModuleFragment(
         }
         definedDeclarations.functions[Synthetics.Functions.masterInitFunction.value] = masterInitFunction
         return masterInitFunction
+    }
+
+    // TODO: Gets main functions which should be run on start. Basically it should single, but we have no way to decide.
+    private fun selectMainFunctions(): List<IdSignature> {
+        var mainFunctionId: String? = null
+        val mainFunctionSignatures = mutableListOf<IdSignature>()
+        forEachLinkerData { linkerData ->
+            linkerData.mainFunctionWrappers.forEach { (val fqName, val signature = function) ->
+                val currentId = mainFunctionId ?: fqName
+                if (mainFunctionId == null || fqName < currentId) {
+                    mainFunctionId = fqName
+                    mainFunctionSignatures.clear()
+                    mainFunctionSignatures.add(signature)
+                } else if (fqName == currentId) {
+                    mainFunctionSignatures.add(signature)
+                }
+            }
+        }
+        return mainFunctionSignatures
     }
 
     private fun createAssociatedObjectGetter(
@@ -486,12 +563,12 @@ class WasmCompiledModuleFragment(
         associatedObjectGetter.instructions.clear()
         with(WasmExpressionBuilder(associatedObjectGetter.instructions)) {
             forEachLinkerData { linkerData ->
-                for ((klassId, associatedObjectsInstanceGetters) in linkerData.classAssociatedObjectsInstanceGetters) {
+                for ((val klassId = klass, val associatedObjectsInstanceGetters = objects) in linkerData.classAssociatedObjectsInstanceGetters) {
                     buildGetLocal(classIdLocal, serviceCodeLocation)
                     buildConstI64(klassId, serviceCodeLocation)
                     buildInstr(WasmOp.I64_EQ, serviceCodeLocation)
                     buildIf("Class matches")
-                    associatedObjectsInstanceGetters.forEach { (keyId, getter, isExternal) ->
+                    associatedObjectsInstanceGetters.forEach { (val keyId = obj, val getter = getterFunc, val isExternal) ->
                         if (definedDeclarations.functions.containsKey(getter)) { //Could be deleted with DCE
                             buildGetLocal(keyIdLocal, serviceCodeLocation)
                             buildConstI64(keyId, serviceCodeLocation)
@@ -528,7 +605,8 @@ class WasmCompiledModuleFragment(
     private fun createStartUnitTestsFunction(definedDeclarations: DefinedDeclarationsResolver, exports: MutableList<WasmExport<*>>) {
         if (!definedDeclarations.functions.containsKey(Synthetics.Functions.runRootSuitesBuiltIn.value)) return
 
-        val startUnitTestsFunction = WasmFunction.Defined("startUnitTests", Synthetics.FunctionHeapTypes.parameterlessNoReturnFunctionType)
+        val startUnitTestsFunction =
+            WasmFunction.Defined(WasmSpecialExportNames.START_UNIT_TESTS, Synthetics.FunctionHeapTypes.parameterlessNoReturnFunctionType)
         with(WasmExpressionBuilder(startUnitTestsFunction.instructions)) {
             forEachLinkerData { linkerData ->
                 linkerData.testFunctionDeclarators.forEach { declarator ->
@@ -537,7 +615,7 @@ class WasmCompiledModuleFragment(
             }
             buildCall(Synthetics.Functions.runRootSuitesBuiltIn, serviceCodeLocation)
         }
-        exports.add(WasmExport.Function("startUnitTests", startUnitTestsFunction))
+        exports.add(WasmExport.Function(WasmSpecialExportNames.START_UNIT_TESTS, startUnitTestsFunction))
         definedDeclarations.functions[Synthetics.Functions.startUnitTestsFunction.value] = startUnitTestsFunction
     }
 
@@ -823,10 +901,16 @@ class WasmCompiledModuleFragment(
             putAllChecked(fragmentDeclarations.definedRttiGlobal, resolver.globalRTTI, "globalRTTI")
             putAllChecked(fragmentTypes.definedGcTypes, resolver.gcTypes, "gcTypes")
             putAllChecked(fragmentTypes.definedVTableGcTypes, resolver.vTableGcTypes, "vTableGcTypes")
-            putAllChecked(fragmentTypes.definedFunctionTypes, resolver.functionTypes, "functionTypes")
+            // functionTypes are deduplicated by Wasm signature structure, duplicates are expected and equivalent
+            resolver.functionTypes.putAll(fragmentTypes.definedFunctionTypes)
         }
 
         rebindEquivalentFunctions(resolver.functions)
+        rebindEquivalentDeclarations(resolver.gcTypes) { it.equivalentTypes }
+        rebindEquivalentDeclarations(resolver.vTableGcTypes) { it.equivalentTypes }
+        rebindEquivalentDeclarations(resolver.globalRTTI) { it.equivalentTypes }
+        rebindEquivalentDeclarations(resolver.globalVTables) { it.equivalentTypes }
+        rebindEquivalentDeclarations(resolver.globalClassITables) { it.equivalentTypes }
         bindUniqueJsFunNames()
         return resolver
     }
@@ -848,7 +932,7 @@ class WasmCompiledModuleFragment(
                     )
                 }
             }
-            for ((stringValue, literalIdSymbol) in linkerData.globalLiteralsId) {
+            for ([stringValue, literalIdSymbol] in linkerData.globalLiteralsId) {
                 var stringId = literalGlobalIdMap[stringValue]
                 if (stringId == null) {
                     stringId = literalCounter
@@ -867,7 +951,7 @@ class WasmCompiledModuleFragment(
         val visitedStrings = mutableMapOf<String, Int>()
         val addressesAndLengths = mutableListOf<Long>()
         forEachLinkerData { linkerData ->
-            for ((string, literalIdSymbol) in linkerData.stringLiteralId.entries) {
+            for ([string, literalIdSymbol] in linkerData.stringLiteralId.entries) {
                 val visitedStringId = visitedStrings[string]
                 val stringId: Int
                 if (visitedStringId == null) {
@@ -894,7 +978,7 @@ class WasmCompiledModuleFragment(
 
     private fun bindConstantArrayDataSegmentIds(data: MutableList<WasmData>) {
         forEachLinkerData { linkerData ->
-            linkerData.constantArrayDataSegmentId.entries.forEach { (constantArraySegment, symbol) ->
+            linkerData.constantArrayDataSegmentId.entries.forEach { [constantArraySegment, symbol] ->
                 symbol.bind(data.size)
                 val integerSize = when (constantArraySegment.second) {
                     WasmI8 -> BYTE_SIZE_BYTES
@@ -926,7 +1010,7 @@ class WasmCompiledModuleFragment(
     private fun rebindEquivalentFunctions(allDefinedFunctions: MutableMap<IdSignature, WasmFunction>) {
         val equivalentFunctions = mutableMapOf<String, WasmFunction>()
         forEachLinkerData { linkerData ->
-            for ((signatureString, idSignature) in linkerData.equivalentFunctions) {
+            for ([signatureString, idSignature] in linkerData.equivalentFunctions) {
                 val func = equivalentFunctions[signatureString]
                 if (func == null) {
                     // First occurrence of the adapter, register it (if not removed by DCE).
@@ -942,6 +1026,28 @@ class WasmCompiledModuleFragment(
                     // Rebind adapter function to the single instance
                     // There might not be any unbound references in case it's called only from JS side
                     allDefinedFunctions[idSignature] = func
+                }
+            }
+        }
+    }
+
+    private fun <T : WasmNamedModuleField> rebindEquivalentDeclarations(
+        allDefinedDeclarations: MutableMap<IdSignature, T>,
+        equivalentDeclarationsSelector: (WasmCompiledLinkerDataFileFragment) -> List<Pair<String, IdSignature>>
+    ) {
+        val canonicalDeclarations = mutableMapOf<String, T>()
+        forEachLinkerData { linkerData ->
+            for ([equivalenceKey, idSignature] in equivalentDeclarationsSelector(linkerData)) {
+                val canonical = canonicalDeclarations[equivalenceKey]
+                if (canonical == null) {
+                    // First occurrence, register it as canonical (if not removed by DCE).
+                    canonicalDeclarations[equivalenceKey] = allDefinedDeclarations[idSignature] ?: continue
+                } else {
+                    // Already exists, rebind to the canonical instance.
+                    allDefinedDeclarations[idSignature]?.let { duplicate ->
+                        linkerData.exports.removeAll { it.field == duplicate }
+                    }
+                    allDefinedDeclarations[idSignature] = canonical
                 }
             }
         }

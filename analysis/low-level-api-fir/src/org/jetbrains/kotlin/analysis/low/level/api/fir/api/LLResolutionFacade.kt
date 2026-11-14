@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -10,24 +10,18 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.impl.compiled.ClsElementImpl
+import org.jetbrains.kotlin.analysis.api.KaImplementationDetail
+import org.jetbrains.kotlin.analysis.api.impl.base.util.withPsiEntry
 import org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProvider
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
-import org.jetbrains.kotlin.analysis.api.utils.errors.withPsiEntry
 import org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirModuleResolveComponents
 import org.jetbrains.kotlin.analysis.low.level.api.fir.element.builder.getNonLocalContainingOrThisElement
 import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirSession
 import org.jetbrains.kotlin.analysis.low.level.api.fir.state.*
 import org.jetbrains.kotlin.analysis.low.level.api.fir.symbolProviders.LLModuleSpecificSymbolProviderAccess
 import org.jetbrains.kotlin.analysis.low.level.api.fir.symbolProviders.getClassLikeSymbolByPsiWithoutDependencies
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.FirDeclarationForCompiledElementSearcher
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.classIdOrError
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.findSourceNonLocalFirDeclaration
-import org.jetbrains.kotlin.analysis.utils.classId
-import org.jetbrains.kotlin.analysis.utils.errors.requireIsInstance
-import org.jetbrains.kotlin.analysis.utils.isLocalClass
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.*
 import org.jetbrains.kotlin.asJava.KtLightClassMarker
-import org.jetbrains.kotlin.diagnostics.KtPsiDiagnostic
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
@@ -43,6 +37,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.load.java.JvmAnnotationNames
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.utils.addToStdlib.requireIsInstance
 import org.jetbrains.kotlin.utils.exceptions.checkWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
@@ -50,6 +45,7 @@ import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
 /**
  * An entry point for a FIR Low Level API resolution. Represents a project view from a use-site [KaModule].
  */
+@KaImplementationDetail
 class LLResolutionFacade internal constructor(
     val moduleProvider: LLModuleProvider,
     val resolutionStrategyProvider: LLModuleResolutionStrategyProvider,
@@ -92,14 +88,29 @@ class LLResolutionFacade internal constructor(
      *
      * Please use [getOrBuildFirFile] to get [FirFile] in undefined phase.
      *
+     * A type reference of a compiled declaration from a binary module is mapped to the deserialized FIR, which is used by
+     * [resolveToFirSymbol] as well. Otherwise, type parameter types of the type would refer to type parameters of another
+     * session, which builds FIR from the decompiled PSI.
+     *
      * @return associated [FirElement] in final resolved state if it exists.
      *
      * @see getOrBuildFirFile
      * @see org.jetbrains.kotlin.analysis.low.level.api.fir.element.builder.FirElementBuilder.getOrBuildFirFor
      */
     internal fun getOrBuildFirFor(element: KtElement): FirElement? {
-        val moduleComponents = getModuleComponentsForElement(element)
-        return moduleComponents.elementsBuilder.getOrBuildFirFor(element)
+        val module = getModule(element)
+        if (element is KtTypeReference && element.containingKtFile.isCompiled) {
+            findCompiledTypeRef(element, module)?.let { return it }
+        }
+
+        return sessionProvider.getResolvableSession(module).moduleComponents.elementsBuilder.getOrBuildFirFor(element)
+    }
+
+    private fun findCompiledTypeRef(typeReference: KtTypeReference, module: KaModule): FirElement? {
+        if (getModuleResolutionStrategy(module) != LLModuleResolutionStrategy.STATIC) return null
+
+        val searcher = FirDeclarationForCompiledElementSearcher(getSessionFor(module))
+        return searcher.findTypeReference(typeReference)
     }
 
     /**
@@ -116,17 +127,10 @@ class LLResolutionFacade internal constructor(
     }
 
     /**
-     * @see LLDiagnosticProvider.getDiagnostics
-     */
-    internal fun getDiagnostics(element: KtElement, filter: DiagnosticCheckerFilter): List<KtPsiDiagnostic> {
-        return diagnosticProvider.getDiagnostics(element, filter)
-    }
-
-    /**
      * @see LLDiagnosticProvider.diagnostics
      */
-    internal fun diagnostics(ktFile: KtFile, filter: DiagnosticCheckerFilter): Sequence<KtPsiDiagnostic> {
-        return diagnosticProvider.diagnostics(ktFile, filter)
+    internal fun diagnostics(element: KtElement, filter: DiagnosticCheckerFilter, isRecursive: Boolean): Sequence<LLDiagnostic> {
+        return diagnosticProvider.diagnostics(element, filter, isRecursive)
     }
 
     internal fun resolveToFirSymbol(ktDeclaration: KtDeclaration, phase: FirResolvePhase): FirBasedSymbol<*> {
@@ -250,7 +254,7 @@ class LLResolutionFacade internal constructor(
     }
 }
 
+@KaImplementationDetail
 fun LLResolutionFacade.getModule(element: PsiElement): KaModule {
     return KotlinProjectStructureProvider.getModule(project, element, useSiteModule)
 }
-

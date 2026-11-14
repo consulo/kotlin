@@ -9,8 +9,9 @@
 // IGNORE_BACKEND: ANDROID
 
 // Using internal ModuleNameRetriever in stdlib replacement
-// DISABLE_IR_VISIBILITY_CHECKS: JVM_IR
+// DISABLE_IR_VISIBILITY_CHECKS: JVM
 // PREFER_IN_TEST_OVER_STDLIB
+// ALLOW_KOTLIN_PACKAGE
 
 // FILE: TailCallAsyncStackTraceEntry.kt
 

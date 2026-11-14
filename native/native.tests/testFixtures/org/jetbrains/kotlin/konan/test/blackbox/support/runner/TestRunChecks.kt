@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.konan.test.blackbox.support.runner
 
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.openapi.util.text.StringUtilRt
 import org.jetbrains.kotlin.config.nativeBinaryOptions.BinaryOptions
 import org.jetbrains.kotlin.konan.target.Architecture
 import org.jetbrains.kotlin.konan.target.KonanTarget
@@ -19,15 +18,16 @@ import org.jetbrains.kotlin.konan.test.blackbox.support.settings.CacheMode
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.KotlinNativeTargets
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.OptimizationMode
 import org.jetbrains.kotlin.konan.test.blackbox.support.settings.Settings
+import org.jetbrains.kotlin.konan.test.blackbox.support.util.LLDBTestOutputFilter
 import org.jetbrains.kotlin.konan.test.blackbox.support.util.TestOutputFilter
-import org.jetbrains.kotlin.konan.test.blackbox.support.util.TestReport
 import org.jetbrains.kotlin.native.executors.RunProcessResult
 import org.jetbrains.kotlin.native.executors.runProcess
+import org.jetbrains.kotlin.test.report.TestReport
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toUpperCaseAsciiOnly
 import org.jetbrains.kotlin.utils.yieldIfNotNull
+import org.jetbrains.kotlin.test.services.JUnit5Assertions
 import org.junit.jupiter.api.Assumptions
-import org.opentest4j.AssertionFailedError
-import org.opentest4j.ValueWrapper
+import org.opentest4j.TestAbortedException
 import java.io.File
 import kotlin.time.Duration
 
@@ -37,7 +37,12 @@ sealed interface TestRunCheck {
 
     sealed interface Result {
         data object Passed : Result
-        data class Failed(val reason: String, val cause: Throwable? = null) : Result {
+        data class Failed(
+            val reason: String,
+            val cause: Throwable? = null,
+            val expectedFile: File? = null,
+            val actual: String? = null,
+        ) : Result {
             override fun toString(): String = reason
         }
     }
@@ -63,8 +68,6 @@ sealed interface TestRunCheck {
 
         data class Expected(val expectedExitCode: Int) : ExitCode()
 
-        data class SkipIfNot(val expectedExitCode: Int) : ExitCode()
-
         override fun apply(testRun: TestRun, runResult: RunResult): Result {
             // Don't check the exit code if it is unknown.
             val knownExitCode: Int = runResult.exitCode ?: return Result.Passed
@@ -79,10 +82,6 @@ sealed interface TestRunCheck {
                     if (knownExitCode != expectedExitCode)
                         Result.Failed("Exit code is $knownExitCode while $expectedExitCode was expected.")
                     else Result.Passed
-                }
-                is SkipIfNot -> {
-                    Assumptions.assumeTrue(knownExitCode == expectedExitCode)
-                    Result.Passed
                 }
             }
         }
@@ -104,14 +103,33 @@ sealed interface TestRunCheck {
         Output.ALL -> processOutput.stdOut.filteredOutput + processOutput.stdErr
     }
 
-    class OutputDataFile(val output: Output = Output.ALL, val file: File) : TestRunCheck {
+    /**
+     * Aborts the test run if a known flakiness is detected.
+     *
+     * Unlike the other checks, this one never reports a failure: [mute] must either throw a [TestAbortedException],
+     * making the test skipped, or do nothing.
+     */
+    class MuteKnownFlakiness(val mute: TestRunCheck.(RunResult) -> Unit) : TestRunCheck {
         override fun apply(testRun: TestRun, runResult: RunResult): Result {
-            val expectedOutput = file.readText()
-            val actualFilteredOutput = runResult.processOutputAsString(output)
+            mute(runResult)
+            return Result.Passed
+        }
+    }
 
-            return if (StringUtilRt.convertLineSeparators(expectedOutput) != StringUtilRt.convertLineSeparators(actualFilteredOutput))
-                Result.Failed("Tested process output mismatch. See \"TEST STDOUT\" and \"EXPECTED OUTPUT DATA FILE\" below.")
-            else Result.Passed
+    class OutputDataFile(
+        val output: Output = Output.ALL,
+        val file: File,
+        val sanitizer: (String) -> String = { it },
+    ) : TestRunCheck {
+        override fun apply(testRun: TestRun, runResult: RunResult): Result {
+            val actualFilteredOutput = runResult.processOutputAsString(output)
+            val match = JUnit5Assertions.doesEqualToFile(file, actualFilteredOutput, sanitizer)
+            return if (!match) {
+                // Pass in both the output and the file unsanitized to see the real diff in the failure
+                Result.Failed("Tested process output mismatch.", expectedFile = file, actual = actualFilteredOutput)
+            } else {
+                Result.Passed
+            }
         }
     }
 
@@ -122,20 +140,23 @@ sealed interface TestRunCheck {
                     Result.Failed("Tested process output has not passed validation.")
                 } else Result.Passed
             } catch (t: Throwable) {
-                if (t is Exception || t is AssertionError) {
-                    Result.Failed("Tested process output has not passed validation: ${t.message}", t)
-                } else {
-                    throw t
+                when (t) {
+                    is TestAbortedException -> throw t // E.g., propagate `assumeFalse` instead of making it fail the test.
+                    is Exception, is AssertionError ->
+                        Result.Failed("Tested process output has not passed validation: ${t.message}", t)
+                    else -> throw t
                 }
             }
     }
 
     class TestFiltering(val testOutputFilter: TestOutputFilter) : TestRunCheck {
         override fun apply(testRun: TestRun, runResult: RunResult): Result {
-            if (testOutputFilter != TestOutputFilter.NO_FILTERING) {
-                val testReport = runResult.processOutput.stdOut.testReport
+            if (testOutputFilter != TestOutputFilter.NO_FILTERING && testOutputFilter != LLDBTestOutputFilter) {
+                val tcTestReport = runResult.processOutput.stdOut.testReport
 
-                checkNotNull(testReport) { "TestRun has TestFiltering enabled, but test report is null" }
+                checkNotNull(tcTestReport) { "TestRun has TestFiltering enabled, but test report is null" }
+
+                val testReport = tcTestReport.tests
 
                 if (testReport.isEmpty())
                     return Result.Failed("No tests have been found. Test report is empty")
@@ -209,7 +230,7 @@ sealed interface TestRunCheck {
             } else Result.Passed
         }
 
-        private fun TestReport.checkDisabled() {
+        private fun TestReport<TestName>.checkDisabled() {
             Assumptions.assumeFalse(
                 ignoredTests.isNotEmpty() && passedTests.isEmpty(),
                 "Test case is disabled"
@@ -305,9 +326,12 @@ data class TestRunChecks(
     val outputDataFile: OutputDataFile?,
     val outputMatcher: OutputMatcher?,
     val fileCheckMatcher: FileCheckMatcher?,
+    val knownFlakinessMute: MuteKnownFlakiness? = null,
 ) : Iterable<TestRunCheck> {
 
     override fun iterator() = iterator {
+        // Must come first: it is the only check that can make the test skipped instead of failed.
+        yieldIfNotNull(knownFlakinessMute)
         yield(executionTimeoutCheck)
         yield(testFiltering)
         yieldIfNotNull(exitCodeCheck)

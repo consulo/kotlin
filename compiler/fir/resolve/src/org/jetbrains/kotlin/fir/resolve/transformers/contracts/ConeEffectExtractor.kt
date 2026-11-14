@@ -5,13 +5,12 @@
 
 package org.jetbrains.kotlin.fir.resolve.transformers.contracts
 
-import org.jetbrains.kotlin.config.AnalysisFlags
 import org.jetbrains.kotlin.config.LanguageFeature
-import org.jetbrains.kotlin.config.ReturnValueCheckerMode
 import org.jetbrains.kotlin.contracts.description.*
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.SessionHolder
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.contracts.description.*
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.diagnostics.ConeDiagnostic
@@ -48,6 +47,7 @@ class ConeEffectExtractor(
         private val LAMBDA_ARGUMENT_NAME = Name.identifier("lambda")
         private val OTHER_ARGUMENT_NAME = Name.identifier("other")
         private val TARGET_ARGUMENT_NAME = Name.identifier("target")
+        private val VALUE_ARGUMENT_NAME = Name.identifier("value")
     }
 
     private fun ConeContractDescriptionError.asElement(): KtErroneousContractElement<ConeKotlinType, ConeDiagnostic> {
@@ -123,11 +123,25 @@ class ConeEffectExtractor(
             }
 
             ContractsDslNames.RETURNS_RESULT_OF -> {
-                if (session.languageVersionSettings.getFlag(AnalysisFlags.returnValueCheckerMode) != ReturnValueCheckerMode.DISABLED) {
+                if (session.languageVersionSettings.rvcEnabledOrStable()
+                    && LanguageFeature.AllowReturnsResultOfContract.isEnabled()
+                ) {
                     val reference = functionCall.arguments.getOrNull(0).asContractValueExpression(LAMBDA_ARGUMENT_NAME)
                     ConeReturnsResultOfDeclaration(reference)
                 } else {
-                    ConeContractDescriptionError.RequiresLanguageFeature("return value checker").asElement()
+                    ConeContractDescriptionError.RequiresLanguageFeature(
+                        "-Xallow-returns-result-of",
+                        "-Xreturn-value-checker"
+                    ).asElement()
+                }
+            }
+
+            ContractsDslNames.RETURNS_PARAMETER -> {
+                if (session.languageVersionSettings.rvcEnabledOrStable()) {
+                    val reference = functionCall.arguments.getOrNull(0).asContractValueExpression(VALUE_ARGUMENT_NAME)
+                    ConeReturnsParameterDeclaration(reference)
+                } else {
+                    ConeContractDescriptionError.RequiresLanguageFeature("-Xreturn-value-checker").asElement()
                 }
             }
 
@@ -215,7 +229,7 @@ class ConeEffectExtractor(
         index: Int,
         name: String
     ): ConeValueParameterReference {
-        return if (type == session.builtinTypes.booleanType.coneType) {
+        return if (type == StandardTypes.Boolean) {
             ConeBooleanValueParameterReference(index, name)
         } else {
             ConeValueParameterReference(index, name)

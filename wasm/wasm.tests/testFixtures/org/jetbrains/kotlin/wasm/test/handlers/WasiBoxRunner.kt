@@ -5,108 +5,170 @@
 
 package org.jetbrains.kotlin.wasm.test.handlers
 
-import org.jetbrains.kotlin.backend.wasm.WasmCompilerResult
+import org.jetbrains.kotlin.platform.wasm.WasmTarget
 import org.jetbrains.kotlin.test.DebugMode
-import org.jetbrains.kotlin.test.InTextDirectivesUtils
 import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives.RUN_UNIT_TESTS
+import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives.USE_STACK_SWITCHING_PROPOSAL
+import org.jetbrains.kotlin.test.groupingStageInputs
 import org.jetbrains.kotlin.test.model.BinaryArtifacts
+import org.jetbrains.kotlin.test.model.WasmCompilationSet
+import org.jetbrains.kotlin.test.model.WasmCompilationSetsBinaryArtifact
+import org.jetbrains.kotlin.test.model.WasmFolderBinaryArtifact
 import org.jetbrains.kotlin.test.services.TestServices
-import org.jetbrains.kotlin.test.services.compilerConfigurationProvider
+import org.jetbrains.kotlin.test.services.configuration.WasmEnvironmentConfigurator.Companion.WASM_BASE_FILE_NAME
+import org.jetbrains.kotlin.test.services.configuration.useNewExceptionHandling
 import org.jetbrains.kotlin.test.services.moduleStructure
-import org.jetbrains.kotlin.wasm.config.WasmConfigurationKeys
 import org.jetbrains.kotlin.wasm.test.tools.WasmVM
+import org.jetbrains.kotlin.wasm.test.tools.WASI_BOX_ENTRY_EXPORT
+import org.jetbrains.kotlin.wasm.test.tools.WASI_UNIT_TESTS_ENTRY_EXPORT
 import java.io.File
+
+/**
+ * The export the WASI VMs invoke. In a driver-linked batch, `startTest` is the result-collecting driver.
+ * Otherwise a `// RUN_UNIT_TESTS` test is isolated, and its `startTest` export is `wasiBoxTestRun.kt`'s glue that runs
+ * `box()` alone. Such a test runs `startUnitTests` instead: the compiler exports it from every binary with
+ * `@kotlin.test.Test` functions, and the `@Test` launcher of `WasmJsLauncherAdditionalSourceProvider` calls `box()`
+ * inside the suite, so that one export covers the unit tests and the box verdict alike.
+ */
+internal fun wasiEntryExport(hasGroupedTestsDriver: Boolean, runUnitTests: Boolean): String = when {
+    hasGroupedTestsDriver -> WASI_BOX_ENTRY_EXPORT
+    runUnitTests -> WASI_UNIT_TESTS_ENTRY_EXPORT
+    else -> WASI_BOX_ENTRY_EXPORT
+}
 
 // TODO reduce amount of duplicated code between this class and WasmBoxRunner
 class WasiBoxRunner(
-    testServices: TestServices
+    testServices: TestServices,
 ) : AbstractWasmArtifactsCollector(testServices) {
-    private val vmsToCheck: List<WasmVM> = listOf(WasmVM.NodeJs, WasmVM.WasmEdge, WasmVM.Wasmtime)
+    internal val vmsToCheck: List<WasmVM> = listOf(WasmVM.Wasmtime)
 
     override fun processAfterAllModules(someAssertionWasFailed: Boolean) {
         if (!someAssertionWasFailed) {
-            runWasmCode()
+            runWasmCode(modulesToArtifact.values.single() as WasmCompilationSetsBinaryArtifact)
         }
     }
 
-    private fun runWasmCode() {
-        val artifacts = modulesToArtifact.values.single() as BinaryArtifacts.Wasm.CompilationSets
+    /**
+     * Runs the WASI compilation set on the WASI VMs ([vmsToCheck]).
+     *
+     * Mirrors [WasmBoxRunner.runWasmCode] so that the IN_PROCESS grouping stage
+     * ([WasmCompilationSetsGroupingStageBoxRunner]) can delegate WASI runs here instead of to the
+     * JS-only [WasmBoxRunner] (whose V8/SpiderMonkey/JSC engines cannot resolve the WASI `wasi`
+     * import emitted into `index.mjs`).
+     */
+    fun runWasmCode(
+        artifacts: WasmCompilationSetsBinaryArtifact,
+        useUnitTestRunnerOnly: Boolean = false,
+        outputCollector: MutableList<WasmVMOutput>? = null,
+        throwOnExceptions: Boolean = !useUnitTestRunnerOnly,
+    ): List<Throwable> {
         val outputDirBase = testServices.getWasmTestOutputDirectory()
 
-        val originalFile = testServices.moduleStructure.originalTestDataFiles.first()
-
         val debugMode = DebugMode.fromSystemProperty("kotlin.wasm.debugMode")
-        val startUnitTests = RUN_UNIT_TESTS in testServices.moduleStructure.allDirectives
+        val runUnitTestsDirective = RUN_UNIT_TESTS in testServices.moduleStructure.allDirectives
+        val startUnitTests = useUnitTestRunnerOnly || runUnitTestsDirective
+        val callGroupedTestsDriver = artifacts.hasGroupedTestsDriver
+        val entryExport = wasiEntryExport(callGroupedTestsDriver, runUnitTests = startUnitTests)
 
-        val testWasiQuiet = """
-            let boxTestPassed = false;
-            try {
-                let jsModule = await import('./$WASM_BASE_FILE_NAME.mjs');
-                ${if (startUnitTests) "jsModule.startUnitTests();" else ""}
-                boxTestPassed = jsModule.runBoxTest();
-            } catch(e) {
-                console.log('Failed with exception!');
-                console.log(e);
-            }
-
-            if (!boxTestPassed)
-                process.exit(1);
-            """.trimIndent()
-
-        val testWasiVerbose = testWasiQuiet + """
-            
-            
-                    console.log('test passed');
-                """.trimIndent()
-
-        val testWasi = if (debugMode >= DebugMode.DEBUG) testWasiVerbose else testWasiQuiet
-
-        fun writeToFilesAndRunTest(mode: String, res: WasmCompilerResult) {
+        fun writeToFilesAndRunTest(mode: String, set: WasmCompilationSet): List<Throwable> {
             val dir = File(outputDirBase, mode)
             dir.mkdirs()
 
-            res.writeTo(dir, WASM_BASE_FILE_NAME, debugMode)
+            set.compilerResult.writeTo(dir, WASM_BASE_FILE_NAME, debugMode)
 
-            File(dir, "test.mjs").writeText(testWasi)
-            val collectedJsArtifacts = collectJsArtifacts(originalFile, mode)
-            val (jsFilePaths) = collectedJsArtifacts.saveJsArtifacts(dir)
             if (debugMode >= DebugMode.DEBUG) {
-                println(" ------ $mode Test file://${dir.absolutePath}/test.mjs")
+                println(" ------ $mode Test file://${dir.absolutePath}/${WASM_BASE_FILE_NAME}.wasm")
             }
 
-            val testFileText = originalFile.readText()
-            val failsIn: List<String> = InTextDirectivesUtils.findListWithPrefixes(testFileText, "// WASM_FAILS_IN: ")
-
-            val configuration = testServices.compilerConfigurationProvider.getCompilerConfiguration(modulesToArtifact.keys.first())
-            val useNewExceptionProposal = configuration.getNotNull(WasmConfigurationKeys.WASM_USE_NEW_EXCEPTION_PROPOSAL)
+            val useNewExceptionProposal = testServices.useNewExceptionHandling(WasmTarget.WASI)
+            val useStackSwitchingProposal = USE_STACK_SWITCHING_PROPOSAL in testServices.moduleStructure.allDirectives
 
             val exceptions = vmsToCheck.mapNotNull { vm ->
+                check(!vm.entryPointIsJsFile) { "WASI VMs cannot run JS entry points, but ${vm.vmName} was asked to run one" }
                 vm.runWithCaughtExceptions(
                     debugMode = debugMode,
                     useNewExceptionHandling = useNewExceptionProposal,
-                    failsIn = failsIn,
-                    entryFile = if (!vm.entryPointIsJsFile) "$WASM_BASE_FILE_NAME.wasm" else collectedJsArtifacts.entryPath ?: "test.mjs",
-                    jsFilePaths = jsFilePaths,
-                    workingDirectory = dir
+                    useStackSwitching = useStackSwitchingProposal,
+                    entryFile = "$WASM_BASE_FILE_NAME.wasm",
+                    jsFilePaths = emptyList(),
+                    workingDirectory = dir,
+                    executionName = formatWasmExecutionName(vm.vmName, mode),
+                    outputCollector = outputCollector,
+                    wasiEntryExport = entryExport,
+                    expectUnitTestReport = runUnitTestsDirective && !callGroupedTestsDriver,
                 )
             }
 
-            processExceptions(exceptions)
-
-            // TODO KT-71504: support size tests for WASI target and ignoring utility files
-            val filesToIgnoreInSizeChecks = emptySet<File>()
-            when (mode) {
-                "dce" -> checkExpectedDceOutputSize(debugMode, testFileText, dir, filesToIgnoreInSizeChecks)
-                "optimized" -> checkExpectedOptimizedOutputSize(debugMode, testFileText, dir, filesToIgnoreInSizeChecks)
-            }
+            // TODO KT-71504: support ignoring utility files for WASI target size tests
+            // The `WASM_*_EXPECTED_OUTPUT_SIZE` expectations of a test describe its wasm-js artifacts;
+            // WASI has no expectations of its own yet, so its sizes are not checked.
+            // TODO: KT-71504: support size tests for the WASI target.
+            return exceptions
         }
 
-        writeToFilesAndRunTest("dev", artifacts.compilation.compilerResult)
-        artifacts.dceCompilation?.let {
-            writeToFilesAndRunTest("dce", it.compilerResult)
+        val allExceptions = wasmCompilationModes(
+            compilation = artifacts.compilation,
+            dceCompilation = artifacts.dceCompilation,
+            optimisedCompilation = artifacts.optimisedCompilation,
+        ).flatMap { (directoryName, compilation) ->
+            writeToFilesAndRunTest(directoryName, compilation)
         }
-        artifacts.optimisedCompilation?.let {
-            writeToFilesAndRunTest("optimized", it.compilerResult)
+
+        if (throwOnExceptions) {
+            processExceptions(allExceptions)
+        }
+
+        return allExceptions
+    }
+}
+
+/*
+ * This Wasi folder runner is intended for the future use in "WasmWasi Klib forward compatibility tests", should it be ever needed,
+ * similar to [CustomWasmJsCompilerSecondStageTestGenerated]
+ */
+open class WasmWasiFolderGroupingStageBoxRunner(
+    testServices: TestServices
+) : AbstractWasmGroupingStageBoxRunner(testServices), WasmArtifactsCollector {
+    private val firstNonGroupingTestServices: TestServices
+        get() = testServices.groupingStageInputs.first().testServices
+
+    private val vmsToCheck: List<WasmVM> = listOf(WasmVM.Wasmtime)
+
+    override fun shouldUseBoxExportModeWhenDriverless(): Boolean {
+        // WASI tests always use the unit-test runner, never box export mode
+        return false
+    }
+
+    override fun runTestCode(
+        artifact: BinaryArtifacts.Wasm,
+        useUnitTestRunnerOnly: Boolean,
+        outputCollector: MutableList<WasmVMOutput>?,
+    ): List<Throwable> {
+        val folderArtifact = artifact as WasmFolderBinaryArtifact
+        val folder = folderArtifact.folder
+        val debugMode = DebugMode.fromSystemProperty("kotlin.wasm.debugMode")
+        val callGroupedTestsDriver = folderArtifact.hasGroupedTestsDriver
+        val runUnitTestsDirective = RUN_UNIT_TESTS in firstNonGroupingTestServices.moduleStructure.allDirectives
+        val entryExport = wasiEntryExport(
+            callGroupedTestsDriver,
+            runUnitTests = useUnitTestRunnerOnly || runUnitTestsDirective,
+        )
+
+        val collectedOutputs = outputCollector ?: mutableListOf()
+        return vmsToCheck.mapNotNull { vm ->
+            check(!vm.entryPointIsJsFile) { "WASI VMs cannot run JS entry points, but ${vm.vmName} was asked to run one" }
+            vm.runWithCaughtExceptions(
+                debugMode = debugMode,
+                firstNonGroupingTestServices.useNewExceptionHandling(WasmTarget.WASI),
+                useStackSwitching = false,
+                entryFile = "$WASM_BASE_FILE_NAME.wasm",
+                jsFilePaths = emptyList(),
+                workingDirectory = folder,
+                executionName = formatWasmExecutionName(vm.vmName, "dev"),
+                outputCollector = collectedOutputs,
+                wasiEntryExport = entryExport,
+                expectUnitTestReport = runUnitTestsDirective && !callGroupedTestsDriver,
+            )
         }
     }
 }

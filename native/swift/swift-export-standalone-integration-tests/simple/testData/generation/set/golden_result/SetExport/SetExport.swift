@@ -1,16 +1,23 @@
 @_implementationOnly import KotlinBridges_SetExport
 import KotlinRuntime
 import KotlinRuntimeSupport
+import KotlinStdlib
 
-public protocol Foo: KotlinRuntime.KotlinBase {
+public protocol Foo: KotlinRuntime.KotlinBase, SetExport._Foo {
 }
-@objc(_Foo)
-package protocol _Foo {
+@objc(_SetExport_Foo)
+public protocol _Foo {
 }
+public protocol __Foo: KotlinRuntimeSupport._KotlinBridgeable {
+}
+@available(*, unavailable, message: "Declaration uses unsupported types")
 public var testSetFoo: Swift.Never {
     get {
         fatalError()
     }
+}
+public func foo() -> any ExportedKotlinPackages.kotlin.collections.MutableSet {
+    return KotlinRuntime.KotlinBase.__createProtocolWrapper(externalRCRef: __root___foo(), conformsTo: ExportedKotlinPackages.kotlin.collections.MutableSet.Type.self) as! any ExportedKotlinPackages.kotlin.collections.MutableSet
 }
 public func testOptSetInt(
     s: Swift.Set<Swift.Int32>?
@@ -22,6 +29,7 @@ public func testSetAny(
 ) -> Swift.Set<Swift.AnyHashable> {
     return __root___testSetAny__TypesOfArguments__Swift_Set_Swift_AnyHashable___(s) as! Swift.Set<Swift.AnyHashable>
 }
+@available(*, unavailable, message: "Declaration uses unsupported types")
 public func testSetFooParam(
     s: Swift.Never
 ) -> Swift.Never {
@@ -82,9 +90,14 @@ public func testSetString(
 ) -> Swift.Set<Swift.String> {
     return __root___testSetString__TypesOfArguments__Swift_Set_Swift_String___(s) as! Swift.Set<Swift.String>
 }
-extension SetExport.Foo where Self : KotlinRuntimeSupport._KotlinBridgeable {
+@_documentation(visibility: internal)
+extension SetExport.Foo where Self : SetExport.__Foo {
 }
 extension SetExport.Foo {
 }
-extension KotlinRuntimeSupport._KotlinExistential: SetExport.Foo where Wrapped : SetExport._Foo {
+@_documentation(visibility: internal)
+extension KotlinRuntimeSupport._KotlinExistential: SetExport.Foo, SetExport.__Foo where Wrapped : SetExport._Foo {
+}
+@_documentation(visibility: internal)
+extension KotlinRuntimeSupport._KotlinExistentialPenBox: SetExport._Foo {
 }

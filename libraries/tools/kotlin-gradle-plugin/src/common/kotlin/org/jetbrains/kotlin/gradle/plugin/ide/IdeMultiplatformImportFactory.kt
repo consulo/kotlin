@@ -10,9 +10,8 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.ide.IdeMultiplatformImport.SourceSetConstraint
 import org.jetbrains.kotlin.gradle.plugin.ide.dependencyResolvers.*
+import org.jetbrains.kotlin.gradle.plugin.ide.dependencyTransformers.IdeKotlinArchiveFilter
 import org.jetbrains.kotlin.gradle.plugin.ide.dependencyTransformers.IdePlatformStdlibCommonDependencyFilter
-import org.jetbrains.kotlin.gradle.plugin.internal.BuildIdentifierAccessor
-import org.jetbrains.kotlin.gradle.plugin.variantImplementationFactoryProvider
 import org.jetbrains.kotlin.gradle.targets.native.internal.commonizerTarget
 
 internal fun IdeMultiplatformImport(
@@ -42,9 +41,7 @@ internal fun IdeMultiplatformImport(
         )
 
         registerDependencyResolver(
-            resolver = IdeJvmAndAndroidSourceDependencyResolver(
-                buildIdentifierAccessor = extension.project.variantImplementationFactoryProvider<BuildIdentifierAccessor.Factory>()
-            ),
+            resolver = IdeJvmAndAndroidSourceDependencyResolver(),
             constraint = SourceSetConstraint.isJvmAndAndroid,
             phase = IdeMultiplatformImport.DependencyResolutionPhase.SourceDependencyResolution,
             priority = IdeMultiplatformImport.Priority.normal
@@ -151,6 +148,12 @@ internal fun IdeMultiplatformImport(
             transformer = IdePlatformStdlibCommonDependencyFilter,
             constraint = SourceSetConstraint.isSinglePlatformType and !SourceSetConstraint.isSharedNative
                     or SourceSetConstraint.isJvmAndAndroid,
+            phase = IdeMultiplatformImport.DependencyTransformationPhase.DependencyFilteringPhase,
+        )
+
+        registerDependencyTransformer(
+            transformer = IdeKotlinArchiveFilter,
+            constraint = SourceSetConstraint.unconstrained,
             phase = IdeMultiplatformImport.DependencyTransformationPhase.DependencyFilteringPhase,
         )
 

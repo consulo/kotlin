@@ -1,6 +1,6 @@
-// IGNORE_BACKEND: JKLIB
 // SKIP_KT_DUMP
 // TARGET_BACKEND: JVM
+
 // FILE: A.java
 public interface A<T extends Number> {
     public void foo(Inv2<Inv<T>, Inv> t);

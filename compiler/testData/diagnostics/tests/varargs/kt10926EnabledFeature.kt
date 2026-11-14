@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +EliminateAmbiguitiesWithExternalTypeParameters
+// RUN_PIPELINE_TILL: CODEGEN
 // WITH_STDLIB
 
 class AllCollection<T> {

@@ -18,7 +18,6 @@ private data class Context(val declaration: SirDeclarationParent)
 internal class SirAsSwiftSourcesPrinter private constructor(
     private val printer: ContextualizedPrinter<Context>,
     private val stableDeclarationsOrder: Boolean,
-    private val renderDocComments: Boolean,
     private val renderDeclarationOrigins: Boolean,
     private val emptyBodyStub: SirFunctionBody
 ) : ContextualizedPrinter<Context> by printer {
@@ -27,14 +26,12 @@ internal class SirAsSwiftSourcesPrinter private constructor(
         public fun print(
             module: SirModule,
             stableDeclarationsOrder: Boolean,
-            renderDocComments: Boolean,
             renderDeclarationOrigins: Boolean,
             emptyBodyStub: SirFunctionBody
         ): String {
             val childrenPrinter = SirAsSwiftSourcesPrinter(
                 ContextualizedPrinterImpl(SmartPrinter(StringBuilder()), Context(module)),
                 stableDeclarationsOrder = stableDeclarationsOrder,
-                renderDocComments = renderDocComments,
                 renderDeclarationOrigins = renderDeclarationOrigins,
                 emptyBodyStub = emptyBodyStub,
             )
@@ -47,7 +44,6 @@ internal class SirAsSwiftSourcesPrinter private constructor(
                 val importsPrinter = SirAsSwiftSourcesPrinter(
                     ContextualizedPrinterImpl(SmartPrinter(StringBuilder()), Context(module)),
                     stableDeclarationsOrder = stableDeclarationsOrder,
-                    renderDocComments = renderDocComments,
                     renderDeclarationOrigins = renderDeclarationOrigins,
                     emptyBodyStub = emptyBodyStub,
                 )
@@ -92,11 +88,13 @@ internal class SirAsSwiftSourcesPrinter private constructor(
         when (this) {
             is SirClass -> printDeclaration()
             is SirEnum -> printDeclaration()
-            is SirEnumCase -> "case $name"
+            is SirEnumCase -> printDeclaration()
             is SirExtension -> printDeclaration()
             is SirStruct -> printDeclaration()
             is SirProtocol -> printDeclaration()
             is SirCallable -> printDeclaration()
+            is SirGetterFunction -> getter.printDeclaration()
+            is SirSetterFunction -> setter.printDeclaration()
             is SirVariable -> printDeclaration()
             is SirTypealias -> printDeclaration()
             is SirSubscript -> printDeclaration()
@@ -125,6 +123,16 @@ internal class SirAsSwiftSourcesPrinter private constructor(
         printName()
         printInheritanceClause()
         printBody()
+    }
+
+    private fun SirEnumCase.printDeclaration() {
+        print("case ${name.swiftIdentifier}")
+        if (associatedValueTypes.isNotEmpty()) {
+            print(associatedValueTypes.joinToString(prefix = "(", separator = ", ", postfix = ")") {
+                it.swiftRender(SirTypeVariance.INVARIANT)
+            })
+        }
+        println()
     }
 
     private fun SirStruct.printDeclaration() {
@@ -158,11 +166,6 @@ internal class SirAsSwiftSourcesPrinter private constructor(
         printer.withContext(Context(this)) {
             println(" {")
             withIndent {
-                if (this is SirEnum) {
-                    for (case in cases) {
-                        println("case ${case.name}")
-                    }
-                }
                 printChildren()
             }
             println("}")
@@ -175,6 +178,8 @@ internal class SirAsSwiftSourcesPrinter private constructor(
         ?.let { println(it) }
 
     private fun SirDeclarationContainer.printChildren() = with(this.declarations.toList()) {
+        filterIsInstance<SirEnumCase>()
+            .forEach { it.print() }
         filterIsInstanceAnd<SirEnum> { it.origin !is SirOrigin.Namespace }
             .sortedWithIfNeeded(Comparators.stableNamedComparator)
             .forEach { it.print() }
@@ -218,11 +223,22 @@ internal class SirAsSwiftSourcesPrinter private constructor(
             printOverride()
         }
         print(
-            "var ",
+            if (isConstant) "let " else "var ",
             name.swiftIdentifier,
             ": ",
             type.swiftRender(SirTypeVariance.INVARIANT),
         )
+        if (isConstant) {
+            check(getter == null && setter == null) { "constant variable can't have a getter and/or setter" }
+            println()
+            return
+        }
+        val getter = getter
+        if (getter == null) {
+            check(setter == null) { "variable with setter must also have a getter" }
+            println()
+            return
+        }
         println(" {")
         withIndent {
             getter.print()
@@ -260,7 +276,7 @@ internal class SirAsSwiftSourcesPrinter private constructor(
         if (this is SirAccessor) {
             if (this is SirSetter && this.parameterName != "newValue") {
                 // newValue is the default implicit setter parameter name in swift
-                print("(", this.parameterName, ")")
+                print("(", this.parameterName.swiftIdentifier, ")")
             }
         } else {
             print("(")
@@ -297,11 +313,13 @@ internal class SirAsSwiftSourcesPrinter private constructor(
     }
 
     private fun SirDeclaration.printDocumentation() {
-        if (!renderDocComments) return
-        documentation?.lines()?.forEach { println(it.trimIndent()) }
+        documentation?.trimIndent()?.prependIndent("/// ")?.let { printlnMultiLine(it) }
     }
 
     private fun SirImport.print() {
+        if (conditionallyAvailable) {
+            println("#if canImport(${moduleName.swiftIdentifier})")
+        }
         print(
             when (mode) {
                 SirImport.Mode.Exported -> "@_exported "
@@ -311,6 +329,9 @@ internal class SirAsSwiftSourcesPrinter private constructor(
         )
         print(spi.render(SirTypeVariance.INVARIANT).takeUnless { it.isBlank() }?.let { "$it " } ?: "")
         println("import ${moduleName.swiftIdentifier}")
+        if (conditionallyAvailable) {
+            println("#endif")
+        }
     }
 
     private fun SirDeclarationContainer.printContainerKeyword() = print(
@@ -330,11 +351,12 @@ internal class SirAsSwiftSourcesPrinter private constructor(
             is SirProtocol -> superClass to protocols
             is SirExtension -> null to protocols
             is SirEnum -> null to protocols
+            is SirStruct -> null to protocols
             else -> null to emptyList()
         }
 
     private fun SirDeclaration.printInheritanceClause() {
-        val (superclass, interfaces) = this.inheritedTypes
+        val [superclass, interfaces] = this.inheritedTypes
 
         (listOfNotNull(superclass?.swiftRender(SirTypeVariance.INVARIANT)) + interfaces.map { it.swiftFqName })
             .takeIf { it.isNotEmpty() }
@@ -370,7 +392,7 @@ internal class SirAsSwiftSourcesPrinter private constructor(
             .takeUnless { currentContext.declaration is SirProtocol }
             ?.let { (currentContext.declaration as? SirExtension)?.let { decl -> minOf(decl.visibility, it) } ?: it }
             .takeIf { it != SirVisibility.INTERNAL }
-            ?.let { it.swift + " " }
+            ?.let { it.value + " " }
             ?: ""
     )
 
@@ -580,7 +602,7 @@ internal class SirAsSwiftSourcesPrinter private constructor(
                 }
 
                 is SirTupleType ->
-                    "(${types.joinToString { (name, type) -> "${name?.let { "$it: " } ?: ""}${type.swiftRender(position)}" }})"
+                    "(${types.joinToString { [name, type] -> "${name?.let { "$it: " } ?: ""}${type.swiftRender(position)}" }})"
 
                 else -> swiftName
             }
@@ -591,7 +613,7 @@ internal class SirAsSwiftSourcesPrinter private constructor(
 
     private val SirType.swiftRenderAsConstraint: String
         get() = when (this) {
-            is SirExistentialType -> protocols.takeIf { it.isNotEmpty() }?.joinToString(separator = " & ") { (protocol, typeArguments) ->
+            is SirExistentialType -> protocols.takeIf { it.isNotEmpty() }?.joinToString(separator = " & ") { [protocol, typeArguments] ->
                 val typeArguments = typeArguments.takeIf { it.isNotEmpty() }
                     ?.joinToString(prefix = "<", postfix = ">", separator = ",") { it.swiftRenderAsConstraint } ?: ""
                 "${protocol.swiftFqName}${typeArguments}"
@@ -602,18 +624,9 @@ internal class SirAsSwiftSourcesPrinter private constructor(
     private val SirParameter.swiftRender: String
         get() = (argumentName?.swiftIdentifier ?: "_") +
                 (parameterName?.swiftIdentifier?.let { " $it" } ?: "") + ": " +
-                type.swiftRender((SirTypeVariance.CONTRAVARIANT)) +
+                type.swiftRender(if (isVariadic) SirTypeVariance.INVARIANT else SirTypeVariance.CONTRAVARIANT) +
                 if (isVariadic) "..." else ""
 }
-
-private val SirVisibility.swift
-    get(): String = when (this) {
-        SirVisibility.PRIVATE -> "private"
-        SirVisibility.FILEPRIVATE -> "fileprivate"
-        SirVisibility.INTERNAL -> "internal"
-        SirVisibility.PUBLIC -> "public"
-        SirVisibility.PACKAGE -> "package"
-    }
 
 private val SirClassMemberDeclaration.callableKind: SirCallableKind
     get() = when (this) {
@@ -645,6 +658,6 @@ private fun List<SirAttribute>.render(position: SirTypeVariance): String = mapNo
 private val SirType.isBivariantSelf: Boolean? get() = when (this) {
         is SirErrorType, is SirUnsupportedType -> null
         is SirExistentialType, is SirFunctionalType -> true
-        is SirTupleType -> false
+        is SirTupleType, is SirType.Metatype -> false
         is SirNominalType -> parent == null && typeArguments.isEmpty() && typeDeclaration !is SirClass /* also not actors */
     }

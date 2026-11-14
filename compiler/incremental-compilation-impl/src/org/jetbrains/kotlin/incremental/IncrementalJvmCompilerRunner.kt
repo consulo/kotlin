@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.build.report.metrics.measure
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.cli.jvm.plugins.PluginsLoader
 import org.jetbrains.kotlin.incremental.ChangedFiles.DeterminableFiles
 import org.jetbrains.kotlin.incremental.classpathDiff.ClasspathSnapshotBuildReporter
 import org.jetbrains.kotlin.incremental.classpathDiff.shrinkAndSaveClasspathSnapshot
@@ -30,9 +31,10 @@ open class IncrementalJvmCompilerRunner(
     private val classpathChanges: ClasspathChanges,
     kotlinSourceFilesExtensions: Set<String> = DEFAULT_KOTLIN_SOURCE_FILES_EXTENSIONS,
     icFeatures: IncrementalCompilationFeatures = IncrementalCompilationFeatures.DEFAULT_CONFIGURATION,
-    generateCompilerRefIndex: Boolean = false,
+    compilerRefIndexDirectory: File? = null,
     compilationCanceledStatus: CompilationCanceledStatus? = null,
     override val lookupTrackerDelegate: LookupTracker = LookupTracker.DO_NOTHING,
+    pluginsLoader: PluginsLoader? = null,
 ) : IncrementalJvmCompilerRunnerBase(
     workingDir = workingDir,
     reporter = reporter,
@@ -40,8 +42,9 @@ open class IncrementalJvmCompilerRunner(
     outputDirs = outputDirs,
     kotlinSourceFilesExtensions = kotlinSourceFilesExtensions,
     icFeatures = icFeatures,
-    generateCompilerRefIndex = generateCompilerRefIndex,
+    compilerRefIndexDirectory = compilerRefIndexDirectory,
     compilationCanceledStatus = compilationCanceledStatus,
+    pluginsLoader = pluginsLoader,
 ) {
     override val shouldTrackChangesInLookupCache
         get() = classpathChanges is ClasspathChanges.ClasspathSnapshotEnabled.IncrementalRun
@@ -53,7 +56,6 @@ open class IncrementalJvmCompilerRunner(
         changedFiles: DeterminableFiles.Known,
         args: K2JVMCompilerArguments,
         messageCollector: MessageCollector,
-        classpathAbiSnapshots: Map<String, AbiSnapshot>
     ): CompilationMode {
         return try {
             val sourcesToCompileCalculator = JvmSourcesToCompileCalculator(

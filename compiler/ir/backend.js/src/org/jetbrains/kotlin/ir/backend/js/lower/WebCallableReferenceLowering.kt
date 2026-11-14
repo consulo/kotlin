@@ -1,13 +1,13 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.ir.backend.js.lower
 
 import org.jetbrains.kotlin.backend.common.compilationException
-import org.jetbrains.kotlin.backend.common.functionReferenceReflectedName
 import org.jetbrains.kotlin.backend.common.lower.AbstractFunctionReferenceLowering
+import org.jetbrains.kotlin.backend.common.lower.declarationsAtFunctionReferenceLowering
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.backend.js.JsCommonBackendContext
@@ -19,11 +19,8 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrRichFunctionReference
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrReturnImpl
-import org.jetbrains.kotlin.ir.types.IrSimpleType
-import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.classOrFail
-import org.jetbrains.kotlin.ir.types.getClass
-import org.jetbrains.kotlin.ir.types.typeWithArguments
+import org.jetbrains.kotlin.ir.functionReferenceReflectedName
+import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
@@ -89,7 +86,7 @@ abstract class WebCallableReferenceLowering(context: JsCommonBackendContext) :
     }
 
     override fun getAdditionalInterfaces(reference: IrRichFunctionReference): List<IrType> =
-        listOfNotNull(reference.secondFunctionInterface?.symbol?.typeWithArguments((reference.type.removeProjections() as IrSimpleType).arguments))
+        listOfNotNull(reference.secondFunctionInterface?.symbol?.typeWithArguments((reference.type.removeProjectionsToMakeValidSuperType() as IrSimpleType).arguments))
 
     override fun postprocessInvoke(invokeFunction: IrSimpleFunction, functionReference: IrRichFunctionReference) {
         val superInvokeFun = functionReference.secondFunctionInterface?.invokeFun ?: return
@@ -111,11 +108,12 @@ abstract class WebCallableReferenceLowering(context: JsCommonBackendContext) :
 
     private fun createNameProperty(clazz: IrClass, reference: IrRichFunctionReference) {
         val reflectionTargetSymbol = reference.reflectionTargetSymbol ?: return
-        val superProperty = reference
-            .type
-            .classOrFail
-            .owner
-            .declarations
+        val superClass = reference.type.classOrFail.owner
+
+        // We need to have a view on the class before transformations made later in pipeline.
+        // The generated class should override the original method, and further lowerings would transformation correctly, if needed.
+        // Super class can be already transformed in case it is located in one of already processed modules.
+        val superProperty = (superClass.declarationsAtFunctionReferenceLowering ?: superClass.declarations)
             .filterIsInstance<IrProperty>()
             .single { it.name == StandardNames.NAME }  // In K/Wasm interfaces can have fake overridden properties from Any
 
@@ -162,28 +160,40 @@ abstract class WebCallableReferenceLowering(context: JsCommonBackendContext) :
         }
     }
 
-    protected fun IrRichFunctionReference.getFlags(): Int = listOfNotNull(
-        (1 shl 0).takeIf { invokeFunction.isSuspend },
-        (1 shl 1).takeIf { hasVarargConversion },
-        (1 shl 2).takeIf { hasSuspendConversion },
-        (1 shl 3).takeIf { hasUnitConversion },
-        (1 shl 4).takeIf { isFunInterfaceConstructorAdapter() },
-    ).sum()
-
-    protected fun IrRichFunctionReference.getArity(): Int =
-        invokeFunction.parameters.size - boundValues.size + if (invokeFunction.isSuspend) 1 else 0
-
+    
     protected fun IrRichFunctionReference.getId(backendContext: JsCommonBackendContext): String = when {
         isFunInterfaceConstructorAdapter() -> invokeFunction.returnType.getClass()!!.fqNameForIrSerialization.toString()
         else -> (backendContext.irFactory as IdSignatureRetriever).declarationSignature(reflectionTargetSymbol!!.owner).toString()
     }
 
-    private fun IrRichFunctionReference.isFunInterfaceConstructorAdapter() =
-        invokeFunction.origin == IrDeclarationOrigin.ADAPTER_FOR_FUN_INTERFACE_CONSTRUCTOR
-
     companion object {
         val LAMBDA_IMPL by IrDeclarationOriginImpl.Regular
         val FUNCTION_REFERENCE_IMPL by IrDeclarationOriginImpl.Regular
         val GENERATED_MEMBER_IN_CALLABLE_REFERENCE by IrDeclarationOriginImpl.Regular
+
+        /**
+         * A top-level function that holds the body of a lowered lambda or callable reference:
+         * a lambda lifted to a free function by [InteropCallableReferenceLowering] (JS),
+         * or a bridged function created by `WasmCallableReferenceLowering` (Wasm).
+         *
+         * Such a function belongs to the callable object rather than to the file it's placed in,
+         * so it's intentionally absent from `compatibleOrigins` in [PropertyLazyInitLowering]
+         * (calling it must not initialize the file's properties) and must be present in `debugFriendlyOrigins`.
+         */
+        val LIFTED_CALLABLE_REFERENCE_FUNCTION by IrDeclarationOriginImpl.Regular
     }
 }
+
+fun IrRichFunctionReference.getFlags(): Int = listOfNotNull(
+    (1 shl 0).takeIf { invokeFunction.isSuspend },
+    (1 shl 1).takeIf { hasVarargConversion },
+    (1 shl 2).takeIf { hasSuspendConversion },
+    (1 shl 3).takeIf { hasUnitConversion },
+    (1 shl 4).takeIf { isFunInterfaceConstructorAdapter() },
+).sum()
+
+fun IrRichFunctionReference.getArity(): Int =
+    invokeFunction.parameters.size - boundValues.size + if (invokeFunction.isSuspend) 1 else 0
+
+fun IrRichFunctionReference.isFunInterfaceConstructorAdapter() =
+    invokeFunction.origin == IrDeclarationOrigin.ADAPTER_FOR_FUN_INTERFACE_CONSTRUCTOR

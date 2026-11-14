@@ -15,19 +15,21 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.SYMB
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.CALL_FROM_UMD_MUST_BE_JS_MODULE_AND_JS_NON_MODULE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.CALL_TO_JS_MODULE_WITHOUT_MODULE_SYSTEM
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.CALL_TO_JS_NON_MODULE_WITH_MODULE_SYSTEM
+import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.DATA_CLASS_COPY_JS_EXPORTABILITY_WILL_BE_CHANGED
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.DELEGATION_BY_DYNAMIC
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.ENUM_CLASS_IN_EXTERNAL_DECLARATION_WARNING
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.EXPOSED_NOT_EXPORTED_SUPER_INTERFACE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.EXTENSION_FUNCTION_IN_EXTERNAL_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.EXTERNAL_ENUM_ENTRY_WITH_BODY
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.IMPLEMENTING_FUNCTION_INTERFACE
+import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.IMPLEMENTING_SUSPEND_FUNCTION_INTERFACE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.INLINE_CLASS_IN_EXTERNAL_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.INLINE_CLASS_IN_EXTERNAL_DECLARATION_WARNING
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_BUILTIN_NAME_CLASH
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_EXTERNAL_ARGUMENT
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_EXTERNAL_INHERITORS_ONLY
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_FAKE_NAME_CLASH
-import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_MODULE_PROHIBITED_ON_NON_NATIVE
+import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_MODULE_PROHIBITED_ON_VAR_IN_MODULE_FILE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_NAME_CLASH
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_NAME_IS_NOT_ON_ALL_ACCESSORS
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_NAME_ON_ACCESSOR_AND_PROPERTY
@@ -41,7 +43,7 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_NO_RUNTIM
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_NO_RUNTIME_USELESS_ON_EXTERNAL_INTERFACE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_NO_RUNTIME_WRONG_TARGET
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_NO_RUNTIME_INTERFACE_AS_REIFIED_TYPE_ARGUMENT
-import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_STATIC_NOT_IN_CLASS_COMPANION
+import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_STATIC_NOT_IN_OBJECT
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_STATIC_ON_CONST
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_STATIC_ON_NON_PUBLIC_MEMBER
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_SYMBOL_ON_TOP_LEVEL_DECLARATION
@@ -50,7 +52,6 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NAMED_COMPAN
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NAME_CONTAINS_ILLEGAL_CHARS
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_ACTUAL_EXTERNAL_INTERFACE_WHILE_EXPECT_WITHOUT_JS_NO_RUNTIME
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.JS_NO_RUNTIME_ACTUAL_ANNOTATIONS_NOT_MATCH_EXPECT
-import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NATIVE_ANNOTATIONS_ALLOWED_ONLY_ON_MEMBER_OR_EXTENSION_FUN
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NATIVE_GETTER_RETURN_TYPE_SHOULD_BE_NULLABLE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NATIVE_INDEXER_CAN_NOT_HAVE_DEFAULT_ARGUMENTS
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NATIVE_INDEXER_KEY_SHOULD_BE_STRING_OR_NUMBER
@@ -58,13 +59,13 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NATIVE_INDEX
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NATIVE_SETTER_WRONG_RETURN_TYPE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NON_CONSUMABLE_EXPORTED_IDENTIFIER
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NON_EXPORTABLE_TYPE
-import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NOT_EXPORTED_OR_EXTERNAL_ACTUAL_DECLARATION_WHILE_EXPECT_IS_EXPORTED
+import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NON_EXPORTABLE_TYPE_IN_SYNTHETIC_COPY_FUNCTION_WITH_EXPOSED_COPY_VISIBILITY
+import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.NON_EXPORTABLE_TYPE_IN_SYNTHETIC_COPY_WITHOUT_CONSISTENT_VISIBILITY
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.OVERRIDING_EXTERNAL_FUN_WITH_OPTIONAL_PARAMS
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.OVERRIDING_EXTERNAL_FUN_WITH_OPTIONAL_PARAMS_WITH_FAKE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.PROPERTY_DELEGATION_BY_DYNAMIC
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.RUNTIME_ANNOTATION_ON_EXTERNAL_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.SPREAD_OPERATOR_IN_DYNAMIC_CALL
-import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.WRONG_EXPORTED_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.WRONG_MULTIPLE_INHERITANCE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.WRONG_OPERATION_WITH_DYNAMIC
 
@@ -72,8 +73,8 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.js.FirJsErrors.WRONG_OPERAT
 object FirJsErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
     override val MAP: KtDiagnosticFactoryToRendererMap by KtDiagnosticFactoryToRendererMap("FIR") { map ->
         map.put(
-            JS_MODULE_PROHIBITED_ON_NON_NATIVE,
-            "'@JsModule' and '@JsNonModule' annotations are prohibited for non-external declarations."
+            JS_MODULE_PROHIBITED_ON_VAR_IN_MODULE_FILE,
+            "'var' declarations are prohibited in files annotated with '@JsModule' or '@JsNonModule'. Use 'val' instead."
         )
 
         map.put(
@@ -98,6 +99,10 @@ object FirJsErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
         map.put(SPREAD_OPERATOR_IN_DYNAMIC_CALL, "Cannot apply spread operator in dynamic call.")
         map.put(WRONG_OPERATION_WITH_DYNAMIC, "Wrong operation with dynamic value: {0}.", CommonRenderers.STRING)
         map.put(IMPLEMENTING_FUNCTION_INTERFACE, "Implementing a function interface is prohibited in JavaScript.")
+        map.put(
+            IMPLEMENTING_SUSPEND_FUNCTION_INTERFACE,
+            "Implementing a suspend function interface is not recommended in JavaScript: it can produce runtime errors when invoked."
+        )
         map.put(OVERRIDING_EXTERNAL_FUN_WITH_OPTIONAL_PARAMS, "Overriding 'external' function with optional parameters.")
         map.put(
             OVERRIDING_EXTERNAL_FUN_WITH_OPTIONAL_PARAMS_WITH_FAKE,
@@ -119,11 +124,6 @@ object FirJsErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
             "Using value classes as parameter type or return type of external declarations is not supported."
         )
         map.put(EXTENSION_FUNCTION_IN_EXTERNAL_DECLARATION, "Function types with receivers are prohibited in external declarations.")
-        map.put(
-            NATIVE_ANNOTATIONS_ALLOWED_ONLY_ON_MEMBER_OR_EXTENSION_FUN,
-            "Annotation ''{0}'' is only allowed on member functions of declarations annotated with ''kotlin.js.native'' or on top-level extension functions.",
-            FirDiagnosticRenderers.RENDER_TYPE
-        )
         map.put(
             NATIVE_INDEXER_KEY_SHOULD_BE_STRING_OR_NUMBER,
             "Native {0}''s first parameter type must be ''kotlin.String'' or a subtype of ''kotlin.Number''.",
@@ -181,7 +181,6 @@ object FirJsErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
         map.put(JS_SYMBOL_ON_TOP_LEVEL_DECLARATION, "'@JsSymbol' annotation is only allowed on member functions.")
         map.put(JS_SYMBOL_PROHIBITED_FOR_OVERRIDE, "'@JsSymbol' is prohibited for overridden members.")
 
-        map.put(WRONG_EXPORTED_DECLARATION, "Declaration of such kind ({0}) cannot be exported to JavaScript.", CommonRenderers.STRING)
         map.put(
             NON_EXPORTABLE_TYPE,
             "Exported declaration uses non-exportable {0} type ''{1}''.",
@@ -194,12 +193,8 @@ object FirJsErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
             CommonRenderers.STRING,
         )
         map.put(NAMED_COMPANION_IN_EXPORTED_INTERFACE, "Named companions are not allowed inside exported interfaces.")
-        map.put(
-            NOT_EXPORTED_OR_EXTERNAL_ACTUAL_DECLARATION_WHILE_EXPECT_IS_EXPORTED,
-            "The corresponding expect declaration is marked as exported, but the actual one is not.\nTo fix it, mark the actual declaration with '@JsExport' as well, remove @JsExport.Ignore if there is one, or remove the '@JsExport' annotation from the expect declaration."
-        )
-        map.put(JS_STATIC_NOT_IN_CLASS_COMPANION, "Only members of class companion objects can be annotated with '@JsStatic'.")
-        map.put(JS_STATIC_ON_NON_PUBLIC_MEMBER, "Only public members of class companion objects can be annotated with '@JsStatic'.")
+        map.put(JS_STATIC_NOT_IN_OBJECT, "Only members in named objects and companion objects of classes can be annotated with '@JsStatic'.")
+        map.put(JS_STATIC_ON_NON_PUBLIC_MEMBER, "Only public members of objects can be annotated with '@JsStatic'.")
         map.put(JS_STATIC_ON_CONST, "'@JsStatic' annotation is redundant for const properties.")
 
         map.put(
@@ -243,6 +238,60 @@ object FirJsErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
         map.put(
             JS_NO_RUNTIME_ACTUAL_ANNOTATIONS_NOT_MATCH_EXPECT,
             "@JsNoRuntime annotations from expect must either be present with on actual as well, or the actual interface must be external.",
+        )
+
+        map.put(
+            DATA_CLASS_COPY_JS_EXPORTABILITY_WILL_BE_CHANGED,
+            """
+                Non-exported primary constructor is exposed to JS via the generated 'copy()' method of this 'data' class.
+
+                In a future release, the generated 'copy()' will inherit '@JsExport.Ignore' by default,
+                matching the exportability of the primary constructor.
+
+                To resolve this diagnostic, choose one of the following options:
+
+                  - Annotate the data class with '@ConsistentCopyVisibility':
+                    'copy()' will inherit '@JsExport.Ignore' and will NOT be exported to JavaScript/TypeScript.
+
+                  - Annotate the data class with '@ExposedCopyVisibility':
+                    'copy()' will NOT inherit '@JsExport.Ignore' and WILL be exported to JavaScript/TypeScript.
+
+                  - Pass the '-Xconsistent-data-class-copy-visibility' compiler flag:
+                    Applies '@ConsistentCopyVisibility' behavior to all data classes globally,
+                    so 'copy()' will inherit '@JsExport.Ignore' and will NOT be exported to JavaScript/TypeScript.
+
+                For more information, see the documentation for '@ConsistentCopyVisibility' and '@ExposedCopyVisibility'.                
+                
+            """.trimIndent() // Two empty lines at the end to append "This will become an error in" message
+        )
+
+        map.put(
+            NON_EXPORTABLE_TYPE_IN_SYNTHETIC_COPY_FUNCTION_WITH_EXPOSED_COPY_VISIBILITY,
+            """
+                Parameter of type ''{0}'' is not exportable, but is used in the exposed ''copy()'' method of this ''data'' class.
+
+                To resolve this diagnostic, remove the ''@ExposedCopyVisibility'' annotation from the data class,
+                so the ''copy()'' method will NOT be exported to JavaScript/TypeScript.
+                """.trimIndent(),
+            FirDiagnosticRenderers.RENDER_TYPE,
+        )
+
+
+        map.put(
+            NON_EXPORTABLE_TYPE_IN_SYNTHETIC_COPY_WITHOUT_CONSISTENT_VISIBILITY,
+            """
+                Parameter of type ''{0}'' is not exportable, but is used in the exposed ''copy()'' method of this ''data'' class.
+
+                To resolve this diagnostic, choose one of the following options:
+                
+                  - Annotate the data class with ''@ConsistentCopyVisibility'':
+                    ''copy()'' will inherit the constructor exportability, so will NOT be exported to JavaScript/TypeScript.
+                    
+                  - Pass the ''-Xconsistent-data-class-copy-visibility'' compiler flag:
+                    Applies ''@ConsistentCopyVisibility'' behavior to all data classes globally,
+                    so ''copy()'' will inherit ''@JsExport.Ignore'' and will NOT be exported to JavaScript/TypeScript.
+                """.trimIndent(),
+            FirDiagnosticRenderers.RENDER_TYPE,
         )
     }
 }

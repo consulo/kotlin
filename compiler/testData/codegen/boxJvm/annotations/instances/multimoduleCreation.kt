@@ -1,7 +1,6 @@
-// TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: JVM
 // IGNORE_DEXING
 // WITH_STDLIB
-// LANGUAGE: +InstantiationOfAnnotationClasses
 
 // MODULE: lib
 // FILE: lib.kt

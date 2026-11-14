@@ -7,7 +7,6 @@
 
 package org.jetbrains.kotlin.gradle.unitTests.sources
 
-import org.gradle.kotlin.dsl.provideDelegate
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.sources.getVisibleSourceSetsFromAssociateCompilations
@@ -41,7 +40,7 @@ class SourceSetVisibilityFromAssociatedCompilationsTest {
         kotlin.apply {
             jvm()
             iosArm64()
-            @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+            // fixme: KT-89587 Clean up tests after iosX64 target deprecation
             iosX64()
 
             sourceSets.apply {

@@ -2,17 +2,35 @@ public final class A /* test.A*/ {
   public  A();//  .ctor()
 }
 
-public abstract class ABMap /* test.ABMap*/ implements java.util.Map<@org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() test.B>, kotlin.collections.Map<@org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() test.B>, kotlin.jvm.internal.markers.KMappedMarker {
+public abstract class ABMap /* test.ABMap*/ implements java.util.Map<@org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() test.B>, kotlin.jvm.internal.markers.KMappedMarker {
   public  ABMap();//  .ctor()
 }
 
-public abstract class ABMap2 /* test.ABMap2*/ implements java.util.Map<@org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() test.B>, kotlin.collections.Map<@org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() test.B>, kotlin.jvm.internal.markers.KMappedMarker {
+public abstract class ABMap2 /* test.ABMap2*/ implements java.util.Map<@org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() test.B>, kotlin.jvm.internal.markers.KMappedMarker {
   @java.lang.Override()
-  @kotlin.SinceKotlin(version = @kotlin.SinceKotlin)
+  @kotlin.SinceKotlin(version = @kotlin.SinceKotlin(version = "2.0"))
   @kotlin.js.ExperimentalJsCollectionsApi()
   @kotlin.js.ExperimentalJsExport()
+  @kotlin.js.JsDontExportDefaultImplementation()
   @org.jetbrains.annotations.NotNull()
   public @org.jetbrains.annotations.NotNull() kotlin.js.collections.JsReadonlyMap<@org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() test.B> asJsReadonlyMapView();//  asJsReadonlyMapView()
+
+  @java.lang.Override()
+  @kotlin.js.JsExport.Ignore()
+  @org.jetbrains.annotations.Nullable()
+  public @org.jetbrains.annotations.Nullable() test.B get(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() test.A);//  get(@org.jetbrains.annotations.NotNull() test.A)
+
+  @java.lang.Override()
+  @kotlin.js.JsExport.Ignore()
+  public boolean containsKey(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() test.A);//  containsKey(@org.jetbrains.annotations.NotNull() test.A)
+
+  @java.lang.Override()
+  @kotlin.js.JsExport.Ignore()
+  public boolean containsValue(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() test.B);//  containsValue(@org.jetbrains.annotations.NotNull() test.B)
+
+  @java.lang.Override()
+  @kotlin.js.JsExport.Ignore()
+  public boolean isEmpty();//  isEmpty()
 
   @java.lang.Override()
   @org.jetbrains.annotations.NotNull()
@@ -25,19 +43,6 @@ public abstract class ABMap2 /* test.ABMap2*/ implements java.util.Map<@org.jetb
   @java.lang.Override()
   @org.jetbrains.annotations.NotNull()
   public @org.jetbrains.annotations.NotNull() java.util.Set<@org.jetbrains.annotations.NotNull() test.A> getKeys();//  getKeys()
-
-  @java.lang.Override()
-  @org.jetbrains.annotations.Nullable()
-  public @org.jetbrains.annotations.Nullable() test.B get(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() test.A);//  get(@org.jetbrains.annotations.NotNull() test.A)
-
-  @java.lang.Override()
-  public boolean containsKey(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() test.A);//  containsKey(@org.jetbrains.annotations.NotNull() test.A)
-
-  @java.lang.Override()
-  public boolean containsValue(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() test.B);//  containsValue(@org.jetbrains.annotations.NotNull() test.B)
-
-  @java.lang.Override()
-  public boolean isEmpty();//  isEmpty()
 
   @java.lang.Override()
   public int getSize();//  getSize()
@@ -45,7 +50,7 @@ public abstract class ABMap2 /* test.ABMap2*/ implements java.util.Map<@org.jetb
   public  ABMap2();//  .ctor()
 }
 
-public class ABMap3 /* test.ABMap3*/ implements java.util.Map<@org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() test.B>, kotlin.collections.Map<@org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() test.B>, kotlin.jvm.internal.markers.KMappedMarker {
+public class ABMap3 /* test.ABMap3*/ implements java.util.Map<@org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() test.B>, kotlin.jvm.internal.markers.KMappedMarker {
   @java.lang.Override()
   @org.jetbrains.annotations.NotNull()
   public @org.jetbrains.annotations.NotNull() java.util.Collection<@org.jetbrains.annotations.NotNull() test.B> getValues();//  getValues()
@@ -57,6 +62,10 @@ public class ABMap3 /* test.ABMap3*/ implements java.util.Map<@org.jetbrains.ann
   @java.lang.Override()
   @org.jetbrains.annotations.NotNull()
   public @org.jetbrains.annotations.NotNull() java.util.Set<@org.jetbrains.annotations.NotNull() test.A> getKeys();//  getKeys()
+
+  @java.lang.Override()
+  @org.jetbrains.annotations.NotNull()
+  public @org.jetbrains.annotations.NotNull() test.B getOrDefault(@org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() @org.jetbrains.annotations.NotNull() test.B);//  getOrDefault(@org.jetbrains.annotations.NotNull() test.A, @org.jetbrains.annotations.NotNull() test.B)
 
   @java.lang.Override()
   @org.jetbrains.annotations.Nullable()

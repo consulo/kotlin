@@ -1,7 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // ALLOW_KOTLIN_PACKAGE
-// SKIP_JAVAC
-// LANGUAGE: +InlineClasses
 
 package kotlin.jvm
 

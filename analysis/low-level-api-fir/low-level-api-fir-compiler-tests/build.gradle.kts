@@ -1,10 +1,12 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
+import org.jetbrains.kotlin.testFederation.testFederation
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
+    id("test-data-manager")
 }
 
 dependencies {
@@ -30,7 +32,12 @@ sourceSets {
 kotlin {
     compilerOptions {
         optIn.addAll(
+            "org.jetbrains.kotlin.fir.symbols.SymbolInternals",
+            "org.jetbrains.kotlin.fir.declarations.DirectDeclarationsAccess",
+            "org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirInternals",
+            "org.jetbrains.kotlin.analysis.api.KaImplementationDetail",
             "org.jetbrains.kotlin.analysis.api.KaExperimentalApi",
+            "org.jetbrains.kotlin.analysis.api.KaContextParameterApi",
             "org.jetbrains.kotlin.analysis.api.KaPlatformInterface",
             "org.jetbrains.kotlin.analysis.api.KaSpiExtensionPoint",
         )
@@ -39,15 +46,18 @@ kotlin {
 
 projectTests {
     testTask(
-        jUnitMode = JUnitMode.JUnit5,
+        maxHeapSize = testMaxHeapSizeLarge,
         defineJDKEnvVariables = listOf(
             JdkMajorVersion.JDK_11_0, // TestsWithJava11 and others
             JdkMajorVersion.JDK_17_0, // TestsWithJava17 and others
-            JdkMajorVersion.JDK_21_0  // TestsWithJava21 and others
+            JdkMajorVersion.JDK_21_0, // TestsWithJava21 and others
+            JdkMajorVersion.JDK_25_0, // TestsWithJava25 and others
         )
     ) {
-        extensions.configure<TestInputsCheckExtension> {
-            allowFlightRecorder = true
+        testFederation {
+            smokeTests {
+                includeAutoSamples(percentage = 1)
+            }
         }
     }
 
@@ -56,10 +66,7 @@ projectTests {
     testData(project(":compiler").isolated, "testData/diagnostics")
     testData(project(":compiler").isolated, "testData/codegen")
     testData(project(":compiler:tests-spec").isolated, "testData/diagnostics")
-    testData(project(":compiler:fir:raw-fir:psi2fir").isolated, "testData/rawBuilder")
-    testData(project(":compiler:fir:raw-fir:psi2fir").isolated, "testData/rawBuilder")
-    testData(project(":compiler:fir:analysis-tests").isolated, "testData/resolve")
-    testData(project(":compiler:fir:analysis-tests").isolated, "testData/resolveWithStdlib")
+    testData(project(":compiler:fir:raw-fir").isolated, "testData")
     testData(project(":js:js.translator").isolated, "testData/_commonFiles")
     testData(project(":plugins:scripting:scripting-tests").isolated, "testData/diagnostics")
     testData(project(":plugins:scripting:scripting-tests").isolated, "testData/codegen")
@@ -68,6 +75,7 @@ projectTests {
 
     withJvmStdlibAndReflect()
     withStdlibCommon()
+    withStdlibWeb()
     withJsRuntime()
     withWasmRuntime()
     withAnnotations()
@@ -77,8 +85,8 @@ projectTests {
     withMockJdkRuntime()
     withMockJDKModifiedRuntime()
     withMockJdkAnnotationsJar()
-    withScriptRuntime()
     withScriptingPlugin()
     withTestScriptDefinition()
     withPluginSandboxAnnotations()
+    withPluginSandboxJar()
 }

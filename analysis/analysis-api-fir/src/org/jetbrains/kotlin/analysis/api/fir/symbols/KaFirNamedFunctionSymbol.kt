@@ -1,32 +1,24 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.fir.symbols
 
-import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationList
 import org.jetbrains.kotlin.analysis.api.base.KaContextReceiver
 import org.jetbrains.kotlin.analysis.api.contracts.description.KaContractEffectDeclaration
 import org.jetbrains.kotlin.analysis.api.fir.*
 import org.jetbrains.kotlin.analysis.api.fir.contracts.coneEffectDeclarationToAnalysisApi
-import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirDynamicFunctionSymbolPointer
-import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirJavaSyntheticPropertyAccessorFunctionSymbolPointer
-import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirMemberFunctionSymbolPointer
-import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirTopLevelFunctionSymbolPointer
-import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.createOwnerPointer
-import org.jetbrains.kotlin.analysis.api.impl.base.symbols.pointers.KaCannotCreateSymbolPointerForLocalLibraryDeclarationException
-import org.jetbrains.kotlin.analysis.api.impl.base.symbols.pointers.KaUnsupportedSymbolLocation
-import org.jetbrains.kotlin.analysis.api.impl.base.util.callableId
-import org.jetbrains.kotlin.analysis.api.impl.base.util.kotlinFunctionInvokeCallableIds
+import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.*
+import org.jetbrains.kotlin.analysis.api.fir.utils.callableId
+import org.jetbrains.kotlin.analysis.api.fir.utils.kotlinFunctionInvokeCallableIds
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.analysis.low.level.api.fir.providers.FirCallableSignature
 import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.fir.containingClassLookupTag
 import org.jetbrains.kotlin.fir.contracts.FirEffectDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
@@ -38,14 +30,15 @@ import org.jetbrains.kotlin.fir.scopes.getProperties
 import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
-import org.jetbrains.kotlin.load.java.JvmAbi
-import org.jetbrains.kotlin.load.java.getPropertyNamesCandidatesByAccessorName
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.load.java.getPropertyNamesCandidatesByAccessorName
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.psi.KtExperimentalApi
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.psiUtil.isActualDeclaration
+import org.jetbrains.kotlin.psi.psiUtil.isCompanion
 import org.jetbrains.kotlin.psi.psiUtil.isExpectDeclaration
 import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 
@@ -70,7 +63,6 @@ internal class KaFirNamedFunctionSymbol private constructor(
         analysisSession = session,
     )
 
-    override val psi: PsiElement? get() = withValidityAssertion { backingPsi ?: findPsi() }
     override val name: Name get() = withValidityAssertion { backingPsi?.nameAsSafeName ?: firSymbol.name }
 
     override val isBuiltinFunctionInvoke: Boolean
@@ -160,11 +152,17 @@ internal class KaFirNamedFunctionSymbol private constructor(
 
     override val isStatic: Boolean
         get() = withValidityAssertion {
-            if (backingPsi != null)
             // Kotlin doesn't have static functions
+            if (backingPsi != null || origin == KaSymbolOrigin.SOURCE)
                 false
             else
                 firSymbol.isStatic
+        }
+
+    @OptIn(KtExperimentalApi::class)
+    override val isCompanion: Boolean
+        get() = withValidityAssertion {
+            backingPsi?.isCompanion ?: firSymbol.isStatic
         }
 
     override val isTailRec: Boolean
@@ -234,9 +232,10 @@ internal class KaFirNamedFunctionSymbol private constructor(
             psiBasedModality ?: firSymbol.kaSymbolModality
         }
 
-    override val compilerVisibility: Visibility
+    override val visibility: KaSymbolVisibility
         get() = withValidityAssertion {
-            backingPsi?.psiBasedVisibility(::isOverride) ?: firSymbol.visibility
+            val compilerVisibility = backingPsi?.psiBasedVisibility(::isOverride) ?: firSymbol.visibility
+            compilerVisibility.asKaSymbolVisibility
         }
 
     override fun createPointer(): KaSymbolPointer<KaNamedFunctionSymbol> = withValidityAssertion {
@@ -264,12 +263,12 @@ internal class KaFirNamedFunctionSymbol private constructor(
             return KaFirDynamicFunctionSymbolPointer(name, this)
         }
 
-        if (origin == KaSymbolOrigin.JAVA_SOURCE || origin == KaSymbolOrigin.JAVA_LIBRARY) {
+        if (origin.isFromJava) {
             createJavaSyntheticPropertyAccessorPointerIfApplicable()?.let { return it }
         }
 
         return KaFirMemberFunctionSymbolPointer(
-            ownerPointer = analysisSession.createOwnerPointer(this),
+            ownerPointer = createOwnerPointer(),
             name = name,
             signature = FirCallableSignature.createSignature(firSymbol),
             isStatic = firSymbol.isStatic,
@@ -290,10 +289,7 @@ internal class KaFirNamedFunctionSymbol private constructor(
      * @return A pointer for synthetic property accessor functions, or null if not applicable.
      */
     private fun createJavaSyntheticPropertyAccessorPointerIfApplicable(): KaSymbolPointer<KaNamedFunctionSymbol>? {
-        val nameAsString = name.asString()
-        val isGetter = JvmAbi.isGetterName(nameAsString)
-        val isSetter = JvmAbi.isSetterName(nameAsString)
-        if (!isGetter && !isSetter) return null
+        val accessorKind = KaSyntheticJavaPropertyAccessorKind.fromAccessorName(name) ?: return null
 
         val containingClassSymbol = firSymbol.containingClassLookupTag()?.toSymbol(analysisSession.firSession)
                 as? FirClassSymbol<*> ?: return null
@@ -309,14 +305,16 @@ internal class KaFirNamedFunctionSymbol private constructor(
         for (propertyName in propertyNameCandidates) {
             for (propertySymbol in scope.getProperties(propertyName)) {
                 val syntheticProperty = propertySymbol.fir as? FirSyntheticProperty ?: continue
-                val matchesAccessor = isGetter && syntheticProperty.getter.delegate.symbol == firSymbol ||
-                        isSetter && syntheticProperty.setter?.delegate?.symbol == firSymbol
+                val matchesAccessor = when (accessorKind) {
+                    KaSyntheticJavaPropertyAccessorKind.GETTER -> syntheticProperty.getter.delegate.symbol == firSymbol
+                    KaSyntheticJavaPropertyAccessorKind.SETTER -> syntheticProperty.setter?.delegate?.symbol == firSymbol
+                }
 
                 if (matchesAccessor) {
                     return KaFirJavaSyntheticPropertyAccessorFunctionSymbolPointer(
-                        ownerPointer = analysisSession.createOwnerPointer(this),
+                        ownerPointer = createOwnerPointer(),
                         propertyName = propertyName,
-                        isGetter = isGetter,
+                        isGetter = accessorKind == KaSyntheticJavaPropertyAccessorKind.GETTER,
                         originalSymbol = this
                     )
                 }

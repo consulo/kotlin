@@ -1,6 +1,4 @@
-// LANGUAGE: +ProhibitSimplificationOfNonTrivialConstBooleanExpressions
 // DIAGNOSTICS: -UNUSED_EXPRESSION
-// SKIP_TXT
 
 /*
  * KOTLIN DIAGNOSTICS SPEC TEST (NEGATIVE)

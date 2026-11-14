@@ -64,7 +64,9 @@ abstract class AbstractAnnotationTypeQualifierResolver<TAnnotation : Any>(
 
     private fun resolveDefaultAnnotationState(annotation: TAnnotation): ReportLevel {
         val annotationFqname = annotation.fqName
-        if (annotationFqname != null && annotationFqname in JSPECIFY_DEFAULT_ANNOTATIONS) {
+        if (annotationFqname != null &&
+            (annotationFqname in JSPECIFY_DEFAULT_ANNOTATIONS || annotationFqname in CHROMIUM_DEFAULT_ANNOTATIONS)
+        ) {
             return javaTypeEnhancementState.getReportLevelForAnnotation(annotationFqname)
         }
         return resolveJsr305AnnotationState(annotation)
@@ -95,7 +97,8 @@ abstract class AbstractAnnotationTypeQualifierResolver<TAnnotation : Any>(
 
     fun shouldPropagateNullability(annotation: TAnnotation): Boolean {
         return when (annotation.fqName) {
-            JSPECIFY_NON_NULL_ANNOTATION_FQ_NAME, JSPECIFY_NULLABLE_ANNOTATION_FQ_NAME -> false
+            JSPECIFY_NON_NULL_ANNOTATION_FQ_NAME, JSPECIFY_NULLABLE_ANNOTATION_FQ_NAME,
+            CHROMIUM_NON_NULL_ANNOTATION_FQ_NAME, CHROMIUM_NULLABLE_ANNOTATION_FQ_NAME -> false
             else -> true
         }
     }
@@ -103,7 +106,9 @@ abstract class AbstractAnnotationTypeQualifierResolver<TAnnotation : Any>(
     fun isAnnotationApplicableFromContainer(annotation: TAnnotation): Boolean {
         val fqName = annotation.fqName ?: return true
         return fqName != JSPECIFY_NON_NULL_ANNOTATION_FQ_NAME &&
-                fqName != JSPECIFY_NULLABLE_ANNOTATION_FQ_NAME
+                fqName != JSPECIFY_NULLABLE_ANNOTATION_FQ_NAME &&
+                fqName != CHROMIUM_NON_NULL_ANNOTATION_FQ_NAME &&
+                fqName != CHROMIUM_NULLABLE_ANNOTATION_FQ_NAME
     }
 
     private fun resolveJsr305AnnotationState(annotation: TAnnotation): ReportLevel {
@@ -179,7 +184,7 @@ abstract class AbstractAnnotationTypeQualifierResolver<TAnnotation : Any>(
     private fun extractDefaultQualifiers(annotation: TAnnotation, isForWarningOnly: Boolean): JavaDefaultQualifiers? {
         resolveQualifierBuiltInDefaultAnnotation(annotation, isForWarningOnly)?.let { return it }
 
-        val (typeQualifier, applicability) = resolveTypeQualifierDefaultAnnotation(annotation)
+        val [typeQualifier, applicability] = resolveTypeQualifierDefaultAnnotation(annotation)
             ?: return null
         val jsr305State = resolveJsr305CustomState(annotation) ?: resolveJsr305AnnotationState(typeQualifier)
         if (jsr305State.isIgnore) return null
@@ -229,7 +234,7 @@ abstract class AbstractAnnotationTypeQualifierResolver<TAnnotation : Any>(
                 ?: QualifierByApplicabilityType(AnnotationQualifierApplicabilityType::class.java)
 
         var wasUpdate = false
-        for ((applicabilityType, newQualifier) in newQualifiers) {
+        for ([applicabilityType, newQualifier] in newQualifiers) {
             if (newQualifier == null) continue // ignore inconsistent qualifiers
             defaultQualifiersByType[applicabilityType] = newQualifier
             wasUpdate = true

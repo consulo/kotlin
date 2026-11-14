@@ -9,22 +9,31 @@ import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.test.Constructor
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.BlackBoxCodegenSuppressor
-import org.jetbrains.kotlin.test.backend.handlers.*
+import org.jetbrains.kotlin.test.backend.handlers.AbstractKlibAbiDumpBeforeInliningSavingHandler
+import org.jetbrains.kotlin.test.backend.handlers.KlibAbiDumpAfterInliningVerifyingHandler
+import org.jetbrains.kotlin.test.backend.handlers.KlibAbiDumpHandler
+import org.jetbrains.kotlin.test.backend.handlers.SerializedIrDumpHandler
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
 import org.jetbrains.kotlin.test.backend.ir.IrDiagnosticsHandler
 import org.jetbrains.kotlin.test.backend.ir.KlibFacades
 import org.jetbrains.kotlin.test.builders.*
+import org.jetbrains.kotlin.test.configuration.commonFirHandlersForCodegenTest
+import org.jetbrains.kotlin.test.configuration.commonIrHandlersForCodegenTest
 import org.jetbrains.kotlin.test.configuration.setupDefaultDirectivesForIrTextTest
 import org.jetbrains.kotlin.test.configuration.setupIrTextDumpHandlers
 import org.jetbrains.kotlin.test.frontend.fir.handlers.FirDiagnosticsHandler
 import org.jetbrains.kotlin.test.model.*
 import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerWithTargetBackendTest
+import org.jetbrains.kotlin.test.runners.UnspecifiedTargetBackend
 import org.jetbrains.kotlin.test.services.PhasedPipelineChecker
 import org.jetbrains.kotlin.test.services.TestPhase
 import org.jetbrains.kotlin.test.services.sourceProviders.AdditionalDiagnosticsSourceFilesProvider
 import org.jetbrains.kotlin.test.services.sourceProviders.CoroutineHelpersSourceFilesProvider
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCommonBackend
 import org.jetbrains.kotlin.utils.bind
 
+@OptIn(UnspecifiedTargetBackend::class)
+@MustRunOnChangesInCommonBackend
 abstract class AbstractNonJvmIrTextTest<FrontendOutput : ResultingArtifact.FrontendOutput<FrontendOutput>>(
     protected val targetPlatform: TargetPlatform,
     targetBackend: TargetBackend
@@ -62,20 +71,21 @@ abstract class AbstractNonJvmIrTextTest<FrontendOutput : ResultingArtifact.Front
 
         facadeStep(frontendFacade)
         firHandlersStep {
+            commonFirHandlersForCodegenTest()
             useHandlers(
-                ::NoFirCompilationErrorsHandler,
                 ::FirDiagnosticsHandler
             )
         }
 
         setupDefaultDirectivesForIrTextTest()
-        useAfterAnalysisCheckers(
+        useFailureSuppressors(
             ::BlackBoxCodegenSuppressor,
-            ::PhasedPipelineChecker.bind(TestPhase.BACKEND)
+            ::PhasedPipelineChecker.bind(TestPhase.CODEGEN)
         )
         enableMetaInfoHandler()
         facadeStep(converter)
         irHandlersStep {
+            commonIrHandlersForCodegenTest()
             setupIrTextDumpHandlers()
             klibAbiDumpBeforeInliningSavingHandler?.let {
                 useHandlers(it)

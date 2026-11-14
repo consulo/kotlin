@@ -53,7 +53,7 @@ import org.jetbrains.kotlin.kdoc.parser.KDocKnownTag;
   }
 
   private boolean isLastToken() {
-    return zzMarkedPos == zzBuffer.length();
+    return zzMarkedPos == zzEndRead;
   }
 
   private int countRepeating(char c) {
@@ -62,6 +62,40 @@ import org.jetbrains.kotlin.kdoc.parser.KDocKnownTag;
           ++current;
       }
       return current - zzStartRead;
+  }
+
+  private enum LinePos {
+      AFTER_NEWLINE,
+      AFTER_LEADING_ASTERISK,
+      IN_CONTENT,
+  }
+
+  private boolean hasMatchingCloseFence(char c, int length) {
+      int pos = zzMarkedPos;
+      LinePos linePos = LinePos.IN_CONTENT;
+      while (pos < zzEndRead) {
+          char ch = zzBuffer.charAt(pos);
+          if (ch == '\n') {
+              if (linePos != LinePos.IN_CONTENT) return false;
+              linePos = LinePos.AFTER_NEWLINE;
+              pos++;
+          } else if (Character.isWhitespace(ch)) {
+              pos++;
+          } else if (linePos == LinePos.AFTER_NEWLINE && ch == '*') {
+              do { pos++; } while (pos < zzEndRead && zzBuffer.charAt(pos) == '*');
+              if (pos < zzEndRead && zzBuffer.charAt(pos) == '/') return false;
+              linePos = LinePos.AFTER_LEADING_ASTERISK;
+          } else if (ch == c) {
+              int fenceStart = pos;
+              do { pos++; } while (pos < zzEndRead && zzBuffer.charAt(pos) == ch);
+              if (pos - fenceStart == length) return true;
+              linePos = LinePos.IN_CONTENT;
+          } else {
+              linePos = LinePos.IN_CONTENT;
+              pos++;
+          }
+      }
+      return false;
   }
 %}
 
@@ -104,6 +138,7 @@ BACKTICK_CODE_FENCE_START = "``" {BACKTICK_STRING} [^`{LINE_BREAK_CHAR}]*
 TILDA_CODE_FENCE_START = "~~" {TILDA_STRING} [^{LINE_BREAK_CHAR}]*
 CODE_FENCE_START={BACKTICK_CODE_FENCE_START} | {TILDA_CODE_FENCE_START}
 CODE_FENCE_END={BACKTICK_STRING} | {TILDA_STRING}
+KDOC_END = "*"+ "/"
 
 %%
 
@@ -112,7 +147,22 @@ CODE_FENCE_END={BACKTICK_STRING} | {TILDA_STRING}
               yybeginAndUpdate(CONTENTS_BEGINNING);
               return KDocTokens.START;
 }
-"*"+ "/" {
+
+<CODE_SPAN_CONTENTS> {
+    {KDOC_END} {
+              if (isLastToken()) return KDocTokens.END;
+              else return KDocTokens.CODE_SPAN_TEXT;
+    }
+}
+
+<INDENTED_CODE_BLOCK, CODE_BLOCK_CONTENTS_BEGINNING, CODE_BLOCK> {
+    {KDOC_END} {
+              if (isLastToken()) return KDocTokens.END;
+              else return KDocTokens.CODE_BLOCK_TEXT;
+    }
+}
+
+{KDOC_END} {
               if (isLastToken()) return KDocTokens.END;
               else return KDocTokens.TEXT;
 }
@@ -184,6 +234,15 @@ CODE_FENCE_END={BACKTICK_STRING} | {TILDA_STRING}
               return KDocTokens.MARKDOWN_LINK;
     }
 
+    {BACKTICK_STRING} {
+              codeFenceChar = zzBuffer.charAt(zzStartRead);
+              codeFenceLength = countRepeating(codeFenceChar);
+              if (hasMatchingCloseFence(codeFenceChar, codeFenceLength)) {
+                  yybeginAndUpdate(CODE_SPAN_CONTENTS);
+              }
+              return KDocTokens.TEXT;
+    }
+
     [^] {
               yybeginAndUpdate(CONTENTS);
               return KDocTokens.TEXT;
@@ -204,16 +263,18 @@ CODE_FENCE_END={BACKTICK_STRING} | {TILDA_STRING}
     {BACKTICK_STRING} {
               codeFenceChar = zzBuffer.charAt(zzStartRead);
               codeFenceLength = countRepeating(codeFenceChar);
-              yybeginAndUpdate(CODE_SPAN_CONTENTS);
+              if (hasMatchingCloseFence(codeFenceChar, codeFenceLength)) {
+                  yybeginAndUpdate(CODE_SPAN_CONTENTS);
+              }
               return KDocTokens.TEXT;
-      }
+    }
 }
 
 <CODE_SPAN_CONTENTS> {
     {LINE_BREAK_CHAR} {
               yybeginAndUpdate(CODE_SPAN_LINE_BEGINNING);
               return TokenType.WHITE_SPACE;
-      }
+    }
 
     {BACKTICK_STRING} {
               char ch = zzBuffer.charAt(zzStartRead);
@@ -227,11 +288,11 @@ CODE_FENCE_END={BACKTICK_STRING} | {TILDA_STRING}
               } else {
                   return KDocTokens.CODE_SPAN_TEXT;
               }
-      }
+    }
 
     [^] {
               return KDocTokens.CODE_SPAN_TEXT;
-      }
+    }
 }
 
 <CODE_SPAN_LINE_BEGINNING> {

@@ -90,6 +90,15 @@ object Ordering : TemplateGroupBase() {
         include(Iterables, ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned, CharSequences, Strings)
     } builder {
         doc { "Returns a list with elements in reversed order." }
+        specialFor(ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned) {
+            doc {
+                """
+                Returns a list with elements in reversed order.
+                    
+                Use [reversedArray] if you need to get the result in an array.
+                """.trimIndent()
+            }
+        }
         returns("List<T>")
         body {
             """
@@ -122,7 +131,13 @@ object Ordering : TemplateGroupBase() {
     val f_reversedArray = fn("reversedArray()") {
         include(InvariantArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned)
     } builder {
-        doc { "Returns an array with elements of this array in reversed order." }
+        doc {
+            """
+            Returns an array with elements of this array in reversed order.
+            
+            Use [reversed][kotlin.collections.reversed] if you need to get the result in a list.
+            """.trimIndent()
+        }
         returns("SELF")
         body(InvariantArraysOfObjects) {
             """
@@ -185,6 +200,15 @@ object Ordering : TemplateGroupBase() {
             Returns a list of all elements sorted according to their natural sort order.
             """
         }
+        specialFor(ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned) {
+            doc {
+                """
+                Returns a list of all elements sorted according to their natural sort order.
+
+                Use [sortedArray] if you need to get the result in an array.
+                """.trimIndent()
+            }
+        }
         if (f != ArraysOfPrimitives && f != ArraysOfUnsigned) {
             appendStableSortNote()
         }
@@ -242,7 +266,11 @@ object Ordering : TemplateGroupBase() {
         exclude(PrimitiveType.Boolean)
     } builder {
         doc {
-            "Returns an array with all elements of this array sorted according to their natural sort order."
+            """
+            Returns an array with all elements of this array sorted according to their natural sort order.
+            
+            Use [sorted] if you need to get the result in a list.
+            """.trimIndent()
         }
         specialFor(InvariantArraysOfObjects) {
             appendStableSortNote()
@@ -293,6 +321,15 @@ object Ordering : TemplateGroupBase() {
             Returns a list of all elements sorted descending according to their natural sort order.
             """
         }
+        specialFor(ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned) {
+            doc {
+                """
+                Returns a list of all elements sorted descending according to their natural sort order.
+
+                Use [sortedArrayDescending] if you need to get the result in an array.
+                """.trimIndent()
+            }
+        }
         if (f != ArraysOfPrimitives && f != ArraysOfUnsigned) {
             appendStableSortNote()
         }
@@ -324,7 +361,11 @@ object Ordering : TemplateGroupBase() {
         exclude(PrimitiveType.Boolean)
     } builder {
         doc {
-            "Returns an array with all elements of this array sorted descending according to their natural sort order."
+            """
+            Returns an array with all elements of this array sorted descending according to their natural sort order.
+            
+            Use [sortedDescending] if you need to get the result in a list.
+            """.trimIndent()
         }
         specialFor(InvariantArraysOfObjects) {
             appendStableSortNote()
@@ -353,6 +394,15 @@ object Ordering : TemplateGroupBase() {
             """
             Returns a list of all elements sorted according to the specified [comparator].
             """
+        }
+        specialFor(ArraysOfObjects) {
+            doc {
+                """
+                Returns a list of all elements sorted according to the specified [comparator].
+                
+                Use [sortedArrayWith] if you need to get the result in an array.
+                """.trimIndent()
+            }
         }
         if (f != ArraysOfPrimitives) {
             appendStableSortNote()
@@ -403,7 +453,11 @@ object Ordering : TemplateGroupBase() {
         include(ArraysOfObjects)
     } builder {
         doc {
-            "Returns an array with all elements of this array sorted according the specified [comparator]."
+            """
+            Returns an array with all elements of this array sorted according to the specified [comparator].
+            
+            Use [sortedWith] if you need to get the result in a list.
+            """.trimIndent()
         }
         appendStableSortNote()
         returns("SELF")
@@ -776,13 +830,15 @@ object Ordering : TemplateGroupBase() {
             """
             val iterator = iterator()
             if (!iterator.hasNext()) return true
-            val previous = iterator.next()
+            var element = iterator.next()
             if (!iterator.hasNext()) return true
-            var previousValue = selector(previous)
-            while (iterator.hasNext()) {
-                val currentValue = selector(iterator.next())
+            var previousValue: R? = null
+            while (true) {
+                val currentValue = selector(element)
                 if (compareValues(previousValue, currentValue) > 0) return false
                 previousValue = currentValue
+                if (!iterator.hasNext()) break
+                element = iterator.next()
             }
             return true
             """
@@ -790,9 +846,9 @@ object Ordering : TemplateGroupBase() {
         body(ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned) {
             """
             if (size < 2) return true
-            var previousValue = selector(this[0])
-            for (i in 1..lastIndex) {
-                val currentValue = selector(this[i])
+            var previousValue: R? = null
+            for (element in this) {
+                val currentValue = selector(element)
                 if (compareValues(previousValue, currentValue) > 0) return false
                 previousValue = currentValue
             }
@@ -832,13 +888,17 @@ object Ordering : TemplateGroupBase() {
             """
             val iterator = iterator()
             if (!iterator.hasNext()) return true
-            val previous = iterator.next()
+            var element = iterator.next()
             if (!iterator.hasNext()) return true
-            var previousValue = selector(previous)
-            while (iterator.hasNext()) {
-                val currentValue = selector(iterator.next())
-                if (compareValues(previousValue, currentValue) < 0) return false
+            var previousValue: R? = null
+            var isFirst = true
+            while (true) {
+                val currentValue = selector(element)
+                if (!isFirst && compareValues(previousValue, currentValue) < 0) return false
                 previousValue = currentValue
+                isFirst = false
+                if (!iterator.hasNext()) break
+                element = iterator.next()
             }
             return true
             """
@@ -846,10 +906,10 @@ object Ordering : TemplateGroupBase() {
         body(ArraysOfObjects, ArraysOfPrimitives, ArraysOfUnsigned) {
             """
             if (size < 2) return true
-            var previousValue = selector(this[0])
-            for (i in 1..lastIndex) {
+            var previousValue: R? = null
+            for (i in indices) {
                 val currentValue = selector(this[i])
-                if (compareValues(previousValue, currentValue) < 0) return false
+                if (i > 0 && compareValues(previousValue, currentValue) < 0) return false
                 previousValue = currentValue
             }
             return true

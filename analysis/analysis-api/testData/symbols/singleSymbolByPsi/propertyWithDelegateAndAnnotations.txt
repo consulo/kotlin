@@ -1,4 +1,5 @@
 KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
   annotations: [
     ExplicitPropertyAnnotation()
       psi: KtAnnotationEntry
@@ -6,14 +7,17 @@ KaKotlinPropertySymbol:
       psi: KtAnnotationEntry
   ]
   backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtProperty
     annotations: [
       DelegateAnnotation()
         psi: KtAnnotationEntry
     ]
     callableId: null
-    compilerVisibility: Private
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -24,28 +28,32 @@ KaKotlinPropertySymbol:
     name: field
     origin: PROPERTY_BACKING_FIELD
     owningProperty: KaKotlinPropertySymbol(/lazyProperty)
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     visibility: PRIVATE
     getContainingFileSymbol: KaFileSymbol(propertyWithDelegateAndAnnotations.kt)
     getContainingJvmClassName: PropertyWithDelegateAndAnnotationsKt
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   callableId: /lazyProperty
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -55,29 +63,33 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: FINAL
     origin: SOURCE
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Int
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getContainingFileSymbol: KaFileSymbol(propertyWithDelegateAndAnnotations.kt)
     getContainingJvmClassName: PropertyWithDelegateAndAnnotationsKt
     getContainingModule: KaSourceModule "Sources of main"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: getLazyProperty
     importableFqName: null
   hasBackingField: false
   hasGetter: true
   hasSetter: false
   initializer: null
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: true
+  isDelegated: true
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: false
   isStatic: false
@@ -86,6 +98,9 @@ KaKotlinPropertySymbol:
   modality: FINAL
   name: lazyProperty
   origin: SOURCE
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -97,8 +112,6 @@ KaKotlinPropertySymbol:
   getContainingFileSymbol: KaFileSymbol(propertyWithDelegateAndAnnotations.kt)
   getContainingJvmClassName: PropertyWithDelegateAndAnnotationsKt
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
-  javaGetterName: getLazyProperty
-  javaSetterName: null
+  deprecation: null
   isInline: false
   importableFqName: lazyProperty

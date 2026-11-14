@@ -6,7 +6,11 @@
 package org.jetbrains.kotlin.cli.pipeline.web
 
 import org.jetbrains.kotlin.backend.common.IrModuleInfo
+import org.jetbrains.kotlin.backend.common.serialization.KotlinIrLinker
+import org.jetbrains.kotlin.backend.wasm.LoweredIrWithExtraArtifacts
+import org.jetbrains.kotlin.backend.wasm.WasmBackendContext
 import org.jetbrains.kotlin.backend.wasm.WasmCompilerResult
+import org.jetbrains.kotlin.backend.wasm.WasmIrModuleConfiguration
 import org.jetbrains.kotlin.cli.pipeline.Fir2IrPipelineArtifact
 import org.jetbrains.kotlin.cli.pipeline.FrontendPipelineArtifact
 import org.jetbrains.kotlin.cli.pipeline.LoadedIrPipelineArtifact
@@ -14,14 +18,22 @@ import org.jetbrains.kotlin.cli.pipeline.PipelineArtifact
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.fir.pipeline.AllModulesFrontendOutput
 import org.jetbrains.kotlin.fir.pipeline.Fir2IrActualizedResult
+import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
 import org.jetbrains.kotlin.ir.backend.js.ModulesStructure
-import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.CompilationOutputs
+import org.jetbrains.kotlin.ir.backend.js.ic.DirtyFileState
+import org.jetbrains.kotlin.ir.backend.js.ic.IncrementalCacheGuard
+import org.jetbrains.kotlin.ir.backend.js.ic.KotlinSourceFileMap
+import org.jetbrains.kotlin.ir.backend.js.ic.ModuleArtifact
+import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.CompilerResult
+import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.library.KotlinLibrary
 import java.io.File
+import java.util.*
 
 data class WebFrontendPipelineArtifact(
     override val frontendOutput: AllModulesFrontendOutput,
     override val configuration: CompilerConfiguration,
-    val moduleStructure: ModulesStructure,
+    val resolvedLibraries: List<KotlinLibrary>,
     val hasErrors: Boolean,
 ) : FrontendPipelineArtifact() {
     @CliPipelineInternals(OPT_IN_MESSAGE)
@@ -34,24 +46,24 @@ data class WebFrontendPipelineArtifact(
     }
 }
 
-data class JsFir2IrPipelineArtifact(
+data class WebFir2IrPipelineArtifact(
     override val result: Fir2IrActualizedResult,
     val frontendOutput: AllModulesFrontendOutput,
     override val configuration: CompilerConfiguration,
     val hasErrors: Boolean,
 ) : Fir2IrPipelineArtifact() {
     @CliPipelineInternals(OPT_IN_MESSAGE)
-    override fun withCompilerConfiguration(newConfiguration: CompilerConfiguration): JsFir2IrPipelineArtifact {
+    override fun withCompilerConfiguration(newConfiguration: CompilerConfiguration): WebFir2IrPipelineArtifact {
         return copy(configuration = newConfiguration)
     }
 }
 
-data class JsSerializedKlibPipelineArtifact(
+data class WebSerializedKlibPipelineArtifact(
     val outputKlibPath: String,
     override val configuration: CompilerConfiguration,
 ) : PipelineArtifact() {
     @CliPipelineInternals(OPT_IN_MESSAGE)
-    override fun withCompilerConfiguration(newConfiguration: CompilerConfiguration): JsSerializedKlibPipelineArtifact {
+    override fun withCompilerConfiguration(newConfiguration: CompilerConfiguration): WebSerializedKlibPipelineArtifact {
         return copy(configuration = newConfiguration)
     }
 }
@@ -67,11 +79,23 @@ data class WebLoadedIrPipelineArtifact(
     }
 }
 
+data class JsLoweredIrPipelineArtifact(
+    val context: JsIrBackendContext,
+    val mainModule: IrModuleFragment,
+    val allModules: List<IrModuleFragment>,
+    val moduleFragmentToUniqueName: Map<IrModuleFragment, String>,
+    override val configuration: CompilerConfiguration,
+) : PipelineArtifact() {
+    @CliPipelineInternals(OPT_IN_MESSAGE)
+    override fun withCompilerConfiguration(newConfiguration: CompilerConfiguration): JsLoweredIrPipelineArtifact {
+        return copy(configuration = newConfiguration)
+    }
+}
+
 sealed class WebBackendPipelineArtifact : PipelineArtifact()
 
 data class JsBackendPipelineArtifact(
-    val outputs: CompilationOutputs,
-    val outputDir: File,
+    val result: CompilerResult,
     override val configuration: CompilerConfiguration,
 ) : WebBackendPipelineArtifact() {
     @CliPipelineInternals(OPT_IN_MESSAGE)
@@ -87,6 +111,53 @@ data class WasmBackendPipelineArtifact(
 ) : WebBackendPipelineArtifact() {
     @CliPipelineInternals(OPT_IN_MESSAGE)
     override fun withCompilerConfiguration(newConfiguration: CompilerConfiguration): WasmBackendPipelineArtifact {
+        return copy(configuration = newConfiguration)
+    }
+}
+
+data class WebIncrementalCachePipelineArtifact<M : ModuleArtifact>(
+    val artifacts: List<M>,
+    val dirtyFileLastStats: KotlinSourceFileMap<EnumSet<DirtyFileState>>,
+    val cacheGuard: IncrementalCacheGuard,
+    override val configuration: CompilerConfiguration,
+) : PipelineArtifact() {
+    @CliPipelineInternals(OPT_IN_MESSAGE)
+    override fun withCompilerConfiguration(newConfiguration: CompilerConfiguration): PipelineArtifact {
+        return copy(configuration = newConfiguration)
+    }
+}
+
+data class WasmIntermediatePipelineArtifact(
+    val backendIr: List<WasmIrModuleConfiguration>,
+    val cacheGuard: IncrementalCacheGuard?,
+    override val configuration: CompilerConfiguration,
+) : PipelineArtifact() {
+    @CliPipelineInternals(OPT_IN_MESSAGE)
+    override fun withCompilerConfiguration(newConfiguration: CompilerConfiguration): PipelineArtifact {
+        return copy(configuration = newConfiguration)
+    }
+}
+
+data class WasmLinkedIrPipelineArtifact(
+    val allModules: List<IrModuleFragment>,
+    val backendContext: WasmBackendContext,
+    val isWasmStdlib: Boolean,
+    val irLinker: KotlinIrLinker,
+    override val configuration: CompilerConfiguration,
+) : PipelineArtifact() {
+    @CliPipelineInternals(OPT_IN_MESSAGE)
+    override fun withCompilerConfiguration(newConfiguration: CompilerConfiguration): PipelineArtifact {
+        return copy(configuration = newConfiguration)
+    }
+}
+
+data class WasmLoweredIrPipelineArtifact(
+    val loweredIr: LoweredIrWithExtraArtifacts,
+    val isWasmStdlib: Boolean,
+    override val configuration: CompilerConfiguration,
+) : PipelineArtifact() {
+    @CliPipelineInternals(OPT_IN_MESSAGE)
+    override fun withCompilerConfiguration(newConfiguration: CompilerConfiguration): PipelineArtifact {
         return copy(configuration = newConfiguration)
     }
 }

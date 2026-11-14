@@ -1,11 +1,12 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("test-inputs-check")
-    id("project-tests-convention")
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5)
+    testTask()
 }
 
 dependencies {
@@ -16,6 +17,7 @@ dependencies {
     implementation(project(":core:descriptors"))
     implementation(project(":core:util.runtime"))
     implementation(project(":kotlin-util-klib"))
+    implementation(project(":compiler:frontend.common-psi")) // required for error reporting
 
     compileOnly(intellijCore())
 

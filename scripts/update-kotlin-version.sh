@@ -39,9 +39,8 @@ echo "🚀 Starting regeneration tasks for Kotlin version: $KOTLIN_VERSION"
 
 # Define the tasks to be executed
 TASKS=(
-    ":compiler:build-tools:kotlin-build-tools-impl:generateBtaArguments"
-    ":compiler:build-tools:kotlin-build-tools-api:generateBtaArguments"
-    ":compiler:build-tools:kotlin-build-tools-compat:generateBtaArguments"
+    ":compiler:build-tools:kotlin-build-tools-impl:generateBtaSources"
+    ":compiler:build-tools:kotlin-build-tools-api:generateBtaSources"
     ":compiler:build-tools:kotlin-build-tools-api:apiDump"
     ":kotlin-gradle-plugin-api:generateKotlinVersionConstant"
     ":kotlin-gradle-plugin-api:apiDump"

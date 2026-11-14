@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.incremental.impl.InstanceOwnerRecordingClassVisitor
 import org.jetbrains.kotlin.incremental.impl.hashToLong
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmMemberSignature
 import org.jetbrains.kotlin.resolve.jvm.JvmClassName
-import org.jetbrains.org.objectweb.asm.ClassReader
 import org.jetbrains.org.objectweb.asm.ClassVisitor
 import org.jetbrains.org.objectweb.asm.tree.ClassNode
 
@@ -67,7 +66,7 @@ private class InstanceBasedSnapshotter(
 
         val usedClasses = mutableSetOf<JvmClassName>()
         val visitor = InstanceOwnerRecordingClassVisitor(delegateClassVisitor = null, allUsedClassesSet = usedClasses)
-        val classReader = ClassReader(classData.contents)
+        val classReader = classData.classReader
         classReader.accept(visitor, 0)
         knownClassUsages[JvmClassName.byClassId(classData.classInfo.classId)] = usedClasses
 
@@ -80,13 +79,13 @@ private class InstanceBasedSnapshotter(
         fun getIncompleteClasses() =
             classesWithTransitiveDependencies.zip(classesWithTransitiveDependencies.map { jvmClassName ->
                 jvmClassName.toDescriptor()
-            }).filter { (_, descriptor) ->
+            }).filter { [_, descriptor] ->
                 descriptor != null && descriptor.inlinedSnapshot == null
             }
 
         var incompleteClasses = getIncompleteClasses()
         while (incompleteClasses.isNotEmpty()) {
-            for ((jvmClassName, descriptor) in incompleteClasses) {
+            for ([jvmClassName, descriptor] in incompleteClasses) {
                 val classFileWithContentsProvider =
                     classNameToClassFileMap[jvmClassName]!! // not null by virtue of `descriptor != null` above
                 val classFileWithContents = metrics.measure(LOAD_CONTENTS_OF_CLASSES) {

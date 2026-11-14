@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +WarningOnMainUnusedParameter
+// RUN_PIPELINE_TILL: CODEGEN
 
 fun main(args: Array<String>) {
 

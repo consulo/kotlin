@@ -23,19 +23,13 @@ import java.io.File;
 public class PathManager {
 
     private final String tmpFolder;
-    private final String rootFolder;
 
-    public PathManager(String rootFolder, String tmpFolder) {
+    public PathManager(String tmpFolder) {
         this.tmpFolder = tmpFolder;
-        this.rootFolder = rootFolder;
-    }
-
-    public String getPlatformFolderInAndroidSdk() {
-        return getAndroidSdkRoot() + "/platforms";
     }
 
     public String getAndroidAvdRoot() {
-        String androidEmulatorRoot = getAndroidSdkRoot() + "/compiler_box_test_avd";
+        String androidEmulatorRoot = tmpFolder + "/compiler_box_test_avd";
         new File(androidEmulatorRoot).mkdirs();
         return androidEmulatorRoot;
     }
@@ -64,16 +58,12 @@ public class PathManager {
         return tmpFolder + "/src";
     }
 
-    public String getAndroidTmpFolder() {
-        return tmpFolder;
-    }
-
     public String getAndroidSdkRoot() {
         return KtTestUtil.getAndroidSdkSystemIndependentPath();
     }
 
     public String getAndroidModuleRoot() {
-        return rootFolder + "/compiler/android-tests/android-module";
+        return System.getProperty("kotlin.test.android.androidModule");
     }
 
     public String getTmpFolder() {

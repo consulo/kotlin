@@ -22,16 +22,14 @@ class LanguageFeatureMessageRenderer @JvmOverloads constructor(
         WARNING,
     }
 
-    private val featureToFlagMap by lazy { buildRuntimeFeatureToFlagMap(this::class.java.classLoader) }
-
     override fun render(obj: Pair<LanguageFeature, LanguageVersionSettings>, renderingContext: RenderingContext): String {
-        val (feature, settings) = obj
+        val [feature, settings] = obj
         val since = feature.sinceVersion
 
         val sb = StringBuilder()
         sb.append("The feature \"").append(feature.presentableName).append("\" is ")
 
-        val featureFlag = featureToFlagMap[feature] ?: "-XXLanguage:+${feature.name}"
+        val featureFlag = featureToEnablingFlagMap[feature] ?: "-XXLanguage:+${feature.name}"
 
         when (type) {
             Type.UNSUPPORTED ->
@@ -51,15 +49,6 @@ class LanguageFeatureMessageRenderer @JvmOverloads constructor(
                 }
 
             Type.WARNING -> sb.append("experimental")
-        }
-
-        val hintUrl = feature.hintUrl
-        if (hintUrl != null) {
-            if (useHtml) {
-                sb.append(" (").append("see more <a href=\"").append(hintUrl).append("\">here</a>)")
-            } else {
-                sb.append(" (see: ").append(hintUrl).append(")")
-            }
         }
 
         if (feature in additionalFeatureMessages) {

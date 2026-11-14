@@ -12,7 +12,8 @@ import org.jetbrains.kotlin.compiler.plugin.registerExtension
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
-import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
+import org.jetbrains.kotlin.test.configuration.setupDefaultDirectivesForIrDumps
+import org.jetbrains.kotlin.test.directives.JvmCodegenDirectives
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.EnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.RuntimeClasspathProvider
@@ -24,6 +25,7 @@ import java.io.File
 
 internal fun TestConfigurationBuilder.configureForKotlinxAtomicfu() {
     useConfigurators(
+        ::AtomicfuCompilerConfigurationConfigurator,
         ::AtomicfuExtensionRegistrarConfigurator
     )
 
@@ -36,15 +38,18 @@ internal fun TestConfigurationBuilder.configureForKotlinxAtomicfu() {
     )
 
     defaultDirectives {
-        +CodegenTestDirectives.CHECK_BYTECODE_LISTING
+        +JvmCodegenDirectives.CHECK_BYTECODE_LISTING
+    }
+    setupDefaultDirectivesForIrDumps()
+}
+
+class AtomicfuCompilerConfigurationConfigurator(testServices: TestServices) : EnvironmentConfigurator(testServices) {
+    override fun configureCompilerConfiguration(configuration: CompilerConfiguration, module: TestModule) {
+        configuration.addJvmClasspathRoots(getLibrariesPaths())
     }
 }
 
 class AtomicfuExtensionRegistrarConfigurator(testServices: TestServices) : EnvironmentConfigurator(testServices) {
-    override fun configureCompilerConfiguration(configuration: CompilerConfiguration, module: TestModule) {
-        configuration.addJvmClasspathRoots(getLibrariesPaths())
-    }
-
     override fun ExtensionStorage.registerCompilerExtensions(module: TestModule, configuration: CompilerConfiguration) {
         FirExtensionRegistrar.registerExtension(AtomicfuFirExtensionRegistrar())
         IrGenerationExtension.registerExtension(AtomicfuLoweringExtension())

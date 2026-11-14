@@ -1,18 +1,20 @@
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
-import org.jetbrains.kotlin.konan.target.HostManager
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
+    id("test-inputs-check")
 }
 
 sourceSets {
     "main" { projectDefault() }
     "test" { projectDefault() }
 }
+
+optInToK1Deprecation()
 
 kotlin {
     compilerOptions {
@@ -21,15 +23,15 @@ kotlin {
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5) {
-        workingDir = rootDir
+    testData(isolated, "testData")
 
+    testTask {
         val testProjectKlib = configurations.create("testProjectKlib") {
             attributes {
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named(KotlinUsages.KOTLIN_API))
                 attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
                 attribute(KotlinPlatformType.attribute, KotlinPlatformType.native)
-                attribute(KotlinNativeTarget.konanTargetAttribute, HostManager.host.name)
+                hostKonanTargetAttribute()
             }
         }
 
@@ -63,6 +65,7 @@ dependencies {
     testImplementation(kotlinTest("junit5"))
     testImplementation(testFixtures(project(":compiler:tests-common")))
     testImplementation(project(":analysis:analysis-api-standalone"))
+    testRuntimeOnly(project(":analysis:analysis-api-standalone:analysis-api-standalone-fir"))
     testImplementation(project(":native:native.config"))
 }
 

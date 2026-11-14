@@ -11,7 +11,6 @@ import org.gradle.api.NamedDomainObjectCollection
 import org.gradle.api.Project
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.plugins.ExtensionContainer
-import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
@@ -21,11 +20,11 @@ import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginLifecycle.Stage.AfterFinaliseDsl
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
-import org.jetbrains.kotlin.gradle.plugin.diagnostics.reportDiagnostic
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.reportDiagnosticOncePerBuild
 import org.jetbrains.kotlin.gradle.plugin.hierarchy.KotlinHierarchyDslImpl
 import org.jetbrains.kotlin.gradle.plugin.hierarchy.redundantDependsOnEdgesTracker
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftexport.SwiftExportExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.swiftimport.swiftPMImportIdeModelProvider
 import org.jetbrains.kotlin.gradle.targets.android.internal.InternalKotlinTargetPreset
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsTargetDsl
@@ -103,7 +102,6 @@ internal constructor(
         )
     }
 
-    @ExperimentalWasmDsl
     override fun wasmJs(
         name: String,
         configure: KotlinWasmJsTargetDsl.() -> Unit,
@@ -133,19 +131,7 @@ internal constructor(
         project.addConfigurationMetrics {
             it.put(BooleanMetrics.KMP_TOP_LEVEL_DEPENDENCIES_BLOCK, true)
         }
-        when (val dependencies = dependencies) {
-            KotlinTopLevelDependenciesBlock.UnavailableInCurrentGradleVersion -> {
-                project.reportDiagnostic(
-                    KotlinToolingDiagnostics.KotlinTopLevelDependenciesUsedInIncompatibleGradleVersion(
-                        currentGradleVersion = GradleVersion.current(),
-                        minimumSupportedGradleVersion = MinSupportedGradleVersionWithDependencyCollectors,
-                    )
-                )
-            }
-            is KotlinTopLevelDependenciesBlock.Dependencies -> {
-                dependencies.block.configure()
-            }
-        }
+        dependencies.configure()
     }
 
     internal suspend fun awaitTargets(): NamedDomainObjectCollection<KotlinTarget> {
@@ -267,7 +253,6 @@ internal constructor(
             project,
             "kotlin",
             targets,
-            publishing.adhocSoftwareComponent
         )
     }
 
@@ -282,7 +267,200 @@ internal constructor(
     // This getter is consumed during KMP import in KotlinMPPGradleModelBuilder
     internal val swiftPMImportIdeModel
         get() = if (!project.kotlinPropertiesProvider.disableSwiftPMImport) project.swiftPMImportIdeModelProvider().get() else null
+
+    /**
+     * The Swift Export extension of this project.
+     *
+     * Unlike [swiftExport], reading this property doesn't request Swift Export for this project.
+     */
+    internal val swiftExportInternal: SwiftExportExtension by lazy {
+        project.objects.SwiftExportExtension(
+            project.dependencies,
+        )
+    }
+
+    /**
+     * Whether Swift Export was requested for this project through the [swiftExport] DSL.
+     */
+    internal var isSwiftExportRequested: Boolean = false
+        private set
+
+    /*
+    The members below are intentionally not marked with @ExperimentalSwiftExportDsl: the `swiftExport {}` extension used
+    to be accessible through the accessors Gradle generates for it, which never required an opt-in.
+     */
+
+    /**
+     * An *experimental* plugin DSL extension to configure Swift Export.
+     *
+     * Swift Export is a part of the Kotlin toolset designed to generate Swift code from Kotlin source files.
+     *
+     * Accessing this property causes Swift Export to be requested for this project and the corresponding tasks
+     * to be created.
+     *
+     * This DSL is deprecated in favour of `export { swift { } }`:
+     *
+     * ```kotlin
+     * // Before
+     * kotlin {
+     *     swiftExport {
+     *         moduleName = "Shared"
+     *         flattenPackage = "com.example.shared"
+     *     }
+     * }
+     *
+     * // After
+     * kotlin {
+     *     export {
+     *         swift {
+     *             moduleName = "Shared"
+     *             rootPackage = "com.example.shared"
+     *             xcodeIntegration()
+     *         }
+     *     }
+     * }
+     * ```
+     *
+     * `flattenPackage` is renamed to `rootPackage`, and the Xcode integration is no longer implicit: call
+     * `xcodeIntegration()` to register the task that embeds Swift Export's output into your Xcode project.
+     *
+     * @see org.jetbrains.kotlin.gradle.plugin.mpp.export.ExportExtension.swift
+     * @since 2.1.0
+     */
+    @Deprecated(
+        message = swiftExportDslDeprecationMessage,
+        level = DeprecationLevel.WARNING,
+    )
+    val swiftExport: SwiftExportExtension
+        get() {
+            isSwiftExportRequested = true
+            return swiftExportInternal
+        }
+
+    /**
+     * Requests Swift Export for this project.
+     *
+     * Calling this function causes Swift Export to be requested for this project and the corresponding tasks
+     * to be created.
+     *
+     * This DSL is deprecated in favour of `export { swift { xcodeIntegration() } }`:
+     *
+     * ```kotlin
+     * // Before
+     * kotlin {
+     *     swiftExport()
+     * }
+     *
+     * // After
+     * kotlin {
+     *     export {
+     *         swift {
+     *             xcodeIntegration()
+     *         }
+     *     }
+     * }
+     * ```
+     *
+     * @since 2.1.0
+     */
+    @Deprecated(
+        message = swiftExportDslDeprecationMessage,
+        level = DeprecationLevel.WARNING,
+    )
+    fun swiftExport() {
+        isSwiftExportRequested = true
+    }
+
+    /**
+     * Requests and configures Swift Export for this project.
+     *
+     * Calling this function causes Swift Export to be requested for this project and the corresponding tasks
+     * to be created.
+     *
+     * This DSL is deprecated in favour of `export { swift { } }`:
+     *
+     * ```kotlin
+     * // Before
+     * kotlin {
+     *     swiftExport {
+     *         moduleName = "Shared"
+     *         flattenPackage = "com.example.shared"
+     *     }
+     * }
+     *
+     * // After
+     * kotlin {
+     *     export {
+     *         swift {
+     *             moduleName = "Shared"
+     *             rootPackage = "com.example.shared"
+     *             xcodeIntegration()
+     *         }
+     *     }
+     * }
+     * ```
+     *
+     * `flattenPackage` is renamed to `rootPackage`, and the Xcode integration is no longer implicit: call
+     * `xcodeIntegration()` to register the task that embeds Swift Export's output into your Xcode project.
+     *
+     * @since 2.1.0
+     */
+    @Deprecated(
+        message = swiftExportDslDeprecationMessage,
+        level = DeprecationLevel.WARNING,
+    )
+    fun swiftExport(configure: SwiftExportExtension.() -> Unit) {
+        // Note: `swiftExport.configure()` would resolve to SwiftExportExtension.configure() instead of this parameter.
+        @Suppress("DEPRECATION")
+        configure(swiftExport)
+    }
+
+    /**
+     * Requests and configures Swift Export for this project.
+     *
+     * Calling this function causes Swift Export to be requested for this project and the corresponding tasks
+     * to be created.
+     *
+     * This DSL is deprecated in favour of `export { swift { } }`:
+     *
+     * ```kotlin
+     * // Before
+     * kotlin {
+     *     swiftExport {
+     *         moduleName = "Shared"
+     *         flattenPackage = "com.example.shared"
+     *     }
+     * }
+     *
+     * // After
+     * kotlin {
+     *     export {
+     *         swift {
+     *             moduleName = "Shared"
+     *             rootPackage = "com.example.shared"
+     *             xcodeIntegration()
+     *         }
+     *     }
+     * }
+     * ```
+     *
+     * `flattenPackage` is renamed to `rootPackage`, and the Xcode integration is no longer implicit: call
+     * `xcodeIntegration()` to register the task that embeds Swift Export's output into your Xcode project.
+     *
+     * @since 2.1.0
+     */
+    @Deprecated(
+        message = swiftExportDslDeprecationMessage,
+        level = DeprecationLevel.WARNING,
+    )
+    @Suppress("DEPRECATION")
+    fun swiftExport(configure: Action<SwiftExportExtension>) = swiftExport {
+        configure.execute(this)
+    }
 }
+
+private const val swiftExportDslDeprecationMessage =
+    "Use the 'export { swift { } }' DSL instead. This will become an error in Kotlin 2.5.20 and will be removed in Kotlin 2.6.0."
 
 private const val targetsExtensionDeprecationMessage =
     "Usages of this DSL are deprecated, please migrate to top-level 'kotlin {}' extension."

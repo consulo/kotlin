@@ -23,10 +23,9 @@ import org.jetbrains.kotlin.fir.expressions.builder.buildExpressionStub
 import org.jetbrains.kotlin.fir.references.symbol
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.*
-import org.jetbrains.kotlin.fir.resolve.calls.ResolutionContext
 import org.jetbrains.kotlin.fir.resolve.calls.candidate.*
-import org.jetbrains.kotlin.fir.resolve.calls.candidate.CheckerSink
-import org.jetbrains.kotlin.fir.resolve.inference.CollectionLiteralBounds
+import org.jetbrains.kotlin.fir.resolve.inference.ExpectedTypeAsStaticReceiverStrategy
+import org.jetbrains.kotlin.fir.resolve.inference.StateForAtomWithExpectedTypeAsStaticReceiver
 import org.jetbrains.kotlin.fir.resolve.inference.csBuilder
 import org.jetbrains.kotlin.fir.resolve.inference.isAnyOfDelegateOperators
 import org.jetbrains.kotlin.fir.resolve.inference.model.ConeExplicitTypeParameterConstraintPosition
@@ -35,7 +34,6 @@ import org.jetbrains.kotlin.fir.scopes.FirUnstableSmartcastTypeScope
 import org.jetbrains.kotlin.fir.scopes.ProcessorAction
 import org.jetbrains.kotlin.fir.scopes.impl.typeAliasConstructorInfo
 import org.jetbrains.kotlin.fir.scopes.processOverriddenFunctions
-import org.jetbrains.kotlin.fir.symbols.ConeTypeParameterLookupTag
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.SyntheticCallableId.ACCEPT_SPECIFIC_TYPE
 import org.jetbrains.kotlin.fir.symbols.impl.*
@@ -54,6 +52,7 @@ import org.jetbrains.kotlin.types.AbstractTypeChecker
 import org.jetbrains.kotlin.types.TypeApproximatorConfiguration
 import org.jetbrains.kotlin.types.model.TypeVariableTypeConstructorMarker
 import org.jetbrains.kotlin.types.model.typeConstructor
+import org.jetbrains.kotlin.util.OnlyForDefaultLanguageFeatureDisabled
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 
 abstract class ResolutionStage {
@@ -90,7 +89,12 @@ object CheckExtensionReceiver : ResolutionStage() {
 
         val preparedReceiver = prepareImplicitArgument(candidate.givenExtensionReceiver, expectedType, context.session)
 
-        resolveExtensionReceiver(preparedReceiver, candidate, expectedType)
+        resolveExtensionReceiver(
+            preparedReceiver,
+            candidate,
+            expectedType
+                .let { candidate.getExpectedTypeWithNumericClassConversion(context.session, preparedReceiver.atom.expression, preparedReceiver.type, it) ?: it }
+        )
     }
 
     context(sink: CheckerSink, context: ResolutionContext)
@@ -103,7 +107,7 @@ object CheckExtensionReceiver : ResolutionStage() {
         val resolvedQualifier = extensionReceiver.expression as? FirResolvedQualifier
             ?: error("Candidate for companion extension has non-qualifier extension receiver")
 
-        val receiverClassSymbol = resolvedQualifier.symbol?.fullyExpandedClass()
+        val receiverClassSymbol = resolvedQualifier.qualifierSymbol?.fullyExpandedClass()
 
         if (receiverClassSymbol == null) {
             sink.reportDiagnostic(ReceiverIsNotAClass)
@@ -112,9 +116,9 @@ object CheckExtensionReceiver : ResolutionStage() {
 
         if (receiverClassSymbol != expectedReceiverType.toClassSymbol()) {
             sink.reportDiagnostic(
-                InapplicableWrongReceiver(
+                InapplicableCompanionExtensionReceiver(
                     expectedReceiverType,
-                    receiverClassSymbol.toLookupTag().constructClassType()
+                    receiverClassSymbol.defaultType()
                 )
             )
         }
@@ -128,8 +132,9 @@ object CheckExtensionReceiver : ResolutionStage() {
     ) {
         val (atom, type) = receiver
         ArgumentCheckingProcessor.resolvePlainArgumentType(
-            candidate,
+            candidate.csBuilder,
             atom,
+            candidate,
             argumentType = type,
             expectedType = expectedType,
             sink = sink,
@@ -162,6 +167,7 @@ private fun prepareImplicitArgument(
         session = session
     ).let { prepareCapturedType(it, session) }
         .let {
+            @Suppress("SuspiciousWhenOverConeKotlinType")
             when (it) {
                 is ConeIntegerConstantOperatorType -> it.possibleTypes.first()
                 else -> it
@@ -187,10 +193,11 @@ object CheckDispatchReceiver : ResolutionStage() {
             }
         }
 
-        val dispatchReceiverValueType = candidate.dispatchReceiver?.expression?.resolvedType ?: return
+        val dispatchReceiverExpression = candidate.dispatchReceiver?.expression
+        val dispatchReceiverValueType = dispatchReceiverExpression?.resolvedType ?: return
 
-        val isReceiverNullable = !AbstractNullabilityChecker.isSubtypeOfAny(context.session.typeContext, dispatchReceiverValueType)
-
+        val isReceiverUnsafe = !AbstractNullabilityChecker.isSubtypeOfAny(context.session.typeContext, dispatchReceiverValueType)
+                || dispatchReceiverValueType.isUnsafeUnion()
 
         val isCandidateFromUnstableSmartcast =
             (candidate.originScope as? FirUnstableSmartcastTypeScope)?.isSymbolFromUnstableSmartcast(candidate.symbol) == true
@@ -202,7 +209,7 @@ object CheckDispatchReceiver : ResolutionStage() {
 
         if (smartcastedReceiver != null &&
             !smartcastedReceiver.isStable &&
-            (isCandidateFromUnstableSmartcast || (isReceiverNullable && !smartcastedReceiver.smartcastType.coneType.canBeNull(candidate.callInfo.session)))
+            (isCandidateFromUnstableSmartcast || (isReceiverUnsafe && !smartcastedReceiver.smartcastType.coneType.isUnsafeAsDispatchReceiver()))
         ) {
             val dispatchReceiverType = (candidate.symbol as? FirCallableSymbol<*>)?.dispatchReceiverType?.let {
                 context.session.typeApproximator.approximateToSuperType(
@@ -223,10 +230,15 @@ object CheckDispatchReceiver : ResolutionStage() {
                     isImplicitInvokeReceiver = candidate.callInfo.isImplicitInvoke,
                 )
             )
-        } else if (isReceiverNullable) {
-            sink.yieldDiagnostic(InapplicableNullableReceiver(dispatchReceiverValueType))
+        } else if (isReceiverUnsafe) {
+            val actualType = if (dispatchReceiverExpression is FirCheckedSafeCallSubject) {
+                dispatchReceiverExpression.originalReceiverRef.value.resolvedType
+            } else {
+                dispatchReceiverValueType
+            }
+            sink.yieldDiagnostic(InapplicableUnsafeReceiver(actualType))
         } else if (isCandidateFromUnstableSmartcast) {
-            sink.yieldDiagnostic(InapplicableWrongReceiver(actualType = dispatchReceiverValueType))
+            sink.yieldDiagnostic(InapplicableWrongReceiver())
         }
     }
 }
@@ -290,7 +302,7 @@ object CheckContextArguments : ResolutionStage() {
         var errorReported = false
 
         val contextArgumentsByParameterSymbol = buildMap {
-            for ((key, value) in argumentMapping) {
+            for ([key, value] in argumentMapping) {
                 if (value.valueParameterKind != FirValueParameterKind.Regular) {
                     put(value.symbol, key)
                 }
@@ -604,6 +616,7 @@ private object CheckDslScopeViolation {
             }
             is ConeDefinitelyNotNullType -> collectDslMarkerAnnotations(originalType.original)
             is ConeIntersectionType -> originalType.intersectedTypes.forEach { collectDslMarkerAnnotations(it) }
+            is ConeUnionType -> collectDslMarkerAnnotations(originalType.primaryType)
             is ConeClassLikeType -> {
                 val classDeclaration = originalType.toSymbol() ?: return
                 collectDslMarkerAnnotations(classDeclaration.resolvedAnnotationsWithClassIds)
@@ -620,7 +633,12 @@ private object CheckDslScopeViolation {
                     }
                 }
             }
-            else -> return
+            is ConeTypeParameterType -> originalType.lookupTag.typeParameterSymbol.resolvedBounds.forEach {
+                collectDslMarkerAnnotations(it.coneType)
+            }
+            is ConeIntegerConstantOperatorType, is ConeIntegerLiteralConstantType,
+            is ConeStubTypeForTypeVariableInSubtyping, is ConeTypeVariableType,
+                -> return
         }
     }
 
@@ -811,6 +829,9 @@ internal fun Candidate.shouldHaveLowPriorityDueToSAM(bodyResolveComponents: Body
     }
 }
 
+internal fun Candidate.shouldHaveLowPriorityDueToNumericClassConversion(): Boolean =
+    usesNumericClassConversion
+
 private fun Candidate.isJavaApplicableCandidate(): Boolean {
     val symbol = symbol as? FirFunctionSymbol ?: return false
     if (symbol.isJavaOrEnhancement) return true
@@ -839,7 +860,7 @@ internal object EagerResolveOfCallableReferences : ResolutionStage() {
         if (candidate.postponedAtoms.isEmpty()) return
         for (atom in candidate.postponedAtoms) {
             if (atom is ConeResolvedCallableReferenceAtom) {
-                val (applicability, success) =
+                val [applicability, success] =
                     context.bodyResolveComponents.callResolver.resolveCallableReference(
                         candidate, atom, hasSyntheticOuterCall = candidate.callInfo.name == ACCEPT_SPECIFIC_TYPE.callableName
                     )
@@ -851,8 +872,8 @@ internal object EagerResolveOfCallableReferences : ResolutionStage() {
                     if (AbstractTypeChecker.RUN_SLOW_ASSERTIONS) check(atom in candidate.postponedAtoms)
 
                     sink.yieldDiagnostic(UnsuccessfulCallableReferenceArgument)
-                } else when (applicability) {
-                    CandidateApplicability.RESOLVED_NEED_PRESERVE_COMPATIBILITY ->
+                } else @OptIn(OnlyForDefaultLanguageFeatureDisabled::class) when (applicability) {
+                    CandidateApplicability.RESOLVED_NEED_PRESERVE_COMPATIBILITY /* DisableCompatibilityModeForNewInference, PrioritizedEnumEntries */ ->
                         sink.reportDiagnostic(LowerPriorityToPreserveCompatibilityDiagnostic)
                     else -> {
                     }
@@ -862,22 +883,64 @@ internal object EagerResolveOfCallableReferences : ResolutionStage() {
     }
 }
 
-internal object EagerResolveOfCollectionLiteral : ResolutionStage() {
-    context(sink: CheckerSink, context: ResolutionContext)
-    override suspend fun check(candidate: Candidate): Unit =
-        context(context.typeContext, CollectionLiteralOuterCandidateContext(candidate, sink)) {
-            if (candidate.postponedAtoms.isEmpty()) return
-            for (atom in candidate.postponedAtoms) {
-                if (atom !is ConeCollectionLiteralAtom || atom.analyzed) continue
-                val nonTvExpectedType =
-                    atom.expectedType?.takeUnless { it.typeConstructor() is TypeVariableTypeConstructorMarker } ?: continue
-                val clBounds =
-                    CollectionLiteralBounds.NonTvExpected(atom, nonTvExpectedType.getClassRepresentativeForCollectionLiteralResolution())
+/**
+ * Eagerly resolves atoms of kind [A] if their expected type is not a type variable,
+ * as we can resolve them fully, which might help filter out inapplicable candidates during overload resolution.
+ */
+internal abstract class EagerResolveOfAtomWithExpectedTypeAsStaticReceiver<A : ConeAtomWithExpectedTypeAsStaticReceiver>(
+    private val strategy: ExpectedTypeAsStaticReceiverStrategy<A>,
+) : ResolutionStage() {
+    protected abstract fun ConePostponedResolvedAtom.asRelevantAtom(): A?
 
-                atom.analyzed = true
-                runCollectionLiteralResolution(atom, clBounds)
-            }
+    context(sink: CheckerSink, context: ResolutionContext)
+    protected abstract fun resolve(candidate: Candidate, state: StateForAtomWithExpectedTypeAsStaticReceiver.NonTvExpected<A>)
+
+    context(sink: CheckerSink, context: ResolutionContext)
+    final override suspend fun check(candidate: Candidate): Unit = context(context.typeContext) {
+        if (candidate.postponedAtoms.isEmpty()) return
+        for (postponedAtom in candidate.postponedAtoms) {
+            val atom = postponedAtom.asRelevantAtom() ?: continue
+            if (atom.analyzed) continue
+            val nonTvExpectedType =
+                atom.expectedType?.takeUnless { it.typeConstructor() is TypeVariableTypeConstructorMarker } ?: continue
+            val state =
+                StateForAtomWithExpectedTypeAsStaticReceiver.NonTvExpected(atom, strategy.getClassRepresentative(nonTvExpectedType))
+
+            atom.analyzed = true
+            resolve(candidate, state)
         }
+    }
+}
+
+internal object EagerResolveOfCollectionLiteral :
+    EagerResolveOfAtomWithExpectedTypeAsStaticReceiver<ConeCollectionLiteralAtom>(CollectionLiteralReceiverStrategy) {
+
+    override fun ConePostponedResolvedAtom.asRelevantAtom(): ConeCollectionLiteralAtom? = this as? ConeCollectionLiteralAtom
+
+    context(sink: CheckerSink, context: ResolutionContext)
+    override fun resolve(
+        candidate: Candidate,
+        state: StateForAtomWithExpectedTypeAsStaticReceiver.NonTvExpected<ConeCollectionLiteralAtom>,
+    ): Unit = context(OuterCandidateContextForAtomWithExpectedTypeAsStaticReceiver(candidate, sink)) {
+        runCollectionLiteralResolution(state)
+    }
+}
+
+internal object EagerResolveOfContextSensitiveSimpleName :
+    EagerResolveOfAtomWithExpectedTypeAsStaticReceiver<ConeSimpleNameForContextSensitiveResolution>(
+        ContextSensitiveResolutionReceiverStrategy
+    ) {
+
+    override fun ConePostponedResolvedAtom.asRelevantAtom(): ConeSimpleNameForContextSensitiveResolution? =
+        this as? ConeSimpleNameForContextSensitiveResolution
+
+    context(sink: CheckerSink, context: ResolutionContext)
+    override fun resolve(
+        candidate: Candidate,
+        state: StateForAtomWithExpectedTypeAsStaticReceiver.NonTvExpected<ConeSimpleNameForContextSensitiveResolution>,
+    ): Unit = context(OuterCandidateContextForAtomWithExpectedTypeAsStaticReceiver(candidate, sink)) {
+        runContextSensitiveResolutionForAtom(state)
+    }
 }
 
 internal object DiscriminateSyntheticAndForbiddenProperties : ResolutionStage() {
@@ -971,9 +1034,6 @@ internal object CheckIncompatibleTypeVariableUpperBounds : ResolutionStage() {
                         emptyIntersectionTypeInfo.casingTypes.toList() as List<ConeKotlinType>,
                         variableWithConstraints.typeVariable.asCone(),
                         emptyIntersectionTypeInfo.kind,
-                        isError = context.session.languageVersionSettings.supportsFeature(
-                            LanguageFeature.ForbidInferringTypeVariablesIntoEmptyIntersection
-                        )
                     )
                 )
             }
@@ -988,9 +1048,9 @@ internal object CheckCallModifiers : ResolutionStage() {
                 is FirNamedFunctionSymbol -> when {
                     candidate.callInfo.callSite.origin == FirFunctionCallOrigin.Infix && !functionSymbol.fir.isInfix ->
                         sink.reportDiagnostic(InfixCallOfNonInfixFunction(functionSymbol))
-                    candidate.callInfo.callSite.origin == FirFunctionCallOrigin.Operator && !functionSymbol.fir.isOperator ->
+                    candidate.callInfo.callSite.origin == FirFunctionCallOrigin.Operator && !isEligibleOperator(functionSymbol, candidate) ->
                         sink.reportDiagnostic(OperatorCallOfNonOperatorFunction(functionSymbol))
-                    candidate.callInfo.isImplicitInvoke && !functionSymbol.fir.isOperator ->
+                    candidate.callInfo.isImplicitInvoke && !isEligibleOperator(functionSymbol, candidate) ->
                         sink.reportDiagnostic(OperatorCallOfNonOperatorFunction(functionSymbol))
                 }
                 is FirConstructorSymbol -> {
@@ -1000,6 +1060,11 @@ internal object CheckCallModifiers : ResolutionStage() {
                 }
             }
         }
+    }
+
+    private fun isEligibleOperator(functionSymbol: FirNamedFunctionSymbol, candidate: Candidate): Boolean {
+        // we filter out imported aliased operators
+        return functionSymbol.fir.isOperator && candidate.callInfo.name == functionSymbol.name
     }
 }
 
@@ -1169,7 +1234,7 @@ internal object CheckLambdaAgainstTypeVariableContradiction : ResolutionStage() 
 
         // We use Function<Nothing> as our representative type for "some function type".
         val lambdaType = StandardClassIds.Function
-            .constructClassLikeType(arrayOf(context.session.builtinTypes.nothingType.coneType))
+            .constructClassLikeType(arrayOf(StandardTypes.Nothing))
 
         // We don't add the constraint to the system in the end, we only check for contradictions and roll back the transaction.
         // This ensures we don't get any issues if a different function type constraint is added later, e.g., during completion.
@@ -1188,7 +1253,7 @@ internal object CheckLambdaAgainstTypeVariableContradiction : ResolutionStage() 
 
     context(context: ResolutionContext)
     private fun ConeLambdaWithTypeVariableAsExpectedTypeAtom.hasFunctionTypeConstraint(csBuilder: NewConstraintSystemImpl): Boolean {
-        val typeConstructor = expectedType.typeConstructor(context.typeContext)
+        val typeConstructor = expectedType.typeConstructor(c = context.typeContext)
         val variableWithConstraints = csBuilder.currentStorage().notFixedTypeVariables[typeConstructor] ?: return false
         return variableWithConstraints.constraints.any { it.type.asCone().isSomeFunctionType(context.session) }
     }

@@ -5,11 +5,12 @@
 
 package org.jetbrains.kotlin.kapt.base
 
-import com.sun.tools.javac.util.Context
 import org.jetbrains.kotlin.kapt.base.util.KaptLogger
 import org.jetbrains.kotlin.kapt.base.util.WriterBackedKaptLogger
 import org.jetbrains.kotlin.kapt.base.util.doOpenInternalPackagesIfRequired
+import org.jetbrains.kotlin.kapt.base.util.findClassLoaderWithJavac
 import org.jetbrains.kotlin.kapt.base.util.info
+import org.jetbrains.kotlin.kapt.base.util.runMemoryLeakDetection
 import kotlin.system.measureTimeMillis
 
 object Kapt {
@@ -49,6 +50,8 @@ object Kapt {
                 }
 
                 logger.info { "Annotation processing took $annotationProcessingTime ms" }
+
+                runMemoryLeakDetection(options, processors, logger)
             }
         }
 
@@ -63,10 +66,5 @@ object Kapt {
             logger.error("'$JAVAC_CONTEXT_CLASS' class can't be found ('tools.jar' is absent in the plugin classpath). Kapt won't work.")
             return false
         }
-    }
-
-    private fun findClassLoaderWithJavac(): ClassLoader {
-        // Class.getClassLoader() may return null if the class is defined in a bootstrap class loader
-        return Context::class.java.classLoader ?: ClassLoader.getSystemClassLoader()
     }
 }

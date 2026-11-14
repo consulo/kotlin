@@ -7,23 +7,24 @@ package org.jetbrains.kotlin.incremental
 
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.cli.extensionsStorage
+import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime.pluginSandboxAnnotationsJsForTests
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.jetbrains.kotlin.compiler.plugin.registerExtension
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
-import org.jetbrains.kotlin.incremental.utils.findAnnotationsRuntimeJsKlib
 import org.jetbrains.kotlin.js.config.JsGenerationGranularity
 import org.jetbrains.kotlin.js.config.ModuleKind
 import org.jetbrains.kotlin.plugin.sandbox.fir.FirPluginPrototypeExtensionRegistrar
 import org.jetbrains.kotlin.plugin.sandbox.ir.GeneratedDeclarationsIrBodyFiller
 import org.jetbrains.kotlin.test.TargetBackend
+import java.io.File
 
 abstract class AbstractIncrementalCodegenJsWithPluginCompilerRunnerTest(
     targetBackend: TargetBackend,
     granularity: JsGenerationGranularity,
     workingDirPath: String
 ) : JsAbstractInvalidationTest(targetBackend, granularity, workingDirPath) {
-    private val annotationsKlib = findAnnotationsRuntimeJsKlib()
+    private val annotationsKlib = pluginSandboxAnnotationsJsForTests().path
 
     override val librariesToExcludeFromStats
         get() = super.librariesToExcludeFromStats + annotationsKlib
@@ -38,7 +39,8 @@ abstract class AbstractIncrementalCodegenJsWithPluginCompilerRunnerTest(
         languageFeatures: List<String>,
         allLibraries: List<String>,
         friendLibraries: List<String>,
-        includedLibrary: String?
+        includedLibrary: String?,
+        outputDir: File
     ): CompilerConfiguration {
         val copy = super.createConfiguration(
             moduleName,
@@ -46,7 +48,8 @@ abstract class AbstractIncrementalCodegenJsWithPluginCompilerRunnerTest(
             languageFeatures,
             allLibraries + annotationsKlib,
             friendLibraries,
-            includedLibrary
+            includedLibrary,
+            outputDir
         )
         with(copy.extensionsStorage!!) {
             // Since the IC infrastructure is weird and duplicate emitting of extensions

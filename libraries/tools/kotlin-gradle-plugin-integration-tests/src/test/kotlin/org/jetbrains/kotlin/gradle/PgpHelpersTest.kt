@@ -17,6 +17,7 @@ import org.gradle.kotlin.dsl.*
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.awaitInitialization
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import java.nio.file.Path
 import java.security.Security
@@ -29,6 +30,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OtherGradlePluginTests
+@MustRunOnChangesInGradle
 @DisplayName("PGP signing helper tasks")
 class PgpHelpersTest : KGPBaseTest() {
 
@@ -158,7 +160,7 @@ class PgpHelpersTest : KGPBaseTest() {
     @GradleTest
     @DisplayName("Use generated key from Gradle signing plugin")
     internal fun useGeneratedKeyInSigningPlugin(gradleVersion: GradleVersion) {
-        project("empty", gradleVersion, buildOptions = BuildOptions().disableConfigurationCacheForGradle7(gradleVersion)) {
+        project("empty", gradleVersion, buildOptions = BuildOptions()) {
             plugins {
                 kotlin("jvm")
                 `maven-publish`

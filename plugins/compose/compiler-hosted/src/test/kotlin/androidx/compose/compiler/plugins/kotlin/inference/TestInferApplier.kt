@@ -16,9 +16,10 @@
 
 package androidx.compose.compiler.plugins.kotlin.inference
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.random.Random
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 class TestInferApplier {
     private val resolutions = resolve(data)
@@ -77,7 +78,7 @@ class TestInferApplier {
     private fun errorReporter(): Pair<ErrorReporter<Node>, List<Call>> {
         val errors = mutableListOf<Call>()
         return object : ErrorReporter<Node> {
-            override fun reportCallError(node: Node, expected: String, received: String) {
+            override fun reportCallError(node: Node, expected: Set<String>, received: Set<String>) {
                 val call = node as? Call ?: (node as? ResolvedExpression)?.node as? Call ?: return
                 errors.add(call)
             }
@@ -85,8 +86,8 @@ class TestInferApplier {
             override fun reportParameterError(
                 node: Node,
                 index: Int,
-                expected: String,
-                received: String
+                expected: Set<String>,
+                received: Set<String>,
             ) {
                 val call = node as? Call ?: (node as? ResolvedExpression)?.node as? Call ?: return
                 errors.add(call)
@@ -139,15 +140,15 @@ class TestInferApplier {
         expect("Text", "[UI]")
         expect("Circle", "[Vector]")
         expect("Square", "[Vector]")
-        expect("Provider", "[0, [0]]")
+        expect("Provider", "[Open(0), [Open(0)]]")
         expect("Row", "[UI, [UI]]")
         expect("Button", "[UI, [UI]]")
         expect("Layer", "[Vector, [Vector]]")
         expect("Drawing", "[UI, [Vector]]")
-        expect("SimpleOpen", "[_]")
-        expect("OpenRecursive", "[_]")
+        expect("SimpleOpen", "[Open(_)]")
+        expect("OpenRecursive", "[Open(_)]")
         expect("ClosedRecursive", "[UI]")
-        expect("OpenIndirectRecursive", "[_]")
+        expect("OpenIndirectRecursive", "[Open(_)]")
         expect("p1", "[UI]")
         expect("p2", "[Vector]")
         expect("p3", "[UI]")
@@ -157,10 +158,14 @@ class TestInferApplier {
         expect("p7", "[UI]")
         expect("p8", "[UI]")
         expect("p9", "[UI, [UI, [UI]]]")
-        expect("useVar", "[0, [0]]")
-        expect("useIdentity", "[0, [0]]")
+        expect("useVar", "[Open(0), [Open(0)]]")
+        expect("useIdentity", "[Open(0), [Open(0)]]")
         expect("useRun", "[UI, [UI]]")
         expect("useVarAndIdentity", "[UI, [UI], [Vector]]")
+        expect("WX", "[Open(_, constrainedTo = {w, x})]")
+        expect("CallWX/0", "[Open(_, constrainedTo = {w, x})]")
+        expect("CallWX/1", "[Open(_, constrainedTo = {w, x}), [Open(_, constrainedTo = {y, z})]]")
+        expect("CallContent", "[Open(0, constrainedTo = {w, x}), [Open(0, constrainedTo = {w, x})]: [Open(_, constrainedTo = {y, z})]]")
 
         assertEquals(expectations.joinToString("\n"), results.joinToString("\n"))
     }
@@ -202,7 +207,7 @@ class TestInferApplier {
 
     @Test
     fun prefixOrderWalk() {
-        val (errorReporter, errors) = errorReporter()
+        val [errorReporter, errors] = errorReporter()
         val lazySchemeStorage = lazySchemeStorage()
         val inferApplier = ApplierInferencer(
             typeAdapter,
@@ -220,19 +225,23 @@ class TestInferApplier {
         }
 
         assertTrue(
-            "Expected Circle in e1 to be in error",
-            findNode("e1", "Circle") in errors
+            findNode("e1", "Circle") in errors,
+            "Expected Circle in e1 to be in error"
         )
         assertTrue(
-            "Expected Circle in e2 to be in error",
-            findNode("e2", "Provider", "Circle") in errors
+            findNode("e2", "Provider", "Circle") in errors,
+            "Expected Circle in e2 to be in error"
         )
-        assertEquals("Unexpected errors reported", 2, errors.size)
+        assertTrue(
+            findNode("e3", "CallWX/1", "CallWX/0") in errors,
+            "Expected CallWX/0 in e3 to be in error"
+        )
+        assertEquals(3, errors.size, "Unexpected errors reported")
     }
 
     @Test
     fun randomOrderWalk() {
-        val (errorReporter, _) = errorReporter()
+        val [errorReporter, _] = errorReporter()
         val lazySchemeStorage = lazySchemeStorage()
         val inferApplier = ApplierInferencer(
             typeAdapter,
@@ -242,10 +251,16 @@ class TestInferApplier {
         )
         val visitor = dataVisitor(inferApplier)
 
-        randomlyWalkData(visitor)
+        val seed = Random.nextInt()
+        randomlyWalkData(visitor, seed)
 
-        expectCorrectInference {
-            inferApplier.toFinalScheme(it)
+        try {
+            expectCorrectInference {
+                inferApplier.toFinalScheme(it)
+            }
+        } catch (e: AssertionError) {
+            println("Test failed when using seed $seed")
+            throw e
         }
 
         // Randomly walking the tree produces random errors as well for trees that can be interpreted multiple ways

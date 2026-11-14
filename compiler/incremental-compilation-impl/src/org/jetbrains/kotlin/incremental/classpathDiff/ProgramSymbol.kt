@@ -56,9 +56,9 @@ class ProgramSymbolSet private constructor(
 
     fun asSequence(): Sequence<ProgramSymbol> {
         return classes.asSequence().map { ClassSymbol(it) } +
-                classMembers.asSequence().flatMap { (classId, memberNames) -> memberNames.asSequence().map { ClassMember(classId, it) } } +
+                classMembers.asSequence().flatMap { [classId, memberNames] -> memberNames.asSequence().map { ClassMember(classId, it) } } +
                 packageMembers.asSequence()
-                    .flatMap { (packageFqName, memberNames) -> memberNames.asSequence().map { PackageMember(packageFqName, it) } }
+                    .flatMap { [packageFqName, memberNames] -> memberNames.asSequence().map { PackageMember(packageFqName, it) } }
     }
 
     fun toDebugString(): String {
@@ -172,6 +172,9 @@ internal fun Collection<LookupSymbol>.toProgramSymbolSet(allClasses: Iterable<Ac
                     else -> (clazz as MultifileClassKotlinClassSnapshot).constantNames
                 }
                 collector.addPackageMembers(clazz.classId.packageFqName, packageMemberNames.intersect(lookupNamesInScope))
+            }
+            is PackageInfoClassSnapshot, is ModuleInfoClassSnapshot -> {
+                // Never the target of a lookup
             }
         }
     }

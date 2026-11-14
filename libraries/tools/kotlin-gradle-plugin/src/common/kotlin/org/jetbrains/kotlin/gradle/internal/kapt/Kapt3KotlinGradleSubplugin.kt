@@ -20,6 +20,7 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.process.CommandLineArgumentProvider
+import org.jetbrains.kotlin.gradle.dsl.KaptStubGenerationScheme
 import org.jetbrains.kotlin.gradle.internal.kapt.KaptProperties
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJvmAndroidCompilation
@@ -41,7 +42,7 @@ class Kapt3GradleSubplugin @Inject internal constructor() :
     KotlinCompilerPluginSupportPlugin {
 
     override fun apply(target: Project) {
-        target.extensions.create("kapt", KaptExtension::class.java)
+        target.extensions.create("kapt", KaptExtension::class.java).applyPropertyConventions(target)
     }
 
     companion object {
@@ -442,6 +443,7 @@ internal fun buildKaptSubpluginOptions(
         "${kaptExtension.strictMode}"
     )
     pluginOptions += SubpluginOption("stripMetadata", "${kaptExtension.stripMetadata}")
+    pluginOptions += SubpluginOption("stubGenerationScheme", kaptExtension.stubGenerationScheme.get().optionValue)
     pluginOptions += SubpluginOption("showProcessorTimings", "${kaptExtension.showProcessorStats}")
     pluginOptions += SubpluginOption("detectMemoryLeaks", kaptExtension.detectMemoryLeaks)
     pluginOptions += SubpluginOption("infoAsWarnings", "${KaptProperties.isInfoAsWarnings(project).get()}")
@@ -451,8 +453,38 @@ internal fun buildKaptSubpluginOptions(
         pluginOptions += SubpluginOption("verbose", "true")
     }
 
+    val stubWriterThreads = KaptProperties.getStubWriterThreads(project).get()
+    if (stubWriterThreads < 1) {
+        // Match how the generic property layer already handles a non-integer value: name the property the
+        // user actually set, say what is used instead, and carry on rather than failing later in the compiler.
+        project.logger.warn(
+            "Int option 'kapt.stub.writer.threads' was set to an invalid value: " +
+                    "`$stubWriterThreads`. Using default value '1' instead."
+        )
+    } else if (stubWriterThreads != 1) {
+        pluginOptions += SubpluginOption("stubWriterThreads", "$stubWriterThreads")
+    }
+
+    if (KaptProperties.isIsolateProcessorsFromBuildClasspath(project).get()) {
+        pluginOptions += SubpluginOption("isolateProcessorsFromBuildClasspath", "true")
+    }
+
+    if (kaptExtension.headerMode.get()) {
+        pluginOptions += SubpluginOption("headerMode", "true")
+    }
+
     return pluginOptions
 }
+
+internal fun KaptExtension.applyPropertyConventions(project: Project): KaptExtension = apply {
+    headerMode.convention(KaptProperties.isHeaderMode(project))
+}
+
+internal val KaptStubGenerationScheme.optionValue: String
+    get() = when (this) {
+        KaptStubGenerationScheme.DIRECT -> "direct"
+        KaptStubGenerationScheme.JTREE -> "jtree"
+    }
 
 /* Returns AP options from KAPT static DSL. */
 internal fun getNonAndroidDslApOptions(

@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// SKIP_TXT
+// RUN_PIPELINE_TILL: CODEGEN
 // FILE: JavaClass.java
 import org.jetbrains.annotations.NotNull;
 public class JavaClass {

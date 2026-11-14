@@ -70,34 +70,6 @@ class NodeJsGradlePluginIT : KGPBaseTest() {
         }
     }
 
-    @DisplayName("Set different Node.js versions in different subprojects configured with previous API")
-    @GradleTest
-    @TestMetadata("subprojects-nodejs-setup")
-    fun testDifferentVersionInSubprojectsWithPreviousApi(gradleVersion: GradleVersion) {
-        project(
-            "subprojects-nodejs-setup",
-            gradleVersion
-        ) {
-            listOf("app1", "app2").forEach { subProjectName ->
-                subProject(subProjectName).buildGradleKts.modify {
-                    it.replace("plugins.", "@Suppress(\"DEPRECATION_ERROR\") rootProject.plugins.")
-                        .replace("the", "rootProject.the")
-                        .replace("NodeJsPlugin", "NodeJsRootPlugin")
-                        .replace("NodeJsEnvSpec", "NodeJsRootExtension")
-                        .replace("""version\.set\(("\d+\.\d+.\d+")\)""".toRegex(), "version = \"22.3.0\"")
-                }
-            }
-
-            build(":app1:jsNodeDevelopmentRun") {
-                assertOutputContains("Hello with version: v22.3.0")
-            }
-
-            build(":app2:jsNodeDevelopmentRun") {
-                assertOutputContains("Hello with version: v22.3.0")
-            }
-        }
-    }
-
     @DisplayName("Set different Node.js versions in root project and subprojects")
     @GradleTest
     @TestMetadata("subprojects-nodejs-setup")
@@ -125,14 +97,9 @@ class NodeJsGradlePluginIT : KGPBaseTest() {
 
     @DisplayName("Node.js setup test with downloadBaseUrl = null")
     @GradleTest
-    @TestMetadata("subprojects-nodejs-setup")
+    @TestMetadata("nodejs-setup-with-user-repositories")
     fun testSetupWithoutDownloadBaseUrl(gradleVersion: GradleVersion) {
-        project(
-            "nodejs-setup-with-user-repositories",
-            gradleVersion,
-            // we can remove this line, when the min version of Gradle be at least 8.1
-            dependencyManagement = DependencyManagement.DisabledDependencyManagement
-        ) {
+        project("nodejs-setup-with-user-repositories", gradleVersion) {
             build(":kotlinNodeJsSetup")
         }
     }

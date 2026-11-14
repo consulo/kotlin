@@ -24,7 +24,8 @@ import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.messages.MessageCollectorImpl
 import org.jetbrains.kotlin.codegen.forTestCompile.ForTestCompileRuntime
 import org.jetbrains.kotlin.config.LanguageVersion
-import org.jetbrains.kotlin.incremental.multiproject.EmptyModulesApiHistory
+import org.jetbrains.kotlin.incremental.testingUtils.BuildLogFinder
+import org.jetbrains.kotlin.incremental.storage.FileLocations
 import org.jetbrains.kotlin.incremental.utils.*
 import org.jetbrains.kotlin.test.util.KtTestUtil
 import java.io.ByteArrayOutputStream
@@ -32,6 +33,9 @@ import java.io.File
 import javax.tools.ToolProvider
 
 abstract class AbstractIncrementalJvmCompilerRunnerTest : AbstractIncrementalCompilerRunnerTestBase<K2JVMCompilerArguments>() {
+    /** Specifies source and output roots when testing relocatable caches. */
+    protected open val fileLocations: FileLocations? get() = null
+
     override fun make(cacheDir: File, outDir: File, sourceRoots: Iterable<File>, args: K2JVMCompilerArguments): TestCompilationResult {
         val reporter = TestICReporter()
         val messageCollector = MessageCollectorImpl()
@@ -49,7 +53,10 @@ abstract class AbstractIncrementalJvmCompilerRunnerTest : AbstractIncrementalCom
         val kotlinCompileResult = TestCompilationResult(reporter, messageCollector)
         if (kotlinCompileResult.exitCode != ExitCode.OK) return kotlinCompileResult
 
-        val (javaExitCode, _, javaErrors) = compileJava(sourceRoots, args.destination!!)
+        (val javaExitCode = exitCode, val javaErrors = compileErrors) = compileJava(
+            sourceRoots,
+            args.destination!!
+        )
         return when (javaExitCode) {
             ExitCode.OK -> kotlinCompileResult
             else -> kotlinCompileResult.copy(exitCode = javaExitCode, compileErrors = javaErrors)
@@ -70,22 +77,24 @@ abstract class AbstractIncrementalJvmCompilerRunnerTest : AbstractIncrementalCom
         val rootsWalk = sourceRoots.asSequence().flatMap { it.walk() }
         val files = rootsWalk.filter(File::isFile)
         val sourceFiles = files.filter { it.extension.lowercase() in allExtensions }.toList()
-        val buildHistoryFile = File(cachesDir, "build-history.bin")
+        // Using workingDir here simulates externally managed caches, so IC runner will not wipe it on non-incremental build
+        val classpathSnapshotDir = File(workingDir, "classpathSnapshot").apply { mkdirs() }
+        val classpathChanges = makeEmptyClasspathChangesForSingleModuleTests(classpathSnapshotDir)
         args.javaSourceRoots = sourceRoots.map { it.absolutePath }.toTypedArray()
+        args.noStdlib = true
         val buildReporter = TestBuildReporter(testICReporter = reporter, buildMetricsReporter = DoNothingBuildMetricsReporter)
 
         withIncrementalCompilation(args) {
             val k2Mode = (args.languageVersion ?: LanguageVersion.LATEST_STABLE.versionString) >= LanguageVersion.KOTLIN_2_0.versionString
 
             val compiler =
-                if (k2Mode && args.useFirIC && args.useFirLT /* TODO by @Ilya.Chernikov: move LT check into runner */) {
-                    val snapshotsDir = File(workingDir, "classpath-snapshots").apply { mkdirs() }
-
+                @Suppress("DEPRECATION")
+                if (k2Mode && args.useFirIC) {
                     IncrementalFirJvmCompilerTestRunner(
                         cachesDir,
                         buildReporter,
                         outputDirs = null,
-                        makeEmptyClasspathChangesForSingleModuleTests(snapshotsDir),
+                        classpathChanges,
                         kotlinExtensions,
                         lookupTrackerDelegate = testLookupTracker
                     )
@@ -94,19 +103,21 @@ abstract class AbstractIncrementalJvmCompilerRunnerTest : AbstractIncrementalCom
                     IncrementalJvmCompilerTestRunner(
                         cachesDir,
                         buildReporter,
-                        buildHistoryFile = buildHistoryFile,
+                        classpathChanges,
                         outputDirs = null,
-                        modulesApiHistory = EmptyModulesApiHistory,
                         kotlinSourceFilesExtensions = kotlinExtensions,
                         icFeatures = IncrementalCompilationFeatures(
-                            withAbiSnapshot = false,
                             usePreciseJavaTracking = verifiedPreciseJavaTracking
                         ),
                         lookupTrackerDelegate = testLookupTracker
                     )
                 }
             //TODO by @Ilya.Chernikov: set properly
-            compiler.compile(sourceFiles, args, messageCollector, changedFiles = ChangedFiles.DeterminableFiles.ToBeComputed)
+            compiler.compile(
+                sourceFiles, args, messageCollector,
+                changedFiles = ChangedFiles.DeterminableFiles.ToBeComputed,
+                fileLocations = fileLocations,
+            )
         }
     }
 
@@ -148,7 +159,7 @@ abstract class AbstractIncrementalJvmCompilerRunnerTest : AbstractIncrementalCom
             moduleName = testDir.name
             destination = destinationDir.path
             classpath = compileClasspath
-            kotlinHome = ForTestCompileRuntime.distKotlincForTests().absolutePath
+            languageVersion = LanguageVersion.LATEST_STABLE.versionString
         }
 
     private val compileClasspath =
@@ -156,4 +167,7 @@ abstract class AbstractIncrementalJvmCompilerRunnerTest : AbstractIncrementalCom
             ForTestCompileRuntime.runtimeJarForTests(),
             KtTestUtil.getAnnotationsJar()
         ).joinToString(File.pathSeparator) { it.absolutePath }
+
+    override val buildLogFinder: BuildLogFinder
+        get() = BuildLogFinder(isGradleEnabled = true, isFirEnabled = true) // TODO: investigate cases that need isGradleEnabled - the combination looks fragile
 }

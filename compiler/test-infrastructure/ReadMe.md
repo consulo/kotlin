@@ -21,26 +21,48 @@ Each test includes at least one module. Module is a base compilation entity whic
 ### Steps
 
 [TestStep](testFixtures/org/jetbrains/kotlin/test/TestStep.kt) is an abstraction of single step in pipeline of processing each module. There are two kinds of test steps:
-1. `TestStep.FacadeStep`. This kind of step contains some facade and transforms input artifact to output artifact with it if type of input artifact matches with corresponding type of facade
-2. `TestStep.HandlersStep`. This kind of step contains some handlers parameterized with single artifact kind and runs all its handlers if type of input artifact matches with type of handlers
+1. `TestStep.FacadeStep`. This kind of step contains some facade and transforms input artifact to output artifact with it
+2. `TestStep.HandlersStep`. This kind of step contains some handlers parameterized with single artifact kind and runs all its handlers on artifact of that kind
+
+Which artifact is passed to a step, and when a step is skipped, is described in [Steps pipeline](#steps-pipeline).
 
 ### Steps pipeline
 
 Each test defines multiple number of parametrized steps in specific order. [TestRunner](testFixtures/org/jetbrains/kotlin/test/TestRunner.kt) (main entrypoint to test) takes configuration and module structure and performs next steps:
 1. Parse module structure from testdata
-2. For each module in test structure:
-    1. Introduce `var artifact` which represents artifact produced by last facade
-    2. Initialize it with input artifact that represents source code
+2. Validate configured pipeline: input artifact kind of each step should be produced by one of the preceding steps (or be the kind of the starting artifact), otherwise the test fails with a test infrastructure error
+3. For each module in test structure:
+    1. Introduce `var artifact` which represents artifact produced by last facade (the *latest* artifact)
+    2. Initialize it with input artifact that represents source code and register it in [ArtifactsProvider](testFixtures/org/jetbrains/kotlin/test/services/ArtifactsProvider.kt)
     3. For each step from configuration:
-        - If type of step input artifact didn't match to type of `artifact` go to next step
-        - If step is
-        - `FacadeStep`:
-            - run facade and assign its result to `artifact`
-            - if input type of facade differs from output type then register `artifact` in dependencies provider so other modules which depend on this module can use it
-        - `HandlersStep`:
-            - run all handlers from it on `artifact`
-3. Run finalized methods of all handlers
-4. Run some additional finalizers (description is below)
+        - Choose the artifact to run the step on:
+            - `FacadeStep` is run on `artifact` if their kinds match. Otherwise, the runner looks for an artifact of the needed kind which was produced earlier for this module (see [Branching pipelines](#branching-pipelines))
+            - `HandlersStep` is always run on `artifact`. If their kinds don't match, then the step is skipped when an artifact of the needed kind was never produced for this module (i.e. the branch of pipeline which produces it wasn't taken). If such artifact was produced, but was already replaced by some later facade, then the test fails with a test infrastructure error, because such configuration is incorrect: this handlers step should be moved right after the facade which produces the artifact of the needed kind
+        - Skip the step if it is a `FacadeStep` and its facade doesn't want to process this module ([`AbstractTestFacade.shouldTransform`](testFixtures/org/jetbrains/kotlin/test/model/Facades.kt) returns `false`). All steps which can consume only the output of the skipped facade are skipped as well
+        - Run the step:
+            - `FacadeStep`: run facade, assign its result to `artifact` and register it in [ArtifactsProvider](testFixtures/org/jetbrains/kotlin/test/services/ArtifactsProvider.kt), so other modules which depend on this module and later steps of this module can use it
+            - `HandlersStep`: run all handlers from it on the chosen artifact
+4. Run finalized methods of all handlers
+5. Run some additional finalizers (description is below)
+
+#### Branching pipelines
+
+The runner keeps track of the artifact produced by the last executed facade (the *latest* artifact). A facade step always prefers the latest artifact, but it also may reach back to an artifact produced earlier in the pipeline, which allows building branching pipelines, e.g.:
+
+```
+┌─────────┐  ┌─────┐  ┌────┐  ┌──────┐  ┌─────────────────┐  ┌──────────┐
+│ Sources ├─▶│ FIR │─▶│ IR │─▶│ KLIB │─▶│ Deserialized IR ├─▶│ .js file │
+└─────────┘  └─────┘  └────┘  └──────┘  └─────────────────┘  └──────────┘
+                                  │     ┌────────────┐
+                                  └────▶│ .d.ts file │
+                                        └────────────┘
+```
+
+Here the KLIB artifact is consumed by two different facades: one of them generates the `.d.ts` file and another one deserializes the KLIB back to IR. Whichever of them is executed second won't see the KLIB as the latest artifact, so the runner takes the KLIB produced earlier from the [ArtifactsProvider](testFixtures/org/jetbrains/kotlin/test/services/ArtifactsProvider.kt).
+
+Note that:
+- if some facade should not be run for a specific module, it should declare it explicitly by returning `false` from [`AbstractTestFacade.shouldTransform`](testFixtures/org/jetbrains/kotlin/test/model/Facades.kt)
+- handlers steps never reach back: they are always run on the latest artifact. So in a branching pipeline a handlers step should be placed right after the facade which produces the artifact it checks
 
 ## Directives
 
@@ -126,7 +148,7 @@ Here are some existing services which are useful in a wide range of different te
 - [SourceFileProvider](testFixtures/org/jetbrains/kotlin/test/services/SourceFileProvider.kt) retrieves content of test files from test modules
 - [KotlinTestInfo](testFixtures/org/jetbrains/kotlin/test/services/KotlinTestInfo.kt) contains info about test (test name, test class, etc)
 - [ArtifactsProvider](testFixtures/org/jetbrains/kotlin/test/services/ArtifactsProvider.kt) caches and provides artifacts of modules analyzed by facade steps
-- [Assertions](testFixtures/org/jetbrains/kotlin/test/services/Assertions.kt) contains utility assertions methods. This service is needed to abstract assertions infrastructure from any existing test framework (most commonly used assertions implementation is [JUnit5Assertions](../tests-common-new/testFixtures/org/jetbrains/kotlin/test/services/JUnit5Assertions.kt))
+- [Assertions](testFixtures/org/jetbrains/kotlin/test/services/Assertions.kt) contains utility assertions methods. This service is needed to abstract assertions infrastructure from any existing test framework (most commonly used assertions implementation is [JUnit5Assertions](testFixtures/org/jetbrains/kotlin/test/services/JUnit5Assertions.kt))
 - [CompilerConfigurationProvider](../tests-common-new/testFixtures/org/jetbrains/kotlin/test/services/CompilerConfigurationProvider.kt) provider of compiler configuration for different modules (additional info below)
 - [TemporaryDirectoryManager](testFixtures/org/jetbrains/kotlin/test/services/TemporaryDirectoryManager.kt) can create temporary directories for test purposes (e.g. directory to write generated .class files)
 
@@ -134,7 +156,7 @@ There are many other services, you can find them by looking at inheritors of `Te
 
 #### Compiler configuration provider
 
-[CompilerConfiguration](../config/src/org/jetbrains/kotlin/config/CompilerConfiguration.java) is main class which configures how specific module will be analyzed or compiled and for its setup there is a special service named [CompilerConfigurationProvider](../tests-common-new/testFixtures/org/jetbrains/kotlin/test/services/CompilerConfigurationProvider.kt). It creates `CompilerConfiguration` which is based on list of [EnvironmentConfigurators](testFixtures/org/jetbrains/kotlin/test/services/AbstractEnvironmentConfigurator.kt) which can be registered in test. So if you want to customize compiler configuration you need to modify existing configurator (e.g. [JvmEnvironmentConfigurator](../tests-common-new/testFixtures/org/jetbrains/kotlin/test/services/configuration/JvmEnvironmentConfigurator.kt)) or write your own. Main method of `EnvironmentConfigurator` is `configureCompilerConfiguration` which takes compiler configuration and test module, so you can configure configuration (sorry for tautology) using directives which are applied to specific module.
+[CompilerConfiguration](../config/src/org/jetbrains/kotlin/config/CompilerConfiguration.java) is main class which configures how specific module will be analyzed or compiled and for its setup there is a special service named [CompilerConfigurationProvider](../tests-common-new/testFixtures/org/jetbrains/kotlin/test/services/CompilerConfigurationProvider.kt). It creates `CompilerConfiguration` which is based on list of [EnvironmentConfigurators](testFixtures/org/jetbrains/kotlin/test/services/AbstractEnvironmentConfigurator.kt) which can be registered in test. So if you want to customize compiler configuration you need to modify existing configurator (e.g. [JvmEnvironmentConfigurator](../jvm.tests/testFixtures/org/jetbrains/kotlin/test/services/configuration/JvmEnvironmentConfigurator.kt)) or write your own. Main method of `EnvironmentConfigurator` is `configureCompilerConfiguration` which takes compiler configuration and test module, so you can configure configuration (sorry for tautology) using directives which are applied to specific module.
 
 There are also two additional methods which can be used to provide some simple mapping:
 1. from some value directive to configuration key of same type

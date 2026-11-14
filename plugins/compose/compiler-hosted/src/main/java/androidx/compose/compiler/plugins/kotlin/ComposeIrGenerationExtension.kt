@@ -18,18 +18,15 @@ package androidx.compose.compiler.plugins.kotlin
 
 import androidx.compose.compiler.plugins.kotlin.analysis.FqNameMatcher
 import androidx.compose.compiler.plugins.kotlin.analysis.StabilityInferencer
-import androidx.compose.compiler.plugins.kotlin.k1.ComposeDescriptorSerializerContext
 import androidx.compose.compiler.plugins.kotlin.lower.*
 import androidx.compose.compiler.plugins.kotlin.lower.hiddenfromobjc.AddHiddenFromObjCLowering
 import com.intellij.openapi.progress.ProgressManager
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.descriptors.annotations.KotlinRetention
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.util.getAnnotationRetention
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.platform.isJs
 import org.jetbrains.kotlin.platform.isWasm
 import org.jetbrains.kotlin.platform.jvm.isJvm
@@ -43,14 +40,11 @@ class ComposeIrGenerationExtension(
     private val traceMarkersEnabled: Boolean = true,
     private val metricsDestination: String? = null,
     private val reportsDestination: String? = null,
-    private val useK2: Boolean = false,
     private val stableTypeMatchers: Set<FqNameMatcher> = emptySet(),
     private val moduleMetricsFactory: ((StabilityInferencer, FeatureFlags) -> ModuleMetrics)? = null,
-    private val descriptorSerializerContext: ComposeDescriptorSerializerContext? = null,
     private val featureFlags: FeatureFlags,
     private val skipIfRuntimeNotFound: Boolean = false,
     private val targetRuntimeVersion: ComposeRuntimeVersion? = null,
-    private val messageCollector: MessageCollector,
 ) : IrGenerationExtension {
     var metrics: ModuleMetrics = EmptyModuleMetrics
         private set
@@ -60,19 +54,22 @@ class ComposeIrGenerationExtension(
         pluginContext: IrPluginContext,
     ) {
         val isKlibTarget = !pluginContext.platform.isJvm()
-        if (VersionChecker(pluginContext, messageCollector).check(skipIfRuntimeNotFound) == VersionCheckerResult.NOT_FOUND) {
+        if (VersionChecker(pluginContext).check(skipIfRuntimeNotFound) == VersionCheckerResult.NOT_FOUND) {
             return
         }
 
         val stabilityInferencer = StabilityInferencer(
             pluginContext.platform.isJvm(),
-            pluginContext.moduleDescriptor,
             stableTypeMatchers,
         )
 
-        if (useK2) {
-            moduleFragment.acceptVoid(ComposableLambdaAnnotator(pluginContext))
-        }
+        ComposableLambdaAnnotator(
+            pluginContext,
+            moduleFragment,
+            metrics,
+            stabilityInferencer,
+            featureFlags,
+        ).lower(moduleFragment)
 
         if (moduleMetricsFactory != null) {
             metrics = moduleMetricsFactory.invoke(stabilityInferencer, featureFlags)
@@ -85,24 +82,20 @@ class ComposeIrGenerationExtension(
         if (pluginContext.platform.isNative()) {
             AddHiddenFromObjCLowering(
                 pluginContext,
+                moduleFragment,
                 metrics,
-                descriptorSerializerContext?.hideFromObjCDeclarationsSet,
                 stabilityInferencer,
                 featureFlags,
             ).lower(moduleFragment)
         }
 
         ClassStabilityTransformer(
-            useK2,
             pluginContext,
+            moduleFragment,
             metrics,
             stabilityInferencer,
-            classStabilityInferredCollection = descriptorSerializerContext
-                ?.classStabilityInferredCollection?.takeIf {
-                    !pluginContext.platform.isJvm()
-                },
             featureFlags,
-            messageCollector
+            pluginContext.diagnosticReporter,
         ).lower(moduleFragment)
 
         ProgressManager.checkCanceled()
@@ -113,6 +106,7 @@ class ComposeIrGenerationExtension(
                 usePerFileEnabledFlag = liveLiteralsV2Enabled,
                 keyVisitor = DurableKeyVisitor(),
                 context = pluginContext,
+                irModule = moduleFragment,
                 metrics = metrics,
                 stabilityInferencer = stabilityInferencer,
                 featureFlags = featureFlags,
@@ -125,16 +119,13 @@ class ComposeIrGenerationExtension(
 
         val functionKeyTransformer = DurableFunctionKeyTransformer(
             pluginContext,
+            moduleFragment,
             metrics,
             stabilityInferencer,
             featureFlags,
         )
 
         functionKeyTransformer.lower(moduleFragment)
-
-        if (!useK2) {
-            CopyDefaultValuesFromExpectLowering(pluginContext).lower(moduleFragment)
-        }
 
         ProgressManager.checkCanceled()
 
@@ -145,9 +136,24 @@ class ComposeIrGenerationExtension(
         // Generate default wrappers for virtual functions
         ComposableDefaultParamLowering(
             pluginContext,
+            moduleFragment,
             metrics,
             stabilityInferencer,
-            featureFlags
+            featureFlags,
+        ).lower(moduleFragment)
+
+        ProgressManager.checkCanceled()
+
+        // Strip the K-prefix from `KComposableFunctionN` static types of refs that
+        // ComposerParamTransformer will lower to adapted refs (runtime carrier:
+        // `AdaptedFunctionReference`, which doesn't implement `KFunction`). Must run before
+        // ComposerLambdaMemoization so the patched type propagates into `remember<T>` wrappers.
+        AdaptedComposableReferenceTypePatcher(
+            pluginContext,
+            moduleFragment,
+            metrics,
+            stabilityInferencer,
+            featureFlags,
         ).lower(moduleFragment)
 
         ProgressManager.checkCanceled()
@@ -155,6 +161,7 @@ class ComposeIrGenerationExtension(
         // Memoize normal lambdas and wrap composable lambdas
         ComposerLambdaMemoization(
             pluginContext,
+            moduleFragment,
             metrics,
             stabilityInferencer,
             featureFlags,
@@ -167,6 +174,7 @@ class ComposeIrGenerationExtension(
         // parameter.
         ComposerParamTransformer(
             pluginContext,
+            moduleFragment,
             stabilityInferencer,
             metrics,
             featureFlags,
@@ -176,8 +184,10 @@ class ComposeIrGenerationExtension(
 
         ComposableTargetAnnotationsTransformer(
             pluginContext,
+            moduleFragment,
             metrics,
             stabilityInferencer,
+            targetRuntimeVersion,
             featureFlags,
         ).lower(moduleFragment)
 
@@ -189,6 +199,7 @@ class ComposeIrGenerationExtension(
 
         ComposableFunctionBodyTransformer(
             pluginContext,
+            moduleFragment,
             metrics,
             stabilityInferencer,
             sourceInformationEnabled,
@@ -197,9 +208,12 @@ class ComposeIrGenerationExtension(
             featureFlags,
         ).lower(moduleFragment)
 
+        ComposableAnnotationRemover().lower(moduleFragment)
+
         if (isKlibTarget) {
             KlibAssignableParamTransformer(
                 pluginContext,
+                moduleFragment,
                 metrics,
                 stabilityInferencer,
                 featureFlags,
@@ -209,6 +223,7 @@ class ComposeIrGenerationExtension(
         if (pluginContext.platform.isJs() || pluginContext.platform.isWasm()) {
             WrapJsComposableLambdaLowering(
                 pluginContext,
+                moduleFragment,
                 metrics,
                 stabilityInferencer,
                 featureFlags,

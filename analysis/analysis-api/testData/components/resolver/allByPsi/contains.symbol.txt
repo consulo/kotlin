@@ -29,22 +29,34 @@ KtParameter(34,40): 'i: Int'
   null
 
 KtTypeReference(37,40): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(37,40): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(37,40): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtConstructorDelegationCall(43,49): 'this()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): MyClass
     ]
 
 KtConstructorDelegationReferenceExpression(43,47): 'this'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): MyClass
     ]
@@ -65,13 +77,25 @@ KtTypeParameter(67,68): 'T'
   null
 
 KtTypeReference(70,71): 'T'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtUserType(70,71): 'T'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtNameReferenceExpression(70,71): 'T'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      T
+    ]
 
 KtParameterList(80,90): '(int: Int)'
   null
@@ -80,22 +104,46 @@ KtParameter(81,89): 'int: Int'
   null
 
 KtTypeReference(86,89): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtUserType(86,89): 'Int'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtNameReferenceExpression(86,89): 'Int'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Int
+    ]
 
 KtTypeReference(92,99): 'Boolean'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Boolean
+    ]
 
 KtUserType(92,99): 'Boolean'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Boolean
+    ]
 
 KtNameReferenceExpression(92,99): 'Boolean'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Boolean
+    ]
 
 KtConstantExpression(102,106): 'true'
   null
@@ -110,7 +158,7 @@ KtBlockExpression(120,300): '{'
   null
 
 KtBinaryExpression(126,140): '1 in MyClass()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /contains(<extension receiver>: T, int: kotlin.Int): kotlin.Boolean
     ]
@@ -119,55 +167,67 @@ KtConstantExpression(126,127): '1'
   null
 
 KtOperationReferenceExpression(128,130): 'in'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /contains(<extension receiver>: T, int: kotlin.Int): kotlin.Boolean
     ]
 
 KtCallExpression(131,140): 'MyClass()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): MyClass
     ]
 
 KtNameReferenceExpression(131,138): 'MyClass'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(): MyClass
+      /MyClass
     ]
 
 KtValueArgumentList(138,140): '()'
   null
 
 KtDotQualifiedExpression(145,166): 'MyClass().contains(2)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /contains(<extension receiver>: T, int: kotlin.Int): kotlin.Boolean
     ]
 
 KtCallExpression(145,154): 'MyClass()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): MyClass
     ]
 
 KtNameReferenceExpression(145,152): 'MyClass'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(): MyClass
+      /MyClass
     ]
 
 KtValueArgumentList(152,154): '()'
   null
 
 KtCallExpression(155,166): 'contains(2)'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /contains(<extension receiver>: T, int: kotlin.Int): kotlin.Boolean
     ]
 
 KtNameReferenceExpression(155,163): 'contains'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /contains(<extension receiver>: T, int: kotlin.Int): kotlin.Boolean
     ]
@@ -182,7 +242,7 @@ KtConstantExpression(164,165): '2'
   null
 
 KtBinaryExpression(171,186): '2 !in MyClass()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /contains(<extension receiver>: T, int: kotlin.Int): kotlin.Boolean
     ]
@@ -191,21 +251,27 @@ KtConstantExpression(171,172): '2'
   null
 
 KtOperationReferenceExpression(173,176): '!in'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /contains(<extension receiver>: T, int: kotlin.Int): kotlin.Boolean
     ]
 
 KtCallExpression(177,186): 'MyClass()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): MyClass
     ]
 
 KtNameReferenceExpression(177,184): 'MyClass'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(): MyClass
+      /MyClass
     ]
 
 KtValueArgumentList(184,186): '()'
@@ -221,27 +287,33 @@ KtWhenEntry(211,231): 'in MyClass() -> true'
   null
 
 KtWhenConditionInRange(211,223): 'in MyClass()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /contains(<extension receiver>: T, int: kotlin.Int): kotlin.Boolean
     ]
 
 KtOperationReferenceExpression(211,213): 'in'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /contains(<extension receiver>: T, int: kotlin.Int): kotlin.Boolean
     ]
 
 KtCallExpression(214,223): 'MyClass()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): MyClass
     ]
 
 KtNameReferenceExpression(214,221): 'MyClass'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(): MyClass
+      /MyClass
     ]
 
 KtValueArgumentList(221,223): '()'
@@ -263,27 +335,33 @@ KtWhenEntry(270,292): '!in MyClass() -> false'
   null
 
 KtWhenConditionInRange(270,283): '!in MyClass()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /contains(<extension receiver>: T, int: kotlin.Int): kotlin.Boolean
     ]
 
 KtOperationReferenceExpression(270,273): '!in'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /contains(<extension receiver>: T, int: kotlin.Int): kotlin.Boolean
     ]
 
 KtCallExpression(274,283): 'MyClass()'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       <constructor>(): MyClass
     ]
 
 KtNameReferenceExpression(274,281): 'MyClass'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
-      <constructor>(): MyClass
+      /MyClass
     ]
 
 KtValueArgumentList(281,283): '()'

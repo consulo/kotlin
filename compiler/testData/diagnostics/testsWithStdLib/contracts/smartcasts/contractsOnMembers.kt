@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // ISSUE: KT-56744
-// LANGUAGE: +AllowContractsForCustomFunctions +UseReturnsEffect +AllowContractsForNonOverridableMembers
 // OPT_IN: kotlin.contracts.ExperimentalContracts
 // DIAGNOSTICS: -INVISIBLE_REFERENCE -INVISIBLE_MEMBER
 

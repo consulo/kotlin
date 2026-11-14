@@ -20,23 +20,26 @@ class DiagnosticsService(val testServices: TestServices) : TestService {
 
     private val conditionsPerModule: MutableMap<TestModule, DiagnosticConditions> = mutableMapOf()
 
-    private data class DiagnosticConditions(
+    data class DiagnosticConditions(
         val allowedDiagnostics: Set<String>,
         val disabledDiagnostics: Set<String>,
         val severityMap: Map<Severity, Boolean>
     )
 
     fun shouldRenderDiagnostic(module: TestModule, name: String, severity: Severity): Boolean {
-        val conditions = conditionsPerModule.getOrPut(module) {
-            computeDiagnosticConditionForModule(module)
-        }
-
+        val conditions = getDiagnosticConditionForModule(module)
         val severityAllowed = conditions.severityMap.getOrDefault(severity, true)
 
         return if (severityAllowed) {
             name !in conditions.disabledDiagnostics || name in conditions.allowedDiagnostics
         } else {
             name in conditions.allowedDiagnostics
+        }
+    }
+
+    fun getDiagnosticConditionForModule(module: TestModule): DiagnosticConditions {
+        return conditionsPerModule.getOrPut(module) {
+            computeDiagnosticConditionForModule(module)
         }
     }
 
@@ -63,7 +66,7 @@ class DiagnosticsService(val testServices: TestServices) : TestService {
 
         val enabledNames = mutableSetOf<String>()
         val disabledNames = mutableSetOf<String>()
-        for ((name, enabled) in diagnosticMap) {
+        for ([name, enabled] in diagnosticMap) {
             when (enabled) {
                 true -> enabledNames += name
                 false -> disabledNames += name

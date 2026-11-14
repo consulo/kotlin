@@ -1,48 +1,47 @@
+import org.gradle.kotlin.dsl.support.serviceOf
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
 import org.jetbrains.kotlin.gradle.targets.js.KotlinJsCompilerAttribute
-import org.jetbrains.kotlin.konan.target.HostManager
 
 description = "Atomicfu Compiler Plugin"
+val buildFeatures = serviceOf<BuildFeatures>()
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("d8-configuration")
-    id("project-tests-convention")
+    id("test-inputs-check")
+    id("java-test-fixtures")
 }
 
-// WARNING: Native target is host-dependent. Re-running the same build on another host OS may give a different result.
-val nativeTargetName = HostManager.host.name
-
-val antLauncherJar by configurations.creating
-val testJsRuntime by configurations.creating {
+val antLauncherJar = configurations.create("antLauncherJar")
+val testJsRuntime = configurations.create("testJsRuntime") {
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(KotlinUsages.KOTLIN_RUNTIME))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.js)
     }
 }
 
-val atomicfuJsClasspath by configurations.creating {
+val atomicfuJsClasspath = configurations.create("atomicfuJsClasspath") {
     attributes {
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.js)
         attribute(KotlinJsCompilerAttribute.jsCompilerAttribute, KotlinJsCompilerAttribute.ir)
     }
 }
 
-val atomicfuJvmClasspath by configurations.creating
+val atomicfuJvmClasspath = configurations.create("atomicfuJvmClasspath")
 
-val atomicfuNativeKlib by configurations.creating {
+val atomicfuNativeKlib = configurations.create("atomicfuNativeKlib") {
     attributes {
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.native)
-        // WARNING: Native target is host-dependent. Re-running the same build on another host OS may give a different result.
-        attribute(KotlinNativeTarget.konanTargetAttribute, nativeTargetName)
+        hostKonanTargetAttribute()
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(KotlinUsages.KOTLIN_API))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.native)
     }
 }
 
-val atomicfuJsIrRuntimeForTests by configurations.creating {
+val atomicfuJsIrRuntimeForTests = configurations.create("atomicfuJsIrRuntimeForTests") {
     attributes {
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.js)
         attribute(KotlinJsCompilerAttribute.jsCompilerAttribute, KotlinJsCompilerAttribute.ir)
@@ -50,27 +49,19 @@ val atomicfuJsIrRuntimeForTests by configurations.creating {
     }
 }
 
-val atomicfuCompilerPluginForTests by configurations.creating
-
-repositories {
-    mavenCentral()
-}
+val atomicfuCompilerPluginForTests = configurations.create("atomicfuCompilerPluginForTests")
 
 dependencies {
     compileOnly(intellijCore())
     compileOnly(libs.intellij.asm)
 
-    compileOnly(project(":compiler:fir:cones"))
-    compileOnly(project(":compiler:fir:tree"))
-    compileOnly(project(":compiler:fir:resolve"))
-    compileOnly(project(":compiler:fir:plugin-utils"))
-    compileOnly(project(":compiler:fir:checkers"))
-    compileOnly(project(":compiler:fir:fir2ir"))
-    compileOnly(project(":compiler:fir:entrypoint"))
+    compileOnly(project(":compiler:fir:plugin.api"))
+    // Required to extending 'AbstractAtomicReferenceToPrimitiveCallChecker'.
+    compileOnly(project(":compiler:fir:checkers:checkers.common"))
 
     compileOnly(project(":compiler:plugin-api"))
     compileOnly(project(":compiler:cli-base"))
-    compileOnly(project(":compiler:frontend"))
+    compileOnly(project(":compiler:frontend.common-psi"))
     compileOnly(project(":compiler:backend"))
     compileOnly(project(":compiler:ir.backend.common"))
 
@@ -80,43 +71,44 @@ dependencies {
     compileOnly(project(":compiler:ir.tree"))
     compileOnly(project(":native:native.config"))
 
+    compileOnly(project(":core:descriptors"))
+    compileOnly(project(":core:language.targets.jvm"))
+
     compileOnly(kotlinStdlib())
 
-    testImplementation(testFixtures(project(":compiler:tests-common")))
-    testImplementation(testFixtures(project(":compiler:test-infrastructure")))
-    testImplementation(testFixtures(project(":compiler:test-infrastructure-utils")))
-    testImplementation(testFixtures(project(":compiler:tests-compiler-utils")))
-    testImplementation(testFixtures(project(":compiler:tests-common-new")))
-    testImplementation(testFixtures(project(":generators:test-generator")))
-    testImplementation(project(":plugins:plugin-sandbox"))
-    testImplementation(project(":compiler:incremental-compilation-impl"))
-    testImplementation(testFixtures(project(":compiler:incremental-compilation-impl")))
+    testFixturesApi(testFixtures(project(":compiler:tests-common")))
+    testFixturesApi(testFixtures(project(":compiler:test-infrastructure")))
+    testFixturesApi(testFixtures(project(":compiler:test-infrastructure-utils")))
+    testFixturesApi(testFixtures(project(":compiler:tests-compiler-utils")))
+    testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
+    testFixturesApi(testFixtures(project(":generators:test-generator")))
+    testFixturesApi(project(":plugins:plugin-sandbox"))
+    testFixturesApi(project(":compiler:incremental-compilation-impl"))
+    testFixturesApi(testFixtures(project(":compiler:incremental-compilation-impl")))
 
-    testImplementation(testFixtures(project(":js:js.tests")))
-    testImplementation(libs.junit4)
-    testImplementation(kotlinTest())
+    testFixturesApi(testFixtures(project(":js:js.tests")))
+    testFixturesApi(kotlinTest())
 
     // Dependencies for Kotlin/Native test infra:
     if (!kotlinBuildProperties.isInIdeaSync.get()) {
-        testImplementation(testFixtures(project(":native:native.tests")))
+        testFixturesApi(testFixtures(project(":native:native.tests")))
     }
-    testImplementation(project(":compiler:ir.backend.native"))
-    testImplementation(project(":native:kotlin-native-utils"))
-    testImplementation(testFixtures(project(":native:native.tests:klib-ir-inliner")))
-    testImplementation(project(":kotlin-util-klib-abi"))
-    testImplementation(commonDependency("org.jetbrains.teamcity:serviceMessages"))
+    testFixturesApi(project(":compiler:ir.backend.native"))
+    testFixturesApi(project(":native:kotlin-native-utils"))
+    testFixturesApi(testFixtures(project(":native:native.tests:klib-ir-inliner")))
+    testFixturesApi(project(":kotlin-util-klib-abi"))
+    testFixturesApi(commonDependency("org.jetbrains.teamcity:serviceMessages"))
 
     // todo: remove unnecessary dependencies
-    testImplementation(project(":kotlin-compiler-runner-unshaded"))
+    testFixturesApi(project(":kotlin-compiler-runner-unshaded"))
 
-    testImplementation(commonDependency("org.apache.commons:commons-lang3"))
-    testImplementation(testFixtures(project(":compiler:tests-common")))
-    testImplementation(testFixtures(project(":compiler:tests-common-new")))
-    testImplementation(testFixtures(project(":compiler:test-infrastructure")))
-    testCompileOnly("org.jetbrains.kotlinx:atomicfu:0.25.0")
+    testFixturesApi(commonDependency("org.apache.commons:commons-lang3"))
+    testFixturesCompileOnly("org.jetbrains.kotlinx:atomicfu:0.25.0")
 
-    testImplementation(platform(libs.junit.bom))
-    testImplementation(libs.junit.jupiter.api)
+    testFixturesApi(platform(libs.junit.bom))
+    testFixturesApi(libs.junit.jupiter.api)
+    testImplementation(kotlinStdlib())
+    testImplementation(testFixtures(project(":compiler:tests-compiler-utils")))
     testRuntimeOnly(libs.junit.jupiter.engine)
 
     testRuntimeOnly(kotlinStdlib())
@@ -124,7 +116,7 @@ dependencies {
     testRuntimeOnly(commonDependency("org.fusesource.jansi", "jansi"))
 
     atomicfuJsClasspath("org.jetbrains.kotlinx:atomicfu-js:0.25.0") { isTransitive = false }
-    atomicfuJsIrRuntimeForTests(project(":kotlinx-atomicfu-runtime"))  { isTransitive = false }
+    atomicfuJsIrRuntimeForTests(project(":kotlinx-atomicfu-runtime")) { isTransitive = false }
     atomicfuJvmClasspath("org.jetbrains.kotlinx:atomicfu:0.25.0") { isTransitive = false }
     atomicfuNativeKlib("org.jetbrains.kotlinx:atomicfu:0.25.0") { isTransitive = false }
     atomicfuCompilerPluginForTests(project(":kotlin-atomicfu-compiler-plugin"))
@@ -164,9 +156,7 @@ dependencies {
         isTransitive = false
     }
 
-    testImplementation("org.jetbrains.kotlinx:atomicfu:0.25.0")
-
-    testRuntimeOnly(libs.junit.vintage.engine)
+    testFixturesImplementation("org.jetbrains.kotlinx:atomicfu:0.25.0")
 }
 
 optInToExperimentalCompilerApi()
@@ -174,39 +164,31 @@ optInToUnsafeDuringIrConstructionAPI()
 
 sourceSets {
     "main" { projectDefault() }
+    "testFixtures" { projectDefault() }
     "test" {
         projectDefault()
-        java.srcDirs("testFixtures")
         generatedTestDir()
     }
 }
 
-testsJar()
+optInToK1Deprecation()
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5) {
+    testTask {
         useJUnitPlatform {
             // Exclude all tests with the "atomicfu-native" tag. They should be launched by another test task.
             excludeTags("atomicfu-native")
         }
         useJsIrBoxTests(buildDir = layout.buildDirectory)
 
-        workingDir = rootDir
+        addClasspathProperty(atomicfuJsIrRuntimeForTests, "atomicfuJsIrRuntimeForTests.classpath")
+        addClasspathProperty(atomicfuJsClasspath, "atomicfuJs.classpath")
+        addClasspathProperty(atomicfuJvmClasspath, "atomicfuJvm.classpath")
+        addClasspathProperty(atomicfuCompilerPluginForTests, "atomicfu.compiler.plugin")
 
-        dependsOn(":dist")
-        dependsOn(atomicfuJsIrRuntimeForTests)
-
-        val localAtomicfuJsIrRuntimeForTests: FileCollection = atomicfuJsIrRuntimeForTests
-        val localAtomicfuJsClasspath: FileCollection = atomicfuJsClasspath
-        val localAtomicfuJvmClasspath: FileCollection = atomicfuJvmClasspath
-        val localAtomicfuCompilerPluginClasspath: FileCollection = atomicfuCompilerPluginForTests
-
-        doFirst {
-            systemProperty("atomicfuJsIrRuntimeForTests.classpath", localAtomicfuJsIrRuntimeForTests.asPath)
-            systemProperty("atomicfuJs.classpath", localAtomicfuJsClasspath.asPath)
-            systemProperty("atomicfuJvm.classpath", localAtomicfuJvmClasspath.asPath)
-            systemProperty("atomicfu.compiler.plugin", localAtomicfuCompilerPluginClasspath.asPath)
-        }
+        // IncrementalK2JVMWithAtomicfuRunnerTestGenerated needs the compiler distribution.
+        @OptIn(KotlinCompilerDistUsage::class)
+        withDist()
     }
 
     nativeTestTask(
@@ -217,10 +199,7 @@ projectTests {
         customTestDependencies = listOf(atomicfuNativeKlib),
         compilerPluginDependencies = listOf(atomicfuCompilerPluginForTests)
     ) {
-        val localAtomicfuNativeKlib: FileCollection = atomicfuNativeKlib
-        doFirst {
-            systemProperty("atomicfuNative.classpath", localAtomicfuNativeKlib.asPath)
-        }
+        addClasspathProperty(atomicfuNativeKlib, "atomicfuNative.classpath")
 
         // To workaround KTI-2421, we make these tests run on JDK 11 instead of the project-default JDK 8.
         // Kotlin test infra uses reflection to access JDK internals.
@@ -228,11 +207,21 @@ projectTests {
         jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED")
     }
 
-    testGenerator("org.jetbrains.kotlin.generators.tests.GenerateAtomicfuTestsKt", doNotSetFixturesSourceSetDependency = true) {
+    testGenerator("org.jetbrains.kotlin.generators.tests.GenerateAtomicfuTestsKt") {
         javaLauncher.set(project.getToolchainLauncherFor(JdkMajorVersion.JDK_11_0))
     }
 
+    testData(project.isolated, "testData")
+    // For test task only
+    testData(project(":js:js.translator").isolated, "testData/_commonFiles")
+
     withJvmStdlibAndReflect()
+    withTestJar()
+    withJsRuntime()
+    withMockJdkAnnotationsJar()
+    withMockJdkRuntime()
+
+    withMockJDKModifiedRuntime()
 }
 
 publish()
@@ -245,5 +234,3 @@ tasks.named("check") {
         dependsOn(tasks.named("nativeTest"))
     }
 }
-
-

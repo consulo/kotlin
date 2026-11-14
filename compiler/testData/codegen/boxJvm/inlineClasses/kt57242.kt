@@ -1,8 +1,7 @@
-// TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: JVM
 // WITH_STDLIB
 // FULL_JDK
 // WORKS_WHEN_VALUE_CLASS
-// LANGUAGE: +JvmInlineMultiFieldValueClasses
 
 import java.util.UUID
 import java.util.UUID.randomUUID

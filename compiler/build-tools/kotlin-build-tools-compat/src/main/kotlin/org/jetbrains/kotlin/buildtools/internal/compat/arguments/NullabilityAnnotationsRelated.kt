@@ -17,16 +17,19 @@ internal fun K2JVMCompilerArguments.applyNullabilityAnnotations(settings: List<N
 }
 
 @OptIn(ExperimentalCompilerArgument::class)
+@Suppress("EnumValuesSoftDeprecate")
 internal fun applyNullabilityAnnotations(
     currentValue: List<NullabilityAnnotation>,
     compilerArgs: K2JVMCompilerArguments,
 ): List<NullabilityAnnotation> =
     compilerArgs.nullabilityAnnotations.mapOrEmpty { item ->
         val parts = item.split(":")
-        require(parts.size == 2) { "Invalid -Xnullability-annotations format: $item" }
+        if (parts.size != 2) {
+            throw CompilerArgumentsParseException("Invalid -Xnullability-annotations format: $item")
+        }
 
         val mode =
-            NullabilityAnnotation.Mode.entries.firstOrNull { entry -> entry.stringValue == parts[1] }
+            NullabilityAnnotation.Mode.values().firstOrNull { entry -> entry.stringValue == parts[1] }
                 ?: throw CompilerArgumentsParseException("Unknown -Xnullability-annotations mode: $item")
         NullabilityAnnotation(parts[0].removePrefix("@"), mode)
     }

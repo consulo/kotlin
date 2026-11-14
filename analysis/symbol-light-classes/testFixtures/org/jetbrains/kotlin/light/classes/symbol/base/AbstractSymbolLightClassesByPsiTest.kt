@@ -6,9 +6,9 @@
 package org.jetbrains.kotlin.light.classes.symbol.base
 
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiEnumConstantInitializer
 import com.intellij.psi.search.GlobalSearchScope
-import junit.framework.TestCase
 import org.jetbrains.kotlin.analysis.test.framework.projectStructure.KtTestModule
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator
 import org.jetbrains.kotlin.asJava.LightClassTestCommon
@@ -18,12 +18,17 @@ import org.jetbrains.kotlin.light.classes.symbol.base.service.getLightClassesFro
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.isValidJavaFqName
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
+import org.junit.jupiter.api.Assertions
 import java.nio.file.Path
 
 abstract class AbstractSymbolLightClassesByPsiTest(
     configurator: AnalysisApiTestConfigurator,
     override val isTestAgainstCompiledCode: Boolean,
 ) : AbstractSymbolLightClassesTestBase(configurator) {
+    override val additionalDirectives: List<DirectivesContainer>
+        get() = super.additionalDirectives + listOf(SymbolLightClassesParentingCheckDirectives)
+
     override fun getRenderResult(
         ktFile: KtFile,
         ktFiles: List<KtFile>,
@@ -35,16 +40,16 @@ abstract class AbstractSymbolLightClassesByPsiTest(
         val lightClasses = ktFiles.flatMap { getLightClassesFromFile(it) }
         if (lightClasses.isEmpty()) {
             // ROOT package exists
-            TestCase.assertNotNull("ROOT package not found", finder.findPackage(""))
+            Assertions.assertNotNull(finder.findPackage(""), "ROOT package not found")
             return LightClassTestCommon.NOT_GENERATED_DIRECTIVE
         }
         val scope = GlobalSearchScope.allScope(project)
         for (lc in lightClasses) {
             val path = lc.containingFile.virtualFile.path
             val containingKtFile = ktFiles.find { it.virtualFilePath == path }
-            TestCase.assertNotNull(containingKtFile)
+            Assertions.assertNotNull(containingKtFile)
             val packageFqName = containingKtFile?.packageDirective?.fqName ?: FqName.ROOT
-            TestCase.assertNotNull("package $packageFqName not found", finder.findPackage(packageFqName.asString()))
+            Assertions.assertNotNull(finder.findPackage(packageFqName.asString()), "package $packageFqName not found")
 
             // [JavaElementFinder#findClass] finds facade classes and regular classes, not ones in a script.
             if (containingKtFile!!.isScript()) continue
@@ -56,7 +61,7 @@ abstract class AbstractSymbolLightClassesByPsiTest(
             if (!isValidJavaFqName(fqName)) continue
 
             val lcViaFinder = finder.findClass(lc.qualifiedName!!, scope)
-            TestCase.assertEquals(lc, lcViaFinder)
+            Assertions.assertEquals(lc, lcViaFinder)
         }
 
         return lightClasses.sortedBy {
@@ -64,5 +69,9 @@ abstract class AbstractSymbolLightClassesByPsiTest(
         }.joinToString("\n\n") {
             it.renderClass()
         }
+    }
+
+    override fun supplementaryLightClasses(ktFiles: List<KtFile>): Collection<PsiClass> {
+        return ktFiles.flatMap { getLightClassesFromFile(it) }
     }
 }

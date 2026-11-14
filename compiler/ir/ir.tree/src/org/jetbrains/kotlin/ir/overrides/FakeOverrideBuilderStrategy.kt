@@ -87,15 +87,15 @@ abstract class FakeOverrideBuilderStrategy {
         }
     }
 
-    protected abstract fun shouldSeeInternals(thisModule: ModuleDescriptor, memberModule: ModuleDescriptor): Boolean
+    protected abstract fun shouldSeeInternals(thisModule: IrModuleFragment, memberModule: IrModuleFragment): Boolean
 
     private fun isVisibleForOverrideInClass(original: IrOverridableMember, clazz: IrClass) : Boolean {
         return when {
             DescriptorVisibilities.isPrivate(original.visibility) -> false
             original.visibility == DescriptorVisibilities.INVISIBLE_FAKE -> false
             original.visibility == DescriptorVisibilities.INTERNAL -> {
-                val thisModule = clazz.getPackageFragment().moduleDescriptor
-                val memberModule = original.getPackageFragment().moduleDescriptor
+                val thisModule = clazz.getPackageFragment().module
+                val memberModule = original.getPackageFragment().module
 
                 when {
                     thisModule == memberModule -> true
@@ -153,15 +153,10 @@ abstract class FakeOverrideBuilderStrategy {
             property.acquireSymbol(IrPropertySymbolImpl())
 
             property.getter?.let {
-                it.correspondingPropertySymbol = property.symbol
                 linkFunctionFakeOverride(it as? IrFunctionWithLateBinding ?: error("Unexpected fake override getter: $it"), manglerCompatibleMode)
             }
             property.setter?.let {
-                it.correspondingPropertySymbol = property.symbol
                 linkFunctionFakeOverride(it as? IrFunctionWithLateBinding ?: error("Unexpected fake override setter: $it"), manglerCompatibleMode)
-            }
-            property.backingField?.let {
-                it.correspondingPropertySymbol = property.symbol
             }
         }
 

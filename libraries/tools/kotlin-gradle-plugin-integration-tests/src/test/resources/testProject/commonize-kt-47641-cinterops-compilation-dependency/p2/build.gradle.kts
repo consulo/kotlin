@@ -8,10 +8,10 @@ kotlin {
     jvm()
 
     linuxX64()
-    macosX64()
+    macosArm64()
     mingwX64("windowsX64")
 
-    val commonMain by sourceSets.getting
+    val commonMain = sourceSets.getByName("commonMain")
 
     commonMain.dependencies {
         implementation(project(":p1"))

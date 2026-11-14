@@ -46,9 +46,33 @@ public class SourceLikePsiBasedContainingClassCalculatorConsistencyTestGenerated
   }
 
   @Test
+  @TestMetadata("codeFragmentWithCompilerPlugin.kt")
+  public void testCodeFragmentWithCompilerPlugin() {
+    run("codeFragmentWithCompilerPlugin.kt");
+  }
+
+  @Test
+  @TestMetadata("companionBlocks.kt")
+  public void testCompanionBlocks() {
+    run("companionBlocks.kt");
+  }
+
+  @Test
+  @TestMetadata("companionExtensions.kt")
+  public void testCompanionExtensions() {
+    run("companionExtensions.kt");
+  }
+
+  @Test
   @TestMetadata("companionObject.kt")
   public void testCompanionObject() {
     run("companionObject.kt");
+  }
+
+  @Test
+  @TestMetadata("danglingModifierInsideCompanionBlock.kt")
+  public void testDanglingModifierInsideCompanionBlock() {
+    run("danglingModifierInsideCompanionBlock.kt");
   }
 
   @Test
@@ -70,9 +94,39 @@ public class SourceLikePsiBasedContainingClassCalculatorConsistencyTestGenerated
   }
 
   @Test
+  @TestMetadata("delegatedFunctionInSuper.kt")
+  public void testDelegatedFunctionInSuper() {
+    run("delegatedFunctionInSuper.kt");
+  }
+
+  @Test
   @TestMetadata("delegatedProperty.kt")
   public void testDelegatedProperty() {
     run("delegatedProperty.kt");
+  }
+
+  @Test
+  @TestMetadata("delegatedPropertyInCompanionBlock.kt")
+  public void testDelegatedPropertyInCompanionBlock() {
+    run("delegatedPropertyInCompanionBlock.kt");
+  }
+
+  @Test
+  @TestMetadata("delegatedPropertyInSuper.kt")
+  public void testDelegatedPropertyInSuper() {
+    run("delegatedPropertyInSuper.kt");
+  }
+
+  @Test
+  @TestMetadata("destructuringInCompanionBlock.kt")
+  public void testDestructuringInCompanionBlock() {
+    run("destructuringInCompanionBlock.kt");
+  }
+
+  @Test
+  @TestMetadata("destructuringNonLocal.kt")
+  public void testDestructuringNonLocal() {
+    run("destructuringNonLocal.kt");
   }
 
   @Test
@@ -82,9 +136,27 @@ public class SourceLikePsiBasedContainingClassCalculatorConsistencyTestGenerated
   }
 
   @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueObject.kt")
+  public void testFullValueObject() {
+    run("fullValueObject.kt");
+  }
+
+  @Test
   @TestMetadata("genericClass.kt")
   public void testGenericClass() {
     run("genericClass.kt");
+  }
+
+  @Test
+  @TestMetadata("genericFromOuterClassInInnerClass.kt")
+  public void testGenericFromOuterClassInInnerClass() {
+    run("genericFromOuterClassInInnerClass.kt");
   }
 
   @Test
@@ -100,6 +172,12 @@ public class SourceLikePsiBasedContainingClassCalculatorConsistencyTestGenerated
   }
 
   @Test
+  @TestMetadata("intersectionOverride.kt")
+  public void testIntersectionOverride() {
+    run("intersectionOverride.kt");
+  }
+
+  @Test
   @TestMetadata("lambda.kt")
   public void testLambda() {
     run("lambda.kt");
@@ -109,6 +187,12 @@ public class SourceLikePsiBasedContainingClassCalculatorConsistencyTestGenerated
   @TestMetadata("localClass.kt")
   public void testLocalClass() {
     run("localClass.kt");
+  }
+
+  @Test
+  @TestMetadata("localClassWithCompilerPlugin.kt")
+  public void testLocalClassWithCompilerPlugin() {
+    run("localClassWithCompilerPlugin.kt");
   }
 
   @Test

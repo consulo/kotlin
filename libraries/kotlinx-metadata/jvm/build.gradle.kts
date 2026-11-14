@@ -1,13 +1,15 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 description = "Kotlin JVM metadata manipulation library"
 group = "org.jetbrains.kotlin"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("org.jetbrains.kotlinx.binary-compatibility-validator")
     id("org.jetbrains.dokka")
-    id("project-tests-convention")
 }
 
 
@@ -16,12 +18,12 @@ sourceSets {
     "test" { projectDefault() }
 }
 
-val embedded by configurations
+val embedded = configurations.embedded.get()
 embedded.isTransitive = false
-configurations.getByName("compileOnly").extendsFrom(embedded)
-configurations.getByName("testApi").extendsFrom(embedded)
+configurations.compileOnly.get().extendsFrom(embedded)
+configurations.testApi.get().extendsFrom(embedded)
 
-val proguardLibraryJars by configurations.creating {
+val proguardLibraryJars = configurations.create("proguardLibraryJars") {
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
         attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
@@ -46,21 +48,25 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.add("-Xallow-kotlin-package")
     }
+
+    tasks.named<KotlinCompile>("compileTestKotlin").configure {
+        compilerOptions.freeCompilerArgs.addAll("-Xcompanion-blocks", "-Xcompanion-blocks-and-extensions")
+    }
 }
 
 projectTests {
-    testTask(jUnitMode = JUnitMode.JUnit5)
+    testTask()
 }
 
 publish()
 
-val unshaded by task<Jar> {
+val unshaded = tasks.register<Jar>("unshaded") {
     archiveClassifier.set("unshaded")
     from(mainSourceSet.output)
 }
 project.addArtifact("unshaded", unshaded, unshaded)
 
-val relocatedJar by task<ShadowJar> {
+val relocatedJar = tasks.register<ShadowJar>("relocatedJar") {
     configurations = listOf(embedded)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     destinationDirectory.set(layout.buildDirectory.dir("libs"))
@@ -71,7 +77,7 @@ val relocatedJar by task<ShadowJar> {
     relocate("org.jetbrains.kotlin", "kotlin.metadata.internal")
 }
 
-val proguard by task<CacheableProguardTask> {
+val proguard = tasks.register<CacheableProguardTask>("proguard") {
     dependsOn(relocatedJar)
 
     injars(mapOf("filter" to "!META-INF/versions/**"), relocatedJar.get().outputs.files)
@@ -95,7 +101,7 @@ val proguard by task<CacheableProguardTask> {
     configuration("metadata.pro")
 }
 
-val resultJar by task<Jar> {
+val resultJar = tasks.register<Jar>("resultJar") {
     val pack = if (kotlinBuildProperties.proguard) proguard else relocatedJar
     dependsOn(pack)
     setupPublicJar(base.archivesName.get())
@@ -137,7 +143,14 @@ dokka {
     dokkaSourceSets.configureEach {
         includes.from(project.file("dokka/moduledoc.md").path)
 
-        sourceRoots.from(project(":kotlin-metadata").getSources())
+        val kotlinMetadataSources = configurations.detachedConfiguration(dependencies.project(":kotlin-metadata")).apply {
+            attributes {
+                attribute(Category.CATEGORY_ATTRIBUTE, project.objects.named(Category.VERIFICATION))
+                attribute(VerificationType.VERIFICATION_TYPE_ATTRIBUTE, project.objects.named(VerificationType.MAIN_SOURCES))
+            }
+            isTransitive = false
+        }
+        sourceRoots.from(kotlinMetadataSources)
 
         skipDeprecated.set(true)
         reportUndocumented.set(true)

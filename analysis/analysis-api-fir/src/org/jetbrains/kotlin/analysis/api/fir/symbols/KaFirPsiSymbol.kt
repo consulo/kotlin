@@ -1,24 +1,23 @@
 /*
- * Copyright 2010-2025 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.analysis.api.fir.symbols
 
-import com.intellij.codeInsight.PsiEquivalenceUtil
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMember
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotationList
 import org.jetbrains.kotlin.analysis.api.base.KaContextReceiver
 import org.jetbrains.kotlin.analysis.api.fir.KaFirSession
 import org.jetbrains.kotlin.analysis.api.fir.annotations.KaFirAnnotationListForDeclaration
+import org.jetbrains.kotlin.analysis.api.fir.annotations.KaFirEmptyAnnotationList
+import org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirPsiSymbolPointer
 import org.jetbrains.kotlin.analysis.api.fir.utils.withSymbolAttachment
 import org.jetbrains.kotlin.analysis.api.fir.visibilityByModifiers
-import org.jetbrains.kotlin.analysis.api.getModule
-import org.jetbrains.kotlin.analysis.api.impl.base.annotations.KaBaseEmptyAnnotationList
-import org.jetbrains.kotlin.analysis.api.impl.base.symbols.pointers.KaBasePsiSymbolPointer
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaLibrarySourceModule
+import org.jetbrains.kotlin.analysis.api.projectStructure.kaModule
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 import org.jetbrains.kotlin.analysis.api.types.KaType
@@ -42,6 +41,7 @@ import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 import kotlin.contracts.ExperimentalContracts
@@ -103,7 +103,7 @@ internal fun KaFirPsiSymbol<*, *>.psiOrSymbolEquals(other: Any?): Boolean {
         backingPsi is PsiMember || otherBackingPsi is PsiMember -> {
             return backingPsi != null &&
                     otherBackingPsi != null &&
-                    PsiEquivalenceUtil.areElementsEquivalent(backingPsi, otherBackingPsi)
+                    backingPsi.manager.areElementsEquivalent(backingPsi, otherBackingPsi)
         }
 
         backingPsi !== otherBackingPsi -> return false
@@ -124,17 +124,53 @@ internal fun KaFirPsiSymbol<*, *>.psiOrSymbolEquals(other: Any?): Boolean {
 }
 
 /**
- * Note: This function is supposed only for simple cases there annotations can be declared only
- * directly on the underlying [KtAnnotated], so cases like property accessors or
- * generated constructor property are not supported.
+ * Provides [KaAnnotationList] for the given symbol.
+ *
+ * [anchorPsi] is used for the PSI-based optimization, set to [backingPsi] by default.
+ * In rare cases, a custom [anchorPsi] could be provided when annotations are not placed directly on the [backingPsi].
+ * E.g., some anonymous declarations with [KtAnnotated] backing PSI could have no annotation entries or not be a subject of
+ * some [KtAnnotatedExpression]. Instead, the corresponding annotations are placed on some parent PSI expression instead.
+ * Then, this PSI parent should be provided as [anchorPsi].
+ * See [KaFirAnonymousObjectSymbol.annotations] and [KaFirAnonymousFunctionSymbol.annotations] as examples.
  */
-internal fun KaFirKtBasedSymbol<KtAnnotated, *>.psiOrSymbolAnnotationList(): KaAnnotationList {
-    if (backingPsi?.annotationEntries?.isEmpty() == true) {
-        return KaBaseEmptyAnnotationList(token)
+internal fun KaFirKtBasedSymbol<*, *>.psiOrSymbolAnnotationList(anchorPsi: KtElement? = backingPsi): KaAnnotationList {
+    if (anchorPsi?.hasAnnotations == false) {
+        return KaFirEmptyAnnotationList(token)
     }
 
     return KaFirAnnotationListForDeclaration.create(firSymbol, builder)
 }
+
+/**
+ * Returns whether [this] has any annotation entries.
+ * If [this] is [KtAnnotated] with non-empty annotation entries, immediately returns `true`.
+ *
+ * Otherwise, recursively unwraps [KtLabeledExpression] and [KtParenthesizedExpression] parents
+ * until the first [KtAnnotatedExpression] with some annotation entries.
+ * If such a [KtAnnotatedExpression] parent is found, returns `true`.
+ * Otherwise, if there is no [KtAnnotatedExpression] parent with annotations or there is some other parent on the path, returns `false`.
+ *
+ * Note that stopping on [KtAnnotatedExpression] and not just [KtAnnotated] is vital.
+ * If the recursion handled [KtAnnotated] instead, it could just accidentally take
+ * annotations from the enclosing declaration.
+ */
+private val KtElement.hasAnnotations: Boolean
+    get() {
+        (this as? KtAnnotated)?.annotationEntries?.ifNotEmpty {
+            return true
+        }
+
+        return when (val parent = parent) {
+            /**
+             * Some malformed annotations might have no entries.
+             * In such cases, a deeper search is needed.
+             */
+            is KtAnnotatedExpression -> parent.annotationEntries.isNotEmpty() || parent.hasAnnotations
+            is KtLabeledExpression -> parent.hasAnnotations
+            is KtParenthesizedExpression -> parent.hasAnnotations
+            else -> false
+        }
+    }
 
 internal fun KaFirKtBasedSymbol<KtCallableDeclaration, FirCallableSymbol<*>>.createContextReceivers(): List<KaContextReceiver> {
     val psi = backingPsi
@@ -147,7 +183,7 @@ internal fun KaFirKtBasedSymbol<KtCallableDeclaration, FirCallableSymbol<*>>.cre
  * We cannot optimize super types by psi if at least one compiler plugin may generate additional types
  */
 private fun KaFirSession.hasCompilerPluginForSupertypes(declaration: KtClassOrObject): Boolean {
-    val declarationSiteModule = getModule(declaration)
+    val declarationSiteModule = declaration.kaModule
     val declarationSiteSession = resolutionFacade.getSessionFor(declarationSiteModule)
     return declarationSiteSession.extensionService.supertypeGenerators.isNotEmpty()
 }
@@ -156,7 +192,7 @@ private fun KaFirSession.hasCompilerPluginForSupertypes(declaration: KtClassOrOb
  * We cannot optimize some declaration creations if at least one compiler plugin may generate additional declarations
  */
 internal fun KaFirSession.hasDeclarationGeneratorCompilerPlugin(declaration: KtClassOrObject): Boolean {
-    val declarationSiteModule = getModule(declaration)
+    val declarationSiteModule = declaration.kaModule
     val declarationSiteSession = resolutionFacade.getSessionFor(declarationSiteModule)
     return declarationSiteSession.extensionService.declarationGenerators.isNotEmpty()
 }
@@ -165,7 +201,7 @@ internal fun KaFirSession.hasDeclarationGeneratorCompilerPlugin(declaration: KtC
  * We cannot optimize the status by psi if at least one compiler plugin may transform it
  */
 internal fun KaFirSession.hasDeclarationStatusCompilerPlugin(declaration: KtDeclaration): Boolean {
-    val declarationSiteModule = getModule(declaration)
+    val declarationSiteModule = declaration.kaModule
     val declarationSiteSession = resolutionFacade.getSessionFor(declarationSiteModule)
     return declarationSiteSession.extensionService.statusTransformerExtensions.isNotEmpty()
 }
@@ -270,7 +306,7 @@ internal fun KaFirKtBasedSymbol<KtClassOrObject, FirClassSymbol<*>>.createSuperT
 
 /**
  * Currently, the compiled file can represent both library and non-library origin depending on the `preferBinary`
- * parameter from [org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirSessionCache.getSession].
+ * parameter from [org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionCache.getSession].
  *
  * So, depending on it, we may represent one decompiled file as [KaSymbolOrigin.SOURCE] and as [KaSymbolOrigin.LIBRARY]
  * at the same time.
@@ -292,14 +328,14 @@ internal val KtElement.cameFromKotlinLibrary: Boolean get() = containingKtFile.i
 @OptIn(ExperimentalContracts::class)
 internal inline fun <R> KaFirPsiSymbol<*, *>.ifSource(action: () -> R): R? {
     contract {
-        callsInPlace(action, kotlin.contracts.InvocationKind.AT_MOST_ONCE)
+        callsInPlace(action, InvocationKind.AT_MOST_ONCE)
     }
 
     return if ((backingPsi as? KtElement)?.cameFromKotlinLibrary != false) null else action()
 }
 
 /**
- * Potentially, we may use [KaFirKtBasedSymbol.backingPsi] to create [org.jetbrains.kotlin.analysis.api.impl.base.symbols.pointers.KaBasePsiSymbolPointer] for library elements as well,
+ * Potentially, we may use [KaFirKtBasedSymbol.backingPsi] to create [org.jetbrains.kotlin.analysis.api.fir.symbols.pointers.KaFirPsiSymbolPointer] for library elements as well,
  * but it triggers AST tree calculation.
  *
  * Another potential issue: the library PSI may represent both [KaSymbolOrigin.SOURCE] and as [KaSymbolOrigin.LIBRARY],
@@ -308,7 +344,7 @@ internal inline fun <R> KaFirPsiSymbol<*, *>.ifSource(action: () -> R): R? {
 internal inline fun <reified S : KaSymbol> KaFirKtBasedSymbol<*, *>.psiBasedSymbolPointerOfTypeIfSource(): KaSymbolPointer<S>? {
     return ifSource {
         backingPsi?.let {
-            KaBasePsiSymbolPointer(it, S::class, this as S)
+            KaFirPsiSymbolPointer(it, S::class, this as S)
         }
     }
 }
@@ -331,7 +367,7 @@ internal inline fun <reified S : FirBasedSymbol<*>> lazyFirSymbol(
 @OptIn(ExperimentalContracts::class)
 internal inline fun <R> KaFirPsiSymbol<*, *>.ifNotLibrarySource(action: () -> R): R? {
     contract {
-        callsInPlace(action, kotlin.contracts.InvocationKind.AT_MOST_ONCE)
+        callsInPlace(action, InvocationKind.AT_MOST_ONCE)
     }
 
     return if (analysisSession.useSiteModule is KaLibrarySourceModule) null else action()
@@ -366,8 +402,16 @@ internal fun KaFirKtBasedSymbol<KtCallableDeclaration, *>.createKaContextParamet
 
 internal fun KaFirKtBasedSymbol<KtTypeParameterListOwner, *>.createKaTypeParameters(): List<KaTypeParameterSymbol>? =
     ifNotLibrarySource {
-        with(analysisSession) {
-            backingPsi?.typeParameters?.map { it.symbol }
+        val backingPsi = backingPsi ?: return@ifNotLibrarySource null
+        val typeParameters = with(analysisSession) {
+            backingPsi.typeParameters.map { it.symbol }
+        }
+
+        val danglingTypeConstraintSubjects = backingPsi.danglingTypeConstraintSubjects()
+        if (danglingTypeConstraintSubjects.isEmpty()) {
+            typeParameters
+        } else {
+            typeParameters + danglingTypeConstraintSubjects.map { KaFirDanglingTypeParameterSymbol(it, analysisSession) }
         }
     }
 

@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.klib
 
+import org.jetbrains.kotlin.cli.common.arguments.allowTestsOnlyLanguageFeatures
 import org.jetbrains.kotlin.codegen.*
 import org.jetbrains.kotlin.klib.KlibCompilerInvocationTestUtils.TestStructure.ModuleUnderTest
 import org.jetbrains.kotlin.test.InTextDirectivesUtils
@@ -121,6 +122,8 @@ object KlibCompilerInvocationTestUtils {
         binaryRunner: BinaryRunner<BA>,
         compilerEditionChange: KlibCompilerChangeScenario,
     ) {
+        allowTestsOnlyLanguageFeatures()
+
         if (testConfiguration.isIgnoredTest(testStructure.projectInfo)) {
             return testConfiguration.onIgnoredTest() // Ignore muted tests.
         }
@@ -133,7 +136,7 @@ object KlibCompilerInvocationTestUtils {
                 val moduleUnderTest = testStructure.modules[moduleName]
                     ?: fail { "No module $moduleName found on step ${projectStep.id}" }
 
-                val (moduleInfo, moduleTestDataDir, moduleSourceDir, moduleOutputDir) = moduleUnderTest
+                (val moduleInfo, val moduleTestDataDir = testDataDir, val moduleSourceDir = sourceDir, val moduleOutputDir = outputDir) = moduleUnderTest
                 val moduleStep = moduleInfo.steps.getValue(projectStep.id)
 
                 moduleStep.modifications.forEach { modification ->

@@ -1,17 +1,24 @@
 @_implementationOnly import KotlinBridges_MapExport
 import KotlinRuntime
 import KotlinRuntimeSupport
+import KotlinStdlib
 
-public protocol Bar: KotlinRuntime.KotlinBase {
+public protocol Bar: KotlinRuntime.KotlinBase, MapExport._Bar {
 }
-@objc(_Bar)
-package protocol _Bar {
+@objc(_MapExport_Bar)
+public protocol _Bar {
+}
+public protocol __Bar: KotlinRuntimeSupport._KotlinBridgeable {
+}
+public func foo() -> any ExportedKotlinPackages.kotlin.collections.MutableMap {
+    return KotlinRuntime.KotlinBase.__createProtocolWrapper(externalRCRef: __root___foo(), conformsTo: ExportedKotlinPackages.kotlin.collections.MutableMap.Type.self) as! any ExportedKotlinPackages.kotlin.collections.MutableMap
 }
 public func testMapAnyLong(
     m: [Swift.AnyHashable: Swift.Int64]
 ) -> [Swift.AnyHashable: Swift.Int64] {
     return __root___testMapAnyLong__TypesOfArguments__Swift_Dictionary_Swift_AnyHashable_Swift_Int64___(Dictionary(uniqueKeysWithValues: m.map { key, value in (key, NSNumber(value: value) )})) as! Swift.Dictionary<Swift.AnyHashable,Swift.Int64>
 }
+@available(*, unavailable, message: "Declaration uses unsupported types")
 public func testMapBarKey(
     m: Swift.Never
 ) -> Swift.Never {
@@ -62,9 +69,14 @@ public func testStarMap(
 ) -> [Swift.AnyHashable: any KotlinRuntimeSupport._KotlinBridgeable] {
     return __root___testStarMap__TypesOfArguments__Swift_Dictionary_Swift_AnyHashable_anyU20KotlinRuntimeSupport__KotlinBridgeable___(m) as! Swift.Dictionary<Swift.AnyHashable,any KotlinRuntimeSupport._KotlinBridgeable>
 }
-extension MapExport.Bar where Self : KotlinRuntimeSupport._KotlinBridgeable {
+@_documentation(visibility: internal)
+extension MapExport.Bar where Self : MapExport.__Bar {
 }
 extension MapExport.Bar {
 }
-extension KotlinRuntimeSupport._KotlinExistential: MapExport.Bar where Wrapped : MapExport._Bar {
+@_documentation(visibility: internal)
+extension KotlinRuntimeSupport._KotlinExistential: MapExport.Bar, MapExport.__Bar where Wrapped : MapExport._Bar {
+}
+@_documentation(visibility: internal)
+extension KotlinRuntimeSupport._KotlinExistentialPenBox: MapExport._Bar {
 }

@@ -30,10 +30,9 @@ abstract class AbstractIncrementalMultiModuleCompilerRunnerTest<Args : CommonCom
     private val nameToModules = mutableMapOf<String, MutableSet<IncrementalModuleEntry>>()
     private val jarToClassListFile = mutableMapOf<File, File>()
     private val jarToModule = mutableMapOf<File, IncrementalModuleEntry>()
-    private val jarToAbiSnapshot = mutableMapOf<File, File>()
 
     protected val incrementalModuleInfo: IncrementalModuleInfo by lazy {
-        IncrementalModuleInfo(workingDir, dirToModule, nameToModules, jarToClassListFile, jarToModule, jarToAbiSnapshot)
+        IncrementalModuleInfo(workingDir, dirToModule, nameToModules, jarToClassListFile, jarToModule)
     }
 
     protected abstract val modulesApiHistory: ApiHistory
@@ -74,13 +73,13 @@ abstract class AbstractIncrementalMultiModuleCompilerRunnerTest<Args : CommonCom
             (dependencyGraph[m] ?: error("Expected dependencies for module $m")).map { it.moduleName }
         }.reversed().mapTo(modulesOrder) { it }
 
-        for ((moduleName, fileEntries) in results) {
+        for ([moduleName, fileEntries] in results) {
             val moduleDir = File(workingDir, moduleName).apply { mkdirs() }
             val moduleSrcDir = File(moduleDir, "src")
 
             val moduleDependencies = dependencyGraph[moduleName] ?: error("Cannot find dependency for module $moduleName")
 
-            for ((oldFile, newName) in fileEntries) {
+            for ([oldFile, newName] in fileEntries) {
                 val newFile = File(moduleSrcDir, newName)
                 oldFile.copyTo(newFile)
             }
@@ -98,9 +97,8 @@ abstract class AbstractIncrementalMultiModuleCompilerRunnerTest<Args : CommonCom
         val moduleBuildDir = File(outDir, moduleName)
         val moduleCacheDir = File(cacheDir, moduleName)
         val moduleBuildHistoryFile = buildHistoryFile(moduleCacheDir)
-        val abiSnapshotFile = abiSnapshotFile(moduleCacheDir)
 
-        val moduleEntry = IncrementalModuleEntry(workingDir.absolutePath, moduleName, outDir, moduleBuildHistoryFile, abiSnapshotFile)
+        val moduleEntry = IncrementalModuleEntry(workingDir.absolutePath, moduleName, outDir, moduleBuildHistoryFile)
 
         dirToModule[moduleBuildDir] = moduleEntry
         nameToModules.getOrPut(moduleName) { mutableSetOf() }.add(moduleEntry)

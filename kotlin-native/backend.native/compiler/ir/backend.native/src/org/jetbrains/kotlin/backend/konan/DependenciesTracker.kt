@@ -5,23 +5,23 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import org.jetbrains.kotlin.backend.common.legacyKlibReverseTopoSort
-import org.jetbrains.kotlin.utils.atMostOne
+import org.jetbrains.kotlin.backend.common.serialization.kotlinLibrary
 import org.jetbrains.kotlin.backend.konan.llvm.FunctionOrigin
-import org.jetbrains.kotlin.backend.konan.llvm.llvmSymbolOrigin
-import org.jetbrains.kotlin.backend.konan.llvm.standardLlvmSymbolsOrigin
 import org.jetbrains.kotlin.backend.konan.serialization.CacheDeserializationStrategy
 import org.jetbrains.kotlin.backend.konan.serialization.CachedEagerInitializedFiles
+import org.jetbrains.kotlin.backend.konan.serialization.PartialCacheInfo
+import org.jetbrains.kotlin.ir.IrBasedFunctionFactory.Companion.isFunctionInterfaceFile
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.ir.util.getPackageFragment
-import org.jetbrains.kotlin.konan.library.isFromKotlinNativeDistribution
+import org.jetbrains.kotlin.konan.config.konanProducedArtifactKind
+import org.jetbrains.kotlin.konan.library.isExplicitlySpecifiedByUserInCLIArgument
 import org.jetbrains.kotlin.library.KotlinLibrary
-import org.jetbrains.kotlin.library.uniqueName
-import org.jetbrains.kotlin.library.metadata.CurrentKlibModuleOrigin
-import org.jetbrains.kotlin.library.metadata.DeserializedKlibModuleOrigin
 import org.jetbrains.kotlin.library.metadata.isCInteropLibrary
+import org.jetbrains.kotlin.library.uniqueName
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
+import org.jetbrains.kotlin.utils.atMostOne
 
 interface DependenciesTracker {
     data class FileDependency(val name: String, val weak: Boolean)
@@ -73,10 +73,18 @@ private sealed class FileOrigin {
     class CertainFile(val library: KotlinLibrary, val fqName: String, val filePath: String) : FileOrigin()
 }
 
+/**
+ * N.B. The "dependencies tracker" is created lately in the 2nd phase pipeline. We have an assumption that it may implicitly
+ * rely on the RTO of klibs, so we've made the dependency on RTO to be explicit and with no additional cost.
+ * This was achieved by getting the list of [IrModuleFragment], which is already in RTO after the IR linkage stage, and extracting
+ * the list of [KotlinLibrary]s from it preserving the order. In particular, the RTO is essential for calling the eager initializers
+ * of the libraries in the proper order (see [Dependencies.allBitcodeDependencies]).
+ */
 internal class DependenciesTrackerImpl(
         private val llvmModuleSpecification: LlvmModuleSpecification,
         private val config: NativeSecondStageCompilationConfig,
-        private val context: Context,
+        private val context: NativeBackendContext,
+        private val libraryToCache: PartialCacheInfo?,
 ) : DependenciesTracker {
     private data class LibraryFile(val library: KotlinLibrary, val fqName: String, val filePath: String)
 
@@ -85,10 +93,20 @@ internal class DependenciesTrackerImpl(
     private val usedBitcodeOfFile = mutableSetOf<LibraryFile>()
     private val usedWeakBitcodeOfFile = mutableSetOf<LibraryFile>()
 
-    private val allLibraries by lazy { context.config.librariesWithDependencies().toSet() }
+    // This is a set of all "useful" libraries, sorted in the reverse-topological order.
+    private val usefulLibrariesInRTO: Set<KotlinLibrary> by lazy {
+        buildSet {
+            context.irModules.mapTo(this) { it.kotlinLibrary!! }
+
+            // TODO(KT-88867): Drop this workaround when KT-88867 is fixed.
+            if (config.configuration.konanProducedArtifactKind?.isCache == true) {
+                addAll(config.librariesToCache.keys)
+            }
+        }
+    }
 
     private fun findStdlibFile(fqName: FqName, fileName: String): LibraryFile {
-        val stdlib = (context.standardLlvmSymbolsOrigin as? DeserializedKlibModuleOrigin)?.library
+        val stdlib = context.stdlibModule.kotlinLibrary
                 ?: error("Can't find stdlib")
         val stdlibDeserializer = context.moduleDeserializerProvider.getDeserializerOrNull(stdlib)
                 ?: error("No deserializer for stdlib")
@@ -116,7 +134,7 @@ internal class DependenciesTrackerImpl(
 
     override fun add(declaration: IrDeclaration, weak: Boolean, onlyBitcode: Boolean): Unit =
             add(computeFileOrigin(declaration.getPackageFragment()) {
-                context.externalDeclarationFileNameProvider.getExternalDeclarationFileName(declaration)
+                declaration.file.path
             }, weak, onlyBitcode)
 
     override fun addNativeRuntime(onlyBitcode: Boolean) =
@@ -126,10 +144,7 @@ internal class DependenciesTrackerImpl(
         return if (packageFragment.isFunctionInterfaceFile)
             FileOrigin.StdlibKFunctionImpl
         else {
-            val library = when (val origin = packageFragment.llvmSymbolOrigin) {
-                CurrentKlibModuleOrigin -> config.libraryToCache?.klib?.takeIf { config.producePerFileCache }
-                else -> (origin as DeserializedKlibModuleOrigin).library
-            }
+            val library = packageFragment.module.kotlinLibrary
             when {
                 library == null -> FileOrigin.CurrentFile
                 library.isCInteropLibrary() -> FileOrigin.EntireModule(library)
@@ -147,8 +162,8 @@ internal class DependenciesTrackerImpl(
             FileOrigin.StdlibKFunctionImpl -> stdlibKFunctionImpl
         }
         val library = libraryFile?.library ?: (origin as FileOrigin.EntireModule).library
-        if (library !in allLibraries)
-            error("Library (${library.location}) is used but not requested.\nRequested libraries: ${allLibraries.joinToString { it.location.path }}")
+        if (library !in usefulLibrariesInRTO)
+            error("Library (${library.path}) is used but not requested.\nRequested libraries: ${usefulLibrariesInRTO.joinToString { it.path.toString() }}")
 
         var isNewDependency = usedBitcode.add(library)
         if (!onlyBitcode) {
@@ -170,12 +185,29 @@ internal class DependenciesTrackerImpl(
             usedBitcodeOfFile.map { UsedLibraryFile(it, weak = false) } +
                     usedWeakBitcodeOfFile.map { UsedLibraryFile(it, weak = true) }
 
-    private val topSortedLibraries by lazy {
-        context.config.resolvedLibraries.getFullList().legacyKlibReverseTopoSort()
-    }
-
     private inner class CachedBitcodeDependenciesComputer {
-        private val allLibraries = topSortedLibraries.associateBy { it.uniqueName }
+        /**
+         * Note: With the new approach, when some of the platform libraries implicitly loaded from the Kotlin/Native distribution
+         * are filtered out after the IR linkage stage, it might happen that not all the necessary bitcode dependencies are present in
+         * [DependenciesTrackerImpl.usefulLibrariesInRTO].
+         *
+         * Example: Let's assume three modules: `A`, `B` and `posix`.
+         * - `posix` is a C-interop library from the distribution. It already has the static cache stored inside
+         *   the distribution's `klib/cache` folder.
+         * - `B` depends on `posix`. When building the static cache for `B`, the `posix` library name is indicated as a dependency
+         *    and mentioned in `bin/bitcode_deps` file in the `B`'s static cache folder.
+         * - `A` depends on `B`. But `A` does not use any declaration that directly or transitively depends on `posix`. Due to the way how
+         *    IR is deserialized (full deserialization for the currently compiled module and on-demand deserialization for other modules),
+         *    no IR declarations from `B` that depend on `posix` are deserialized. As a result, `posix` is determined as "unused" library
+         *    after the IR linkage, and filtered out from the working set. So, it's missing in [DependenciesTrackerImpl.usefulLibrariesInRTO].
+         *
+         * The problem here is that the static cache for `posix` is a dependency for the static cache of `B`. When it comes to linking
+         * the resuling executable file, the static caches for all modules (`A`, `B` and `posix`) must be supplied to the native linker.
+         * Which means that here, in [CachedBitcodeDependenciesComputer], we should not operate [DependenciesTrackerImpl.usefulLibrariesInRTO]
+         * which contains the reduced set of libraries, but instead we should use all [KotlinLibrary]s which were initially loaded
+         * by the compiler, i.e. [NativeSecondStageCompilationConfig.loadedKlibs].
+         */
+        private val allLibraries: Map<String, KotlinLibrary> = config.loadedKlibs.all.associateBy { it.uniqueName }
         private val usedBitcode = usedBitcode().groupBy { it.file.library }
 
         private val moduleDependencies = mutableSetOf<KotlinLibrary>()
@@ -184,10 +216,11 @@ internal class DependenciesTrackerImpl(
         val allDependencies: List<DependenciesTracker.ResolvedDependency>
 
         init {
-            val immediateBitcodeDependencies = topSortedLibraries
-                    .filter { (!it.isFromKotlinNativeDistribution && !context.config.purgeUserLibs) || bitcodeIsUsed(it) }
+            // Note: Unclear, whether the order of libraries is important or not.
+            val immediateBitcodeDependencies = usefulLibrariesInRTO
+                    .filter { it.isExplicitlySpecifiedByUserInCLIArgument || bitcodeIsUsed(it) }
             for (library in immediateBitcodeDependencies) {
-                if (library == context.config.libraryToCache?.klib) continue
+                if (library in config.librariesToCache) continue
                 val cache = context.config.cachedLibraries.getLibraryCache(library)
 
                 if (cache != null) {
@@ -211,7 +244,7 @@ internal class DependenciesTrackerImpl(
                         }
                     }
 
-                    if (filesUsed.isEmpty() || library in config.includedLibraries) {
+                    if (filesUsed.isEmpty() || library in config.loadedKlibs.included) {
                         // This is the case when we depend on the whole module rather than on a number of files.
                         moduleDependencies.add(library)
                         addAllDependencies(cache)
@@ -224,8 +257,8 @@ internal class DependenciesTrackerImpl(
 
             allDependencies = moduleDependencies.map { DependenciesTracker.ResolvedDependency.wholeModule(it) } +
                     fileDependencies.filterNot { it.key in moduleDependencies }
-                            .map { (library, files) ->
-                                DependenciesTracker.ResolvedDependency.certainFiles(library, files.toList().filterNot { (file, weak) ->
+                            .map { [library, files] ->
+                                DependenciesTracker.ResolvedDependency.certainFiles(library, files.toList().filterNot { (val file = name, val weak) ->
                                     weak && DependenciesTracker.FileDependency(file, weak = false) in files
                                 })
                             }
@@ -256,8 +289,9 @@ internal class DependenciesTrackerImpl(
         private fun addDependency(dependency: DependenciesTracker.ResolvedDependency) {
             val (library, kind) = dependency
             if (library in moduleDependencies) return
+            if (library in config.librariesToCache) return
             val cachedDependency = context.config.cachedLibraries.getLibraryCache(library)
-                    ?: error("Library ${library.location} is expected to be cached")
+                    ?: error("Library ${library.path} is expected to be cached")
 
             when (kind) {
                 is DependenciesTracker.DependencyKind.WholeModule -> {
@@ -281,9 +315,10 @@ internal class DependenciesTrackerImpl(
             val usedBitcode = usedBitcode().groupBy { it.file.library }
             val bitcodeModuleDependencies = mutableListOf<DependenciesTracker.ResolvedDependency>()
             val bitcodeFileDependencies = mutableListOf<DependenciesTracker.ResolvedDependency>()
-            val libraryToCache = config.cacheSupport.libraryToCache
             val strategy = libraryToCache?.strategy as? CacheDeserializationStrategy.SingleFile
-            topSortedLibraries.forEach { library ->
+
+            // Note: Unclear, whether the order of libraries is important or not.
+            usefulLibrariesInRTO.forEach { library ->
                 val filesUsed = usedBitcode[library]
                 if (filesUsed == null && bitcodeIsUsed(library) && library != libraryToCache?.klib /* Skip loops */) {
                     // Dependency on the entire library.
@@ -305,25 +340,28 @@ internal class DependenciesTrackerImpl(
 
         val allBitcodeDependencies: List<DependenciesTracker.ResolvedDependency> = run {
             val allBitcodeDependencies = mutableMapOf<KotlinLibrary, DependenciesTracker.ResolvedDependency>()
-            for (library in context.config.librariesWithDependencies()) {
-                if (context.config.cachedLibraries.getLibraryCache(library) == null || library == context.config.libraryToCache?.klib)
+            for (library in usefulLibrariesInRTO) {
+                if (library in config.librariesToCache && library != libraryToCache?.klib) continue
+                if (context.config.cachedLibraries.getLibraryCache(library) == null || library == libraryToCache?.klib)
                     allBitcodeDependencies[library] = DependenciesTracker.ResolvedDependency.wholeModule(library)
             }
             for (dependency in allCachedBitcodeDependencies)
                 allBitcodeDependencies[dependency.library] = dependency
             // This list is used in particular to build the libraries' initializers chain.
-            // The initializers must be called in the topological order, so make sure that the
-            // libraries list being returned is also toposorted.
-            topSortedLibraries.mapNotNull { allBitcodeDependencies[it] }
+            // The eager initializers must be called in the topological order, so the order of this list is important:
+            // a library must go after all the libraries it depends on. [usefulLibrariesInRTO] guarantees that.
+            usefulLibrariesInRTO.mapNotNull { allBitcodeDependencies[it] }
         }
 
-        val nativeDependenciesToLink = topSortedLibraries.filter { (!it.isFromKotlinNativeDistribution && !context.config.purgeUserLibs) || it in usedNativeDependencies }
+        // Note: Unclear, whether the order of libraries is important or not.
+        val nativeDependenciesToLink = usefulLibrariesInRTO.filter { it.isExplicitlySpecifiedByUserInCLIArgument || it in usedNativeDependencies }
 
         val allNativeDependencies = (nativeDependenciesToLink +
                 allCachedBitcodeDependencies.map { it.library } // Native dependencies are per library
                 ).distinct()
 
-        val bitcodeToLink = topSortedLibraries.filter { shouldContainBitcode(it) }
+        // Note: Unclear, whether the order of libraries is important or not.
+        val bitcodeToLink = usefulLibrariesInRTO.filter { shouldContainBitcode(it) }
 
         private fun shouldContainBitcode(library: KotlinLibrary): Boolean {
             if (!llvmModuleSpecification.containsLibrary(library)) {
@@ -335,7 +373,7 @@ internal class DependenciesTrackerImpl(
             }
 
             // Apply some DCE:
-            return (!library.isFromKotlinNativeDistribution && !context.config.purgeUserLibs) || bitcodeIsUsed(library)
+            return library.isExplicitlySpecifiedByUserInCLIArgument || bitcodeIsUsed(library)
         }
     }
 
@@ -401,7 +439,7 @@ internal object DependenciesSerializer {
             }
         }
         return wholeModuleDependencies.map { DependenciesTracker.UnresolvedDependency.wholeModule(it) } +
-                fileDependencies.map { (libName, files) -> DependenciesTracker.UnresolvedDependency.certainFiles(libName, files) }
+                fileDependencies.map { [libName, files] -> DependenciesTracker.UnresolvedDependency.certainFiles(libName, files) }
     }
 
     private const val DEPENDENCIES_DELIMITER = '|'
@@ -446,7 +484,7 @@ data class DependenciesTrackingResult(
             val allNativeLibs = DependenciesSerializer.deserialize(path, dependencies.subList(allNativeDepsIndex + 1, allCachedBitcodeDepsIndex)).map { it.libName }
             val allCachedBitcodeDeps = DependenciesSerializer.deserialize(path, dependencies.subList(allCachedBitcodeDepsIndex + 1, dependencies.size))
 
-            val topSortedLibraries = config.resolvedLibraries.getFullList().legacyKlibReverseTopoSort()
+            val topSortedLibraries = config.loadedKlibs.all // Note: Unclear, whether the order of libraries is important or not.
             val nativeDependenciesToLink = topSortedLibraries.mapNotNull { if (it.uniqueName in nativeLibsToLink) it else null }
             val allNativeDependencies = topSortedLibraries.mapNotNull { if (it.uniqueName in allNativeLibs) it else null }
             val allCachedBitcodeDependencies = allCachedBitcodeDeps.map { unresolvedDep ->

@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +InnerClassInEnumEntryClass
+// RUN_PIPELINE_TILL: CODEGEN
 
 enum class A {
     X {

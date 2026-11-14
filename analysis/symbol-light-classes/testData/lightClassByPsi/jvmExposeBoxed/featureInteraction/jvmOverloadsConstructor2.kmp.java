@@ -1,11 +1,9 @@
 public final class Baz /* Baz*/ {
-  @<error>()
-  @<error>()
   @kotlin.OptIn(markerClass = {kotlin.ExperimentalStdlibApi.class})
   private  Baz(int, int);//  .ctor(int, int)
 }
 
-@<error>()
+@kotlin.jvm.JvmInline()
 public final class IntWrapper /* IntWrapper*/ {
   private final int s;
 

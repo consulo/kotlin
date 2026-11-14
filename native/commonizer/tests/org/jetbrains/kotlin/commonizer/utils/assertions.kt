@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.commonizer.metadata.utils.MetadataDeclarationsCompar
 import org.jetbrains.kotlin.commonizer.metadata.utils.SerializedMetadataLibraryProvider
 import org.jetbrains.kotlin.library.SerializedMetadata
 import java.io.File
-import kotlin.metadata.ExperimentalAnnotationsInMetadata
 import kotlin.test.fail
 
 fun assertIsDirectory(file: File) {
@@ -38,8 +37,8 @@ fun assertModulesAreEqual(reference: SerializedMetadata, generated: SerializedMe
 
             val failureMessage = buildString {
                 appendLine(
-                    "${mismatches.size} mismatches found while comparing reference module ${referenceModule.name} (A) " +
-                            "and generated module ${generatedModule.name} (B) for target ${target.identityString}:"
+                    "${mismatches.size} mismatches found while comparing reference module (A) " +
+                            "and generated module (B) for target ${target.identityString}:"
                 )
                 mismatches.forEachIndexed { index, mismatch ->
                     appendLine((index + 1).toString().padStart(digitCount, ' ') + ". " + mismatch)
@@ -51,7 +50,6 @@ fun assertModulesAreEqual(reference: SerializedMetadata, generated: SerializedMe
     }
 }
 
-@OptIn(ExperimentalAnnotationsInMetadata::class)
 private val FILTER_OUT_ACCEPTABLE_MISMATCHES: (Mismatch) -> Boolean = { mismatch ->
     var isAcceptableMismatch = false // don't filter it out by default
 

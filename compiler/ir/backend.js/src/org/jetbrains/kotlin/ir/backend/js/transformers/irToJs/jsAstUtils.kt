@@ -7,25 +7,25 @@ package org.jetbrains.kotlin.ir.backend.js.transformers.irToJs
 
 import org.jetbrains.kotlin.backend.common.ErrorReportingContext
 import org.jetbrains.kotlin.backend.common.compilationException
+import org.jetbrains.kotlin.backend.common.getCompilerMessageLocation
+import org.jetbrains.kotlin.backend.common.lower.AbstractSuspendFunctionsLowering
 import org.jetbrains.kotlin.backend.common.lower.BOUND_VALUE_PARAMETER
-import org.jetbrains.kotlin.backend.common.reportWarning
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrFileEntry
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
-import org.jetbrains.kotlin.ir.backend.js.JsLoweredDeclarationOrigin
-import org.jetbrains.kotlin.ir.backend.js.JsStatementOrigins
+import org.jetbrains.kotlin.ir.backend.js.*
+import org.jetbrains.kotlin.ir.backend.js.checkers.JsKlibErrors
+import org.jetbrains.kotlin.ir.backend.js.ir.isBridge
+import org.jetbrains.kotlin.ir.backend.js.lower.*
 import org.jetbrains.kotlin.ir.backend.js.lower.coroutines.isProxyParameterWithDefaultForExportedSuspendFunction
 import org.jetbrains.kotlin.ir.backend.js.lower.coroutines.shouldBeCompiledAsGenerator
-import org.jetbrains.kotlin.ir.backend.js.lower.isBoxParameter
-import org.jetbrains.kotlin.ir.backend.js.lower.isEs6ConstructorReplacement
-import org.jetbrains.kotlin.ir.backend.js.sourceMapsInfo
 import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.irAttribute
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.ir.util.isVararg
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.js.backend.ast.*
@@ -36,13 +36,12 @@ import org.jetbrains.kotlin.js.common.isValidES5Identifier
 import org.jetbrains.kotlin.js.config.SourceMapNamesPolicy
 import org.jetbrains.kotlin.js.config.SourceMapSourceEmbedding
 import org.jetbrains.kotlin.js.config.compileLambdasAsEs6ArrowFunctions
-import org.jetbrains.kotlin.js.parser.sourcemaps.SourceMap
-import org.jetbrains.kotlin.js.parser.sourcemaps.SourceMapError
-import org.jetbrains.kotlin.js.parser.sourcemaps.SourceMapLocationRemapper
-import org.jetbrains.kotlin.js.parser.sourcemaps.SourceMapParser
-import org.jetbrains.kotlin.js.parser.sourcemaps.SourceMapSuccess
+import org.jetbrains.kotlin.js.config.useEs6ConstLet
+import org.jetbrains.kotlin.js.parser.sourcemaps.*
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.JsStandardClassIds
+import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
@@ -77,25 +76,21 @@ fun <T : JsNode> IrWhen.toJsNode(
         }
     }
 
-fun jsElementAccess(name: String, receiver: JsExpression?): JsExpression =
+fun jsElementAccess(name: String, receiver: JsExpression?): JsAssignableExpression =
     jsElementAccess(JsName(name, false), receiver)
 
-fun JsExpression.putIntoVariableWitName(name: JsName): JsVars {
-    return JsVars(JsVars.Variant.Var, JsVars.JsVar(name, this))
-}
-
-fun jsElementAccess(name: JsName, computedName: JsExpression?, receiver: JsExpression?): JsExpression =
+fun jsElementAccess(name: JsName, computedName: JsExpression?, receiver: JsExpression?): JsAssignableExpression =
     computedName?.let { JsArrayAccess(receiver, it) }
         ?: jsElementAccess(name, receiver)
 
-fun jsElementAccess(name: JsName, receiver: JsExpression?): JsExpression =
+fun jsElementAccess(name: JsName, receiver: JsExpression?): JsAssignableExpression =
     if (receiver == null || name.ident.isValidES5Identifier()) {
         JsNameRef(name, receiver)
     } else {
         JsArrayAccess(receiver, JsStringLiteral(name.ident))
     }
 
-fun jsAssignment(left: JsExpression, right: JsExpression) = JsBinaryOperation(JsBinaryOperator.ASG, left, right)
+fun jsAssignment(left: JsAssignableExpression, right: JsExpression) = JsAssignmentOperation.Simple(left, right)
 
 fun prototypeOf(classNameRef: JsExpression, context: JsStaticContext) =
     JsInvocation(
@@ -137,38 +132,52 @@ fun defineProperty(
 
 private var IrFunction.cachedOutlinedJsCode: JsFunction? by irAttribute(copyByDefault = false)
 
-context(reportingContext: ErrorReportingContext)
+context(context: JsIrBackendContext)
 fun IrFunction.getJsCode(): JsFunction? {
     cachedOutlinedJsCode?.let {
         return it
     }
 
-    parseJsFromAnnotation(this, JsStandardClassIds.Annotations.JsOutlinedFunction)
-        ?.let { (annotation, parsedJsFunction) ->
-            val sourceMap = (annotation.arguments[1] as? IrConst)?.value as? String
-            val parsedSourceMap = sourceMap?.let { parseSourceMap(it, fileOrNull, annotation) }
-            if (parsedSourceMap != null) {
-                val remapper = SourceMapLocationRemapper(parsedSourceMap)
-                remapper.remap(parsedJsFunction)
-            }
-            cachedOutlinedJsCode = parsedJsFunction
-            return parsedJsFunction
+    parseJsFromAnnotation(
+        declaration = this,
+        annotationClassId = JsStandardClassIds.Annotations.JsOutlinedFunction,
+        annotationParam = "jsFunctionExpression",
+        convertVarsToLets = context.configuration.useEs6ConstLet,
+    )?.let { [annotation, parsedJsFunction] ->
+        val sourceMap = annotation.getConstArgument<String>("sourceMap")
+        val parsedSourceMap = sourceMap?.let { parseSourceMap(it, fileOrNull, annotation) }
+        if (parsedSourceMap != null) {
+            val remapper = SourceMapLocationRemapper(parsedSourceMap)
+            remapper.remap(parsedJsFunction)
         }
+        cachedOutlinedJsCode = parsedJsFunction
+        return parsedJsFunction
+    }
 
-    parseJsFromAnnotation(this, JsStandardClassIds.Annotations.JsFun)
-        ?.let { (_, parsedJsFunction) ->
-            cachedOutlinedJsCode = parsedJsFunction
-            return parsedJsFunction
-        }
+    parseJsFromAnnotation(
+        declaration = this,
+        annotationClassId = JsStandardClassIds.Annotations.JsFun,
+        annotationParam = "code",
+        convertVarsToLets = context.configuration.useEs6ConstLet,
+    )?.let { [_, parsedJsFunction] ->
+        cachedOutlinedJsCode = parsedJsFunction
+        return parsedJsFunction
+    }
+
     return null
 }
 
-private fun parseJsFromAnnotation(declaration: IrDeclaration, annotationClassId: ClassId): Pair<IrConstructorCall, JsFunction>? {
+private fun parseJsFromAnnotation(
+    declaration: IrDeclaration,
+    annotationClassId: ClassId,
+    annotationParam: String,
+    convertVarsToLets: Boolean,
+): Pair<IrAnnotation, JsFunction>? {
     val annotation = declaration.getAnnotation(annotationClassId.asSingleFqName())
         ?: return null
-    val jsCode = annotation.arguments[0]
+    val jsCode = annotation.argumentMapping[Name.identifier(annotationParam)]
         ?: compilationException("@${annotationClassId.shortClassName} annotation must contain the JS code argument", annotation)
-    val statements = translateJsCodeIntoStatementList(jsCode, declaration)
+    val statements = translateJsCodeIntoStatementList(jsCode, declaration, convertVarsToLets)
         ?: compilationException("Could not parse JS code", annotation)
     val parsedJsFunction = statements.singleOrNull()
         ?.safeAs<JsExpressionStatement>()
@@ -179,21 +188,21 @@ private fun parseJsFromAnnotation(declaration: IrDeclaration, annotationClassId:
 }
 
 context(reportingContext: ErrorReportingContext)
-private fun parseSourceMap(sourceMap: String, file: IrFile?, annotation: IrConstructorCall): SourceMap? {
+private fun parseSourceMap(sourceMap: String, file: IrFile?, annotation: IrAnnotation): SourceMap? {
     if (sourceMap.isEmpty()) return null
     return when (val result = SourceMapParser.parse(sourceMap)) {
         is SourceMapSuccess -> result.value
         is SourceMapError -> {
-            reportingContext.reportWarning(
+            reportingContext.diagnosticReporter.report(
+                JsKlibErrors.JS_SOURCE_MAP_WARNING,
                 """
-                    Invalid source map in annotation:
-                    ${annotation.dumpKotlinLike()}
-                    ${result.message.replaceFirstChar(Char::uppercase)}.
-                    Some debug information may be unavailable.
-                    If you believe this is not your fault, please create an issue: https://kotl.in/issue
-                    """.trimIndent(),
-                file,
-                annotation,
+                        Invalid source map in annotation:
+                        ${annotation.dumpKotlinLike()}
+                        ${result.message.replaceFirstChar(Char::uppercase)}.
+                        Some debug information may be unavailable.
+                        If you believe this is not your fault, please create an issue: https://kotl.in/issue
+                        """.trimIndent(),
+                file?.getCompilerMessageLocation(annotation)
             )
             null
         }
@@ -249,7 +258,17 @@ fun translateFunction(
 
     check(!declaration.isSuspend) { "All Suspend functions should be lowered" }
 
+    declaration.effects?.compute()?.let {
+        function.sideEffects = it.toJs()
+    }
+
     return function
+}
+
+fun EffectsKind.toJs() = when (this) {
+    EffectsKind.PURE -> SideEffectKind.PURE
+    EffectsKind.READ -> SideEffectKind.DEPENDS_ON_STATE
+    EffectsKind.WRITE -> SideEffectKind.AFFECTS_STATE
 }
 
 private fun isFunctionTypeInvoke(receiver: JsExpression?, call: IrCall): Boolean {
@@ -276,7 +295,8 @@ fun translateCall(
     transformer: IrElementToJsExpressionTransformer,
 ): JsExpression {
     val function = expression.symbol.owner.realOverrideTarget
-    val currentDispatchReceiver = context.currentFunction?.parentClassOrNull
+    val currentFunction = context.currentFunction
+    val currentDispatchReceiver = currentFunction?.parentClassOrNull
     val staticContext = context.staticContext
 
     staticContext.intrinsics[function.symbol]?.let {
@@ -290,7 +310,11 @@ fun translateCall(
     // @JsName-annotated and @JsSymbol-annotated external and interface's property accessors are translated as function calls
     if (function.getJsName() == null && function.getJsSymbol() == null) {
         val property = function.correspondingPropertySymbol?.owner
-        if (property != null && (property.isEffectivelyExternal() || function.isExportedMember(staticContext.backendContext) && expression.superQualifierSymbol == null)) {
+        if (
+            property != null && !currentFunction.isBridge() &&
+            (property.isEffectivelyExternal() ||
+                    function.isExportedMember(staticContext.backendContext) && expression.superQualifierSymbol == null)
+        ) {
             if (function.overriddenSymbols.isEmpty() || function.overriddenStableProperty(staticContext.backendContext)) {
                 val propertyName = context.getNameForProperty(property)
 
@@ -316,7 +340,7 @@ fun translateCall(
     }
 
     expression.superQualifierSymbol?.let { superQualifier ->
-        val (target: IrSimpleFunction, klass: IrClass) = if (superQualifier.owner.isInterface) {
+        val [target: IrSimpleFunction, klass: IrClass] = if (superQualifier.owner.isInterface) {
             val impl = function.resolveFakeOverrideOrFail()
             Pair(impl, impl.parentAsClass)
         } else {
@@ -379,7 +403,7 @@ fun translateCall(
                 val iifeFun = JsFunction(
                     emptyScope,
                     JsBlock(
-                        JsVars(JsVars.Variant.Var, JsVars.JsVar(receiverName, jsDispatchReceiver)),
+                        JsVars(context.varVariant(isMutable = false), JsVars.JsVar(receiverName, jsDispatchReceiver)),
                         JsReturn(
                             JsInvocation(
                                 JsNameRef("apply", jsElementAccess(functionName.ident, receiverRef)),
@@ -524,8 +548,8 @@ internal fun translateNonDispatchCallArguments(
 
             Triple(parameter, argument, jsArgument)
         }
-        .dropLastWhile { (_, _, jsArgument) -> jsArgument == null }
-        .memoryOptimizedMap { (irParameter, irArgument, jsArgument) ->
+        .dropLastWhile { [_, _, jsArgument] -> jsArgument == null }
+        .memoryOptimizedMap { [irParameter, irArgument, jsArgument] ->
             TranslatedCallArgument(
                 irParameter,
                 irArgument,
@@ -573,8 +597,8 @@ object JsAstUtils {
         return JsBinaryOperation(JsBinaryOperator.REF_EQ, arg1, arg2)
     }
 
-    fun assignment(left: JsExpression, right: JsExpression): JsBinaryOperation {
-        return JsBinaryOperation(JsBinaryOperator.ASG, left, right)
+    fun assignment(left: JsAssignableExpression, right: JsExpression): JsAssignmentOperation.Simple {
+        return JsAssignmentOperation.Simple(left, right)
     }
 
     fun sum(left: JsExpression, right: JsExpression): JsBinaryOperation {
@@ -622,8 +646,8 @@ private inline fun <T : JsNode> T.addSourceInfoIfNeed(
     val sourceMapsInfo = context.staticContext.backendContext.sourceMapsInfo ?: return
     val originalName = useNameOf?.originalNameForUseInSourceMap(sourceMapsInfo.namesPolicy)
     val location = context.getStartLocationForIrElement(node, originalName) ?: return
-    val isNodeFromCurrentModule = context.currentInlineFunction?.fileOrNull?.module?.descriptor?.let { moduleOfCurrentFunction ->
-        moduleOfCurrentFunction == context.staticContext.backendContext.module
+    val isNodeFromCurrentModule = context.currentInlineFunction?.fileOrNull?.module?.let { moduleOfCurrentFunction ->
+        moduleOfCurrentFunction == context.staticContext.backendContext.irModule
     } ?: true
 
     // TODO maybe it's better to fix in JsExpressionStatement
@@ -681,10 +705,12 @@ fun IrElement.getStartSourceLocation(fileEntry: IrFileEntry) =
     getSourceLocation(fileEntry) { startOffset }
 
 inline fun IrElement.getSourceLocation(fileEntry: IrFileEntry, offsetSelector: IrElement.() -> Int): JsLocation? {
+    if (this is IrDeclaration && this.symbol.shouldIgnore)
+        return JsLocation.IGNORED
     if (startOffset == UNDEFINED_OFFSET || endOffset == UNDEFINED_OFFSET) return null
     val path = fileEntry.name
     val offset = offsetSelector()
-    val (startLine, startColumn) = fileEntry.getLineAndColumnNumbers(offset)
+    (val startLine = line, val startColumn = column) = fileEntry.getLineAndColumnNumbers(offset)
     return runIf(startLine >= 0 && startColumn >= 0) {
         JsLocation(path, startLine, startColumn)
     }
@@ -700,9 +726,18 @@ private fun IrDeclarationWithName.originalNameForUseInSourceMap(policy: SourceMa
             return it.owner.originalNameForUseInSourceMap(policy)
         }
 
-        is IrFunction -> if (policy == SourceMapNamesPolicy.FULLY_QUALIFIED_NAMES) {
-            fqNameWhenAvailable?.let {
-                return it.asString()
+        is IrFunction -> {
+            this.originalFqName?.let {
+                return if (policy == SourceMapNamesPolicy.FULLY_QUALIFIED_NAMES) {
+                    it.asString()
+                } else {
+                    it.shortNameOrSpecial().asString()
+                }
+            }
+            if (policy == SourceMapNamesPolicy.FULLY_QUALIFIED_NAMES) {
+                fqNameWhenAvailable?.let {
+                    return it.asString()
+                }
             }
         }
 
@@ -740,3 +775,46 @@ private fun IrClass?.canUseSuperRef(context: JsGenerationContext, superClass: Ir
 
     return currentFunctionsIncludingParents.none { it.isEs6ConstructorReplacement || it.shouldBeCompiledAsGenerator || it.isCoroutine() }
 }
+
+private val debugFriendlyOrigins: Set<IrDeclarationOrigin> = hashSetOf(
+    IrDeclarationOrigin.DEFINED,
+    IrDeclarationOrigin.LOCAL_FUNCTION,
+    IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA,
+    IrDeclarationOrigin.FUNCTION_FOR_DEFAULT_PARAMETER,
+    IrDeclarationOrigin.LOWERED_SUSPEND_FUNCTION,
+    AbstractSuspendFunctionsLowering.DECLARATION_ORIGIN_COROUTINE_IMPL_INVOKE,
+    ENUM_ENTRIES_INITIALIZER_ORIGIN,
+    SecondaryConstructorLowering.SECONDARY_CONSTRUCTOR_INIT_ORIGIN,
+    WebStaticInitializersDeclarationLowering.STATIC_CLASS_INITIALIZER,
+    WebCallableReferenceLowering.LIFTED_CALLABLE_REFERENCE_FUNCTION,
+)
+
+val IrDeclaration.isInlinedCode: Boolean
+    get() = this is IrFunction && (isInline || origin == IrDeclarationOrigin.INLINE_LAMBDA)
+
+val IrDeclaration.isStdlibDeclaration: Boolean
+    get() = getPackageFragment().packageFqName.startsWith(StandardClassIds.BASE_KOTLIN_PACKAGE)
+
+val IrDeclaration.isArtificialDeclarationOfLambdaImpl: Boolean
+    get() = parentClassOrNull?.origin == WebCallableReferenceLowering.LAMBDA_IMPL &&
+            origin != IrDeclarationOrigin.DEFINED &&
+            origin != WebCallableReferenceLowering.LIFTED_CALLABLE_REFERENCE_FUNCTION &&
+            origin != AbstractSuspendFunctionsLowering.DECLARATION_ORIGIN_COROUTINE_IMPL_INVOKE
+
+val IrSymbol?.shouldIgnore: Boolean
+    get() {
+        val owner = this?.owner as? IrDeclaration ?: return false
+        return owner.isStdlibDeclaration || owner.isArtificialDeclarationOfLambdaImpl || owner.origin !in debugFriendlyOrigins
+    }
+
+internal fun JsIrBackendContext.varVariant(isMutable: Boolean): JsVars.Variant = when {
+    !configuration.useEs6ConstLet -> JsVars.Variant.Var
+    isMutable -> JsVars.Variant.Let
+    else -> JsVars.Variant.Const
+}
+
+internal fun JsStaticContext.varVariant(isMutable: Boolean): JsVars.Variant =
+    backendContext.varVariant(isMutable)
+
+internal fun JsGenerationContext.varVariant(isMutable: Boolean): JsVars.Variant =
+    staticContext.varVariant(isMutable)

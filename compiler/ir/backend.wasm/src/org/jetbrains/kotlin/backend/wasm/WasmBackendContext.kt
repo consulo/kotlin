@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.backend.wasm
 import org.jetbrains.kotlin.backend.common.compilationException
 import org.jetbrains.kotlin.backend.common.ir.KlibSharedVariablesManager
 import org.jetbrains.kotlin.backend.common.linkage.partial.createPartialLinkageSupportForLowerings
-import org.jetbrains.kotlin.backend.common.linkage.partial.partialLinkageConfig
 import org.jetbrains.kotlin.backend.common.lower.InnerClassesSupport
 import org.jetbrains.kotlin.backend.wasm.ir2wasm.JsModuleAndQualifierReference
 import org.jetbrains.kotlin.backend.wasm.utils.WasmInlineClassesUtils
@@ -17,7 +16,6 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.config.phaseConfig
 import org.jetbrains.kotlin.config.phaser.PhaseConfig
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.KtDiagnosticReporterWithImplicitIrBasedContext
 import org.jetbrains.kotlin.ir.backend.js.JsCommonBackendContext
@@ -26,8 +24,10 @@ import org.jetbrains.kotlin.ir.backend.js.ReflectionSymbols
 import org.jetbrains.kotlin.ir.backend.js.lower.JsInnerClassesSupport
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrExternalPackageFragmentImpl
+import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrFileSymbol
+import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.DescriptorlessExternalPackageFragmentSymbol
 import org.jetbrains.kotlin.ir.types.IrTypeSystemContext
 import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
@@ -37,9 +37,9 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.platform.wasm.WasmTarget
 import org.jetbrains.kotlin.wasm.config.WasmConfigurationKeys
 import org.jetbrains.kotlin.wasm.config.wasmTarget
+import org.jetbrains.kotlin.wasm.config.wasmUseStackSwitchingProposal
 
 class WasmBackendContext(
-    val module: ModuleDescriptor,
     override val irBuiltIns: IrBuiltIns,
     override val symbolTable: SymbolTable,
     val irModuleFragment: IrModuleFragment,
@@ -51,25 +51,28 @@ class WasmBackendContext(
     override val typeSystem: IrTypeSystemContext = IrTypeSystemContextImpl(irBuiltIns)
     override var inVerbosePhase: Boolean = false
     override val irFactory: IrFactory = symbolTable.irFactory
+    val idSignatureRetriever: IdSignatureRetriever = irFactory as IdSignatureRetriever
 
     val isWasmJsTarget: Boolean = configuration.wasmTarget == WasmTarget.JS
 
     // Place to store declarations excluded from code generation
     private val excludedDeclarations = mutableMapOf<FqName, IrPackageFragment>()
 
-    fun getExcludedPackageFragmentOrCreate(fqName: FqName): IrPackageFragment = excludedDeclarations.getOrPut(fqName) {
-        IrExternalPackageFragmentImpl(
-            DescriptorlessExternalPackageFragmentSymbol(),
-            fqName
-        )
-    }
+    fun getExcludedPackageFragmentOrCreate(fqName: FqName, module: IrModuleFragment): IrPackageFragment =
+        excludedDeclarations.getOrPut(fqName) {
+            IrExternalPackageFragmentImpl(
+                DescriptorlessExternalPackageFragmentSymbol(),
+                fqName,
+                module,
+            )
+        }
 
     fun getExcludedPackageFragment(fqName: FqName): IrPackageFragment? = excludedDeclarations.get(fqName)
 
     class CrossFileContext {
         var mainFunctionWrapper: IrSimpleFunction? = null
-        val closureCallExports = mutableMapOf<String, IrSimpleFunction>()
-        val kotlinClosureToJsConverters = mutableMapOf<String, IrSimpleFunction>()
+        val closureCallTrampolines = mutableMapOf<String, IrSimpleFunction>()
+        val kotlinClosureToJsConverters = mutableMapOf<Int, IrSimpleFunction>()
         val jsClosureCallers = mutableMapOf<String, IrSimpleFunction>()
         val jsToKotlinClosures = mutableMapOf<String, IrSimpleFunction>()
         val jsModuleAndQualifierReferences = mutableSetOf<JsModuleAndQualifierReference>()
@@ -81,11 +84,19 @@ class WasmBackendContext(
 
         var objectInstanceFieldInitializer: IrSimpleFunction? = null
         var nonConstantFieldInitializer: IrSimpleFunction? = null
+
+        // Map from STATIC_FUNCTION_REFERENCE fields to their initializer expressions. Used by DCE
+        // to visit initializers when the field is accessed
+        val staticFunctionReferenceInitializers = mutableMapOf<IrField, IrExpression>()
     }
 
     val fileContexts = mutableMapOf<IrFile, CrossFileContext>()
     fun getFileContext(irFile: IrFile): CrossFileContext = fileContexts.getOrPut(irFile, ::CrossFileContext)
     inline fun applyIfDefined(irFile: IrFile, body: (CrossFileContext) -> Unit) = fileContexts[irFile]?.apply(body)
+
+    // Functions that are reachable from JavaScript (e.g., closure call trampolines passed as funcref).
+    // They receive a WasmFunctionAnnotation.JsCalled annotation so Binaryen does not treat them as unreachable.
+    val jsCalledFunctions = mutableSetOf<IrFunctionSymbol>()
 
     override val jsPromiseSymbol: IrClassSymbol?
         get() = if (configuration.wasmTarget == WasmTarget.JS) wasmSymbols.jsRelatedSymbols.jsPromise else null
@@ -114,23 +125,24 @@ class WasmBackendContext(
     // Unit test support, mostly borrowed from the JS implementation
     //
 
-    override val partialLinkageSupport = createPartialLinkageSupportForLowerings(
-        configuration.partialLinkageConfig,
-        irBuiltIns,
-        KtDiagnosticReporterWithImplicitIrBasedContext(
-            configuration.diagnosticsCollector,
-            configuration.languageVersionSettings,
-        )
+    override val diagnosticReporter = KtDiagnosticReporterWithImplicitIrBasedContext(
+        configuration.diagnosticsCollector,
+        configuration.languageVersionSettings,
     )
+
+    override val partialLinkageSupport = createPartialLinkageSupportForLowerings(diagnosticReporter)
 
     override val externalPackageFragment = mutableMapOf<IrFileSymbol, IrFile>()
 
     override val additionalExportedDeclarations = hashSetOf<IrDeclaration>()
 
-    override val bodilessBuiltInsPackageFragment: IrPackageFragment = IrExternalPackageFragmentImpl(
-        DescriptorlessExternalPackageFragmentSymbol(),
-        FqName("kotlin")
-    )
+    override val bodilessBuiltInsPackageFragment: IrPackageFragment by lazy {
+        IrExternalPackageFragmentImpl(
+            DescriptorlessExternalPackageFragmentSymbol(),
+            FqName("kotlin"),
+            module = irBuiltIns.moduleFragment,
+        )
+    }
 
     companion object {
         internal const val SPECIAL_INTERFACE_TABLE_SIZE = 22
@@ -168,4 +180,8 @@ class WasmBackendContext(
             }
         }
     }
+
+    val wasmUseStackSwitching = configuration.wasmUseStackSwitchingProposal
+
+    override var effectAnalysisFinished: Boolean = false
 }

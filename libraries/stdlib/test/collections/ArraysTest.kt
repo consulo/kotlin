@@ -57,6 +57,23 @@ class ArraysTest {
         assertEquals(-1, arr2.lastIndex)
     }
 
+    @Test fun primitiveArraysOperatorOf() {
+        assertContentEquals(byteArrayOf(1), ByteArray.of(1))
+        assertContentEquals(shortArrayOf(), ShortArray.of())
+        assertContentEquals(intArrayOf(1, 2), IntArray.of(1, 2))
+        assertContentEquals(longArrayOf(42), LongArray.of(42))
+        assertContentEquals(floatArrayOf(1f, 2f, 3f), FloatArray.of(1f, 2f, 3f))
+        assertContentEquals(doubleArrayOf(1.0, 2.0), DoubleArray.of(1.0, 2.0))
+        assertContentEquals(charArrayOf(), CharArray.of())
+        assertContentEquals(booleanArrayOf(true, false, true), BooleanArray.of(true, false, true))
+    }
+
+    @Test fun arrayOperatorOf() {
+        assertContentEquals(arrayOf("a", "b", "c"), Array.of("a", "b", "c"))
+        assertContentEquals(arrayOf<Any?>(null, 42), Array.of<Any?>(null, 42))
+        assertContentEquals(arrayOf(1), Array.of(1))
+    }
+
     @Test fun arrayLastIndex() {
         val arr1 = intArrayOf(0, 1, 2, 3, 4)
         assertEquals(4, arr1.lastIndex)
@@ -361,9 +378,9 @@ class ArraysTest {
         val a = arrayOf(b)
         b[0] = a
         b[1] = b
-        a.toString()
+        val _ = a.toString()
         assertTrue(true, "toString does not cycle")
-        a.contentToString()
+        val _ = a.contentToString()
         assertTrue(true, "contentToString does not cycle")
         val result = a.contentDeepToString()
         assertEquals("[[[...], [...]]]", result)
@@ -992,7 +1009,7 @@ class ArraysTest {
             assertArrayNotSameButEquals(longArrayOf(), LongArray(3) { it.toLong() }.copyOfRange(pos, pos))
         }
 
-        for ((start, end) in listOf(-1 to 0, 0 to 2, 2 to 2, 1 to 0)) {
+        for ([start, end] in listOf(-1 to 0, 0 to 2, 2 to 2, 1 to 0)) {
             val bounds = "start: $start, end: $end"
             val exClass = if (start > end) IllegalArgumentException::class else IndexOutOfBoundsException::class
             assertFailsWith(exClass, bounds) { arrayOf("x").copyOfRange(start, end) }
@@ -1005,7 +1022,7 @@ class ArraysTest {
 
     @Test fun copyRangeInto() {
         fun <T> doTest(
-            copyInto: T.(T, Int, Int, Int) -> T,
+            copyInto: T.(T, Int, Int, Int) -> Unit,
             assertTEquals: (T, T, String) -> Unit,
             toStringT: T.() -> String,
             dest: T, newValues: T,
@@ -1021,7 +1038,7 @@ class ArraysTest {
             dest.copyInto(dest, 1, 0, 2)
             assertTEquals(result3, dest, "Overlapping forward copy: ${result2.toStringT()}, ${dest.toStringT()}")
 
-            for ((start, end) in listOf(-1 to 0, 0 to 4, 4 to 4, 1 to 0, 0 to -1)) {
+            for ([start, end] in listOf(-1 to 0, 0 to 4, 4 to 4, 1 to 0, 0 to -1)) {
                 val bounds = "start: $start, end: $end"
                 val ex = assertFails(bounds) { newValues.copyInto(dest, 0, start, end) }
                 assertTrue(ex is IllegalArgumentException || ex is IndexOutOfBoundsException, "Unexpected exception type: $ex")
@@ -1361,7 +1378,7 @@ class ArraysTest {
             )
         }
     }
-    
+
     @Test
     fun runningFoldIndexed() {
         for (size in 0 until 4) {
@@ -1621,7 +1638,7 @@ class ArraysTest {
             snapshot: TArray.() -> List<T>
         ) {
             val arrays = (0..7).map { n -> n to (0 until n).build() }
-            for ((size, array) in arrays) {
+            for ([size, array] in arrays) {
                 for (fromIndex in 0 until size) {
                     for (toIndex in fromIndex..size) {
                         val original = array.snapshot().toMutableList()
@@ -1681,6 +1698,7 @@ class ArraysTest {
         assertArrayNotSameButEquals(arrayOf("3", "2", "1"), (arrayOf("1", "2", "3") as Array<out String>).reversedArray())
     }
 
+    @Suppress("RETURN_VALUE_NOT_USED_COERCION")
     @Test fun onEach() {
         var count = 0
         val data = intArrayOf(1, 2, 3)
@@ -1706,6 +1724,7 @@ class ArraysTest {
         assertEquals(listOf('1', '2', '3'), mutableListOf<Char>().apply { charArrayOf('1', '2', '3').onEach { add(it) } })
     }
 
+    @Suppress("RETURN_VALUE_NOT_USED_COERCION")
     @Test fun onEachIndexed() {
         assertEquals(listOf(1, 3, 5), mutableListOf<Int>().apply { intArrayOf(1, 2, 3).onEachIndexed { i, e -> add(i + e) } })
         assertEquals(listOf(1, 3, 5), mutableListOf<Int>().apply { byteArrayOf(1, 2, 3).onEachIndexed { i, e -> add(i + e) } })
@@ -1966,8 +1985,8 @@ class ArraysTest {
         expect(2) { iter.nextIndex() }
         expect(1) { iter.previousIndex() }
         expect(3) {
-            iter.next()
-            iter.previous()
+            val _ = iter.next()
+            val _ = iter.previous()
             iter.next()
         }
 
@@ -1999,8 +2018,8 @@ class ArraysTest {
         expect(2) { iter.nextIndex() }
         expect(1) { iter.previousIndex() }
         expect("c") {
-            iter.next()
-            iter.previous()
+            val _ = iter.next()
+            val _ = iter.previous()
             iter.next()
         }
 
@@ -2096,7 +2115,7 @@ class ArraysTest {
             snapshot: TArray.() -> List<T>
         ) {
             val arrays = (0..7).map { n -> n to (-2 until n - 2).shuffled().build() }
-            for ((size, array) in arrays) {
+            for ([size, array] in arrays) {
                 for (fromIndex in 0 until size) {
                     for (toIndex in fromIndex..size) {
                         val original = array.snapshot().toMutableList()
@@ -2140,7 +2159,7 @@ class ArraysTest {
             snapshot: TArray.() -> List<T>
         ) {
             val arrays = (0..7).map { n -> n to (-2 until n - 2).build() }
-            for ((size, array) in arrays) {
+            for ([size, array] in arrays) {
                 for (fromIndex in 0 until size) {
                     for (toIndex in fromIndex..size) {
                         val original = array.snapshot().toMutableList()

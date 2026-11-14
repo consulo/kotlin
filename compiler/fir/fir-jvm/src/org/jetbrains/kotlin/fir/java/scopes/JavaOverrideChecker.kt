@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.Visibility
-import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.SessionHolder
 import org.jetbrains.kotlin.fir.analysis.checkers.classKind
@@ -27,7 +26,9 @@ import org.jetbrains.kotlin.fir.java.toConeKotlinTypeProbablyFlexible
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.substitution.substitutorByMap
+import org.jetbrains.kotlin.fir.resolve.symbol
 import org.jetbrains.kotlin.fir.resolve.toSymbol
+import org.jetbrains.kotlin.fir.resolve.typeParameterSymbol
 import org.jetbrains.kotlin.fir.scopes.FirTypeScope
 import org.jetbrains.kotlin.fir.scopes.ProcessorAction
 import org.jetbrains.kotlin.fir.scopes.ScopeFunctionRequiresPrewarm
@@ -181,7 +182,7 @@ class JavaOverrideChecker internal constructor(
             else -> false
         }
 
-    private fun Collection<FirTypeParameterRef>.buildErasure() = associate {
+    private fun Collection<FirTypeParameterRef>.buildErasure(): Map<FirTypeParameterSymbol, ConeKotlinType> = associate {
         val symbol = it.symbol
         symbol to symbol.findFirstBoundForErasure(hashSetOf())
     }
@@ -244,7 +245,17 @@ class JavaOverrideChecker internal constructor(
                     it.type.extractTypeParametersTo(result)
                 }
             }
-            else -> {
+            // Non-denotable, so we shouldn't see it in declarations, but just in case we ever support it.
+            is ConeIntersectionType -> this.intersectedTypes.forEach { it.extractTypeParametersTo(result) }
+            is ConeUnionType -> {
+                primaryType.extractTypeParametersTo(result)
+                richErrorTypes.forEach { it.extractTypeParametersTo(result) }
+            }
+            is ConeCapturedType,
+            is ConeStubType,
+            is ConeIntegerLiteralType,
+            is ConeTypeVariableType
+                -> {
             }
         }
     }
@@ -286,7 +297,9 @@ class JavaOverrideChecker internal constructor(
             return false
         }
 
-        if (overrideCandidate.origin == FirDeclarationOrigin.Java.Source && baseDeclaration.origin == FirDeclarationOrigin.Source) {
+        if (overrideCandidate.origin.let { it is FirDeclarationOrigin.Java && it.sourceOrGenerated } &&
+            baseDeclaration.origin == FirDeclarationOrigin.Source
+        ) {
             // For override from Java source against the Kotlin base the following check of return type kinds is not important
             // From the other side, it can provoke problems in case baseDeclaration is from source and has an implicit return type
             // which is not yet resolved (see KT-57044)

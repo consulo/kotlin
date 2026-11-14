@@ -1,5 +1,4 @@
 library {
-  // module name: <varargs.kt>
 
   library fragment {
     // package name: test
@@ -33,6 +32,9 @@ library {
     public final annotation class test/annotated : kotlin/Annotation {
 
       public constructor()
+    }
+
+    package {
     }
   }
 }

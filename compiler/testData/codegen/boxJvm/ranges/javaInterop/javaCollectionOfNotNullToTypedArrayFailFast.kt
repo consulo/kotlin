@@ -1,9 +1,8 @@
-// LANGUAGE: +StrictJavaNullabilityAssertions
 // TARGET_BACKEND: JVM
 // WITH_STDLIB
 // JVM_TARGET: 1.8
 
-// Note: this fails on JVM_IR because of KT-36343.
+// Note: this fails on JVM because of KT-36343.
 // It requires potentially breaking changes in FE, so please, don't touch it until the language design decision.
 
 // FILE: box.kt

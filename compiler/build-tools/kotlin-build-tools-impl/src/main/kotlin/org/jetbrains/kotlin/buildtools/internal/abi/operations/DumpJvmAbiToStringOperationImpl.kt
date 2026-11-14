@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.buildtools.api.abi.AbiFilters
 import org.jetbrains.kotlin.buildtools.api.abi.operations.DumpJvmAbiToStringOperation
 import org.jetbrains.kotlin.buildtools.internal.BaseOptionWithDefault
 import org.jetbrains.kotlin.buildtools.internal.BuildOperationImpl
+import org.jetbrains.kotlin.buildtools.internal.ExecutionContext
 import org.jetbrains.kotlin.buildtools.internal.DeepCopyable
 import org.jetbrains.kotlin.buildtools.internal.Options
 import org.jetbrains.kotlin.buildtools.internal.UseFromImplModuleRestricted
@@ -38,7 +39,15 @@ internal class DumpJvmAbiToStringOperationImpl private constructor(
         initializeOptions(this::class, options)
     }
 
-    override fun executeImpl(projectId: ProjectId, executionPolicy: ExecutionPolicy, logger: KotlinLogger?) {
+    override val usesApplicationEnvironment: Boolean
+        get() = false
+
+    override fun executeImpl(
+        projectId: ProjectId,
+        executionPolicy: ExecutionPolicy,
+        logger: KotlinLogger?,
+        executionContext: ExecutionContext
+    ) {
         val filters = options[PATTERN_FILTERS]?.let { AbiValidationUtils.convert(it) } ?: org.jetbrains.kotlin.abi.tools.AbiFilters.EMPTY
         abiTools.printJvmDump(appendable, inputFiles.map { it.toFile() }, filters)
     }
@@ -66,10 +75,7 @@ internal class DumpJvmAbiToStringOperationImpl private constructor(
         return deepCopy()
     }
 
-    class Option<V> : BaseOptionWithDefault<V> {
-        constructor(id: String) : super(id)
-        constructor(id: String, default: V) : super(id, default = default)
-    }
+    class Option<V>(id: String, default: V) : BaseOptionWithDefault<V>(id, defaultValue = default)
 
     companion object {
         /**

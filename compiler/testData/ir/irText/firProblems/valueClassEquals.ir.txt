@@ -2,15 +2,22 @@ FILE fqName:<root> fileName:/valueClassEquals.kt
   PROPERTY name:equals visibility:public modality:FINAL [val]
     FIELD PROPERTY_BACKING_FIELD name:equals type:kotlin.reflect.KFunction2<<root>.Z, @[ParameterName(name = "other")] kotlin.Any?, kotlin.Boolean> visibility:private [final,static]
       EXPRESSION_BODY
-        FUNCTION_REFERENCE 'public open fun equals (other: kotlin.Any?): kotlin.Boolean declared in <root>.Z' type=kotlin.reflect.KFunction2<<root>.Z, @[ParameterName(name = "other")] kotlin.Any?, kotlin.Boolean> origin=null reflectionTarget=<same>
+        RICH_FUNCTION_REFERENCE type=kotlin.reflect.KFunction2<<root>.Z, @[ParameterName(name = "other")] kotlin.Any?, kotlin.Boolean> origin=null reflectionTarget='public open fun equals (other: kotlin.Any?): kotlin.Boolean declared in <root>.Z'
+          overriddenFunctionSymbol: public abstract fun invoke (p1: P1 of kotlin.reflect.KFunction2, p2: P2 of kotlin.reflect.KFunction2): R of kotlin.reflect.KFunction2 declared in kotlin.reflect.KFunction2
+          invoke: FUN LOCAL_FUNCTION_FOR_LAMBDA name:equals visibility:local modality:FINAL returnType:kotlin.Boolean [operator]
+            VALUE_PARAMETER ADAPTER_PARAMETER_FOR_CALLABLE_REFERENCE kind:Regular name:p0 index:0 type:<root>.Z
+            VALUE_PARAMETER ADAPTER_PARAMETER_FOR_CALLABLE_REFERENCE kind:Regular name:p1 index:1 type:@[ParameterName(name = "other")] kotlin.Any?
+            BLOCK_BODY
+              RETURN type=kotlin.Nothing from='local final fun equals (p0: <root>.Z, p1: @[ParameterName(name = "other")] kotlin.Any?): kotlin.Boolean declared in <root>.equals'
+                CALL 'public open fun equals (other: kotlin.Any?): kotlin.Boolean declared in <root>.Z' type=kotlin.Boolean origin=null
+                  ARG <this>: GET_VAR 'p0: <root>.Z declared in <root>.equals.equals' type=<root>.Z origin=null
+                  ARG other: GET_VAR 'p1: @[ParameterName(name = "other")] kotlin.Any? declared in <root>.equals.equals' type=@[ParameterName(name = "other")] kotlin.Any? origin=null
     FUN DEFAULT_PROPERTY_ACCESSOR name:<get-equals> visibility:public modality:FINAL returnType:kotlin.reflect.KFunction2<<root>.Z, @[ParameterName(name = "other")] kotlin.Any?, kotlin.Boolean>
       correspondingProperty: PROPERTY name:equals visibility:public modality:FINAL [val]
       BLOCK_BODY
         RETURN type=kotlin.Nothing from='public final fun <get-equals> (): kotlin.reflect.KFunction2<<root>.Z, @[ParameterName(name = "other")] kotlin.Any?, kotlin.Boolean> declared in <root>'
           GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:equals type:kotlin.reflect.KFunction2<<root>.Z, @[ParameterName(name = "other")] kotlin.Any?, kotlin.Boolean> visibility:private [final,static]' type=kotlin.reflect.KFunction2<<root>.Z, @[ParameterName(name = "other")] kotlin.Any?, kotlin.Boolean> origin=null
   CLASS CLASS name:Z modality:FINAL visibility:public [value] superTypes:[kotlin.Any]
-    annotations:
-      JvmInline
     thisReceiver: VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> type:<root>.Z
     PROPERTY name:s visibility:public modality:FINAL [val]
       FIELD PROPERTY_BACKING_FIELD name:s type:kotlin.String visibility:private [final]
@@ -28,7 +35,7 @@ FILE fqName:<root> fileName:/valueClassEquals.kt
       BLOCK_BODY
         DELEGATING_CONSTRUCTOR_CALL 'public constructor <init> () declared in kotlin.Any'
         INSTANCE_INITIALIZER_CALL classDescriptor='CLASS CLASS name:Z modality:FINAL visibility:public [value] superTypes:[kotlin.Any]' type=kotlin.Unit
-    FUN GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER name:equals visibility:public modality:OPEN returnType:kotlin.Boolean [operator]
+    FUN GENERATED_INLINE_CLASS_MEMBER name:equals visibility:public modality:OPEN returnType:kotlin.Boolean [operator]
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:<root>.Z
       VALUE_PARAMETER kind:Regular name:other index:1 type:kotlin.Any?
       overridden:
@@ -55,7 +62,7 @@ FILE fqName:<root> fileName:/valueClassEquals.kt
               CONST Boolean type=kotlin.Boolean value=false
         RETURN type=kotlin.Nothing from='public open fun equals (other: kotlin.Any?): kotlin.Boolean declared in <root>.Z'
           CONST Boolean type=kotlin.Boolean value=true
-    FUN GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER name:hashCode visibility:public modality:OPEN returnType:kotlin.Int
+    FUN GENERATED_INLINE_CLASS_MEMBER name:hashCode visibility:public modality:OPEN returnType:kotlin.Int
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:<root>.Z
       overridden:
         public open fun hashCode (): kotlin.Int declared in kotlin.Any
@@ -64,7 +71,7 @@ FILE fqName:<root> fileName:/valueClassEquals.kt
           CALL 'public open fun hashCode (): kotlin.Int declared in kotlin.String' type=kotlin.Int origin=null
             ARG <this>: GET_FIELD 'FIELD PROPERTY_BACKING_FIELD name:s type:kotlin.String visibility:private [final]' type=kotlin.String origin=null
               receiver: GET_VAR '<this>: <root>.Z declared in <root>.Z.hashCode' type=<root>.Z origin=null
-    FUN GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER name:toString visibility:public modality:OPEN returnType:kotlin.String
+    FUN GENERATED_INLINE_CLASS_MEMBER name:toString visibility:public modality:OPEN returnType:kotlin.String
       VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:<root>.Z
       overridden:
         public open fun toString (): kotlin.String declared in kotlin.Any

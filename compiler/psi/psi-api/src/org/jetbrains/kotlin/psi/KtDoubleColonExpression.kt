@@ -1,17 +1,6 @@
 /*
- * Copyright 2010-2016 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.psi
@@ -19,11 +8,34 @@ package org.jetbrains.kotlin.psi
 import com.intellij.lang.ASTNode
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.resolution.KtResolvable
 
-interface KtDoubleColonExpression : KtExpression {
+/**
+ * Represents an expression that uses the `::` token, namely a callable reference or a class literal.
+ *
+ * This is the common base for the concrete node types [KtCallableReferenceExpression] (`foo::bar`) and [KtClassLiteralExpression]
+ * (`foo::class`). The part before `::` is the optional left-hand side, which may denote an expression receiver or a type.
+ *
+ * ### Example:
+ *
+ * ```kotlin
+ * val ref = String::length
+ * //        ^____________^
+ * // A double-colon expression (a callable reference)
+ * ```
+ */
+@SubclassOptInRequired(KtImplementationDetail::class)
+interface KtDoubleColonExpression : KtExpression, KtResolvable {
+    /**
+     * The first child when it is a [KtExpression], or `null` otherwise. Syntactic type receivers such as `String` in `String::length` are
+     * also represented as expressions. An empty left-hand side, as in `::foo`, has no receiver expression.
+     */
     val receiverExpression: KtExpression?
         get() = node.firstChildNode.psi as? KtExpression
 
+    /**
+     * `true` if the left-hand side is a nullable type, that is, a `?` appears before `::` (as in `String?::class`).
+     */
     val hasQuestionMarks: Boolean
         get() {
             for (element in generateSequence(node.firstChildNode, ASTNode::getTreeNext)) {
@@ -35,19 +47,40 @@ interface KtDoubleColonExpression : KtExpression {
             error("Double colon expression must have '::': $text")
         }
 
+    /**
+     * Returns the `::` token, or `null` if it is absent in incomplete code.
+     */
     fun findColonColon(): PsiElement?
 
+    /**
+     * The `::` token. Throws if it is absent; use [findColonColon] to handle incomplete code.
+     */
     val doubleColonTokenReference: PsiElement
         get() = findColonColon()!!
 
+    /**
+     * The PSI sibling immediately before `::`, or `null` if the token is the first child. This may be whitespace or a comment rather than
+     * the receiver itself; use [receiverExpression] to obtain the receiver.
+     */
     val lhs: PsiElement?
         get() = doubleColonTokenReference.prevSibling
 
+    @Deprecated(
+        message = "Use setDoubleColonReceiverExpression(newReceiverExpression) instead",
+        replaceWith = ReplaceWith(
+            "this.setDoubleColonReceiverExpression(newReceiverExpression)",
+            "org.jetbrains.kotlin.idea.base.psi.setDoubleColonReceiverExpression",
+        ),
+        level = DeprecationLevel.HIDDEN,
+    )
+    @OptIn(KtIdeApi::class)
     fun setReceiverExpression(newReceiverExpression: KtExpression) {
-        val oldReceiverExpression = this.receiverExpression
-        oldReceiverExpression?.replace(newReceiverExpression) ?: addBefore(newReceiverExpression, doubleColonTokenReference)
+        KtPsiMutationService.getInstance().setDoubleColonReceiverExpression(this, newReceiverExpression)
     }
 
+    /**
+     * `true` if the left-hand side is empty, as in `::foo` where the receiver is inferred from the context.
+     */
     val isEmptyLHS: Boolean
         get() = lhs == null
 

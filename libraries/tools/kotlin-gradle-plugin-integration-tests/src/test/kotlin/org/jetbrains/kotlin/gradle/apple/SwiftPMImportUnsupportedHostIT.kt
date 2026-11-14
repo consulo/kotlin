@@ -30,12 +30,10 @@ import org.jetbrains.kotlin.gradle.testbase.project
 import org.jetbrains.kotlin.gradle.uklibs.PublisherConfiguration
 import org.jetbrains.kotlin.gradle.uklibs.applyMultiplatform
 import org.jetbrains.kotlin.gradle.uklibs.publish
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.condition.OS
 
-@GradleTestVersions(
-    minVersion = TestVersions.Gradle.G_8_1
-)
 @OsCondition(
     supportedOn = [OS.LINUX, OS.WINDOWS],
     enabledOnCI = [OS.LINUX, OS.WINDOWS],
@@ -43,6 +41,7 @@ import org.junit.jupiter.api.condition.OS
 @OptIn(EnvironmentalVariablesOverride::class)
 @DisplayName("SwiftPM import integration tests on unsupported hosts")
 @NativeGradlePluginTests
+@MustRunOnChangesInGradle
 class SwiftPMImportUnsupportedHostIT : KGPBaseTest() {
 
     @GradleTest

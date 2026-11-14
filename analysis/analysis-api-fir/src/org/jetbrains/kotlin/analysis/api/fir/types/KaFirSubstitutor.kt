@@ -5,9 +5,9 @@
 
 package org.jetbrains.kotlin.analysis.api.fir.types
 
+import org.jetbrains.kotlin.analysis.api.fir.KaChainedSubstitutor
+import org.jetbrains.kotlin.analysis.api.fir.KaMapBackedSubstitutor
 import org.jetbrains.kotlin.analysis.api.fir.KaSymbolByFirBuilder
-import org.jetbrains.kotlin.analysis.api.impl.base.KaChainedSubstitutor
-import org.jetbrains.kotlin.analysis.api.impl.base.KaMapBackedSubstitutor
 import org.jetbrains.kotlin.analysis.api.lifetime.KaLifetimeToken
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.KaTypeParameterSymbol
@@ -29,6 +29,11 @@ internal abstract class AbstractKaFirSubstitutor<T : ConeSubstitutor>(
     }
 }
 
+internal class KaFirEmptySubstitutor(override val token: KaLifetimeToken) : KaSubstitutor.Empty {
+    override fun substitute(type: KaType): KaType = withValidityAssertion { type }
+    override fun substituteOrNull(type: KaType): KaType? = withValidityAssertion { null }
+}
+
 internal class KaFirGenericSubstitutor(
     substitutor: ConeSubstitutor,
     builder: KaSymbolByFirBuilder,
@@ -40,7 +45,7 @@ internal class KaFirMapBackedSubstitutor(
 ) : AbstractKaFirSubstitutor<ConeSubstitutorByMap>(substitutor, builder,), KaMapBackedSubstitutor {
     override fun getAsMap(): Map<KaTypeParameterSymbol, KaType> = withValidityAssertion {
         val result = mutableMapOf<KaTypeParameterSymbol, KaType>()
-        for ((typeParameter, type) in substitutor.substitution) {
+        for ([typeParameter, type] in substitutor.substitution) {
             val typeParameterSymbol = builder.classifierBuilder.buildTypeParameterSymbol(typeParameter)
             result[typeParameterSymbol] = builder.typeBuilder.buildKtType(type)
         }

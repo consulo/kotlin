@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.gradle.plugin.ProjectLocalConfigurations
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.replaceText
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import java.util.zip.ZipFile
 import kotlin.io.path.appendText
 import kotlin.io.path.deleteRecursively
@@ -19,6 +20,7 @@ import kotlin.io.path.nameWithoutExtension
 import kotlin.test.assertContains
 
 @MppGradlePluginTests
+@MustRunOnChangesInGradle
 class MppDslAppAndLibIT : KGPBaseTest() {
 
     override val defaultBuildOptions: BuildOptions
@@ -27,17 +29,7 @@ class MppDslAppAndLibIT : KGPBaseTest() {
 
     @GradleTest
     @TestMetadata(value = "new-mpp-lib-and-app")
-    fun testLibAndApp(gradleVersion: GradleVersion) {
-        doTestLibAndApp(
-            libProjectPath = "new-mpp-lib-and-app/sample-lib",
-            appProjectPath = "new-mpp-lib-and-app/sample-app",
-            gradleVersion = gradleVersion,
-        )
-    }
-
-    @GradleTest
-    @TestMetadata(value = "new-mpp-lib-and-app")
-    fun testLibAndAppWithoutHMPP(gradleVersion: GradleVersion) = doTestLibAndApp(
+    fun testLibAndApp(gradleVersion: GradleVersion) = doTestLibAndApp(
         libProjectPath = "new-mpp-lib-and-app/sample-lib",
         appProjectPath = "new-mpp-lib-and-app/sample-app",
         gradleVersion = gradleVersion,
@@ -58,10 +50,6 @@ class MppDslAppAndLibIT : KGPBaseTest() {
         appProjectPath: String,
         gradleVersion: GradleVersion,
     ) {
-        val additionalBuildArgs = buildList {
-            add("-P" + "kotlin.internal.suppressGradlePluginErrors=KotlinTargetAlreadyDeclaredError")
-        }
-
         val localRepoDir = defaultLocalRepo(gradleVersion)
 
         val compileTasksNames = listOf(
@@ -79,11 +67,8 @@ class MppDslAppAndLibIT : KGPBaseTest() {
                 "\nkotlin.jvm.target.validation.mode=warning\n"
             )
             build(
-                buildArguments = buildList {
-                    add("clean")
-                    add("publish")
-                    addAll(additionalBuildArgs)
-                }.toTypedArray(),
+                buildArguments = arrayOf("clean", "publish"),
+                buildOptions = buildOptions.suppressingGradlePluginErrors("KotlinTargetAlreadyDeclaredError"),
             ) {
                 assertTasksExecuted(compileTasksNames)
                 assertTasksExecuted(
@@ -176,10 +161,10 @@ class MppDslAppAndLibIT : KGPBaseTest() {
                 buildArguments = buildList {
                     add("assemble")
                     add("resolveRuntimeDependencies")
-                    addAll(additionalBuildArgs)
                     add("-P" + "kotlinCompileCacheBuster=${System.currentTimeMillis()}")
                     add("-P" + "kotlinCompileLogLevel=DEBUG")
                 }.toTypedArray(),
+                buildOptions = buildOptions.suppressingGradlePluginErrors("KotlinTargetAlreadyDeclaredError"),
             ) {
                 checkAppBuild()
                 assertTasksExecuted(":resolveRuntimeDependencies") // KT-26301
@@ -207,8 +192,8 @@ class MppDslAppAndLibIT : KGPBaseTest() {
                     add("assemble")
                     add("-P" + "kotlinCompileCacheBuster=${System.currentTimeMillis()}")
                     add("-P" + "kotlinCompileLogLevel=DEBUG")
-                    add("-P" + "kotlin.internal.suppressGradlePluginErrors=KotlinTargetAlreadyDeclaredError")
                 }.toTypedArray(),
+                buildOptions = buildOptions.suppressingGradlePluginErrors("KotlinTargetAlreadyDeclaredError"),
             ) {
                 assertTasksExecuted(":${libProject.projectPath.name}:assemble")
                 checkAppBuild()

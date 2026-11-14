@@ -87,6 +87,9 @@ open class normalT {
     open var removedP: Int
         @Deprecated("Removed", level = DeprecationLevel.HIDDEN) get() = 42
         @Deprecated("Removed", level = DeprecationLevel.HIDDEN) set(new) {}
+
+    @Deprecated("Obsoleted", level = DeprecationLevel.ERROR)
+    operator fun plus(increment: normalT): normalT = TODO()
 }
 
 class normalChildT : normalT() {
@@ -137,6 +140,14 @@ class normalChildT : normalT() {
     override val removedV: Unit get() = Unit
     override var removedP: Int
         @Deprecated("Removed", level = DeprecationLevel.HIDDEN) get() = 42
+        @Deprecated("Removed", level = DeprecationLevel.HIDDEN) set(new) {}
+
+    var removedSetter: Int
+        get() = 53
+        @Deprecated("Removed", level = DeprecationLevel.HIDDEN) set(new) {}
+
+    var String.removedSetterExt: Int
+        get() = 64
         @Deprecated("Removed", level = DeprecationLevel.HIDDEN) set(new) {}
 }
 
@@ -274,6 +285,14 @@ open class hiddenChildT : hiddenT() {
     override val deprecationRestatedV: Unit get() = Unit
 }
 
+fun returnHiddenT(): hiddenT = TODO()
+
+fun acceptHiddenT(arg: hiddenT): Unit = TODO()
+
+fun returnHiddenChildT(): hiddenChildT = TODO()
+
+fun acceptHiddenChildT(arg: hiddenChildT): Unit = TODO()
+
 interface InterfaceWithDeprecatedMembers {
     fun regularFunction(): Unit = TODO()
 
@@ -298,6 +317,96 @@ class ClassWithDeprecatedMembersFromInterface: InterfaceWithDeprecatedMembers {
 
     @Deprecated("Removed", level = DeprecationLevel.HIDDEN)
     override fun deprecatedHiddenFunction(): Unit = TODO()
+}
+
+@Deprecated("Obsoleted", level = DeprecationLevel.ERROR)
+public interface DeprecatedInterface {
+    fun foo(): Unit = TODO()
+}
+
+public interface NonDeprecatedInterface: DeprecatedInterface {
+    fun bar(): Unit = TODO()
+}
+
+@Deprecated("Obsoleted", level = DeprecationLevel.ERROR)
+public interface SubDeprecatedInterface: DeprecatedInterface {
+    fun baz(): Unit = TODO()
+}
+
+public class PublicClassImplDeprecatedInterface: DeprecatedInterface {
+    override fun foo(): Unit = TODO()
+}
+
+@Deprecated("Obsoleted", level = DeprecationLevel.ERROR)
+public class PublicDeprecatedClassImplDeprecatedInterface: DeprecatedInterface {
+    override fun foo(): Unit = TODO()
+}
+
+private class PrivateClassImplDeprecatedInterface: DeprecatedInterface {
+    override fun foo(): Unit = TODO()
+}
+
+var deprecatedInterfaceProperty: DeprecatedInterface
+    get() = TODO()
+    set(value) = TODO()
+
+context(_: normalT)
+var deprecatedInterfacePropertyWithContext: DeprecatedInterface
+    get() = TODO()
+    set(value) = TODO()
+
+fun returnDeprecatedInterface(): DeprecatedInterface = TODO()
+
+fun acceptDeprecatedInterface(arg: DeprecatedInterface): Unit = TODO()
+
+var publicClassImplDeprecatedInterfaceProperty: PublicClassImplDeprecatedInterface
+    get() = TODO()
+    set(value) = TODO()
+
+fun returnPublicClassImplDeprecatedInterface(): PublicClassImplDeprecatedInterface = TODO()
+
+fun acceptPublicClassImplDeprecatedInterface(arg: PublicClassImplDeprecatedInterface): Unit = TODO()
+
+class DeprecatedInterfaceWrapper(val deprecatedInterface: DeprecatedInterface)
+
+@Deprecated("Hidden", level = DeprecationLevel.HIDDEN)
+public interface HiddenInterface {
+    fun foo(): Unit = TODO()
+}
+
+public open class PublicClassImplHiddenInterface: HiddenInterface {
+    override fun foo(): Unit = TODO()
+    open fun bar(): Unit = TODO()
+}
+
+public class PublicSubClassImplHiddenInterface: PublicClassImplHiddenInterface() {
+    override fun foo(): Unit = TODO()
+}
+
+var hiddenInterfaceProperty: HiddenInterface
+    get() = TODO()
+    set(value) = TODO()
+
+fun returnHiddenInterface(): HiddenInterface = TODO()
+
+fun acceptHiddenInterface(arg: HiddenInterface): Unit = TODO()
+
+var publicClassImplHiddenInterfaceProperty: PublicClassImplHiddenInterface
+    get() = TODO()
+    set(value) = TODO()
+
+fun returnPublicClassImplHiddenInterface(): PublicClassImplHiddenInterface = TODO()
+
+fun acceptPublicClassImplHiddenInterface(arg: PublicClassImplHiddenInterface): Unit = TODO()
+
+class HiddenInterfaceWrapper(val hiddenInterface: HiddenInterface)
+
+interface SomeInterface {
+    fun fooA(): obsoletedT
+    fun fooB(): String
+    var barA: obsoletedT
+    var String.barB: obsoletedT
+    var barC: String
 }
 
 // FILE: annotations_replacewith.kt

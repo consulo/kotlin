@@ -399,6 +399,7 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         }
 
         impl(enumEntry) {
+            useAssignableList("annotations")
             defaultTrue("isVal", withGetter = true)
             defaultFalse("isVar", withGetter = true)
             defaultNull(
@@ -429,9 +430,7 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
             additionalImports(standardTypes)
         }
 
-        impl(typeOperatorCall) {
-            defaultFalse("argFromStubType")
-        }
+        impl(typeOperatorCall)
 
         impl(augmentedAssignment)
 
@@ -450,9 +449,6 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         }
 
         impl(resolvedQualifier) {
-            isMutable("packageFqName", "relativeClassFqName", "isNullableLHSForCallableReference")
-            defaultClassIdFromRelativeClassName()
-            additionalImports(regularClass)
         }
 
         impl(resolvedReifiedParameterReference)
@@ -577,7 +573,7 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
                 value = "originalExpression.source?.fakeElement(KtFakeSourceElementKind.SmartCastExpression)"
                 withGetter = true
             }
-            additionalImports(fakeElementImport, fakeSourceElementKindImport)
+            additionalImports(fakeSourceElementKindImport)
         }
 
         impl(resolvedNamedReference)
@@ -668,6 +664,9 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         impl(intersectionTypeRef) {
             defaultFalse("customRenderer", withGetter = true)
         }
+        impl(unionTypeRef) {
+            defaultFalse("customRenderer", withGetter = true)
+        }
         noImpl(implicitTypeRef)
 
         impl(reference, "FirStubReference") {
@@ -731,7 +730,6 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         }
 
         impl(errorResolvedQualifier) {
-            defaultClassIdFromRelativeClassName()
         }
 
         noImpl(userTypeRef)
@@ -824,17 +822,6 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
             }
         ) {
             optInToInternals()
-        }
-    }
-
-    private fun ImplementationContext.defaultClassIdFromRelativeClassName() {
-        default("classId") {
-            value = """
-                |relativeClassFqName?.let {
-                |    ClassId(packageFqName, it, isLocal = false)
-                |}
-                """.trimMargin()
-            withGetter = true
         }
     }
 }

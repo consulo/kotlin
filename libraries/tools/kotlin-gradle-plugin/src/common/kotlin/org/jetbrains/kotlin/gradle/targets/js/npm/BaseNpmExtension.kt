@@ -12,13 +12,18 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileCollection
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.process.ExecOperations
+import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.internal.ConfigurationPhaseAware
 import org.jetbrains.kotlin.gradle.logging.kotlinInfo
+import org.jetbrains.kotlin.gradle.targets.js.internal.checkIsJsToolingProject
+import org.jetbrains.kotlin.gradle.targets.js.internal.jsToolingProject
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsEnv
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NpmApiExtension
 import org.jetbrains.kotlin.gradle.targets.web.nodejs.BaseNodeJsRootExtension
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 
 /**
  * Abstract base class for configuring and managing NPM-related tasks and environment within a Kotlin/Gradle project.
@@ -27,6 +32,7 @@ import org.jetbrains.kotlin.gradle.targets.web.nodejs.BaseNodeJsRootExtension
  * @property project The root Gradle project associated with this extension.
  * @property nodeJsRoot The root Node.js extension providing configuration and context for managing Node.js tooling.
  */
+@ObsoleteNpmDependencyModel
 abstract class BaseNpmExtension internal constructor(
     val project: Project,
     val nodeJsRoot: BaseNodeJsRootExtension,
@@ -34,7 +40,9 @@ abstract class BaseNpmExtension internal constructor(
     private val execOps: ExecOperations,
 ) : ConfigurationPhaseAware<NpmEnv>(), NpmApiExtension<NpmEnvironment, Npm> {
     init {
-        check(project == project.rootProject)
+        checkIsJsToolingProject(project) {
+            "Cannot register ${BaseNpmExtension::class.simpleName} in ${project.displayName}. It can only be registered in ${project.jsToolingProject().displayName}."
+        }
         project.logger.kotlinInfo("Storing cached files in ${project.gradle.gradleUserHomeDir}")
     }
 
@@ -51,10 +59,6 @@ abstract class BaseNpmExtension internal constructor(
         requireConfigured().asNpmEnvironment
     }
 
-    override val additionalInstallOutput: FileCollection = project.objects.fileCollection().from(
-        nodeJsRoot.rootPackageDirectory.map { it.file("package-lock.json") }
-    )
-
     override val preInstallTasks: ListProperty<TaskProvider<*>> = project.objects.listProperty(TaskProvider::class.java)
 
     override val postInstallTasks: ListProperty<TaskProvider<*>> = project.objects.listProperty(TaskProvider::class.java)
@@ -62,8 +66,24 @@ abstract class BaseNpmExtension internal constructor(
     val command: org.gradle.api.provider.Property<String> = project.objects.property(String::class.java)
         .convention("npm")
 
-    val lockFileName: org.gradle.api.provider.Property<String> = project.objects.property(String::class.java)
-        .convention(LockCopyTask.PACKAGE_LOCK)
+    /**
+     * The name of the npm lock file to use for storing and restoring dependencies.
+     *
+     * Defaults to [LockCopyTask.PACKAGE_LOCK].
+     */
+    val lockFileName: org.gradle.api.provider.Property<String> =
+        project.objects.property(String::class.java)
+            .convention(LockCopyTask.PACKAGE_LOCK)
+
+    @InternalKotlinGradlePluginApi
+    final override val lockFileNameProvider: Provider<String>
+        get() = lockFileName
+
+    override val additionalInstallOutput: FileCollection =
+        project.objects.fileCollection().from(
+            nodeJsRoot.rootPackageDirectory.zip(lockFileName) { dir, name -> dir.file(name) }
+        )
+
     val lockFileDirectory: DirectoryProperty = project.objects.directoryProperty()
         .convention(project.layout.projectDirectory.dir(LockCopyTask.KOTLIN_JS_STORE))
 
@@ -105,7 +125,7 @@ abstract class BaseNpmExtension internal constructor(
             val finalCommand = if (isWindows && customCommand == command) "$command.$windowsExtension" else customCommand
             return if (nodeJsEnvironmentValue.download)
                 nodeJsEnvironmentValue.nodeBinDir
-                    .resolve(finalCommand).absolutePath
+                    .resolve("npm-cli.js").absolutePath
             else
                 finalCommand
         }

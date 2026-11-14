@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // WITH_STDLIB
 
 @file:MustUseReturnValues
@@ -19,13 +19,20 @@ fun stringLambdaReturns(l: () -> String): String {
     return l()
 }
 
+fun nestedParam() {
+    stringLambdaReturns({
+        <!RETURN_VALUE_NOT_USED!>stringF<!>()
+        stringF()
+     }).<!RETURN_VALUE_NOT_USED!>length<!>
+}
+
 fun main() {
     stringLambda {
         <!RETURN_VALUE_NOT_USED!>stringF<!>() // unused because not the last statement
         stringF() // used
     }
     unitLambda {
-        <!RETURN_VALUE_NOT_USED_COERCION!>stringF<!>() // unused because not the last statement
+        <!RETURN_VALUE_NOT_USED!>stringF<!>() // unused because not the last statement
         <!RETURN_VALUE_NOT_USED_COERCION!>stringF<!>()
     }
     <!RETURN_VALUE_NOT_USED!>stringLambdaReturns<!> {

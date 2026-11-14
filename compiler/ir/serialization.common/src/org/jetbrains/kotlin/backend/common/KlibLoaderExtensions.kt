@@ -5,12 +5,14 @@
 
 package org.jetbrains.kotlin.backend.common
 
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
+import org.jetbrains.kotlin.backend.common.diagnostics.SerializationErrors
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.cli.common.testEnvironment
+import org.jetbrains.kotlin.cli.report
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.DuplicatedUniqueNameStrategy
 import org.jetbrains.kotlin.config.duplicatedUniqueNameStrategy
-import org.jetbrains.kotlin.config.messageCollector
+import org.jetbrains.kotlin.io.canonicalPathString
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.loader.KlibLoader
 import org.jetbrains.kotlin.library.loader.KlibLoaderResult
@@ -20,6 +22,7 @@ import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.nio.file.Paths
 import kotlin.io.path.exists
+import kotlin.io.path.pathString
 
 /**
  * Checks for existence of duplicated [uniqueName]s among [KlibLoaderResult.librariesStdlibFirst].
@@ -38,24 +41,26 @@ fun KlibLoaderResult.eliminateLibrariesWithDuplicatedUniqueNames(configuration: 
         return this
     }
 
-    val messageCollector = configuration.messageCollector
     val duplicatedUniqueNameStrategy = configuration.duplicatedUniqueNameStrategy ?: DuplicatedUniqueNameStrategy.DENY
 
-    for ((uniqueName, libraries) in librariesWithDuplicatedUniqueNames) {
+    for ([uniqueName, libraries] in librariesWithDuplicatedUniqueNames) {
         val message =
-            "KLIB loader: The same 'unique_name=$uniqueName' found in more than one library: ${libraries.joinToString { it.libraryFile.path }}"
+            "KLIB loader: The same 'unique_name=$uniqueName' found in more than one library: ${libraries.joinToString { it.path.pathString }}"
 
-        if (duplicatedUniqueNameStrategy == DuplicatedUniqueNameStrategy.DENY) {
-            messageCollector.report(
-                CompilerMessageSeverity.ERROR,
-                message +
-                        "\nPlease file an issue to https://kotl.in/issue and meanwhile use CLI parameter -Xklib-duplicated-unique-name-strategy with one of the following values:\n" +
-                        "${DuplicatedUniqueNameStrategy.ALLOW_ALL_WITH_WARNING}: Use all KLIB dependencies, even when they have same 'unique_name' property.\n" +
-                        "${DuplicatedUniqueNameStrategy.ALLOW_FIRST_WITH_WARNING}: Use the first KLIB dependency with clashing 'unique_name' property. No order guarantees are given though.\n" +
-                        "${DuplicatedUniqueNameStrategy.DENY}: Fail a compilation with the error."
-            )
-        } else {
-            messageCollector.report(CompilerMessageSeverity.STRONG_WARNING, message)
+        when (duplicatedUniqueNameStrategy) {
+            DuplicatedUniqueNameStrategy.ALLOW_ALL -> {}
+            DuplicatedUniqueNameStrategy.ALLOW_ALL_WITH_WARNING, DuplicatedUniqueNameStrategy.ALLOW_FIRST_WITH_WARNING ->
+                configuration.report(SerializationErrors.KLIB_LOADING_WARNING, message)
+            DuplicatedUniqueNameStrategy.DENY ->
+                configuration.report(
+                    SerializationErrors.KLIB_LOADING_ERROR,
+                    message +
+                            "\nPlease file an issue to https://kotl.in/issue and meanwhile use CLI parameter -Xklib-duplicated-unique-name-strategy with one of the following values:\n" +
+                            "${DuplicatedUniqueNameStrategy.ALLOW_ALL}: Use all KLIB dependencies, even when they have same 'unique_name' property.\n" +
+                            "${DuplicatedUniqueNameStrategy.ALLOW_ALL_WITH_WARNING}: Use all KLIB dependencies, even when they have same 'unique_name' property, but emit a warning.\n" +
+                            "${DuplicatedUniqueNameStrategy.ALLOW_FIRST_WITH_WARNING}: Use the first KLIB dependency with clashing 'unique_name' property. No order guarantees are given though.\n" +
+                            "${DuplicatedUniqueNameStrategy.DENY}: Fail a compilation with the error."
+                )
         }
     }
 
@@ -74,30 +79,29 @@ fun KlibLoaderResult.eliminateLibrariesWithDuplicatedUniqueNames(configuration: 
  */
 fun KlibLoaderResult.reportLoadingProblemsIfAny(
     configuration: CompilerConfiguration,
-    allAsErrors: Boolean = false
+    allAsErrors: Boolean = configuration.testEnvironment,
 ) {
-    val messageCollector = configuration.messageCollector
     reportLoadingProblemsIfAny { defaultSeverity, message ->
-        val compilerMessageSeverity = if (allAsErrors) CompilerMessageSeverity.ERROR else when (defaultSeverity) {
-            KlibLoaderResult.ProblemSeverity.INFO -> CompilerMessageSeverity.INFO
-            KlibLoaderResult.ProblemSeverity.WARNING -> CompilerMessageSeverity.STRONG_WARNING
-            KlibLoaderResult.ProblemSeverity.ERROR -> CompilerMessageSeverity.ERROR
+        val factory = if (allAsErrors) SerializationErrors.KLIB_LOADING_ERROR else when (defaultSeverity) {
+            KlibLoaderResult.ProblemSeverity.INFO -> SerializationErrors.KLIB_LOADING_INFO
+            KlibLoaderResult.ProblemSeverity.WARNING -> SerializationErrors.KLIB_LOADING_WARNING
+            KlibLoaderResult.ProblemSeverity.ERROR -> SerializationErrors.KLIB_LOADING_ERROR
         }
 
-        messageCollector.report(compilerMessageSeverity, message)
+        configuration.report(factory, message)
     }
 }
 
 /**
- * A helper to load the list of "friend" libraries.
+ * A helper to load the list of libraries that are already present in [KlibLoaderResult] given their paths.
  *
- * Note: It is assumed that paths of all "friend" libraries have already been passed to [KlibLoader],
- * so the loaded libraries should be in [KlibLoaderResult]. All we need is to "look up" them from the result.
+ * Note: It is assumed that the paths of the libraries ([libraryPaths])  have already been passed to [KlibLoader],
+ * so the selected libraries should be in [KlibLoaderResult]. All we need is to "look up" them from the result.
  */
-fun KlibLoaderResult.loadFriendLibraries(friendLibraryPaths: List<String>): List<KotlinLibrary> {
-    if (friendLibraryPaths.isEmpty() || librariesStdlibFirst.isEmpty()) return emptyList()
+fun KlibLoaderResult.selectLibrariesByPaths(libraryPaths: List<String>): List<KotlinLibrary> {
+    if (libraryPaths.isEmpty() || librariesStdlibFirst.isEmpty()) return emptyList()
 
-    val canonicalFriendLibraryPaths: Set<String> = friendLibraryPaths.mapNotNullTo(linkedSetOf()) { rawPath ->
+    val canonicalFriendLibraryPaths: Set<String> = libraryPaths.mapNotNullTo(linkedSetOf()) { rawPath ->
         if (rawPath.isEmpty()) return@mapNotNullTo null
 
         val validPath: Path = try {
@@ -116,7 +120,7 @@ fun KlibLoaderResult.loadFriendLibraries(friendLibraryPaths: List<String>): List
 
     if (canonicalFriendLibraryPaths.isEmpty()) return emptyList()
 
-    val canonicalLibraryPathsToLibraries: Map<String, KotlinLibrary> = librariesStdlibFirst.associateBy { it.libraryFile.canonicalPath }
+    val canonicalLibraryPathsToLibraries: Map<String, KotlinLibrary> = librariesStdlibFirst.associateBy { it.path.canonicalPathString() }
 
     return canonicalFriendLibraryPaths.mapNotNull { canonicalLibraryPathsToLibraries[it] }
 }

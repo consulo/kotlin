@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.arguments.CompilerArgumentsSerializerV5
 import org.jetbrains.kotlin.cli.common.arguments.*
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.platform.*
+import org.jetbrains.kotlin.platform.isNative
 import org.jetbrains.kotlin.platform.impl.JvmIdePlatformKind
 import org.jetbrains.kotlin.platform.jvm.JdkPlatform
 import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
@@ -44,7 +45,7 @@ fun TargetPlatform.createArguments(init: (CommonCompilerArguments).() -> Unit = 
             jvmTarget = (single() as? JdkPlatform)?.targetVersion?.description ?: JvmTarget.DEFAULT.description
         }
         isJs() -> K2JSCompilerArguments().apply { init() }
-        isWasm() -> K2JSCompilerArguments().apply { init() }
+        isWasm() -> KotlinWasmCompilerArguments().apply { init() }
         isNative() -> K2NativeCompilerArguments().apply { init() }
         else -> error("Unknown platform $this")
     }
@@ -318,7 +319,7 @@ private fun KotlinFacetSettings.writeConfig(element: Element) {
     if (sourceSetNames.isNotEmpty()) {
         element.addContent(
             Element("sourceSets").apply {
-                sourceSetNames.map { addContent(Element("sourceSet").apply { addContent(it) }) }
+                sourceSetNames.forEach { addContent(Element("sourceSet").apply { addContent(it) }) }
             }
         )
     }
@@ -397,7 +398,7 @@ private fun saveElementsList(element: Element, elementsList: List<String>, rootE
                 if (singleModule != null) {
                     addContent(singleModule)
                 } else {
-                    elementsList.map { addContent(Element(elementName).apply { addContent(it) }) }
+                    elementsList.forEach { addContent(Element(elementName).apply { addContent(it) }) }
                 }
             }
         )

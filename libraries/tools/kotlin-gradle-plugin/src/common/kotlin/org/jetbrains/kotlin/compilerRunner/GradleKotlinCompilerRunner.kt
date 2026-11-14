@@ -11,13 +11,13 @@ import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.bundling.AbstractArchiveTask
-import org.gradle.api.tasks.bundling.Zip
 import org.gradle.jvm.tasks.Jar
 import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
 import org.jetbrains.kotlin.build.report.metrics.*
 import org.jetbrains.kotlin.cli.common.arguments.*
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.compilerRunner.btapi.BtaToolchain
 import org.jetbrains.kotlin.compilerRunner.btapi.BuildSessionService
 import org.jetbrains.kotlin.compilerRunner.btapi.GradleBuildToolsApiCompilerRunner
 import org.jetbrains.kotlin.daemon.client.CompileServiceSession
@@ -34,6 +34,7 @@ import org.jetbrains.kotlin.gradle.plugin.BuildFinishedListenerService
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.UsesKotlinToolingDiagnostics
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.UsesKotlinToolingDiagnosticsParameters
 import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
 import org.jetbrains.kotlin.gradle.plugin.internal.BuildIdService
 import org.jetbrains.kotlin.gradle.plugin.internal.state.TaskLoggers
@@ -41,7 +42,9 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinWithJavaTarget
 import org.jetbrains.kotlin.gradle.plugin.statistics.CompilerArgumentMetrics
 import org.jetbrains.kotlin.gradle.plugin.statistics.KotlinCompilerRefIndexMetrics
 import org.jetbrains.kotlin.gradle.tasks.*
-import org.jetbrains.kotlin.gradle.utils.*
+import org.jetbrains.kotlin.gradle.utils.IsolatedKotlinClasspathClassCastException
+import org.jetbrains.kotlin.gradle.utils.javaSourceSetsIfAvailable
+import org.jetbrains.kotlin.gradle.utils.newTmpFile
 import org.jetbrains.kotlin.incremental.IncrementalModuleEntry
 import org.jetbrains.kotlin.incremental.IncrementalModuleInfo
 import org.jetbrains.kotlin.statistics.metrics.StatisticsValuesConsumer
@@ -84,7 +87,7 @@ internal fun createGradleCompilerRunner(
             buildFinishedListenerService,
             buildIdService,
             buildSessionService,
-            fusMetricsConsumer
+            fusMetricsConsumer,
         )
     } else if (compilerExecutionSettings.generateCompilerRefIndex) {
         diagnosticsReporter.reportDiagnostic(
@@ -189,10 +192,17 @@ internal open class GradleCompilerRunner(
             )
             compilerArgs.version = false
         }
-        val argsArray = ArgumentUtils.convertArgumentsToStringList(compilerArgs).toTypedArray()
+        // adds -- to separate free args from other args to survive KGP's parsing back until reaching BTA
+        val argsArray = compilerArgs.toArgumentStrings(false, addFreeArgsDelimiter = this is GradleBuildToolsApiCompilerRunner).toTypedArray()
 
         fusMetricsConsumer.orNull?.let { metricsConsumer ->
-            CompilerArgumentMetrics.collectMetrics(compilerArgs, argsArray, metricsConsumer)
+            CompilerArgumentMetrics.collectMetrics(
+                compilerArgs,
+                // -- delimeter is needed for BTA, but not needed for arguments reparsing
+                compilerArgs.toArgumentStrings(addFreeArgsDelimiter = false).toTypedArray(),
+                loggerProvider,
+                metricsConsumer,
+            )
             KotlinCompilerRefIndexMetrics.collectMetrics(compilerExecutionSettings.generateCompilerRefIndex, metricsConsumer)
         }
 
@@ -223,21 +233,41 @@ internal open class GradleCompilerRunner(
             //no need to log warnings in MessageCollector hear it will be logged by compiler
             kotlinLanguageVersion = compilerArgs.languageVersion?.let { v -> KotlinVersion.fromVersion(v) } ?: KotlinVersion.DEFAULT,
             compilerArgumentsLogLevel = environment.compilerArgumentsLogLevel,
+            btaToolchain = toBtaToolchain(compilerClassName, compilerArgs),
         )
         TaskLoggers.put(pathProvider, loggerProvider)
         return runCompilerAsync(
             workArgs,
-            taskOutputsBackup
+            taskOutputsBackup,
+            diagnostics = environment,
         )
+    }
+
+    private fun toBtaToolchain(
+        compilerClassName: String,
+        compilerArgs: CommonCompilerArguments,
+    ): BtaToolchain? = when (compilerClassName) {
+        KotlinCompilerClass.JVM -> BtaToolchain.JVM
+        KotlinCompilerClass.JS -> {
+            if ((compilerArgs as K2JSCompilerArguments).includes == null) BtaToolchain.JS_COMPILATION
+            else BtaToolchain.JS_LINKING
+        }
+        KotlinCompilerClass.WASM -> {
+            if ((compilerArgs as KotlinWasmCompilerArguments).includes == null) BtaToolchain.WASM_COMPILATION
+            else BtaToolchain.WASM_LINKING
+        }
+        KotlinCompilerClass.METADATA -> BtaToolchain.METADATA
+        else -> null
     }
 
     protected open fun runCompilerAsync(
         workArgs: GradleKotlinCompilerWorkArguments,
         taskOutputsBackup: TaskOutputsBackup?,
+        diagnostics: UsesKotlinToolingDiagnosticsParameters,
     ): WorkQueue? {
         try {
             buildMetrics.addTimeMetric(CALL_WORKER)
-            val kotlinCompilerRunnable = GradleKotlinCompilerWork(workArgs)
+            val kotlinCompilerRunnable = GradleKotlinCompilerWork(workArgs, diagnostics)
             kotlinCompilerRunnable.run()
         } catch (e: FailedCompilationException) {
             // Restore outputs only for CompilationErrorException or OOMErrorException (see GradleKotlinCompilerWorkAction.execute)
@@ -289,6 +319,7 @@ internal open class GradleCompilerRunner(
         @Volatile
         private var cachedModulesInfo: IncrementalModuleInfo? = null
 
+        // Note: this function is not compatible with Isolated Projects KT-80262
         @Synchronized
         internal fun buildModulesInfo(gradle: Gradle): IncrementalModuleInfo {
             if (cachedGradle.get() === gradle && cachedModulesInfo != null) return cachedModulesInfo!!
@@ -297,7 +328,6 @@ internal open class GradleCompilerRunner(
             val nameToModules = HashMap<String, HashSet<IncrementalModuleEntry>>()
             val jarToClassListFile = HashMap<File, File>()
             val jarToModule = HashMap<File, IncrementalModuleEntry>()
-            val jarToAbiSnapshot = HashMap<File, File>()
 
             val multiplatformProjectTasks = mutableMapOf<Project, MutableSet<String>>()
 
@@ -328,7 +358,6 @@ internal open class GradleCompilerRunner(
                         task.taskModuleName,
                         project.layout.buildDirectory.get().asFile,
                         task.buildHistoryFile.get().asFile,
-                        task.abiSnapshotFile.get().asFile
                     )
                     dirToModule[task.destinationDirectory.get().asFile] = module
                     task.javaOutputDir.orNull?.asFile?.let { dirToModule[it] = module }
@@ -358,7 +387,6 @@ internal open class GradleCompilerRunner(
                             kotlinTask.taskModuleName,
                             project.layout.buildDirectory.get().asFile,
                             kotlinTask.buildHistoryFile.get().asFile,
-                            kotlinTask.abiSnapshotFile.get().asFile
                         )
                         val jarTask = project.tasks.findByName(target.artifactsTaskName) as? AbstractArchiveTask ?: continue
                         jarToModule[jarTask.archiveFile.get().asFile.normalize().absoluteFile] = module
@@ -366,9 +394,6 @@ internal open class GradleCompilerRunner(
                             val jar = project.tasks.getByName(target.artifactsTaskName) as Jar
                             jarToClassListFile[jar.archiveFile.get().asFile.normalize().absoluteFile] =
                                 target.defaultArtifactClassesListFile.get()
-                            //configure abiSnapshot mapping for jars
-                            jarToAbiSnapshot[jar.archiveFile.get().asFile.normalize().absoluteFile] =
-                                target.buildDir.get().file(kotlinTask.abiSnapshotRelativePath).get().asFile
                         }
 
                     }
@@ -381,7 +406,6 @@ internal open class GradleCompilerRunner(
                 nameToModules = nameToModules,
                 jarToClassListFile = jarToClassListFile,
                 jarToModule = jarToModule,
-                jarToAbiSnapshot = jarToAbiSnapshot
             ).also {
                 cachedGradle = WeakReference(gradle)
                 cachedModulesInfo = it

@@ -1,0 +1,42 @@
+// RUN_PIPELINE_TILL: CODEGEN
+// ISSUE: KT-83273
+// FIR_DUMP
+
+// FILE: TestJava.java
+import lombok.Builder;
+
+@Builder
+public class TestJava  {
+    int a;
+}
+
+// FILE: test.kt
+fun usage() {
+    val builder = TestJava.TestJavaBuilder()
+    builder.a(1).build()
+    val justBuilder: TestJava.TestJavaBuilder? = null
+    justBuilder?.a(2)?.build()
+}
+
+// FILE: testWithImport.kt
+import TestJava.TestJavaBuilder
+
+fun usageWithImport() {
+    val builder = TestJavaBuilder()
+    builder.a(1).build()
+    val justBuilder: TestJavaBuilder? = null
+    justBuilder?.a(2)?.build()
+}
+
+// FILE: testWithStarImport.kt
+import TestJava.*
+
+fun usageWithStarImport() {
+    val builder = TestJavaBuilder()
+    builder.a(1).build()
+    val justBuilder: TestJavaBuilder? = null
+    justBuilder?.a(2)?.build()
+}
+
+/* GENERATED_FIR_TAGS: functionDeclaration, integerLiteral, javaFunction, javaType, localProperty, nullableType,
+propertyDeclaration, safeCall */

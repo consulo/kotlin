@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.light.classes.symbol.annotations
 
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.light.classes.symbol.toArrayIfNotEmptyOrDefault
+import org.jetbrains.kotlin.light.classes.symbol.utils.toArrayIfNotEmptyOrDefault
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.JvmStandardClassIds
 import org.jetbrains.kotlin.name.StandardClassIds
@@ -25,10 +25,8 @@ internal class GranularAnnotationsBox(
     private fun getOrComputeCachedAnnotations(owner: PsiElement): Collection<PsiAnnotation> {
         cachedAnnotations?.let { return it }
 
-        val annotations = annotationsProvider.annotationInfos().mapNotNullTo(SmartList<PsiAnnotation>()) { applicationInfo ->
-            applicationInfo.annotation.classId?.let { _ ->
-                SymbolLightLazyAnnotation(annotationsProvider, applicationInfo, owner)
-            }
+        val annotations = annotationsProvider.annotationInfos().mapTo(SmartList<PsiAnnotation>()) { applicationInfo ->
+            SymbolLightLazyAnnotation(annotationsProvider, applicationInfo, owner)
         }
 
         val foundQualifiers = annotations.mapNotNullTo(hashSetOf()) { it.qualifiedName }
@@ -56,14 +54,18 @@ internal class GranularAnnotationsBox(
             return annotations.find { it.qualifiedName == qualifiedName }
         }
 
-        specialAnnotationsListWithSafeArgumentsResolve[qualifiedName]?.let { specialAnnotationClassId ->
-            val annotationApplication = annotationsProvider[specialAnnotationClassId].firstOrNull() ?: return null
-            return SymbolLightLazyAnnotation(annotationsProvider, annotationApplication, owner)
+        val specialAnnotationClassId = specialAnnotationsListWithSafeArgumentsResolve[qualifiedName]
+        if (specialAnnotationClassId != null) {
+            annotationsProvider[specialAnnotationClassId].firstOrNull()?.let { annotationApplication ->
+                return SymbolLightLazyAnnotation(annotationsProvider, annotationApplication, owner)
+            }
         }
 
         if (withAdditionalAnnotations && additionalAnnotationsProvider.isSpecialQualifier(qualifiedName)) {
             return additionalAnnotationsProvider.findSpecialAnnotation(this, qualifiedName, owner)
         }
+
+        if (specialAnnotationClassId != null) return null
 
         return getOrComputeCachedAnnotations(owner).find { it.qualifiedName == qualifiedName }
     }
@@ -76,11 +78,15 @@ internal class GranularAnnotationsBox(
         }
 
         val specialAnnotationClassId = specialAnnotationsList[qualifiedName]
-        return if (specialAnnotationClassId != null) {
-            specialAnnotationClassId in annotationsProvider
-        } else {
-            getOrComputeCachedAnnotations(owner).any { it.qualifiedName == qualifiedName }
+        if (specialAnnotationClassId != null && specialAnnotationClassId in annotationsProvider) return true
+
+        if (additionalAnnotationsProvider.isSpecialQualifier(qualifiedName)) {
+            return additionalAnnotationsProvider.findSpecialAnnotation(this, qualifiedName, owner) != null
         }
+
+        if (specialAnnotationClassId != null) return false
+
+        return getOrComputeCachedAnnotations(owner).any { it.qualifiedName == qualifiedName }
     }
 
     companion object {
@@ -97,6 +103,7 @@ internal class GranularAnnotationsBox(
          */
         private val specialAnnotationsListWithSafeArgumentsResolve: Map<String, ClassId> = listOf(
             JvmStandardClassIds.Annotations.JvmRecord,
+            StandardClassIds.Annotations.JvmInline,
         ).associateBy { it.asFqNameString() }
 
         /**
@@ -108,6 +115,8 @@ internal class GranularAnnotationsBox(
             StandardClassIds.Annotations.WasExperimental,
             StandardClassIds.Annotations.Target,
             StandardClassIds.Annotations.IntroducedAt,
+            StandardClassIds.Annotations.EqualityBound,
+            StandardClassIds.Annotations.NumericClass,
         ).associateBy { it.asFqNameString() } + specialAnnotationsListWithSafeArgumentsResolve
     }
 }

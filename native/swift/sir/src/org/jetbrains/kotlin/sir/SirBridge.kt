@@ -22,8 +22,8 @@ public class SirFunctionBridge(
 ) : SirBridge(name) {
     override fun equals(other: Any?): Boolean {
         return other is SirFunctionBridge && name == other.name &&
-                kotlinFunctionBridge.lines.firstOrNull() == other.kotlinFunctionBridge.lines.firstOrNull() &&
-                cDeclarationBridge.lines.firstOrNull() == other.cDeclarationBridge.lines.firstOrNull()
+                kotlinFunctionBridge == other.kotlinFunctionBridge &&
+                cDeclarationBridge == other.cDeclarationBridge
     }
 
     override fun hashCode(): Int {
@@ -43,7 +43,17 @@ public class SirFunctionBridge(
 public class CFunctionBridge(
     public val lines: List<String>,
     public val headerDependencies: List<String>,
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        return other is CFunctionBridge && lines == other.lines && headerDependencies == other.headerDependencies
+    }
+
+    override fun hashCode(): Int {
+        var result = lines.hashCode()
+        result = 31 * result + headerDependencies.hashCode()
+        return result
+    }
+}
 
 /**
  * Kotlin part of [FunctionBridgeImpl].
@@ -54,7 +64,59 @@ public class CFunctionBridge(
 public class KotlinFunctionBridge(
     public val lines: List<String>,
     public val packageDependencies: List<String>,
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        return other is KotlinFunctionBridge && lines == other.lines && packageDependencies == other.packageDependencies
+    }
+
+    override fun hashCode(): Int {
+        var result = lines.hashCode()
+        result = 31 * result + packageDependencies.hashCode()
+        return result
+    }
+}
+
+/**
+ * A reverse bridge that allows Kotlin to call into Swift overrides.
+ * This is the mirror of [SirFunctionBridge]: instead of Swift calling Kotlin,
+ * Kotlin dispatches through this bridge to reach a Swift override.
+ */
+public class SirReverseFunctionBridge(
+    name: String,
+    public val kotlinFunctionBridge: KotlinFunctionBridge,
+    public val swiftFunctionBridge: SwiftFunctionBridge,
+    public val cDeclarationBridge: CFunctionBridge,
+) : SirBridge(name) {
+    override fun equals(other: Any?): Boolean {
+        return other is SirReverseFunctionBridge && name == other.name &&
+                kotlinFunctionBridge == other.kotlinFunctionBridge &&
+                swiftFunctionBridge == other.swiftFunctionBridge &&
+                cDeclarationBridge == other.cDeclarationBridge
+    }
+
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + kotlinFunctionBridge.hashCode()
+        result = 31 * result + swiftFunctionBridge.hashCode()
+        result = 31 * result + cDeclarationBridge.hashCode()
+        return result
+    }
+}
+
+/**
+ * Swift part of [SirReverseFunctionBridge].
+ *
+ * @param lines definition of the Swift `@_cdecl` bridge function.
+ */
+public class SwiftFunctionBridge(
+    public val lines: List<String>,
+) {
+    override fun equals(other: Any?): Boolean {
+        return other is SwiftFunctionBridge && lines == other.lines
+    }
+
+    override fun hashCode(): Int = lines.hashCode()
+}
 
 /**
  * Bridge that implements mapping from Kotlin type name to Swift type name.
@@ -68,4 +130,17 @@ public class SirTypeBindingBridge(
      */
     public val kotlinFileAnnotation: String,
     public val kotlinOptIns: List<String> = emptyList(),
-) : SirBridge(name)
+) : SirBridge(name) {
+    override fun equals(other: Any?): Boolean {
+        return other is SirTypeBindingBridge && name == other.name &&
+                kotlinFileAnnotation == other.kotlinFileAnnotation &&
+                kotlinOptIns == other.kotlinOptIns
+    }
+
+    override fun hashCode(): Int {
+        var result = name.hashCode()
+        result = 31 * result + kotlinFileAnnotation.hashCode()
+        result = 31 * result + kotlinOptIns.hashCode()
+        return result
+    }
+}

@@ -2,7 +2,7 @@ A.kt:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/Anno, fqName=Anno, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=Anno, superNames=[]]
+    CLASS[classId=/Anno, fqName=Anno, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=Anno, superNames=[]]
       MODIFIER_LIST[annotation]
         ANNOTATION_ENTRY[hasValueArguments=true, shortName=Target]
           CONSTRUCTOR_CALLEE
@@ -24,9 +24,9 @@ Foo.kt:
   FILE[kind=File[packageFqName=<root>]]
     PACKAGE_DIRECTIVE
     IMPORT_LIST
-    CLASS[classId=/Foo, fqName=Foo, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=Foo, superNames=[]]
+    CLASS[classId=/Foo, fqName=Foo, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=Foo, superNames=[]]
       CLASS_BODY
-        FUN[fqName=Foo.contextParameter, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=contextParameter]
+        FUNCTION[fqName=Foo.contextParameter, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=contextParameter]
           MODIFIER_LIST[]
             CONTEXT_PARAMETER_LIST
               VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=_]
@@ -97,7 +97,8 @@ Foo.kt:
                         REFERENCE_EXPRESSION[referencedName=Int]
           PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=false, isGetter=true, mayHaveContract=false]
             VALUE_PARAMETER_LIST
-        FUN[fqName=Foo.dnnF, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=true, isExtension=true, isTopLevel=false, mayHaveContract=false, name=dnnF]
+            INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=0]
+        FUNCTION[fqName=Foo.dnnF, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=true, isExtension=true, isTopLevel=false, mayHaveContract=false, name=dnnF]
           MODIFIER_LIST[]
             CONTEXT_PARAMETER_LIST
               VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=_]
@@ -178,6 +179,7 @@ Foo.kt:
                   REFERENCE_EXPRESSION[referencedName=Any]
           PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=false, isGetter=true, mayHaveContract=false]
             VALUE_PARAMETER_LIST
+            INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=0]
         PROPERTY[fqName=Foo.contextParameter3, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=false, isExtension=false, isTopLevel=false, isVar=false, name=contextParameter3]
           MODIFIER_LIST[]
             CONTEXT_PARAMETER_LIST
@@ -220,7 +222,8 @@ Foo.kt:
                         REFERENCE_EXPRESSION[referencedName=Boolean]
           PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=false, isGetter=true, mayHaveContract=false]
             VALUE_PARAMETER_LIST
-        FUN[fqName=Foo.contextParameter4, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=contextParameter4]
+            INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=0]
+        FUNCTION[fqName=Foo.contextParameter4, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=contextParameter4]
           MODIFIER_LIST[]
             CONTEXT_PARAMETER_LIST
               VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=_]

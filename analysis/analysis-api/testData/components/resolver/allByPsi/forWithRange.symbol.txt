@@ -5,7 +5,13 @@ KtPackageDirective(0,9): 'package f'
   null
 
 KtNameReferenceExpression(8,9): 'f'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      f
+    ]
 
 KtImportList(9,9): ''
   null
@@ -20,7 +26,7 @@ KtBlockExpression(23,56): '{'
   null
 
 KtForExpression(29,54): 'for (i in 1..<5) {'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/ranges/IntProgression.iterator(<dispatch receiver>: kotlin.ranges.IntProgression): kotlin.collections.IntIterator,
       kotlin/collections/Iterator.hasNext(<dispatch receiver>: kotlin.collections.Iterator<T>): kotlin.Boolean,
@@ -34,7 +40,7 @@ KtContainerNode(39,44): '1..<5'
   null
 
 KtBinaryExpression(39,44): '1..<5'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int.rangeUntil(<dispatch receiver>: kotlin.Int, other: kotlin.Int): kotlin.ranges.IntRange
     ]
@@ -43,7 +49,10 @@ KtConstantExpression(39,40): '1'
   null
 
 KtOperationReferenceExpression(40,43): '..<'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       kotlin/Int.rangeUntil(<dispatch receiver>: kotlin.Int, other: kotlin.Int): kotlin.ranges.IntRange
     ]

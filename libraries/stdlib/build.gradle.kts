@@ -1,18 +1,27 @@
-@file:Suppress("UNUSED_VARIABLE", "NAME_SHADOWING", "DEPRECATION")
 import org.gradle.jvm.tasks.Jar
+import org.gradle.kotlin.dsl.support.serviceOf
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+import org.jetbrains.kotlin.gradle.dsl.JsModuleKind
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinCommonCompilerOptions
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.mpp.GenerateProjectStructureMetadata
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
+import org.jetbrains.kotlin.gradle.targets.js.KotlinJsPlatformTestRun
+import org.jetbrains.kotlin.gradle.targets.js.KotlinWasmTargetType
+import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsBinaryMode
+import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsSubTargetDsl
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsTargetDsl
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinTargetWithNodeJsDsl
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinWasmTargetDsl
+import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinWasmWasiTargetDsl
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrLink
 import org.jetbrains.kotlin.gradle.tasks.AbstractKotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.Kotlin2JsCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompileCommon
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import org.jetbrains.kotlin.gradle.tasks.UsesKotlinJavaToolchain
 import org.jetbrains.kotlin.library.KOTLIN_JS_STDLIB_NAME
 import org.jetbrains.kotlin.library.KOTLIN_WASM_STDLIB_NAME
@@ -23,30 +32,19 @@ import plugins.publishing.copyAttributes
 import kotlin.io.path.copyTo
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("multiplatform")
     `maven-publish`
-    signing
-    id("nodejs-cache-redirector-configuration")
+    id("signing-convention")
     id("d8-configuration")
     id("binaryen-configuration")
+    id("nodejs-configuration")
+    id("wasmtime-configuration")
 }
 
 description = "Kotlin Standard Library"
-
-configureJvmToolchain(JdkMajorVersion.JDK_1_8)
-
-fun resolvingConfiguration(name: String, configure: Action<Configuration> = Action {}) =
-    configurations.create(name) {
-        isCanBeResolved = true
-        isCanBeConsumed = false
-        configure(this)
-    }
-fun outgoingConfiguration(name: String, configure: Action<Configuration> = Action {}) =
-    configurations.create(name) {
-        isCanBeResolved = false
-        isCanBeConsumed = true
-        configure(this)
-    }
+val buildFeatures = serviceOf<BuildFeatures>()
 
 fun KotlinCommonCompilerOptions.mainCompilationOptions() {
     // Use this to override language and API versions for stdlib compared to the version used to build the whole Kotlin
@@ -54,27 +52,14 @@ fun KotlinCommonCompilerOptions.mainCompilationOptions() {
     // apiVersion = KotlinVersion.KOTLIN_...
     freeCompilerArgs.add("-Xstdlib-compilation")
     freeCompilerArgs.add("-Xdont-warn-on-error-suppression")
-    freeCompilerArgs.add("-Xcontext-parameters")
+    freeCompilerArgs.addAll(dogfoodedExperimentalFeatures)
+    freeCompilerArgs.add("-Xreturn-value-checker=full")
+    freeCompilerArgs.add("-Xcompanion-blocks")
     if (!kotlinBuildProperties.disableWerror) allWarningsAsErrors = true
 
     if (this is KotlinJvmCompilerOptions) {
-        suppressRedundantCliArgumentWarning()
+        freeCompilerArgs.add(redundantCliArgWarningSuppression)
     }
-}
-
-fun KotlinCommonCompilerOptions.addReturnValueCheckerInfo() {
-    freeCompilerArgs.add("-Xreturn-value-checker=full")
-}
-
-/**
- * Between making a language feature stable and the next bootstrap, we need to keep providing the compiler argument.
- * But this produces a warning
- * "The argument ... is redundant for the current language version ..."
- * in the bootstrap test and fails because of -Werror.
- * To work around it, we suppress the warning.
- */
-fun KotlinCommonCompilerOptions.suppressRedundantCliArgumentWarning() {
-    freeCompilerArgs.add("-Xwarning-level=REDUNDANT_CLI_ARG:disabled")
 }
 
 val jvmBuiltinsRelativeDir = "libraries/stdlib/jvm/builtins"
@@ -96,28 +81,41 @@ val commonTestOptIns = listOf(
 )
 
 kotlin {
-    val renderDiagnosticNames by extra(project.kotlinBuildProperties.renderDiagnosticNames.get())
+    val renderDiagnosticNames = project.kotlinBuildProperties.renderDiagnosticNames.get()
+    extra["renderDiagnosticNames"] = renderDiagnosticNames
     val diagnosticNamesArg = if (renderDiagnosticNames) "-Xrender-internal-diagnostic-names" else null
 
     explicitApi()
+
+    compilerOptions {
+        // Some main compilations use freeCompilerArgs.set instead of .addAll,
+        // so these options may be duplicated there as well.
+        // Here it mainly serves the purpose to set up test compilations/source sets
+        // and especially commonTest in IDE since there is no separate metadata compilation for it.
+        freeCompilerArgs.add("-Xreturn-value-checker=full")
+        freeCompilerArgs.add("-Xcompanion-blocks")
+        freeCompilerArgs.addAll(dogfoodedExperimentalFeatures)
+        freeCompilerArgs.add("-Xallow-kotlin-package")
+    }
 
     metadata {
         compilations {
             all {
                 compileTaskProvider.configure {
+                    this as KotlinCompileCommon
+                    @Suppress("DEPRECATION")
+                    moduleName = "kotlin-stdlib-common"
                     compilerOptions {
                         freeCompilerArgs.set(
                             listOfNotNull(
                                 "-Xallow-kotlin-package",
-                                "-module-name", "kotlin-stdlib-common",
                                 "-Xexpect-actual-classes",
                                 "-Xexplicit-api=strict",
                                 diagnosticNamesArg,
+                                redundantCliArgWarningSuppression,
                             )
                         )
                         mainCompilationOptions()
-                        addReturnValueCheckerInfo()
-                        suppressRedundantCliArgumentWarning()
                     }
                 }
             }
@@ -125,22 +123,25 @@ kotlin {
     }
     jvm {
         compilations {
-            val compileOnlyDeclarations by creating {
+            val compileOnlyDeclarations = create("compileOnlyDeclarations") {
                 compileTaskProvider.configure {
                     compilerOptions {
                         freeCompilerArgs.set(
                             listOfNotNull(
                                 "-Xallow-kotlin-package",
                                 "-Xsuppress-missing-builtins-error",
-                                diagnosticNamesArg
+                                diagnosticNamesArg,
+                                *dogfoodedExperimentalFeatures.toTypedArray(),
+                                "-Xreturn-value-checker=full",
+                                "-Xcompanion-blocks",
+                                redundantCliArgWarningSuppression,
                             )
                         )
-                        suppressRedundantCliArgumentWarning()
                     }
                 }
             }
 
-            val main by getting {
+            val main = getByName("main") {
                 compileTaskProvider.configure {
                     // use os.arch as an input property of the compilation task
                     // to avoid resuing compilation results from the build cache
@@ -152,11 +153,11 @@ kotlin {
                     compilerOptions {
                         moduleName = "kotlin-stdlib"
                         jvmTarget = JvmTarget.JVM_1_8
+                        jvmDefault = JvmDefaultMode.DISABLE
                         // providing exhaustive list of args here
                         freeCompilerArgs.set(
                             listOfNotNull(
                                 "-Xjdk-release=6",
-                                "-jvm-default=disable",
                                 "-Xallow-kotlin-package",
                                 "-Xexpect-actual-classes",
                                 "-Xmultifile-parts-inherit",
@@ -167,7 +168,6 @@ kotlin {
                             )
                         )
                         mainCompilationOptions()
-                        addReturnValueCheckerInfo()
                     }
                 }
                 defaultSourceSet {
@@ -176,7 +176,7 @@ kotlin {
                     }
                 }
             }
-            val mainJdk7 by creating {
+            val mainJdk7 = create("mainJdk7") {
                 associateWith(main)
                 compileTaskProvider.configure {
                     this as UsesKotlinJavaToolchain
@@ -184,10 +184,10 @@ kotlin {
                     compilerOptions {
                         moduleName = "kotlin-stdlib-jdk7"
                         jvmTarget = JvmTarget.JVM_1_8
+                        jvmDefault = JvmDefaultMode.DISABLE
                         freeCompilerArgs.set(
                             listOfNotNull(
                                 "-Xjdk-release=7",
-                                "-jvm-default=disable",
                                 "-Xallow-kotlin-package",
                                 "-Xexpect-actual-classes",
                                 "-Xmultifile-parts-inherit",
@@ -197,20 +197,19 @@ kotlin {
                             )
                         )
                         mainCompilationOptions()
-                        addReturnValueCheckerInfo()
                     }
                 }
             }
-            val mainJdk8 by creating {
+            val mainJdk8 = create("mainJdk8") {
                 associateWith(main)
                 associateWith(mainJdk7)
                 compileTaskProvider.configure {
                     compilerOptions {
                         moduleName = "kotlin-stdlib-jdk8"
+                        jvmDefault = JvmDefaultMode.DISABLE
                         freeCompilerArgs.set(
                             listOfNotNull(
                                 "-Xallow-kotlin-package",
-                                "-jvm-default=disable",
                                 "-Xmultifile-parts-inherit",
                                 "-Xno-new-java-annotation-targets",
                                 "-Xexplicit-api=strict",
@@ -218,19 +217,20 @@ kotlin {
                             )
                         )
                         mainCompilationOptions()
-                        addReturnValueCheckerInfo()
                     }
                 }
             }
             project.sourceSets.create("java9") {
                 java.srcDir("jvm/java9")
             }
-            configureJava9Compilation("kotlin.stdlib", listOf(
-                main.output.allOutputs,
-                mainJdk7.output.allOutputs,
-                mainJdk8.output.allOutputs,
-            ), main.configurations.compileDependencyConfiguration)
-            val test by getting {
+            configureJava9Compilation(
+                "kotlin.stdlib", listOf(
+                    main.output.allOutputs,
+                    mainJdk7.output.allOutputs,
+                    mainJdk8.output.allOutputs,
+                ), main.configurations.compileDependencyConfiguration
+            )
+            val test = getByName("test") {
                 associateWith(mainJdk7)
                 associateWith(mainJdk8)
                 compileTaskProvider.configure {
@@ -244,12 +244,12 @@ kotlin {
                     }
                 }
             }
-            val longRunningTest by creating {
+            create("longRunningTest") {
                 associateWith(main)
                 associateWith(mainJdk7)
                 associateWith(mainJdk8)
             }
-            val recursiveDeletionTest by creating {
+            create("recursiveDeletionTest") {
                 associateWith(main)
                 associateWith(mainJdk7)
                 associateWith(mainJdk8)
@@ -257,13 +257,77 @@ kotlin {
         }
     }
     js {
-        if (!kotlinBuildProperties.isTeamcityBuild.get()) {
-            browser {}
+        val testCompilation = compilations.getByName("test")
+        val mainCompilation = compilations.getByName("main") {
+            compileTaskProvider.configure {
+                compilerOptions.mainCompilationOptions()
+                compilerOptions.freeCompilerArgs.addAll(
+                    listOfNotNull(
+                        "-Xir-module-name=$KOTLIN_JS_STDLIB_NAME",
+                        diagnosticNamesArg,
+                    )
+                )
+            }
         }
-        nodejs {
-            testTask {
-                useMocha {
-                    timeout = "10s"
+
+        val latestJsCompilation = compilations.create("latestJsTest") {
+            associateWith(mainCompilation)
+            // Sources are configured in the `sourceSets` block below (see `jsLatestJsTest`).
+            // Don't `dependsOn(jsTest)` here: that would make `jsTest` a shared (non-leaf) source set
+            // and break its dependency resolution (e.g., kotlin.test) in the IDE.
+            binaries.executable(this)
+            binaries.configureEach {
+                linkTask.configure {
+                    compilerOptions {
+                        target.set("es2020")
+                        moduleKind.set(JsModuleKind.MODULE_COMMONJS) // Mocha adapter doesn't support ES modules yet
+                    }
+                }
+            }
+        }
+
+        fun KotlinJsSubTargetDsl.latestTargetRunRegistering(): KotlinJsPlatformTestRun {
+            return testRuns.create("latestTarget") {
+                setExecutionSourceFrom(latestJsCompilation)
+                executionTask.configure {
+                    val devBinary = latestJsCompilation.binaries
+                        .matching { it.mode == KotlinJsBinaryMode.DEVELOPMENT }
+                        .single()
+
+                    inputFileProperty.set(devBinary.mainFileSyncPath)
+                    useMocha {
+                        timeout = "10s"
+                    }
+                }
+            }
+        }
+
+        val jsAllTestTask = tasks.named("jsTest")
+
+        if(!buildFeatures.isolatedProjects.active.get()) {
+            if (!kotlinBuildProperties.isTeamcityBuild.get()) {
+                browser {
+                    val latestJsRun = latestTargetRunRegistering()
+                    jsAllTestTask {
+                        dependsOn(latestJsRun.executionTask)
+                    }
+                    testTask {
+                        useMocha {
+                            timeout = "10s"
+                        }
+                    }
+                }
+            }
+            nodejs {
+                val latestJsRun = latestTargetRunRegistering()
+                jsAllTestTask {
+                    dependsOn(latestJsRun.executionTask)
+                }
+
+                testTask {
+                    useMocha {
+                        timeout = "10s"
+                    }
                 }
             }
         }
@@ -273,46 +337,43 @@ kotlin {
                 listOf(
                     "-Xallow-kotlin-package",
                     "-Xexpect-actual-classes",
-                    "-Xklib-ir-inliner=intra-module",
                 )
             )
         }
 
-        compilations {
-            val main by getting {
-                compileTaskProvider.configure {
-                    compilerOptions.mainCompilationOptions()
-                    compilerOptions.freeCompilerArgs.addAll(
-                        listOfNotNull(
-                            "-Xir-module-name=$KOTLIN_JS_STDLIB_NAME",
-                            diagnosticNamesArg,
-                        )
-                    )
-                    compilerOptions.addReturnValueCheckerInfo()
-                }
-            }
-        }
     }
 
-    fun KotlinWasmTargetDsl.commonWasmTargetConfiguration() {
-        (this as KotlinTargetWithNodeJsDsl).nodejs()
-        (this as KotlinJsTargetDsl).compilerOptions {
+    fun <T> T.commonWasmTargetConfiguration()
+            where T : KotlinTargetWithNodeJsDsl,
+                  T : KotlinWasmTargetDsl {
+        // this is necessary because KotlinWasmTargetDsl does not extend HasConfigurableKotlinCompilerOptions<KotlinJsCompilerOptions>
+        // upgrade after bootstrap
+        // KT-85971
+        this as KotlinJsTargetDsl
+        if (this.wasmTargetType == KotlinWasmTargetType.JS) {
+            if(!buildFeatures.isolatedProjects.active.get()) {
+                nodejs()
+            }
+        } else {
+            this as KotlinWasmWasiTargetDsl
+            @OptIn(ExperimentalWasmDsl::class)
+            wasmtime()
+        }
+        compilerOptions {
+            sourceMap = false
+            sourceMapEmbedSources.unsetConvention()
             freeCompilerArgs.addAll(
                 listOfNotNull(
                     "-Xallow-kotlin-package",
                     "-Xexpect-actual-classes",
-                    "-Xklib-ir-inliner=intra-module",
-                    "-source-map=false",
-                    "-source-map-embed-sources=",
                     diagnosticNamesArg
                 )
             )
         }
         compilations {
-            val main by getting {
+            val main = getByName("main") {
                 compileTaskProvider.configure {
                     compilerOptions.mainCompilationOptions()
-                    compilerOptions.addReturnValueCheckerInfo()
                     compilerOptions.freeCompilerArgs.add("-Xir-module-name=$KOTLIN_WASM_STDLIB_NAME")
                 }
             }
@@ -328,11 +389,12 @@ kotlin {
         commonWasmTargetConfiguration()
     }
 
+    // FIXME: KT-85818 Avoid using isInIdeaSync in stdlib/build.gradle.kts in kotlin.git
     if (kotlinBuildProperties.isInIdeaSync.get()) {
         val hostOs = System.getProperty("os.name")
         val isMingwX64 = hostOs.startsWith("Windows")
         val nativeTarget = when {
-            hostOs == "Mac OS X" -> macosX64("native")
+            hostOs == "Mac OS X" -> @Suppress("DEPRECATION", "DEPRECATION_ERROR") macosX64("native")
             hostOs == "Linux" -> linuxX64("native")
             isMingwX64 -> mingwX64("native")
             else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
@@ -346,9 +408,6 @@ kotlin {
                 )
             )
         }
-        nativeTarget.compilations["main"].compileTaskProvider.configure {
-            compilerOptions.addReturnValueCheckerInfo()
-        }
     }
 
     sourceSets {
@@ -360,7 +419,7 @@ kotlin {
             kotlin.setSrcDirs(emptyList<File>())
         }
         commonMain {
-            val prepareCommonSources by tasks.registering {
+            val prepareCommonSources = tasks.register("prepareCommonSources") {
                 dependsOn(":prepare:build.version:writeStdlibVersion")
             }
             kotlin {
@@ -371,17 +430,17 @@ kotlin {
         }
         commonTest {
             dependencies {
-                api(kotlinTest())
+                implementation(kotlinTest())
             }
             kotlin {
                 srcDir("common/test")
                 srcDir("test")
             }
         }
-        val jvmCompileOnlyDeclarations by getting {
+        val jvmCompileOnlyDeclarations = getByName("jvmCompileOnlyDeclarations") {
             kotlin.srcDir("jvm/compileOnly")
         }
-        val jvmMain by getting {
+        val jvmMain = getByName("jvmMain") {
             project.configurations.getByName("jvmMainCompileOnly")
             dependencies {
                 api("org.jetbrains:annotations:13.0")
@@ -396,55 +455,55 @@ kotlin {
             kotlin.exclude("kotlin/internal/InternalAnnotations.kt")
         }
 
-        val jvmMainJdk7 by getting {
+        named("jvmMainJdk7") {
             kotlin.srcDir("jdk7/src")
         }
-        val jvmMainJdk8 by getting {
+        named("jvmMainJdk8") {
             kotlin.srcDir("jdk8/src")
         }
 
-        val jvmTest by getting {
+        named("jvmTest") {
             languageSettings {
                 optIn("kotlin.io.path.ExperimentalPathApi")
             }
             dependencies {
-                api(kotlinTest("junit"))
+                implementation(kotlinTest("junit5"))
             }
             kotlin.srcDir("jvm/test")
             kotlin.srcDir("jdk7/test")
             kotlin.srcDir("jdk8/test")
         }
 
-        val jvmLongRunningTest by getting {
+        named("jvmLongRunningTest") {
             dependencies {
-                api(kotlinTest("junit"))
+                implementation(kotlinTest("junit5"))
             }
             kotlin.srcDir("jvm/testLongRunning")
         }
 
-        val jvmRecursiveDeletionTest by getting {
+        named("jvmRecursiveDeletionTest") {
             dependencies {
-                api(kotlinTest("junit"))
+                implementation(kotlinTest("junit5"))
             }
             kotlin.srcDir("jdk7/recursiveDeletionTest")
         }
 
-        val commonNonJvmMain by creating {
+        val commonNonJvmMain = create("commonNonJvmMain") {
             dependsOn(commonMain.get())
             kotlin.srcDir("common-non-jvm/src")
         }
 
-        val webMain by creating {
+        val webMain = create("webMain") {
             dependsOn(commonMain.get())
             kotlin {
                 srcDir("common-js-wasmjs/src")
             }
         }
 
-        val jsMain by getting {
+        val jsMain = getByName("jsMain") {
             dependsOn(webMain)
             dependsOn(commonNonJvmMain)
-            val prepareJsIrMainSources by tasks.registering(Sync::class)
+            val prepareJsIrMainSources = tasks.register("prepareJsIrMainSources", Sync::class)
             kotlin {
                 srcDir(prepareJsIrMainSources.requiredForImport())
                 srcDir("$jsDir/builtins")
@@ -475,28 +534,33 @@ kotlin {
                 }
             }
         }
-        val jsTest by getting {
+        val jsTest = getByName("jsTest") {
             kotlin.srcDir("${jsDir}/test")
         }
 
-        val nativeWasmMain by creating {
+        named("jsLatestJsTest") {
+            dependsOn(commonTest.get())
+            kotlin.srcDirs(jsTest.kotlin.srcDirs)
+        }
+
+        val nativeWasmMain = create("nativeWasmMain") {
             dependsOn(commonNonJvmMain)
             kotlin.srcDir("native-wasm/src")
         }
 
-        val nativeWasmWasiMain by creating {
+        val nativeWasmWasiMain = create("nativeWasmWasiMain") {
             dependsOn(nativeWasmMain)
             kotlin.srcDir("native-wasm/wasi")
         }
 
-        val nativeWasmTest by creating {
+        val nativeWasmTest = create("nativeWasmTest") {
             dependsOn(commonTest.get())
             kotlin.srcDir("native-wasm/test")
         }
 
-        val wasmCommonMain by creating {
+        val wasmCommonMain = create("wasmCommonMain") {
             dependsOn(nativeWasmMain)
-            val prepareWasmBuiltinSources by tasks.registering(Sync::class)
+            val prepareWasmBuiltinSources = tasks.register("prepareWasmBuiltinSources", Sync::class)
             kotlin {
                 srcDir(prepareWasmBuiltinSources.requiredForImport())
                 srcDir("wasm/builtins")
@@ -529,14 +593,14 @@ kotlin {
             }
 
         }
-        val wasmCommonTest by creating {
+        val wasmCommonTest = create("wasmCommonTest") {
             dependsOn(nativeWasmTest)
             kotlin {
                 srcDir("wasm/test")
             }
         }
 
-        val wasmJsMain by getting {
+        val wasmJsMain = getByName("wasmJsMain") {
             dependsOn(webMain)
             dependsOn(wasmCommonMain)
             kotlin {
@@ -545,13 +609,13 @@ kotlin {
                 srcDir("wasm/js/src")
             }
         }
-        val wasmJsTest by getting {
+        val wasmJsTest = getByName("wasmJsTest") {
             dependsOn(wasmCommonTest)
             kotlin {
                 srcDir("wasm/js/test")
             }
         }
-        val wasmWasiMain by getting {
+        val wasmWasiMain = getByName("wasmWasiMain") {
             dependsOn(wasmCommonMain)
             dependsOn(nativeWasmWasiMain)
             kotlin {
@@ -561,9 +625,10 @@ kotlin {
             }
             languageSettings {
                 optIn("kotlin.wasm.unsafe.UnsafeWasmMemoryApi")
+                optIn("kotlin.wasm.ExperimentalWasmInterop")
             }
         }
-        val wasmWasiTest by getting {
+        val wasmWasiTest = getByName("wasmWasiTest") {
             dependsOn(wasmCommonTest)
             kotlin {
                 srcDir("wasm/wasi/test")
@@ -571,9 +636,9 @@ kotlin {
         }
 
         if (kotlinBuildProperties.isInIdeaSync.get()) {
-            val nativeKotlinTestCommon by creating {
+            val nativeKotlinTestCommon = create("nativeKotlinTestCommon") {
                 dependsOn(commonMain.get())
-                val prepareKotlinTestCommonNativeSources by tasks.registering(Sync::class) {
+                val prepareKotlinTestCommonNativeSources = tasks.register("prepareKotlinTestCommonNativeSources", Sync::class) {
                     from("../kotlin.test/common/src/main/kotlin")
                     from("../kotlin.test/annotations-common/src/main/kotlin")
                     into(layout.buildDirectory.dir("src/native-kotlin-test-common-sources"))
@@ -583,7 +648,7 @@ kotlin {
                     srcDir(prepareKotlinTestCommonNativeSources.requiredForImport())
                 }
             }
-            val nativeMain by getting {
+            val nativeMain = getByName("nativeMain") {
                 dependsOn(nativeWasmMain)
                 dependsOn(nativeWasmWasiMain)
                 dependsOn(nativeKotlinTestCommon)
@@ -596,7 +661,7 @@ kotlin {
                     optIn("kotlin.native.internal.InternalForKotlinNative")
                 }
             }
-            val nativeTest by getting {
+            val nativeTest = getByName("nativeTest") {
                 dependsOn(nativeWasmTest)
                 kotlin {
                     srcDir("$rootDir/kotlin-native/runtime/test")
@@ -612,7 +677,7 @@ kotlin {
             }
         }
 
-        all sourceSet@ {
+        all sourceSet@{
             languageSettings {
                 // TODO: progressiveMode = use build property 'test.progressive.mode'
                 if (this@sourceSet == jvmCompileOnlyDeclarations) {
@@ -628,15 +693,21 @@ kotlin {
 }
 
 dependencies {
-    val jvmMainApi by configurations.getting
-    val metadataCompilationApi by configurations.getting
-    val nativeApiElements = configurations.maybeCreate("nativeApiElements")
+    val jvmMainApi = configurations.getByName("jvmMainApi")
+    val metadataCompilationApi = configurations.getByName("metadataCompilationApi")
+
+    // native target is declared only when "ideaSync" is on,
+    // FIXME: KT-85818 Avoid using isInIdeaSync in stdlib/build.gradle.kts in kotlin.git
+    val nativeMainApi = configurations.findByName("nativeMainApi") ?: configurations.dependencyScope("nativeMainApi").get()
+    val nativeApiElements = configurations.findByName("nativeApiElements") ?: configurations.consumable("nativeApiElements").get()
+    nativeApiElements.extendsFrom(nativeMainApi)
+
     constraints {
         // there is no dependency anymore from kotlin-stdlib to kotlin-stdlib-common,
         // but use this constraint to align it if another library brings it transitively
         jvmMainApi(project(":kotlin-stdlib-common"))
         metadataCompilationApi(project(":kotlin-stdlib-common"))
-        nativeApiElements(project(":kotlin-stdlib-common"))
+        nativeMainApi(project(":kotlin-stdlib-common"))
         // to avoid split package and duplicate classes on classpath after moving them from these artifacts in 1.8.0
         jvmMainApi("org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.0")
         jvmMainApi("org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.0")
@@ -644,10 +715,10 @@ dependencies {
 }
 
 tasks {
-    val allMetadataJar by existing(Jar::class) {
+    val allMetadataJar = named<Jar>("allMetadataJar") {
         archiveClassifier = "all"
     }
-    val commonMetadataJar by registering(Jar::class) {
+    val commonMetadataJar = register("commonMetadataJar", Jar::class) {
         archiveAppendix.set("metadata")
         archiveExtension.set("klib")
     }
@@ -655,7 +726,7 @@ tasks {
         commonMetadataJar.configure { from(output.allOutputs) }
     }
 
-    val webMetadataJar by registering(Jar::class) {
+    val webMetadataJar = register("webMetadataJar", Jar::class) {
         archiveAppendix.set("metadata-web")
         archiveExtension.set("klib")
     }
@@ -663,10 +734,10 @@ tasks {
         webMetadataJar.configure { from(output.allOutputs) }
     }
 
-    val sourcesJar by existing(Jar::class) {
+    val sourcesJar = named("sourcesJar", Jar::class) {
         archiveAppendix.set("metadata")
     }
-    val jvmJar by existing(Jar::class) {
+    val jvmJar = named("jvmJar", Jar::class) {
         duplicatesStrategy = DuplicatesStrategy.FAIL
         archiveAppendix.set(null as String?)
         manifestAttributes(manifest, "Main", multiRelease = true)
@@ -676,7 +747,7 @@ tasks {
         from(project.sourceSets["java9"].output)
     }
 
-    val jvmRearrangedSourcesJar by registering(Jar::class) {
+    val jvmRearrangedSourcesJar = register("jvmRearrangedSourcesJar", Jar::class) {
         archiveClassifier.set("jvm-sources")
         archiveVersion.set("")
         destinationDirectory.set(layout.buildDirectory.dir("lib"))
@@ -706,7 +777,7 @@ tasks {
         }
     }
 
-    val jvmSourcesJar by existing(Jar::class) {
+    val jvmSourcesJar = named("jvmSourcesJar", Jar::class) {
         duplicatesStrategy = DuplicatesStrategy.FAIL
         archiveAppendix.set(null as String?)
 
@@ -722,19 +793,19 @@ tasks {
         ownPackages.set(listOf("kotlin"))
     }
 
-    val jsJar by existing(Jar::class) {
+    val jsJar = named("jsJar", Jar::class) {
         manifestAttributes(manifest, "Main")
         manifest.attributes(mapOf("Implementation-Title" to "kotlin-stdlib-js"))
     }
 
-    val jsJarForTests by registering(Copy::class) {
+    val jsJarForTests = register("jsJarForTests", Copy::class) {
         from(jsJar)
         rename { _ -> "full-runtime.klib" }
         // some tests expect stdlib-js klib in this location
-        into(rootProject.layout.buildDirectory.dir("js-ir-runtime"))
+        into(rootProject.isolated.projectDirectory.dir("build/js-ir-runtime"))
     }
 
-    val jsRearrangedSourcesJar by registering(Jar::class) {
+    val jsRearrangedSourcesJar = register("jsRearrangedSourcesJar", Jar::class) {
         archiveClassifier.set("js-sources")
         archiveVersion.set("")
         destinationDirectory.set(layout.buildDirectory.dir("lib"))
@@ -772,7 +843,7 @@ tasks {
         }
     }
 
-    val jsSourcesJar by existing(Jar::class) {
+    val jsSourcesJar = named("jsSourcesJar", Jar::class) {
         val jsSourcesJarFile = jsRearrangedSourcesJar.get().archiveFile
         inputs.file(jsSourcesJarFile)
         doLast {
@@ -780,11 +851,11 @@ tasks {
         }
     }
 
-    val wasmJsJar by existing(Jar::class) {
+    val wasmJsJar = named("wasmJsJar", Jar::class) {
         manifestAttributes(manifest, "Main")
         manifest.attributes(mapOf("Implementation-Title" to "kotlin-stdlib-wasm-js"))
     }
-    val wasmWasiJar by existing(Jar::class) {
+    val wasmWasiJar = named("wasmWasiJar", Jar::class) {
         manifestAttributes(manifest, "Main")
         manifest.attributes(mapOf("Implementation-Title" to "kotlin-stdlib-wasm-wasi"))
     }
@@ -794,18 +865,22 @@ tasks {
         val distJsSourcesJar = configurations.create("distJsSourcesJar")
         val distJsKlib = configurations.create("distJsKlib")
         val distWasmJsKlib = configurations.create("distWasmJsKlib")
-        val commonMainMetadataElements by configurations.creating
-        val webMainMetadataElements by configurations.creating
+        val distWasmWasiKlib = configurations.create("distWasmWasiKlib")
+        val commonMainMetadataElements = configurations.create("commonMainMetadataElements")
+        val webMainMetadataElements = configurations.create("webMainMetadataElements")
+        val jsIrMainSources = configurations.create("jsIrMainSources")
 
         add(distJsSourcesJar.name, jsSourcesJar)
         add(distJsKlib.name, jsJar)
         add(distWasmJsKlib.name, wasmJsJar)
+        add(distWasmWasiKlib.name, wasmWasiJar)
         add(webMainMetadataElements.name, webMetadataJar)
         add(commonMainMetadataElements.name, commonMetadataJar)
+        add(jsIrMainSources.name, project.tasks.named("prepareJsIrMainSources"))
     }
 
 
-    val jvmTest by existing(Test::class)
+    val jvmTest = named("jvmTest", Test::class)
 
     listOf(JdkMajorVersion.JDK_11_0, JdkMajorVersion.JDK_17_0, JdkMajorVersion.JDK_25_0).forEach { jvmVersion ->
         val jvmVersionTest = register("jvm${jvmVersion.majorVersion}Test", Test::class) {
@@ -820,7 +895,7 @@ tasks {
         check.configure { dependsOn(jvmVersionTest) }
     }
 
-    val jvmLongRunningTest by registering(Test::class) {
+    val jvmLongRunningTest = register("jvmLongRunningTest", Test::class) {
         group = "verification"
         val compilation = kotlin.jvm().compilations["longRunningTest"]
         classpath = compilation.compileDependencyFiles + compilation.runtimeDependencyFiles + compilation.output.allOutputs
@@ -839,23 +914,21 @@ tasks {
             exclude("generated/minmax/*")
             exclude("collections/MapTest.kt")
         }
-        named("compileTestDevelopmentExecutableKotlinWasm$wasmTarget", KotlinJsIrLink::class) {
-            compilerOptions.freeCompilerArgs.add("-Xwasm-enable-array-range-checks")
-        }
-        named("compileTestProductionExecutableKotlinWasm$wasmTarget", KotlinJsIrLink::class) {
-            enabled = false  // Causes out-of-memory in CI: KTI-2150
-        }
-    }
-    val wasmWasiNodeTest by existing {
-        if (!kotlinBuildProperties.booleanProperty("kotlin.stdlib.wasi.tests").get()) {
-            enabled = false
+        if (!buildFeatures.isolatedProjects.active.get()) {
+            named("compileTestDevelopmentExecutableKotlinWasm$wasmTarget", KotlinJsIrLink::class) {
+                compilerOptions.freeCompilerArgs.add("-Xwasm-enable-array-range-checks")
+                compilerOptions.freeCompilerArgs.add("-Xwasm-enable-asserts")
+            }
+            named("compileTestProductionExecutableKotlinWasm$wasmTarget", KotlinJsIrLink::class) {
+                enabled = false  // Causes out-of-memory in CI: KTI-2150
+            }
         }
     }
 
     /*
     We are using a custom 'kotlin-project-structure-metadata' to ensure 'nativeApiElements' lists 'commonMain' as source set
     */
-    val generateProjectStructureMetadata by existing(GenerateProjectStructureMetadata::class) {
+    named("generateProjectStructureMetadata", GenerateProjectStructureMetadata::class) {
         val outputTestFile = file("kotlin-project-structure-metadata.beforePatch.json")
         val patchedFile = file("kotlin-project-structure-metadata.json")
 
@@ -891,14 +964,14 @@ tasks {
         it.toPath().resolve("recursiveDeletionTestsWorkDir")
     }
 
-    val jvmRecursiveDeletionTestCleanup by registering(Delete::class) {
+    val jvmRecursiveDeletionTestCleanup = register("jvmRecursiveDeletionTestCleanup", Delete::class) {
         setDelete(jvmRecursiveDeletionTestTmpDir)
     }
 
     // A dedicated task for tests on files and directories deletion from the current working directory.
     // To prevent (to some extent) accidental removal of surrounding files and directories when tested functions
     // are malfunctioning, this task gets its own working directory where removal will take place.
-    val jvmRecursiveDeletionTest by registering(Test::class) {
+    val jvmRecursiveDeletionTest = register("jvmRecursiveDeletionTest", Test::class) {
         group = "verification"
         val compilation = kotlin.jvm().compilations["recursiveDeletionTest"]
 
@@ -915,13 +988,17 @@ tasks {
     check.configure { dependsOn(jvmRecursiveDeletionTest) }
 }
 
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+}
+
 
 // region ==== Publishing ====
 
 configureDefaultPublishing()
 
 
-val emptyJavadocJar by tasks.creating(org.gradle.api.tasks.bundling.Jar::class) {
+val emptyJavadocJar = tasks.register("emptyJavadocJar", org.gradle.api.tasks.bundling.Jar::class) {
     archiveClassifier.set("javadoc")
 }
 
@@ -977,7 +1054,11 @@ publishing {
         val wasmJs = module("wasmJsModule") {
             mavenPublication {
                 artifactId = "$artifactBaseName-wasm-js"
-                configureKotlinPomAttributes(project, "Kotlin Standard Library for experimental WebAssembly JS platform", packaging = "klib")
+                configureKotlinPomAttributes(
+                    project,
+                    "Kotlin Standard Library for experimental WebAssembly JS platform",
+                    packaging = "klib"
+                )
             }
             variant("wasmJsApiElements")
             variant("wasmJsRuntimeElements")
@@ -986,7 +1067,11 @@ publishing {
         val wasmWasi = module("wasmWasiModule") {
             mavenPublication {
                 artifactId = "$artifactBaseName-wasm-wasi"
-                configureKotlinPomAttributes(project, "Kotlin Standard Library for experimental WebAssembly WASI platform", packaging = "klib")
+                configureKotlinPomAttributes(
+                    project,
+                    "Kotlin Standard Library for experimental WebAssembly WASI platform",
+                    packaging = "klib"
+                )
             }
             variant("wasmWasiApiElements")
             variant("wasmWasiRuntimeElements")
@@ -998,13 +1083,13 @@ publishing {
     }
 
     publications {
-        val rootModule by existing(MavenPublication::class)
-        val jsModule by existing(MavenPublication::class)
+        val rootModule = named("rootModule", MavenPublication::class)
+        val jsModule = named("jsModule", MavenPublication::class)
         configureSbom("Main", "kotlin-stdlib", setOf("jvmRuntimeClasspath"), rootModule)
         configureSbom("Js", "kotlin-stdlib-js", setOf("jsRuntimeClasspath"), jsModule)
 
-        val wasmJsModule by existing(MavenPublication::class)
-        val wasmWasiModule by existing(MavenPublication::class)
+        val wasmJsModule = named("wasmJsModule", MavenPublication::class)
+        val wasmWasiModule = named("wasmWasiModule", MavenPublication::class)
         configureSbom("Wasm-Js", "kotlin-stdlib-wasm-js", setOf("wasmJsRuntimeClasspath"), wasmJsModule)
         configureSbom("Wasm-Wasi", "kotlin-stdlib-wasm-wasi", setOf("wasmWasiRuntimeClasspath"), wasmWasiModule)
     }
@@ -1025,4 +1110,40 @@ for (name in listOf("sources", "distSources")) {
 // Disabling IC for JS tasks as they may produce false-positive compilation failure
 tasks.withType<Kotlin2JsCompile>().configureEach {
     incremental = false
+}
+
+tasks.withType<KotlinCompilationTask<*>>().configureEach {
+    val problems = serviceOf<Problems>()
+    val expectedRvcMode = "full"
+    doFirst("ensure return-value-checker is enabled") {
+        val reporter = problems.reporter
+
+        val rvcModes = compilerOptions.freeCompilerArgs.orNull.orEmpty().filter { "return-value-checker" in it }
+        val rvcMode = rvcModes.singleOrNull()
+
+        if (rvcMode == null) {
+            reporter.report(
+                ProblemId.create(
+                    "missing-rvc-mode",
+                    "return-value-checker not set",
+                    ProblemGroup.create("return-value-checker", "return-value-checker")
+                )
+            ) {
+                details("$path has invalid return-value-checker mode. All values: $rvcModes")
+                solution("""Enable return-value-checker""")
+            }
+        } else if (!rvcMode.endsWith("=$expectedRvcMode", ignoreCase = true)) {
+            logger.warn("$path has incorrect return-value-checker mode. Expected: $expectedRvcMode, but actual arg is: $rvcMode")
+            reporter.report(
+                ProblemId.create(
+                    "incorrect-rvc-mode",
+                    "incorrect return-value-checker mode",
+                    ProblemGroup.create("return-value-checker", "return-value-checker")
+                )
+            ) {
+                details("$path has incorrect return-value-checker mode. Expected: $expectedRvcMode, but actual arg is: $rvcMode")
+                solution("""Enable return-value-checker=$expectedRvcMode""")
+            }
+        }
+    }
 }

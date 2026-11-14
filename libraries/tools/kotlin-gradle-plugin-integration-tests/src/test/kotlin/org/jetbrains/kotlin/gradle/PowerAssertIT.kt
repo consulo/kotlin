@@ -7,11 +7,17 @@ package org.jetbrains.kotlin.gradle
 
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerPlugins
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 
 @DisplayName("Power-Assert tests")
+@MustRunOnChangesInGradle
+@MustRunOnChangesInCompilerPlugins
 class PowerAssertIT : KGPBaseTest() {
 
+    @TestMetadata("powerAssertSimple")
     @OtherGradlePluginTests
     @DisplayName("power-assert works")
     @GradleTest
@@ -26,11 +32,42 @@ class PowerAssertIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("powerAssertSourceSets")
     @OtherGradlePluginTests
     @DisplayName("power-assert only applied to configured source sets")
     @GradleTest
     fun testPowerAssertSourceSets(gradleVersion: GradleVersion) {
         project("powerAssertSourceSets", gradleVersion) {
+            build("check")
+        }
+    }
+
+    @TestMetadata("powerAssertCompilationFilter-all")
+    @OtherGradlePluginTests
+    @DisplayName("power-assert applied to all compilations")
+    @GradleTest
+    fun testPowerAssertCompilationFilter_ALL(gradleVersion: GradleVersion) {
+        project("powerAssertCompilationFilter-all", gradleVersion) {
+            build("check")
+        }
+    }
+
+    @TestMetadata("powerAssertCompilationFilter-test")
+    @OtherGradlePluginTests
+    @DisplayName("power-assert applied to test compilations")
+    @GradleTest
+    fun testPowerAssertCompilationFilter_TEST(gradleVersion: GradleVersion) {
+        project("powerAssertCompilationFilter-test", gradleVersion) {
+            build("check")
+        }
+    }
+
+    @TestMetadata("powerAssertCompilationFilter-none")
+    @OtherGradlePluginTests
+    @DisplayName("power-assert applied to no compilations")
+    @GradleTest
+    fun testPowerAssertCompilationFilter_NONE(gradleVersion: GradleVersion) {
+        project("powerAssertCompilationFilter-none", gradleVersion) {
             build("check")
         }
     }

@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.testing.prettyPrinted
 import org.jetbrains.kotlin.gradle.util.MavenModule
 import org.jetbrains.kotlin.gradle.util.parsePom
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.DisplayName
 import java.io.Serializable
 import java.nio.file.Path
@@ -36,6 +37,7 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalSerializationApi::class, ExperimentalWasmDsl::class)
 @MppGradlePluginTests
 @DisplayName("Smoke test uklib artifact publication")
+@MustRunOnChangesInGradle
 class UklibPublicationIT : KGPBaseTest() {
 
     @GradleTest
@@ -44,11 +46,12 @@ class UklibPublicationIT : KGPBaseTest() {
     ) {
         val publisher = publishUklib(
             gradleVersion = gradleVersion,
+            buildOptions = defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
         ) {
             linuxArm64()
             linuxX64()
             iosArm64()
-            @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+            // fixme: KT-89587 Clean up tests after iosX64 target deprecation
             iosX64()
             jvm()
             js()
@@ -116,7 +119,7 @@ class UklibPublicationIT : KGPBaseTest() {
                 project.setUklibPublicationStrategy()
                 project.applyMultiplatform {
                     iosArm64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                    // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                     iosX64()
                     sourceSets.commonMain.get().compileSource("class Common")
                 }
@@ -151,7 +154,7 @@ class UklibPublicationIT : KGPBaseTest() {
                 project.setUklibPublicationStrategy()
                 project.applyMultiplatform {
                     iosArm64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                    // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                     iosX64()
 
                     if (project.hasProperty(compileAppleMain)) {
@@ -281,7 +284,7 @@ class UklibPublicationIT : KGPBaseTest() {
                 project.setupMavenPublication("Stub", PublisherConfiguration())
                 project.applyMultiplatform {
                     iosArm64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                    // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                     iosX64()
 
                     sourceSets.all {
@@ -450,7 +453,8 @@ class UklibPublicationIT : KGPBaseTest() {
     ) {
         val producerImplementation = publishUklib(
             gradleVersion = gradleVersion,
-            publisherConfig = PublisherConfiguration(group = "implementation")
+            publisherConfig = PublisherConfiguration(group = "implementation"),
+            buildOptions = defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
         ) {
             jvm()
             js()
@@ -459,7 +463,8 @@ class UklibPublicationIT : KGPBaseTest() {
 
         val producerApi = publishUklib(
             gradleVersion = gradleVersion,
-            publisherConfig = PublisherConfiguration(group = "api")
+            publisherConfig = PublisherConfiguration(group = "api"),
+            buildOptions = defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
         ) {
             jvm()
             js()
@@ -469,6 +474,7 @@ class UklibPublicationIT : KGPBaseTest() {
         val project = publishUklib(
             gradleVersion = gradleVersion,
             dependencyRepositories = listOf(producerImplementation, producerApi),
+            buildOptions = defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
         ) {
             // FIXME: Allow consuming Uklibs
             jvm()
@@ -513,7 +519,7 @@ class UklibPublicationIT : KGPBaseTest() {
             publisherConfig = PublisherConfiguration(group = "dependency")
         ) {
             iosArm64()
-            @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+            // fixme: KT-89587 Clean up tests after iosX64 target deprecation
             iosX64()
             sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
         }.publishedProject
@@ -524,7 +530,7 @@ class UklibPublicationIT : KGPBaseTest() {
         ) {
             // FIXME: Enable uklib consumption?
             iosArm64()
-            @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+            // fixme: KT-89587 Clean up tests after iosX64 target deprecation
             iosX64()
             sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
             sourceSets.commonMain.dependencies {
@@ -558,7 +564,8 @@ class UklibPublicationIT : KGPBaseTest() {
     ) {
         val producer = publishUklib(
             gradleVersion = gradleVersion,
-            publisherConfig = PublisherConfiguration(group = "dependency")
+            publisherConfig = PublisherConfiguration(group = "dependency"),
+            buildOptions = defaultBuildOptions.disableIsolatedProjectsBecauseOfJsAndWasmKT75899(),
         ) {
             jvm()
             js()
@@ -650,7 +657,7 @@ class UklibPublicationIT : KGPBaseTest() {
                 project.applyMultiplatform {
                     jvm()
                     iosArm64()
-                    @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+                    // fixme: KT-89587 Clean up tests after iosX64 target deprecation
                     iosX64()
                 }
             }
@@ -681,6 +688,7 @@ class UklibPublicationIT : KGPBaseTest() {
         template: String = "empty",
         gradleVersion: GradleVersion,
         androidVersion: String? = null,
+        buildOptions: BuildOptions = defaultBuildOptions,
         dependencyRepositories: List<PublishedProject> = emptyList(),
         publisherConfig: PublisherConfiguration = PublisherConfiguration(),
         configuration: KotlinMultiplatformExtension.() -> Unit,
@@ -688,6 +696,7 @@ class UklibPublicationIT : KGPBaseTest() {
         val publisher = project(
             template,
             gradleVersion,
+            buildOptions = buildOptions,
         ) {
             if (androidVersion != null) addAgpToBuildScriptCompilationClasspath(androidVersion)
             addKgpToBuildScriptCompilationClasspath()
@@ -702,7 +711,7 @@ class UklibPublicationIT : KGPBaseTest() {
         }.publish(
             publisherConfiguration = publisherConfig,
             deriveBuildOptions = {
-                defaultBuildOptions.copy(
+                buildOptions.copy(
                     androidVersion = androidVersion,
                     // WarningMode.None because of AGP issue: https://issuetracker.google.com/399393875
                     warningMode = if (androidVersion != null) WarningMode.None else defaultBuildOptions.warningMode,

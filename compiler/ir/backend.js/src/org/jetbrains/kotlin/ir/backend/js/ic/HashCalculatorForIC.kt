@@ -6,12 +6,8 @@
 package org.jetbrains.kotlin.ir.backend.js.ic
 
 import org.jetbrains.kotlin.backend.common.linkage.partial.PARTIAL_LINKAGE_CONFIGURATION
-import org.jetbrains.kotlin.config.PartialLinkageConfig
 import org.jetbrains.kotlin.backend.common.serialization.Hash128Bits
-import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.CompilerConfigurationKey
-import org.jetbrains.kotlin.config.KotlinCompilerVersion
-import org.jetbrains.kotlin.config.languageVersionSettings
+import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.CrossModuleReferences
@@ -19,8 +15,8 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.util.DumpIrTreeVisitor
 import org.jetbrains.kotlin.ir.util.isInterface
-import org.jetbrains.kotlin.js.config.JSConfigurationKeys
 import org.jetbrains.kotlin.js.config.ModuleKind
+import org.jetbrains.kotlin.js.config.WebArtifactConfiguration
 import org.jetbrains.kotlin.library.impl.buffer
 import org.jetbrains.kotlin.protobuf.CodedInputStream
 import org.jetbrains.kotlin.protobuf.CodedOutputStream
@@ -147,6 +143,16 @@ private class HashCalculatorForIC(private val checkForClassStructuralChanges: Bo
         }
     }
 
+    fun updateConfigKeys(config: CompilerConfiguration, excludedKeys: Set<CompilerConfigurationKey<*>>) {
+        val stringifiedConfig = config.toString(excludedKeys) { value ->
+            when (value) {
+                is Int, is Boolean, is String, is Enum<*> -> value.toString()
+                else -> null
+            }
+        }
+        update(stringifiedConfig)
+    }
+
     fun finalizeAndGetHash(): ICHash {
         val hashBytes = md5Digest.digest()
         md5Digest.reset()
@@ -159,47 +165,17 @@ private class HashCalculatorForIC(private val checkForClassStructuralChanges: Bo
 internal class ICHasher(checkForClassStructuralChanges: Boolean = false) {
     private val hashCalculator = HashCalculatorForIC(checkForClassStructuralChanges)
 
-    fun calculateConfigHash(config: CompilerConfiguration): ICHash {
+    fun calculateConfigHash(
+        config: CompilerConfiguration,
+        artifactConfiguration: WebArtifactConfiguration,
+        icCacheStableKeys: Set<CompilerConfigurationKey<*>>,
+    ): ICHash {
         hashCalculator.update(KotlinCompilerVersion.VERSION)
 
-        val booleanKeys = listOf(
-            JSConfigurationKeys.SOURCE_MAP,
-            JSConfigurationKeys.DEVELOPER_MODE,
-            JSConfigurationKeys.USE_ES6_CLASSES,
-            JSConfigurationKeys.GENERATE_POLYFILLS,
-            JSConfigurationKeys.GENERATE_DTS,
-            JSConfigurationKeys.PROPERTY_LAZY_INITIALIZATION,
-            JSConfigurationKeys.GENERATE_INLINE_ANONYMOUS_FUNCTIONS,
-            JSConfigurationKeys.GENERATE_STRICT_IMPLICIT_EXPORT,
-            JSConfigurationKeys.COMPILE_SUSPEND_AS_JS_GENERATOR,
-            JSConfigurationKeys.OPTIMIZE_GENERATED_JS,
-        )
-        hashCalculator.updateConfigKeys(config, booleanKeys) { value: Boolean ->
-            hashCalculator.update(if (value) 1 else 0)
-        }
+        hashCalculator.updateConfigKeys(config, icCacheStableKeys)
 
-        val enumKeys = listOf(
-            JSConfigurationKeys.SOURCE_MAP_EMBED_SOURCES,
-            JSConfigurationKeys.SOURCEMAP_NAMES_POLICY,
-        )
-        hashCalculator.updateConfigKeys(config, enumKeys) { value: Enum<*> ->
-            hashCalculator.update(value.ordinal)
-        }
-
-        hashCalculator.updateConfigKeys(config, listOf(JSConfigurationKeys.ARTIFACT_CONFIGURATION)) { value ->
-            hashCalculator.update(value.moduleKind.ordinal)
-            hashCalculator.update(value.granularity.ordinal)
-        }
-
-        hashCalculator.updateConfigKeys(
-            config,
-            listOf(
-                JSConfigurationKeys.SOURCE_MAP_PREFIX,
-                JSConfigurationKeys.DEFINE_PLATFORM_MAIN_FUNCTION_ARGUMENTS
-            )
-        ) { value: String ->
-            hashCalculator.update(value)
-        }
+        hashCalculator.update(artifactConfiguration.moduleKind.ordinal)
+        hashCalculator.update(artifactConfiguration.granularity.ordinal)
 
         hashCalculator.updateConfigKeys(config, listOf(PARTIAL_LINKAGE_CONFIGURATION)) { value: PartialLinkageConfig ->
             hashCalculator.update(value.logLevel.ordinal)

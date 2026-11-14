@@ -5,12 +5,14 @@
 
 package org.jetbrains.kotlin.cli.pipeline.web.js
 
+import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageDiagnostics
 import org.jetbrains.kotlin.cli.CliDiagnostics.WEB_ARGUMENT_ERROR
 import org.jetbrains.kotlin.cli.CliDiagnostics.WEB_ARGUMENT_WARNING
 import org.jetbrains.kotlin.cli.common.arguments.K2JSCompilerArguments
 import org.jetbrains.kotlin.cli.common.createPhaseConfig
 import org.jetbrains.kotlin.cli.common.incrementalCompilationIsEnabledForJs
 import org.jetbrains.kotlin.cli.common.list
+import org.jetbrains.kotlin.cli.diagnosticFactoriesStorage
 import org.jetbrains.kotlin.cli.js.initializeFinalArtifactConfiguration
 import org.jetbrains.kotlin.cli.js.moduleKindMap
 import org.jetbrains.kotlin.cli.js.targetVersion
@@ -21,7 +23,9 @@ import org.jetbrains.kotlin.cli.report
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.phaseConfig
 import org.jetbrains.kotlin.config.targetPlatform
+import org.jetbrains.kotlin.ir.backend.js.checkers.JsKlibErrors
 import org.jetbrains.kotlin.ir.backend.js.jsLowerings
+import org.jetbrains.kotlin.ir.inline.diagnostics.IrInlinerErrors
 import org.jetbrains.kotlin.js.config.*
 import org.jetbrains.kotlin.platform.js.JsPlatforms
 
@@ -31,6 +35,13 @@ object JsConfigurationUpdater : ConfigurationUpdater<K2JSCompilerArguments>() {
         configuration: CompilerConfiguration,
     ) {
         if (configuration.wasmCompilation) return
+
+        configuration.diagnosticFactoriesStorage?.registerDiagnosticContainers(
+            PartialLinkageDiagnostics,
+            IrInlinerErrors,
+            JsKlibErrors,
+        )
+
         val arguments = input.arguments
         fillConfiguration(configuration, arguments)
         checkWasmArgumentsUsage(arguments, configuration)
@@ -45,14 +56,15 @@ object JsConfigurationUpdater : ConfigurationUpdater<K2JSCompilerArguments>() {
 
     private fun fillConfiguration(configuration: CompilerConfiguration, arguments: K2JSCompilerArguments) {
         val targetVersion = initializeAndCheckTargetVersion(arguments, configuration)
+
+        val isES2020 = targetVersion == EcmaVersion.es2020
+        val isES2015PlusTarget = targetVersion != null && targetVersion >= EcmaVersion.es2015
+
         configuration.optimizeGeneratedJs = arguments.optimizeGeneratedJs
-        val isES2015 = targetVersion == EcmaVersion.es2015
         configuration.moduleKind = configuration.moduleKind
             ?: moduleKindMap[arguments.moduleKind]
-                    ?: ModuleKind.ES.takeIf { isES2015 }
+                    ?: ModuleKind.ES.takeIf { isES2015PlusTarget }
                     ?: ModuleKind.UMD
-
-        initializeFinalArtifactConfiguration(configuration, arguments)
 
         configuration.keep = arguments.irKeep?.split(",")?.filterNot { it.isEmpty() }.orEmpty()
         configuration.safeExternalBoolean = arguments.irSafeExternalBoolean
@@ -60,10 +72,14 @@ object JsConfigurationUpdater : ConfigurationUpdater<K2JSCompilerArguments>() {
         configuration.propertyLazyInitialization = arguments.irPropertyLazyInitialization
         configuration.generatePolyfills = arguments.generatePolyfills
         configuration.generateInlineAnonymousFunctions = arguments.irGenerateInlineAnonymousFunctions
-        configuration.useEs6Classes = arguments.useEsClasses ?: isES2015
-        configuration.compileSuspendAsJsGenerator = arguments.useEsGenerators ?: isES2015
-        configuration.compileLambdasAsEs6ArrowFunctions = arguments.useEsArrowFunctions ?: isES2015
-        configuration.compileLongAsBigint = arguments.compileLongAsBigInt ?: false
+        configuration.useEs6Classes = arguments.useEsClasses ?: isES2015PlusTarget
+        configuration.useEs6ConstLet = arguments.useEs6ConstLet
+        configuration.compileSuspendAsJsGenerator = arguments.useEsGenerators ?: isES2015PlusTarget
+        configuration.compileLambdasAsEs6ArrowFunctions = arguments.useEsArrowFunctions ?: isES2015PlusTarget
+        configuration.compileLongAsBigint = arguments.compileLongAsBigInt ?: isES2020
+        configuration.exportUntypedAsUnknown = arguments.useUnknownInsteadAny
+
+        configuration.dceUnusedProperties = arguments.enableAdvancedOptimizations
 
         configuration.targetPlatform = JsPlatforms.defaultJsPlatform
 
@@ -74,6 +90,8 @@ object JsConfigurationUpdater : ConfigurationUpdater<K2JSCompilerArguments>() {
         arguments.platformArgumentsProviderJsExpression?.let {
             configuration.definePlatformMainFunctionArguments = it
         }
+
+        initializeFinalArtifactConfiguration(configuration, arguments)
 
         if (arguments.script) {
             configuration.report(WEB_ARGUMENT_ERROR, "K/JS does not support Kotlin script (*.kts) files")

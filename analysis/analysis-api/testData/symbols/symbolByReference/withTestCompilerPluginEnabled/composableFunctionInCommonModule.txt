@@ -1,16 +1,17 @@
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: [
     org/jetbrains/kotlin/plugin/sandbox/MyInlineable()
       psi: KtAnnotationEntry
   ]
   callableId: test/Foo
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -25,6 +26,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: Foo
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -33,15 +36,17 @@ KaNamedFunctionSymbol:
   typeParameters: []
   valueParameters: [
     KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: []
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -53,6 +58,9 @@ KaNamedFunctionSymbol:
       modality: FINAL
       name: text
       origin: SOURCE
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaFunctionType:
         annotations: [
@@ -66,11 +74,12 @@ KaNamedFunctionSymbol:
             type: kotlin/Unit
         ]
         type: @R|org/jetbrains/kotlin/plugin/sandbox/MyInlineable|()  some/MyInlineableFunction0<kotlin/Unit>
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: KaFileSymbol(Common.kt)
       getContainingJvmClassName: test.CommonKt
       getContainingModule: KaSourceModule "Sources of common"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
   ]
   visibility: PUBLIC
@@ -78,6 +87,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: test.CommonKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of common"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: Foo
   importableFqName: test.Foo

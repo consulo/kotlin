@@ -8,10 +8,10 @@ package org.jetbrains.kotlin.cli.pipeline.web
 import org.jetbrains.kotlin.backend.common.IrModuleInfo
 import org.jetbrains.kotlin.cli.js.platformChecker
 import org.jetbrains.kotlin.cli.pipeline.ConfigurationPipelineArtifact
+import org.jetbrains.kotlin.cli.pipeline.PerformanceNotifications
 import org.jetbrains.kotlin.cli.pipeline.PipelinePhase
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.perfManager
-import org.jetbrains.kotlin.ir.backend.js.MainModule.Klib
 import org.jetbrains.kotlin.ir.backend.js.ModulesStructure
 import org.jetbrains.kotlin.ir.backend.js.loadIr
 import org.jetbrains.kotlin.ir.backend.js.loadWebKlibs
@@ -24,14 +24,18 @@ import java.io.File
 
 abstract class WebIrLoadingPipelinePhase(
     name: String
-) : PipelinePhase<ConfigurationPipelineArtifact, WebLoadedIrPipelineArtifact>(name) {
+) : PipelinePhase<ConfigurationPipelineArtifact, WebLoadedIrPipelineArtifact>(
+    name,
+    preActions = setOf(PerformanceNotifications.InitializationFinished, PerformanceNotifications.TranslationToIrStarted),
+    postActions = setOf(PerformanceNotifications.TranslationToIrFinished),
+) {
     protected abstract fun createIrFactory(): IrFactory
 
     protected open fun loadIr(
         configuration: CompilerConfiguration,
         irFactory: IrFactory,
         modulesStructure: ModulesStructure,
-    ): IrModuleInfo = loadIr(modulesStructure, irFactory, loadFunctionInterfacesIntoStdlib = true)
+    ): IrModuleInfo = loadIr(modulesStructure, irFactory)
 
     override fun executePhase(input: ConfigurationPipelineArtifact): WebLoadedIrPipelineArtifact {
         val configuration = input.configuration
@@ -39,16 +43,14 @@ abstract class WebIrLoadingPipelinePhase(
         val includesPath = File(includes).canonicalPath
         val mainLibPath = configuration.libraries.find { File(it).canonicalPath == includesPath }
             ?: error("No library with name $includes ($includesPath) found")
-        val kLib = Klib(mainLibPath)
         val klibs = loadWebKlibs(configuration, configuration.platformChecker)
         val module = ModulesStructure(
-            mainModule = kLib,
+            mainModulePath = mainLibPath,
             compilerConfiguration = configuration,
             klibs = klibs,
         )
-        configuration.perfManager?.notifyPhaseFinished(PhaseType.Initialization)
         val irFactory = createIrFactory()
-        val loadedIr = configuration.perfManager.tryMeasurePhaseTime(PhaseType.TranslationToIr) {
+        val loadedIr = configuration.perfManager.tryMeasurePhaseTime(PhaseType.IrLinking) {
             loadIr(configuration, irFactory, module)
         }
         return WebLoadedIrPipelineArtifact(loadedIr, module, configuration)

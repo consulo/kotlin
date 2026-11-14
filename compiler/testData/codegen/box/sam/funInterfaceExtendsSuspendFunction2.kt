@@ -1,8 +1,8 @@
+// DIAGNOSTICS: -IMPLEMENTING_SUSPEND_FUNCTION_INTERFACE
+// ^^^ Kotlin/JS partially forbids implementing suspend function interfaces and report this diagnostic
 // ISSUE: KT-74673
-// IGNORE_BACKEND: ANDROID
-// ^K1 reports TYPE_MISMATCH: Type mismatch: inferred type is Foo2<P> but Foo<TypeVariable(P)> in create3
 
-// IGNORE_KLIB_BACKEND_ERRORS_WITH_CUSTOM_FIRST_STAGE: 2.0.0 2.1.0
+// IGNORE_KLIB_RUNTIME_ERRORS_WITH_CUSTOM_FIRST_STAGE: Native,JS,Wasm-JS:2.0,2.1
 // ^^^ KT-74673 fixed in 2.2.0-Beta1
 
 fun interface Foo<P> : suspend (P) -> Unit

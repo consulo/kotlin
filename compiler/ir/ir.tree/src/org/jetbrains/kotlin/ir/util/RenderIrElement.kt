@@ -7,8 +7,10 @@ package org.jetbrains.kotlin.ir.util
 
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.util.applyIf
+import org.jetbrains.kotlin.DeprecatedCompilerApi
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.ReceiverParameterDescriptor
+import org.jetbrains.kotlin.descriptors.annotations.KotlinRetention
 import org.jetbrains.kotlin.ir.AbstractIrFileEntry
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrFileEntry
@@ -23,6 +25,7 @@ import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.name.SpecialNames.IMPLICIT_SET_PARAMETER
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.renderer.DescriptorRenderer
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
@@ -67,7 +70,7 @@ class RenderIrElementVisitor(
 
     fun renderSymbolReference(symbol: IrSymbol) = symbol.renderReference()
 
-    fun renderAsAnnotation(irAnnotation: IrConstructorCall): String =
+    fun renderAsAnnotation(irAnnotation: IrAnnotation): String =
         StringBuilder().also { it.renderAsAnnotation(irAnnotation, this, options) }.toString()
 
     private fun IrType.render(): String =
@@ -318,7 +321,7 @@ class RenderIrElementVisitor(
                     "visibility:$visibility modality:$modality " +
                     (if (!isUsedForIrDump) {
                         renderTypeParameters() + " " +
-                        renderValueParameterTypes() + " "
+                                renderValueParameterTypes() + " "
                     } else "") +
                     "returnType:${renderReturnType(this@RenderIrElementVisitor, options)} " +
                     renderSimpleFunctionFlags(flagsRenderer)
@@ -338,7 +341,7 @@ class RenderIrElementVisitor(
                     "visibility:$visibility " +
                     (if (!isUsedForIrDump) {
                         renderTypeParameters() + " " +
-                        renderValueParameterTypes() + " "
+                                renderValueParameterTypes() + " "
                     } else "") +
                     "returnType:${renderReturnType(this@RenderIrElementVisitor, options)} " +
                     renderConstructorFlags(flagsRenderer)
@@ -478,6 +481,12 @@ class RenderIrElementVisitor(
                 "${expression.renderOffsets(options)} " +
                 "'${expression.symbol.renderReference()}' type=${expression.type.render()} origin=${expression.origin}"
 
+    @OptIn(DeprecatedCompilerApi::class)
+    override fun visitAnnotation(expression: IrAnnotation, data: Nothing?): String =
+        "CONSTRUCTOR_CALL" +
+                "${expression.renderOffsets(options)} " +
+                "'${expression.symbol.renderReference()}' type=${expression.type.render()} origin=${expression.origin}"
+
     override fun visitDelegatingConstructorCall(expression: IrDelegatingConstructorCall, data: Nothing?): String =
         "DELEGATING_CONSTRUCTOR_CALL${expression.renderOffsets(options)} '${expression.symbol.renderReference()}'"
 
@@ -514,7 +523,7 @@ class RenderIrElementVisitor(
     private fun StringBuilder.appendSuperQualifierSymbol(expression: IrFieldAccessExpression) {
         val superQualifierSymbol = expression.superQualifierSymbol ?: return
         append(" superQualifierSymbol=")
-        superQualifierSymbol.owner.renderDeclarationFqn(this, options)
+        append(superQualifierSymbol.renderClassifierFqn(options))
     }
 
     override fun visitGetObjectValue(expression: IrGetObjectValue, data: Nothing?): String =
@@ -707,6 +716,7 @@ internal fun IrDeclaration.renderOriginIfNonTrivial(options: DumpIrTreeOptions):
     val originsToSkipFromRendering: HashSet<IrDeclarationOrigin> = hashSetOf(IrDeclarationOrigin.DEFINED)
     if (!options.renderOriginForExternalDeclarations) {
         originsToSkipFromRendering.add(IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB)
+        originsToSkipFromRendering.add(IrDeclarationOrigin.IR_EXTERNAL_JAVA_DECLARATION_STUB)
     }
     return if (origin in originsToSkipFromRendering) "" else "$origin "
 }
@@ -746,7 +756,7 @@ internal fun IrTypeParameter.renderTypeParameterFqn(options: DumpIrTreeOptions):
 private inline fun StringBuilder.appendDeclarationNameToFqName(
     declaration: IrDeclaration,
     options: DumpIrTreeOptions,
-    fallback: () -> Unit
+    fallback: () -> Unit,
 ) {
     if (!declaration.isFileClass || options.printFacadeClassInFqNames) {
         append('.')
@@ -794,7 +804,7 @@ internal inline fun <T, Buffer : Appendable> Buffer.appendIterableWith(
     prefix: String,
     postfix: String,
     separator: String,
-    renderItem: Buffer.(T) -> Unit
+    renderItem: Buffer.(T) -> Unit,
 ) {
     append(prefix)
     var isFirst = true
@@ -814,7 +824,7 @@ private inline fun <T> T.runTrimEnd(fn: T.() -> String): String =
 
 private class FlagsRenderer(
     private val flagsFilter: DumpIrTreeOptions.FlagsFilter,
-    private val isReference: Boolean
+    private val isReference: Boolean,
 ) {
     fun renderFlagsList(declaration: IrDeclaration, vararg flags: String?): String {
         val flagsList = flagsFilter.filterFlags(declaration, isReference, flags.filterNotNull())
@@ -861,7 +871,10 @@ private fun IrSimpleFunction.renderSimpleFunctionFlags(renderer: FlagsRenderer):
         "expect".takeIf { isExpect },
         "fake_override".takeIf { isFakeOverride },
         "operator".takeIf { isOperator },
-        "infix".takeIf { isInfix }
+        "infix".takeIf { isInfix },
+        // `_parent` check is required to avoid StackOverflowError if `IrDeclarationBase` report an error.
+        // This happens in case when `parent` was accessed, but not yet set. See KT-87456 for details.
+        "companion".takeIf { _parent != null && isStatic },
     )
 
 private fun IrConstructor.renderConstructorFlags(renderer: FlagsRenderer) =
@@ -978,18 +991,24 @@ private fun IrTypeArgument.renderTypeArgument(renderer: RenderIrElementVisitor?,
         }
     }
 
-internal fun List<IrConstructorCall>.filterOutSourceRetentions(options: DumpIrTreeOptions): List<IrConstructorCall> =
+@OptIn(DeprecatedCompilerApi::class)
+internal fun List<IrAnnotation>.filterOutSourceRetentions(options: DumpIrTreeOptions): List<IrAnnotation> =
     applyIf(!options.printAnnotationsWithSourceRetention) {
         filterNot { it: IrConstructorCall ->
-            it.symbol.isBound &&
-                    (it.symbol.owner.returnType.classifierOrNull?.owner as? IrClass)?.annotations?.any { it: IrConstructorCall ->
-                        it.symbol.owner.returnType.classFqName?.asString() == Retention::class.java.name &&
-                                (it.arguments.first() as? IrGetEnumValue)?.symbol?.owner?.name?.asString() == AnnotationRetention.SOURCE.name
-                    } == true
+            if (!it.symbol.isBound) return@filterNot false
+            val annotationClass = it.symbol.owner.returnType.classifierOrNull?.owner as? IrClass ?: return@filterNot false
+            val fqName = annotationClass.fqNameWhenAvailable
+            if (fqName?.isCompilerInternalSyntheticAnnotation == true) {
+                return@filterNot true
+            }
+            annotationClass.getAnnotationRetention() == KotlinRetention.SOURCE
         }
     }
 
-private fun renderTypeAnnotations(annotations: List<IrConstructorCall>, renderer: RenderIrElementVisitor?, options: DumpIrTreeOptions): String =
+private val FqName.isCompilerInternalSyntheticAnnotation: Boolean
+    get() = this == StandardClassIds.Annotations.EnhancedNullability.asSingleFqName() || startsWith(StandardClassIds.BASE_INTERNAL_IR_PACKAGE)
+
+private fun renderTypeAnnotations(annotations: List<IrAnnotation>, renderer: RenderIrElementVisitor?, options: DumpIrTreeOptions): String =
     annotations.filterOutSourceRetentions(options).let {
         if (it.isEmpty())
             ""
@@ -1003,7 +1022,8 @@ private fun renderTypeAnnotations(annotations: List<IrConstructorCall>, renderer
             }
     }
 
-private fun StringBuilder.renderAsAnnotation(
+// TODO(KT-90080): Drop when all annotations in the position of annotation arguments are deserialized as IrAnnotation, not IrConstructorCall
+private fun StringBuilder.renderAsLegacyConstructorCallAnnotation(
     irAnnotation: IrConstructorCall,
     renderer: RenderIrElementVisitor?,
     options: DumpIrTreeOptions,
@@ -1018,12 +1038,7 @@ private fun StringBuilder.renderAsAnnotation(
         ?: "<unbound>"
 
     append(annotationClassName)
-
-    if (irAnnotation.typeArguments.isNotEmpty()) {
-        irAnnotation.typeArguments.joinTo(this, ", ", "<", ">") {
-            it?.renderTypeWithRenderer(renderer, options) ?: "null"
-        }
-    }
+    renderAnnotationTypeArguments(irAnnotation, renderer, options)
 
     if (irAnnotation.arguments.isEmpty()) return
 
@@ -1035,10 +1050,47 @@ private fun StringBuilder.renderAsAnnotation(
     }
 }
 
+private fun StringBuilder.renderAsAnnotation(
+    irAnnotation: IrAnnotation,
+    renderer: RenderIrElementVisitor?,
+    options: DumpIrTreeOptions,
+) {
+    if (irAnnotation !is IrLazilyBoundAnnotationImpl)
+        return renderAsLegacyConstructorCallAnnotation(irAnnotation, renderer, options)
+
+    val annotationClassName = irAnnotation.classSymbol.getOwnerIfBound()?.name?.asString()
+        ?: (irAnnotation.classSymbol.signature as? CommonSignature)?.shortName
+        ?: "<unbound>"
+
+    append(annotationClassName)
+    renderAnnotationTypeArguments(irAnnotation, renderer, options)
+
+    if (irAnnotation.argumentMapping.isEmpty()) return
+
+    appendIterableWith(irAnnotation.argumentMapping.entries, separator = ", ", prefix = "(", postfix = ")") { [name, argument] ->
+        append(name.asString())
+        append(" = ")
+        renderAsAnnotationArgument(argument, renderer, options)
+    }
+}
+
+private fun StringBuilder.renderAnnotationTypeArguments(
+    irAnnotation: IrConstructorCall,
+    renderer: RenderIrElementVisitor?,
+    options: DumpIrTreeOptions,
+) {
+    if (irAnnotation.typeArguments.isNotEmpty()) {
+        irAnnotation.typeArguments.joinTo(this, ", ", "<", ">") {
+            it?.renderTypeWithRenderer(renderer, options) ?: "null"
+        }
+    }
+}
+
 private fun StringBuilder.renderAsAnnotationArgument(irElement: IrElement?, renderer: RenderIrElementVisitor?, options: DumpIrTreeOptions) {
     when (irElement) {
         null -> append("<null>")
-        is IrConstructorCall -> renderAsAnnotation(irElement, renderer, options)
+        is IrAnnotation -> renderAsAnnotation(irElement, renderer, options)
+        is IrConstructorCall -> renderAsLegacyConstructorCallAnnotation(irElement, renderer, options)
         is IrConst -> {
             renderIrConstAsAnnotationArgument(irElement)
         }
@@ -1048,7 +1100,9 @@ private fun StringBuilder.renderAsAnnotationArgument(irElement: IrElement?, rend
         }
         is IrGetEnumValue -> {
             val className = irElement.type.classOrNull?.getOwnerIfBound()?.name ?: "<UNKNOWN>"
-            val entryName = irElement.symbol.getOwnerIfBound()?.name ?: "<UNKNOWN>"
+            val entryName = irElement.symbol.getOwnerIfBound()?.name
+                ?: (irElement.symbol.signature as? CommonSignature)?.shortName
+                ?: "<UNKNOWN>"
             append("$className.$entryName")
         }
         is IrVararg -> {

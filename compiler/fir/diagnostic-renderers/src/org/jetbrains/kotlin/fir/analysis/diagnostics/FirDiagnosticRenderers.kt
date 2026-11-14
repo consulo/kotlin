@@ -6,12 +6,15 @@
 package org.jetbrains.kotlin.fir.analysis.diagnostics
 
 import org.jetbrains.kotlin.builtins.functions.FunctionTypeKind
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
+import org.jetbrains.kotlin.diagnostics.DiagnosticBaseContext
 import org.jetbrains.kotlin.diagnostics.KtDiagnosticRenderers
 import org.jetbrains.kotlin.diagnostics.WhenMissingCase
 import org.jetbrains.kotlin.diagnostics.rendering.*
 import org.jetbrains.kotlin.fir.FirModuleData
+import org.jetbrains.kotlin.fir.SessionHolder
 import org.jetbrains.kotlin.fir.containingClassLookupTag
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirEnumEntry
@@ -31,6 +34,10 @@ import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.fir.types.ConeReceiverInfo
+import org.jetbrains.kotlin.fir.types.ConeUnionType
+import org.jetbrains.kotlin.fir.types.canBeNull
+import org.jetbrains.kotlin.fir.types.hasError
 import org.jetbrains.kotlin.metadata.deserialization.VersionRequirement
 import org.jetbrains.kotlin.mpp.DeclarationSymbolMarker
 import org.jetbrains.kotlin.name.CallableId
@@ -365,6 +372,22 @@ object FirDiagnosticRenderers {
         if (!it.isNullOrBlank()) " for operator '$it'" else ""
     }
 
+    val FOR_OPTIONAL_RECEIVER = ContextDependentRenderer { receiverInfo: ConeReceiverInfo?, ctx ->
+        if (receiverInfo == null || receiverInfo.type.hasError()) return@ContextDependentRenderer ""
+        buildString {
+            if (receiverInfo.couldBePositionalDestructuring) {
+                append(" for name-based destructuring")
+            }
+            append(" on receiver of type '")
+            append(RENDER_TYPE.render(receiverInfo.type, ctx))
+            append("'")
+
+            if (receiverInfo.couldBePositionalDestructuring) {
+                append(". To use positional destructuring, use the 'val [...] = ...' syntax")
+            }
+        }
+    }
+
     val OF_OPTIONAL_NAME = Renderer { name: Name? ->
         name?.asString()?.takeIf { it.isNotBlank() }?.let { " of '$it'" } ?: ""
     }
@@ -429,7 +452,7 @@ object FirDiagnosticRenderers {
 
     val CANDIDATES_WITH_DIAGNOSTIC_MESSAGES = Renderer { list: Collection<Pair<FirBasedSymbol<*>, List<String>>> ->
         buildString {
-            for ((symbol, diagnostics) in list) {
+            for ([symbol, diagnostics] in list) {
                 append(SYMBOL.render(symbol))
 
                 if (diagnostics.isNotEmpty()) {
@@ -444,6 +467,67 @@ object FirDiagnosticRenderers {
                 appendLine()
             }
         }.trim()
+    }
+
+    val DEPRECATING_FEATURE = Renderer { feature: LanguageFeature ->
+        buildString {
+            appendDeprecationWarningSuffix(feature)
+        }
+    }
+
+    private enum class UnsafeKind {
+        Nullable, Union, NullableUnion,
+    }
+
+    private object FirUnsafeKindKey : RenderingContext.Key<Map<ConeKotlinType, UnsafeKind>>("UNSAFE_KIND") {
+        override fun compute(
+            objectsToRender: Collection<Any?>,
+            diagnosticContext: DiagnosticBaseContext,
+        ): Map<ConeKotlinType, UnsafeKind> = context(diagnosticContext as SessionHolder) {
+            objectsToRender
+                .filterIsInstance<ConeKotlinType>()
+                .associateWith {
+                    val canBeNull = it.canBeNull()
+                    val isUnion = it is ConeUnionType
+                    when {
+                        canBeNull && isUnion -> UnsafeKind.NullableUnion
+                        canBeNull -> UnsafeKind.Nullable
+                        else -> UnsafeKind.Union
+                    }
+                }
+        }
+    }
+
+    private fun unsafeCallRenderer(suffix: (UnsafeKind, String) -> String): DiagnosticParameterRenderer<ConeKotlinType> {
+        return ContextDependentRenderer { type: ConeKotlinType, context ->
+            val kind = context[FirUnsafeKindKey].getValue(type)
+            val renderedType = RENDER_TYPE.render(type, context)
+            "on receiver of " + suffix(kind, renderedType)
+        }
+    }
+
+    val UNSAFE_CALL_RECEIVER = unsafeCallRenderer { kind, renderedType ->
+        when (kind) {
+            Nullable -> "nullable type '$renderedType'"
+            Union -> "union type '$renderedType'"
+            NullableUnion -> "nullable union type '$renderedType'"
+        }
+    }
+
+    val UNSAFE_CALL_RECEIVER_WITH_HINT = unsafeCallRenderer { kind, renderedType ->
+        when (kind) {
+            Nullable -> "nullable type '$renderedType'. Consider using a safe call '?.' or non-null asserted call '!!.'"
+            Union -> "union type '$renderedType'. Consider using an error-safe call '|.'"
+            NullableUnion -> "nullable union type '$renderedType'"
+        }
+    }
+
+    val UNSAFE_INVOKE_CALL_RECEIVER_WITH_HINT = unsafeCallRenderer { kind, renderedType ->
+        when (kind) {
+            Nullable -> "nullable type '$renderedType'. Consider using a safe call '?.invoke' or non-null asserted call '!!()'"
+            Union -> "union type '$renderedType'. Consider using an error-safe call '|.invoke'"
+            NullableUnion -> "nullable union type '$renderedType'"
+        }
     }
 }
 

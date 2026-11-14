@@ -6,14 +6,17 @@
 package org.jetbrains.kotlin.gradle.targets.web.nodejs
 
 import org.gradle.api.Project
-import org.jetbrains.kotlin.gradle.internal.unameExecResult
-import org.jetbrains.kotlin.gradle.targets.js.MultiplePluginDeclarationDetector
+import org.jetbrains.kotlin.gradle.ExperimentalNodeJsToolchainDsl
+import org.jetbrains.kotlin.gradle.dsl.toolchain.nodejs.NodeJsVersion
+import org.jetbrains.kotlin.gradle.logging.kotlinInfo
+import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsSetupTask
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.parsePlatform
 import org.jetbrains.kotlin.gradle.targets.web.HasPlatformDisambiguator
+import org.jetbrains.kotlin.gradle.targets.web.ObsoleteJsAndWasmToolingProvisioning
+import org.jetbrains.kotlin.gradle.targets.web.nodejs.toolchain.currentHostOs
 import org.jetbrains.kotlin.gradle.tasks.registerTask
-import org.jetbrains.kotlin.gradle.utils.providerWithLazyConvention
 import kotlin.reflect.KClass
 
 /**
@@ -27,6 +30,7 @@ import kotlin.reflect.KClass
  * @param nodeJsEnvSpecName The name of the NodeJs environment specification configuration to be registered.
  * @param nodeJsRootApply A function that provides the root NodeJs environment extension in the project.
  */
+@ObsoleteJsAndWasmToolingProvisioning
 internal class NodeJsPluginApplier(
     private val platformDisambiguate: HasPlatformDisambiguator,
     private val nodeJsEnvSpecKlass: KClass<out BaseNodeJsEnvSpec>,
@@ -35,11 +39,9 @@ internal class NodeJsPluginApplier(
 ) {
 
     fun apply(project: Project) {
-        MultiplePluginDeclarationDetector.detect(project)
+        //TODO KT-89605: if NodeJsToolchainService is used, no need to configure node js old way
 
-        val nodeJs = project.createNodeJsEnvSpec(nodeJsEnvSpecKlass, nodeJsEnvSpecName) {
-            nodeJsRootApply(project.rootProject)
-        }
+        val nodeJs = project.createNodeJsEnvSpec(nodeJsEnvSpecKlass, nodeJsEnvSpecName)
 
         project.registerTask<NodeJsSetupTask>(platformDisambiguate.extensionName(NodeJsSetupTask.BASE_NAME), listOf(nodeJs)) {
             it.group = NodeJsRootPlugin.TASKS_GROUP_NAME
@@ -51,11 +53,9 @@ internal class NodeJsPluginApplier(
         }
     }
 
-    @Suppress("DEPRECATION_ERROR")
     private fun Project.createNodeJsEnvSpec(
         nodeJsEnvSpecKlass: KClass<out BaseNodeJsEnvSpec>,
         nodeJsEnvSpecName: String,
-        nodeJsConstructor: () -> BaseNodeJsRootExtension,
     ): BaseNodeJsEnvSpec {
         val extensions = extensions
         val objects = objects
@@ -64,34 +64,35 @@ internal class NodeJsPluginApplier(
             nodeJsEnvSpecName,
             nodeJsEnvSpecKlass.java,
         ).apply {
+
             installationDirectory.convention(
-                objects.directoryProperty().fileProvider(
-                    objects.providerWithLazyConvention {
-                        nodeJsConstructor().installationDir
+                objects.directoryProperty().fileValue(
+                    gradle.gradleUserHomeDir.also {
+                        logger.kotlinInfo("Storing cached files in $it")
                     }
                 )
             )
-            download.convention(objects.providerWithLazyConvention { nodeJsConstructor().download })
+            download.convention(true)
             // set instead of convention because it is possible to have null value https://github.com/gradle/gradle/issues/14768
-            downloadBaseUrl.set(objects.providerWithLazyConvention { nodeJsConstructor().downloadBaseUrl })
+            downloadBaseUrl.set("https://nodejs.org/dist")
             allowInsecureProtocol.convention(false)
-            version.convention(objects.providerWithLazyConvention { nodeJsConstructor().version })
-            command.convention(objects.providerWithLazyConvention { nodeJsConstructor().command })
+            version.convention(
+                @OptIn(ExperimentalNodeJsToolchainDsl::class)
+                project.kotlinPropertiesProvider.nodejsDefaultVersion.map(NodeJsVersion::version)
+            )
+            command.convention("node")
 
             addPlatform(this@createNodeJsEnvSpec, this)
         }
     }
 
     private fun addPlatform(project: Project, extension: BaseNodeJsEnvSpec) {
-        val uname = project.providers
-            .unameExecResult
-
         extension.platform.value(
-            project.providers.systemProperty("os.name")
+            project.providers.currentHostOs()
                 .zip(
                     project.providers.systemProperty("os.arch")
-                ) { name, arch ->
-                    parsePlatform(name, arch, uname)
+                ) { osType, arch ->
+                    parsePlatform(osType, arch)
                 }
         ).disallowChanges()
     }

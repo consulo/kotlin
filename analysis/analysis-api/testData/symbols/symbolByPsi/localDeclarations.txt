@@ -1,9 +1,12 @@
 KaLocalVariableSymbol:
+  anchorPsi: KtProperty
   annotations: []
   callableId: null
-  compilerVisibility: Local
+  contextParameters: []
   contextReceivers: []
   isActual: false
+  isCompanion: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -13,28 +16,32 @@ KaLocalVariableSymbol:
   modality: FINAL
   name: q
   origin: SOURCE
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: kotlin/Int
+  typeParameters: []
   visibility: LOCAL
   getContainingFileSymbol: KaFileSymbol(localDeclarations.kt)
   getContainingJvmClassName: null
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: null
-  compilerVisibility: Local
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -49,6 +56,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: aaa
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -61,16 +70,17 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: null
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: null
   importableFqName: null
 
 KaNamedClassSymbol:
+  anchorPsi: KtClass
   annotations: []
   classId: null
   classKind: CLASS
   companionObject: null
-  compilerVisibility: Local
   contextReceivers: []
   isActual: false
   isData: false
@@ -79,10 +89,13 @@ KaNamedClassSymbol:
   isFun: false
   isInline: false
   isInner: false
+  isValue: false
   location: LOCAL
   modality: FINAL
   name: F
   origin: SOURCE
+  psi: KtClass
+  realPsi: KtClass
   superTypes: [
     KaUsualClassType:
       annotations: []
@@ -93,20 +106,21 @@ KaNamedClassSymbol:
   visibility: LOCAL
   getContainingFileSymbol: KaFileSymbol(localDeclarations.kt)
   getContainingModule: KaSourceModule "Sources of main"
-  annotationApplicableTargets: null
-  deprecationStatus: null
+  applicableAnnotationTargets: null
+  deprecation: null
   importableFqName: null
 
 KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /yyy
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -121,6 +135,8 @@ KaNamedFunctionSymbol:
   modality: FINAL
   name: yyy
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
@@ -133,6 +149,7 @@ KaNamedFunctionSymbol:
   getContainingJvmClassName: LocalDeclarationsKt
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: yyy
   importableFqName: yyy

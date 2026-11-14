@@ -10,6 +10,7 @@ import org.gradle.kotlin.dsl.kotlin
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.dsl.KotlinGradlePluginDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.internals.MINIMALLY_SUPPORTED_GRADLE_VERSION
 import org.jetbrains.kotlin.gradle.testbase.GradleTest
 import org.jetbrains.kotlin.gradle.testbase.GradleTestVersions
 import org.jetbrains.kotlin.gradle.testbase.GradleWithJdkTest
@@ -27,30 +28,24 @@ import org.jetbrains.kotlin.gradle.testbase.buildScriptReturn
 import org.jetbrains.kotlin.gradle.testbase.plugins
 import org.jetbrains.kotlin.gradle.testbase.project
 import org.jetbrains.kotlin.gradle.utils.setInvisibleIfSupported
-import org.jetbrains.kotlin.testFederation.SmokeTest
+import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import java.io.File
 import kotlin.io.path.pathString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-@SmokeTest
 @DisplayName("Tests on compatibility with various Gradle versions")
 @JvmGradlePluginTests
+@MustRunOnChangesInGradle
 class GradleCompatibilityIT : KGPBaseTest() {
+    @TestMetadata("kotlinProject")
     @DisplayName("Proper Gradle plugin variant is used")
     @GradleTestVersions(
         additionalVersions = [
-            TestVersions.Gradle.G_7_6,
-            TestVersions.Gradle.G_8_0,
-            TestVersions.Gradle.G_8_1,
-            TestVersions.Gradle.G_8_2,
-            TestVersions.Gradle.G_8_5,
-            TestVersions.Gradle.G_8_6,
-            TestVersions.Gradle.G_8_8,
-            TestVersions.Gradle.G_8_11,
-            TestVersions.Gradle.G_8_12,
-            TestVersions.Gradle.G_8_13,
+            TestVersions.Gradle.G_9_5,
         ],
     )
     @GradleTest
@@ -58,27 +53,16 @@ class GradleCompatibilityIT : KGPBaseTest() {
         project("kotlinProject", gradleVersion) {
             build("help") {
                 val expectedVariant = when (gradleVersion) {
+                    GradleVersion.version(TestVersions.Gradle.G_9_8) -> "gradle96"
+                    GradleVersion.version(TestVersions.Gradle.G_9_7) -> "gradle96"
+                    GradleVersion.version(TestVersions.Gradle.G_9_6) -> "gradle96"
+                    GradleVersion.version(TestVersions.Gradle.G_9_5) -> "gradle813"
                     GradleVersion.version(TestVersions.Gradle.G_9_4) -> "gradle813"
                     GradleVersion.version(TestVersions.Gradle.G_9_3) -> "gradle813"
                     GradleVersion.version(TestVersions.Gradle.G_9_2) -> "gradle813"
                     GradleVersion.version(TestVersions.Gradle.G_9_1) -> "gradle813"
                     GradleVersion.version(TestVersions.Gradle.G_9_0) -> "gradle813"
                     GradleVersion.version(TestVersions.Gradle.G_8_14) -> "gradle813"
-                    GradleVersion.version(TestVersions.Gradle.G_8_13) -> "gradle813"
-                    GradleVersion.version(TestVersions.Gradle.G_8_12) -> "gradle811"
-                    GradleVersion.version(TestVersions.Gradle.G_8_11) -> "gradle811"
-                    GradleVersion.version(TestVersions.Gradle.G_8_10) -> "gradle88"
-                    GradleVersion.version(TestVersions.Gradle.G_8_9) -> "gradle88"
-                    GradleVersion.version(TestVersions.Gradle.G_8_8) -> "gradle88"
-                    GradleVersion.version(TestVersions.Gradle.G_8_7) -> "gradle86"
-                    GradleVersion.version(TestVersions.Gradle.G_8_6) -> "gradle86"
-                    GradleVersion.version(TestVersions.Gradle.G_8_5) -> "gradle85"
-                    GradleVersion.version(TestVersions.Gradle.G_8_4) -> "gradle82"
-                    GradleVersion.version(TestVersions.Gradle.G_8_3) -> "gradle82"
-                    GradleVersion.version(TestVersions.Gradle.G_8_2) -> "gradle82"
-                    GradleVersion.version(TestVersions.Gradle.G_8_1) -> "gradle81"
-                    GradleVersion.version(TestVersions.Gradle.G_8_0) -> "gradle80"
-                    GradleVersion.version(TestVersions.Gradle.G_7_6) -> "gradle76"
                     else -> "main"
                 }
 
@@ -87,6 +71,7 @@ class GradleCompatibilityIT : KGPBaseTest() {
         }
     }
 
+    @TestMetadata("kotlinProject")
     @DisplayName("Proper message is produced on an incompatible Gradle version")
     @GradleTestVersions(
         minVersion = TestVersions.Gradle.MIN_UNSUPPORTED_VERSION_TO_CHECK,
@@ -99,12 +84,13 @@ class GradleCompatibilityIT : KGPBaseTest() {
             buildAndFail("help") {
                 // assertHasDiagnostic does not work as proper diagnostic reporting may fail on unsupported Gradle versions
                 assertOutputContains("The applied Kotlin Gradle is not compatible with the used Gradle version")
-                assertOutputContains("Please update the Gradle version to at least Gradle ${TestVersions.Gradle.MIN_SUPPORTED}")
+                assertOutputContains("Please update the Gradle version to at least Gradle ${MINIMALLY_SUPPORTED_GRADLE_VERSION}")
             }
         }
     }
 
     @DisplayName("KT-78785: build script resolves Gradle version specific jars")
+    @Disabled("KT-86040: re-enable once max supported version in tests bumped to 9.6.0")
     @Test
     fun buildScriptResolvesGradleVersionSpecificJars() {
         fun resolveKgpJars(gradleVersion: GradleVersion): List<File> {
@@ -152,7 +138,7 @@ class GradleCompatibilityIT : KGPBaseTest() {
 
     @DisplayName("KT-78754: Configuration.isVisible is not set on Gradle 9+")
     @GradleTestVersions(
-        additionalVersions = [TestVersions.Gradle.G_8_14, TestVersions.Gradle.G_9_0, TestVersions.Gradle.G_9_1, TestVersions.Gradle.G_9_2],
+        additionalVersions = [TestVersions.Gradle.G_9_0, TestVersions.Gradle.G_9_1, TestVersions.Gradle.G_9_2],
     )
     @GradleTest
     fun testSetInvisibleIfSupported(gradleVersion: GradleVersion) {

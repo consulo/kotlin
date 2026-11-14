@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +DefinitelyNonNullableTypes
+// RUN_PIPELINE_TILL: CODEGEN
 
 import kotlin.reflect.KProperty1
 

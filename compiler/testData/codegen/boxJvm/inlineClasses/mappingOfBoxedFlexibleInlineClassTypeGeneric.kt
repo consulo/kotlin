@@ -2,7 +2,6 @@
 // TARGET_BACKEND: JVM
 // WORKS_WHEN_VALUE_CLASS
 
-// LANGUAGE: +JvmInlineMultiFieldValueClasses, +GenericInlineClassParameter
 // FILE: JavaClass.java
 
 public class JavaClass {

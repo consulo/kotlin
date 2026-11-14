@@ -1,6 +1,4 @@
 // RUN_PIPELINE_TILL: FRONTEND
-// SKIP_TXT
-// LANGUAGE: +PreferJavaFieldOverload
 // CHECK_TYPE
 
 // FILE: CompressionType.java

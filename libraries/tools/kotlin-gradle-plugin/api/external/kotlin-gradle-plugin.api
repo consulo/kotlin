@@ -87,6 +87,7 @@ public abstract class org/jetbrains/kotlin/gradle/dsl/KotlinMultiplatformExtensi
 	public fun getNativeMain (Lorg/gradle/api/NamedDomainObjectContainer;)Lorg/gradle/api/NamedDomainObjectProvider;
 	public fun getNativeTest (Lorg/gradle/api/NamedDomainObjectContainer;)Lorg/gradle/api/NamedDomainObjectProvider;
 	public fun getPublishing ()Lorg/jetbrains/kotlin/gradle/plugin/KotlinPublishing;
+	public final fun getSwiftExport ()Lorg/jetbrains/kotlin/gradle/plugin/mpp/apple/swiftexport/SwiftExportExtension;
 	public final fun getTargets ()Lorg/gradle/api/NamedDomainObjectCollection;
 	public final fun getTestableTargets ()Lorg/gradle/api/NamedDomainObjectCollection;
 	public fun getTvosArm64Main (Lorg/gradle/api/NamedDomainObjectContainer;)Lorg/gradle/api/NamedDomainObjectProvider;
@@ -183,6 +184,9 @@ public abstract class org/jetbrains/kotlin/gradle/dsl/KotlinMultiplatformExtensi
 	public fun mingwX64 (Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/plugin/mpp/KotlinNativeTargetWithHostTests;
 	public fun publishing (Lkotlin/jvm/functions/Function1;)V
 	public fun publishing (Lorg/gradle/api/Action;)V
+	public final fun swiftExport ()V
+	public final fun swiftExport (Lkotlin/jvm/functions/Function1;)V
+	public final fun swiftExport (Lorg/gradle/api/Action;)V
 	public final fun targets (Lkotlin/jvm/functions/Function1;)V
 	public final fun targets (Lorg/gradle/api/Action;)V
 	public fun tvosArm64 ()Lorg/jetbrains/kotlin/gradle/plugin/mpp/KotlinNativeTarget;
@@ -200,11 +204,6 @@ public abstract class org/jetbrains/kotlin/gradle/dsl/KotlinMultiplatformExtensi
 	public fun tvosX64 (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/kotlin/gradle/plugin/mpp/KotlinNativeTargetWithSimulatorTests;
 	public fun tvosX64 (Ljava/lang/String;Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/plugin/mpp/KotlinNativeTargetWithSimulatorTests;
 	public fun tvosX64 (Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/plugin/mpp/KotlinNativeTargetWithSimulatorTests;
-	public fun wasm ()Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public fun wasm (Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public fun wasm (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public fun wasm (Ljava/lang/String;Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public fun wasm (Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
 	public fun wasmJs ()Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
 	public fun wasmJs (Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
 	public fun wasmJs (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
@@ -245,7 +244,6 @@ public abstract class org/jetbrains/kotlin/gradle/dsl/KotlinMultiplatformExtensi
 }
 
 public abstract class org/jetbrains/kotlin/gradle/dsl/KotlinProjectExtension : org/gradle/api/plugins/ExtensionAware, org/jetbrains/kotlin/gradle/dsl/KotlinBaseExtension, org/jetbrains/kotlin/gradle/plugin/HasProject, org/jetbrains/kotlin/tooling/core/HasMutableExtras {
-	public field coreLibrariesVersion Ljava/lang/String;
 	public fun <init> (Lorg/gradle/api/Project;)V
 	public fun abiValidation ()V
 	public fun abiValidation (Lorg/gradle/api/Action;)V
@@ -253,6 +251,7 @@ public abstract class org/jetbrains/kotlin/gradle/dsl/KotlinProjectExtension : o
 	public fun explicitApiWarning ()V
 	public fun getAbiValidation ()Lorg/jetbrains/kotlin/gradle/dsl/abi/AbiValidationExtension;
 	public fun getCompilerVersion ()Lorg/gradle/api/provider/Property;
+	public fun getCoreKotlinLibrariesVersion ()Lorg/gradle/api/provider/Property;
 	public fun getCoreLibrariesVersion ()Ljava/lang/String;
 	public fun getExplicitApi ()Lorg/jetbrains/kotlin/gradle/dsl/ExplicitApiMode;
 	public synthetic fun getExtras ()Lorg/jetbrains/kotlin/tooling/core/Extras;
@@ -630,11 +629,6 @@ public final class org/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithPres
 }
 
 public abstract interface class org/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions : org/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithPresetFunctions {
-	public abstract fun wasm ()Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public abstract fun wasm (Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public abstract fun wasm (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public abstract fun wasm (Ljava/lang/String;Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public abstract fun wasm (Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
 	public abstract fun wasmJs ()Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
 	public abstract fun wasmJs (Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
 	public abstract fun wasmJs (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
@@ -720,12 +714,6 @@ public final class org/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasm
 	public static fun tvosX64 (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/plugin/mpp/KotlinNativeTargetWithSimulatorTests;
 	public static fun tvosX64 (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;Ljava/lang/String;Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/plugin/mpp/KotlinNativeTargetWithSimulatorTests;
 	public static fun tvosX64 (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/plugin/mpp/KotlinNativeTargetWithSimulatorTests;
-	public static fun wasm (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public static fun wasm (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public static fun wasm (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public static fun wasm (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;Ljava/lang/String;Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public static fun wasm (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
-	public static synthetic fun wasm$default (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
 	public static fun wasmJs (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
 	public static fun wasmJs (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
 	public static fun wasmJs (Lorg/jetbrains/kotlin/gradle/dsl/KotlinTargetContainerWithWasmPresetFunctions;Ljava/lang/String;Lorg/gradle/api/Action;)Lorg/jetbrains/kotlin/gradle/targets/js/dsl/KotlinWasmJsTargetDsl;
@@ -877,6 +865,7 @@ public final class org/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport
 	public static final field PostAdditionalArtifactResolution Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$AdditionalArtifactResolutionPhase;
 	public static final field PreAdditionalArtifactResolution Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$AdditionalArtifactResolutionPhase;
 	public static final field SourcesAndDocumentationResolution Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$AdditionalArtifactResolutionPhase;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$AdditionalArtifactResolutionPhase;
 	public static fun values ()[Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$AdditionalArtifactResolutionPhase;
 }
@@ -896,6 +885,7 @@ public final class org/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport
 	public static final field PreDependencyResolution Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$DependencyResolutionPhase;
 	public static final field SourceDependencyResolution Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$DependencyResolutionPhase;
 	public static final field SourcesAndDocumentationResolution Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$DependencyResolutionPhase;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$DependencyResolutionPhase;
 	public static fun values ()[Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$DependencyResolutionPhase;
 }
@@ -905,6 +895,7 @@ public final class org/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport
 	public static final field FreeDependencyTransformationPhase Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$DependencyTransformationPhase;
 	public static final field PostDependencyTransformationPhase Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$DependencyTransformationPhase;
 	public static final field PreDependencyTransformationPhase Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$DependencyTransformationPhase;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$DependencyTransformationPhase;
 	public static fun values ()[Lorg/jetbrains/kotlin/gradle/plugin/ide/IdeMultiplatformImport$DependencyTransformationPhase;
 }

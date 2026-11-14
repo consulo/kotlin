@@ -24,10 +24,11 @@ import org.jetbrains.kotlin.fir.types.ConeKotlinType
 class FirSafeCallExpressionBuilder : FirAnnotationContainerBuilder, FirExpressionBuilder {
     override var source: KtSourceElement? = null
     override var coneTypeOrNull: ConeKotlinType? = null
-    override val annotations: MutableList<FirAnnotation> = mutableListOf()
+    override val annotations: MutableList<FirAnnotation> = []
     lateinit var receiver: FirExpression
     lateinit var checkedSubjectRef: FirExpressionRef<FirCheckedSafeCallSubject>
     lateinit var selector: FirStatement
+    lateinit var kind: FirSafeCallKind
 
     override fun build(): FirSafeCallExpression {
         return FirSafeCallExpressionImpl(
@@ -37,6 +38,7 @@ class FirSafeCallExpressionBuilder : FirAnnotationContainerBuilder, FirExpressio
             receiver,
             checkedSubjectRef,
             selector,
+            kind,
         )
     }
 

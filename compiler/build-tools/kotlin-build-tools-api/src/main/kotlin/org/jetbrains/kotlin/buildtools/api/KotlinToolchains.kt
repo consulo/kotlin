@@ -5,13 +5,18 @@
 
 package org.jetbrains.kotlin.buildtools.api
 
-import org.jetbrains.kotlin.buildtools.api.KotlinToolchains.Companion.loadImplementation
 import org.jetbrains.kotlin.buildtools.api.KotlinToolchains.Toolchain
+import org.jetbrains.kotlin.buildtools.api.abi.AbiValidationToolchain
 import org.jetbrains.kotlin.buildtools.api.cri.CriToolchain
 import org.jetbrains.kotlin.buildtools.api.internal.KotlinCompilerVersion
 import org.jetbrains.kotlin.buildtools.api.internal.wrappers.KotlinWrapperPre2_3_20
 import org.jetbrains.kotlin.buildtools.api.internal.wrappers.KotlinWrapperPre2_4_0
+import org.jetbrains.kotlin.buildtools.api.internal.wrappers.KotlinWrapperPre2_4_20
+import org.jetbrains.kotlin.buildtools.api.internal.wrappers.KotlinWrapperPre2_5_0
+import org.jetbrains.kotlin.buildtools.api.internal.wrappers.KotlinWrapperPre2_5_20
+import org.jetbrains.kotlin.buildtools.api.js.JsPlatformToolchain
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmPlatformToolchain
+import org.jetbrains.kotlin.buildtools.api.wasm.WasmPlatformToolchain
 import java.net.URLClassLoader
 import java.nio.file.Path
 import kotlin.contracts.ExperimentalContracts
@@ -25,6 +30,9 @@ import kotlin.contracts.contract
  *
  * Currently supported toolchains:
  * - [JvmPlatformToolchain] for Kotlin/JVM compilation
+ * - [WasmPlatformToolchain] for Kotlin/Wasm compilation
+ * - [JsPlatformToolchain] for Kotlin/JS compilation
+ * - [AbiValidationToolchain] for ABI validation
  * - [CriToolchain] for Compiler Reference Index operations
  *
  * This interface is not intended to be implemented by the API consumers.
@@ -154,8 +162,21 @@ public interface KotlinToolchains {
          */
         @JvmStatic
         public fun loadImplementation(classLoader: ClassLoader): KotlinToolchains = try {
-            var baseImplementation = loadImplementation(KotlinToolchains::class, classLoader)
-            val kotlinCompilerVersion = KotlinCompilerVersion(baseImplementation.getCompilerVersion())
+            val baseImplementation = loadImplementation(KotlinToolchains::class, classLoader)
+            baseImplementation.toCompatibilityWrapper(KotlinCompilerVersion(baseImplementation.getCompilerVersion()))
+        } catch (_: NoImplementationFoundException) {
+            try {
+                val baseImplementation = classLoader.loadClass("org.jetbrains.kotlin.buildtools.internal.compat.KotlinToolchainsV1Adapter")
+                    .constructors.first()
+                    .newInstance(@Suppress("DEPRECATION_ERROR") CompilationService.loadImplementation(classLoader)) as KotlinToolchains
+                baseImplementation.toCompatibilityWrapper(KotlinCompilerVersion(2, 5, 0, null))
+            } catch (e: ClassNotFoundException) {
+                throw NoImplementationFoundException(KotlinToolchains::class).initCause(e)
+            }
+        }
+
+        private fun KotlinToolchains.toCompatibilityWrapper(kotlinCompilerVersion: KotlinCompilerVersion): KotlinToolchains {
+            var baseImplementation = this
 
             if (kotlinCompilerVersion < KotlinCompilerVersion(2, 3, 20, "snapshot")) {
                 baseImplementation = KotlinWrapperPre2_3_20(baseImplementation)
@@ -163,16 +184,16 @@ public interface KotlinToolchains {
             if (kotlinCompilerVersion < KotlinCompilerVersion(2, 4, 0, "snapshot")) {
                 baseImplementation = KotlinWrapperPre2_4_0(baseImplementation)
             }
-
-            baseImplementation
-        } catch (_: NoImplementationFoundException) {
-            try {
-                classLoader.loadClass("org.jetbrains.kotlin.buildtools.internal.compat.KotlinToolchainsV1Adapter")
-                    .constructors.first()
-                    .newInstance(@Suppress("DEPRECATION_ERROR") CompilationService.loadImplementation(classLoader)) as KotlinToolchains
-            } catch (e: ClassNotFoundException) {
-                throw NoImplementationFoundException(KotlinToolchains::class).initCause(e)
+            if (kotlinCompilerVersion < KotlinCompilerVersion(2, 4, 20, "snapshot")) {
+                baseImplementation = KotlinWrapperPre2_4_20(baseImplementation)
             }
+            if (kotlinCompilerVersion < KotlinCompilerVersion(2, 5, 0, "snapshot")) {
+                baseImplementation = KotlinWrapperPre2_5_0(baseImplementation)
+            }
+            if (kotlinCompilerVersion < KotlinCompilerVersion(2, 5, 20, "snapshot")) {
+                baseImplementation = KotlinWrapperPre2_5_20(baseImplementation)
+            }
+            return baseImplementation
         }
 
         /**
@@ -191,6 +212,14 @@ public interface KotlinToolchains {
         public fun loadImplementation(classpath: List<Path>): KotlinToolchains =
             loadImplementation(URLClassLoader(classpath.map { it.toUri().toURL() }.toTypedArray(), SharedApiClassesClassLoader()))
 
+        /**
+         * Returns the version of the Build Tools API library.
+         *
+         * @return A string representing the version of the library, for example `2.3.0`.
+         * @since 2.4.20
+         */
+        @JvmStatic
+        public fun getVersion(): String = BuildToolsApiVersion.get()
     }
 }
 

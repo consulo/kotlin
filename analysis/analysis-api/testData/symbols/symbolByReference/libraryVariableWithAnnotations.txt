@@ -1,14 +1,18 @@
 KaKotlinPropertySymbol:
+  anchorPsi: KtProperty
   annotations: [
     one/Anno()
       psi: null
   ]
   backingFieldSymbol: KaBackingFieldSymbol:
+    anchorPsi: KtProperty
     annotations: []
     callableId: null
-    compilerVisibility: Private
+    contextParameters: []
     contextReceivers: []
     isActual: false
+    isCompanion: false
+    isDelegated: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -19,31 +23,35 @@ KaKotlinPropertySymbol:
     name: field
     origin: PROPERTY_BACKING_FIELD
     owningProperty: KaKotlinPropertySymbol(one/topLevelVariableWithAnnotations)
+    psi: null
+    realPsi: null
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Long
+    typeParameters: []
     visibility: PRIVATE
     getContainingFileSymbol: null
     getContainingJvmClassName: one.LibKt
     getContainingModule: KaLibraryModule "Library lib"
-    deprecationStatus: null
+    deprecation: null
     importableFqName: null
   callableId: one/topLevelVariableWithAnnotations
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   getter: KaPropertyGetterSymbol:
+    anchorPsi: KtPropertyAccessor
     annotations: [
       one/Anno()
         psi: null
     ]
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -53,29 +61,33 @@ KaKotlinPropertySymbol:
     location: PROPERTY
     modality: FINAL
     origin: LIBRARY
+    psi: KtPropertyAccessor
+    realPsi: KtPropertyAccessor
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Long
+    typeParameters: []
     valueParameters: []
     visibility: PUBLIC
     getContainingFileSymbol: null
     getContainingJvmClassName: one.LibKt
     getContainingModule: KaLibraryModule "Library lib"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: getTopLevelVariableWithAnnotations
     importableFqName: null
   hasBackingField: true
   hasGetter: true
   hasSetter: true
   initializer: null
   isActual: false
+  isCompanion: false
   isConst: false
-  isDelegatedProperty: false
+  isDelegated: false
   isExpect: false
   isExtension: false
   isExternal: false
-  isFromPrimaryConstructor: false
   isLateInit: false
   isOverride: false
   isStatic: false
@@ -84,21 +96,26 @@ KaKotlinPropertySymbol:
   modality: FINAL
   name: topLevelVariableWithAnnotations
   origin: LIBRARY
+  primaryConstructorParameter: null
+  psi: KtProperty
+  realPsi: KtProperty
   receiverParameter: null
   returnType: KaUsualClassType:
     annotations: []
     typeArguments: []
     type: kotlin/Long
   setter: KaPropertySetterSymbol:
+    anchorPsi: KtPropertyAccessor
     annotations: [
       one/Anno()
         psi: null
     ]
     callableId: null
-    compilerVisibility: Public
+    contextParameters: []
     contextReceivers: []
     hasStableParameterNames: true
     isActual: false
+    isCompanion: false
     isExpect: false
     isExtension: false
     isExternal: false
@@ -109,18 +126,20 @@ KaKotlinPropertySymbol:
     modality: FINAL
     origin: LIBRARY
     parameter: KaValueParameterSymbol:
+      anchorPsi: KtParameter
       annotations: [
         one/Anno()
           psi: null
       ]
       callableId: null
-      compilerVisibility: Public
+      contextParameters: []
       contextReceivers: []
-      generatedPrimaryConstructorProperty: null
       hasDeclaredDefaultValue: false
       hasDefaultValue: false
       isActual: false
+      isCompanion: false
       isCrossinline: false
+      isDelegated: false
       isExpect: false
       isExtension: false
       isExternal: false
@@ -132,36 +151,45 @@ KaKotlinPropertySymbol:
       modality: FINAL
       name: value
       origin: LIBRARY
+      primaryConstructorProperty: null
+      psi: KtParameter
+      realPsi: KtParameter
       receiverParameter: null
       returnType: KaUsualClassType:
         annotations: []
         typeArguments: []
         type: kotlin/Long
+      typeParameters: []
       visibility: PUBLIC
       getContainingFileSymbol: null
       getContainingJvmClassName: null
       getContainingModule: KaLibraryModule "Library lib"
-      deprecationStatus: null
+      deprecation: null
       importableFqName: null
+    psi: KtPropertyAccessor
+    realPsi: KtPropertyAccessor
     receiverParameter: null
     returnType: KaUsualClassType:
       annotations: []
       typeArguments: []
       type: kotlin/Unit
+    typeParameters: []
     valueParameters: [
       KaValueParameterSymbol:
+        anchorPsi: KtParameter
         annotations: [
           one/Anno()
             psi: null
         ]
         callableId: null
-        compilerVisibility: Public
+        contextParameters: []
         contextReceivers: []
-        generatedPrimaryConstructorProperty: null
         hasDeclaredDefaultValue: false
         hasDefaultValue: false
         isActual: false
+        isCompanion: false
         isCrossinline: false
+        isDelegated: false
         isExpect: false
         isExtension: false
         isExternal: false
@@ -173,31 +201,34 @@ KaKotlinPropertySymbol:
         modality: FINAL
         name: value
         origin: LIBRARY
+        primaryConstructorProperty: null
+        psi: KtParameter
+        realPsi: KtParameter
         receiverParameter: null
         returnType: KaUsualClassType:
           annotations: []
           typeArguments: []
           type: kotlin/Long
+        typeParameters: []
         visibility: PUBLIC
         getContainingFileSymbol: null
         getContainingJvmClassName: null
         getContainingModule: KaLibraryModule "Library lib"
-        deprecationStatus: null
+        deprecation: null
         importableFqName: null
     ]
     visibility: PUBLIC
     getContainingFileSymbol: null
     getContainingJvmClassName: one.LibKt
     getContainingModule: KaLibraryModule "Library lib"
-    deprecationStatus: null
+    deprecation: null
+    javaMethodName: setTopLevelVariableWithAnnotations
     importableFqName: null
   typeParameters: []
   visibility: PUBLIC
   getContainingFileSymbol: null
   getContainingJvmClassName: one.LibKt
   getContainingModule: KaLibraryModule "Library lib"
-  deprecationStatus: null
-  javaGetterName: getTopLevelVariableWithAnnotations
-  javaSetterName: setTopLevelVariableWithAnnotations
+  deprecation: null
   isInline: false
   importableFqName: one.topLevelVariableWithAnnotations

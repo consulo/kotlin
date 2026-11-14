@@ -3,11 +3,11 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=FunctionTypesKt]]
   partSimpleName: "FunctionTypesKt"
   PACKAGE_DIRECTIVE
   IMPORT_LIST
-  CLASS[classId=/A, fqName=A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=A, superNames=[]]
+  CLASS[classId=/A, fqName=A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=A, superNames=[]]
     CLASS_BODY
-  FUN[fqName=<no name provided>, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=null]
-    CLASS[classId=null, fqName=null, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=true, isTopLevel=false, name=B, superNames=[]]
-  CLASS[classId=/XXX, fqName=XXX, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=XXX, superNames=[]]
+  FUNCTION[fqName=<no name provided>, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=null]
+    CLASS[classId=null, fqName=null, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=false, name=B, superNames=[]]
+  CLASS[classId=/XXX, fqName=XXX, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=XXX, superNames=[]]
     MODIFIER_LIST[abstract]
     PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=XXX]
       VALUE_PARAMETER_LIST
@@ -105,6 +105,7 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=FunctionTypesKt]]
               TYPE_REFERENCE
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=Int]
+        NULL[kind=NULL, value=null]
       PROPERTY[fqName=XXX.a12, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=true, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=a12]
         TYPE_REFERENCE
           NULLABLE_TYPE
@@ -117,6 +118,7 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=FunctionTypesKt]]
               TYPE_REFERENCE
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=Int]
+        NULL[kind=NULL, value=null]
       PROPERTY[fqName=XXX.a13, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=a13]
         MODIFIER_LIST[abstract]
         TYPE_REFERENCE
@@ -282,7 +284,7 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=FunctionTypesKt]]
             TYPE_REFERENCE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=Int]
-  CLASS[classId=/YYY, fqName=YYY, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=YYY, superNames=[]]
+  CLASS[classId=/YYY, fqName=YYY, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=YYY, superNames=[]]
     MODIFIER_LIST[abstract]
     PRIMARY_CONSTRUCTOR[fqName=null, hasBody=false, hasNoExpressionBody=true, isDelegatedCallToThis=false, isExplicitDelegationCall=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=YYY]
       VALUE_PARAMETER_LIST
@@ -333,6 +335,7 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=FunctionTypesKt]]
               TYPE_REFERENCE
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=Int]
+        NULL[kind=NULL, value=null]
       PROPERTY[fqName=YYY.a12, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=true, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=a12]
         TYPE_REFERENCE
           NULLABLE_TYPE
@@ -345,6 +348,7 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=FunctionTypesKt]]
               TYPE_REFERENCE
                 USER_TYPE
                   REFERENCE_EXPRESSION[referencedName=Int]
+        NULL[kind=NULL, value=null]
       PROPERTY[fqName=YYY.a13, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=false, name=a13]
         MODIFIER_LIST[abstract]
         TYPE_REFERENCE

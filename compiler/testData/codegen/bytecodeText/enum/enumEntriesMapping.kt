@@ -1,4 +1,4 @@
-// TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: JVM
 // FULL_JDK
 // WITH_STDLIB
 
@@ -14,7 +14,6 @@ enum class MyEnum2 {
 }
 
 // MODULE: caller(lib)
-// LANGUAGE: +EnumEntries
 // FILE: Box.kt
 
 @OptIn(ExperimentalStdlibApi::class)

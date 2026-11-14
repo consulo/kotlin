@@ -1,2 +1,5 @@
-KtNamedFunction(46,88): '/**'
-  null
+KDocName(54,72): 'AbstractCollection'
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/collections/AbstractCollection
+    ]

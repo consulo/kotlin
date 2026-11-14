@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.symbols.AbstractSymbolByReferenceTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.symbols.AbstractSymbolByReferenceTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -34,7 +33,6 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByReferenceTestGenerated 
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -66,8 +64,38 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByReferenceTestGenerated 
   }
 
   @Test
+  @TestMetadata("actualEnumCloneJvm.kt")
+  public void testActualEnumCloneJvm() {
+    run("actualEnumCloneJvm.kt");
+  }
+
+  @Test
   public void testAllFilesPresentInSymbolByReference() {
     KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/symbols/symbolByReference"), Pattern.compile("^(.+)\\.(kt|kts)$"), null, true);
+  }
+
+  @Test
+  @TestMetadata("companionBlockFunctionLibrary.kt")
+  public void testCompanionBlockFunctionLibrary() {
+    run("companionBlockFunctionLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("companionBlockPropertyLibrary.kt")
+  public void testCompanionBlockPropertyLibrary() {
+    run("companionBlockPropertyLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("companionExtensionFunctionLibrary.kt")
+  public void testCompanionExtensionFunctionLibrary() {
+    run("companionExtensionFunctionLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("companionExtensionPropertyLibrary.kt")
+  public void testCompanionExtensionPropertyLibrary() {
+    run("companionExtensionPropertyLibrary.kt");
   }
 
   @Test
@@ -155,9 +183,33 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByReferenceTestGenerated 
   }
 
   @Test
+  @TestMetadata("constructorWithThrowsFromLibrary.kt")
+  public void testConstructorWithThrowsFromLibrary() {
+    run("constructorWithThrowsFromLibrary.kt");
+  }
+
+  @Test
   @TestMetadata("contextParametersInTypesLibrary.kt")
   public void testContextParametersInTypesLibrary() {
     run("contextParametersInTypesLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("danglingTypeConstraintInClass.kt")
+  public void testDanglingTypeConstraintInClass() {
+    run("danglingTypeConstraintInClass.kt");
+  }
+
+  @Test
+  @TestMetadata("danglingTypeConstraintSubject.kt")
+  public void testDanglingTypeConstraintSubject() {
+    run("danglingTypeConstraintSubject.kt");
+  }
+
+  @Test
+  @TestMetadata("danglingTypeConstraintUsage.kt")
+  public void testDanglingTypeConstraintUsage() {
+    run("danglingTypeConstraintUsage.kt");
   }
 
   @Test
@@ -167,9 +219,21 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByReferenceTestGenerated 
   }
 
   @Test
+  @TestMetadata("enumEntriesLibrary.kt")
+  public void testEnumEntriesLibrary() {
+    run("enumEntriesLibrary.kt");
+  }
+
+  @Test
   @TestMetadata("enumValueOf.kt")
   public void testEnumValueOf() {
     run("enumValueOf.kt");
+  }
+
+  @Test
+  @TestMetadata("enumValueOfLibrary.kt")
+  public void testEnumValueOfLibrary() {
+    run("enumValueOfLibrary.kt");
   }
 
   @Test
@@ -224,6 +288,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByReferenceTestGenerated 
   @TestMetadata("genericFromOuterClassInInnerClass.kt")
   public void testGenericFromOuterClassInInnerClass() {
     run("genericFromOuterClassInInnerClass.kt");
+  }
+
+  @Test
+  @TestMetadata("genericMethodWithThrowsFromLibrary.kt")
+  public void testGenericMethodWithThrowsFromLibrary() {
+    run("genericMethodWithThrowsFromLibrary.kt");
   }
 
   @Test
@@ -527,6 +597,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByReferenceTestGenerated 
   }
 
   @Test
+  @TestMetadata("package.kt")
+  public void testPackage() {
+    run("package.kt");
+  }
+
+  @Test
   @TestMetadata("primaryConstructorValueParameter.kt")
   public void testPrimaryConstructorValueParameter() {
     run("primaryConstructorValueParameter.kt");
@@ -536,6 +612,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByReferenceTestGenerated 
   @TestMetadata("primaryConstructorValueParameterAsProperty.kt")
   public void testPrimaryConstructorValueParameterAsProperty() {
     run("primaryConstructorValueParameterAsProperty.kt");
+  }
+
+  @Test
+  @TestMetadata("propertyAccessorsWithThrowsFromLibrary.kt")
+  public void testPropertyAccessorsWithThrowsFromLibrary() {
+    run("propertyAccessorsWithThrowsFromLibrary.kt");
   }
 
   @Test
@@ -677,6 +759,30 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByReferenceTestGenerated 
   }
 
   @Test
+  @TestMetadata("valueClassCompanionBlockFunctionLibrary.kt")
+  public void testValueClassCompanionBlockFunctionLibrary() {
+    run("valueClassCompanionBlockFunctionLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("valueClassCompanionBlockVariableLibrary.kt")
+  public void testValueClassCompanionBlockVariableLibrary() {
+    run("valueClassCompanionBlockVariableLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("valueClassCompanionExtensionFunctionLibrary.kt")
+  public void testValueClassCompanionExtensionFunctionLibrary() {
+    run("valueClassCompanionExtensionFunctionLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("valueClassCompanionExtensionVariableLibrary.kt")
+  public void testValueClassCompanionExtensionVariableLibrary() {
+    run("valueClassCompanionExtensionVariableLibrary.kt");
+  }
+
+  @Test
   @TestMetadata("valueParameter.kt")
   public void testValueParameter() {
     run("valueParameter.kt");
@@ -691,9 +797,9 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByReferenceTestGenerated 
     }
 
     @Test
-    @TestMetadata("actualEnum.kt")
-    public void testActualEnum() {
-      run("actualEnum.kt");
+    @TestMetadata("actualEnumCloneJs.kt")
+    public void testActualEnumCloneJs() {
+      run("actualEnumCloneJs.kt");
     }
 
     @Test
@@ -746,9 +852,21 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByReferenceTestGenerated 
     }
 
     @Test
+    @TestMetadata("generatedJavaGetter.kt")
+    public void testGeneratedJavaGetter() {
+      run("generatedJavaGetter.kt");
+    }
+
+    @Test
     @TestMetadata("generatedLocalClass.kt")
     public void testGeneratedLocalClass() {
       run("generatedLocalClass.kt");
+    }
+
+    @Test
+    @TestMetadata("generatedMemberFunction.kt")
+    public void testGeneratedMemberFunction() {
+      run("generatedMemberFunction.kt");
     }
 
     @Test
@@ -767,6 +885,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleSymbolByReferenceTestGenerated 
     @TestMetadata("generatedScriptLocalClass.kts")
     public void testGeneratedScriptLocalClass() {
       run("generatedScriptLocalClass.kts");
+    }
+
+    @Test
+    @TestMetadata("generatedTopLevelFunction.kt")
+    public void testGeneratedTopLevelFunction() {
+      run("generatedTopLevelFunction.kt");
     }
   }
 }

@@ -135,8 +135,8 @@ open class WasmExpressionBuilder(
     }
 
     @Suppress("UNUSED_PARAMETER")
-    inline fun buildFunctionTypedBlock(label: String?, resultType: WasmSymbolReadOnly<WasmFunctionType>, body: (Int) -> Unit) {
-        buildInstr(WasmOp.BLOCK, SourceLocation.NoLocation("BLOCK"), WasmImmediate.BlockType.Function(resultType))
+    inline fun buildFunctionTypedBlock(label: String?, type: WasmImmediate.TypeIdx, body: (Int) -> Unit) {
+        buildInstr(WasmOp.BLOCK, SourceLocation.NoLocation("BLOCK"), WasmImmediate.BlockType.Function(type))
         body(numberOfNestedBlocks)
         buildEnd()
     }
@@ -309,6 +309,14 @@ open class WasmExpressionBuilder(
         )
     }
 
+    fun buildReturnCall(symbol: WasmImmediate.FuncIdx, location: SourceLocation) {
+        buildInstr(WasmOp.RETURN_CALL, location, symbol)
+    }
+
+    fun buildReturnCallRef(typeRef: WasmImmediate.TypeIdx, location: SourceLocation) {
+        buildInstr(WasmOp.RETURN_CALL_REF, location, typeRef)
+    }
+
     fun buildGetLocal(local: WasmLocal, location: SourceLocation) {
         buildInstr(WasmOp.LOCAL_GET, location, WasmImmediate.LocalIdx.get(local))
     }
@@ -375,6 +383,34 @@ open class WasmExpressionBuilder(
         buildInstr(WasmOp.NOP, location)
     }
 
+    /**
+     * Emit a branch hint annotation for the next instruction.
+     * Call this immediately before emitting the branch instruction.
+     *
+     * @param likely true if the branch is likely to be taken, false if unlikely
+     */
+    fun buildBranchHint(likely: Boolean) {
+        buildInstr(
+            WasmOp.PSEUDO_ANNOTATION_BRANCH_HINT,
+            SourceLocation.NoLocation("Annotation pseudo-instruction"),
+            WasmImmediate.ConstU8(if (likely) 1u else 0u)
+        )
+    }
+
+    /**
+     * Emit a trace marker annotation for the next instruction.
+     * Call this immediately before emitting the instruction to trace.
+     *
+     * @param markId The trace marker ID
+     */
+    fun buildTraceInst(markId: Int) {
+        buildInstr(
+            WasmOp.PSEUDO_ANNOTATION_TRACE_INST,
+            SourceLocation.NoLocation("Annotation pseudo-instruction"),
+            WasmImmediate.ConstI32(markId)
+        )
+    }
+
     inline fun commentPreviousInstr(text: () -> String) {
         if (!skipCommentInstructions) {
             buildInstr(
@@ -395,6 +431,84 @@ open class WasmExpressionBuilder(
         if (!skipCommentInstructions) {
             buildInstr(WasmOp.PSEUDO_COMMENT_GROUP_END, SourceLocation.NoLocation("Pseudo-instruction"))
         }
+    }
+
+    fun createNewContHandle(tagIdx: WasmSymbol<Int>, absoluteBlockLevel: Int) =
+        createNewContHandleImmediate(WasmImmediate.ContHandle.ContHandleType.ON, tagIdx, absoluteBlockLevel)
+
+    private fun createNewContHandleImmediate(
+        handleType: WasmImmediate.ContHandle.ContHandleType,
+        tagIdx: WasmSymbol<Int>,
+        absolutBlockLevel: Int,
+    ): WasmImmediate.ContHandle {
+        val relativeLevel = numberOfNestedBlocks - absolutBlockLevel
+        return WasmImmediate.ContHandle(
+            handleType,
+            listOf(
+                WasmImmediate.TagIdx(tagIdx),
+                WasmImmediate.LabelIdx.get(relativeLevel)
+            )
+        )
+    }
+
+    fun buildContNew(contType: WasmImmediate.TypeIdx, location: SourceLocation) {
+        buildInstr(WasmOp.CONT_NEW, location, contType)
+    }
+
+    fun buildContBind(contType: WasmImmediate.TypeIdx, bindContType: WasmImmediate.TypeIdx, location: SourceLocation) {
+        buildInstr(
+            WasmOp.CONT_BIND, location,
+            contType,
+            bindContType,
+        )
+    }
+
+    fun buildSuspend(tag: WasmSymbol<Int>, location: SourceLocation) {
+        buildInstr(WasmOp.SUSPEND, location, WasmImmediate.TagIdx(tag))
+    }
+
+    fun buildResume(
+        contType: WasmImmediate.TypeIdx,
+        contHandle: WasmImmediate.ContHandle,
+        location: SourceLocation
+    ) {
+        buildInstr(
+            WasmOp.RESUME,
+            location,
+            contType,
+            WasmImmediate.ConstI32(1),
+            contHandle
+        )
+    }
+
+    fun buildResumeThrow(
+        contType: WasmImmediate.TypeIdx,
+        exceptionTag: WasmSymbol<Int>,
+        contHandle: WasmImmediate.ContHandle,
+        location: SourceLocation
+    ) {
+        buildInstr(
+            WasmOp.RESUME_THROW,
+            location,
+            contType,
+            WasmImmediate.TagIdx(exceptionTag),
+            WasmImmediate.ConstI32(1),
+            contHandle
+        )
+    }
+
+    fun buildResumeThrowRef(
+        contType: WasmImmediate.TypeIdx,
+        contHandle: WasmImmediate.ContHandle,
+        location: SourceLocation
+    ) {
+        buildInstr(
+            WasmOp.RESUME_THROW_REF,
+            location,
+            contType,
+            WasmImmediate.ConstI32(1),
+            contHandle
+        )
     }
 }
 

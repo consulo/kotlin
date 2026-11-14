@@ -16,8 +16,10 @@ Source Code → PSI Tree (syntax) → Analysis API (semantics) → Symbols
 
 ## Module Structure
 
-- `psi-api/` - Core PSI interfaces (`KtElement`, `KtExpression`, `KtDeclaration`)
-- `psi-impl/` - Implementations and stubs for incremental compilation
+- `psi-api/` - Core PSI interfaces (`KtElement`, `KtExpression`, `KtDeclaration`), plus the platform interfaces the code hosting
+  the PSI implements: the binary Kotlin file types and their services in `org.jetbrains.kotlin.analysis.decompiler`
+- `psi-impl/` - PSI implementation: element types, the parser glue, and code fragments
+  (the stub implementation lives in [`analysis/stubs`](../../analysis/stubs/README.md))
 - `psi-frontend-utils/` - Compiler integration utilities
 - `psi-utils/` - Helper utilities
 
@@ -83,6 +85,9 @@ Converting Java PSI classes to Kotlin is NOT always possible. Before attempting:
 - `@KtExperimentalApi` — Experimental public API
 - `@KtImplementationDetail` — Internal implementation
 - `@KtNonPublicApi` — JetBrains-internal APIs
+- `@KtIdeApi` — APIs designed for and internal to the Kotlin IntelliJ plugin
+- `@KtPlatformInterface` — APIs forming a contract with the Analysis API engine and its platforms (stub building, element types, indexing)
+- `@KtSpi`/`@KtSpiExtensionPoint` — Service provider interfaces and their members, designed to be implemented rather than called
 - `@KtPsiInconsistencyHandling` — Code handling inconsistent PSI states
 
 **Java-Kotlin interop:** See the "Java-Kotlin Interoperability" section in [api-development.md](../../analysis/docs/contribution-guide/api-development.md).
@@ -123,10 +128,32 @@ class KtCallExpression : ...
 
 **Test coverage requirement:**
 
-All concrete `KtElement` classes must be covered by tests in `compiler/testData/psi/`:
+All concrete `KtElement` classes must be covered by tests in `compiler/psi/psi-impl/testData/psi/`:
 - Each test consists of a `.kt` file containing example Kotlin code and a corresponding `.txt` file showing the expected PSI tree structure
 - These tests serve as documentation showing which code constructs map to which PSI elements
 - When adding a new `KtElement` class, add corresponding test cases demonstrating the syntax it represents
+
+## Working with Test Data
+
+PSI test data (`compiler/psi/psi-impl/testData/`) is managed by the same test data manager as the Analysis API, since the
+`test-data-manager` convention is applied to `:compiler:psi:psi-impl`. When modifying test data files or running generated tests
+(`*Generated`) that compare output against `.txt` files, use `updateTestData` (to rewrite files) or `checkTestData` (to verify only)
+instead of standard test commands.
+
+```bash
+# Update all PSI test data
+./gradlew :compiler:psi:psi-impl:updateTestData
+
+# Update by directory (preferred for iteration)
+./gradlew updateTestData -Porg.jetbrains.kotlin.testDataManager.options.testDataPath=compiler/psi/psi-impl/testData/psi/annotation/
+```
+
+Note that a single `.kt` file under `testData/psi/` feeds several suites across two modules: the PSI tree (`.txt`) from
+`:compiler:psi:psi-impl` (`PsiParsingTest`), plus source stubs (`.stubs.txt`) and compiled stubs (`.compiled.stubs.txt`,
+`.knm.compiled.stubs.txt`) together with the decompiled text (`.decompiledText.txt`, `.knm.decompiledText.txt`) from `:analysis:stubs`.
+Prefer a path-filtered `updateTestData` from the repo root so that every affected module is picked up.
+
+→ READ [`analysis/AGENTS.md`](../../analysis/AGENTS.md) ("Working with Test Data") for the full set of options and the rationale
 
 ## Detailed Documentation
 
@@ -139,3 +166,6 @@ WHEN working with PSI visitors:
 
 WHEN creating PSI elements programmatically:
 → READ [psi-api/src/org/jetbrains/kotlin/psi/KtPsiFactory.kt](psi-api/src/org/jetbrains/kotlin/psi/KtPsiFactory.kt)
+
+WHEN working with stubs:
+→ READ [`analysis/stubs/README.md`](../../analysis/stubs/README.md)

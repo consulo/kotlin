@@ -1,4 +1,6 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     java
 }
 
@@ -8,6 +10,7 @@ val testFixturesModules = listOf(
     ":compiler:test-infrastructure-utils",
     ":compiler:tests-compiler-utils",
     ":compiler:tests-common-new",
+    ":compiler:jvm.tests",
     ":generators:test-generator",
     ":kotlin-build-common",
     ":js:js.tests",
@@ -15,8 +18,6 @@ val testFixturesModules = listOf(
 
 val mainModules = listOf(
     ":generators",
-    ":compiler:tests-mutes",
-    ":compiler:tests-mutes:mutes-junit5",
 )
 
 dependencies {
@@ -34,11 +35,6 @@ dependencies {
 
 publish()
 runtimeJar()
-sourcesJar {
-    from {
-        mainModules.map { project(it).mainSourceSet.allSource } +
-                testFixturesModules.map { project(it).testFixturesSourceSet.allSource }
-    }
-}
+sourcesJar()
 
 javadocJar()

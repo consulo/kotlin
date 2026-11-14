@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.test
 
-import org.jetbrains.kotlin.test.util.JUnit4Assertions
+import org.jetbrains.kotlin.test.services.JUnit5Assertions
 import java.io.File
 
 object MockLibraryUtilExt {
@@ -16,6 +16,7 @@ object MockLibraryUtilExt {
         jarName: String,
         addSources: Boolean = false,
         extraOptions: List<String> = emptyList(),
+        extraJavacOptions: List<String> = emptyList(),
         extraClasspath: List<String> = emptyList(),
     ): File {
         return MockLibraryUtil.compileJavaFilesLibraryToJar(
@@ -23,9 +24,10 @@ object MockLibraryUtilExt {
             jarName,
             addSources,
             extraOptions,
+            extraJavacOptions,
             extraClasspath,
             extraModulepath = listOf(),
-            JUnit4Assertions
+            JUnit5Assertions
         )
     }
 
@@ -37,6 +39,7 @@ object MockLibraryUtilExt {
         addSources: Boolean = false,
         allowKotlinSources: Boolean = true,
         extraOptions: List<String> = emptyList(),
+        extraJavacOptions: List<String> = emptyList(),
         extraClasspath: List<String> = emptyList(),
         useJava11: Boolean = false,
     ): File {
@@ -46,10 +49,10 @@ object MockLibraryUtilExt {
             addSources,
             allowKotlinSources,
             extraOptions,
+            extraJavacOptions,
             extraClasspath,
             extraModulepath = listOf(),
-            useJava11,
-            JUnit4Assertions
+            useJava11
         )
     }
 }

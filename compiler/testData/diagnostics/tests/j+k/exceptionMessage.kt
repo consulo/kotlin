@@ -1,6 +1,5 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: -UNUSED_PARAMETER
-// JAVAC_EXPECTED_FILE
 // FILE: VcsException.java
 import org.jetbrains.annotations.NotNull;
 

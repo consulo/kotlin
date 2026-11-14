@@ -1,6 +1,5 @@
 // WITH_STDLIB
 // WORKS_WHEN_VALUE_CLASS
-// LANGUAGE: +JvmInlineMultiFieldValueClasses, +GenericInlineClassParameter
 
 fun <T> T.runExt(fn: T.() -> String) = fn()
 

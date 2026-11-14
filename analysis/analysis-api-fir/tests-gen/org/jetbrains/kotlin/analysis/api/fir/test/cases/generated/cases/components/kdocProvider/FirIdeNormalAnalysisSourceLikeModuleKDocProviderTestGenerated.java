@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.kdocProvider.AbstractKDocProviderTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.kdocProvider.AbstractKDocProviderTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirIdeNormalAnalysisSourceLikeModuleKDocProviderTestGenerated exten
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Ide,
@@ -85,6 +83,12 @@ public class FirIdeNormalAnalysisSourceLikeModuleKDocProviderTestGenerated exten
   @TestMetadata("libraryBinaryJsExported.kt")
   public void testLibraryBinaryJsExported() {
     run("libraryBinaryJsExported.kt");
+  }
+
+  @Test
+  @TestMetadata("libraryBinaryJsExportedTypeAliasEnumEntryAccessors.kt")
+  public void testLibraryBinaryJsExportedTypeAliasEnumEntryAccessors() {
+    run("libraryBinaryJsExportedTypeAliasEnumEntryAccessors.kt");
   }
 
   @Test

@@ -1,6 +1,5 @@
 // DISABLE_JAVA_FACADE
-// RUN_PIPELINE_TILL: BACKEND
-// SKIP_TXT
+// RUN_PIPELINE_TILL: CODEGEN
 // FILE: A.java
 class A {
     private static void foo() {}

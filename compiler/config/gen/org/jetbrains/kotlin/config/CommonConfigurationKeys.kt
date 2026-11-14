@@ -13,6 +13,7 @@ package org.jetbrains.kotlin.config
  */
 
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.components.ClassLoadersCache
 import org.jetbrains.kotlin.config.phaser.PhaseConfig
 import org.jetbrains.kotlin.incremental.components.EnumWhenTracker
 import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
@@ -62,7 +63,7 @@ object CommonConfigurationKeys {
     val USE_FIR = CompilerConfigurationKey.create<Boolean>("USE_FIR")
 
     @JvmField
-    val USE_LIGHT_TREE = CompilerConfigurationKey.create<Boolean>("USE_LIGHT_TREE")
+    val PARSER_MODE = CompilerConfigurationKey.create<ParserMode>("PARSER_MODE")
 
     @JvmField
     val HMPP_MODULE_STRUCTURE = CompilerConfigurationKey.create<HmppCliModuleStructure>("HMPP_MODULE_STRUCTURE")
@@ -94,25 +95,19 @@ object CommonConfigurationKeys {
     val ALLOW_ANY_SCRIPTS_IN_SOURCE_ROOTS = CompilerConfigurationKey.create<Boolean>("ALLOW_ANY_SCRIPTS_IN_SOURCE_ROOTS")
 
     @JvmField
-    val IGNORE_CONST_OPTIMIZATION_ERRORS = CompilerConfigurationKey.create<Boolean>("IGNORE_CONST_OPTIMIZATION_ERRORS")
-
-    @JvmField
+    @MessageCollectorAccess
     val MESSAGE_COLLECTOR_KEY = CompilerConfigurationKey.create<MessageCollector>("MESSAGE_COLLECTOR_KEY")
 
     @JvmField
     val VERIFY_IR = CompilerConfigurationKey.create<IrVerificationMode>("VERIFY_IR")
 
-    // Checks pre-lowering IR for visibility violations.
+    // Disable specific IR checkers by simple class name or group tag
     @JvmField
-    val ENABLE_IR_VISIBILITY_CHECKS = CompilerConfigurationKey.create<Boolean>("ENABLE_IR_VISIBILITY_CHECKS")
+    val DISABLE_IR_CHECKERS = CompilerConfigurationKey.create<List<String>>("DISABLE_IR_CHECKERS")
 
-    // Checks IR for vararg types mismatches.
+    // Enable optional IR checkers by simple class name or group tag
     @JvmField
-    val ENABLE_IR_VARARG_TYPES_CHECKS = CompilerConfigurationKey.create<Boolean>("ENABLE_IR_VARARG_TYPES_CHECKS")
-
-    // Checks that offsets of nested IR elements conform to offsets of their containers.
-    @JvmField
-    val ENABLE_IR_NESTED_OFFSETS_CHECKS = CompilerConfigurationKey.create<Boolean>("ENABLE_IR_NESTED_OFFSETS_CHECKS")
+    val ADDITIONAL_IR_CHECKERS = CompilerConfigurationKey.create<List<String>>("ADDITIONAL_IR_CHECKERS")
 
     @JvmField
     val PHASE_CONFIG = CompilerConfigurationKey.create<PhaseConfig>("PHASE_CONFIG")
@@ -138,6 +133,10 @@ object CommonConfigurationKeys {
 
     @JvmField
     val TARGET_PLATFORM = CompilerConfigurationKey.create<TargetPlatform>("TARGET_PLATFORM")
+
+    // Cache for classloaders to be used by compiler plugins (e.g. Kapt)
+    @JvmField
+    val CLASSLOADERS_CACHE = CompilerConfigurationKey.create<ClassLoadersCache>("CLASSLOADERS_CACHE")
 
 }
 
@@ -189,9 +188,9 @@ var CompilerConfiguration.useFir: Boolean
     get() = getBoolean(CommonConfigurationKeys.USE_FIR)
     set(value) { put(CommonConfigurationKeys.USE_FIR, value) }
 
-var CompilerConfiguration.useLightTree: Boolean
-    get() = getBoolean(CommonConfigurationKeys.USE_LIGHT_TREE)
-    set(value) { put(CommonConfigurationKeys.USE_LIGHT_TREE, value) }
+var CompilerConfiguration.parserMode: ParserMode
+    get() = get(CommonConfigurationKeys.PARSER_MODE, ParserMode.Default)
+    set(value) { put(CommonConfigurationKeys.PARSER_MODE, value) }
 
 var CompilerConfiguration.hmppModuleStructure: HmppCliModuleStructure?
     get() = get(CommonConfigurationKeys.HMPP_MODULE_STRUCTURE)
@@ -229,10 +228,7 @@ var CompilerConfiguration.allowAnyScriptsInSourceRoots: Boolean
     get() = getBoolean(CommonConfigurationKeys.ALLOW_ANY_SCRIPTS_IN_SOURCE_ROOTS)
     set(value) { put(CommonConfigurationKeys.ALLOW_ANY_SCRIPTS_IN_SOURCE_ROOTS, value) }
 
-var CompilerConfiguration.ignoreConstOptimizationErrors: Boolean
-    get() = getBoolean(CommonConfigurationKeys.IGNORE_CONST_OPTIMIZATION_ERRORS)
-    set(value) { put(CommonConfigurationKeys.IGNORE_CONST_OPTIMIZATION_ERRORS, value) }
-
+@MessageCollectorAccess
 var CompilerConfiguration.messageCollector: MessageCollector
     get() = get(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
     set(value) { put(CommonConfigurationKeys.MESSAGE_COLLECTOR_KEY, value) }
@@ -241,17 +237,13 @@ var CompilerConfiguration.verifyIr: IrVerificationMode?
     get() = get(CommonConfigurationKeys.VERIFY_IR)
     set(value) { put(CommonConfigurationKeys.VERIFY_IR, requireNotNull(value) { "nullable values are not allowed" }) }
 
-var CompilerConfiguration.enableIrVisibilityChecks: Boolean
-    get() = getBoolean(CommonConfigurationKeys.ENABLE_IR_VISIBILITY_CHECKS)
-    set(value) { put(CommonConfigurationKeys.ENABLE_IR_VISIBILITY_CHECKS, value) }
+var CompilerConfiguration.disableIrCheckers: List<String>
+    get() = getList(CommonConfigurationKeys.DISABLE_IR_CHECKERS)
+    set(value) { put(CommonConfigurationKeys.DISABLE_IR_CHECKERS, value) }
 
-var CompilerConfiguration.enableIrVarargTypesChecks: Boolean
-    get() = getBoolean(CommonConfigurationKeys.ENABLE_IR_VARARG_TYPES_CHECKS)
-    set(value) { put(CommonConfigurationKeys.ENABLE_IR_VARARG_TYPES_CHECKS, value) }
-
-var CompilerConfiguration.enableIrNestedOffsetsChecks: Boolean
-    get() = getBoolean(CommonConfigurationKeys.ENABLE_IR_NESTED_OFFSETS_CHECKS)
-    set(value) { put(CommonConfigurationKeys.ENABLE_IR_NESTED_OFFSETS_CHECKS, value) }
+var CompilerConfiguration.additionalIrCheckers: List<String>
+    get() = getList(CommonConfigurationKeys.ADDITIONAL_IR_CHECKERS)
+    set(value) { put(CommonConfigurationKeys.ADDITIONAL_IR_CHECKERS, value) }
 
 var CompilerConfiguration.phaseConfig: PhaseConfig?
     get() = get(CommonConfigurationKeys.PHASE_CONFIG)
@@ -280,4 +272,8 @@ var CompilerConfiguration.detailedPerf: Boolean
 var CompilerConfiguration.targetPlatform: TargetPlatform?
     get() = get(CommonConfigurationKeys.TARGET_PLATFORM)
     set(value) { put(CommonConfigurationKeys.TARGET_PLATFORM, requireNotNull(value) { "nullable values are not allowed" }) }
+
+var CompilerConfiguration.classloadersCache: ClassLoadersCache?
+    get() = get(CommonConfigurationKeys.CLASSLOADERS_CACHE)
+    set(value) { putIfNotNull(CommonConfigurationKeys.CLASSLOADERS_CACHE, value) }
 

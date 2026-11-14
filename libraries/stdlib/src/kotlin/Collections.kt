@@ -475,7 +475,7 @@ public expect interface Set<out E> : Collection<E> {
  * If a particular use case does not require set's modification,
  * a read-only counterpart, [Set] could be used instead.
  *
- * [MutableSet] extends [Set] contact with functions allowing to add and remove elements.
+ * [MutableSet] extends [Set] contract with functions allowing to add and remove elements.
  *
  * Unlike [Set], an iterator returned by [iterator] allows modifying the set during iteration.
  *
@@ -493,7 +493,9 @@ public expect interface MutableSet<E> : Set<E>, MutableCollection<E> {
     /**
      * Adds the specified element to the set.
      *
-     * @return `true` if the element has been added, `false` if the element is already contained in the set.
+     * If the set doesn't contain [element], it is added to the set and the function returns `true`.
+     * If the set already contains [element], the element instance stored in the set is kept, [element] is not
+     * added, and the function returns `false`.
      *
      * @sample samples.collections.Collections.Sets.add
      */
@@ -659,7 +661,7 @@ public expect interface Map<K, out V> {
  *
  * If a particular use case does not require map's modification, a read-only counterpart, [Map] could be used instead.
  *
- * [MutableMap] extends [Map] contact with functions allowing to add, remove and update mapping between keys and values.
+ * [MutableMap] extends [Map] contract with functions allowing to add, remove and update mapping between keys and values.
  *
  * Unlike [Map], [keys], [values] and [entries] collections are all mutable, and changes in them update the map.
  *
@@ -674,7 +676,9 @@ public expect interface MutableMap<K, V> : Map<K, V> {
     /**
      * Associates the specified [value] with the specified [key] in the map.
      *
-     * @return the previous value associated with the key, or `null` if the key was not present in the map.
+     * If the map doesn't contain a mapping for [key], the mapping is added and the function returns `null`.
+     * If the map already contains a mapping for [key], the value for that key is replaced with the specified
+     * [value] and the function returns the previous value.
      *
      * @sample samples.collections.Maps.CoreApi.put
      */
@@ -694,6 +698,8 @@ public expect interface MutableMap<K, V> : Map<K, V> {
     // Bulk Modification Operations
     /**
      * Updates this map with key/value pairs from the specified map [from].
+     *
+     * The effect of this call is equivalent to calling [put] for each entry of [from].
      *
      * @sample samples.collections.Maps.CoreApi.putAll
      */

@@ -7,17 +7,20 @@ package org.jetbrains.kotlin.gradle.targets.js.npm
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import org.jetbrains.kotlin.gradle.targets.web.npm.ObsoleteNpmDependencyModel
 import java.io.File
 import java.io.Serializable
 
 /**
  * Fake NodeJS module directory created from Gradle external module
  */
+@ObsoleteNpmDependencyModel
 data class GradleNodeModule(val name: String, val version: String, val path: File) : Serializable {
     val semver: SemVer
         get() = SemVer.from(version)
 
     @get:Synchronized
+    @Suppress("DEPRECATION")
     val dependencies: Set<NpmDependencyDeclaration> by lazy {
         val pJson = path.resolve("package.json").reader().use {
             Gson().fromJson(it, JsonObject::class.java)

@@ -1,10 +1,11 @@
-import org.jetbrains.kotlin.build.foreign.CheckForeignClassUsageTask
+import org.jetbrains.kotlin.build.foreign.registerForeignClassUsageTasks
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("kotlin-git.gradle-build-conventions.foreign-class-usage-checker")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -19,16 +20,12 @@ dependencies {
     compileOnly(project(":core:language.targets"))
     compileOnly(project(":core:language.version-settings"))
     compileOnly(project(":compiler:psi:psi-api"))
-    implementation(project(":compiler:backend"))
     compileOnly(project(":core:compiler.common"))
     compileOnly(project(":core:compiler.common.jvm"))
-    compileOnly(project(":core:compiler.common.js"))
-    implementation(project(":analysis:analysis-internal-utils"))
-    implementation(project(":analysis:kt-references"))
+    implementation(kotlinxCollectionsImmutable())
 
     api(intellijCore())
-    api(libs.intellij.asm)
-    api(libs.guava)
+    implementation(libs.intellij.asm)
 
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter.api)
@@ -39,10 +36,13 @@ dependencies {
     testImplementation(testFixtures(project(":compiler:tests-common")))
 }
 
-private val stableNonPublicMarkers = listOf(
+private val unstableNonPublicMarkers = listOf(
     "org.jetbrains.kotlin.analysis.api.KaImplementationDetail",
     "org.jetbrains.kotlin.analysis.api.KaNonPublicApi",
     "org.jetbrains.kotlin.analysis.api.KaIdeApi",
+)
+
+private val stableNonPublicMarkers = unstableNonPublicMarkers + listOf(
     "org.jetbrains.kotlin.analysis.api.KaExperimentalApi",
     "org.jetbrains.kotlin.analysis.api.KaPlatformInterface", // Platform interface is not stable yet
     "org.jetbrains.kotlin.analysis.api.KaContextParameterApi",
@@ -68,7 +68,12 @@ projectTests {
     testCodebaseTask()
 }
 
-val checkForeignClassUsage by tasks.registering(CheckForeignClassUsageTask::class) {
+registerForeignClassUsageTasks {
     outputFile = file("api/analysis-api.foreign")
     nonPublicMarkers.addAll(stableNonPublicMarkers)
+}
+
+registerForeignClassUsageTasks(nameSuffix = "Unstable") {
+    outputFile = file("api-unstable/analysis-api.foreign")
+    nonPublicMarkers.addAll(unstableNonPublicMarkers)
 }

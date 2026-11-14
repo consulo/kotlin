@@ -110,7 +110,7 @@ private fun IrBlockBuilder.add(
 
     val temporary = irTemporary(copy, nameHint = "Explain", origin = POWER_ASSERT_TEMPORARY)
     val variable = IrDiagramVariable.Displayable(temporary, expression, sourceRangeInfo, text, literal = true)
-    return call(irGet(temporary), variables.add(variable))
+    return call(irGet(temporary), variables.adding(variable))
 }
 
 /**
@@ -137,7 +137,7 @@ private fun IrBlockBuilder.add(
 
     val temporary = irTemporary(copy, nameHint = "Explain", origin = POWER_ASSERT_TEMPORARY)
     val variable = IrDiagramVariable.Hidden(temporary, expression)
-    return call(irGet(temporary), variables.add(variable))
+    return call(irGet(temporary), variables.adding(variable))
 }
 
 /**
@@ -167,7 +167,7 @@ private fun IrBlockBuilder.add(
 
     val temporary = irTemporary(copy, nameHint = "Explain", origin = POWER_ASSERT_TEMPORARY)
     val variable = IrDiagramVariable.Displayable(temporary, expression, sourceRangeInfo, text, literal = false)
-    return call(irGet(temporary), variables.add(variable))
+    return call(irGet(temporary), variables.adding(variable))
 }
 
 /**
@@ -347,7 +347,9 @@ private fun IrBlockBuilder.nest(
 ): IrExpression {
     class ElvisOptimizer : IrElementTransformerVoid() {
         private val transformer = IrTemporaryExtractionTransformer(this@nest, variables)
-        private val initializer = node.variable.initializer?.transform(transformer, null)
+        private val initializer = node.variable.initializer
+            ?.deepCopyWithSymbols(scope.getLocalDeclarationParent())
+            ?.transform(transformer, null)
 
         override fun visitGetValue(expression: IrGetValue): IrExpression {
             if (initializer != null && expression.symbol == node.variable.symbol) {

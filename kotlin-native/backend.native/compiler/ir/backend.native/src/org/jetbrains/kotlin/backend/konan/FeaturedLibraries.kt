@@ -5,23 +5,39 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
-import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.konan.config.exportedLibraries
-import org.jetbrains.kotlin.konan.file.File
-import org.jetbrains.kotlin.konan.library.isFromKotlinNativeDistribution
 import org.jetbrains.kotlin.library.KotlinLibrary
-import org.jetbrains.kotlin.library.SearchPathResolver
-import org.jetbrains.kotlin.library.metadata.*
-import org.jetbrains.kotlin.library.metadata.resolver.KotlinLibraryResolveResult
-import org.jetbrains.kotlin.library.toUnresolvedLibraries
+import org.jetbrains.kotlin.library.metadata.CurrentKlibModuleOrigin
+import org.jetbrains.kotlin.library.metadata.DeserializedKlibModuleOrigin
+import org.jetbrains.kotlin.library.metadata.SyntheticModulesOrigin
+import org.jetbrains.kotlin.library.metadata.klibModuleOrigin
 
 internal fun ModuleDescriptor.getExportedDependencies(config: NativeSecondStageCompilationConfig): List<ModuleDescriptor> =
-        getDescriptorsFromLibraries((config.exportedLibraries + config.includedLibraries).toSet())
+        getDescriptorsFromLibraries((config.loadedKlibs.exported + config.loadedKlibs.included).toSet())
+
+/**
+ * Same as [getExportedDependencies], but in reverse topological order: a module always precedes the modules
+ * that depend on it, whatever order the libraries were passed in.
+ *
+ * * In what sense this is canonical
+ * [org.jetbrains.kotlin.backend.konan.library.KlibDAG.librariesReverseTopoSorted] is a total order computed
+ * from exactly two inputs: the dependency graph, and `LoadedNativeKlibs.all` (the order the libraries were
+ * loaded in, which decides everything the edges leave unconstrained). Both inputs are explainable and
+ * reproducible, and nothing else can reach the result. Note the load order is not merely preserved among
+ * unrelated libraries: a library still waiting for its own dependencies can be overtaken by a later one that
+ * is already ready.
+ * So the order is canonical for a given graph and a given library list. It is NOT invariant under permuting
+ * that list: two libraries that no dependency edge relates still swap if the CLI passes them in the other
+ * order.
+ */
+internal fun ModuleDescriptor.getExportedDependenciesInCanonicalRTO(config: NativeSecondStageCompilationConfig): List<ModuleDescriptor> {
+    return getExportedDependencies(config).sortedBy { module ->
+        config.klibDag.libraryReverseTopoRank.getValue((module.klibModuleOrigin as DeserializedKlibModuleOrigin).library)
+    }
+}
 
 internal fun ModuleDescriptor.getIncludedLibraryDescriptors(config: NativeSecondStageCompilationConfig): List<ModuleDescriptor> =
-        getDescriptorsFromLibraries(config.includedLibraries.toSet())
+        getDescriptorsFromLibraries(config.loadedKlibs.included.toSet())
 
 private fun ModuleDescriptor.getDescriptorsFromLibraries(libraries: Set<KotlinLibrary>) =
     allDependencyModules.filter {
@@ -30,149 +46,3 @@ private fun ModuleDescriptor.getDescriptorsFromLibraries(libraries: Set<KotlinLi
             is DeserializedKlibModuleOrigin -> origin.library in libraries
         }
     }
-
-internal fun getExportedLibraries(
-    configuration: CompilerConfiguration,
-    resolvedLibraries: KotlinLibraryResolveResult,
-    resolver: SearchPathResolver<KotlinLibrary>,
-    report: Boolean
-): List<KotlinLibrary> = getFeaturedLibraries(
-        configuration.exportedLibraries,
-        resolvedLibraries,
-        resolver,
-        if (report) FeaturedLibrariesReporter.forExportedLibraries(configuration) else FeaturedLibrariesReporter.Silent,
-        allowDefaultLibs = false
-)
-
-internal fun getIncludedLibraries(
-    includedLibraryFiles: List<File>,
-    configuration: CompilerConfiguration,
-    resolvedLibraries: KotlinLibraryResolveResult
-): List<KotlinLibrary> = getFeaturedLibraries(
-        includedLibraryFiles.toSet(),
-        resolvedLibraries,
-        FeaturedLibrariesReporter.forIncludedLibraries(configuration),
-        allowDefaultLibs = false
-)
-
-private sealed class FeaturedLibrariesReporter {
-
-    abstract fun reportIllegalKind(library: KotlinLibrary)
-    abstract fun reportNotIncludedLibraries(includedLibraries: List<KotlinLibrary>, remainingFeaturedLibraries: Set<File>)
-
-    protected val KotlinLibrary.reportedKind: String
-        get() = when {
-            isCInteropLibrary() -> "Interop"
-            isFromKotlinNativeDistribution -> "Default"
-            else -> "Unknown kind"
-        }
-
-    object Silent: FeaturedLibrariesReporter() {
-        override fun reportIllegalKind(library: KotlinLibrary) {}
-        override fun reportNotIncludedLibraries(includedLibraries: List<KotlinLibrary>, remainingFeaturedLibraries: Set<File>) {}
-    }
-
-    abstract class BaseReporter(val configuration: CompilerConfiguration) : FeaturedLibrariesReporter() {
-        protected abstract fun illegalKindMessage(kind: String, libraryName: String): String
-        protected abstract fun notIncludedLibraryMessageTitle(): String
-
-        override fun reportIllegalKind(library: KotlinLibrary) {
-            configuration.report(
-                    CompilerMessageSeverity.STRONG_WARNING,
-                    illegalKindMessage(library.reportedKind, library.location.path)
-            )
-        }
-
-        override fun reportNotIncludedLibraries(includedLibraries: List<KotlinLibrary>, remainingFeaturedLibraries: Set<File>) {
-            val message = buildString {
-                appendLine(notIncludedLibraryMessageTitle())
-                remainingFeaturedLibraries.forEach { appendLine(it) }
-                appendLine()
-                appendLine("Included libraries:")
-                includedLibraries.forEach { appendLine(it.libraryFile) }
-            }
-
-            configuration.report(CompilerMessageSeverity.STRONG_WARNING, message)
-        }
-    }
-
-    private class IncludedLibrariesReporter(val configuration: CompilerConfiguration) : FeaturedLibrariesReporter() {
-        override fun reportIllegalKind(library: KotlinLibrary) = with(library) {
-            val message = "$reportedKind library $location cannot be passed with -Xinclude " +
-                    "(library path: ${libraryFile.absolutePath})"
-            configuration.report(CompilerMessageSeverity.STRONG_WARNING, message)
-        }
-
-        override fun reportNotIncludedLibraries(includedLibraries: List<KotlinLibrary>, remainingFeaturedLibraries: Set<File>) {
-            error("An included library is not found among resolved libraries")
-        }
-    }
-
-    private class ExportedLibrariesReporter(configuration: CompilerConfiguration) : BaseReporter(configuration) {
-        override fun illegalKindMessage(kind: String, libraryName: String): String =
-            "$kind library $libraryName can't be exported with -Xexport-library"
-
-        override fun notIncludedLibraryMessageTitle(): String =
-            "Following libraries are specified to be exported with -Xexport-library, but not included to the build:"
-    }
-
-    private class CoveredLibraryReporter(configuration: CompilerConfiguration): BaseReporter(configuration) {
-        override fun illegalKindMessage(kind: String, libraryName: String): String =
-            "Cannot provide the code coverage for the $kind library $libraryName."
-
-        override fun notIncludedLibraryMessageTitle(): String =
-            "The code coverage is enabled for the following libraries, but they are not included to the build:"
-    }
-
-    companion object {
-        fun forExportedLibraries(configuration: CompilerConfiguration): FeaturedLibrariesReporter =
-                ExportedLibrariesReporter(configuration)
-        fun forCoveredLibraries(configuration: CompilerConfiguration): FeaturedLibrariesReporter =
-                CoveredLibraryReporter(configuration)
-        fun forIncludedLibraries(configuration: CompilerConfiguration): FeaturedLibrariesReporter =
-                IncludedLibrariesReporter(configuration)
-    }
-}
-
-private fun getFeaturedLibraries(
-        featuredLibraries: List<String>,
-        resolvedLibraries: KotlinLibraryResolveResult,
-        resolver: SearchPathResolver<KotlinLibrary>,
-        reporter: FeaturedLibrariesReporter,
-        allowDefaultLibs: Boolean
-) = getFeaturedLibraries(
-        featuredLibraries.toUnresolvedLibraries.map { resolver.resolve(it).libraryFile }.toSet(),
-        resolvedLibraries,
-        reporter,
-        allowDefaultLibs
-)
-
-private fun getFeaturedLibraries(
-    featuredLibraryFiles: Set<File>,
-    resolvedLibraries: KotlinLibraryResolveResult,
-    reporter: FeaturedLibrariesReporter,
-    allowDefaultLibs: Boolean
-) : List<KotlinLibrary> {
-    val remainingFeaturedLibraries = featuredLibraryFiles.toMutableSet()
-    val result = mutableListOf<KotlinLibrary>()
-    //TODO: please add type checks before cast.
-    val libraries = resolvedLibraries.getFullList()
-
-    for (library in libraries) {
-        val libraryFile = library.libraryFile
-        if (libraryFile in featuredLibraryFiles) {
-            remainingFeaturedLibraries -= libraryFile
-            if (library.isCInteropLibrary() || (!allowDefaultLibs && library.isFromKotlinNativeDistribution)) {
-                reporter.reportIllegalKind(library)
-            } else {
-                result += library
-            }
-        }
-    }
-
-    if (remainingFeaturedLibraries.isNotEmpty()) {
-        reporter.reportNotIncludedLibraries(libraries, remainingFeaturedLibraries)
-    }
-
-    return result
-}

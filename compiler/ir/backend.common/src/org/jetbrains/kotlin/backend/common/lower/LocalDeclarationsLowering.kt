@@ -39,7 +39,7 @@ import org.jetbrains.kotlin.utils.addToStdlib.assignFrom
 import org.jetbrains.kotlin.utils.memoryOptimizedMap
 
 interface VisibilityPolicy {
-    fun forClass(declaration: IrClass, inInlineFunctionScope: Boolean): DescriptorVisibility = DescriptorVisibilities.PRIVATE
+    fun forClass(declaration: IrClass, inPublicInlineScope: Boolean): DescriptorVisibility = DescriptorVisibilities.PRIVATE
     fun forConstructor(declaration: IrConstructor, inInlineFunctionScope: Boolean): DescriptorVisibility = DescriptorVisibilities.PRIVATE
     fun forCapturedField(value: IrValueSymbol): DescriptorVisibility = DescriptorVisibilities.PRIVATE
     fun forSimpleFunction(declaration: IrSimpleFunction): DescriptorVisibility = DescriptorVisibilities.PRIVATE
@@ -230,7 +230,7 @@ open class LocalDeclarationsLowering(
 
     private inner class LocalClassContext(
         val declaration: IrClass,
-        val inInlineFunctionScope: Boolean,
+        val inPublicInlineScope: Boolean,
         val constructorContext: LocalContext?,
         override val sourceFileWhenInlined: IrFileEntry?,
     ) : LocalContext() {
@@ -630,8 +630,9 @@ open class LocalDeclarationsLowering(
 
             val constructorsCallingSuper = constructorsByDelegationKinds[ConstructorDelegationKind.CALLS_SUPER].orEmpty()
 
-            assert(constructorsCallingSuper.isNotEmpty() || constructorsByDelegationKinds[ConstructorDelegationKind.PARTIAL_LINKAGE_ERROR] != null) {
-                "Expected at least one constructor calling super; class: $irClass"
+            if (constructorsCallingSuper.isEmpty() && constructorsByDelegationKinds[ConstructorDelegationKind.PARTIAL_LINKAGE_ERROR] == null) {
+                assert(irClass.origin.isSynthetic) { "Expected at least one constructor calling super; class: ${irClass.render()}" }
+                return
             }
 
             val usedCaptureFields = createFieldsForCapturedValues(localClassContext)
@@ -647,7 +648,7 @@ open class LocalDeclarationsLowering(
                 // since `AnonymousObjectTransformer` relies on this ordering.
                 blockBody.statements.addAll(
                     0,
-                    localClassContext.capturedValueToField.mapNotNull { (capturedValue, field) ->
+                    localClassContext.capturedValueToField.mapNotNull { [capturedValue, field] ->
                         val symbol = field.symbolIfUsed ?: return@mapNotNull null
                         IrSetFieldImpl(
                             UNDEFINED_OFFSET, UNDEFINED_OFFSET, symbol,
@@ -728,7 +729,7 @@ open class LocalDeclarationsLowering(
 
         private fun IrMemberAccessExpression<*>.setLocalTypeArguments(callee: IrFunction) {
             val context = localFunctions[callee] ?: return
-            for ((outerTypeParameter, innerTypeParameter) in context.capturedTypeParameterToTypeParameter) {
+            for ([outerTypeParameter, innerTypeParameter] in context.capturedTypeParameterToTypeParameter) {
                 // TODO: remap default type!
                 this.typeArguments[innerTypeParameter.index] = outerTypeParameter.defaultType
             }
@@ -745,7 +746,7 @@ open class LocalDeclarationsLowering(
 
             localClasses.values.forEach {
                 it.declaration.isOriginallyLocalDeclaration = true
-                it.declaration.visibility = visibilityPolicy.forClass(it.declaration, it.inInlineFunctionScope)
+                it.declaration.visibility = visibilityPolicy.forClass(it.declaration, it.inPublicInlineScope)
                 it.closure.capturedValues.associateTo(it.capturedValueToField) { capturedValue ->
                     capturedValue.owner to PotentiallyUnusedField()
                 }
@@ -759,6 +760,23 @@ open class LocalDeclarationsLowering(
 
             localClassConstructors.values.forEach {
                 createTransformedConstructorDeclaration(it)
+            }
+
+            // Transformed local functions replace their originals in the IR tree during `rewriteDeclarations()`,
+            // so parents captured from the original declarations must be remapped to the transformed ones.
+            // Otherwise declarations nested inside a transformed function keep dangling references to the replaced
+            // original until `LocalDeclarationPopupLowering` moves them to their final container.
+            patchParents()
+        }
+
+        private fun patchParents() {
+            localFunctions.values.forEach {
+                val newDeclaration = it.transformedDeclaration
+                (newDeclaration.parent as? IrFunction)?.transformed?.let { newParent -> newDeclaration.parent = newParent }
+            }
+            localClasses.values.forEach {
+                val declaration = it.declaration
+                (declaration.parent as? IrFunction)?.transformed?.let { newParent -> declaration.parent = newParent }
             }
         }
 
@@ -866,9 +884,6 @@ open class LocalDeclarationsLowering(
                 }
             }
 
-            val parametersMapping = (oldDeclaration.parameters zip transformedParameters).toMap()
-            context.remapMultiFieldValueClassStructure(oldDeclaration, newDeclaration, parametersMapping)
-
             val generatedNames = mutableSetOf<String>()
             val parametersForCapturedValues = capturedValues.map { capturedValue ->
                 val p = capturedValue.owner
@@ -902,7 +917,6 @@ open class LocalDeclarationsLowering(
         }
 
         private fun IrFunction.recordTransformedValueParameters(localContext: LocalContextWithClosureAsParameters) {
-
             parameters.forEach {
                 val capturedValue = newParameterToCaptured[it]
                 if (capturedValue != null) {
@@ -916,7 +930,6 @@ open class LocalDeclarationsLowering(
                     oldParameterToNew.putAbsentOrSame(oldParameter, it)
                 }
             }
-
         }
 
         private fun createTransformedConstructorDeclaration(constructorContext: LocalClassConstructorContext) {
@@ -929,10 +942,10 @@ open class LocalDeclarationsLowering(
             oldDeclaration.capturedConstructor?.let { newDeclaration ->
                 transformedDeclarations[oldDeclaration] = newDeclaration
                 constructorContext.transformedDeclaration = newDeclaration
-                newDeclaration.parameters.zip(capturedValues).forEach { (it, capturedValue) ->
+                newDeclaration.parameters.zip(capturedValues).forEach { [it, capturedValue] ->
                     newParameterToCaptured[it] = capturedValue
                 }
-                oldDeclaration.parameters.zip(newDeclaration.parameters).forEach { (v, it) ->
+                oldDeclaration.parameters.zip(newDeclaration.parameters).forEach { [v, it] ->
                     newParameterToOld.putAbsentOrSame(it, v)
                 }
                 newDeclaration.recordTransformedValueParameters(constructorContext)
@@ -970,7 +983,7 @@ open class LocalDeclarationsLowering(
         private fun createFieldsForCapturedValues(localClassContext: LocalClassContext): List<IrField> {
             val classDeclaration = localClassContext.declaration
             val generatedNames = mutableSetOf<String>()
-            return localClassContext.capturedValueToField.mapNotNull { (capturedValue, field) ->
+            return localClassContext.capturedValueToField.mapNotNull { [capturedValue, field] ->
                 val symbol = field.symbolIfUsed ?: return@mapNotNull null
                 val origin = if (capturedValue is IrValueParameter && capturedValue.isCrossinline)
                     DECLARATION_ORIGIN_FIELD_FOR_CROSSINLINE_CAPTURED_VALUE
@@ -1068,11 +1081,11 @@ open class LocalDeclarationsLowering(
             }
 
         private inline fun setClosures(block: (IrDeclaration) -> Closure) {
-            localFunctions.forEach { (declaration, context) ->
+            localFunctions.forEach { [declaration, context] ->
                 context.closure = block(declaration)
             }
 
-            localClasses.forEach { (declaration, context) ->
+            localClasses.forEach { [declaration, context] ->
                 context.closure = block(declaration)
             }
         }
@@ -1100,6 +1113,7 @@ open class LocalDeclarationsLowering(
         private fun collectLocalDeclarations() {
             class Data(
                 val isInInlineFunction: Boolean,
+                val isInPublicInlineScope: Boolean,
                 val sourceFileWhenInlined: IrFileEntry? = null,
             )
 
@@ -1114,6 +1128,7 @@ open class LocalDeclarationsLowering(
                         inlinedBlock,
                         Data(
                             isInInlineFunction = inlinedBlock.isFunctionInlining(),
+                            isInPublicInlineScope = inlinedBlock.inlinedFunctionSymbol?.owner?.isInPublicInlineScope ?: false,
                             sourceFileWhenInlined = inlinedBlock.inlinedFunctionFileEntry
                         )
                     )
@@ -1148,7 +1163,7 @@ open class LocalDeclarationsLowering(
                         localFunctions[declaration] = LocalFunctionContext(declaration, data.sourceFileWhenInlined)
                     }
 
-                    val newData = Data(declaration.isInline, data.sourceFileWhenInlined)
+                    val newData = Data(declaration.isInline, declaration.isInPublicInlineScope, data.sourceFileWhenInlined)
                     super.visitSimpleFunction(declaration, newData)
                 }
 
@@ -1180,13 +1195,16 @@ open class LocalDeclarationsLowering(
                         .singleOrNull()
 
                     localClasses[declaration] =
-                        LocalClassContext(declaration, data.inInlineFunctionScope, constructorContext, data.sourceFileWhenInlined)
+                        LocalClassContext(declaration, data.inPublicInlineScope, constructorContext, data.sourceFileWhenInlined)
                 }
 
                 private val Data.inInlineFunctionScope: Boolean
                     get() = isInInlineFunction ||
                             generateSequence(container) { it.parent as? IrDeclaration }.any { it is IrFunction && it.isInline }
-            }, Data( false, null))
+
+                private val Data.inPublicInlineScope: Boolean
+                    get() = isInPublicInlineScope || container.isInPublicInlineScope
+            }, Data(false, false, null))
         }
     }
 

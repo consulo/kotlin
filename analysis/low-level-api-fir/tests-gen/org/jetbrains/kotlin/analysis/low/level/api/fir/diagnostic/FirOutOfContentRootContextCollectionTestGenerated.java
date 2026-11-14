@@ -76,6 +76,12 @@ public class FirOutOfContentRootContextCollectionTestGenerated extends AbstractF
   }
 
   @Test
+  @TestMetadata("companionBlockDanglingModifier.kt")
+  public void testCompanionBlockDanglingModifier() {
+    run("companionBlockDanglingModifier.kt");
+  }
+
+  @Test
   @TestMetadata("constructorParameter.kt")
   public void testConstructorParameter() {
     run("constructorParameter.kt");
@@ -154,6 +160,12 @@ public class FirOutOfContentRootContextCollectionTestGenerated extends AbstractF
   }
 
   @Test
+  @TestMetadata("destructuringNonLocal.kt")
+  public void testDestructuringNonLocal() {
+    run("destructuringNonLocal.kt");
+  }
+
+  @Test
   @TestMetadata("enum.kt")
   public void testEnum() {
     run("enum.kt");
@@ -169,6 +181,18 @@ public class FirOutOfContentRootContextCollectionTestGenerated extends AbstractF
   @TestMetadata("enumClassWithBody.kt")
   public void testEnumClassWithBody() {
     run("enumClassWithBody.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitBackingField.kt")
+  public void testExplicitBackingField() {
+    run("explicitBackingField.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
   }
 
   @Test

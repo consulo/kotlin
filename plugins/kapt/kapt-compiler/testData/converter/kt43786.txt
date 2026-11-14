@@ -46,7 +46,7 @@ public final class Application {
 
     @kotlin.jvm.JvmStatic()
     @org.jetbrains.annotations.NotNull()
-    public static final java.lang.Object getPreferencesDataStore() {
+    public static final DataStore<Preferences> getPreferencesDataStore() {
         return null;
     }
 
@@ -57,9 +57,11 @@ public final class Application {
      *   private constructor()
      *
      *   // signature: get()LApplication;
+     *   @kotlin/jvm/JvmStatic
      *   public final fun get(): Application
      *
      *   // signature: getPreferencesDataStore()Lerror/NonExistentClass;
+     *   @kotlin/jvm/JvmStatic
      *   public final fun getPreferencesDataStore(): error/NonExistentClass
      *
      *   // module name: main
@@ -80,7 +82,7 @@ public final class Application {
 
         @kotlin.jvm.JvmStatic()
         @org.jetbrains.annotations.NotNull()
-        public final java.lang.Object getPreferencesDataStore() {
+        public final DataStore<Preferences> getPreferencesDataStore() {
             return null;
         }
     }

@@ -1,14 +1,15 @@
 FUNCTION:
   KaNamedFunctionSymbol:
+  anchorPsi: KtNamedFunction
   annotations: []
   callableId: /A.plus
-  compilerVisibility: Public
   contextParameters: []
   contextReceivers: []
   contractEffects: []
   hasStableParameterNames: true
   isActual: false
   isBuiltinFunctionInvoke: false
+  isCompanion: false
   isExpect: false
   isExtension: false
   isExternal: false
@@ -23,6 +24,8 @@ FUNCTION:
   modality: FINAL
   name: plus
   origin: SOURCE
+  psi: KtNamedFunction
+  realPsi: KtNamedFunction
   receiverParameter: null
   returnType: KaUsualClassType:
     abbreviation: null
@@ -61,8 +64,9 @@ FUNCTION:
   getContainingJvmClassName: A
   canBeOperator: false
   getContainingModule: KaSourceModule "Sources of main"
-  deprecationStatus: null
+  deprecation: null
   returnValueStatus: Unspecified
+  javaMethodName: plus
   importableFqName: null
 CAN_BE_OPERATOR:
   false

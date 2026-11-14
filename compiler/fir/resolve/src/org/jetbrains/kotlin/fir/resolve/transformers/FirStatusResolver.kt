@@ -143,14 +143,21 @@ class FirStatusResolver(
         function: FirNamedFunction,
         containingClass: FirClass?,
         isLocal: Boolean,
-        overriddenStatuses: List<FirResolvedDeclarationStatus>? = null,
+        overriddenFunctions: List<FirNamedFunction>? = null,
     ): FirResolvedDeclarationStatus {
         val status = function.applyExtensionTransformers {
             transformStatus(it, function, containingClass?.symbol, isLocal)
         }
 
-        val statuses = overriddenStatuses
-            ?: getOverriddenFunctions(function, containingClass).map { it.status as FirResolvedDeclarationStatus }
+        val overriddenFunctions = overriddenFunctions ?: getOverriddenFunctions(function, containingClass)
+        if (session.languageVersionSettings.supportsFeature(LanguageFeature.StrictEquals)
+            && function.isEquals(session)
+            && function.equalityBoundTypeOfParameter == null
+        ) {
+            function.setEqualityBoundTypeFromOverridden(overriddenFunctions, session)
+        }
+
+        val statuses = overriddenFunctions.map { it.status as FirResolvedDeclarationStatus }
 
         return resolveStatus(function, status, containingClass, null, isLocal, statuses)
     }
@@ -285,6 +292,14 @@ class FirStatusResolver(
         )
         val effectiveVisibility = parentEffectiveVisibility.lowerBound(selfEffectiveVisibility, session.typeContext)
 
+        if (declaration is FirClass && status.isValue) {
+            val jvmInlineAnnotation = StandardClassIds.Annotations.JvmInline
+            val isAnnotatedWithJvmInline = declaration.hasAnnotation(jvmInlineAnnotation, session)
+            if (isAnnotatedWithJvmInline || LanguageFeature.FullValueClasses.isDisabled()) {
+                status.isInline = true
+            }
+        }
+
         if (!isLocal) {
             val annotations = (containingProperty ?: declaration).annotations
             val parentPublishedEffectiveVisibility = when {
@@ -384,7 +399,7 @@ class FirStatusResolver(
             is FirCallableDeclaration -> {
                 val containingPropertyModality = containingProperty?.modality
                 when {
-                    containingClass == null -> Modality.FINAL
+                    containingClass == null || declaration.isStatic -> Modality.FINAL
                     declaration is FirPropertyAccessor && containingPropertyModality != null -> containingPropertyModality
                     containingClass.classKind == ClassKind.INTERFACE -> {
                         when {

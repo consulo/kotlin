@@ -1,11 +1,9 @@
 declare namespace JS_TESTS {
     type Nullable<T> = T | null | undefined
     function KtSingleton<T>(): T & (abstract new() => any);
-
-
     namespace foo {
         const console: Console;
-        const error: CompileError;
+        const error: WebAssembly.CompileError;
         function producer(value: number): any/* foo.NonExportedType */;
         function consumer(value: any/* foo.NonExportedType */): number;
         function baz(a: number): Promise<number>;
@@ -108,14 +106,15 @@ declare namespace JS_TESTS {
                 readonly "foo.Service": unique symbol;
             };
         }
-        interface Event<out TService extends foo.Service<TService, any /*UnknownType **/>> {
+        interface Event<out TService extends foo.Service<TService, any>> {
             readonly __doNotUseOrImplementIt: {
                 readonly "foo.Event": unique symbol;
             };
         }
-        class SomeServiceRequest implements foo.Service<any/* foo.SomeService */, any/* foo.SomeEvent */> {
+        class SomeServiceRequest implements foo.Service<any/* foo.SomeService */, any/* foo.SomeEvent */>, foo.IntermediateImplicitExportInterface {
             constructor();
-            readonly __doNotUseOrImplementIt: foo.Service<any/* foo.SomeService */, any/* foo.SomeEvent */>["__doNotUseOrImplementIt"];
+            withDefaultImpl(): string;
+            readonly __doNotUseOrImplementIt: foo.IntermediateImplicitExportInterface["__doNotUseOrImplementIt"] & foo.Service<any, any>["__doNotUseOrImplementIt"];
         }
         namespace SomeServiceRequest {
             /** @deprecated $metadata$ is used for internal purposes, please don't use it in your code, because it can be removed at any moment */
@@ -123,5 +122,18 @@ declare namespace JS_TESTS {
                 const constructor: abstract new () => SomeServiceRequest;
             }
         }
+        interface IntermediateImplicitExportInterface {
+            withDefaultImpl(): string;
+            readonly __doNotUseOrImplementIt: {
+                readonly "foo.IntermediateImplicitExportInterface": unique symbol;
+            };
+        }
+        namespace IntermediateImplicitExportInterface {
+            namespace DefaultImpls {
+                function withDefaultImpl($this: foo.IntermediateImplicitExportInterface): string;
+            }
+        }
     }
 }
+
+

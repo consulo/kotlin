@@ -148,7 +148,7 @@ private fun CompiledScript.makeClassLoaderFromDependencies(baseClassLoader: Clas
 
     val processedClassloaders = mutableSetOf<ClassLoader>()
 
-    return dependenciesWithConfigurations.fold(lastClassLoader) { parentClassLoader, (compilationConfiguration, scriptDependency) ->
+    return dependenciesWithConfigurations.fold(lastClassLoader) { parentClassLoader, [compilationConfiguration, scriptDependency] ->
         when (scriptDependency) {
             is JvmDependency -> {
                 scriptDependency.classpath.mapNotNull {
@@ -173,6 +173,9 @@ fun scriptMetadataPath(scriptClassFQName: String) =
 
 fun KJvmCompiledScript.copyWithoutModule(): KJvmCompiledScript = KJvmCompiledScript(data, null)
 
+fun KJvmCompiledScript.withModuleFromClassLoader(classLoader: ClassLoader): KJvmCompiledScript =
+    KJvmCompiledScript(data, KJvmCompiledModuleFromClassLoader(classLoader))
+
 fun KJvmCompiledScript.toBytes(): ByteArray {
     val bos = ByteArrayOutputStream()
     var oos: ObjectOutputStream? = null
@@ -192,8 +195,10 @@ fun KJvmCompiledScript.toBytes(): ByteArray {
 fun createScriptFromClassLoader(scriptClassFQName: String, classLoader: ClassLoader): KJvmCompiledScript {
     val scriptDataStream = classLoader.getResourceAsStream(scriptMetadataPath(scriptClassFQName))
         ?: throw IllegalArgumentException("Cannot find metadata for script $scriptClassFQName")
-    val script = ObjectInputStream(scriptDataStream).use {
-        it.readObject() as KJvmCompiledScript
+    val script = scriptDataStream.use { dataStream ->
+        ObjectInputStream(dataStream).use {
+            it.readObject() as KJvmCompiledScript
+        }
     }
     script.compiledModule = KJvmCompiledModuleFromClassLoader(classLoader)
     return script

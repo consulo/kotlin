@@ -1,19 +1,21 @@
 import com.github.gradle.node.npm.task.NpmTask
+import org.gradle.kotlin.dsl.support.serviceOf
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
 import org.jetbrains.kotlin.gradle.targets.js.KotlinJsCompilerAttribute
+import org.jetbrains.kotlin.testFederation.testFederation
 import java.util.*
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     kotlin("plugin.serialization")
     alias(libs.plugins.gradle.node)
     id("d8-configuration")
-    // TODO: uncomment this line after bootstrap
-    // id("swc-configuration")
+    id("swc-configuration")
     id("nodejs-configuration")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -23,12 +25,10 @@ node {
     download.set(true)
     version.set(nodejsLtsVersion)
     nodeProjectDir.set(layout.buildDirectory.dir("node"))
-    if (cacheRedirectorEnabled) {
-        distBaseUrl.set("https://cache-redirector.jetbrains.com/nodejs.org/dist")
-    }
+    distBaseUrl.set(null as String?)
 }
 
-val testJsRuntime by configurations.creating {
+val testJsRuntime = configurations.create("testJsRuntime") {
     attributes {
         attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(KotlinUsages.KOTLIN_RUNTIME))
@@ -41,7 +41,6 @@ dependencies {
     testFixturesApi(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
-    testRuntimeOnly(libs.junit.vintage.engine)
 
     testFixturesApi(protobufFull())
     testFixturesApi(testFixtures(project(":compiler:tests-common")))
@@ -49,25 +48,27 @@ dependencies {
     testFixturesApi(testFixtures(project(":compiler:test-infrastructure-utils")))
     testFixturesApi(testFixtures(project(":compiler:tests-compiler-utils")))
     testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
-    testFixturesApi(testFixtures(project(":compiler:fir:analysis-tests")))
+    testFixturesApi(testFixtures(project(":compiler:jvm.tests")))
     testFixturesApi(testFixtures(project(":kotlin-util-klib")))
     testFixturesApi(testFixtures(project(":compiler:ir.backend.common")))
 
-    testCompileOnly(project(":compiler:frontend"))
     testCompileOnly(project(":compiler:cli"))
     testCompileOnly(project(":compiler:cli-js"))
     testCompileOnly(project(":compiler:util"))
     testCompileOnly(intellijCore())
     testFixturesApi(project(":compiler:backend.js"))
+    testFixturesApi(project(":js:js.parser"))
     testFixturesApi(project(":js:js.translator"))
     testFixturesApi(project(":js:typescript-export-standalone"))
     testFixturesApi(project(":compiler:incremental-compilation-impl"))
-    testImplementation(libs.junit4)
+    testFixturesImplementation(project(":kotlin-util-klib-metadata"))
+    testFixturesImplementation(project(":compiler:psi:psi-frontend-utils"))
+    testFixturesImplementation(project(":compiler:psi:parser"))
+    testFixturesImplementation(project(":wasm:wasm.frontend"))
     testFixturesApi(testFixtures(project(":kotlin-build-common")))
     testFixturesApi(testFixtures(project(":generators:test-generator")))
 
     testFixturesApi(intellijCore())
-    testFixturesApi(project(":compiler:frontend"))
     testFixturesApi(project(":compiler:cli"))
     testFixturesApi(project(":compiler:util"))
 
@@ -82,14 +83,17 @@ dependencies {
     testRuntimeOnly(project(":kotlin-util-klib-abi"))
     testRuntimeOnly(commonDependency("org.fusesource.jansi", "jansi"))
 
-    testRuntimeOnly(libs.junit.vintage.engine)
-
     // these dependencies shouldn't be exposed to other modules
     // to avoid potential clashes in cases when another module
     // also needs one of these dependencies but of different
     // version (e.g. tests of kotlinx.serialization)
     testFixturesCompileOnly(libs.kotlinx.serialization.json)
     testRuntimeOnly(libs.kotlinx.serialization.json)
+
+    implicitDependencies("org.nodejs:node:$nodejsLtsVersion:win-x64@zip")
+    implicitDependencies("org.nodejs:node:$nodejsLtsVersion:linux-x64@tar.gz")
+    implicitDependencies("org.nodejs:node:$nodejsLtsVersion:darwin-x64@tar.gz")
+    implicitDependencies("org.nodejs:node:$nodejsLtsVersion:darwin-arm64@tar.gz")
 }
 
 optInToExperimentalCompilerApi()
@@ -104,8 +108,11 @@ sourceSets {
 val testDataDir = project(":js:js.translator").projectDir.resolve("testData")
 
 fun Test.setUpJsBoxTests() {
-    with(nodeJsKotlinBuild) {
-        setupNodeJs(nodejsVersion)
+    val buildFeatures = project.serviceOf<BuildFeatures>()
+    if (!buildFeatures.isolatedProjects.active.get()) {
+        with(nodeJsKotlinBuild) {
+            setupNodeJs(nodejsVersion)
+        }
     }
 
     dependsOn(npmInstall)
@@ -115,11 +122,17 @@ fun Test.setUpJsBoxTests() {
     )
 
     forwardProperties()
+
+    testFederation {
+        smokeTests {
+            includeAutoSamples(percentage = 1)
+        }
+    }
 }
 
 fun Test.forwardProperties() {
     val rootLocalProperties = Properties().apply {
-        rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use {
+        File(rootDir, "local.properties").takeIf { it.exists() }?.inputStream()?.use {
             load(it)
         }
     }
@@ -136,19 +149,46 @@ fun Test.forwardProperties() {
 }
 
 projectTests {
+    val swcTag = "swc"
+    val swcEnabledLocally = kotlinBuildProperties.booleanProperty("kotlin.js.enable.swc.tests")
+
     jsTestTask {
+        if (swcEnabledLocally.get()) {
+            with(swcKotlinBuild) { setupSwc() }
+        } else {
+            useJUnitPlatform { excludeTags(swcTag) }
+        }
         setUpJsBoxTests()
     }
 
-    jsTestTask(taskName = "jsTest", tag = "!es6", skipInLocalBuild = true) {
+    jsTestTask(taskName = "jsTest", tag = "!es6 & !jsNightlyOnly & !$swcTag", skipInLocalBuild = true) {
         setUpJsBoxTests()
     }
 
-    jsTestTask(taskName = "jsES6Test", tag = "es6", skipInLocalBuild = true) {
+    jsTestTask(taskName = "jsES6Test", tag = "es6 & !jsNightlyOnly & !$swcTag", skipInLocalBuild = true) {
         setUpJsBoxTests()
     }
 
-    testTask("invalidationTest", jUnitMode = JUnitMode.JUnit5, skipInLocalBuild = true) {
+    jsTestTask(taskName = "jsES5InlineAnonymousFunctionsTest", tag = "!es6 & jsInlineAnonymousFunctions", skipInLocalBuild = true) {
+        setUpJsBoxTests()
+    }
+
+    jsTestTask(taskName = "jsES6InlineAnonymousFunctionsTest", tag = "es6 & jsInlineAnonymousFunctions", skipInLocalBuild = true) {
+        setUpJsBoxTests()
+    }
+
+    jsTestTask(taskName = "jsES6ConstLetTest", tag = "jsConstLet", skipInLocalBuild = true) {
+        setUpJsBoxTests()
+    }
+
+    jsTestTask(taskName = "jsSwcTest", tag = swcTag) {
+        with(swcKotlinBuild) {
+            setupSwc()
+        }
+        setUpJsBoxTests()
+    }
+
+    testTask("invalidationTest", skipInLocalBuild = true) {
         useJsIrBoxTests(buildDir = layout.buildDirectory)
         include("org/jetbrains/kotlin/incremental/*")
         forwardProperties()
@@ -187,20 +227,19 @@ projectTests {
     withWasmRuntime()
 }
 
-testsJar {}
 
 val testJsFile = testDataDir.resolve("test.js")
 val packageJsonFile = testDataDir.resolve("package.json")
 val packageLockJsonFile = testDataDir.resolve("package-lock.json")
 
-val prepareNpmTestData by task<Copy> {
+val prepareNpmTestData = tasks.register<Copy>("prepareNpmTestNpmData") {
     from(testJsFile)
     from(packageJsonFile)
     from(packageLockJsonFile)
     into(node.nodeProjectDir)
 }
 
-val npmInstall by tasks.getting(NpmTask::class) {
+val npmInstall = tasks.named("npmInstall", NpmTask::class) {
     val packageLockFile = testDataDir.resolve("package-lock.json")
 
     inputs.file(node.nodeProjectDir.file("package.json"))
@@ -219,7 +258,7 @@ val npmInstall by tasks.getting(NpmTask::class) {
 
 tasks.processTestFixturesResources.configure {
     from(project.layout.projectDirectory.dir("_additionalFilesForTests"))
-    from(project(":compiler").layout.projectDirectory.dir("testData/debug")) {
+    from(project(":compiler").isolated.projectDirectory.dir("testData/debug")) {
         into("debugTestHelpers")
         include("jsTestHelpers/")
     }

@@ -12,7 +12,7 @@ repositories {
 
 kotlin {
     val nativeTarget = when {
-        HostManager.hostIsMac -> macosX64("native")
+        HostManager.hostIsMac -> macosArm64("native")
         HostManager.hostIsMingw -> mingwX64("native")
         HostManager.hostIsLinux -> linuxX64("native")
         else -> error("Unexpected host: ${HostManager.host}")

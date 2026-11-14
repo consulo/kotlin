@@ -1,2 +1,5 @@
-KtNamedFunction(44,79): '/**'
-  null
+KDocName(52,59): 'Foo.foo'
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      val foo: kotlin.Int
+    ]

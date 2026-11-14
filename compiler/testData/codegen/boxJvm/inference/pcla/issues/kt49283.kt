@@ -1,8 +1,6 @@
-// TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: JVM
 // WITH_STDLIB
 // ISSUE: KT-49283
-
-// IGNORE_BACKEND: ANDROID
 
 fun takeListOfStrings(x: List<String>) {}
 

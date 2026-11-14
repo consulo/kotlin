@@ -3,11 +3,79 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-_Bool ClassWithDeprecatedMembersFromInterface_deprecatedErrorFunction(void * self);
+_Bool InterfaceWithDeprecatedMembers_deprecatedWarningFunction__reverse_swift(void * self);
+
+_Bool InterfaceWithDeprecatedMembers_regularFunction__reverse_swift(void * self);
+
+_Bool KotlinInterfaceC_kotlinFunD__TypesOfArguments__Swift_String____reverse_swift(void * self, NSString * swiftParamD);
+
+_Bool KotlinInterfaceC_kotlinFunE__TypesOfArguments__Swift_String____reverse_swift(void * self, NSString * kotlinParamE);
+
+_Bool NonDeprecatedInterface_bar__reverse_swift(void * self);
+
+_Bool PublicClassImplHiddenInterface_bar__reverse_swift(void * self);
+
+_Bool PublicClassImplHiddenInterface_foo__reverse_swift(void * self);
+
+NSString * SomeInterface_barC_get__reverse_swift(void * self);
+
+_Bool SomeInterface_barC_set__TypesOfArguments__Swift_String____reverse_swift(void * self, NSString * newValue);
+
+NSString * SomeInterface_fooB__reverse_swift(void * self);
+
+_Bool deprecatedT_deprecationInheritedF__reverse_swift(void * self);
+
+_Bool deprecatedT_deprecationInheritedV_get__reverse_swift(void * self);
+
+_Bool deprecatedT_deprecationRestatedF__reverse_swift(void * self);
+
+_Bool deprecatedT_deprecationRestatedV_get__reverse_swift(void * self);
+
+_Bool normalT_deprecatedF__reverse_swift(void * self);
+
+_Bool normalT_deprecatedInFutureF__reverse_swift(void * self);
+
+int32_t normalT_deprecatedInFutureP_get__reverse_swift(void * self);
+
+_Bool normalT_deprecatedInFutureP_set__TypesOfArguments__Swift_Int32____reverse_swift(void * self, int32_t newValue);
+
+_Bool normalT_deprecatedInFutureV_get__reverse_swift(void * self);
+
+int32_t normalT_deprecatedP_get__reverse_swift(void * self);
+
+_Bool normalT_deprecatedP_set__TypesOfArguments__Swift_Int32____reverse_swift(void * self, int32_t newValue);
+
+_Bool normalT_deprecatedV_get__reverse_swift(void * self);
+
+_Bool normalT_normalF__reverse_swift(void * self);
+
+int32_t normalT_normalP_get__reverse_swift(void * self);
+
+_Bool normalT_normalP_set__TypesOfArguments__Swift_Int32____reverse_swift(void * self, int32_t newValue);
+
+_Bool normalT_normalV_get__reverse_swift(void * self);
+
+_Bool normalT_obsoletedInFutureF__reverse_swift(void * self);
+
+int32_t normalT_obsoletedInFutureP_get__reverse_swift(void * self);
+
+_Bool normalT_obsoletedInFutureP_set__TypesOfArguments__Swift_Int32____reverse_swift(void * self, int32_t newValue);
+
+_Bool normalT_obsoletedInFutureV_get__reverse_swift(void * self);
+
+_Bool normalT_removedInFutureF__reverse_swift(void * self);
+
+int32_t normalT_removedInFutureP_get__reverse_swift(void * self);
+
+_Bool normalT_removedInFutureP_set__TypesOfArguments__Swift_Int32____reverse_swift(void * self, int32_t newValue);
+
+_Bool normalT_removedInFutureV_get__reverse_swift(void * self);
 
 _Bool ClassWithDeprecatedMembersFromInterface_deprecatedWarningFunction(void * self);
 
 _Bool ClassWithDeprecatedMembersFromInterface_regularFunction(void * self);
+
+_Bool DeprecatedInterface_foo(void * self);
 
 _Bool FooObject_objectMethod(void * self);
 
@@ -15,7 +83,11 @@ NSString * FooObject_objectProperty_get(void * self);
 
 _Bool InterfaceWithDeprecatedMembers_deprecatedWarningFunction(void * self);
 
+_Bool InterfaceWithDeprecatedMembers_deprecatedWarningFunction_direct(void * self);
+
 _Bool InterfaceWithDeprecatedMembers_regularFunction(void * self);
+
+_Bool InterfaceWithDeprecatedMembers_regularFunction_direct(void * self);
 
 void * KotlinClassA_KotlinSubClassA_init_allocate();
 
@@ -49,7 +121,33 @@ _Bool KotlinObjectB_kotlinFunB__TypesOfArguments__Swift_String__(void * self, NS
 
 _Bool KotlinObjectB_kotlinFunC__TypesOfArguments__Swift_String__(void * self, NSString * objCParamC);
 
+_Bool NonDeprecatedInterface_bar(void * self);
+
+_Bool NonDeprecatedInterface_bar_direct(void * self);
+
 NSString * OptInConstructor_name_get(void * self);
+
+_Bool PublicClassImplDeprecatedInterface_foo(void * self);
+
+_Bool PublicClassImplHiddenInterface_bar(void * self);
+
+_Bool PublicClassImplHiddenInterface_bar_direct(void * self);
+
+_Bool PublicClassImplHiddenInterface_foo(void * self);
+
+_Bool PublicClassImplHiddenInterface_foo_direct(void * self);
+
+_Bool PublicDeprecatedClassImplDeprecatedInterface_foo(void * self);
+
+_Bool PublicSubClassImplHiddenInterface_foo(void * self);
+
+NSString * SomeInterface_barC_get(void * self);
+
+_Bool SomeInterface_barC_set__TypesOfArguments__Swift_String__(void * self, NSString * newValue);
+
+NSString * SomeInterface_fooB(void * self);
+
+_Bool SubDeprecatedInterface_baz(void * self);
 
 _Bool WithCompanion_Companion_companionMethod(void * self);
 
@@ -83,9 +181,29 @@ _Bool __root___OptInConstructor_init_initialize__TypesOfArguments__Swift_UnsafeM
 
 _Bool __root___OptInConstructor_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
 
+void * __root___PublicClassImplDeprecatedInterface_init_allocate();
+
+_Bool __root___PublicClassImplDeprecatedInterface_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
+
+void * __root___PublicClassImplHiddenInterface_init_allocate();
+
+_Bool __root___PublicClassImplHiddenInterface_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
+
+void * __root___PublicDeprecatedClassImplDeprecatedInterface_init_allocate();
+
+_Bool __root___PublicDeprecatedClassImplDeprecatedInterface_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
+
+void * __root___PublicSubClassImplHiddenInterface_init_allocate();
+
+_Bool __root___PublicSubClassImplHiddenInterface_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
+
 void * __root___WithCompanion_init_allocate();
 
 _Bool __root___WithCompanion_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
+
+_Bool __root___acceptPublicClassImplDeprecatedInterface__TypesOfArguments__main_PublicClassImplDeprecatedInterface__(void * arg);
+
+_Bool __root___acceptPublicClassImplHiddenInterface__TypesOfArguments__main_PublicClassImplHiddenInterface__(void * arg);
 
 void * __root___bar();
 
@@ -141,9 +259,17 @@ _Bool __root___normalT_init_initialize__TypesOfArguments__Swift_UnsafeMutableRaw
 
 void * __root___objectB_get();
 
-_Bool __root___obsoletedF();
+void * __root___obsoletedChildT_init_allocate();
 
-_Bool __root___obsoletedV_get();
+_Bool __root___obsoletedChildT_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
+
+void * __root___publicClassImplDeprecatedInterfaceProperty_get();
+
+_Bool __root___publicClassImplDeprecatedInterfaceProperty_set__TypesOfArguments__main_PublicClassImplDeprecatedInterface__(void * newValue);
+
+void * __root___publicClassImplHiddenInterfaceProperty_get();
+
+_Bool __root___publicClassImplHiddenInterfaceProperty_set__TypesOfArguments__main_PublicClassImplHiddenInterface__(void * newValue);
 
 _Bool __root___renamed__TypesOfArguments__Swift_Int32_Swift_Float__(int32_t x, float y) __attribute((noreturn));
 
@@ -167,6 +293,10 @@ void * __root___returnInterfaceC__TypesOfArguments__anyU20main_SwiftInterfaceC__
 
 void * __root___returnObjectB__TypesOfArguments__main_ObjCObjectB__(void * value);
 
+void * __root___returnPublicClassImplDeprecatedInterface();
+
+void * __root___returnPublicClassImplHiddenInterface();
+
 _Bool __root___unrenamed() __attribute((noreturn));
 
 _Bool deprecatedChildT_deprecationFurtherReinforcedF(void * self);
@@ -183,23 +313,31 @@ _Bool deprecatedChildT_deprecationRestatedV_get(void * self);
 
 _Bool deprecatedT_deprecationInheritedF(void * self);
 
+_Bool deprecatedT_deprecationInheritedF_direct(void * self);
+
 void * deprecatedT_deprecationInheritedT_init_allocate();
 
 _Bool deprecatedT_deprecationInheritedT_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
 
 _Bool deprecatedT_deprecationInheritedV_get(void * self);
 
-_Bool deprecatedT_deprecationReinforcedF(void * self);
+_Bool deprecatedT_deprecationInheritedV_get_direct(void * self);
 
-_Bool deprecatedT_deprecationReinforcedV_get(void * self);
+void * deprecatedT_deprecationReinforcedT_init_allocate();
+
+_Bool deprecatedT_deprecationReinforcedT_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
 
 _Bool deprecatedT_deprecationRestatedF(void * self);
+
+_Bool deprecatedT_deprecationRestatedF_direct(void * self);
 
 void * deprecatedT_deprecationRestatedT_init_allocate();
 
 _Bool deprecatedT_deprecationRestatedT_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
 
 _Bool deprecatedT_deprecationRestatedV_get(void * self);
+
+_Bool deprecatedT_deprecationRestatedV_get_direct(void * self);
 
 _Bool normalChildT_deprecatedF(void * self);
 
@@ -223,14 +361,6 @@ _Bool normalChildT_normalV_get(void * self);
 
 _Bool normalChildT_obsoletedF(void * self);
 
-_Bool normalChildT_obsoletedInFutureF(void * self);
-
-int32_t normalChildT_obsoletedInFutureP_get(void * self);
-
-_Bool normalChildT_obsoletedInFutureP_set__TypesOfArguments__Swift_Int32__(void * self, int32_t newValue);
-
-_Bool normalChildT_obsoletedInFutureV_get(void * self);
-
 int32_t normalChildT_obsoletedP_get(void * self);
 
 _Bool normalChildT_obsoletedP_set__TypesOfArguments__Swift_Int32__(void * self, int32_t newValue);
@@ -239,21 +369,39 @@ _Bool normalChildT_obsoletedV_get(void * self);
 
 _Bool normalChildT_removedF(void * self);
 
+int32_t normalChildT_removedSetterExt_get__TypesOfArgumentsE__Swift_String__(void * self, NSString * receiver);
+
+int32_t normalChildT_removedSetter_get(void * self);
+
 _Bool normalChildT_removedV_get(void * self);
 
 _Bool normalT_deprecatedF(void * self);
 
+_Bool normalT_deprecatedF_direct(void * self);
+
 _Bool normalT_deprecatedInFutureF(void * self);
+
+_Bool normalT_deprecatedInFutureF_direct(void * self);
 
 int32_t normalT_deprecatedInFutureP_get(void * self);
 
+int32_t normalT_deprecatedInFutureP_get_direct(void * self);
+
 _Bool normalT_deprecatedInFutureP_set__TypesOfArguments__Swift_Int32__(void * self, int32_t newValue);
+
+_Bool normalT_deprecatedInFutureP_set__TypesOfArguments__Swift_Int32___direct(void * self, int32_t newValue);
 
 _Bool normalT_deprecatedInFutureV_get(void * self);
 
+_Bool normalT_deprecatedInFutureV_get_direct(void * self);
+
 int32_t normalT_deprecatedP_get(void * self);
 
+int32_t normalT_deprecatedP_get_direct(void * self);
+
 _Bool normalT_deprecatedP_set__TypesOfArguments__Swift_Int32__(void * self, int32_t newValue);
+
+_Bool normalT_deprecatedP_set__TypesOfArguments__Swift_Int32___direct(void * self, int32_t newValue);
 
 void * normalT_deprecatedT_init_allocate();
 
@@ -261,11 +409,19 @@ _Bool normalT_deprecatedT_init_initialize__TypesOfArguments__Swift_UnsafeMutable
 
 _Bool normalT_deprecatedV_get(void * self);
 
+_Bool normalT_deprecatedV_get_direct(void * self);
+
 _Bool normalT_normalF(void * self);
+
+_Bool normalT_normalF_direct(void * self);
 
 int32_t normalT_normalP_get(void * self);
 
+int32_t normalT_normalP_get_direct(void * self);
+
 _Bool normalT_normalP_set__TypesOfArguments__Swift_Int32__(void * self, int32_t newValue);
+
+_Bool normalT_normalP_set__TypesOfArguments__Swift_Int32___direct(void * self, int32_t newValue);
 
 void * normalT_normalT_init_allocate();
 
@@ -273,28 +429,74 @@ _Bool normalT_normalT_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawP
 
 _Bool normalT_normalV_get(void * self);
 
-_Bool normalT_obsoletedF(void * self);
+_Bool normalT_normalV_get_direct(void * self);
 
 _Bool normalT_obsoletedInFutureF(void * self);
 
+_Bool normalT_obsoletedInFutureF_direct(void * self);
+
 int32_t normalT_obsoletedInFutureP_get(void * self);
+
+int32_t normalT_obsoletedInFutureP_get_direct(void * self);
 
 _Bool normalT_obsoletedInFutureP_set__TypesOfArguments__Swift_Int32__(void * self, int32_t newValue);
 
+_Bool normalT_obsoletedInFutureP_set__TypesOfArguments__Swift_Int32___direct(void * self, int32_t newValue);
+
 _Bool normalT_obsoletedInFutureV_get(void * self);
+
+_Bool normalT_obsoletedInFutureV_get_direct(void * self);
 
 int32_t normalT_obsoletedP_get(void * self);
 
 _Bool normalT_obsoletedP_set__TypesOfArguments__Swift_Int32__(void * self, int32_t newValue);
 
-_Bool normalT_obsoletedV_get(void * self);
-
 _Bool normalT_removedInFutureF(void * self);
+
+_Bool normalT_removedInFutureF_direct(void * self);
 
 int32_t normalT_removedInFutureP_get(void * self);
 
+int32_t normalT_removedInFutureP_get_direct(void * self);
+
 _Bool normalT_removedInFutureP_set__TypesOfArguments__Swift_Int32__(void * self, int32_t newValue);
 
+_Bool normalT_removedInFutureP_set__TypesOfArguments__Swift_Int32___direct(void * self, int32_t newValue);
+
 _Bool normalT_removedInFutureV_get(void * self);
+
+_Bool normalT_removedInFutureV_get_direct(void * self);
+
+_Bool obsoletedChildT_deprecationReinforcedF(void * self);
+
+_Bool obsoletedChildT_deprecationReinforcedV_get(void * self);
+
+_Bool obsoletedChildT_deprecationRelaxedF(void * self);
+
+_Bool obsoletedChildT_deprecationRelaxedV_get(void * self);
+
+_Bool obsoletedChildT_deprecationRestatedF(void * self);
+
+_Bool obsoletedChildT_deprecationRestatedV_get(void * self);
+
+_Bool obsoletedT_deprecationInheritedF(void * self);
+
+void * obsoletedT_deprecationInheritedT_init_allocate();
+
+_Bool obsoletedT_deprecationInheritedT_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
+
+_Bool obsoletedT_deprecationInheritedV_get(void * self);
+
+_Bool obsoletedT_deprecationRelaxedF(void * self);
+
+void * obsoletedT_deprecationRelaxedT_init_allocate();
+
+_Bool obsoletedT_deprecationRelaxedT_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
+
+_Bool obsoletedT_deprecationRelaxedV_get(void * self);
+
+void * obsoletedT_deprecationRestatedT_init_allocate();
+
+_Bool obsoletedT_deprecationRestatedT_init_initialize__TypesOfArguments__Swift_UnsafeMutableRawPointer__(void * __kt);
 
 NS_ASSUME_NONNULL_END

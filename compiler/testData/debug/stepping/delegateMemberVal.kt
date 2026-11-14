@@ -19,7 +19,7 @@ fun box() {
     val z0 = A().z
 }
 
-// EXPECTATIONS JVM_IR
+// EXPECTATIONS JVM
 // test.kt:19 box
 // test.kt:2 <init>
 // test.kt:5 <init>
@@ -67,21 +67,17 @@ fun box() {
 // EXPECTATIONS JS_IR
 // test.kt:19 box
 // test.kt:5 <init>
-// test.kt:5 <init>
 // test.kt:11 <init>
 // test.kt:10 <init>
 // test.kt:2 <init>
 // test.kt:19 box
-// test.kt:5 <get-z>
-// test.kt:5 <get-z>
-// test.kt:5 <get-z>
 // test.kt:14 getValue
 // test.kt:6 A$z$delegate$lambda
 // test.kt:20 box
 
 // EXPECTATIONS WASM
 // test.kt:19 $box (13)
-// test.kt:5 $A.<init> (4)
+// test.kt:5 $A.<init> (4, 13, 4)
 // test.kt:11 $Delegate.<init> (4)
 // test.kt:12 $Delegate.<init> (1)
 // test.kt:5 $A.<init> (4)

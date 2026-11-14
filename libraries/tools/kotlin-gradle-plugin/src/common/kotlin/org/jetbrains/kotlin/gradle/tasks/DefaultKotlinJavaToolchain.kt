@@ -19,15 +19,11 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.Internal
 import org.gradle.internal.jvm.Jvm
-import org.gradle.jvm.toolchain.*
-import org.gradle.util.GradleVersion
+import org.gradle.jvm.toolchain.JavaLauncher
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
 import org.jetbrains.kotlin.gradle.utils.*
-import org.jetbrains.kotlin.gradle.utils.chainedFinalizeValueOnRead
-import org.jetbrains.kotlin.gradle.utils.property
-import org.jetbrains.kotlin.gradle.utils.propertyWithConvention
-import org.jetbrains.kotlin.gradle.utils.providerWithLazyConvention
 import java.io.File
 import javax.inject.Inject
 
@@ -35,7 +31,7 @@ internal abstract class DefaultKotlinJavaToolchain @Inject constructor(
     private val objects: ObjectFactory,
     projectLayout: ProjectLayout,
     providerFactory: ProviderFactory,
-    jvmCompilerOptions: () -> KotlinJvmCompilerOptions?
+    jvmCompilerOptions: () -> KotlinJvmCompilerOptions?,
 ) : KotlinJavaToolchain {
 
     private val logger = Logging.getLogger("KotlinJavaToolchain")
@@ -75,12 +71,7 @@ internal abstract class DefaultKotlinJavaToolchain @Inject constructor(
         .value(
             buildJvm.flatMap { jvm ->
                 projectLayout.file(
-                    objects.property<File>(
-                        jvm.javaExecutable
-                            ?: throw GradleException(
-                                "Kotlin could not find 'java' executable in the JDK installation: '${jvm.javaHome}'"
-                            )
-                    )
+                    objects.property<File>(jvm.javaExecutable)
                 )
             }
         )
@@ -89,8 +80,8 @@ internal abstract class DefaultKotlinJavaToolchain @Inject constructor(
     private fun getToolsJarFromJvm(
         providerFactory: ProviderFactory,
         jvmProvider: Provider<Jvm>,
-        javaVersionProvider: Provider<JavaVersion>
-    ): Provider<File?> {
+        javaVersionProvider: Provider<JavaVersion>,
+    ): Provider<File> {
         return objects
             .propertyWithConvention(
                 javaVersionProvider.flatMap { javaVersion ->
@@ -109,10 +100,10 @@ internal abstract class DefaultKotlinJavaToolchain @Inject constructor(
     }
 
     @get:Internal
-    internal val jdkToolsJar: Provider<File?> = getToolsJarFromJvm(providerFactory, buildJvm, javaVersion)
+    internal val jdkToolsJar: Provider<File> = getToolsJarFromJvm(providerFactory, buildJvm, javaVersion)
 
     @get:Internal
-    internal val currentJvmJdkToolsJar: Provider<File?> = getToolsJarFromJvm(
+    internal val currentJvmJdkToolsJar: Provider<File> = getToolsJarFromJvm(
         providerFactory,
         gradleJvm,
         gradleJvm.map {
@@ -139,12 +130,12 @@ internal abstract class DefaultKotlinJavaToolchain @Inject constructor(
         private val providedJvm: Property<Jvm>,
         private val objects: ObjectFactory,
         private val logger: Logger,
-        private val jvmCompilerOptions: () -> KotlinJvmCompilerOptions?
+        private val jvmCompilerOptions: () -> KotlinJvmCompilerOptions?,
     ) : KotlinJavaToolchain.JdkSetter {
 
         override fun use(
             jdkHomeLocation: File,
-            jdkVersion: JavaVersion
+            jdkVersion: JavaVersion,
         ) {
             require(jdkHomeLocation.isDirectory) {
                 "Supplied jdkHomeLocation must be a valid directory. You supplied: $jdkHomeLocation"
@@ -155,22 +146,11 @@ internal abstract class DefaultKotlinJavaToolchain @Inject constructor(
 
             providedJvm.set(
                 objects.providerWithLazyConvention {
-                    if (GradleVersion.current() < GradleVersion.version("8.8")) {
-                        // https://youtrack.jetbrains.com/issue/KT-69386/Migrate-to-non-internal-org.gradle.internal.jvm.Jvm-API
-                        @Suppress("DEPRECATION", "NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
-                        Jvm.discovered(
-                            jdkHomeLocation,
-                            null,
-                            jdkVersion
-                        )
-                    } else {
-                        @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
-                        Jvm.discovered(
-                            jdkHomeLocation,
-                            null,
-                            jdkVersion.majorVersion.toInt()
-                        )
-                    }
+                    Jvm.discovered(
+                        jdkHomeLocation,
+                        nullImplementationJavaVersion(),
+                        jdkVersion.majorVersion.toInt()
+                    )
                 }
             )
 
@@ -183,17 +163,17 @@ internal abstract class DefaultKotlinJavaToolchain @Inject constructor(
     internal class DefaultJavaToolchainSetter(
         private val providedJvm: Property<Jvm>,
         private val logger: Logger,
-        private val jvmCompilerOptions: () -> KotlinJvmCompilerOptions?
+        private val jvmCompilerOptions: () -> KotlinJvmCompilerOptions?,
     ) : KotlinJavaToolchain.JavaToolchainSetter {
 
         internal fun useAsConvention(
-            javaLauncher: Provider<JavaLauncher>
+            javaLauncher: Provider<JavaLauncher>,
         ) {
             providedJvm.convention(javaLauncher.map(::mapToJvm))
         }
 
         override fun use(
-            javaLauncher: Provider<JavaLauncher>
+            javaLauncher: Provider<JavaLauncher>,
         ) {
             providedJvm.set(javaLauncher.map(::mapToJvm))
 
@@ -208,7 +188,7 @@ internal abstract class DefaultKotlinJavaToolchain @Inject constructor(
         internal fun wireJvmTargetToJvm(
             jvmCompilerOptions: KotlinJvmCompilerOptions,
             toolchainJvm: Provider<Jvm>,
-            logger: Logger
+            logger: Logger,
         ) {
             jvmCompilerOptions.jvmTarget.convention(
                 toolchainJvm.map { jvm ->
@@ -219,7 +199,7 @@ internal abstract class DefaultKotlinJavaToolchain @Inject constructor(
 
         private fun convertJavaVersionToJvmTarget(
             javaVersion: JavaVersion,
-            logger: Logger
+            logger: Logger,
         ): JvmTarget {
             // For Java 9 and Java 10 JavaVersion returns "1.9" or "1.10" accordingly
             // that is not accepted by the Kotlin compiler
@@ -249,7 +229,7 @@ internal abstract class DefaultKotlinJavaToolchain @Inject constructor(
         private fun wireJvmTargetToToolchain(
             jvmCompilerOptions: KotlinJvmCompilerOptions,
             javaLauncher: Provider<JavaLauncher>,
-            logger: Logger
+            logger: Logger,
         ): Unit = wireJvmTargetToJvm(
             jvmCompilerOptions,
             javaLauncher.map(::mapToJvm),
@@ -273,22 +253,17 @@ internal abstract class DefaultKotlinJavaToolchain @Inject constructor(
 
         private fun mapToJvm(javaLauncher: JavaLauncher): Jvm {
             val metadata = javaLauncher.metadata
-            return if (GradleVersion.current() < GradleVersion.version("8.8")) {
-                @Suppress("DEPRECATION", "NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
-                // https://youtrack.jetbrains.com/issue/KT-69386/Migrate-to-non-internal-org.gradle.internal.jvm.Jvm-API
-                Jvm.discovered(
-                    metadata.installationPath.asFile,
-                    null,
-                    JavaVersion.toVersion(metadata.languageVersion.asInt())
-                )
-            } else {
-                @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
-                Jvm.discovered(
-                    metadata.installationPath.asFile,
-                    null,
-                    metadata.languageVersion.asInt()
-                )
-            }
+            return Jvm.discovered(
+                metadata.installationPath.asFile,
+                nullImplementationJavaVersion(),
+                metadata.languageVersion.asInt()
+            )
         }
     }
 }
+
+/**
+ * [Jvm.discovered] accepts a `null` `implementationJavaVersion`, but the parameter is missing `@Nullable`.
+ */
+@Suppress("UNCHECKED_CAST")
+private fun <T> nullImplementationJavaVersion(): T = null as T

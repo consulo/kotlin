@@ -1,5 +1,8 @@
 KtNameReferenceExpression(122,128): 'Server'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: true
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       /Server.Companion
     ]

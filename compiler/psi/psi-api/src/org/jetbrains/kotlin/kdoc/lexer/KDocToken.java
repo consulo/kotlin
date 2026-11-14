@@ -16,11 +16,16 @@
 
 package org.jetbrains.kotlin.kdoc.lexer;
 
+import kotlin.DeprecationLevel;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.lexer.KtToken;
 
 public class KDocToken extends KtToken {
+    @kotlin.Deprecated(
+            message = "Use the 'KDocToken(String, int)' constructor instead",
+            level = DeprecationLevel.HIDDEN
+    )
     @Deprecated
     public KDocToken(@NotNull @NonNls String debugName) {
         super(debugName);

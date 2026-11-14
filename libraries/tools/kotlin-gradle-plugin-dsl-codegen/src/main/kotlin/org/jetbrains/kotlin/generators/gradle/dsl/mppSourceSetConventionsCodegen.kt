@@ -36,6 +36,7 @@ internal fun generateKotlinMultiplatformSourceSetConventionsKt(withPrinterToFile
         .replaceRegion("Native Source Set Accessors", nativeDeclarations)
         .replaceRegion("Non-Native Source Set Accessors", nonNativeDeclarations)
         .replaceRegion("Common Source Set Accessors", commonDeclarations)
+        .trimEnd()
 
     withPrinterToFile(sourceFile) {
         println(newSource)
@@ -64,6 +65,7 @@ internal fun generateKotlinMultiplatformSourceSetConventionsImplKt(withPrinterTo
         .replaceRegion("Native Source Set Accessors", nativeDeclarations)
         .replaceRegion("Non-Native Source Set Accessors", nonNativeDeclarations)
         .replaceRegion("Common Source Set Accessors", commonDeclarations)
+        .trimEnd()
 
     withPrinterToFile(sourceFile) {
         println(newSource)
@@ -100,7 +102,7 @@ private val commonSourceSetConventions = listOf(
 private val nonNativeSourceSetConventions = listOf(
     PlatformSourceSetConvention("jvm"),
     PlatformSourceSetConvention("js"),
-    PlatformSourceSetConvention("wasmJs", experimentalAnnotation = "@ExperimentalWasmDsl"),
+    PlatformSourceSetConvention("wasmJs"),
     PlatformSourceSetConvention("wasmWasi", experimentalAnnotation = "@ExperimentalWasmDsl"),
 )
 

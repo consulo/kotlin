@@ -8,11 +8,17 @@ package org.jetbrains.kotlin.plugin.test
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
-import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.cli.report
 import org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
+import org.jetbrains.kotlin.compiler.plugin.registerExtension
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.messageCollector
+import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactoryToRendererMap
+import org.jetbrains.kotlin.diagnostics.KtDiagnosticsContainer
+import org.jetbrains.kotlin.diagnostics.errorWithoutSource
+import org.jetbrains.kotlin.diagnostics.rendering.BaseDiagnosticRendererFactory
+import org.jetbrains.kotlin.diagnostics.rendering.BaseSourcelessDiagnosticRendererFactory
+import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
+import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.declarations.addGetter
 import org.jetbrains.kotlin.ir.builders.declarations.buildProperty
 import org.jetbrains.kotlin.ir.builders.irBlockBody
@@ -20,8 +26,26 @@ import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.nameWithPackage
-import org.jetbrains.kotlin.ir.util.toIrConst
+import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.name.Name
+
+object BeforeDiagnostics : KtDiagnosticsContainer() {
+    val BEFORE_ERROR by errorWithoutSource()
+
+    override fun getRendererFactory(): BaseDiagnosticRendererFactory = Messages
+
+    object Messages : BaseSourcelessDiagnosticRendererFactory() {
+        override val MAP: KtDiagnosticFactoryToRendererMap by KtDiagnosticFactoryToRendererMap("BeforeDiagnostics") { map ->
+            map.put(BEFORE_ERROR, MESSAGE_PLACEHOLDER)
+        }
+    }
+}
+
+class FirBeforeRegistrar : FirExtensionRegistrar() {
+    override fun ExtensionRegistrarContext.configurePlugin() {
+        registerDiagnosticContainers(BeforeDiagnostics)
+    }
+}
 
 class BeforeComponentRegistrar : CompilerPluginRegistrar() {
     override val pluginId: String
@@ -31,24 +55,25 @@ class BeforeComponentRegistrar : CompilerPluginRegistrar() {
         get() = true
 
     override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
-        IrGenerationExtension.registerExtension(Extension(configuration.messageCollector))
+        IrGenerationExtension.registerExtension(Extension(configuration))
+        FirExtensionRegistrar.registerExtension(FirBeforeRegistrar())
     }
 
-    private class Extension(private val messageCollector: MessageCollector) : IrGenerationExtension {
+    private class Extension(private val configuration: CompilerConfiguration) : IrGenerationExtension {
         override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
             for (file in moduleFragment.files) {
                 val properties = file.declarations.filterIsInstance<IrProperty>()
 
                 if (properties.singleOrNull { it.name.toString() == "middle_${file.nameWithPackage}" } != null) {
-                    messageCollector.report(
-                        CompilerMessageSeverity.ERROR,
+                    configuration.report(
+                        BeforeDiagnostics.BEFORE_ERROR,
                         "Plugin 'kotlin.plugin.test.middle' must run after 'kotlin.plugin.test.before'"
                     )
                 }
 
                 if (properties.singleOrNull { it.name.toString() == "after_${file.nameWithPackage}" } != null) {
-                    messageCollector.report(
-                        CompilerMessageSeverity.ERROR,
+                    configuration.report(
+                        BeforeDiagnostics.BEFORE_ERROR,
                         "Plugin 'kotlin.plugin.test.after' must run after 'kotlin.plugin.test.before'"
                     )
                 }
@@ -61,7 +86,13 @@ class BeforeComponentRegistrar : CompilerPluginRegistrar() {
                         returnType = pluginContext.irBuiltIns.stringType
                     }.apply {
                         val builder = pluginContext.irBuiltIns.createIrBuilder(symbol)
-                        body = builder.irBlockBody { +irReturn("before".toIrConst(pluginContext.irBuiltIns.stringType)) }
+                        body = builder.irBlockBody {
+                            val constValue = IrConstImpl.string(
+                                startOffset = UNDEFINED_OFFSET, endOffset = UNDEFINED_OFFSET,
+                                type = pluginContext.irBuiltIns.stringType, value = "before"
+                            )
+                            +irReturn(constValue)
+                        }
                     }
                 }
             }

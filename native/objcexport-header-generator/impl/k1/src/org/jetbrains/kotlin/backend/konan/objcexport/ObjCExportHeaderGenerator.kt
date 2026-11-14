@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.backend.konan.objcexport
 
-import org.jetbrains.kotlin.backend.common.serialization.findSourceFile
 import org.jetbrains.kotlin.backend.konan.InternalKotlinNativeApi
 import org.jetbrains.kotlin.backend.konan.descriptors.getPackageFragments
 import org.jetbrains.kotlin.backend.konan.descriptors.isInterface
@@ -144,11 +143,11 @@ abstract class ObjCExportHeaderGenerator @InternalKotlinNativeApi constructor(
 
         classesToTranslate.makeClassesOrderStable().forEach { translateClass(it) }
 
-        extensions.makeCategoriesOrderStable().forEach { (classDescriptor, declarations) ->
+        extensions.makeCategoriesOrderStable().forEach { [classDescriptor, declarations] ->
             generateExtensions(classDescriptor, declarations)
         }
 
-        topLevel.makeFilesOrderStable().forEach { (sourceFile, declarations) ->
+        topLevel.makeFilesOrderStable().forEach { [sourceFile, declarations] ->
             generateFile(sourceFile, declarations)
         }
     }

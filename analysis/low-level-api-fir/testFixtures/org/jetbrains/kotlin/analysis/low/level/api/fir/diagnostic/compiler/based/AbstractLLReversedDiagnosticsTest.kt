@@ -11,11 +11,11 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.compiler.based.AbstractLL
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.compiler.based.facades.LLFirAnalyzerFacadeFactoryWithPreresolveInReversedOrder
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.configuration.baseFirDiagnosticTestConfiguration
+import org.jetbrains.kotlin.test.directives.TestDumpDirectives
 import org.jetbrains.kotlin.test.frontend.fir.handlers.AbstractAlternativeKtFileIdenticalChecker
 import org.jetbrains.kotlin.test.services.MetaTestConfigurator
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.assertions
-import org.jetbrains.kotlin.test.utils.firTestDataFile
 import org.jetbrains.kotlin.test.utils.llFirTestDataFile
 import org.jetbrains.kotlin.test.utils.originalTestDataFile
 import org.jetbrains.kotlin.utils.bind
@@ -43,8 +43,11 @@ abstract class AbstractLLReversedDiagnosticsTest : AbstractLLCompilerBasedTest()
                 testDataConsistencyHandler = ::ReversedFirIdenticalChecker,
             )
 
-            useAfterAnalysisCheckers(::LLFirOnlyReversedTestSuppressor)
+            useFailureSuppressors(::LLFirOnlyReversedTestSuppressor)
             useMetaTestConfigurators(::reversedDiagnosticsConfigurator)
+            defaultDirectives {
+                TestDumpDirectives.DUMP_CLASSIFIER with "reversed"
+            }
         }
     }
 }
@@ -58,7 +61,6 @@ class ReversedFirIdenticalChecker(testServices: TestServices) : AbstractAlternat
         if (".reversed." !in testDataFile.path) return
         val originalFile = testDataFile.originalTestDataFile.path.replace(".reversed", "").let(::File)
         val baseFile = originalFile.llFirTestDataFile.takeIf(File::exists)
-            ?: originalFile.firTestDataFile.takeIf(File::exists)
             ?: originalFile
 
         val baseContent = readContent(baseFile, trimLines = false)

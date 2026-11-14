@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.fir.resolve.calls.overloads
 
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
 import org.jetbrains.kotlin.fir.declarations.FirContractDescriptionOwner
+import org.jetbrains.kotlin.fir.declarations.FirFunction
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.resolve.BodyResolveComponents
 import org.jetbrains.kotlin.fir.resolve.calls.ConeLambdaWithTypeVariableAsExpectedTypeAtom
@@ -14,8 +15,8 @@ import org.jetbrains.kotlin.fir.resolve.calls.ConeResolutionAtomWithPostponedChi
 import org.jetbrains.kotlin.fir.resolve.calls.ConeResolvedLambdaAtom
 import org.jetbrains.kotlin.fir.resolve.calls.candidate.Candidate
 import org.jetbrains.kotlin.fir.resolve.calls.candidate.FirNamedReferenceWithCandidate
-import org.jetbrains.kotlin.fir.resolve.initialTypeOfCandidate
 import org.jetbrains.kotlin.fir.resolve.substitution.asCone
+import org.jetbrains.kotlin.fir.scopes.impl.contractOwner
 import org.jetbrains.kotlin.fir.types.isSomeFunctionType
 import org.jetbrains.kotlin.resolve.calls.inference.components.ConstraintSystemCompletionMode
 import org.jetbrains.kotlin.types.model.KotlinTypeMarker
@@ -26,50 +27,68 @@ import org.jetbrains.kotlin.utils.addToStdlib.same
 fun runEagerLambdaAnalysisAndFilterOutInapplicableCandidates(
     candidates: Set<Candidate>,
     components: BodyResolveComponents,
-): Set<Candidate>? = context(components) {
+): Set<Candidate> = context(components) {
     runEagerLambdaAnalysisAndFilterOutInapplicableCandidates(candidates)
 }
 
 context(components: BodyResolveComponents)
-private fun runEagerLambdaAnalysisAndFilterOutInapplicableCandidates(
+private tailrec fun runEagerLambdaAnalysisAndFilterOutInapplicableCandidates(
     candidates: Set<Candidate>,
-): Set<Candidate>? {
-    if (candidates.any { !it.isSuccessful || it.hasNonTrivialContracts() }) return null
-    val call = candidates.first().callInfo.callSite as? FirFunctionCall ?: return null
+): Set<Candidate> {
+    check(candidates.isNotEmpty())
+    if (candidates.size == 1) return candidates
 
-    // Currently, we only support a single lambda case.
-    // Thus, for `foo({ 1 }, { "2" })` we would return null.
-    // NB: for `lambdaAtomGroup` all the atoms refer to the same FirAnonymousFunction
-    val lambdaAtomGroup: Collection<LambdaAtomWithCandidate> = candidates.lambdaAtomGroups().singleOrNull() ?: return null
+    // No lambda can be analyzed
+    if (!runEagerLambdaAnalysisForFirstReadyLambda(candidates)) return candidates
 
-    if (!lambdaAtomGroup.same { it.atom.parameterTypes.size }) return null
-    if (!lambdaAtomGroup.all { it.atom.expectedType?.isSomeFunctionType(components.session) == true }) return null
+    val remainingSuccessfulCandidates =
+        candidates.filterTo(mutableSetOf()) { it.isSuccessful }
+
+    // Some candidates are still successful and there might be other ready lambdas, so repeat ELA again
+    if (remainingSuccessfulCandidates.isNotEmpty()) {
+        return runEagerLambdaAnalysisAndFilterOutInapplicableCandidates(remainingSuccessfulCandidates)
+    }
+
+    // If only unsuccessful candidates remain, return the first one.
+    // We might also return all of them to report OVERLOAD_RESOLUTION_AMBIGUITY, but we preserve the current test data behavior
+    // where we report RETURN_TYPE_MISMATCH on the first candidate.
+    return setOf(candidates.first())
+}
+
+/**
+ * @returns false if no lambda has been analyzed
+ */
+
+context(components: BodyResolveComponents)
+private fun runEagerLambdaAnalysisForFirstReadyLambda(
+    candidates: Set<Candidate>,
+): Boolean {
+    if (candidates.any { !it.isSuccessful || it.hasNonTrivialContracts() || it.callInfo.isNonTrivialCollectionLiteralCall }) return false
+    val call = candidates.first().callInfo.callSite as? FirFunctionCall ?: return false
+
+    // NB: for each `lambdaAtomGroup` all the atoms refer to the same FirAnonymousFunction
+    val lambdaAtomGroups = candidates.lambdaAtomGroups()
+    if (lambdaAtomGroups.isEmpty()) return false
 
     val originalCalleeReference = call.calleeReference
 
     try {
-        if (!runEagerLambdaAnalysisForLambdaAtomGroup(lambdaAtomGroup, call)) return null
+        for (lambdaAtomGroup in lambdaAtomGroups) {
+            // We haven't found lambda atoms for some candidates.
+            // It might happen because some of them are ConeLambdaWithTypeVariableAsExpectedTypeAtom which we currently ignore.
+            if (lambdaAtomGroup.size < candidates.size) continue
+            check(lambdaAtomGroup.size == candidates.size)
+
+            if (!lambdaAtomGroup.same { it.atom.parameterTypes.size }) continue
+            if (!lambdaAtomGroup.all { it.atom.expectedType?.isSomeFunctionType(components.session) == true }) continue
+            if (!runEagerLambdaAnalysisForLambdaAtomGroup(lambdaAtomGroup, call)) continue
+            return true
+        }
     } finally {
         call.replaceCalleeReference(originalCalleeReference)
     }
 
-    val errorCandidates = mutableSetOf<Candidate>()
-    val successfulCandidates = mutableSetOf<Candidate>()
-
-    for (candidate in candidates) {
-        if (candidate.isSuccessful) {
-            successfulCandidates += candidate
-        } else {
-            // TODO: Use for reporting RETURN_TYPE_MISMATCH to avoid test data changes
-            if (errorCandidates.isEmpty()) {
-                errorCandidates += candidate
-            }
-        }
-    }
-    return when {
-        successfulCandidates.isNotEmpty() -> successfulCandidates
-        else -> errorCandidates
-    }
+    return false
 }
 
 /**
@@ -85,13 +104,11 @@ private fun runEagerLambdaAnalysisForLambdaAtomGroup(
     val inferenceSession = components.context.inferenceSession
     val callCompleter = components.callCompleter
 
-    for ((candidate, atom) in lambdaAtomGroup) {
+    for ([candidate, atom] in lambdaAtomGroup) {
         call.replaceCalleeReference(candidate.temporaryNamedReference())
-        callCompleter.runCompletionForCall(
+        callCompleter.runCompletionUntilFirstLambdaIsReady(
             candidate,
-            ConstraintSystemCompletionMode.UNTIL_FIRST_LAMBDA,
             call,
-            components.initialTypeOfCandidate(candidate)
         )
         for (inputType in atom.inputTypes) {
             inferenceSession.semiFixTypeVariablesAllowingFixationToOtherOnes(inputType, myCs = candidate.system)
@@ -102,7 +119,7 @@ private fun runEagerLambdaAnalysisForLambdaAtomGroup(
     if (!lambdaAtomGroup.inputTypesAreTheSame(semiFixedVariables)) return false
 
     val iterator = lambdaAtomGroup.iterator()
-    val (firstCandidate, firstAtom) = iterator.next()
+    val [firstCandidate, firstAtom] = iterator.next()
 
     val postponedArgumentsAnalyzer = callCompleter.createPostponedArgumentsAnalyzer(
         components.resolutionContext
@@ -121,7 +138,7 @@ private fun runEagerLambdaAnalysisForLambdaAtomGroup(
 
     // NB: Results from the first atom have been already applied to the candidate
     while (iterator.hasNext()) {
-        val (candidate, atom) = iterator.next()
+        val [candidate, atom] = iterator.next()
         call.replaceCalleeReference(candidate.temporaryNamedReference())
         val substitutor = candidate.system.buildCurrentSubstitutor(semiFixedVariables).asCone()
         postponedArgumentsAnalyzer.applyResultsOfAnalyzedLambdaToCandidateSystem(
@@ -150,12 +167,12 @@ private fun runEagerLambdaAnalysisForLambdaAtomGroup(
 private fun Collection<LambdaAtomWithCandidate>.inputTypesAreTheSame(
     // PCLA-only
     semiFixedVariables: Map<TypeConstructorMarker, KotlinTypeMarker>,
-): Boolean = same { (candidate, lambda) ->
+): Boolean = same { [candidate, lambda] ->
     val substitutor = candidate.system.buildCurrentSubstitutor(semiFixedVariables).asCone()
     lambda.inputTypes.map { substitutor.substituteOrSelf(it) }
 }
 
-private fun Candidate.temporaryNamedReference() = FirNamedReferenceWithCandidate(null, callInfo.name, this)
+private fun Candidate.temporaryNamedReference(): FirNamedReferenceWithCandidate = FirNamedReferenceWithCandidate(null, callInfo.name, this)
 
 private class LambdaAtomWithCandidate(
     val candidate: Candidate,
@@ -185,4 +202,5 @@ private fun Collection<Candidate>.lambdaAtomGroups(): Collection<Collection<Lamb
     return lambdaAtomsGroupedByAnonymousFunction.values
 }
 
-private fun Candidate.hasNonTrivialContracts(): Boolean = (symbol.fir as? FirContractDescriptionOwner)?.contractDescription != null
+private fun Candidate.hasNonTrivialContracts(): Boolean =
+    ((symbol.fir as? FirFunction)?.contractOwner() as? FirContractDescriptionOwner)?.contractDescription != null

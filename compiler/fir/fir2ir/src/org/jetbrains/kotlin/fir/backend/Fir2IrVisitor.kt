@@ -7,11 +7,14 @@ package org.jetbrains.kotlin.fir.backend
 
 import com.intellij.psi.tree.IElementType
 import org.jetbrains.kotlin.*
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.contracts.description.LogicOperationKind
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.isObject
 import org.jetbrains.kotlin.diagnostics.findChildByType
+import org.jetbrains.kotlin.fir.FirAnnotationContainer
 import org.jetbrains.kotlin.fir.FirElement
+import org.jetbrains.kotlin.fir.StandardTypes
 import org.jetbrains.kotlin.fir.backend.generators.ClassMemberGenerator
 import org.jetbrains.kotlin.fir.backend.generators.OperatorExpressionGenerator
 import org.jetbrains.kotlin.fir.backend.utils.*
@@ -22,9 +25,12 @@ import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.impl.*
 import org.jetbrains.kotlin.fir.extensions.extensionService
 import org.jetbrains.kotlin.fir.extensions.scriptResolutionHacksComponent
+import org.jetbrains.kotlin.fir.isEnabled
 import org.jetbrains.kotlin.fir.references.*
 import org.jetbrains.kotlin.fir.render
 import org.jetbrains.kotlin.fir.resolve.*
+import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
+import org.jetbrains.kotlin.fir.scopes.getDeclaredConstructors
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
@@ -33,13 +39,16 @@ import org.jetbrains.kotlin.fir.whileAnalysing
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
+import org.jetbrains.kotlin.ir.sourceSuppressedDiagnosticNames
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
+import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
 import org.jetbrains.kotlin.ir.symbols.IrLocalDelegatedPropertySymbol
 import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
+import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI
 import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
 import org.jetbrains.kotlin.ir.types.*
@@ -52,6 +61,7 @@ import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.psi.KtBinaryExpression
 import org.jetbrains.kotlin.psi.KtForExpression
 import org.jetbrains.kotlin.types.TypeApproximatorConfiguration
@@ -60,6 +70,7 @@ import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.addToStdlib.applyIf
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstance
+import org.jetbrains.kotlin.utils.addToStdlib.runIf
 import org.jetbrains.kotlin.utils.addToStdlib.runUnless
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
@@ -77,7 +88,22 @@ class Fir2IrVisitor(
 
     val annotationMode: Boolean
         get() = _annotationMode
-    private val unitType: ConeClassLikeType = session.builtinTypes.unitType.coneType
+
+    private val generateNoWhenBranchMatchedExceptionWithMessage: Boolean = LanguageFeature.NoWhenBranchMatchedExceptionWithMessage.isEnabled()
+
+    private val throwNoWhenBranchMatchedExceptionSymbol by lazy {
+        val id = StandardClassIds.Callables.throwNoWhenBranchMatchedException
+        session.symbolProvider.getTopLevelFunctionSymbols(id.packageName, id.callableName)
+            .singleOrNull()
+            ?.toIrSymbolForCall(null, null) as? IrSimpleFunctionSymbol
+    }
+
+    private val cceConstructorSymbol: IrConstructorSymbol by lazy {
+        val classSymbol = session.symbolProvider.getClassLikeSymbolByClassId(StandardClassIds.ClassCastException)?.fullyExpandedClass()
+        val firConstructorSymbol = classSymbol?.declaredScope()?.getDeclaredConstructors()?.first { it.valueParameterSymbols.isEmpty() }
+            ?: @OptIn(UnsafeDuringIrConstructionAPI::class) return@lazy IrErrorClassImpl.constructors.first().symbol
+        declarationStorage.getIrConstructorSymbol(firConstructorSymbol)
+    }
 
     internal inline fun <T> withAnnotationMode(enableAnnotationMode: Boolean = true, block: () -> T): T {
         val oldAnnotationMode = _annotationMode
@@ -375,6 +401,12 @@ class Fir2IrVisitor(
         data: Any?,
     ): IrElement {
         val irSnippet = declarationStorage.getCachedIrReplSnippet(replSnippet)!!
+        return conversionScope.withCurrentReplSnippet(replSnippet.symbol) {
+            convertReplSnippet(replSnippet, irSnippet, data)
+        }
+    }
+
+    private fun convertReplSnippet(replSnippet: FirReplSnippet, irSnippet: IrReplSnippet, data: Any?): IrElement {
         irSnippet.parent = conversionScope.parentFromStack()
         declarationStorage.enterScope(irSnippet.symbol)
 
@@ -653,12 +685,16 @@ class Fir2IrVisitor(
     private fun convertToIrCall(functionCall: FirFunctionCall): IrExpression {
         if (functionCall.isCalleeDynamic &&
             functionCall.calleeReference.name == OperatorNameConventions.SET &&
-            functionCall.calleeReference.source?.kind == KtFakeSourceElementKind.ArrayAccessNameReference
+            functionCall.isDesugaredArrayAccess
         ) {
             return convertToIrArraySetDynamicCall(functionCall)
         }
         return convertToIrCall(functionCall, dynamicOperator = null)
     }
+
+    private val FirFunctionCall.isDesugaredArrayAccess: Boolean
+        get() = calleeReference.source?.kind == KtFakeSourceElementKind.ArrayAccessNameReference
+                || calleeReference.source?.kind is KtFakeSourceElementKind.DesugaredIncrementOrDecrement
 
     private fun convertToIrCall(
         functionCall: FirFunctionCall,
@@ -676,6 +712,11 @@ class Fir2IrVisitor(
         )
     }
 
+    /**
+     * Unlike [tryConvertDynamicIncrementOrDecrementToIr], this function handles individual
+     * calls like `obj["a"] = ...` over `obj: dynamic`. Such calls may come both as part of
+     * desugared blocks from `++obj["a"]` or entirely standalone, such as `obj["a"] = 2`.
+     */
     private fun convertToIrArraySetDynamicCall(functionCall: FirFunctionCall): IrExpression {
         // `functionCall` has the form of `myDynamic.set(key1, key2, ..., newValue)`.
         // The resulting IR expects something like `myDynamic.ARRAY_ACCESS(key1, key2, ...).EQ(newValue)`.
@@ -706,15 +747,23 @@ class Fir2IrVisitor(
     ): IrElement = whileAnalysing(session, safeCallExpression) {
         val explicitReceiverExpression = convertToIrExpression(safeCallExpression.receiver)
 
-        val (receiverVariable, variableSymbol) = conversionScope.createTemporaryVariableForSafeCallConstruction(
+        val [receiverVariable, variableSymbol] = conversionScope.createTemporaryVariableForSafeCallConstruction(
             explicitReceiverExpression
         )
 
         return conversionScope.withSafeCallSubject(receiverVariable) {
-            val afterNotNullCheck =
+            val afterCheck =
                 (safeCallExpression.selector as? FirExpression)?.let(::convertToIrExpression)
                     ?: safeCallExpression.selector.accept(this, data) as IrExpression
-            c.createSafeCallConstruction(receiverVariable, variableSymbol, afterNotNullCheck)
+            when (safeCallExpression.kind) {
+                NullSafe -> c.createSafeCallConstruction(receiverVariable, variableSymbol, afterCheck)
+                ErrorSafe -> c.createErrorSafeCallConstruction(
+                    receiverVariable = receiverVariable,
+                    receiverVariableSymbol = variableSymbol,
+                    expressionOnNotError = afterCheck,
+                    resultType = safeCallExpression.resolvedType.toIrType(),
+                )
+            }
         }
     }
 
@@ -723,7 +772,7 @@ class Fir2IrVisitor(
         return checkedSafeCallSubject.convertWithOffsets { startOffset, endOffset ->
             IrGetValueImpl(startOffset, endOffset, lastSubjectVariable.type, lastSubjectVariable.symbol)
         }.let {
-            Fir2IrImplicitCastInserter.implicitCastOrExpression(it, it.type.makeNotNull())
+            Fir2IrImplicitCastInserter.implicitCastOrExpression(it, checkedSafeCallSubject.resolvedType.toIrType())
         }
     }
 
@@ -969,6 +1018,14 @@ class Fir2IrVisitor(
         return literalExpression.toIrConst(literalExpression.resolvedType.toIrType())
     }
 
+    override fun visitNumericClassConversion(numericClassConversion: FirNumericClassConversion, data: Any?): IrElement {
+        val preConverted = numericClassConversion.originalExpression.accept(this, data) as IrExpression
+
+        return with(adapterGenerator) {
+            preConverted.applyNumericClassCoercionIfNeeded(numericClassConversion)
+        }
+    }
+
     // ==================================================================================
 
     private fun FirStatement.toIrStatement(): IrStatement? {
@@ -987,7 +1044,7 @@ class Fir2IrVisitor(
             is FirReplPropertyDelegate -> callGenerator.convertToIrSetCall(delegate, propertySymbol)
             is FirReplDeclarationReference -> null
             else -> accept(this@Fir2IrVisitor, null) as IrStatement
-        }
+        }?.preserveSourceSuppressions(this)
     }
 
     private val FirProperty.isUnnamedLocalVariable: Boolean
@@ -1004,7 +1061,8 @@ class Fir2IrVisitor(
                     is KtFakeSourceElementKind.DesugaredForLoop -> IrStatementOrigin.FOR_LOOP
                     is KtFakeSourceElementKind.DesugaredAugmentedAssign ->
                         augmentedAssignSourceKindToIrStatementOrigin[expression.source?.kind]
-                    is KtFakeSourceElementKind.DesugaredIncrementOrDecrement -> incOrDecSourceKindToIrStatementOrigin[expression.source?.kind]
+                    is KtFakeSourceElementKind.DesugaredIncrementOrDecrement ->
+                        expression.source?.kind?.incOrDecSourceKindToIrStatementOrigin()
                     else -> null
                 }
                 expression.convertToIrExpressionOrBlock(
@@ -1016,7 +1074,7 @@ class Fir2IrVisitor(
                     // In all other cases, the block should have the type of the last statement, not the expected type.
                     expectedType =
                         if (origin == IrStatementOrigin.FOR_LOOP || expectedType?.isUnit == true)
-                            unitType
+                            StandardTypes.Unit
                         else if (expectedType?.isNothing == true)
                             expectedType
                         else null
@@ -1040,7 +1098,50 @@ class Fir2IrVisitor(
             } else {
                 it
             }
+        }.preserveSourceSuppressions(expression)
+    }
+
+    private fun <T : IrElement> T.preserveSourceSuppressions(firElement: FirElement): T {
+        if (this is IrAnnotationContainer) return this
+
+        val annotations = (firElement as? FirAnnotationContainer)?.annotations ?: return this
+        val suppressionNames = annotations.extractSuppressedDiagnosticNames()
+        if (suppressionNames.isNotEmpty()) {
+            sourceSuppressedDiagnosticNames = suppressionNames
         }
+        return this
+    }
+
+    private fun List<FirAnnotation>.extractSuppressedDiagnosticNames(): Set<String> {
+        var result: MutableSet<String>? = null
+        for (annotation in this) {
+            if (annotation.toAnnotationClassIdSafe(session) != StandardClassIds.Annotations.Suppress) continue
+            val argument = annotation.findArgumentByName(StandardClassIds.Annotations.ParameterNames.suppressNames) ?: continue
+            fun collectStrings(expression: FirExpression) {
+                when (expression) {
+                    is FirLiteralExpression -> {
+                        (expression.value as? String)?.let {
+                            val set = result ?: mutableSetOf<String>().also { result = it }
+                            set.add(it.lowercase())
+                        }
+                    }
+                    is FirVarargArgumentsExpression -> {
+                        for (arg in expression.arguments) {
+                            collectStrings(arg)
+                        }
+                    }
+                    is FirCollectionLiteral -> {
+                        for (arg in expression.arguments) {
+                            collectStrings(arg)
+                        }
+                    }
+                    is FirWrappedArgumentExpression -> collectStrings(expression.expression)
+                    else -> {}
+                }
+            }
+            collectStrings(argument)
+        }
+        return result.orEmpty()
     }
 
     internal fun convertToIrReceiverExpression(
@@ -1127,18 +1228,22 @@ class Fir2IrVisitor(
         }
     }
 
-    internal fun convertToIrBlockBody(block: FirBlock): IrBlockBody {
+    internal fun convertToIrBlockBody(
+        block: FirBlock,
+        prologueStatements: List<IrStatement>? = null,
+    ): IrBlockBody {
         return block.convertWithOffsets { startOffset, endOffset ->
+            val realStatements = block.statements.mapNotNull { it.toIrStatement() }
             IrFactoryImpl.createBlockBody(
                 startOffset, endOffset,
-                block.statements.mapNotNull { it.toIrStatement() }
+                if (prologueStatements != null) prologueStatements + realStatements else realStatements
             ).also {
                 it.coerceStatementsToUnit(coerceLastExpressionToUnit = true)
             }
         }
     }
 
-    private fun extractOperationFromDynamicSetCall(functionCall: FirFunctionCall) =
+    private fun extractOperationFromDynamicSetCall(functionCall: FirFunctionCall): FirFunctionCall? =
         functionCall.dynamicVarargArguments?.lastOrNull() as? FirFunctionCall
 
     private fun FirStatement.unwrapDesugaredAssignmentValueReference(): FirStatement =
@@ -1149,7 +1254,7 @@ class Fir2IrVisitor(
      * [org.jetbrains.kotlin.fir.builder.AbstractRawFirBuilder.generateIncrementOrDecrementBlockForArrayAccess] and
      * [org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirExpressionsResolveTransformer.transformIncrementDecrementExpression]
      */
-    private fun FirBlock.tryConvertDynamicIncrementOrDecrementToIr(): IrExpression? {
+    private fun tryConvertDynamicIncrementOrDecrementToIr(statements: List<FirStatement>): IrExpression? {
         // Key observations:
         // 1. For postfix operations `<unary>` is always present and is returned in referenced as the last statement
         // 2. The second to last statement is always either a `set()` call or an assignment
@@ -1159,7 +1264,8 @@ class Fir2IrVisitor(
         // This expression may reference things like `<array>` or `<indexN>` if it's an array access,
         // but it's definitely going to be something `++` or `--` could assign a value to
         val operationReceiver = (unary?.initializer ?: statements.lastOrNull())
-            ?.unwrapDesugaredAssignmentValueReference() as? FirQualifiedAccessExpression
+            ?.unwrapDesugaredAssignmentValueReference()?.let { it as? FirExpression }
+            ?.unwrapSmartcastExpression()?.let { it as? FirQualifiedAccessExpression }
             ?: return null
 
         if (operationReceiver.resolvedType !is ConeDynamicType) {
@@ -1215,7 +1321,7 @@ class Fir2IrVisitor(
         val coerceToUnit = expectedType?.isUnit == true
 
         if (this.source?.kind is KtFakeSourceElementKind.DesugaredIncrementOrDecrement) {
-            tryConvertDynamicIncrementOrDecrementToIr()?.let {
+            tryConvertDynamicIncrementOrDecrementToIr(statements)?.let {
                 return it.applyIf(coerceToUnit) {
                     coerceToUnitHandlingSpecialBlocks()
                 }
@@ -1357,22 +1463,45 @@ class Fir2IrVisitor(
                 }
                 val isProperlyExhaustive = whenExpression.isDeeplyProperlyExhaustive()
                 val whenExpressionType =
-                    if (isProperlyExhaustive) whenExpression.resolvedType else unitType
+                    if (isProperlyExhaustive) whenExpression.resolvedType else StandardTypes.Unit
                 val irBranches = whenExpression.convertWhenBranchesTo(
                     mutableListOf(),
                     whenExpressionType,
                     flattenElse = origin == IrStatementOrigin.IF,
                 )
                 if (isProperlyExhaustive && whenExpression.branches.none { it.condition is FirElseIfTrueCondition }) {
-                    val irResult = IrCallImplWithShape(
-                        startOffset, endOffset, builtins.nothingType,
-                        builtins.noWhenBranchMatchedExceptionSymbol,
-                        typeArgumentsCount = 0,
-                        valueArgumentsCount = 0,
-                        contextParameterCount = 0,
-                        hasDispatchReceiver = false,
-                        hasExtensionReceiver = false,
-                    )
+                    val throwNoWhenBranchMatchedExceptionSymbol =
+                        runIf(generateNoWhenBranchMatchedExceptionWithMessage && subjectVariable != null) {
+                            throwNoWhenBranchMatchedExceptionSymbol
+                        }
+
+                    val irResult = if (throwNoWhenBranchMatchedExceptionSymbol != null && subjectVariable != null) {
+                        IrCallImplWithShape(
+                            startOffset, endOffset, builtins.nothingType,
+                            throwNoWhenBranchMatchedExceptionSymbol,
+                            typeArgumentsCount = 0,
+                            valueArgumentsCount = 1,
+                            contextParameterCount = 0,
+                            hasDispatchReceiver = false,
+                            hasExtensionReceiver = false,
+                        ).apply {
+                            // If the when is exhaustive, it must handle the null case on nullable subject.
+                            // Therefore, it's safe to insert a not-null cast.
+                            arguments[0] = IrGetValueImpl(startOffset, endOffset, subjectVariable.type, subjectVariable.symbol).applyIf(subjectVariable.type.canBeNull()) {
+                                Fir2IrImplicitCastInserter.implicitCastOrExpression(this, c.builtins.anyType)
+                            }
+                        }
+                    } else {
+                        IrCallImplWithShape(
+                            startOffset, endOffset, builtins.nothingType,
+                            builtins.noWhenBranchMatchedExceptionSymbol,
+                            typeArgumentsCount = 0,
+                            valueArgumentsCount = 0,
+                            contextParameterCount = 0,
+                            hasDispatchReceiver = false,
+                            hasExtensionReceiver = false,
+                        )
+                    }
                     irBranches += IrElseBranchImpl(
                         IrConstImpl.boolean(startOffset, endOffset, builtins.booleanType, true), irResult
                     )
@@ -1462,8 +1591,9 @@ class Fir2IrVisitor(
                         // compiler/testData/codegen/box/when/stringOptimization/enhancedNullability.kt
                         // See KT-47398.
                         convertToIrExpression(subjectExpression).insertCastForIntersectionTypeOrSelf(
-                            argumentType = subjectExpression.resolvedType,
+                            expression = subjectExpression,
                             expectedType = subjectVariable.returnTypeRef.coneType,
+                            forReceiver = false,
                         )
                     },
                     nameHint = "subject",
@@ -1507,7 +1637,7 @@ class Fir2IrVisitor(
                 loopMap[doWhileLoop] = this
                 label = doWhileLoop.label?.name
                 body = runUnless(doWhileLoop.block is FirEmptyExpressionBlock) {
-                    doWhileLoop.block.convertToIrExpressionOrBlock(origin, expectedType = unitType)
+                    doWhileLoop.block.convertToIrExpressionOrBlock(origin, expectedType = StandardTypes.Unit)
                 }
                 condition = convertToIrExpression(doWhileLoop.condition)
                 loopMap.remove(doWhileLoop)
@@ -1547,7 +1677,7 @@ class Fir2IrVisitor(
                             val firLoopVarStmt = loopBodyStatements.firstOrNull()
                                 ?: error("Unexpected shape of for loop body: missing body statements: ${whileLoop.render()}")
 
-                            val (destructuredLoopVariables, realStatements) = loopBodyStatements.drop(1).partition {
+                            val [destructuredLoopVariables, realStatements] = loopBodyStatements.drop(1).partition {
                                 it is FirProperty && it.initializer?.source?.kind is KtFakeSourceElementKind.DestructuringInitializer
                             }
                             val firBlock = realStatements.singleOrNull() as? FirBlock
@@ -1566,7 +1696,7 @@ class Fir2IrVisitor(
                                 addIfNotNull(convertedForLoopVar)
                                 destructuredLoopVariables.forEach { addIfNotNull(it.toIrStatement()) }
                                 if (firBlock !is FirEmptyExpressionBlock) {
-                                    add(firBlock.convertToIrExpressionOrBlock(origin = null, unitType))
+                                    add(firBlock.convertToIrExpressionOrBlock(origin = null, StandardTypes.Unit))
                                 }
                             }
 
@@ -1579,7 +1709,7 @@ class Fir2IrVisitor(
                             )
                         }
                     } else {
-                        firLoopBody.convertToIrExpressionOrBlock(null, unitType)
+                        firLoopBody.convertToIrExpressionOrBlock(null, StandardTypes.Unit)
                     }
                 }
                 loopMap.remove(whileLoop)
@@ -1635,7 +1765,7 @@ class Fir2IrVisitor(
                     .convertToIrBlock(origin = null, expectedType = tryExpression.tryBlock.resolvedType)
                     .prepareExpressionForGivenExpectedType(expression = tryExpression.tryBlock, expectedType = tryExpression.resolvedType, forReceiver = false),
                 tryExpression.catches.map { convertCatch(it, tryExpression.resolvedType) },
-                tryExpression.finallyBlock?.convertToIrBlock(origin = null, expectedType = unitType)
+                tryExpression.finallyBlock?.convertToIrBlock(origin = null, expectedType = StandardTypes.Unit)
             )
         }
     }
@@ -1693,19 +1823,84 @@ class Fir2IrVisitor(
 
     override fun visitTypeOperatorCall(typeOperatorCall: FirTypeOperatorCall, data: Any?): IrElement {
         return typeOperatorCall.convertWithOffsets { startOffset, endOffset ->
-            val irTypeOperand = typeOperatorCall.conversionTypeRef.toIrType()
-            val (irType, irTypeOperator) = when (typeOperatorCall.operation) {
-                FirOperation.IS -> builtins.booleanType to IrTypeOperator.INSTANCEOF
-                FirOperation.NOT_IS -> builtins.booleanType to IrTypeOperator.NOT_INSTANCEOF
-                FirOperation.AS -> irTypeOperand to IrTypeOperator.CAST
-                FirOperation.SAFE_AS -> irTypeOperand.makeNullable() to IrTypeOperator.SAFE_CAST
-                else -> TODO("Should not be here: ${typeOperatorCall.operation} in type operator call")
+            // is NonError and !is NonError is translated to !is RichError and is RichError
+            val coneType = typeOperatorCall.conversionTypeRef.coneType
+            val isNonError = coneType.classId == StandardClassIds.NonError
+            val irTypeOperand = if (isNonError) {
+                // We need to invert nullability because `is NonError` <=> `!is RichError?`
+                StandardTypes.richError(isMarkedNullable = !coneType.isMarkedNullable).toIrType()
+            } else {
+                coneType.toIrType()
+            }
+            val irArgumentExpression = convertToIrExpression(typeOperatorCall.argument)
+
+            val [irType, irTypeOperator] = when (typeOperatorCall.operation) {
+                FirOperation.IS -> builtins.booleanType to if (isNonError) IrTypeOperator.NOT_INSTANCEOF else IrTypeOperator.INSTANCEOF
+                FirOperation.NOT_IS -> builtins.booleanType to if (isNonError) IrTypeOperator.INSTANCEOF else IrTypeOperator.NOT_INSTANCEOF
+                FirOperation.AS -> {
+                    if (isNonError)
+                        return generateCastToNonError(startOffset, endOffset, irTypeOperand, irArgumentExpression, isSafeCast = false)
+                    irTypeOperand to IrTypeOperator.CAST
+                }
+                FirOperation.SAFE_AS -> {
+                    if (isNonError)
+                        return generateCastToNonError(startOffset, endOffset, irTypeOperand, irArgumentExpression, isSafeCast = true)
+                    irTypeOperand.makeNullable() to IrTypeOperator.SAFE_CAST
+                }
+                else -> error("Should not be here: ${typeOperatorCall.operation} in type operator call")
             }
 
             IrTypeOperatorCallImpl(
                 startOffset, endOffset, irType, irTypeOperator, irTypeOperand,
-                convertToIrExpression(typeOperatorCall.argument)
+                irArgumentExpression
             )
+        }
+    }
+
+    private fun generateCastToNonError(
+        startOffset: Int,
+        endOffset: Int,
+        irTypeOperand: IrType,
+        irArgumentExpression: IrExpression,
+        isSafeCast: Boolean,
+    ): IrBlockImpl {
+        // irTypeOperand is RichError(?) and its nullability is inverted from the FIR operand NonError(?).
+        val resultType = if (isSafeCast || !irTypeOperand.isMarkedNullable()) builtins.anyNType else builtins.anyType
+
+        return IrBlockImpl(startOffset, endOffset, resultType).apply {
+            val [receiverVariable, variableSymbol] =
+                conversionScope.createTemporaryVariableForSafeCallConstruction(irArgumentExpression)
+
+            statements += receiverVariable
+            statements += IrWhenImpl(startOffset, endOffset, resultType).apply {
+                val condition = IrTypeOperatorCallImpl(
+                    startOffset, endOffset, builtins.booleanType, INSTANCEOF, irTypeOperand,
+                    IrGetValueImpl(startOffset, endOffset, variableSymbol)
+                )
+                val negativeResult = if (isSafeCast) {
+                    IrConstImpl.constNull(startOffset, endOffset, builtins.nothingNType)
+                } else {
+                    IrThrowImpl(
+                        startOffset, endOffset, builtins.nothingType,
+                        IrConstructorCallImpl(
+                            startOffset = UNDEFINED_OFFSET,
+                            endOffset = UNDEFINED_OFFSET,
+                            type = StandardClassIds.ClassCastException.constructClassLikeType().toIrType(),
+                            symbol = cceConstructorSymbol,
+                            typeArgumentsCount = 0,
+                            constructorTypeArgumentsCount = 0,
+                        )
+                    )
+                }
+                branches += IrBranchImpl(condition, negativeResult)
+                branches += IrElseBranchImpl(
+                    IrConstImpl.boolean(startOffset, endOffset, builtins.booleanType, true),
+                    IrTypeOperatorCallImpl(
+                        startOffset, endOffset, resultType, CAST, resultType,
+                        IrGetValueImpl(startOffset, endOffset, variableSymbol)
+                    )
+                )
+            }
         }
     }
 
@@ -1750,7 +1945,7 @@ class Fir2IrVisitor(
                 classifierStorage.getIrTypeParameterSymbol(argument.symbol, ConversionTypeOrigin.DEFAULT)
             }
             is FirResolvedQualifier -> {
-                when (val symbol = argument.symbol) {
+                when (val symbol = argument.qualifierSymbol) {
                     is FirClassSymbol -> {
                         classifierStorage.getIrClassSymbol(symbol)
                     }
@@ -1831,7 +2026,7 @@ class Fir2IrVisitor(
         return visitResolvedQualifier(errorResolvedQualifier, data)
     }
 
-    private fun LogicOperationKind.toIrDynamicOperator() = when (this) {
+    private fun LogicOperationKind.toIrDynamicOperator(): IrDynamicOperator = when (this) {
         LogicOperationKind.AND -> IrDynamicOperator.ANDAND
         LogicOperationKind.OR -> IrDynamicOperator.OROR
     }

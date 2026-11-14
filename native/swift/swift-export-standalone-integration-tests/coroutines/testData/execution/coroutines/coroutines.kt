@@ -1,7 +1,3 @@
-// IGNORE_NATIVE: targetFamily=IOS
-// IGNORE_NATIVE: targetFamily=TVOS
-// IGNORE_NATIVE: targetFamily=WATCHOS
-// IGNORE_NATIVE: target=macos_x64
 // KIND: STANDALONE
 // MODULE: Main
 // FILE: coroutines.kt
@@ -48,6 +44,14 @@ suspend fun cancelSilentlyAfter(delay: Long, callback: () -> Int): Int {
     delay(delay)
     currentCoroutineContext().cancel()
     return callback()
+}
+
+suspend fun cancelAfterAndSuspend(delay: Long): Long {
+    delay(delay)
+    val reason = CancellationException("Cancelled after $delay")
+    currentCoroutineContext().cancel(reason)
+    delay(10_000)
+    return delay
 }
 
 suspend fun cancelImmediately(): Int {
@@ -108,4 +112,9 @@ suspend fun cancelledWithThrowInFinally(delay: Long, message: String): Int {
     } finally {
         error(message)
     }
+}
+
+suspend fun timeout(timeMillis: Long): Long = withTimeout(timeMillis) {
+    delay(timeMillis * 1_000)
+    timeMillis
 }

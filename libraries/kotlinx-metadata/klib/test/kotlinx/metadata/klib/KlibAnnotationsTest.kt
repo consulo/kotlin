@@ -12,7 +12,6 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
-@OptIn(ExperimentalAnnotationsInMetadata::class)
 class KlibAnnotationsTest {
     @Test
     fun testKlibAnnotations() = testKlibAnnotationsWithMetadataVersion(KlibMetadataVersion.LATEST_STABLE_SUPPORTED)
@@ -68,7 +67,8 @@ class KlibAnnotationsTest {
 
     private fun readModule(metadata: KlibModuleMetadata.SerializedKlibMetadata): KmModuleFragment =
         KlibModuleMetadata.readLenient(object : KlibModuleMetadata.MetadataLibraryProvider {
-            override val moduleHeaderData: ByteArray get() = metadata.header
+            override val moduleHeaderData: ByteArray? get() = metadata.header
+            override val packageFqNames: Set<String> = metadata.fragmentNames.toSet()
             override val metadataVersion: KlibMetadataVersion = metadata.metadataVersion
             override fun packageMetadataParts(fqName: String): Set<String> = metadata.fragmentNames.toSet()
             override fun packageMetadata(fqName: String, partName: String): ByteArray = metadata.fragments.single().single()

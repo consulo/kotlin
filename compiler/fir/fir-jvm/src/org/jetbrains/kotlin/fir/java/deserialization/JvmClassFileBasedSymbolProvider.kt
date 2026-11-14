@@ -35,7 +35,7 @@ import org.jetbrains.kotlin.serialization.deserialization.IncompatibleVersionErr
 import org.jetbrains.kotlin.serialization.deserialization.builtins.BuiltInSerializerProtocol
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerAbiStability
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.PreReleaseInfo
-import org.jetbrains.kotlin.util.toJvmMetadataVersion
+import org.jetbrains.kotlin.util.toMetadataVersion
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -56,7 +56,7 @@ open class JvmClassFileBasedSymbolProvider(
 ) : AbstractFirDeserializedSymbolProvider(
     session, moduleDataProvider, kotlinScopeProvider, defaultDeserializationOrigin, BuiltInSerializerProtocol
 ) {
-    private val ownMetadataVersion: MetadataVersion = session.languageVersionSettings.languageVersion.toJvmMetadataVersion()
+    private val ownMetadataVersion: MetadataVersion = session.languageVersionSettings.languageVersion.toMetadataVersion()
 
     private val reportErrorsOnPreReleaseDependencies = with(session.languageVersionSettings) {
         !getFlag(AnalysisFlags.skipPrereleaseCheck) && !isPreRelease() && !KotlinCompilerVersion.isPreRelease()
@@ -70,7 +70,7 @@ open class JvmClassFileBasedSymbolProvider(
     private fun computePackagePartInfo(packageFqName: FqName, partName: String): PackagePartsCacheData? {
         val classId = ClassId.topLevel(JvmClassName.byInternalName(partName).fqNameForTopLevelClassMaybeWithDollars)
         if (!javaFacade.hasTopLevelClassOf(classId)) return null
-        val (kotlinClass, byteContent) =
+        val [kotlinClass, byteContent] =
             kotlinClassFinder.findKotlinClassOrContent(classId, ownMetadataVersion) as? KotlinClassFinder.Result.KotlinClass ?: return null
 
         val header = kotlinClass.classHeader
@@ -95,7 +95,7 @@ open class JvmClassFileBasedSymbolProvider(
 
         val moduleData = moduleDataProvider.getModuleData(kotlinClass.containingLibraryPath?.asNioPath()) ?: return null
 
-        val (nameResolver, packageProto) = parseProto(kotlinClass) {
+        val [nameResolver, packageProto] = parseProto(kotlinClass) {
             JvmProtoBufUtil.readPackageDataFrom(data, strings)
         } ?: return null
 
@@ -187,7 +187,7 @@ open class JvmClassFileBasedSymbolProvider(
         if (kotlinClass.classHeader.kind != KotlinClassHeader.Kind.CLASS || kotlinClass.classId != classId) return null
         val data = kotlinClass.classHeader.data ?: kotlinClass.classHeader.incompatibleData ?: return null
         val strings = kotlinClass.classHeader.strings ?: return null
-        val (nameResolver, classProto) = parseProto(kotlinClass) {
+        val [nameResolver, classProto] = parseProto(kotlinClass) {
             JvmProtoBufUtil.readClassDataFrom(data, strings)
         } ?: return null
 
@@ -209,8 +209,13 @@ open class JvmClassFileBasedSymbolProvider(
     override fun isNewPlaceForBodyGeneration(classProto: ProtoBuf.Class): Boolean =
         JvmFlags.IS_COMPILED_IN_JVM_DEFAULT_MODE.get(classProto.getExtension(JvmProtoBuf.jvmClassFlags))
 
-    override fun hasPackage(fqName: FqName): Boolean =
-        javaFacade.hasPackage(fqName)
+    override fun hasPackage(fqName: FqName): Boolean {
+        if (javaFacade.hasPackage(fqName)) return true
+        // Packages that exist only via `@file:JvmPackageName` have no on-disk directory and are
+        // therefore invisible to the Java class finder
+        // (see compiler/testData/codegen/boxJvm/compileKotlinAgainstKotlin/jvmPackageName.kt).
+        return packagePartProvider.findPackageParts(fqName.asString()).isNotEmpty()
+    }
 
     private fun String?.toPath(): Path? {
         return this?.let { Paths.get(it).normalize() }

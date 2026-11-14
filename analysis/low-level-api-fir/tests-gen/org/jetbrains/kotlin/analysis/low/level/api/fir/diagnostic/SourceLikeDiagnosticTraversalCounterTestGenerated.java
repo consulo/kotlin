@@ -88,6 +88,12 @@ public class SourceLikeDiagnosticTraversalCounterTestGenerated extends AbstractS
   }
 
   @Test
+  @TestMetadata("companionBlockDanglingModifier.kt")
+  public void testCompanionBlockDanglingModifier() {
+    run("companionBlockDanglingModifier.kt");
+  }
+
+  @Test
   @TestMetadata("constructorParameter.kt")
   public void testConstructorParameter() {
     run("constructorParameter.kt");
@@ -214,6 +220,12 @@ public class SourceLikeDiagnosticTraversalCounterTestGenerated extends AbstractS
   }
 
   @Test
+  @TestMetadata("destructuringNonLocal.kt")
+  public void testDestructuringNonLocal() {
+    run("destructuringNonLocal.kt");
+  }
+
+  @Test
   @TestMetadata("enum.kt")
   public void testEnum() {
     run("enum.kt");
@@ -241,6 +253,24 @@ public class SourceLikeDiagnosticTraversalCounterTestGenerated extends AbstractS
   @TestMetadata("enumClassWithBodyScript.kts")
   public void testEnumClassWithBodyScript() {
     run("enumClassWithBodyScript.kts");
+  }
+
+  @Test
+  @TestMetadata("explicitBackingField.kt")
+  public void testExplicitBackingField() {
+    run("explicitBackingField.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitBackingFieldScript.kts")
+  public void testExplicitBackingFieldScript() {
+    run("explicitBackingFieldScript.kts");
+  }
+
+  @Test
+  @TestMetadata("fullValueClass.kt")
+  public void testFullValueClass() {
+    run("fullValueClass.kt");
   }
 
   @Test

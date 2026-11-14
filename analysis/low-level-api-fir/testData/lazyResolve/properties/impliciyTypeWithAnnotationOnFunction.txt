@@ -144,7 +144,7 @@ FILE: [ResolvedTo(IMPORTS)] impliciyTypeWithAnnotationOnFunction.kt
 
 IMPLICIT_TYPES_BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] impliciyTypeWithAnnotationOnFunction.kt
-    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Anno] constructor([ResolvedTo(RAW_FIR)] [CorrespondingProperty=/Anno.number] number: Int): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -155,14 +155,14 @@ FILE: [ResolvedTo(IMPORTS)] impliciyTypeWithAnnotationOnFunction.kt
     }
     public? final? const [ResolvedTo(RAW_FIR)] val value: <implicit> = LAZY_EXPRESSION
         public? [ResolvedTo(RAW_FIR)] get(): <implicit>
-    public final [ResolvedTo(CONTRACTS)] fun typeWithAnnotation(): R|@R|Anno|(LAZY_EXPRESSION)  kotlin/String| { LAZY_BLOCK }
+    public final [ResolvedTo(STATUS)] fun typeWithAnnotation(): R|@R|Anno|(LAZY_EXPRESSION)  kotlin/String| { LAZY_BLOCK }
     public final [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] [PostponedSymbolsForAnnotationResolutionKey=[FirNamedFunctionSymbol /typeWithAnnotation]] fun resolveMe(): R|@R|Anno|(LAZY_EXPRESSION)  kotlin/String| {
         ^resolveMe R|/typeWithAnnotation|()
     }
 
 CONSTANT_EVALUATION:
 FILE: [ResolvedTo(IMPORTS)] impliciyTypeWithAnnotationOnFunction.kt
-    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[CompilerRequiredAnnotations](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] annotation class Anno : R|kotlin/Annotation| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Anno] constructor([ResolvedTo(RAW_FIR)] [CorrespondingProperty=/Anno.number] number: Int): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -173,14 +173,14 @@ FILE: [ResolvedTo(IMPORTS)] impliciyTypeWithAnnotationOnFunction.kt
     }
     public? final? const [ResolvedTo(RAW_FIR)] val value: <implicit> = LAZY_EXPRESSION
         public? [ResolvedTo(RAW_FIR)] get(): <implicit>
-    public final [ResolvedTo(CONTRACTS)] fun typeWithAnnotation(): R|@R|Anno|(LAZY_EXPRESSION)  kotlin/String| { LAZY_BLOCK }
+    public final [ResolvedTo(STATUS)] fun typeWithAnnotation(): R|@R|Anno|(LAZY_EXPRESSION)  kotlin/String| { LAZY_BLOCK }
     public final [ResolvedTo(CONSTANT_EVALUATION)] [PostponedSymbolsForAnnotationResolutionKey=[FirNamedFunctionSymbol /typeWithAnnotation]] fun resolveMe(): R|@R|Anno|(LAZY_EXPRESSION)  kotlin/String| {
         ^resolveMe R|/typeWithAnnotation|()
     }
 
 ANNOTATION_ARGUMENTS:
 FILE: [ResolvedTo(IMPORTS)] impliciyTypeWithAnnotationOnFunction.kt
-    @R|kotlin/annotation/Target|[Types](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[Types](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
         public [ResolvedTo(STATUS)] [ContainingClassKey=Anno] constructor([ResolvedTo(STATUS)] [CorrespondingProperty=/Anno.number] number: R|kotlin/Int|): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }
@@ -198,7 +198,7 @@ FILE: [ResolvedTo(IMPORTS)] impliciyTypeWithAnnotationOnFunction.kt
 
 BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] impliciyTypeWithAnnotationOnFunction.kt
-    @R|kotlin/annotation/Target|[Types](Q|kotlin/annotation/AnnotationTarget|.R|kotlin/annotation/AnnotationTarget.TYPE|) public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
+    @R|kotlin/annotation/Target|[Types](AnnotationTarget#.TYPE#) [compilerRequired = (allowedTargets = vararg(R|kotlin/annotation/AnnotationTarget.TYPE|))] public final [ResolvedTo(STATUS)] annotation class Anno : R|kotlin/Annotation| {
         public [ResolvedTo(STATUS)] [ContainingClassKey=Anno] constructor([ResolvedTo(STATUS)] [CorrespondingProperty=/Anno.number] number: R|kotlin/Int|): R|Anno| {
             LAZY_super<R|kotlin/Any|>
         }

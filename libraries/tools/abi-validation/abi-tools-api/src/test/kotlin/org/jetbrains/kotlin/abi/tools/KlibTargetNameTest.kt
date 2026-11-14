@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.abi.tools
 
-import org.junit.Test
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotEquals
@@ -23,17 +23,17 @@ class KlibTargetNameTest {
         assertFailsWith<IllegalArgumentException> { KlibTarget.parse("a.") }
         assertFailsWith<IllegalArgumentException> { KlibTarget.parse(".a") }
 
-        KlibTarget.parse("a.b").also {
+        KlibTarget.parse("a.b").let {
             assertEquals("b", it.configurableName)
             assertEquals("a", it.targetName)
         }
 
-        KlibTarget.parse("a.a").also {
+        KlibTarget.parse("a.a").let {
             assertEquals("a", it.configurableName)
             assertEquals("a", it.targetName)
         }
 
-        KlibTarget.parse("a").also {
+        KlibTarget.parse("a").let {
             assertEquals("a", it.configurableName)
             assertEquals("a", it.targetName)
         }

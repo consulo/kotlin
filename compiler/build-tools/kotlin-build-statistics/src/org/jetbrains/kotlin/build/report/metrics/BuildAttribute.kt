@@ -18,8 +18,6 @@ enum class BuildAttributeKind(val readableName: String) : Serializable {
 
 enum class BuildAttribute(val kind: BuildAttributeKind, val readableString: String) : Serializable {
     NO_BUILD_HISTORY(BuildAttributeKind.REBUILD_REASON, "Build history file not found"),
-    NO_ABI_SNAPSHOT(BuildAttributeKind.REBUILD_REASON, "ABI snapshot not found"),
-    NO_LAST_BUILD_INFO(BuildAttributeKind.REBUILD_REASON, "Last build info not found"),
     INVALID_LAST_BUILD_INFO(BuildAttributeKind.REBUILD_REASON, "Last build info corrupted"),
     CLASSPATH_SNAPSHOT_NOT_FOUND(BuildAttributeKind.REBUILD_REASON, "Classpath snapshot not found"),
     IC_FAILED_TO_GET_CHANGED_FILES(BuildAttributeKind.REBUILD_REASON, "Failed to get changed files"),
@@ -30,7 +28,8 @@ enum class BuildAttribute(val kind: BuildAttributeKind, val readableString: Stri
     JAVA_CHANGE_UNTRACKED_FILE_IS_REMOVED(BuildAttributeKind.REBUILD_REASON, "Untracked Java file is removed"),
     JAVA_CHANGE_UNEXPECTED_PSI(BuildAttributeKind.REBUILD_REASON, "Java PSI file is expected"),
     JAVA_CHANGE_UNKNOWN_QUALIFIER(BuildAttributeKind.REBUILD_REASON, "Unknown Java qualifier name"),
-    DEP_CHANGE_REMOVED_ENTRY(BuildAttributeKind.REBUILD_REASON, "Jar file is removed form dependency"),
+    DEP_CHANGE_ADDED_ENTRY(BuildAttributeKind.REBUILD_REASON, "New dependency has been added"),
+    DEP_CHANGE_REMOVED_ENTRY(BuildAttributeKind.REBUILD_REASON, "Dependency has been removed"),
     DEP_CHANGE_HISTORY_IS_NOT_FOUND(BuildAttributeKind.REBUILD_REASON, "Dependency history not found"),
     DEP_CHANGE_HISTORY_CANNOT_BE_READ(BuildAttributeKind.REBUILD_REASON, "Dependency history can not be read"),
     DEP_CHANGE_HISTORY_NO_KNOWN_BUILDS(BuildAttributeKind.REBUILD_REASON, "Dependency history id not available"),
@@ -40,6 +39,8 @@ enum class BuildAttribute(val kind: BuildAttributeKind, val readableString: Stri
     UNSAFE_INCREMENTAL_CHANGE_KT_62686(BuildAttributeKind.REBUILD_REASON, "Incremental compilation might be incorrect (KT-62686)"),
     COMPILER_ARGS_CHANGED(BuildAttributeKind.REBUILD_REASON, "Compiler arguments changed"),
     INCREMENTAL_COMPILATION_CONFIGURATION_CHANGED(BuildAttributeKind.REBUILD_REASON, "Incremental compilation configuration changed"),
+    MODULE_INFO_CHANGED(BuildAttributeKind.REBUILD_REASON, "module-info.java changed"),
+    PACKAGE_INFO_CHANGED(BuildAttributeKind.REBUILD_REASON, "a package-info.java changed"),
     ;
 
     companion object {

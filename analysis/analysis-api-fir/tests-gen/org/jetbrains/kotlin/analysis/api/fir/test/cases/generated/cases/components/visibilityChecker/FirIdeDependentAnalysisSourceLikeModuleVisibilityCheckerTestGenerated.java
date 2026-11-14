@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.fir.test.configurators.AnalysisApiFirTe
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.visibilityChecker.AbstractVisibilityCheckerTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.components.visibilityChecker.AbstractVisibilityCheckerTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirIdeDependentAnalysisSourceLikeModuleVisibilityCheckerTestGenerat
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.SourceLike,
         AnalysisSessionMode.Dependent,
         AnalysisApiMode.Ide,
@@ -229,6 +227,18 @@ public class FirIdeDependentAnalysisSourceLikeModuleVisibilityCheckerTestGenerat
   @TestMetadata("privateMemberFunctionInSourceModule.kt")
   public void testPrivateMemberFunctionInSourceModule() {
     run("privateMemberFunctionInSourceModule.kt");
+  }
+
+  @Test
+  @TestMetadata("privateMemberInClassLevelDanglingAnnotation.kt")
+  public void testPrivateMemberInClassLevelDanglingAnnotation() {
+    run("privateMemberInClassLevelDanglingAnnotation.kt");
+  }
+
+  @Test
+  @TestMetadata("privateMemberInFileLevelDanglingAnnotation.kt")
+  public void testPrivateMemberInFileLevelDanglingAnnotation() {
+    run("privateMemberInFileLevelDanglingAnnotation.kt");
   }
 
   @Test

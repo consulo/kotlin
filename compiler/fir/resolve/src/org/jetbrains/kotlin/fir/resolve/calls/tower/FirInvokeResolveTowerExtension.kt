@@ -8,17 +8,16 @@ package org.jetbrains.kotlin.fir.resolve.calls.tower
 import kotlinx.collections.immutable.toPersistentSet
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
-import org.jetbrains.kotlin.fakeElement
+import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.fir.declarations.utils.equalityBoundType
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirQualifiedAccessExpression
 import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.expressions.builder.FirPropertyAccessExpressionBuilder
+import org.jetbrains.kotlin.fir.isEnabled
 import org.jetbrains.kotlin.fir.resolve.*
-import org.jetbrains.kotlin.fir.resolve.calls.ExpressionReceiverValue
-import org.jetbrains.kotlin.fir.resolve.calls.ImplicitPropertyTypeMakesBehaviorOrderDependant
-import org.jetbrains.kotlin.fir.resolve.calls.NotFunctionAsOperator
-import org.jetbrains.kotlin.fir.resolve.calls.ResolutionContext
+import org.jetbrains.kotlin.fir.resolve.calls.*
 import org.jetbrains.kotlin.fir.resolve.calls.candidate.*
 import org.jetbrains.kotlin.fir.resolve.dfa.PersistentTypeStatement
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeNotFunctionAsOperator
@@ -26,6 +25,7 @@ import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.ReturnTypeCalc
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.resolve.calls.tasks.ExplicitReceiverKind
 import org.jetbrains.kotlin.resolve.calls.tower.CandidateApplicability
@@ -53,7 +53,7 @@ internal class FirInvokeResolveTowerExtension(
 
     fun enqueueResolveTasksForNoReceiver(info: CallInfo) {
         if (info.callKind != CallKind.Function) return
-        val invokeReceiverVariableInfo = info.replaceWithVariableAccess()
+        val invokeReceiverVariableInfo = info.asImplicitInvokeReceiver()
         enqueueInvokeReceiverTask(
             info,
             invokeReceiverVariableInfo,
@@ -65,7 +65,7 @@ internal class FirInvokeResolveTowerExtension(
 
     fun enqueueResolveTasksForSuperReceiver(info: CallInfo, receiver: FirQualifiedAccessExpression) {
         if (info.callKind != CallKind.Function) return
-        val invokeReceiverVariableInfo = info.replaceWithVariableAccess()
+        val invokeReceiverVariableInfo = info.asImplicitInvokeReceiver()
         enqueueInvokeReceiverTask(
             info,
             invokeReceiverVariableInfo,
@@ -94,7 +94,7 @@ internal class FirInvokeResolveTowerExtension(
         originalCallInfo: CallInfo,
         crossinline invokeAction: suspend (FirTowerResolveTask, CallInfo) -> Unit
     ) {
-        val invokeReceiverVariableInfo = originalCallInfo.replaceWithVariableAccess()
+        val invokeReceiverVariableInfo = originalCallInfo.asImplicitInvokeReceiver()
 
         val towerDataElementsForName = TowerDataElementsForName(invokeReceiverVariableInfo.name, components.towerDataContext)
 
@@ -151,7 +151,7 @@ internal class FirInvokeResolveTowerExtension(
                     receiverGroup = towerGroup,
                     collector
                 )
-                collector.forwardedDiagnostics().forEach { candidateFactoriesAndCollectors.resultCollector.addForwardedDiagnostic(it) }
+                collector.forwardedDiagnostics.forEach { candidateFactoriesAndCollectors.resultCollector.addForwardedDiagnostic(it) }
                 collector.newDataSet()
             }
         )
@@ -404,15 +404,24 @@ private fun BodyResolveComponents.createExplicitReceiverForInvokeByCallable(
         // This manual picking is necessary since we don't support snapshots/backtracking for DFA and are so unable
         // to rely on `dataFlowAnalyzer.exitQualifiedAccessExpression(it)`: the implicit `invoke()` candidate may not
         // end up being chosen during resolution, so we can't commit anything into our DFA just yet.
-        val field = (symbol as? FirPropertySymbol)?.tryAccessExplicitFieldSymbol(inlineFunction, session, candidate.hasVisibleBackingField)
+
+        val extraType = when (symbol) {
+            is FirPropertySymbol -> {
+                symbol.tryAccessExplicitFieldSymbol(inlineFunction?.symbol, session, candidate.hasVisibleBackingField)?.resolvedReturnType
+            }
+            is FirValueParameterSymbol if LanguageFeature.StrictEquals.isEnabled() -> {
+                symbol.equalityBoundType
+            }
+            else -> null
+        }
 
         val smartcastStatement = dataFlowAnalyzer.getTypeUsingSmartcastInfo(expression) { variable, statement ->
-            if (field == null) {
+            if (extraType == null) {
                 statement
             } else {
                 PersistentTypeStatement(
                     variable = statement?.variable ?: variable,
-                    upperTypes = (statement?.upperTypes.orEmpty() + field.resolvedReturnType).toPersistentSet(),
+                    upperTypes = (statement?.upperTypes.orEmpty() + extraType).toPersistentSet(),
                     lowerTypes = statement?.lowerTypes.orEmpty().toPersistentSet()
                 )
             }
@@ -469,29 +478,55 @@ private class InvokeFunctionResolveTask(
         info: CallInfo,
         invokeReceiverValue: ExpressionReceiverValue,
     ) {
-        processLevelForRegularInvoke(
-            invokeReceiverValue.toDispatchReceiverMemberScopeTowerLevel(),
-            info, TowerGroup.Member,
-            ExplicitReceiverKind.DISPATCH_RECEIVER
-        )
+        val receiverExpression = invokeReceiverValue.receiverExpression
+        val isResolvedQualifier = receiverExpression is FirResolvedQualifier
 
-        enumerateTowerLevels(
-            onScope = { scope, _, group ->
-                processLevelForRegularInvoke(
-                    scope.toScopeBasedTowerLevel(extensionReceiver = invokeReceiverValue),
-                    info, group,
-                    ExplicitReceiverKind.EXTENSION_RECEIVER
-                )
-            },
-            onImplicitReceiver = { receiver, group ->
-                // NB: companions are processed via implicitReceiverValues!
-                processLevelForRegularInvoke(
-                    receiver.toDispatchReceiverMemberScopeTowerLevel(extensionReceiver = invokeReceiverValue),
-                    info, group.Member,
-                    ExplicitReceiverKind.EXTENSION_RECEIVER
+        if (isResolvedQualifier && receiverExpression.qualifierSymbol != null) {
+            val group = TowerGroup.QualifierOrClassifier.withGivenInvokeReceiverGroup(InvokeResolvePriority.COMMON_INVOKE)
+
+            if (companionBlocksEnabled) {
+                processCallableScope(
+                    info,
+                    createQualifierReceiver(receiverExpression, session, components.scopeSession),
+                    group
                 )
             }
-        )
+
+            if (companionExtensionsEnabled) {
+                enumerateTowerLevelsForCompanionExtensions(
+                    info,
+                    receiverExpression,
+                    parentGroup = group,
+                    explicitReceiverKind = ExplicitReceiverKind.EXTENSION_RECEIVER
+                )
+            }
+        }
+
+        if (!isResolvedQualifier || receiverExpression.accessedObjectSymbol != null) {
+            processLevelForRegularInvoke(
+                invokeReceiverValue.toDispatchReceiverMemberScopeTowerLevel(),
+                info, TowerGroup.Member,
+                ExplicitReceiverKind.DISPATCH_RECEIVER
+            )
+
+            enumerateTowerLevels(
+                onScope = { scope, _, group ->
+                    processLevelForRegularInvoke(
+                        scope.toScopeBasedTowerLevel(extensionReceiver = invokeReceiverValue),
+                        info, group,
+                        ExplicitReceiverKind.EXTENSION_RECEIVER
+                    )
+                },
+                onImplicitReceiver = { receiver, group ->
+                    // NB: companions are processed via implicitReceiverValues!
+                    processLevelForRegularInvoke(
+                        receiver.toDispatchReceiverMemberScopeTowerLevel(extensionReceiver = invokeReceiverValue),
+                        info, group.Member,
+                        ExplicitReceiverKind.EXTENSION_RECEIVER
+                    )
+                }
+            )
+        }
     }
 
     // Here we already know extension receiver for invoke, and it's stated in info as first argument
@@ -513,7 +548,7 @@ private class InvokeFunctionResolveTask(
         // "f" should have an extension function type
         invokeReceiverValue: ExpressionReceiverValue,
     ) {
-        for ((depth, implicitReceiverValue) in towerDataElementsForName.implicitReceivers) {
+        for ([depth, implicitReceiverValue] in towerDataElementsForName.implicitReceivers) {
             val towerGroup =
                 TowerGroup
                     .Implicit(depth)
@@ -535,7 +570,7 @@ private class InvokeFunctionResolveTask(
         callInfo: CallInfo,
         group: TowerGroup,
         explicitReceiverKind: ExplicitReceiverKind
-    ) = processLevel(
+    ): Unit = processLevel(
         towerLevel, callInfo,
         group.withGivenInvokeReceiverGroup(InvokeResolvePriority.COMMON_INVOKE),
         explicitReceiverKind

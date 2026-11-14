@@ -1,5 +1,7 @@
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
 }
@@ -8,21 +10,19 @@ dependencies {
     testFixturesApi(kotlinStdlib("jdk8"))
     testFixturesApi(project(":kotlin-scripting-compiler"))
     testFixturesApi(project(":core:descriptors"))
-    testFixturesApi(project(":core:descriptors.jvm"))
-    testFixturesApi(project(":core:deserialization"))
+    testFixturesImplementation(project(":core:descriptors.jvm"))
+    testFixturesImplementation(project(":core:language.targets.jvm"))
     testFixturesApi(project(":compiler:util"))
-    testFixturesApi(project(":compiler:tests-mutes"))
     testFixturesApi(project(":compiler:backend"))
-    testFixturesApi(project(":compiler:frontend"))
-    testFixturesApi(project(":compiler:frontend.java"))
     testFixturesApi(project(":compiler:util"))
     testFixturesApi(project(":compiler:psi:psi-api"))
     testFixturesApi(project(":compiler:cli"))
     testFixturesApi(project(":compiler:cli-jvm"))
     testFixturesApi(project(":compiler:cli-js"))
     testFixturesApi(project(":compiler:cli-metadata"))
+    testFixturesImplementation(project(":compiler:config.jvm"))
     testFixturesImplementation(project(":native:native.config"))
-    testFixturesApi(project(":compiler:serialization"))
+    testFixturesImplementation(project(":compiler:cli-base"))
     testFixturesApi(project(":compiler:fir:entrypoint"))
     testFixturesApi(project(":compiler:fir:fir2ir:jvm-backend"))
     testFixturesApi(project(":compiler:backend.jvm.entrypoint"))
@@ -46,4 +46,3 @@ sourceSets {
     "testFixtures" { projectDefault() }
 }
 
-testsJar {}

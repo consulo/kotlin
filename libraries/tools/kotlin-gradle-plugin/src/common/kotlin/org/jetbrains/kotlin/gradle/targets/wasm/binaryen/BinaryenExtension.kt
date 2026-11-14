@@ -8,11 +8,11 @@ package org.jetbrains.kotlin.gradle.targets.wasm.binaryen
 import org.gradle.api.Project
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.TaskProvider
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.logging.kotlinInfo
 import org.jetbrains.kotlin.gradle.targets.js.AbstractSettings
 import org.jetbrains.kotlin.gradle.targets.wasm.nodejs.WasmPlatformDisambiguator
 import org.jetbrains.kotlin.gradle.targets.web.HasPlatformDisambiguator
+import org.jetbrains.kotlin.gradle.targets.web.ObsoleteJsAndWasmToolingProvisioning
 import org.jetbrains.kotlin.gradle.utils.property
 
 @Deprecated(
@@ -21,9 +21,9 @@ import org.jetbrains.kotlin.gradle.utils.property
         "BinaryenEnvSpec",
         "org.jetbrains.kotlin.gradle.targets.wasm.binaryen.BinaryenEnvSpec"
     ),
-    level = DeprecationLevel.WARNING
+    level = DeprecationLevel.ERROR
 )
-@OptIn(ExperimentalWasmDsl::class)
+@ObsoleteJsAndWasmToolingProvisioning
 open class BinaryenExtension(
     @Transient val project: Project,
     private val binaryenSpec: BinaryenEnvSpec,
@@ -40,7 +40,7 @@ open class BinaryenExtension(
         .value("https://github.com/WebAssembly/binaryen/releases/download")
 
     override val versionProperty: org.gradle.api.provider.Property<String> = project.objects.property<String>()
-        .convention("125")
+        .convention("133")
 
     override val downloadProperty: org.gradle.api.provider.Property<Boolean> = project.objects.property<Boolean>()
         .convention(true)
@@ -62,6 +62,7 @@ open class BinaryenExtension(
         return binaryenSpec.env.get()
     }
 
+    @ObsoleteJsAndWasmToolingProvisioning
     companion object : HasPlatformDisambiguator by WasmPlatformDisambiguator {
         val EXTENSION_NAME: String
             get() = extensionName("binaryen")

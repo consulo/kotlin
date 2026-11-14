@@ -12,11 +12,10 @@ import org.jetbrains.kotlin.analysis.api.standalone.fir.test.configurators.Analy
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfiguratorFactoryData;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestConfigurator;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.TestModuleKind;
-import org.jetbrains.kotlin.analysis.test.framework.test.configurators.FrontendKind;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisSessionMode;
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiMode;
 import org.jetbrains.kotlin.analysis.test.framework.services.TargetPlatformEnum;
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.symbols.AbstractSymbolByFqNameTest;
+import org.jetbrains.kotlin.analysis.api.fir.test.cases.symbols.AbstractSymbolByFqNameTest;
 import org.jetbrains.kotlin.test.TestMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -33,7 +32,6 @@ public class FirStandaloneNormalAnalysisSourceModuleSymbolByFqNameTestGenerated 
   public AnalysisApiTestConfigurator getConfigurator() {
     return AnalysisApiFirStandaloneModeTestConfiguratorFactory.INSTANCE.createConfigurator(
       new AnalysisApiTestConfiguratorFactoryData(
-        FrontendKind.Fir,
         TestModuleKind.Source,
         AnalysisSessionMode.Normal,
         AnalysisApiMode.Standalone,
@@ -82,6 +80,24 @@ public class FirStandaloneNormalAnalysisSourceModuleSymbolByFqNameTestGenerated 
   }
 
   @Test
+  @TestMetadata("enumEntryWithAnnotationsFromLibrary.kt")
+  public void testEnumEntryWithAnnotationsFromLibrary() {
+    run("enumEntryWithAnnotationsFromLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("expectFullValueClassWithNoConstructorFromCommonBinary.kt")
+  public void testExpectFullValueClassWithNoConstructorFromCommonBinary() {
+    run("expectFullValueClassWithNoConstructorFromCommonBinary.kt");
+  }
+
+  @Test
+  @TestMetadata("expectInlineValueClassWithNoConstructorFromCommonBinary.kt")
+  public void testExpectInlineValueClassWithNoConstructorFromCommonBinary() {
+    run("expectInlineValueClassWithNoConstructorFromCommonBinary.kt");
+  }
+
+  @Test
   @TestMetadata("explicitBackingField.kt")
   public void testExplicitBackingField() {
     run("explicitBackingField.kt");
@@ -94,9 +110,45 @@ public class FirStandaloneNormalAnalysisSourceModuleSymbolByFqNameTestGenerated 
   }
 
   @Test
+  @TestMetadata("explicitInlineValueClassFromBinary.kt")
+  public void testExplicitInlineValueClassFromBinary() {
+    run("explicitInlineValueClassFromBinary.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitInlineValueClassFromCommonBinary.kt")
+  public void testExplicitInlineValueClassFromCommonBinary() {
+    run("explicitInlineValueClassFromCommonBinary.kt");
+  }
+
+  @Test
+  @TestMetadata("explicitInlineValueClassWithJvmInlineFromBinary.kt")
+  public void testExplicitInlineValueClassWithJvmInlineFromBinary() {
+    run("explicitInlineValueClassWithJvmInlineFromBinary.kt");
+  }
+
+  @Test
   @TestMetadata("fileWalkDirectionEnum.kt")
   public void testFileWalkDirectionEnum() {
     run("fileWalkDirectionEnum.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassFromBinary.kt")
+  public void testFullValueClassFromBinary() {
+    run("fullValueClassFromBinary.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueClassFromCommonBinary.kt")
+  public void testFullValueClassFromCommonBinary() {
+    run("fullValueClassFromCommonBinary.kt");
+  }
+
+  @Test
+  @TestMetadata("fullValueObjectFromBinary.kt")
+  public void testFullValueObjectFromBinary() {
+    run("fullValueObjectFromBinary.kt");
   }
 
   @Test
@@ -115,6 +167,12 @@ public class FirStandaloneNormalAnalysisSourceModuleSymbolByFqNameTestGenerated 
   @TestMetadata("getFirstJdk21.kt")
   public void testGetFirstJdk21() {
     run("getFirstJdk21.kt");
+  }
+
+  @Test
+  @TestMetadata("inlineClassFromBinary.kt")
+  public void testInlineClassFromBinary() {
+    run("inlineClassFromBinary.kt");
   }
 
   @Test
@@ -223,6 +281,18 @@ public class FirStandaloneNormalAnalysisSourceModuleSymbolByFqNameTestGenerated 
   @TestMetadata("propertyWithContextParameterFromLibrary.kt")
   public void testPropertyWithContextParameterFromLibrary() {
     run("propertyWithContextParameterFromLibrary.kt");
+  }
+
+  @Test
+  @TestMetadata("samConstructor.kt")
+  public void testSamConstructor() {
+    run("samConstructor.kt");
+  }
+
+  @Test
+  @TestMetadata("samConstructorAlias.kt")
+  public void testSamConstructorAlias() {
+    run("samConstructorAlias.kt");
   }
 
   @Test

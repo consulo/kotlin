@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -24,7 +24,6 @@ import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.addToStdlib.assignFrom
-import kotlin.collections.get
 
 private const val INLINE_CLASS_IMPL_SUFFIX = "-impl"
 
@@ -63,7 +62,7 @@ open class InlineClassDeclarationLowering(private val context: CommonBackendCont
         val staticMethod = context.getOrCreateStaticMethod(function)
 
         transformMethodBodyFlat(function, staticMethod)
-            processDelegatedInlineClassMember(function)
+        processDelegatedInlineClassMember(function)
         function.body = delegateToStaticMethod(function, staticMethod)
 
         if (function.overriddenSymbols.isEmpty())  // Function is used only in unboxed context
@@ -286,7 +285,7 @@ open class InlineClassDeclarationLowering(private val context: CommonBackendCont
                     irCall(staticMethod).apply {
                         arguments.assignFrom(function.parameters.map { irGet(it) })
                         val typeParameters = extractTypeParameters(function.parentAsClass) + function.typeParameters
-                        for ((index, typeParameter) in typeParameters.withIndex()) {
+                        for ([index, typeParameter] in typeParameters.withIndex()) {
                             typeArguments[index] =
                                 IrSimpleTypeImpl(typeParameter.symbol, SimpleTypeNullability.NOT_SPECIFIED, emptyList(), emptyList())
                         }
@@ -349,7 +348,7 @@ private fun CommonBackendContext.getOrCreateStaticMethod(function: IrFunction): 
     }
 
 private fun IrFunction.toInlineClassImplementationName(): Name {
-    val newName = parentAsClass.name.asString() + "__" + name.asString() + INLINE_CLASS_IMPL_SUFFIX
+    val newName = name.asString() + INLINE_CLASS_IMPL_SUFFIX
     return when {
         name.isSpecial -> Name.special("<$newName>")
         else -> Name.identifier(newName)
@@ -362,7 +361,6 @@ private fun CommonBackendContext.createStaticBodilessMethod(function: IrFunction
         function.toInlineClassImplementationName(),
         function,
         typeParametersFromContext = extractTypeParameters(function.parentAsClass),
-        remapMultiFieldValueClassStructure = ::remapMultiFieldValueClassStructure
     )
 
 private var IrFunction.staticMethod: IrSimpleFunction? by irAttribute(copyByDefault = false)

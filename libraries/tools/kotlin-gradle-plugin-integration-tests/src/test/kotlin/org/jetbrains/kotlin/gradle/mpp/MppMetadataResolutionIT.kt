@@ -6,35 +6,52 @@
 
 package org.jetbrains.kotlin.gradle.mpp
 
-import org.gradle.api.logging.configuration.WarningMode
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.kotlin.dsl.kotlin
 import org.gradle.util.GradleVersion
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.internals.parseKotlinSourceSetMetadataFromJson
+import org.jetbrains.kotlin.gradle.plugin.extraProperties
 import org.jetbrains.kotlin.gradle.plugin.mpp.GenerateProjectStructureMetadata
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.sources.METADATA_CONFIGURATION_NAME_SUFFIX
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.testing.prettyPrinted
+import org.jetbrains.kotlin.gradle.utils.sha256ChecksumString
+import org.jetbrains.kotlin.gradle.uklibs.PublishedProject
+import org.jetbrains.kotlin.gradle.uklibs.PublisherConfiguration
+import org.jetbrains.kotlin.gradle.uklibs.addPublishedProjectToRepositories
 import org.jetbrains.kotlin.gradle.uklibs.applyMultiplatform
 import org.jetbrains.kotlin.gradle.uklibs.computeTransformedLibraryChecksum
 import org.jetbrains.kotlin.gradle.uklibs.include
 import org.jetbrains.kotlin.gradle.uklibs.metadataTransformationOutputClasspath
+import org.jetbrains.kotlin.gradle.uklibs.publish
 import org.jetbrains.kotlin.gradle.uklibs.relativeTransformationPathComponents
+import org.jetbrains.kotlin.gradle.util.computeTransformedLibraryVersionChecksum
 import org.jetbrains.kotlin.gradle.util.replaceText
 import org.jetbrains.kotlin.gradle.util.testResolveAllConfigurations
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.jetbrains.kotlin.utils.addToStdlib.countOccurrencesOf
-import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
+import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 @MppGradlePluginTests
+@MustRunOnChangesInGradle
 class MppMetadataResolutionIT : KGPBaseTest() {
 
     @GradleTest
@@ -126,23 +143,24 @@ class MppMetadataResolutionIT : KGPBaseTest() {
                 val arguments = extractNativeCompilerTaskArguments(":compileLinuxMainKotlinMetadata")
                 assertEquals(
                     1,
-                    arguments.countOccurrencesOf("kotlinx-kotlinx-coroutines-core-1.8.1-commonMain"),
+                    arguments.countOccurrencesOf("kotlinx-kotlinx-coroutines-core-${"1.8.1".sha256ChecksumString()}-commonMain"),
                     "Unexpected number of kotlinx-kotlinx-coroutines-core-1.8.1-commonMain"
                 )
                 assertEquals(
                     1,
-                    arguments.countOccurrencesOf("kotlinx-kotlinx-coroutines-core-1.8.1-concurrentMain"),
+                    arguments.countOccurrencesOf("kotlinx-kotlinx-coroutines-core-${"1.8.1".sha256ChecksumString()}-concurrentMain"),
                     "Unexpected number of kotlinx-kotlinx-coroutines-core-1.8.1-concurrentMain"
                 )
                 assertEquals(
                     1,
-                    arguments.countOccurrencesOf("kotlinx-kotlinx-coroutines-core-1.8.1-nativeMain"),
+                    arguments.countOccurrencesOf("kotlinx-kotlinx-coroutines-core-${"1.8.1".sha256ChecksumString()}-nativeMain"),
                     "Unexpected number of kotlinx-kotlinx-coroutines-core-1.8.1-concurrentMain"
                 )
             }
         }
     }
 
+    @TestMetadata("base-kotlin-multiplatform-library")
     @GradleTest
     @GradleTestVersions
     fun testCustomGroupForMppPublicationInTransitiveDependencies(
@@ -278,16 +296,12 @@ class MppMetadataResolutionIT : KGPBaseTest() {
                 js {
                     browser()
                 }
-                @OptIn(ExperimentalWasmDsl::class)
                 wasmJs {
                     browser()
                 }
             }
 
             includeOtherProjectAsSubmodule("empty", newSubmoduleName = "androidxCollectionWrapper") {
-                plugins {
-                    kotlin("multiplatform")
-                }
                 buildScriptInjection {
                     project.applyMultiplatform {
                         applyKmpTargets()
@@ -301,6 +315,7 @@ class MppMetadataResolutionIT : KGPBaseTest() {
 
             buildScriptInjection {
                 project.computeTransformedLibraryChecksum(false)
+                project.computeTransformedLibraryVersionChecksum(enable = false)
                 project.applyMultiplatform {
                     applyKmpTargets()
 
@@ -361,25 +376,307 @@ class MppMetadataResolutionIT : KGPBaseTest() {
 
             assertEquals(
                 listOf(
-                    listOf("commonMain", "org.jetbrains.kotlin-kotlin-stdlib-${buildOptions.kotlinVersion}-commonMain-.klib")
-                ).prettyPrinted,
-                metadataTransformationOutputClasspath("commonMain")
-                    .relativeTransformationPathComponents().prettyPrinted
-            )
-
-            val flagName = "kotlin.internal.kmp.allowMatchingByRequestedCoordinatesInMetadataTransformations"
-            assertEquals(
-                listOf(
                     listOf("metadata", "commonMain"),
                     listOf("commonMain", "org.jetbrains.kotlin-kotlin-stdlib-${buildOptions.kotlinVersion}-commonMain-.klib"),
                     listOf("commonMain", "androidx.collection-collection-1.5.0-commonMain-.klib"),
                     listOf("commonMain", "androidx.annotation-annotation-1.9.1-commonMain-.klib"),
                 ).prettyPrinted,
+                metadataTransformationOutputClasspath("commonMain")
+                    .relativeTransformationPathComponents().prettyPrinted
+            )
+        }
+    }
+
+    @GradleTest
+    fun `KT-84533 - dependency substitution from module to project fails metadata compilation`(
+        gradleVersion: GradleVersion,
+        @TempDir localRepo: Path,
+    ) {
+        project("empty", gradleVersion, localRepoDir = localRepo) {
+            plugins {
+                kotlin("multiplatform").apply(false)
+            }
+            val localRepoString = localRepo.toString()
+            includeOtherProjectAsSubmodule("empty", newSubmoduleName = "producer") {
+                buildScriptInjection {
+                    project.plugins.apply("maven-publish")
+                    publishing.repositories.maven {
+                        it.setUrl(localRepoString)
+                    }
+                    project.group = "test"
+                    project.version = "1.0"
+
+                    project.applyMultiplatform {
+                        iosArm64()
+                        iosSimulatorArm64()
+                        jvm()
+                        sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
+                    }
+                }
+            }
+            build(":producer:publish")
+
+            buildScriptInjection {
+                project.computeTransformedLibraryChecksum(false)
+                project.computeTransformedLibraryVersionChecksum(enable = false)
+                project.applyMultiplatform {
+                    iosArm64()
+                    iosSimulatorArm64()
+                    jvm()
+                    sourceSets.commonMain.dependencies {
+                        api("test:producer:1.0")
+                    }
+
+                    sourceSets.jvmMain.dependencies {
+                        api(project(":producer"))
+                    }
+                }
+            }
+
+            assertEquals(
+                listOf(
+                    listOf("commonMain", "test-producer-1.0-commonMain-.klib"),
+                    listOf("commonMain", "org.jetbrains.kotlin-kotlin-stdlib-${buildOptions.kotlinVersion}-commonMain-.klib"),
+                ).prettyPrinted,
                 metadataTransformationOutputClasspath(
                     "commonMain",
-                    buildOptions = buildOptions.copy(freeArgs = listOf("-P${flagName}=true"))
                 ).relativeTransformationPathComponents().prettyPrinted
             )
         }
+    }
+
+    @GradleTest
+    fun `KT-69571 - dependency substitution from module to project in shared native causes duplicated metadata klibs`(
+        gradleVersion: GradleVersion,
+        @TempDir localRepo: Path,
+    ) {
+        project("empty", gradleVersion, localRepoDir = localRepo) {
+            plugins {
+                kotlin("multiplatform").apply(false)
+            }
+            val localRepoString = localRepo.toString()
+            includeOtherProjectAsSubmodule("empty", newSubmoduleName = "producer") {
+                buildScriptInjection {
+                    project.plugins.apply("maven-publish")
+                    publishing.repositories.maven {
+                        it.setUrl(localRepoString)
+                    }
+                    project.group = "test"
+                    project.version = "1.0"
+
+                    project.applyMultiplatform {
+                        iosArm64()
+                        iosSimulatorArm64()
+                        jvm()
+                        sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
+                    }
+                }
+            }
+            build(":producer:publish")
+
+            buildScriptInjection {
+                project.computeTransformedLibraryChecksum(false)
+                project.computeTransformedLibraryVersionChecksum(enable = false)
+                project.applyMultiplatform {
+                    iosArm64()
+                    iosSimulatorArm64()
+                    jvm()
+                    sourceSets.commonMain.dependencies {
+                        api("test:producer:1.0")
+                    }
+
+                    sourceSets.nativeMain.dependencies {
+                        api(project(":producer"))
+                    }
+                }
+            }
+
+            val flagName = "kotlin.internal.kmp.allowMatchingByRequestedCoordinatesInMetadataTransformations"
+
+            assertEquals(
+                listOf(
+                    listOf("commonMain", "test-producer-1.0-commonMain-.klib"),
+                    listOf("commonMain", "org.jetbrains.kotlin-kotlin-stdlib-${buildOptions.kotlinVersion}-commonMain-.klib"),
+                ).prettyPrinted,
+                metadataTransformationOutputClasspath("commonMain").relativeTransformationPathComponents().prettyPrinted
+            )
+
+            assertEquals(
+                listOf(
+                    listOf("klib", "producer_iosMain"),
+                    listOf("klib", "producer_appleMain"),
+                    listOf("klib", "producer_nativeMain"),
+                    listOf("commonMain", "test-producer-1.0-commonMain-.klib"),
+                    listOf("commonMain", "org.jetbrains.kotlin-kotlin-stdlib-${buildOptions.kotlinVersion}-commonMain-.klib"),
+                ).prettyPrinted,
+                metadataTransformationOutputClasspath("nativeMain")
+                    .relativeTransformationPathComponents().prettyPrinted
+            )
+        }
+    }
+
+    @GradleTest
+    fun `KT-91297 - metadata compilation with dependency version containing plus`(gradleVersion: GradleVersion) {
+        val producer = project("empty", gradleVersion) {
+            addKgpToBuildScriptCompilationClasspath()
+            buildScriptInjection {
+                project.applyMultiplatform {
+                    linuxArm64()
+                    linuxX64()
+                    sourceSets.commonMain.get().compileSource("class PublishedLibrary")
+                }
+            }
+        }.publish(publisherConfiguration = PublisherConfiguration(version = "1.13.0-beta02+dev5078"))
+
+        project("empty", gradleVersion) {
+            addKgpToBuildScriptCompilationClasspath()
+            addPublishedProjectToRepositories(producer)
+            buildScriptInjection {
+                project.applyMultiplatform {
+                    linuxArm64()
+                    linuxX64()
+                    sourceSets.commonMain.dependencies {
+                        implementation(producer.rootCoordinate)
+                    }
+                    sourceSets.commonMain.get().compileSource("fun consume() = PublishedLibrary()")
+                }
+            }
+
+            build("compileCommonMainKotlinMetadata") {
+                assertTasksExecuted(":transformCommonMainDependenciesMetadata", ":compileCommonMainKotlinMetadata")
+            }
+        }
+    }
+
+    @GradleTest
+    fun `KT-89235 path traversal is forbidden via malicious metadata library`(
+        gradleVersion: GradleVersion,
+        @TempDir tempDir: Path,
+    ) {
+        val producer = project("empty", gradleVersion) {
+            plugins {
+                kotlin("multiplatform")
+            }
+            buildScriptInjection {
+                project.extraProperties.set("kotlin.mpp.enableCInteropCommonization", true)
+                project.applyMultiplatform {
+                    jvm()
+                    linuxArm64()
+                    linuxX64()
+
+                    val defFile = project.layout.projectDirectory.file("myCinterop.def")
+                    defFile.asFile.writeText(
+                        """
+                        language = C
+                        ---
+                        void myCinterop(void);
+                        """.trimIndent()
+                    )
+                    targets.withType(KotlinNativeTarget::class.java).configureEach { target ->
+                        target.compilations.getByName("main").cinterops.create("myCinterop") {
+                            it.definitionFile.set(defFile)
+                        }
+                    }
+
+                    sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
+                    sourceSets.nativeMain.get().compileStubSourceWithSourceSetName()
+                    sourceSets.linuxMain.get().compileStubSourceWithSourceSetName()
+                }
+            }
+        }.publish()
+
+        fun assertMaliciousLibraryIsRejected(
+            scenario: String,
+            rejectedPathComponents: List<String>,
+            modifyProjectStructureMetadata: (String) -> String,
+        ) {
+            val maliciousRepository = tempDir.resolve(scenario).toFile()
+            producer.repository.copyRecursively(maliciousRepository)
+            val maliciousProducer = producer.copy(repository = maliciousRepository)
+            maliciousProducer.rootComponent.modifyProjectStructureMetadataInMetadataJar(modifyProjectStructureMetadata)
+
+            project("empty", gradleVersion) {
+                plugins {
+                    kotlin("multiplatform")
+                }
+                addPublishedProjectToRepositories(maliciousProducer)
+                buildScriptInjection {
+                    project.extraProperties.set("kotlin.mpp.enableCInteropCommonization", true)
+                    project.applyMultiplatform {
+                        jvm()
+                        linuxArm64()
+                        linuxX64()
+
+                        sourceSets.commonMain.dependencies {
+                            implementation(maliciousProducer.rootCoordinate)
+                        }
+                        sourceSets.linuxMain.get().compileStubSourceWithSourceSetName()
+                    }
+                }
+
+                buildAndFail(":compileLinuxMainKotlinMetadata") {
+                    // Depending on the order of transformation tasks, either the whole name or its component is rejected first
+                    val expectedErrors = rejectedPathComponents.map { "String '$it' is not safe for path component" }
+                    assertOutputContainsAny(*expectedErrors.toTypedArray())
+                }
+
+                val filesOutsideOfProject = projectPath.parent.toFile().walk()
+                    .filter { it.name.contains("pwned") }
+                    .toList()
+                assertEquals(emptyList(), filesOutsideOfProject, "No files are expected to be written by path traversal")
+            }
+        }
+
+        assertMaliciousLibraryIsRejected(
+            scenario = "sourceSetName",
+            rejectedPathComponents = listOf("../../../../pwned"),
+            modifyProjectStructureMetadata = { it.replace("\"linuxMain\"", "\"../../../../pwned\"") },
+        )
+    }
+
+    /**
+     * Rewrites `kotlin-project-structure-metadata.json` inside the composite metadata jar of [this] component.
+     * Checksums of the rewritten jar are stripped from the Gradle module metadata and the repository.
+     */
+    private fun PublishedProject.Component.modifyProjectStructureMetadataInMetadataJar(
+        modifyProjectStructureMetadata: (String) -> String,
+    ) {
+        val originalJar = jar.resolveSibling(jar.name + ".original")
+        jar.renameTo(originalJar)
+
+        ZipFile(originalJar).use { input ->
+            ZipOutputStream(jar.outputStream()).use { output ->
+                input.entries().asSequence().forEach { entry ->
+                    val content = input.getInputStream(entry).use { it.readBytes() }
+                    val newContent = if (entry.name == "META-INF/kotlin-project-structure-metadata.json") {
+                        modifyProjectStructureMetadata(content.decodeToString()).encodeToByteArray()
+                    } else content
+                    output.putNextEntry(ZipEntry(entry.name))
+                    output.write(newContent)
+                    output.closeEntry()
+                }
+            }
+        }
+        originalJar.delete()
+
+        // the checksums are not needed for verifying the issue
+        val checksumKeys = listOf("size", "md5", "sha1", "sha256", "sha512")
+        // so remove them from disk
+        checksumKeys.forEach { jar.resolveSibling("${jar.name}.$it").takeIf { file -> file.exists() }?.delete() }
+
+        // and remove them from module.metadata json file
+        val moduleJson = Json.parseToJsonElement(gradleMetadata.readText()).jsonObject
+        val variants = moduleJson.getValue("variants").jsonArray.map { variant ->
+            val files = variant.jsonObject["files"]?.jsonArray ?: return@map variant
+            val filesWithoutChecksums = files.map { file ->
+                if (file.jsonObject.getValue("url").jsonPrimitive.content == jar.name) JsonObject(file.jsonObject - checksumKeys.toSet())
+                else file
+            }
+            JsonObject(variant.jsonObject + ("files" to JsonArray(filesWithoutChecksums)))
+        }
+        gradleMetadata.writeText(Json.encodeToString(JsonObject.serializer(), JsonObject(moduleJson + ("variants" to JsonArray(variants)))))
+
+        // and also module metadata checksums
+        checksumKeys.forEach { gradleMetadata.resolveSibling("${gradleMetadata.name}.$it").takeIf { file -> file.exists() }?.delete() }
     }
 }

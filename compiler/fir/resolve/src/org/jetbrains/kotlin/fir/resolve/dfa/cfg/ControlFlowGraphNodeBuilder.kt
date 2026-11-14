@@ -3,6 +3,8 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:OptIn(CfgInternals::class)
+
 package org.jetbrains.kotlin.fir.resolve.dfa.cfg
 
 import org.jetbrains.kotlin.fir.FirElement
@@ -11,8 +13,8 @@ import org.jetbrains.kotlin.fir.expressions.*
 
 fun ControlFlowGraphBuilder.createStubNode(): StubNode = StubNode(currentGraph, levelCounter)
 
-fun ControlFlowGraphBuilder.createFakeExpressionEnterNode(): FakeExpressionEnterNode =
-    FakeExpressionEnterNode(currentGraph, levelCounter)
+fun ControlFlowGraphBuilder.createFakeExpressionTerminalNode(): FakeExpressionTerminalNode =
+    FakeExpressionTerminalNode(currentGraph, levelCounter)
 
 fun ControlFlowGraphBuilder.createLoopExitNode(fir: FirLoop): LoopExitNode = LoopExitNode(currentGraph, fir, levelCounter)
 
@@ -113,20 +115,20 @@ fun ControlFlowGraphBuilder.createLoopBlockEnterNode(fir: FirLoop): LoopBlockEnt
 fun ControlFlowGraphBuilder.createLoopBlockExitNode(fir: FirLoop): LoopBlockExitNode =
     LoopBlockExitNode(currentGraph, fir, levelCounter)
 
-fun ControlFlowGraphBuilder.createFunctionCallArgumentsEnterNode(fir: FirFunctionCall): FunctionCallArgumentsEnterNode =
-    FunctionCallArgumentsEnterNode(currentGraph, fir, levelCounter)
+fun ControlFlowGraphBuilder.createFunctionCallArgumentsEnterNode(fir: FirCall): FunctionCallArgumentsEnterNode =
+    FunctionCallArgumentsEnterNode(currentGraph, fir, levelCounter).also { registerCollectionLiteralNode(it) }
 
 fun ControlFlowGraphBuilder.createFunctionCallArgumentsExitNode(
-    fir: FirFunctionCall,
+    fir: FirCall,
     explicitReceiverExitNode: CFGNode<*>,
 ): FunctionCallArgumentsExitNode =
-    FunctionCallArgumentsExitNode(currentGraph, fir, explicitReceiverExitNode, levelCounter)
+    FunctionCallArgumentsExitNode(currentGraph, fir, explicitReceiverExitNode, levelCounter).also { registerCollectionLiteralNode(it) }
 
-fun ControlFlowGraphBuilder.createFunctionCallEnterNode(fir: FirFunctionCall): FunctionCallEnterNode =
-    FunctionCallEnterNode(currentGraph, fir, levelCounter)
+fun ControlFlowGraphBuilder.createFunctionCallEnterNode(fir: FirCall): FunctionCallEnterNode =
+    FunctionCallEnterNode(currentGraph, fir, levelCounter).also { registerCollectionLiteralNode(it) }
 
-fun ControlFlowGraphBuilder.createFunctionCallExitNode(fir: FirFunctionCall): FunctionCallExitNode =
-    FunctionCallExitNode(currentGraph, fir, levelCounter)
+fun ControlFlowGraphBuilder.createFunctionCallExitNode(fir: FirCall): FunctionCallExitNode =
+    FunctionCallExitNode(currentGraph, fir, levelCounter).also { registerCollectionLiteralNode(it) }
 
 fun ControlFlowGraphBuilder.createCallableReferenceNode(fir: FirCallableReferenceAccess): CallableReferenceNode =
     CallableReferenceNode(currentGraph, fir, levelCounter)
@@ -254,8 +256,20 @@ fun ControlFlowGraphBuilder.createClassEnterNode(fir: FirClass): ClassEnterNode 
 fun ControlFlowGraphBuilder.createClassExitNode(fir: FirClass): ClassExitNode =
     ClassExitNode(currentGraph, fir, levelCounter)
 
+fun ControlFlowGraphBuilder.createStaticEnterNode(fir: FirClass): StaticEnterNode =
+    StaticEnterNode(currentGraph, fir, levelCounter)
+
+fun ControlFlowGraphBuilder.createStaticExitNode(fir: FirClass): StaticExitNode =
+    StaticExitNode(currentGraph, fir, levelCounter)
+
 fun ControlFlowGraphBuilder.createLocalClassExitNode(fir: FirRegularClass): LocalClassExitNode =
     LocalClassExitNode(currentGraph, fir, levelCounter)
+
+fun ControlFlowGraphBuilder.createEnumEntryEnterNode(fir: FirEnumEntry): EnumEntryEnterNode =
+    EnumEntryEnterNode(currentGraph, fir, levelCounter)
+
+fun ControlFlowGraphBuilder.createEnumEntryExitNode(fir: FirEnumEntry): EnumEntryExitNode =
+    EnumEntryExitNode(currentGraph, fir, levelCounter)
 
 fun ControlFlowGraphBuilder.createEnterValueParameterNode(fir: FirValueParameter): EnterValueParameterNode =
     EnterValueParameterNode(currentGraph, fir, levelCounter)

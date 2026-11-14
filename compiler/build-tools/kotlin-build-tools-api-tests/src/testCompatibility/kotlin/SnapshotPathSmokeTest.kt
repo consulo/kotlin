@@ -10,7 +10,7 @@ import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmCompilationOperatio
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.snapshotBasedIcConfiguration
 import org.jetbrains.kotlin.buildtools.tests.compilation.BaseCompilationTest
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.DefaultStrategyAgnosticCompilationTest
-import org.jetbrains.kotlin.buildtools.tests.compilation.model.project
+import org.jetbrains.kotlin.buildtools.tests.compilation.model.jvmProject
 import org.jetbrains.kotlin.test.TestMetadata
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -27,17 +27,17 @@ import kotlin.io.path.exists
 class SnapshotPathSmokeTest : BaseCompilationTest() {
     @DisplayName("Deprecated 4-parameter builder creates snapshot with hardcoded filename ignoring custom name")
     @DefaultStrategyAgnosticCompilationTest
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testDeprecatedBuilderIgnoresCustomSnapshotFilename(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        project(strategyConfig) {
-            val module1 = module("jvm-module-1")
+        jvmProject(strategyConfig) {
+            val module1 = module("basic-multimodule-project/module-1")
             val customSnapshotDir = module1.buildDirectory.resolve("my-custom-snapshot")
             customSnapshotDir.createDirectories()
             val customSnapshotFile = customSnapshotDir.resolve("my-custom-snapshot-name.bin")
 
             module1.compile(
                 compilationConfigAction = { compilationOperation ->
-                    @Suppress("DEPRECATION")
+                    @Suppress("DEPRECATION_ERROR")
                     val icConfig = compilationOperation.snapshotBasedIcConfiguration(
                         workingDirectory = module1.icCachesDir,
                         sourcesChanges = SourcesChanges.Unknown,
@@ -62,10 +62,10 @@ class SnapshotPathSmokeTest : BaseCompilationTest() {
 
     @DisplayName("New 3-parameter builder creates snapshot with auto-generated path under workingDirectory")
     @DefaultStrategyAgnosticCompilationTest
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testNewBuilderAutoGeneratesSnapshotPath(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        project(strategyConfig) {
-            val module1 = module("jvm-module-1")
+        jvmProject(strategyConfig) {
+            val module1 = module("basic-multimodule-project/module-1")
             val icWorkDir = module1.buildDirectory.resolve("ic-work")
 
             module1.compile(

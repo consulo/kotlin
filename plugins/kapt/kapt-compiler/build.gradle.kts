@@ -2,9 +2,10 @@
 description = "Annotation Processor for Kotlin"
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
 }
 
 dependencies {
@@ -12,13 +13,15 @@ dependencies {
     compileOnly(project(":compiler:cli"))
     compileOnly(project(":compiler:backend"))
     compileOnly(project(":compiler:backend.jvm.entrypoint"))
-    compileOnly(project(":compiler:frontend"))
-    compileOnly(project(":compiler:frontend.java"))
+    compileOnly(project(":compiler:frontend.common-psi"))
     compileOnly(project(":compiler:plugin-api"))
     compileOnly(project(":compiler:fir:fir2ir:jvm-backend"))
     compileOnly(project(":kotlin-annotation-processing-cli"))
     compileOnly(project(":kotlin-annotation-processing-base"))
     compileOnly(project(":kotlin-annotation-processing-runtime"))
+    compileOnly(project(":core:descriptors"))
+    compileOnly(project(":core:descriptors.jvm"))
+    compileOnly(project(":compiler:backend.common.jvm"))
     compileOnly(intellijCore())
     compileOnly(toolsJarApi())
     compileOnly(libs.intellij.asm)
@@ -33,6 +36,7 @@ dependencies {
     testFixturesApi(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
     testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
+    testFixturesApi(testFixtures(project(":compiler:jvm.tests")))
     testFixturesApi(testFixtures(project(":compiler:test-infrastructure")))
     testFixturesApi(testFixtures(project(":compiler:test-infrastructure-utils")))
 
@@ -53,40 +57,38 @@ dependencies {
 }
 
 optInToExperimentalCompilerApi()
+optInToUnsafeDuringIrConstructionAPI()
 
 sourceSets {
     "main" { projectDefault() }
-    "test" {
-        projectDefault()
-        generatedTestDir()
-    }
+    "test" { projectDefault() }
     "testFixtures" { projectDefault() }
 }
 
-testsJar {}
 
 projectTests {
-    fun Project.kaptTestTask(name: String, javaLanguageVersion: JavaLanguageVersion) {
-        val service = extensions.getByType<JavaToolchainService>()
-
-        testTask(taskName = name, jUnitMode = JUnitMode.JUnit5, skipInLocalBuild = false) {
-            useJUnitPlatform {
-                excludeTags = setOf("IgnoreJDK11")
-            }
-            workingDir = rootDir
-            dependsOn(":dist")
-            javaLauncher.set(service.launcherFor { languageVersion.set(javaLanguageVersion) })
+    fun kaptTestTask(name: String, javaLauncher: JdkMajorVersion) {
+        testTask(
+            taskName = name,
+            javaLauncher = javaLauncher,
+            skipInLocalBuild = false,
+            // JDK21 is required by KaptStubConverterTestGenerated.testJvmRecord
+            defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_21_0)
+        ) {
+            useJUnitPlatform()
         }
     }
 
-    kaptTestTask("test", JavaLanguageVersion.of(8))
-    kaptTestTask("testJdk11", JavaLanguageVersion.of(11))
-    kaptTestTask("testJdk17", JavaLanguageVersion.of(17))
-    kaptTestTask("testJdk21", JavaLanguageVersion.of(21))
+    kaptTestTask("test", JdkMajorVersion.JDK_17_0)
+    kaptTestTask("testJdk21", JdkMajorVersion.JDK_21_0)
 
-    testGenerator("org.jetbrains.kotlin.kapt.test.TestGeneratorKt")
+    testGenerator("org.jetbrains.kotlin.kapt.test.TestGeneratorKt", generateTestsInBuildDirectory = true)
 
+    testData(isolated, "testData")
     withJvmStdlibAndReflect()
+    withTestJar()
+    withMockJdkAnnotationsJar()
+    withMockJdkRuntime()
 }
 
 publish()

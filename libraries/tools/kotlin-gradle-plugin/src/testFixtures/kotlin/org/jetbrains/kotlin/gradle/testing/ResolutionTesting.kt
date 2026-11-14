@@ -96,6 +96,15 @@ fun resolveProjectDependencyComponentsWithArtifacts(
 fun KotlinTarget.compilationResolution(compilationName: String = "main"): Map<ComponentPath, ResolvedComponentWithArtifacts> {
     return compilationConfiguration(compilationName).resolveProjectDependencyComponentsWithArtifacts()
 }
+
+fun Configuration.resolveSelectedVariantNames(): Map<ComponentPath, String> {
+    val root = incoming.resolutionResult.root
+    val selfProjectPath = root.variants.single().owner.projectPathOrNull
+    return resolveProjectDependencyComponents(incoming.resolutionResult.allComponents)
+        .filterNot { it.path == selfProjectPath }
+        .associate { it.path to it.configuration }
+}
+
 fun KotlinTarget.runtimeResolution(compilationName: String = "main"): Map<ComponentPath, ResolvedComponentWithArtifacts> {
     return runtimeConfiguration(compilationName).resolveProjectDependencyComponentsWithArtifacts()
 }
@@ -134,7 +143,7 @@ private fun resolveProjectDependencyVariantsFromArtifacts(
                 .filterNot { it.name in removeAttributesNamed }
                 .sortedBy { it.name }
             ResolvedVariant(
-                artifact.variant.owner.projectPathOrNull ?: artifact.variant.owner.displayName,
+                artifact.variant.owner.projectPathOrNull ?: artifact.variant.owner.displayName.normalizeSnapshotVersion(),
                 attributes.associateBy({ it }) {
                     artifact.variant.attributes.getAttribute(it).toString()
                 }.mapKeys { it.key.name }
@@ -148,7 +157,7 @@ private fun resolveProjectDependencyComponents(
     return allComponentsProvider
         .map { component ->
             ResolvedComponent(
-                component.id.projectPathOrNull ?: component.id.displayName,
+                component.id.projectPathOrNull ?: component.id.displayName.normalizeSnapshotVersion(),
                 // Expect a single variant to always be selected?
                 component.variants.single().displayName
             )

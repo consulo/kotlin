@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.buildtools.api.arguments.enums.*
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmPlatformToolchain
 import org.jetbrains.kotlin.buildtools.api.jvm.JvmSnapshotBasedIncrementalCompilationConfiguration
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.DiscoverScriptExtensionsOperation
+import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmClasspathSnapshottingOperation
 import org.jetbrains.kotlin.buildtools.api.jvm.operations.JvmCompilationOperation
 import java.io.File
 import java.nio.file.Path
@@ -30,8 +31,10 @@ import kotlin.io.path.Path
  */
 @Suppress("ClassName")
 internal class KotlinWrapperPre2_4_0(
-    private val base: KotlinToolchains,
-) : KotlinToolchains by base {
+    override val base: KotlinToolchains,
+) : KotlinToolchains by base, KotlinToolchainsWrapper {
+
+    override val implClassloader: ClassLoader by lazy { getImplClassloader() }
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : KotlinToolchains.Toolchain> getToolchain(type: Class<T>): T = when (type) {
@@ -59,6 +62,11 @@ internal class KotlinWrapperPre2_4_0(
     private abstract class BuildOperationWrapper<R>(val baseOperation: BuildOperation<R>) : BuildOperation<R>
 
     private class JvmPlatformToolchainWrapper(private val base: JvmPlatformToolchain) : JvmPlatformToolchain by base {
+        override fun classpathSnapshottingOperationBuilder(classpathEntry: Path): JvmClasspathSnapshottingOperation.Builder =
+            base.classpathSnapshottingOperationBuilder(classpathEntry).apply {
+                set(JvmClasspathSnapshottingOperation.PARSE_INLINED_LOCAL_CLASSES, true)
+            }
+
         override fun jvmCompilationOperationBuilder(
             sources: List<Path>,
             destinationDirectory: Path,
@@ -78,7 +86,7 @@ internal class KotlinWrapperPre2_4_0(
         override val compilerArguments: JvmCompilerArguments = JvmCompilerArgumentsWrapper(base.compilerArguments)
 
         override fun <V> get(key: BaseCompilationOperation.Option<V>): V {
-            val jvmOption = JvmCompilationOperation.Option<V>(key.id)
+            val jvmOption = JvmCompilationOperation.Option<V>(key.id, key.availableSinceVersion)
             return base[jvmOption]
         }
     }
@@ -93,6 +101,7 @@ internal class KotlinWrapperPre2_4_0(
             sourcesChanges: SourcesChanges,
             dependenciesSnapshotFiles: List<Path>,
         ): JvmSnapshotBasedIncrementalCompilationConfiguration.Builder {
+            @Suppress("DEPRECATION_ERROR")
             return snapshotBasedIcConfigurationBuilder(
                 workingDirectory,
                 sourcesChanges,
@@ -105,7 +114,7 @@ internal class KotlinWrapperPre2_4_0(
         @Deprecated(
             "The shrunkClasspathSnapshot parameter is no longer required",
             replaceWith = ReplaceWith("snapshotBasedIcConfigurationBuilder(workingDirectory, sourcesChanges, dependenciesSnapshotFiles)"),
-            level = DeprecationLevel.WARNING
+            level = DeprecationLevel.ERROR
         )
         override fun snapshotBasedIcConfigurationBuilder(
             workingDirectory: Path,
@@ -113,6 +122,7 @@ internal class KotlinWrapperPre2_4_0(
             dependenciesSnapshotFiles: List<Path>,
             shrunkClasspathSnapshot: Path,
         ): JvmSnapshotBasedIncrementalCompilationConfiguration.Builder {
+            @Suppress("DEPRECATION_ERROR")
             return JvmSnapshotBasedIncrementalCompilationConfigurationBuilderWrapper(
                 base.snapshotBasedIcConfigurationBuilder(
                     workingDirectory,
@@ -124,12 +134,12 @@ internal class KotlinWrapperPre2_4_0(
         }
 
         override fun <V> set(key: BaseCompilationOperation.Option<V>, value: V) {
-            val jvmOption = JvmCompilationOperation.Option<V>(key.id)
+            val jvmOption = JvmCompilationOperation.Option<V>(key.id, key.availableSinceVersion)
             base[jvmOption] = value
         }
 
         override fun <V> get(key: BaseCompilationOperation.Option<V>): V {
-            val jvmOption = JvmCompilationOperation.Option<V>(key.id)
+            val jvmOption = JvmCompilationOperation.Option<V>(key.id, key.availableSinceVersion)
             return base[jvmOption]
         }
 
@@ -151,7 +161,7 @@ internal class KotlinWrapperPre2_4_0(
             override fun toBuilder(): Builder = JvmSnapshotBasedIncrementalCompilationConfigurationBuilderWrapper(base.toBuilder())
 
             override fun <V> get(key: BaseIncrementalCompilationConfiguration.Option<V>): V {
-                val oldOption = Option<V>(key.id)
+                val oldOption = Option<V>(key.id, key.availableSinceVersion)
                 return base[oldOption]
             }
 
@@ -164,12 +174,12 @@ internal class KotlinWrapperPre2_4_0(
             val base: JvmSnapshotBasedIncrementalCompilationConfiguration.Builder,
         ) : JvmSnapshotBasedIncrementalCompilationConfiguration.Builder by base {
             override fun <V> get(key: BaseIncrementalCompilationConfiguration.Option<V>): V {
-                val oldOption = JvmSnapshotBasedIncrementalCompilationConfiguration.Option<V>(key.id)
+                val oldOption = JvmSnapshotBasedIncrementalCompilationConfiguration.Option<V>(key.id, key.availableSinceVersion)
                 return base[oldOption]
             }
 
             override fun <V> set(key: BaseIncrementalCompilationConfiguration.Option<V>, value: V) {
-                val oldOption = JvmSnapshotBasedIncrementalCompilationConfiguration.Option<V>(key.id)
+                val oldOption = JvmSnapshotBasedIncrementalCompilationConfiguration.Option<V>(key.id, key.availableSinceVersion)
                 base[oldOption] = value
             }
 
@@ -259,6 +269,7 @@ internal class KotlinWrapperPre2_4_0(
                 CommonCompilerArguments.X_PHASES_TO_VALIDATE_AFTER,
                 CommonCompilerArguments.X_DISABLE_PHASES,
                 CommonCompilerArguments.X_VERBOSE_PHASES,
+                @OptIn(RemovedCompilerArgument::class)
                 CommonCompilerArguments.X_SUPPRESS_WARNING,
                 CommonCompilerArguments.OPT_IN,
                     -> {
@@ -300,7 +311,9 @@ internal class KotlinWrapperPre2_4_0(
                     val arrayValue = delegate[key] as Array<String>
                     arrayValue.map {
                         val parts = it.split(":", limit = 2)
-                        require(parts.size == 2) { "Invalid -Xwarning-level format: $it" }
+                        if (parts.size != 2) {
+                            throw CompilerArgumentsParseException("Invalid -Xwarning-level format: $it")
+                        }
                         val severity = WarningLevel.Severity.values().firstOrNull { entry -> entry.stringValue == parts[1] }
                             ?: throw CompilerArgumentsParseException("Unknown -Xwarning-level level: $it")
                         WarningLevel(parts[0], severity)
@@ -335,6 +348,7 @@ internal class KotlinWrapperPre2_4_0(
                 CommonCompilerArguments.X_PHASES_TO_VALIDATE_AFTER,
                 CommonCompilerArguments.X_DISABLE_PHASES,
                 CommonCompilerArguments.X_VERBOSE_PHASES,
+                @OptIn(RemovedCompilerArgument::class)
                 CommonCompilerArguments.X_SUPPRESS_WARNING,
                 CommonCompilerArguments.OPT_IN,
                     -> {
@@ -392,7 +406,9 @@ internal class KotlinWrapperPre2_4_0(
 
                     val stringValue = delegate[key] as String
                     val parts = stringValue.split(File.pathSeparator)
-                    require(parts.size == 3) { "Invalid -Xprofile format: $this" }
+                    if (parts.size != 3) {
+                        throw CompilerArgumentsParseException("Invalid -Xprofile format: $stringValue")
+                    }
 
                     ProfileCompilerCommand(Path(parts[0]), parts[1], Path(parts[2])) as V
                 }
@@ -485,7 +501,7 @@ internal class KotlinWrapperPre2_4_0(
                 }
 
                 JvmCompilerArguments.CLASSPATH,
-                JvmCompilerArguments.X_KLIB,
+                @OptIn(RemovedCompilerArgument::class) JvmCompilerArguments.X_KLIB,
                 JvmCompilerArguments.X_MODULE_PATH,
                     -> {
                     if (delegate[key] == null) return null as V
@@ -523,7 +539,9 @@ internal class KotlinWrapperPre2_4_0(
                     val arrayValue = delegate[key] as Array<String>
                     arrayValue.map {
                         val parts = it.split(":")
-                        require(parts.size == 2) { "Invalid -Xnullability-annotations format: $this" }
+                        if (parts.size != 2) {
+                            throw CompilerArgumentsParseException("Invalid -Xnullability-annotations format: $this")
+                        }
 
                         val nullabilityAnnotationMode =
                             NullabilityAnnotation.Mode.values().firstOrNull { entry -> entry.stringValue == parts[1] }
@@ -537,11 +555,11 @@ internal class KotlinWrapperPre2_4_0(
                     if (delegate[key] == null) return emptyList<Jsr305>() as V
 
                     val arrayValue = delegate[key] as Array<String>
-                    fun jsr305mode(stringValue: String) = Jsr305.Mode.values().firstOrNull { entry -> entry.stringValue == stringValue }
-                        ?: throw CompilerArgumentsParseException("Unknown -Xjsr305 mode: $stringValue")
+                    arrayValue.map { fullEntry ->
+                        fun jsr305mode(mode: String) = Jsr305.Mode.values().firstOrNull { entry -> entry.stringValue == mode }
+                            ?: throw CompilerArgumentsParseException("Unknown -Xjsr305 mode: $fullEntry")
 
-                    arrayValue.map {
-                        val parts = it.split(":")
+                        val parts = fullEntry.split(":")
                         when (parts.size) {
                             1 -> Jsr305.Global(jsr305mode(parts[0]))
                             2 -> {
@@ -551,7 +569,7 @@ internal class KotlinWrapperPre2_4_0(
                                     Jsr305.SpecificAnnotation(parts[0].removePrefix("@"), jsr305mode(parts[1]))
                                 }
                             }
-                            else -> throw CompilerArgumentsParseException("Invalid -Xjsr30 format: $it")
+                            else -> throw CompilerArgumentsParseException("Invalid -Xjsr305 format: $fullEntry")
                         }
                     } as V
                 }
@@ -661,14 +679,13 @@ internal class KotlinWrapperPre2_4_0(
                 }
 
                 JvmCompilerArguments.CLASSPATH,
-                JvmCompilerArguments.X_KLIB,
+                @OptIn(RemovedCompilerArgument::class) JvmCompilerArguments.X_KLIB,
                 JvmCompilerArguments.X_MODULE_PATH,
                     -> {
                     @Suppress("UNCHECKED_CAST")
                     val listValue = value as List<Path>?
                     val stringValue =
                         listValue?.map { it.toFile().absolutePath }
-                            ?.also { list -> list.checkNoneContains(File.pathSeparator) }
                             ?.joinToString(File.pathSeparator)
                     val stringKey = JvmCompilerArguments.JvmCompilerArgument<String?>(key.id, key.availableSinceVersion)
 
@@ -680,7 +697,7 @@ internal class KotlinWrapperPre2_4_0(
                     -> {
                     @Suppress("UNCHECKED_CAST")
                     val listValue = value as List<Path>
-                    val arrayValue = listValue.map { it.toFile().absolutePath }.also { it.checkNoneContains(",") }.toTypedArray()
+                    val arrayValue = listValue.map { it.toFile().absolutePath }.toTypedArray()
                     val arrayKey = JvmCompilerArguments.JvmCompilerArgument<Array<String>?>(key.id, key.availableSinceVersion)
 
                     delegate[arrayKey] = arrayValue
@@ -728,16 +745,5 @@ internal class KotlinWrapperPre2_4_0(
                 else -> delegate[key] = value
             }
         }
-    }
-}
-
-private fun List<String>.checkNoneContains(other: CharSequence) {
-    val invalidItem = firstOrNull { it.contains(other) }
-    if (invalidItem != null) {
-        throw CompilerArgumentsParseException(
-            "Invalid character '${other}' found in argument '$invalidItem'. " +
-                    "This character is currently not supported in this context. " +
-                    "If you need its support, please let us know: https://youtrack.jetbrains.com/issue/KT-85553"
-        )
     }
 }

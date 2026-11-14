@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +PreferJavaFieldOverload
+// RUN_PIPELINE_TILL: CODEGEN
 
 // FILE: B.java
 

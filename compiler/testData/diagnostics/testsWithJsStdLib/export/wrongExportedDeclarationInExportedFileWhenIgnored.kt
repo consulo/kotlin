@@ -1,4 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
+// RUN_PIPELINE_TILL: CODEGEN
 // OPT_IN: kotlin.js.ExperimentalJsExport
 // RENDER_DIAGNOSTIC_ARGUMENTS
 
@@ -26,4 +26,13 @@ class AnotherClass {
     val String.extensionProperty get() = this.length
     @JsExport.Ignore
     val Array<*>.extensionProperty get() = this.size
+}
+
+
+// KT-87352
+public class ParentClass {
+    // ...
+
+    @JsExport.Ignore
+    public typealias Alias = AnotherClass
 }

@@ -5,15 +5,18 @@
 
 package org.jetbrains.kotlin.gradle
 
-import org.gradle.api.logging.LogLevel
 import org.gradle.util.GradleVersion
+import org.jetbrains.kotlin.gradle.report.BuildReportType
 import org.jetbrains.kotlin.gradle.testbase.BuildOptions
 import org.jetbrains.kotlin.gradle.testbase.KGPBaseTest
 import org.jetbrains.kotlin.gradle.testbase.TestProject
 import org.jetbrains.kotlin.gradle.testbase.project
-import org.jetbrains.kotlin.testFederation.AffectedByCompiler
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInBuildToolsApi
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInCompilerInfrastructure
+import kotlin.io.path.appendText
 
-@AffectedByCompiler
+@MustRunOnChangesInCompilerInfrastructure
+@MustRunOnChangesInBuildToolsApi
 abstract class IncrementalCompilationBaseIT : KGPBaseTest() {
 
     protected abstract val defaultProjectName: String
@@ -26,11 +29,23 @@ abstract class IncrementalCompilationBaseIT : KGPBaseTest() {
         defaultProjectName,
         gradleVersion,
         buildOptions,
-        test = test
+        test = {
+            includeAnotherLibProject()
+            test()
+        }
     )
+
+    fun TestProject.includeAnotherLibProject() {
+        settingsGradle.appendText(
+            """
+
+            include ':another-lib'
+            """.trimIndent()
+        )
+    }
 
     override val defaultBuildOptions = super.defaultBuildOptions.copy(
         incremental = true,
-        logLevel = LogLevel.DEBUG
+        buildReport = listOf(BuildReportType.FILE),
     )
 }

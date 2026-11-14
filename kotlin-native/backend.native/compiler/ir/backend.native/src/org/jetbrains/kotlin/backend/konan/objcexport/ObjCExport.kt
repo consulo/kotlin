@@ -5,25 +5,27 @@
 
 package org.jetbrains.kotlin.backend.konan.objcexport
 
-import org.jetbrains.kotlin.backend.common.reportCompilationWarning
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.isInterface
 import org.jetbrains.kotlin.backend.konan.driver.NativeBackendPhaseContext
 import org.jetbrains.kotlin.backend.konan.llvm.CodeGenerator
 import org.jetbrains.kotlin.backend.konan.llvm.objcexport.ObjCExportBlockCodeGenerator
 import org.jetbrains.kotlin.backend.konan.llvm.objcexport.ObjCExportCodeGenerator
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageUtil
 import org.jetbrains.kotlin.config.nativeBinaryOptions.BinaryOptions
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.io.deleteOnExit
 import org.jetbrains.kotlin.konan.config.NativeConfigurationKeys
 import org.jetbrains.kotlin.konan.config.objcGenerics
 import org.jetbrains.kotlin.konan.exec.Command
-import org.jetbrains.kotlin.konan.file.File
-import org.jetbrains.kotlin.konan.file.createTempFile
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.renderer.DescriptorRenderer
 import org.jetbrains.kotlin.resolve.source.getPsi
+import java.nio.file.Path
+import kotlin.io.path.absolutePathString
+import kotlin.io.path.createTempFile
+import kotlin.io.path.name
+import kotlin.io.path.writeLines
 
 internal class ObjCExportedInterface(
         val generatedClasses: Set<ClassDescriptor>,
@@ -37,7 +39,6 @@ internal class ObjCExportedInterface(
 internal fun produceObjCExportInterface(
     context: NativeBackendPhaseContext,
     moduleDescriptor: ModuleDescriptor,
-    frontendServices: FrontendServices,
 ): ObjCExportedInterface {
     val config = context.config
     require(config.target.family.isAppleFamily)
@@ -50,12 +51,19 @@ internal fun produceObjCExportInterface(
     //   and can't do this per-module, e.g. due to global name conflict resolution.
 
     val unitSuspendFunctionExport = config.unitSuspendFunctionObjCExport
+    val moduleDescriptors = listOf(moduleDescriptor) + moduleDescriptor.getExportedDependenciesInCanonicalRTO(config)
     val entryPoints = config.objcEntryPoints
+    val expandEntryPoints = config.configuration.getBoolean(BinaryOptions.objcExportExpandEntryPoints)
+    val effectiveEntryPoints = if (entryPoints != ObjCEntryPoints.ALL && expandEntryPoints) {
+        ObjCEntryPoints.create(computeDownwardClosure(entryPoints, moduleDescriptors))
+    } else {
+        entryPoints
+    }
+
     val mapper = ObjCExportMapper(
-            frontendServices.deprecationResolver,
+            config.languageVersionSettings,
             unitSuspendFunctionExport = unitSuspendFunctionExport,
-            entryPoints = entryPoints)
-    val moduleDescriptors = listOf(moduleDescriptor) + moduleDescriptor.getExportedDependencies(config)
+            entryPoints = effectiveEntryPoints)
     val objcGenerics = config.configuration.objcGenerics
     val disableSwiftMemberNameMangling = config.configuration.getBoolean(BinaryOptions.objcExportDisableSwiftMemberNameMangling)
     val ignoreInterfaceMethodCollisions = config.configuration.getBoolean(BinaryOptions.objcExportIgnoreInterfaceMethodCollisions)
@@ -97,7 +105,7 @@ private class ObjCExportCompilerProblemCollector(val context: NativeBackendPhase
         get() = (this@psiLocation as? DeclarationDescriptorWithSource)?.source?.getPsi()?.let { MessageUtil.psiElementToMessageLocation(it) }
 
     override fun reportWarning(text: String) {
-        context.reportCompilationWarning(text)
+        context.diagnosticReporter.report(NativeBackendDiagnostics.OBJC_EXPORT_WARNING, text)
     }
 
     override fun reportWarning(declaration: DeclarationDescriptor, text: String) {
@@ -105,11 +113,11 @@ private class ObjCExportCompilerProblemCollector(val context: NativeBackendPhase
                 "$text\n    (at ${DescriptorRenderer.COMPACT_WITH_SHORT_TYPES.render(declaration)})"
         )
 
-        context.messageCollector.report(CompilerMessageSeverity.WARNING, text, location)
+        context.diagnosticReporter.report(NativeBackendDiagnostics.OBJC_EXPORT_WARNING, text, location)
     }
 
     override fun reportError(text: String) {
-        context.messageCollector.report(CompilerMessageSeverity.ERROR, text, null)
+        context.diagnosticReporter.report(NativeBackendDiagnostics.NATIVE_BACKEND_ERROR, text, null)
     }
 
     override fun reportError(declaration: DeclarationDescriptor, text: String) {
@@ -117,7 +125,7 @@ private class ObjCExportCompilerProblemCollector(val context: NativeBackendPhase
                 "$text\n    (at ${DescriptorRenderer.COMPACT_WITH_SHORT_TYPES.render(declaration)})"
         )
 
-        context.messageCollector.report(CompilerMessageSeverity.ERROR, text, location)
+        context.diagnosticReporter.report(NativeBackendDiagnostics.NATIVE_BACKEND_ERROR, text, location)
     }
 
     override fun reportException(throwable: Throwable) {
@@ -132,7 +140,7 @@ internal fun createObjCFramework(
         config: NativeSecondStageCompilationConfig,
         moduleDescriptor: ModuleDescriptor,
         exportedInterface: ObjCExportedInterface,
-        frameworkDirectory: File
+        frameworkDirectory: Path
 ) {
     val frameworkName = frameworkDirectory.name.removeSuffix(CompilerOutputKind.FRAMEWORK.suffix())
     val frameworkBuilder = FrameworkBuilder(
@@ -154,7 +162,7 @@ internal fun createObjCFramework(
 internal fun createTestBundle(
         config: NativeSecondStageCompilationConfig,
         moduleDescriptor: ModuleDescriptor,
-        bundleDirectory: File
+        bundleDirectory: Path
 ) {
     val name = bundleDirectory.name.removeSuffix(CompilerOutputKind.TEST_BUNDLE.suffix())
     BundleBuilder(
@@ -186,7 +194,7 @@ internal class ObjCExport(
 
         if (!config.isFinalBinary) return // TODO: emit RTTI to the same modules as classes belong to.
 
-        val mapper = exportedInterface?.mapper ?: ObjCExportMapper(unitSuspendFunctionExport = config.unitSuspendFunctionObjCExport)
+        val mapper = exportedInterface?.mapper ?: ObjCExportMapper(config.languageVersionSettings, unitSuspendFunctionExport = config.unitSuspendFunctionObjCExport)
         namer = exportedInterface?.namer ?: ObjCExportNamerImpl(
                 setOf(moduleDescriptor),
                 moduleDescriptor.builtIns,
@@ -225,22 +233,22 @@ private fun ObjCExportedInterface.generateWorkaroundForSwiftSR10177(generationSt
             "}"
     )
 
-    val source = createTempFile("protocols", ".m").deleteOnExit()
+    val source = createTempFile("protocols", ".m").apply { deleteOnExit() }
     source.writeLines(headerLines + protocolsStub)
 
-    val bitcode = createTempFile("protocols", ".bc").deleteOnExit()
+    val bitcode = createTempFile("protocols", ".bc").apply { deleteOnExit() }
 
     val clangCommand = generationState.config.clang.clangC(
-            source.absolutePath,
+            source.absolutePathString(),
             "-O2",
             "-emit-llvm",
-            "-c", "-o", bitcode.absolutePath
+            "-c", "-o", bitcode.absolutePathString()
     )
 
     val result = Command(clangCommand).getResult(withErrors = true)
 
     if (result.exitCode == 0) {
-        generationState.llvm.additionalProducedBitcodeFiles += bitcode.absolutePath
+        generationState.llvm.additionalProducedBitcodeFiles += bitcode.absolutePathString()
     } else {
         // Note: ignoring compile errors intentionally.
         // In this case resulting framework will likely be unusable due to compile errors when importing it.
@@ -249,3 +257,5 @@ private fun ObjCExportedInterface.generateWorkaroundForSwiftSR10177(generationSt
 
 internal val NativeBackendPhaseContext.objCExportTopLevelNamePrefix: String
     get() = abbreviate(config.fullExportedNamePrefix)
+
+

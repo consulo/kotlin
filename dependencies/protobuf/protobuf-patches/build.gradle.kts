@@ -2,11 +2,8 @@ plugins {
     java
 }
 
-repositories {
-    mavenCentral()
-}
 
-val protobufVersion: String by rootProject.extra
+val protobufVersion = rootProject.extra["protobufVersion"] as String
 
 dependencies {
     implementation("com.google.protobuf:protobuf-java:$protobufVersion")

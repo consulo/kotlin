@@ -3,13 +3,12 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName")
-
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.gradle.api.JavaVersion
 import org.gradle.api.tasks.JavaExec
 import org.jetbrains.kotlin.gradle.dependencyResolutionTests.mavenCentralCacheRedirector
+import org.jetbrains.kotlin.gradle.dependencyResolutionTests.kotlinBuildDeps
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.configurationResult
 import org.jetbrains.kotlin.gradle.plugin.launch
@@ -75,7 +74,7 @@ class KotlinJvmRunTest {
 
     @Test
     fun `test - classpath - contains main compilation output by default`() = buildProjectWithMPP().runLifecycleAwareTest {
-        repositories.mavenLocal()
+        repositories.kotlinBuildDeps()
         repositories.mavenCentralCacheRedirector()
 
         val kotlin = project.multiplatformExtension
@@ -92,7 +91,7 @@ class KotlinJvmRunTest {
 
     @Test
     fun `test - classpath - contains main compilation runtime dependencies`() = buildProjectWithMPP().runLifecycleAwareTest {
-        repositories.mavenLocal()
+        repositories.kotlinBuildDeps()
         repositories.mavenCentralCacheRedirector()
 
         val kotlin = project.multiplatformExtension
@@ -122,7 +121,7 @@ class KotlinJvmRunTest {
 
     @Test
     fun `test - classpath - add file`() = buildProjectWithMPP().runLifecycleAwareTest {
-        repositories.mavenLocal()
+        repositories.kotlinBuildDeps()
         repositories.mavenCentralCacheRedirector()
         val kotlin = project.multiplatformExtension
         kotlin.jvm().mainRun { classpath(file("custom.jar")) }
@@ -141,7 +140,7 @@ class KotlinJvmRunTest {
 
     @Test
     fun `test - setClasspath`() = buildProjectWithMPP().runLifecycleAwareTest {
-        repositories.mavenLocal()
+        repositories.kotlinBuildDeps()
         repositories.mavenCentralCacheRedirector()
         val kotlin = project.multiplatformExtension
         kotlin.jvm().mainRun {

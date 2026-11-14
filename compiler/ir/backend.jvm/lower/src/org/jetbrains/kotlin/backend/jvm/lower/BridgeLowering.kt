@@ -12,7 +12,6 @@ import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irNot
 import org.jetbrains.kotlin.backend.common.phaser.PhasePrerequisites
 import org.jetbrains.kotlin.backend.jvm.*
-import org.jetbrains.kotlin.backend.jvm.MemoizedMultiFieldValueClassReplacements.RemappedParameter.RegularMapping
 import org.jetbrains.kotlin.backend.jvm.ir.*
 import org.jetbrains.kotlin.backend.jvm.mapping.MethodSignatureMapper
 import org.jetbrains.kotlin.codegen.AsmUtil
@@ -137,9 +136,16 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
         val bridgeTargets = irClass.functions.mapNotNullTo(SmartList()) { it.asBridgeTargetOrNull() }
         if (bridgeTargets.isEmpty()) return
 
-        bridgeTargets.forEach { createBridges(irClass, it.function, it.specialBridgeOrNull) }
+        // Only @JvmExposeBoxed targets consult this set, so skip building it in the common case.
+        val bridgeTargetFunctions: Set<IrSimpleFunction> =
+            if (bridgeTargets.any { it.function.hasAnnotation(JvmStandardClassIds.JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME) })
+                bridgeTargets.mapTo(hashSetOf()) { it.function }
+            else
+                emptySet()
 
-        if (irClass.isSingleFieldValueClass) {
+        bridgeTargets.forEach { createBridges(irClass, it.function, it.specialBridgeOrNull, bridgeTargetFunctions) }
+
+        if (irClass.isInlineClass) {
             // Inline class (implementing 'MutableCollection<T>', where T is Int or an inline class mapped to Int)
             // can contain a static replacement for a function 'remove', which forces value parameter boxing
             // in order to avoid signature clash with 'remove(int)' method in 'java.util.List'.
@@ -198,7 +204,12 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
         }
     }
 
-    private fun createBridges(irClass: IrClass, irFunction: IrSimpleFunction, specialBridge: SpecialBridge?) {
+    private fun createBridges(
+        irClass: IrClass,
+        irFunction: IrSimpleFunction,
+        specialBridge: SpecialBridge?,
+        bridgeTargetFunctions: Set<IrSimpleFunction>,
+    ) {
         // Track final overrides and bridges to avoid clashes
         val blacklist = mutableSetOf<Method>()
 
@@ -212,8 +223,20 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
         }
         // Add the current method to the blacklist if it is concrete or final
         val targetMethod = targetFunction.jvmMethod
-        if (!irFunction.isFakeOverride || irFunction.modality == Modality.FINAL)
+        val targetPropertyIsJvmFieldAnnotated = targetFunction.correspondingPropertySymbol?.owner?.hasJvmFieldAnnotation() == true
+        if (!irFunction.isFakeOverride || (irFunction.modality == Modality.FINAL && !targetPropertyIsJvmFieldAnnotated))
             blacklist += targetMethod
+
+        // Do not generate bridge methods for exposed methods, since we already generate bridges for
+        // their mangled counterparts. Generating both bridges will lead to declaration clash.
+        //
+        // However, if the exposed methods have separate signature to bridges, we need to generate bridges.
+        // For example, when the bridge is using Any?, but the exposed method uses String.
+        if (irFunction.hasAnnotation(JvmStandardClassIds.JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME) &&
+            irClass.hasNonExposedBridgeTargetCounterpart(irFunction, bridgeTargetFunctions)
+        ) {
+            return
+        }
 
         // Generate special bridges, but only in classes
         var bridgeTarget = irFunction
@@ -323,10 +346,6 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
             // for abstract methods overriding a special bridge for which we do not create a bridge due to,
             // e.g., signature clashes.
             return
-        } else if (irFunction.hasAnnotation(JvmStandardClassIds.JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME)) {
-            // Do not generate bridge methods for exposed methods, since we already generate bridges for
-            // their mangled counterparts. Generating both bridges will lead to declaration clash.
-            return
         }
 
         // For concrete fake overrides, some bridges may be inherited from the super-classes. Specifically, bridges for all
@@ -356,7 +375,10 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
             if (override.isFakeOverride) continue
 
             val signature = override.jvmMethod
-            if (targetMethod != signature && signature !in blacklist) {
+            if (signature in blacklist) continue
+
+            val isOverrideOfJvmFieldAnnotatedProperty = targetPropertyIsJvmFieldAnnotated && override.modality != Modality.FINAL
+            if (targetMethod != signature || isOverrideOfJvmFieldAnnotatedProperty) {
                 val bridge = generated.getOrPut(signature) {
                     Bridge(override, signature, isErroneousSpecialBridge)
                 }
@@ -371,6 +393,18 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
             .filter { it.signature !in blacklist }
             .forEach { irClass.addBridge(it, bridgeTarget) }
     }
+
+    // Checks whether an exposed method has a non-exposed counterpart that should own bridge generation.
+    private fun IrClass.hasNonExposedBridgeTargetCounterpart(
+        irFunction: IrSimpleFunction,
+        bridgeTargetFunctions: Set<IrSimpleFunction>,
+    ): Boolean =
+        functions.any {
+            it !== irFunction &&
+                    it in bridgeTargetFunctions &&
+                    it.attributeOwnerId == irFunction.attributeOwnerId &&
+                    !it.hasAnnotation(JvmStandardClassIds.JVM_EXPOSE_BOXED_ANNOTATION_FQ_NAME)
+        }
 
     private fun IrSimpleFunction.isClashingWithPotentialBridge(name: Name, signature: Method): Boolean =
         (!this.isFakeOverride || this.modality == Modality.FINAL) && this.name == name && this.jvmMethod == signature
@@ -443,14 +477,27 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
         }.apply {
             copyAttributes(target)
             copyParametersWithErasure(this@addBridge, bridge.overridden)
-            context.remapMultiFieldValueClassStructure(bridge.overridden, this, parametersMappingOrNull = null)
             copyBridgeAnnotationsIfNeeded(bridge.overridden, target, bridge.isErroneous)
+
+            val resolvedFakeOverride = target.resolveFakeOverride()
+            val resolvedCorrespondingProperty = resolvedFakeOverride?.correspondingPropertySymbol?.owner
 
             // If target is a throwing stub, bridge also should just throw UnsupportedOperationException.
             // Otherwise, it might throw ClassCastException when downcasting bridge argument to expected type.
             // See KT-49765
             body = if (target.isThrowingStub()) {
                 createThrowingStubBody(context, this)
+            } else if (resolvedCorrespondingProperty?.hasJvmFieldAnnotation() == true) {
+                // @JvmField properties do not get accessors on their own, so there is nothing to delegate to.
+                val backingField = resolvedCorrespondingProperty.backingField!!
+                context.createIrBuilder(symbol, startOffset, endOffset).run {
+                    val expr = when (resolvedFakeOverride) {
+                        resolvedCorrespondingProperty.getter -> irCastIfNeeded(irGetField(irGet(parameters[0]), backingField), returnType)
+                        resolvedCorrespondingProperty.setter -> irSetField(irGet(parameters[0]), backingField, irCastIfNeeded(irGet(parameters[1]), backingField.type))
+                        else -> error("resolved fake override must be either getter or setter")
+                    }
+                    irExprBody(expr)
+                }
             } else {
                 context.createIrBuilder(symbol, startOffset, endOffset).run {
                     irExprBody(delegatingCall(this@apply, target))
@@ -498,7 +545,6 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
                 ?: specialBridge.overridden.returnType.eraseTypeParameters()
         }.apply {
             copyParametersWithErasure(this@addSpecialBridge, specialBridge.overridden, specialBridge.substitutedParameterTypes)
-            context.remapMultiFieldValueClassStructure(specialBridge.overridden, this, parametersMappingOrNull = null)
             copyBridgeAnnotationsIfNeeded(specialBridge.overridden, target, true)
 
             body = context.createIrBuilder(symbol, startOffset, endOffset).irBlockBody {
@@ -577,8 +623,8 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
         irIfThen(context.irBuiltIns.unitType, irNot(irIs(irGet(parameter), type)), irReturn(defaultValue))
 
 
-    val ignoredMethodAnnotationsFilter: Function1<IrConstructorCall, Boolean>
-    val userIgnoredAnnotationsFilter: Function1<IrConstructorCall, Boolean>
+    val ignoredMethodAnnotationsFilter: Function1<IrAnnotation, Boolean>
+    val userIgnoredAnnotationsFilter: Function1<IrAnnotation, Boolean>
 
     init {
         val userIgnoredAnnotations =
@@ -586,7 +632,7 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
         userIgnoredAnnotationsFilter = when {
             userIgnoredAnnotations.isEmpty() -> { _ -> true }
             userIgnoredAnnotations.contains("*") -> { _ -> false }
-            else -> { it -> !userIgnoredAnnotations.contains(it.symbol.owner.parent.kotlinFqName.toString()) }
+            else -> { it -> !userIgnoredAnnotations.contains(it.classSymbol.owner.kotlinFqName.toString()) }
         }
 
         val kotlinIgnoredMethodAnnotations = setOf(
@@ -601,7 +647,7 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
         val ignoredMethodAnnotationNames = userIgnoredAnnotations + kotlinIgnoredMethodAnnotations.map { it.toString() }
         ignoredMethodAnnotationsFilter = when {
             userIgnoredAnnotations.contains("*") -> { _ -> false }
-            else -> { it -> !ignoredMethodAnnotationNames.contains(it.symbol.owner.parent.kotlinFqName.toString()) }
+            else -> { it -> !ignoredMethodAnnotationNames.contains(it.classSymbol.owner.kotlinFqName.toString()) }
         }
     }
 
@@ -619,11 +665,11 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
         EXACT_ANNOTATION_FQ_NAME,
     )
 
-    fun IrConstructorCall.isKotlinSpecialTypeAnnotation() =
-        symbol.owner.parent.kotlinFqName in kotlinSpecialTypeAnnotations
+    fun IrAnnotation.isKotlinSpecialTypeAnnotation() =
+        classId.asSingleFqName() in kotlinSpecialTypeAnnotations
 
-    fun IrConstructorCall.isThrowsAnnotation() =
-        symbol.owner.parent.kotlinFqName == JvmStandardClassIds.THROWS_ANNOTATION_FQ_NAME
+    fun IrAnnotation.isThrowsAnnotation() =
+        classId.asSingleFqName() == JvmStandardClassIds.THROWS_ANNOTATION_FQ_NAME
 
     // Copies annotations from the bridge target to the bridge function
     // Similarly to JVM, the following annotations are copied:
@@ -650,15 +696,9 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
         // while others (e.g user-defined) annotations are taken from the bridge target.
         returnType = returnType.withFilteredAnnotationsFrom(target.returnType)
 
-        val bridgeParamsStructure = getStructure(this) ?: this.parameters.map { RegularMapping(it) }
-        val targetParamsStructure = getStructure(target) ?: target.parameters.map { RegularMapping(it) }
-        for ((bridgeParameterStructure, targetParameterStructure) in bridgeParamsStructure zip targetParamsStructure) {
-            // in case of multi-field source parameters, use only the first one from the group
-            val targetParameter = targetParameterStructure.parameters.first()
-            for (bridgeParameter in bridgeParameterStructure.parameters) {
-                bridgeParameter.annotations = targetParameter.copyAnnotations(userIgnoredAnnotationsFilter)
-                bridgeParameter.type = bridgeParameter.type.withFilteredAnnotationsFrom(targetParameter.type)
-            }
+        for ([bridgeParameter, targetParameter] in this.parameters zip target.parameters) {
+            bridgeParameter.annotations = targetParameter.copyAnnotations(userIgnoredAnnotationsFilter)
+            bridgeParameter.type = bridgeParameter.type.withFilteredAnnotationsFrom(targetParameter.type)
         }
     }
 
@@ -708,44 +748,14 @@ internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPas
         superQualifierSymbol: IrClassSymbol? = null
     ) = irCastIfNeeded(irBlock {
         +irReturn(irCall(target, origin = IrStatementOrigin.BRIDGE_DELEGATION, superQualifierSymbol = superQualifierSymbol).apply {
-            if (getStructure(target) == null && getStructure(bridge) == null) {
-                for ((param, targetParam) in bridge.parameters.zip(target.parameters)) {
-                    val argument = irGet(param).let { argument ->
-                        if (param == bridge.dispatchReceiverParameter) argument else irCastIfNeeded(argument, targetParam.type.upperBound)
-                    }
-                    arguments[targetParam] = argument
+            for ([param, targetParam] in bridge.parameters.zip(target.parameters)) {
+                val argument = irGet(param).let { argument ->
+                    if (param == bridge.dispatchReceiverParameter) argument else irCastIfNeeded(argument, targetParam.type.upperBound)
                 }
-            } else {
-                this@irBlock.addBoxedAndUnboxedMfvcArguments(target, bridge, this)
+                arguments[targetParam] = argument
             }
         })
     }.unwrapBlock(), bridge.returnType.upperBound)
-
-    private fun getStructure(function: IrSimpleFunction): List<MemoizedMultiFieldValueClassReplacements.RemappedParameter>? {
-        val structure = function.parameterTemplateStructureOfThisNewMfvcBidingFunction ?: return null
-        require(structure.sumOf { it.parameters.size } == function.parameters.size) {
-            "Bad parameters structure: $structure"
-        }
-
-        return structure
-    }
-
-    private fun IrBlockBuilder.addBoxedAndUnboxedMfvcArguments(
-        target: IrSimpleFunction,
-        bridge: IrSimpleFunction,
-        irCall: IrCall
-    ) {
-        val parameters2arguments = this@BridgeLowering.context.multiFieldValueClassReplacements
-            .mapFunctionMfvcStructures(this, target, bridge) { sourceParameter, targetParameterType ->
-                if (sourceParameter == bridge.dispatchReceiverParameter) irGet(sourceParameter)
-                else irCastIfNeeded(irGet(sourceParameter), targetParameterType)
-            }
-        for ((parameter, argument) in parameters2arguments) {
-            if (argument != null) {
-                irCall.arguments[parameter] = argument
-            }
-        }
-    }
 
     private val IrFunction.jvmMethod: Method
         get() = context.bridgeLoweringCache.computeJvmMethod(this)

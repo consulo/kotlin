@@ -1,2 +1,5 @@
-KtNamedFunction(37,70): '/**'
-  null
+KDocName(45,54): 'ArrayList'
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/collections/ArrayList
+    ]

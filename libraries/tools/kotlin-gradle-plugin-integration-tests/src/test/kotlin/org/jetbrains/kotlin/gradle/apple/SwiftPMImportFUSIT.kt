@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.gradle.uklibs.publish
 import org.jetbrains.kotlin.gradle.util.runProcess
 import org.jetbrains.kotlin.statistics.metrics.BooleanMetrics
 import org.jetbrains.kotlin.statistics.metrics.NumericalMetrics
+import org.jetbrains.kotlin.testFederation.MustRunOnChangesInGradle
 import org.junit.jupiter.api.condition.OS
 import kotlin.io.path.createDirectories
 import kotlin.test.assertEquals
@@ -36,6 +37,7 @@ import kotlin.test.assertEquals
     enabledOnCI = [OS.MAC],
 )
 @SwiftPMImportGradlePluginTests
+@MustRunOnChangesInGradle
 class SwiftPMImportFUSIT : KGPBaseTest() {
 
     @GradleTest
@@ -49,13 +51,13 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
             buildScriptInjection {
                 project.applyMultiplatform {
                     iosSimulatorArm64()
+                    iosArm64()
                 }
             }
             assertEquals(
                 emptyList(),
                 collectFusEvents(
                     ":help",
-                    buildAction = BuildActions.build
                 ).filter { event ->
                     listOf(booleanFusEventName, numericFusEventName).any { eventName -> event.startsWith(eventName) }
                 },
@@ -73,7 +75,6 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
                 setOf("${booleanFusEventName}=true", "${numericFusEventName}=1"),
                 collectFusEvents(
                     ":help",
-                    buildAction = BuildActions.build
                 ).filter { event ->
                     listOf(booleanFusEventName, numericFusEventName).any { eventName -> event.startsWith(eventName) }
                 }.toSet(),
@@ -87,6 +88,7 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
                     buildScriptInjection {
                         project.applyMultiplatform {
                             iosSimulatorArm64()
+                            iosArm64()
                             swiftPMDependencies {
                                 swiftPackage(url = "https://foo.bar", version = "1.0.0", products = emptyList())
                             }
@@ -100,7 +102,6 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
                 setOf("${booleanFusEventName}=true", "${numericFusEventName}=2"),
                 collectFusEvents(
                     ":help",
-                    buildAction = BuildActions.build
                 ).filter { event ->
                     listOf(booleanFusEventName, numericFusEventName).any { eventName -> event.startsWith(eventName) }
                 }.toSet(),
@@ -123,6 +124,7 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
                     buildScriptInjection {
                         project.applyMultiplatform {
                             iosSimulatorArm64()
+                            iosArm64()
                             swiftPMDependencies {
                                 localSwiftPackage(
                                     directory = project.layout.projectDirectory.dir("packageDependency"),
@@ -141,6 +143,7 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
             buildScriptInjection {
                 project.applyMultiplatform {
                     iosSimulatorArm64()
+                    iosArm64()
                     sourceSets.commonMain.get().dependencies { implementation(project(":subproject")) }
                 }
             }
@@ -150,7 +153,6 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
                 listOf("${booleanFusEventName}=false"),
                 collectFusEvents(
                     ":generateSyntheticLinkageSwiftPMImportProjectForCinteropsAndLdDump",
-                    buildAction = BuildActions.build
                 ).filter { event ->
                     listOf(booleanFusEventName).any { eventName -> event.startsWith(eventName) }
                 },
@@ -166,6 +168,7 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
                 buildScriptInjection {
                     project.applyMultiplatform {
                         iosSimulatorArm64()
+                        iosArm64()
                         sourceSets.commonMain.get().compileStubSourceWithSourceSetName()
                         swiftPMDependencies {
                             localSwiftPackage(
@@ -188,7 +191,6 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
                 listOf("${booleanFusEventName}=true"),
                 collectFusEvents(
                     ":generateSyntheticLinkageSwiftPMImportProjectForCinteropsAndLdDump",
-                    buildAction = BuildActions.build
                 ).filter { event ->
                     listOf(booleanFusEventName).any { eventName -> event.startsWith(eventName) }
                 },
@@ -208,6 +210,7 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
             buildScriptInjection {
                 project.applyMultiplatform {
                     iosSimulatorArm64()
+                    iosArm64()
                     cocoapods.version = "1.0"
                 }
             }
@@ -215,7 +218,6 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
                 emptyList(),
                 collectFusEvents(
                     ":help",
-                    buildAction = BuildActions.build
                 ).filter { event ->
                     listOf(booleanFusEventName, numericFusEventName).any { eventName -> event.startsWith(eventName) }
                 },
@@ -231,7 +233,6 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
                 setOf("${booleanFusEventName}=true", "${numericFusEventName}=1"),
                 collectFusEvents(
                     ":help",
-                    buildAction = BuildActions.build
                 ).filter { event ->
                     listOf(booleanFusEventName, numericFusEventName).any { eventName -> event.startsWith(eventName) }
                 }.toSet(),
@@ -257,7 +258,6 @@ class SwiftPMImportFUSIT : KGPBaseTest() {
                 setOf("${booleanFusEventName}=true", "${numericFusEventName}=2"),
                 collectFusEvents(
                     ":help",
-                    buildAction = BuildActions.build
                 ).filter { event ->
                     listOf(booleanFusEventName, numericFusEventName).any { eventName -> event.startsWith(eventName) }
                 }.toSet(),

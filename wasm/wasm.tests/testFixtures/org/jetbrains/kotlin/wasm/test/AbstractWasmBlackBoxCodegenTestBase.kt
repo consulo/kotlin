@@ -5,28 +5,33 @@
 
 package org.jetbrains.kotlin.wasm.test
 
+import org.jetbrains.kotlin.js.test.converters.Fir2IrCliWebFacade
+import org.jetbrains.kotlin.js.test.converters.FirCliWebFacade
+import org.jetbrains.kotlin.js.test.converters.FirKlibSerializerCliWasmFacade
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.platform.wasm.WasmTarget
 import org.jetbrains.kotlin.test.Constructor
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.BlackBoxCodegenSuppressor
 import org.jetbrains.kotlin.test.backend.handlers.KlibBackendDiagnosticsHandler
-import org.jetbrains.kotlin.test.backend.handlers.NoIrCompilationErrorsHandler
+import org.jetbrains.kotlin.test.backend.ir.IrDiagnosticsHandler
 import org.jetbrains.kotlin.test.builders.*
 import org.jetbrains.kotlin.test.configuration.commonCodegenConfiguration
+import org.jetbrains.kotlin.test.configuration.commonIrHandlersForCodegenTest
 import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives.DIAGNOSTICS
 import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives.LANGUAGE
 import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives
 import org.jetbrains.kotlin.test.directives.model.ValueDirective
-import org.jetbrains.kotlin.test.frontend.fir.handlers.FirDiagnosticsHandler
+import org.jetbrains.kotlin.test.frontend.fir.handlers.*
 import org.jetbrains.kotlin.test.model.*
-import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerWithTargetBackendTest
+import org.jetbrains.kotlin.test.runners.AbstractKotlinCompilerWasmTest
 import org.jetbrains.kotlin.test.services.AdditionalSourceProvider
-import org.jetbrains.kotlin.test.services.LibraryProvider
+import org.jetbrains.kotlin.test.services.configuration.CommonEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.WasmFirstStageEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.WasmSecondStageEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.sourceProviders.AdditionalDiagnosticsSourceFilesProvider
 import org.jetbrains.kotlin.test.services.sourceProviders.CoroutineHelpersSourceFilesProvider
+import org.jetbrains.kotlin.test.testInfraError
 import org.jetbrains.kotlin.utils.bind
 import org.jetbrains.kotlin.wasm.test.converters.WasmPreSerializationLoweringFacade
 import org.jetbrains.kotlin.wasm.test.handlers.WasmDtsHandler
@@ -39,10 +44,8 @@ abstract class AbstractWasmBlackBoxCodegenTestBase<R : ResultingArtifact.Fronten
     private val targetPlatform: TargetPlatform,
     private val pathToTestDir: String,  // must be set to the common path prefix for all testroots provided for a certain class in GenerateWasmTests.kt
     private val testGroupOutputDirPrefix: String,
-) : AbstractKotlinCompilerWithTargetBackendTest(targetBackend) {
-    abstract val frontendFacade: Constructor<FrontendFacade<R>>
-    abstract val frontendToBackendConverter: Constructor<Frontend2BackendConverter<R, I>>
-    abstract val backendFacade: Constructor<BackendFacade<I, A>>
+) : AbstractKotlinCompilerWasmTest(targetBackend) {
+
     abstract val afterBackendFacade: Constructor<AbstractTestFacade<A, BinaryArtifacts.Wasm>>
     abstract val wasmBoxTestRunner: Constructor<AnalysisHandler<BinaryArtifacts.Wasm>>
     abstract val wasmTarget: WasmTarget
@@ -61,13 +64,11 @@ abstract class AbstractWasmBlackBoxCodegenTestBase<R : ResultingArtifact.Fronten
             targetFrontend,
             targetPlatform,
             wasmTarget,
-            frontendFacade,
-            frontendToBackendConverter,
-            backendFacade,
             additionalSourceProvider,
             customIgnoreDirective,
             additionalIgnoreDirectives,
         )
+        setupStepsForWasmFirstStageUpToSerialization()
         commonConfigurationForWasmSecondStageTest(
             pathToTestDir,
             testGroupOutputDirPrefix,
@@ -102,13 +103,10 @@ abstract class AbstractWasmBlackBoxCodegenTestBase<R : ResultingArtifact.Fronten
 }
 
 fun <R : ResultingArtifact.FrontendOutput<R>, I : ResultingArtifact.BackendInput<I>, A : ResultingArtifact.Binary<A>>
-        TestConfigurationBuilder.commonConfigurationForWasmFirstStageTest(
+        TestConfigurationBuilderBase<*, *>.commonConfigurationForWasmFirstStageTest(
     targetFrontend: FrontendKind<R>,
     targetPlatform: TargetPlatform,
     wasmTarget: WasmTarget,
-    frontendFacade: Constructor<FrontendFacade<R>>,
-    frontendToBackendConverter: Constructor<Frontend2BackendConverter<R, I>>,
-    backendFacade: Constructor<BackendFacade<I, A>>,
     additionalSourceProvider: Constructor<AdditionalSourceProvider>?,
     customIgnoreDirective: ValueDirective<TargetBackend>? = null,
     additionalIgnoreDirectives: List<ValueDirective<TargetBackend>>? = null,
@@ -124,6 +122,7 @@ fun <R : ResultingArtifact.FrontendOutput<R>, I : ResultingArtifact.BackendInput
     }
 
     useConfigurators(
+        ::CommonEnvironmentConfigurator,
         ::WasmFirstStageEnvironmentConfigurator.bind(wasmTarget),
     )
 
@@ -137,31 +136,49 @@ fun <R : ResultingArtifact.FrontendOutput<R>, I : ResultingArtifact.BackendInput
         useAdditionalSourceProviders(it)
     }
 
-    useAdditionalService(::LibraryProvider)
+    @OptIn(org.jetbrains.kotlin.test.TestInfrastructureInternals::class)
+    useModuleStructureTransformers(WasmCoroutineHelpersModuleTransformer)
 
-    useAfterAnalysisCheckers(
+    useFailureSuppressors(
         ::BlackBoxCodegenSuppressor.bind(customIgnoreDirective, additionalIgnoreDirectives),
     )
+}
 
-    facadeStep(frontendFacade)
+fun TestConfigurationBuilder.setupStepsForWasmFirstStageUpToSerialization(
+    includeBasicFirHandlers: Boolean = true,
+    includeDumpFirHandlers: Boolean = true
+) {
+    facadeStep(::FirCliWebFacade)
 
     firHandlersStep {
-        useHandlers(::FirDiagnosticsHandler)
+        if (includeBasicFirHandlers) {
+            useHandlers(
+                ::FirCfgConsistencyHandler,
+                ::FirResolvedTypesVerifier,
+                ::FirDiagnosticsHandler,
+            )
+        }
+        if (includeDumpFirHandlers) {
+            useHandlers(
+                ::FirDumpHandler,
+                ::FirCfgDumpHandler,
+            )
+        }
+
     }
 
-    facadeStep(frontendToBackendConverter)
+    facadeStep(::Fir2IrCliWebFacade)
     irHandlersStep {
-        useHandlers(::NoIrCompilationErrorsHandler)
+        commonIrHandlersForCodegenTest()
     }
 
     facadeStep(::WasmPreSerializationLoweringFacade)
     loweredIrHandlersStep {
-        useHandlers(::NoIrCompilationErrorsHandler)
+        commonIrHandlersForCodegenTest()
+        useHandlers(::IrDiagnosticsHandler)
     }
 
-    loweredIrHandlersStep()
-
-    facadeStep(backendFacade)
+    facadeStep(::FirKlibSerializerCliWasmFacade)
     klibArtifactsHandlersStep {
         useHandlers(::KlibBackendDiagnosticsHandler)
     }
@@ -175,8 +192,8 @@ fun TestConfigurationBuilder.commonConfigurationForWasmSecondStageTest(
     pathToTestDir: String,
     testGroupOutputDirPrefix: String,
 ) {
-    val pathToRootOutputDir = System.getProperty("kotlin.wasm.test.root.out.dir") ?: error("'kotlin.wasm.test.root.out.dir' is not set")
-    val pathToNodeDir = System.getProperty("kotlin.wasm.test.node.dir") ?: error("'kotlin.wasm.test.node.dir' is not set")
+    val pathToRootOutputDir = System.getProperty("kotlin.wasm.test.root.out.dir") ?: testInfraError("'kotlin.wasm.test.root.out.dir' is not set")
+    val pathToNodeDir = System.getProperty("kotlin.wasm.test.node.dir") ?: testInfraError("'kotlin.wasm.test.node.dir' is not set")
     defaultDirectives {
         WasmEnvironmentConfigurationDirectives.PATH_TO_ROOT_OUTPUT_DIR with pathToRootOutputDir
         WasmEnvironmentConfigurationDirectives.PATH_TO_NODE_DIR with pathToNodeDir

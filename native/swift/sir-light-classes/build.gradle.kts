@@ -2,8 +2,9 @@ import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -38,9 +39,6 @@ projectTests {
         allowUnsafe = true, // KT-85212
     ) {
         dependsOn(":kotlin-native:distInvalidateStaleCaches")
-        extensions.configure<TestInputsCheckExtension>("testInputsCheck") {
-            allowFlightRecorder.set(true)
-        }
     }
 }
 
@@ -48,8 +46,6 @@ sourceSets {
     "main" { projectDefault() }
     "test" { projectDefault() }
 }
-
-testsJar()
 
 publish()
 

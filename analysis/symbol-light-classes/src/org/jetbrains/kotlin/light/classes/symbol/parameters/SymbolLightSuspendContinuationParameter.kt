@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2024 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2026 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -9,26 +9,28 @@ import com.intellij.psi.PsiIdentifier
 import com.intellij.psi.PsiModifierList
 import com.intellij.psi.PsiType
 import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.components.asPsiType
+import org.jetbrains.kotlin.analysis.api.components.buildClassType
 import org.jetbrains.kotlin.analysis.api.symbols.KaNamedFunctionSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KaSymbolVisibility
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KaSymbolPointer
 import org.jetbrains.kotlin.asJava.classes.lazyPub
 import org.jetbrains.kotlin.codegen.coroutines.SUSPEND_FUNCTION_COMPLETION_PARAMETER_NAME
-import org.jetbrains.kotlin.light.classes.symbol.*
 import org.jetbrains.kotlin.light.classes.symbol.annotations.EmptyAnnotationsProvider
 import org.jetbrains.kotlin.light.classes.symbol.annotations.GranularAnnotationsBox
 import org.jetbrains.kotlin.light.classes.symbol.annotations.NullabilityAnnotationsProvider
 import org.jetbrains.kotlin.light.classes.symbol.methods.SymbolLightMethodBase
 import org.jetbrains.kotlin.light.classes.symbol.modifierLists.SymbolLightClassModifierList
+import org.jetbrains.kotlin.light.classes.symbol.utils.*
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.psi.KtParameter
 
 internal class SymbolLightSuspendContinuationParameter(
-    private val functionSymbolPointer: KaSymbolPointer<KaNamedFunctionSymbol>,
+    override val symbolPointer: KaSymbolPointer<KaNamedFunctionSymbol>,
     private val containingMethod: SymbolLightMethodBase,
-) : SymbolLightParameterBase(containingMethod) {
-    private inline fun <T> withFunctionSymbol(crossinline action: KaSession.(KaNamedFunctionSymbol) -> T): T {
-        return functionSymbolPointer.withSymbol(ktModule, action)
+) : SymbolLightParameterBase<KaNamedFunctionSymbol>(containingMethod) {
+    private inline fun <T> withFunctionSymbol(crossinline action: context(KaSession) (KaNamedFunctionSymbol) -> T): T {
+        return symbolPointer.withSymbol(useSiteModule, action)
     }
 
     override fun getName(): String = SUSPEND_FUNCTION_COMPLETION_PARAMETER_NAME
@@ -76,5 +78,5 @@ internal class SymbolLightSuspendContinuationParameter(
 
     override fun hashCode(): Int = name.hashCode() * 31 + containingMethod.hashCode()
 
-    override fun isValid(): Boolean = super.isValid() && functionSymbolPointer.isValid(ktModule)
+    override fun isValid(): Boolean = super.isValid() && symbolPointer.isValid(useSiteModule)
 }

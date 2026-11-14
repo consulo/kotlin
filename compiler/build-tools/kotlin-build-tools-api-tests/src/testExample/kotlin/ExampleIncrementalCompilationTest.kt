@@ -7,14 +7,14 @@ package org.jetbrains.kotlin.buildtools.tests.compilation
 
 import org.jetbrains.kotlin.buildtools.api.BaseIncrementalCompilationConfiguration
 import org.jetbrains.kotlin.buildtools.api.SourcesChanges
-import org.jetbrains.kotlin.buildtools.api.jvm.JvmSnapshotBasedIncrementalCompilationConfiguration.Companion.KEEP_IC_CACHES_IN_MEMORY
 import org.jetbrains.kotlin.buildtools.tests.CompilerExecutionStrategyConfiguration
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertCompiledSources
 import org.jetbrains.kotlin.buildtools.tests.compilation.assertions.assertLogContainsPatterns
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.DefaultStrategyAgnosticCompilationTest
 import org.jetbrains.kotlin.buildtools.tests.compilation.model.LogLevel
-import org.jetbrains.kotlin.buildtools.tests.compilation.model.project
+import org.jetbrains.kotlin.buildtools.tests.compilation.model.jvmProject
 import org.jetbrains.kotlin.test.TestMetadata
+import org.jetbrains.kotlin.testFederation.MustRunAlways
 import org.junit.jupiter.api.DisplayName
 import kotlin.io.path.readText
 import kotlin.io.path.writeText
@@ -22,13 +22,14 @@ import kotlin.io.path.writeText
 /**
  * Avoid using this DSL unless you face a scenario that can't be solved within the scenario DSL
  */
+@MustRunAlways
 class ExampleIncrementalCompilationTest : BaseCompilationTest() {
     @DisplayName("Sample IC test with a single module")
     @DefaultStrategyAgnosticCompilationTest
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testSingleModule(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        project(strategyConfig) {
-            val module1 = module("jvm-module-1")
+        jvmProject(strategyConfig) {
+            val module1 = module("basic-multimodule-project/module-1")
 
             // this is not the scenario DSL, so the module is not built at this moment
 
@@ -48,11 +49,11 @@ class ExampleIncrementalCompilationTest : BaseCompilationTest() {
 
     @DisplayName("Sample IC test with 2 modules and custom compilation options")
     @DefaultStrategyAgnosticCompilationTest
-    @TestMetadata("jvm-module-1")
+    @TestMetadata("basic-multimodule-project/module-1")
     fun testTwoModules(strategyConfig: CompilerExecutionStrategyConfiguration) {
-        project(strategyConfig) {
-            val module1 = module("jvm-module-1")
-            val module2 = module("jvm-module-2", listOf(module1))
+        jvmProject(strategyConfig) {
+            val module1 = module("basic-multimodule-project/module-1")
+            val module2 = module("basic-multimodule-project/module-2", listOf(module1))
 
             // this is not the scenario DSL, so the modules are not built at this moment
 

@@ -8,10 +8,6 @@ package org.jetbrains.kotlin.backend.jvm.lower
 import org.jetbrains.kotlin.backend.common.ClassLoweringPass
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
-import org.jetbrains.kotlin.backend.jvm.ir.addJavaLangDeprecatedAnnotation
-import org.jetbrains.kotlin.backend.jvm.ir.createJvmIrBuilder
-import org.jetbrains.kotlin.config.LanguageFeature
-import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irExprBody
 import org.jetbrains.kotlin.ir.builders.irGetField
@@ -20,6 +16,7 @@ import org.jetbrains.kotlin.ir.declarations.IrDeclarationContainer
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.isObject
+import org.jetbrains.kotlin.ir.util.parentAsClass
 
 internal class ObjectClassLowering(val context: JvmBackendContext) : ClassLoweringPass {
     private val pendingTransformations = mutableListOf<Function0<Unit>>()
@@ -56,18 +53,15 @@ internal class ObjectClassLowering(val context: JvmBackendContext) : ClassLoweri
             }
         }
 
-        // Mark object instance field as deprecated if the object visibility is private or protected,
-        // and ProperVisibilityForCompanionObjectInstanceField language feature is not enabled.
-        if (!context.config.languageVersionSettings.supportsFeature(LanguageFeature.ProperVisibilityForCompanionObjectInstanceField) &&
-            (irClass.visibility == DescriptorVisibilities.PRIVATE || irClass.visibility == DescriptorVisibilities.PROTECTED)
-        ) {
-            with(context.createJvmIrBuilder(irClass.symbol)) {
-                publicInstanceField.addJavaLangDeprecatedAnnotation()
-            }
-        }
-
         pendingTransformations.add {
-            (publicInstanceField.parent as IrDeclarationContainer).declarations.add(0, publicInstanceField)
+            val indexOfPublicInstanceField = if (publicInstanceField.parent === irClass.parent) {
+                // Insert public instance field right after the companion object declaration to preserve
+                // the order of initialization with respect to companion blocks.
+                irClass.parentAsClass.declarations.indexOf(irClass).also { require(it != -1) } + 1
+            } else {
+                0
+            }
+            (publicInstanceField.parent as IrDeclarationContainer).declarations.add(indexOfPublicInstanceField, publicInstanceField)
         }
     }
 }

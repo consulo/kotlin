@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +FunctionReferenceWithDefaultValueAsOtherType
+// RUN_PIPELINE_TILL: CODEGEN
 
 fun foo(a: String, b: Int = 5): String {
     return a + b

@@ -183,7 +183,7 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=WithParameterKt]]
     TYPE_REFERENCE
       USER_TYPE
         REFERENCE_EXPRESSION[referencedName=Any]
-  FUN[fqName=foo, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
+  FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=x]
         TYPE_REFERENCE
@@ -219,7 +219,7 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=WithParameterKt]]
                   USER_TYPE
                     REFERENCE_EXPRESSION[referencedName=Unit]
     REFERENCE_EXPRESSION[referencedName=x]
-  FUN[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
+  FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=true, hasValOrVar=false, isMutable=false, name=x]
         TYPE_REFERENCE
@@ -239,6 +239,9 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=WithParameterKt]]
                     REFERENCE_EXPRESSION[referencedName=Bar]
               VALUE_ARGUMENT_LIST
                 VALUE_ARGUMENT[isSpread=false]
+                  BINARY_EXPRESSION
+                    INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=10]
+                    OPERATION_REFERENCE[operationToken=PLUS, referencedName=+]
           FUNCTION_TYPE
             VALUE_PARAMETER_LIST
               VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=null]
@@ -250,11 +253,11 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=WithParameterKt]]
             TYPE_REFERENCE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=Unit]
-  FUN[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
+  FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
     VALUE_PARAMETER_LIST
-  FUN[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
+  FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
     VALUE_PARAMETER_LIST
-  CLASS[classId=/A, fqName=A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isLocal=false, isTopLevel=true, name=A, superNames=[]]
+  CLASS[classId=/A, fqName=A, isClsStubCompiledToJvmDefaultImplementation=false, isInterface=false, isTopLevel=true, name=A, superNames=[]]
     MODIFIER_LIST[abstract]
     CLASS_BODY
       PROPERTY[fqName=A.x, hasBackingField=null, hasDelegate=false, hasDelegateExpression=false, hasInitializer=false, hasReturnTypeRef=true, isExtension=false, isTopLevel=false, isVar=true, name=x]
@@ -292,7 +295,7 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=WithParameterKt]]
             TYPE_REFERENCE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=Int]
-  FUN[fqName=foo, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
+  FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=x]
         MODIFIER_LIST[vararg]
@@ -331,7 +334,8 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=WithParameterKt]]
             TYPE_REFERENCE
               USER_TYPE
                 REFERENCE_EXPRESSION[referencedName=Unit]
-  FUN[fqName=foo, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
+    INTEGER_CONSTANT[kind=INTEGER_CONSTANT, value=10]
+  FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
     VALUE_PARAMETER_LIST
     TYPE_REFERENCE
       MODIFIER_LIST[suspend]
@@ -353,7 +357,7 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=WithParameterKt]]
         TYPE_REFERENCE
           USER_TYPE
             REFERENCE_EXPRESSION[referencedName=Unit]
-  FUN[fqName=foo, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
+  FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=false, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
     VALUE_PARAMETER_LIST
     TYPE_REFERENCE
       FUNCTION_TYPE
@@ -385,43 +389,17 @@ FILE[kind=Facade[packageFqName=<root>, facadeFqName=WithParameterKt]]
         REFERENCE_EXPRESSION[referencedName=Any]
     PROPERTY_ACCESSOR[hasBody=true, hasNoExpressionBody=false, isGetter=true, mayHaveContract=false]
       VALUE_PARAMETER_LIST
-      FUN[fqName=null, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=false, mayHaveContract=false, name=null]
-        VALUE_PARAMETER_LIST
-        TYPE_REFERENCE
-          MODIFIER_LIST[]
-            ANNOTATION_ENTRY[hasValueArguments=true, shortName=Foo]
-              CONSTRUCTOR_CALLEE
-                TYPE_REFERENCE
-                  USER_TYPE
-                    REFERENCE_EXPRESSION[referencedName=Foo]
-              VALUE_ARGUMENT_LIST
-                VALUE_ARGUMENT[isSpread=false]
-                  STRING_TEMPLATE
-          FUNCTION_TYPE
-            VALUE_PARAMETER_LIST
-              VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=null]
-                TYPE_REFERENCE
-                  USER_TYPE
-                    REFERENCE_EXPRESSION[referencedName=Coomparable]
-                    TYPE_ARGUMENT_LIST
-                      TYPE_PROJECTION[projectionKind=NONE]
-                        TYPE_REFERENCE
-                          USER_TYPE
-                            REFERENCE_EXPRESSION[referencedName=Nothing]
-            TYPE_REFERENCE
-              USER_TYPE
-                REFERENCE_EXPRESSION[referencedName=Unit]
-  FUN[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
+  FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
     VALUE_PARAMETER_LIST
-    OBJECT_DECLARATION[classId=null, fqName=null, isLocal=true, isObjectLiteral=true, isTopLevel=false, name=null, superNames=[]]
+    OBJECT_DECLARATION[classId=null, fqName=null, isObjectLiteral=true, isTopLevel=false, name=null, superNames=[]]
       CLASS_BODY
-  FUN[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
+  FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=x]
         TYPE_REFERENCE
           USER_TYPE
             REFERENCE_EXPRESSION[referencedName=Any]
-  FUN[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
+  FUNCTION[fqName=foo, hasBody=true, hasNoExpressionBody=true, hasTypeParameterListBeforeFunctionName=false, isExtension=false, isTopLevel=true, mayHaveContract=false, name=foo]
     VALUE_PARAMETER_LIST
       VALUE_PARAMETER[fqName=null, hasDefaultValue=false, hasValOrVar=false, isMutable=false, name=y]
         TYPE_REFERENCE

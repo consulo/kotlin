@@ -19,9 +19,9 @@
 
 package org.jetbrains.kotlin.powerassert.diagram
 
-import org.jetbrains.kotlin.fir.pipeline.wasInlined
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.evaluation.wasInlined
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.util.dump
@@ -62,6 +62,10 @@ class RootNode<T>(
     override fun toString() = "RootNode"
 }
 
+/**
+ * Synthetic nodes represent expressions which are not visible
+ * and does not require a temporary variable.
+ */
 class SyntheticNode(
     val expression: IrExpression,
 ) : Node() {
@@ -69,6 +73,12 @@ class SyntheticNode(
     override fun toString() = "SyntheticNode(${expression.dumpKotlinLike()})"
 }
 
+/**
+ * Constant nodes represent expressions which are possibly visible
+ * and require a temporary variable.
+ *
+ * Results in a `LiteralExpression` in an `Explanation`.
+ */
 class ConstantNode(
     val expression: IrExpression,
 ) : Node() {
@@ -76,6 +86,10 @@ class ConstantNode(
     override fun toString() = "ConstantNode(${expression.dumpKotlinLike()})"
 }
 
+/**
+ * Hidden nodes represent expressions which are not visible
+ * and require a temporary variable.
+ */
 class HiddenNode(
     val expression: IrExpression,
 ) : Node() {
@@ -83,6 +97,12 @@ class HiddenNode(
     override fun toString() = "HiddenNode(${expression.dumpKotlinLike()})"
 }
 
+/**
+ * Expression nodes represent expressions which are visible
+ * and require a temporary variable.
+ *
+ * Results in a `ValueExpression` or `EqualityExpression` in an `Explanation`.
+ */
 class ExpressionNode(
     val expression: IrExpression,
 ) : Node() {
@@ -90,11 +110,17 @@ class ExpressionNode(
     override fun toString() = "ExpressionNode(${expression.dumpKotlinLike()})"
 }
 
+/**
+ * Chain nodes represent a sequence of nodes executed in order.
+ */
 class ChainNode : Node() {
     override fun isVisible(): Boolean = children.any { it.isVisible() }
     override fun toString() = "ChainNode"
 }
 
+/**
+ * When nodes represent 'when' expressions and all conditions and branches.
+ */
 class WhenNode(
     val expression: IrWhen,
     val subject: IrVariable?,
@@ -103,6 +129,9 @@ class WhenNode(
     override fun toString() = "WhenNode(${expression.dumpKotlinLike()})"
 }
 
+/**
+ * Elvis nodes represent '?:' expressions and the null and non-null branches.
+ */
 class ElvisNode(
     val expression: IrExpression,
     val variable: IrVariable,
@@ -136,11 +165,16 @@ fun <T> buildTree(
                 element.acceptChildren(this, data)
             }
 
+            override fun visitRichCallableReference(expression: IrRichCallableReference<*>, data: Node) {
+                val chainNode = data as? ChainNode ?: ChainNode().also { data.addChild(it) }
+                for (boundValue in expression.boundValues) {
+                    boundValue.accept(this, data)
+                }
+                chainNode.addChild(ExpressionNode(expression))
+            }
+
             override fun visitExpression(expression: IrExpression, data: Node) {
-                if (expression is IrGetObjectValue) {
-                    // Do not transform object access.
-                    data.addChild(HiddenNode(expression))
-                } else if (expression is IrFunctionExpression) {
+                if (expression is IrFunctionExpression) {
                     if (expression.isInlineParameter()) {
                         // Completely skip this argument so it can still be inlined.
                         // This may result in the function call arguments being reordered,
@@ -157,6 +191,9 @@ fun <T> buildTree(
                     data.addChild(HiddenNode(expression))
                 } else if (expression.isWhenSubjectAccess()) {
                     // Do not diagram implicit when-subjects.
+                    data.addChild(HiddenNode(expression))
+                } else if (expression.startOffset < 0) {
+                    // Do not diagram expressions without source.
                     data.addChild(HiddenNode(expression))
                 } else {
                     val chainNode = data as? ChainNode ?: ChainNode().also { data.addChild(it) }
@@ -180,6 +217,7 @@ fun <T> buildTree(
                         variable.acceptChildren(this, chainNode)
                         chainNode.addChild(ExpressionNode(expression))
                     }
+
                     IrStatementOrigin.ELVIS -> {
                         // Elvis operators are handled with a special node
                         val statements = expression.statements
@@ -219,6 +257,7 @@ fun <T> buildTree(
                             "Expected the when of the elvis expression to consist of exactly two branches.\n${expression.dump()}"
                         }
                     }
+
                     IrStatementOrigin.WHEN -> {
                         // When-with-subject expressions are handled with a special node.
                         val statements = expression.statements
@@ -234,8 +273,17 @@ fun <T> buildTree(
                         variable.acceptChildren(this, chainNode)
                         processWhen(conditional, chainNode, variable)
                     }
+
+                    IrStatementOrigin.OBJECT_LITERAL -> {
+                        // Object literals should not be included in the diagram.
+                        // The source code for the literal will be visible in the diagram,
+                        // and that is likely more useful than a 'toString()' result.
+                        data.addChild(HiddenNode(expression))
+                    }
+
                     else -> {
-                        // Everything else is considered unsafe and terminates the expression tree
+                        // Everything else is considered unsafe and terminates the expression tree,
+                        // but should be included in the diagram to be safe.
                         data.addChild(ExpressionNode(expression))
                     }
                 }
@@ -298,6 +346,11 @@ fun <T> buildTree(
                 } else {
                     data.addChild(ConstantNode(expression))
                 }
+            }
+
+            override fun visitSingletonReference(expression: IrGetSingletonValue, data: Node) {
+                // Do not transform object or enum entry access.
+                data.addChild(HiddenNode(expression))
             }
 
             override fun visitTry(aTry: IrTry, data: Node) {

@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.native.interop.indexer
 import clang.*
 import clang.CXIdxEntityKind.CXIdxEntity_ObjCClass
 import clang.CXIdxEntityKind.CXIdxEntity_ObjCProtocol
+import clang.CXIdxEntityKind.CXIdxEntity_Enum
 import clang.CXIdxEntityKind.CXIdxEntity_Struct
 import clang.CXIdxEntityKind.CXIdxEntity_Union
 import kotlinx.cinterop.*
@@ -321,6 +322,21 @@ fun visitChildren(parent: CValue<CXCursor>, visitor: CursorVisitor) {
 
 internal fun visitChildren(translationUnit: CXTranslationUnit, visitor: CursorVisitor) =
         visitChildren(clang_getTranslationUnitCursor(translationUnit), visitor)
+
+internal typealias MacroVisitor = (spelling: CPointer<ByteVar>?, location: CValue<CXSourceLocation>, file: ClangFile?) -> Unit
+
+internal fun visitObjectLikeMacroDefinitions(translationUnit: CXTranslationUnit, excludeSystemHeaders: Boolean, visitor: MacroVisitor) {
+    val visitorStableRef = StableRef.create(visitor)
+    try {
+        val clientData = visitorStableRef.asCPointer()
+        clang_visitObjectLikeMacroDefinitions(translationUnit, excludeSystemHeaders, staticCFunction { clientDataIt, spelling, location, file ->
+            val visitorIt = clientDataIt!!.asStableRef<MacroVisitor>().get()
+            visitorIt(spelling, location, file?.asClangFile())
+        }, clientData)
+    } finally {
+        visitorStableRef.dispose()
+    }
+}
 
 internal fun getFields(type: CValue<CXType>): List<CValue<CXCursor>> {
     val result = mutableListOf<CValue<CXCursor>>()
@@ -679,10 +695,12 @@ data class TypesDefinitions(
         private val protocolDefinitionBySpelling: Map<String, CValue<CXCursor>>,
         private val classDefinitionBySpelling: Map<String, CValue<CXCursor>>,
         private val structDefinitionBySpelling: Map<String, CValue<CXCursor>>,
+        private val enumDefinitionBySpelling: Map<String, CValue<CXCursor>>,
 ) {
     fun protocolDefinition(spelling: String): CValue<CXCursor>? = getIfNonEmpty(spelling, protocolDefinitionBySpelling)
     fun classDefinition(spelling: String): CValue<CXCursor>? = getIfNonEmpty(spelling, classDefinitionBySpelling)
     fun structDefinition(spelling: String): CValue<CXCursor>? = getIfNonEmpty(spelling, structDefinitionBySpelling)
+    fun enumDefinition(spelling: String): CValue<CXCursor>? = getIfNonEmpty(spelling, enumDefinitionBySpelling)
 
     private fun getIfNonEmpty(value: String, map: Map<String, CValue<CXCursor>>): CValue<CXCursor>? =
             /**
@@ -713,6 +731,7 @@ fun indexTranslationUnitsForTypesDefinitions(
     val protocolDefinitionBySpelling = mutableMapOf<String, CValue<CXCursor>>()
     val classDefinitionBySpelling = mutableMapOf<String, CValue<CXCursor>>()
     val structDefinitionBySpelling = mutableMapOf<String, CValue<CXCursor>>()
+    val enumDefinitionBySpelling = mutableMapOf<String, CValue<CXCursor>>()
 
     translationUnits.forEach {
         indexTranslationUnit(index, it, CXIndexOpt_IndexGeneratedDeclarations, object : Indexer {
@@ -725,17 +744,22 @@ fun indexTranslationUnitsForTypesDefinitions(
                 when (kind) {
                     CXIdxEntity_Union, CXIdxEntity_Struct -> {
                         if (!isStructDeclForward(cursor)) {
-                            structDefinitionBySpelling.getOrPut(getCursorSpelling(cursor)) { cursor }
+                            structDefinitionBySpelling.computeIfAbsent(getCursorSpelling(cursor)) { cursor }
                         }
                     }
                     CXIdxEntity_ObjCClass -> {
                         if (cursor.kind == CXCursorKind.CXCursor_ObjCInterfaceDecl && !isObjCInterfaceDeclForward(cursor)) {
-                            classDefinitionBySpelling.getOrPut(getCursorSpelling(cursor)) { cursor }
+                            classDefinitionBySpelling.computeIfAbsent(getCursorSpelling(cursor)) { cursor }
                         }
                     }
                     CXIdxEntity_ObjCProtocol -> {
                         if (cursor.kind == CXCursorKind.CXCursor_ObjCProtocolDecl && !isObjCProtocolDeclForward(cursor)) {
-                            protocolDefinitionBySpelling.getOrPut(getCursorSpelling(cursor)) { cursor }
+                            protocolDefinitionBySpelling.computeIfAbsent(getCursorSpelling(cursor)) { cursor }
+                        }
+                    }
+                    CXIdxEntity_Enum -> {
+                        if (!isEnumDeclForward(cursor)) {
+                            enumDefinitionBySpelling.computeIfAbsent(getCursorSpelling(cursor)) { cursor }
                         }
                     }
                     else -> {}
@@ -748,6 +772,7 @@ fun indexTranslationUnitsForTypesDefinitions(
             protocolDefinitionBySpelling = protocolDefinitionBySpelling,
             classDefinitionBySpelling = classDefinitionBySpelling,
             structDefinitionBySpelling = structDefinitionBySpelling,
+            enumDefinitionBySpelling = enumDefinitionBySpelling,
     )
 }
 
@@ -843,9 +868,7 @@ class ClangFile(val cxFile: CXFile) {
         return other is ClangFile && (clang_File_isEqual(cxFile, other.cxFile) != 0)
     }
 
-    override fun hashCode(): Int = cValue<CXFileUniqueID> {
-        clang_getFileUniqueID(cxFile, ptr)
-    }.hashCode()
+    override fun hashCode(): Int = clang_getFileUniqueIDHash(cxFile)
 
     override fun toString(): String = path
 }
@@ -1005,9 +1028,12 @@ fun NativeLibrary.getHeaderPaths(): NativeLibraryHeaders<String> {
         val translationUnit =
                 this.parse(index, options = CXTranslationUnit_DetailedPreprocessingRecord).ensureNoCompileErrors()
         try {
-            val (headers, _) = UnitsHolder(index).use { unitsHolder ->
-                getHeadersAndUnits(this, index, translationUnit, unitsHolder)
-            }
+            (
+                val headers, val _ = ownTranslationUnits
+            ) =
+                UnitsHolder(index).use { unitsHolder ->
+                    getHeadersAndUnits(this, index, translationUnit, unitsHolder)
+                }
 
             fun getPath(file: ClangFile?) = if (file == null) "<builtins>" else file.canonicalPath
             return NativeLibraryHeaders(
@@ -1023,8 +1049,24 @@ fun NativeLibrary.getHeaderPaths(): NativeLibraryHeaders<String> {
     }
 }
 
-fun ObjCMethod.replaces(other: ObjCMethod): Boolean =
+fun ObjCMethodOrUnavailableMethod.replaces(other: ObjCMethodOrUnavailableMethod): Boolean =
         this.isClass == other.isClass && this.selector == other.selector
+
+/**
+ * Whether this method is declared identically to [other] apart from its [ObjCMethod.swiftName].
+ *
+ * Used to drop a subclass's redeclaration of an inherited method: in Kotlin such a redeclaration is
+ * already represented by the inherited member, so re-emitting it would produce a spurious duplicate.
+ *
+ * `swiftName` is intentionally excluded from the comparison. Objective-C/Swift treat the Swift name of an
+ * overriding member as inherited from the declaration that introduces it: e.g. `NSArrayController.addObject:`,
+ * which redeclares (overrides) `NSObjectController.addObject:` without its own `swift_name`, still exposes the
+ * Swift name that API notes attach to the base declaration. The two therefore denote the same member here,
+ * even though their recorded `swiftName`s differ. Comparing via data class `equals` (which does include
+ * `swiftName`) would miss this and keep the duplicate.
+ */
+fun ObjCMethod.isSameDeclarationIgnoringSwiftName(other: ObjCMethod): Boolean =
+        this.copy(swiftName = other.swiftName) == other
 
 fun ObjCProperty.replaces(other: ObjCProperty): Boolean =
         this.getter.replaces(other.getter)
@@ -1089,6 +1131,7 @@ fun isObjCInterfaceDeclForward(cursor: CValue<CXCursor>): Boolean {
 private fun isDeclForward(cursor: CValue<CXCursor>): Boolean = clang_isCursorDefinition(cursor) == 0
 fun isObjCProtocolDeclForward(cursor: CValue<CXCursor>): Boolean = isDeclForward(cursor)
 fun isStructDeclForward(cursor: CValue<CXCursor>): Boolean = isDeclForward(cursor)
+fun isEnumDeclForward(cursor: CValue<CXCursor>): Boolean = isDeclForward(cursor)
 
 fun getUsr(cursor: CValue<CXCursor>): String = clang_getCursorUSR(cursor).convertAndDispose()
 

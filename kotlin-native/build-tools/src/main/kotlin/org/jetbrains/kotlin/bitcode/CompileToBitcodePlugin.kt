@@ -297,7 +297,7 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) :
          */
         val task = project.tasks.register<LlvmLink>("llvmLink${module.name.capitalized}${name.capitalized}${_target.toString().capitalized}") {
             this.description = "Link '${module.name}' bitcode files (${this@SourceSet.name} sources) into a single bitcode file for $_target"
-            this.inputFiles.from(compileTask)
+            this.inputDirectory.set(compileTask.map { it.outputDirectory.get() })
             this.outputFile.set(this@SourceSet.outputFile)
             this.arguments.set(module.linkerArgs)
             this.reproducibilityRootsMap.set(this@SourceSet.reproducibilityRootsMap)
@@ -525,6 +525,8 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) :
 
         private val project by owner::project
 
+        private val nativeDependencies = project.extensions.getByType<NativeDependenciesExtension>()
+
         // A shared service used to limit parallel execution of test binaries.
         private val runGTestSemaphore = project.gradle.sharedServices.registerIfAbsent("runGTestSemaphore", RunGTestSemaphore::class.java) {
             // Probably can be made configurable if test reporting moves away from simple gtest stdout dumping.
@@ -617,6 +619,7 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) :
                 group = VERIFICATION_BUILD_TASK_GROUP
                 this.target.set(target)
                 this.sanitizer.set(sanitizer)
+                dependsOn(nativeDependencies.targetDependency(_target))
                 this.outputFile.set(project.layout.buildDirectory.file("bin/test/${target}/$testName.${target.family.exeSuffix}"))
                 this.llvmLinkFirstStageOutputFile.set(project.layout.buildDirectory.file("bitcode/test/$target/$testName-firstStage.bc"))
                 this.llvmLinkOutputFile.set(project.layout.buildDirectory.file("bitcode/test/$target/$testName.bc"))
@@ -648,13 +651,14 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) :
                 dependsOn(compileTask)
                 reportFileUnprocessed.set(project.layout.buildDirectory.file("testReports/$testName/report.xml"))
                 reportFile.set(project.layout.buildDirectory.file("testReports/$testName/report-with-prefixes.xml"))
-                filter.set(project.findProperty("gtest_filter") as? String)
+                filter.set(project.providers.gradleProperty("gtest_filter"))
                 tsanSuppressionsFile.set(project.layout.projectDirectory.file("tsan_suppressions.txt"))
                 this.target.set(target)
                 this.executionTimeout.set(
-                        (project.findProperty("gtest_timeout") as? String)?.let {
-                            Duration.parse("PT${it}")
-                        } ?: Duration.ofMinutes(5))
+                        project.providers.gradleProperty("gtest_timeout")
+                                .map { Duration.parse("PT${it}") }
+                                .orElse(Duration.ofMinutes(5))
+                )
                 this.executorsClasspath.from(project.executorsClasspathConfiguration())
                 this.distPath.set(project.nativeProtoDistribution.root.asFile.absolutePath)
                 this.dataDirPath.set(project.kotlinBuildProperties.stringProperty("konan.data.dir").orNull)

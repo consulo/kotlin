@@ -1,7 +1,8 @@
 plugins {
+    id("common-configuration")
+    id("com.autonomousapps.dependency-analysis")
     kotlin("jvm")
     id("java-test-fixtures")
-    id("project-tests-convention")
     id("test-inputs-check")
 }
 
@@ -16,6 +17,7 @@ dependencies {
     testFixturesApi(testFixtures(project(":compiler:tests-common")))
     testFixturesApi(testFixtures(project(":compiler:tests-integration")))
     testFixturesApi(testFixtures(project(":compiler:tests-common-new")))
+    testFixturesApi(testFixtures(project(":compiler:jvm.tests")))
     testFixturesApi(testFixtures(project(":compiler:test-infrastructure")))
     testFixturesApi(project(":native:kotlin-native-utils"))
     testFixturesApi(project(":native:executors"))
@@ -26,11 +28,12 @@ dependencies {
     testFixturesImplementation(project(":compiler:fir:fir-native"))
     testFixturesImplementation(project(":core:compiler.common.native"))
     testFixturesImplementation(project(":kotlin-util-klib-abi"))
+    testFixturesImplementation(project(":kotlin-util-klib-metadata"))
     testFixturesImplementation(project(":native:swift:swift-export-standalone"))
     testFixturesApi(platform(libs.junit.bom))
     testFixturesImplementation(libs.junit.jupiter.api)
     testRuntimeOnly(libs.junit.jupiter.engine)
-    testFixturesApi(commonDependency("org.jetbrains.kotlinx", "kotlinx-metadata-klib"))
+    testImplementation(project(":kotlinx-metadata-klib"))
     testFixturesImplementation(libs.kotlinx.coroutines.core) { isTransitive = false }
 
     testFixturesApi(project(":compiler:cli:cli-native-klib"))
@@ -47,20 +50,41 @@ sourceSets {
     "testFixtures" { projectDefault() }
 }
 
-testsJar {}
-
 projectTests {
     testData(isolated, "testData")
     testData(project(":compiler").isolated, "testData")
     testData(project(":kotlin-test").isolated, "common/src/test/kotlin")
 
     // From StdlibTest
-    testData(project(":kotlin-stdlib").isolated, "test")
-    testData(project(":kotlin-stdlib").isolated, "common/test")
-    testData(project(":kotlin-stdlib").isolated, "native-wasm/test")
-    // :kotlin-native:runtime project availability depends on kotlin.native.enabled=true
-    testData(rootProject.isolated, "kotlin-native/runtime/test")
-
+    val stdlibPath = project(":kotlin-stdlib").isolated.projectDirectory
+    tasks.withType<Test>().configureEach {
+        jvmArgumentProviders.add(
+            objects.newInstance<SystemPropertyClasspathProvider>().apply {
+                property = "kotlin.test.stdlib.tests.path"
+                classpath.from(stdlibPath.dir("test"))
+            }
+        )
+        jvmArgumentProviders.add(
+            objects.newInstance<SystemPropertyClasspathProvider>().apply {
+                property = "kotlin.test.stdlib.common-tests.path"
+                classpath.from(stdlibPath.dir("common/test"))
+            }
+        )
+        jvmArgumentProviders.add(
+            objects.newInstance<SystemPropertyClasspathProvider>().apply {
+                property = "kotlin.test.stdlib.wasm-tests.path"
+                classpath.from(stdlibPath.dir("native-wasm/test"))
+            }
+        )
+        if (kotlinBuildProperties.isKotlinNativeEnabled.get()) {
+            jvmArgumentProviders.add(
+                objects.newInstance<SystemPropertyClasspathProvider>().apply {
+                    property = "kotlin.test.native.runtime.tests.path"
+                    classpath.from(project(":kotlin-native:runtime").isolated.projectDirectory.dir("test"))
+                }
+            )
+        }
+    }
     // Tasks that run different sorts of tests. Most frequent use case: running specific tests at TeamCity.
     nativeTestTask("infrastructureTest", "infrastructure")
     nativeTestTask("stdlibTest", "stdlib")
@@ -91,16 +115,9 @@ projectTests {
                 kotlinBuildProperties.stringProperty("kotlin.native.pathToDarwinDist").orNull != null
             )
         }
-
-        // To workaround KTI-2421, we make these tests run on JDK 11 instead of the project-default JDK 8.
-        // Kotlin test infra uses reflection to access JDK internals.
-        // With JDK 11, some JVM args are required to silence the warnings caused by that:
-        jvmArgs("--add-opens=java.base/java.io=ALL-UNNAMED")
     }
 
     testGenerator("org.jetbrains.kotlin.generators.tests.GenerateNativeTestsKt", generateTestsInBuildDirectory = true) {
         javaLauncher.set(project.getToolchainLauncherFor(JdkMajorVersion.JDK_11_0))
     }
 }
-
-optInToK1Deprecation()

@@ -26,78 +26,85 @@ import kotlin.reflect.full.declaredMemberProperties
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.javaField
 
-fun <T : Any> copyBean(bean: T): T = copyBeanTo(bean, bean::class.java.newInstance())
+/**
+ * An argument which should be passed to Kotlin compiler to enable [this] compiler option
+ */
+val KProperty1<out CommonToolArguments, *>.argumentAnnotation: Argument
+    get() {
+        val javaField = javaField ?: error("Java field should be present for $this")
+        return javaField.getAnnotation(Argument::class.java)
+    }
 
-@Suppress("UNCHECKED_CAST")
-fun <T : Any> copyBeanTo(from: T, to: T, filter: ((KProperty1<T, Any?>, Any?) -> Boolean)? = null) =
-    copyProperties(from, to, true, collectProperties(from::class as KClass<T>, false), filter)
+/**
+ * An argument which should be passed to Kotlin compiler to enable [this] compiler option
+ */
+val KProperty1<out CommonToolArguments, *>.cliArgument: String
+    get() = argumentAnnotation.value
 
-fun <From : Any, To : From> mergeBeans(from: From, to: To): To {
-    // TODO: rewrite when updated version of com.intellij.util.xmlb is available on TeamCity
-    @Suppress("UNCHECKED_CAST")
-    return copyProperties(from, to, false, collectProperties(from::class as KClass<From>, false))
+/**
+ * Returns a string of the form "argument=value" where "argument" is the [Argument.value] of this compiler argument.
+ */
+fun KProperty1<out CommonToolArguments, *>.cliArgument(value: String): String {
+    return "$cliArgument=$value"
 }
 
-@Suppress("UNCHECKED_CAST")
-fun <From : Any, To : Any> copyInheritedFields(from: From, to: To) =
-    copyProperties(from, to, true, collectProperties(from::class as KClass<From>, true))
+fun K2NativeCompilerArguments.isNativeSecondStage(): Boolean = produce != "library"
 
-@Suppress("UNCHECKED_CAST")
-fun <From : Any, To : Any> copyFieldsSatisfying(from: From, to: To, predicate: (KProperty1<From, Any?>) -> Boolean) =
-    copyProperties(from, to, true, collectProperties(from::class as KClass<From>, false).filter(predicate))
+/**
+ * It's a helper function to parse version strings strictly from a `KotlinReleaseVersion.releaseName` value.
+ * Since those values are always correct version strings, the function should never fail.
+ */
+internal fun parseKotlinVersion(kotlinReleaseVersion: String): KotlinVersion {
+    val components = kotlinReleaseVersion.split('.')
+    return KotlinVersion(
+        major = components[0].toInt(),
+        minor = components[1].toInt(),
+        patch = components[2].toInt(),
+    )
+}
 
-private fun <From : Any, To : Any> copyProperties(
-    from: From,
-    to: To,
-    deepCopyWhenNeeded: Boolean,
-    propertiesToCopy: List<KProperty1<From, Any?>>,
-    filter: ((KProperty1<From, Any?>, Any?) -> Boolean)? = null
-): To {
+// The following functions are binary compatibility shims for prebuilt Kotlin JPS plugins (e.g. the pinned
+// `kotlin-jps-plugin-classpath` in IntelliJ), which still call them at their old location. When such a JPS plugin runs
+// against newer compiler jars, the old functions must still exist. The functions were moved to `build-common` in
+// KT-89577. The shims can be removed once the pinned JPS plugin versions are past this move.
+
+@Deprecated(
+    "Moved to `org.jetbrains.kotlin.compilerRunner`. Kept only for binary compatibility.",
+    level = DeprecationLevel.HIDDEN,
+)
+fun CommonCompilerArguments.setApiVersionToLanguageVersionIfNeeded() {
+    if (languageVersion != null && VersionComparatorUtil.compare(languageVersion, apiVersion) < 0) {
+        apiVersion = languageVersion
+    }
+}
+
+@Deprecated(
+    "Moved to `org.jetbrains.kotlin.compilerRunner`. Kept only for binary compatibility.",
+    level = DeprecationLevel.HIDDEN,
+)
+fun <From : Any, To : From> mergeBeans(from: From, to: To): To {
     if (from == to) return to
 
     val toMemberProperties = to::class.memberProperties.associateBy { it.name }
 
-    for (fromProperty in propertiesToCopy) {
+    @Suppress("UNCHECKED_CAST")
+    for (fromProperty in collectPropertiesForBinaryCompatibility(from::class as KClass<From>, inheritedOnly = false)) {
         @Suppress("UNCHECKED_CAST")
         val toProperty = toMemberProperties[fromProperty.name] as? KMutableProperty1<To, Any?>
             ?: continue
-        val fromValue = fromProperty.get(from)
-        if (filter != null && !filter(fromProperty, fromValue)) continue
-        toProperty.set(to, if (deepCopyWhenNeeded) fromValue?.copyValueIfNeeded() else fromValue)
+        toProperty.set(to, fromProperty.get(from))
     }
     return to
 }
 
-private fun Any.copyValueIfNeeded(): Any {
-    @Suppress("UNCHECKED_CAST")
-    return when (this) {
-        is ByteArray -> this.copyOf(size)
-        is CharArray -> this.copyOf(size)
-        is ShortArray -> this.copyOf(size)
-        is IntArray -> this.copyOf(size)
-        is LongArray -> this.copyOf(size)
-        is FloatArray -> this.copyOf(size)
-        is DoubleArray -> this.copyOf(size)
-        is BooleanArray -> this.copyOf(size)
+@Deprecated(
+    "Moved to `org.jetbrains.kotlin.arguments`. Kept only for binary compatibility.",
+    level = DeprecationLevel.HIDDEN,
+)
+fun <T : Any> collectProperties(kClass: KClass<T>, inheritedOnly: Boolean): List<KProperty1<T, Any?>> =
+    collectPropertiesForBinaryCompatibility(kClass, inheritedOnly)
 
-        is Array<*> -> java.lang.reflect.Array.newInstance(this::class.java.componentType, size).apply {
-            this as Array<Any?>
-            (this@copyValueIfNeeded as Array<Any?>).forEachIndexed { i, value -> this[i] = value?.copyValueIfNeeded() }
-        }
-
-        is MutableCollection<*> -> (this as Collection<Any?>).mapTo(this::class.java.newInstance() as MutableCollection<Any?>) { it?.copyValueIfNeeded() }
-
-        is MutableMap<*, *> -> (this::class.java.newInstance() as MutableMap<Any?, Any?>).apply {
-            for ((k, v) in this@copyValueIfNeeded.entries) {
-                put(k?.copyValueIfNeeded(), v?.copyValueIfNeeded())
-            }
-        }
-
-        else -> this
-    }
-}
-
-fun <T : Any> collectProperties(kClass: KClass<T>, inheritedOnly: Boolean): List<KProperty1<T, Any?>> {
+private fun <T : Any> collectPropertiesForBinaryCompatibility(kClass: KClass<T>, inheritedOnly: Boolean): List<KProperty1<T, Any?>> {
     val properties = ArrayList(kClass.memberProperties)
     if (inheritedOnly) {
         properties.removeAll(kClass.declaredMemberProperties)
@@ -108,33 +115,3 @@ fun <T : Any> collectProperties(kClass: KClass<T>, inheritedOnly: Boolean): List
                 && (!property.isAbstract)
     }
 }
-
-fun CommonCompilerArguments.setApiVersionToLanguageVersionIfNeeded() {
-    if (languageVersion != null && VersionComparatorUtil.compare(languageVersion, apiVersion) < 0) {
-        apiVersion = languageVersion
-    }
-}
-
-/**
- * An argument which should be passed to Kotlin compiler to enable [this] compiler option
- */
-val KProperty1<out CommonCompilerArguments, *>.argumentAnnotation: Argument
-    get() {
-        val javaField = javaField ?: error("Java field should be present for $this")
-        return javaField.getAnnotation(Argument::class.java)
-    }
-
-/**
- * An argument which should be passed to Kotlin compiler to enable [this] compiler option
- */
-val KProperty1<out CommonCompilerArguments, *>.cliArgument: String
-    get() = argumentAnnotation.value
-
-/**
- * Returns a string of the form "argument=value" where "argument" is the [Argument.value] of this compiler argument.
- */
-fun KProperty1<out CommonCompilerArguments, *>.cliArgument(value: String): String {
-    return "$cliArgument=$value"
-}
-
-fun K2NativeCompilerArguments.isNativeSecondStage(): Boolean = produce != "library"

@@ -3,16 +3,9 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-import org.gradle.api.GradleException
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.ProjectDependency
-import org.gradle.api.artifacts.dsl.DependencyHandler
-import org.gradle.api.attributes.Usage
 import org.gradle.api.file.Directory
-import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.project.IsolatedProject
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
@@ -22,15 +15,8 @@ import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.named
-import org.gradle.kotlin.dsl.project
 import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.build.project.tests.CollectTestDataTask
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
-import org.jetbrains.kotlin.gradle.plugin.attributes.KlibPackaging
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
-import java.io.File
 
 @RequiresOptIn(
     level = RequiresOptIn.Level.ERROR,
@@ -44,201 +30,109 @@ abstract class ProjectTestsExtension(val project: Project) {
 
     // -------------------- dependencies for runtime of tests --------------------
 
-    val stdlibRuntimeForTests: Configuration = project.configurations.create("stdlibRuntimeForTests") {
-        isTransitive = false
-    }
-    val stdlibRuntimeSourcesForTests: Configuration = project.configurations.create("stdlibRuntimeSourcesForTests") {
-        isTransitive = false
-    }
-    val stdlibMinimalRuntimeForTests: Configuration = project.configurations.create("stdlibMinimalRuntimeForTests") {
-        isTransitive = false
-    }
-    val kotlinReflectJarForTests: Configuration = project.configurations.create("kotlinReflectJarForTests") {
-        isTransitive = false
-    }
-    val stdlibCommonRuntimeForTests: Configuration = project.configurations.create("stdlibCommonRuntimeForTests") {
-        isTransitive = false
-    }
-    val scriptRuntimeForTests: Configuration = project.configurations.create("scriptRuntimeForTests") {
-        isTransitive = false
-    }
-    val kotlinTestJarForTests: Configuration = project.configurations.create("kotlinTestJarForTests") {
-        isTransitive = false
-    }
-    val kotlinAnnotationsForTests: Configuration = project.configurations.create("kotlinAnnotationsForTests") {
-        isTransitive = false
-    }
-    val scriptingPluginForTests: Configuration = project.configurations.create("scriptingPluginForTests") {
-        isTransitive = false
-    }
-    var testScriptDefinitionForTests: Configuration = project.configurations.create("testScriptDefinitionForTests") {
-        isTransitive = false
-    }
-    val stdlibWebRuntimeForTests: Configuration = project.configurations.create("stdlibWebRuntimeForTests") {
-        isTransitive = false
-    }
-    val distForTests: Configuration = project.configurations.create("distForTests") {
-        isTransitive = false
-    }
-    val stdlibJsRuntimeForTests: Configuration = project.configurations.create("stdlibJsRuntimeForTests") {
-        isTransitive = false
-    }
-    val stdlibJsMinimalRuntimeForTests: Configuration = project.configurations.create("stdlibJsMinimalRuntimeForTests") {
-        isTransitive = false
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        attributes.attribute(KlibPackaging.ATTRIBUTE, project.objects.named(KlibPackaging.NON_PACKED))
-    }
-    val testJsRuntimeForTests: Configuration = project.configurations.create("testJsRuntimeForTests") {
-        isTransitive = false
-    }
-    val stdlibWasmJsRuntimeForTests: Configuration = project.configurations.create("stdlibWasmJsRuntimeForTests") {
-        isTransitive = false
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        attributes.attribute(KlibPackaging.ATTRIBUTE, project.objects.named(KlibPackaging.NON_PACKED))
-    }
-    val stdlibWasmWasiRuntimeForTests: Configuration = project.configurations.create("stdlibWasmWasiRuntimeForTests") {
-        isTransitive = false
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        attributes.attribute(KlibPackaging.ATTRIBUTE, project.objects.named(KlibPackaging.NON_PACKED))
-    }
-    val testWasmJsRuntimeForTests: Configuration = project.configurations.create("testWasmJsRuntimeForTests") {
-        isTransitive = false
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        attributes.attribute(KlibPackaging.ATTRIBUTE, project.objects.named(KlibPackaging.NON_PACKED))
-    }
-    val testWasmWasiRuntimeForTests: Configuration = project.configurations.create("testWasmWasiRuntimeForTests") {
-        isTransitive = false
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        attributes.attribute(KlibPackaging.ATTRIBUTE, project.objects.named(KlibPackaging.NON_PACKED))
-    }
-
-    val pluginSandboxAnnotationsJar: Configuration = project.configurations.create("pluginSandboxAnnotationsJar") {
-        isTransitive = false
-    }
-
-    val pluginSandboxAnnotationsJsKlib: Configuration = project.configurations.create("pluginSandboxAnnotationsJsKlib") {
-        isTransitive = false
-        attributes {
-            attribute(Usage.USAGE_ATTRIBUTE, project.objects.named(KotlinUsages.KOTLIN_RUNTIME))
-            attribute(KotlinPlatformType.attribute, KotlinPlatformType.js)
-        }
-    }
-
-    private fun add(configuration: Configuration, dependency: DependencyHandler.() -> ProjectDependency) {
-        project.dependencies { configuration(dependency(this)) }
-    }
-
     fun withJvmStdlibAndReflect() {
-        add(stdlibRuntimeForTests) { project(":kotlin-stdlib") }
-        add(stdlibMinimalRuntimeForTests) { project(":kotlin-stdlib-jvm-minimal-for-test") }
-        add(kotlinReflectJarForTests) { project(":kotlin-reflect") }
+        project.tasks.withType(Test::class.java).configureEach { withJvmStdlibAndReflect() }
     }
 
     fun withJvmStdlibSources() {
-        add(stdlibRuntimeSourcesForTests) { project(":kotlin-stdlib", "distSources") }
+        project.tasks.withType(Test::class.java).configureEach { withJvmStdlibSources() }
     }
 
     fun withStdlibCommon() {
-        add(stdlibCommonRuntimeForTests) { project(":kotlin-stdlib", "commonMainMetadataElements") }
+        project.tasks.withType(Test::class.java).configureEach { withStdlibCommon() }
     }
 
     fun withScriptRuntime() {
-        add(scriptRuntimeForTests) { project(":kotlin-script-runtime") }
+        project.tasks.withType(Test::class.java).configureEach { withScriptRuntime() }
     }
 
     fun withTestJar() {
-        add(kotlinTestJarForTests) { project(":kotlin-test") }
+        project.tasks.withType(Test::class.java).configureEach { withTestJar() }
     }
 
     fun withAnnotations() {
-        add(kotlinAnnotationsForTests) { project(":kotlin-annotations-jvm") }
+        project.tasks.withType(Test::class.java).configureEach { withAnnotations() }
     }
 
     fun withStdlibWeb() {
-        add(stdlibWebRuntimeForTests) { project(":kotlin-stdlib", "webMainMetadataElements") }
+        project.tasks.withType(Test::class.java).configureEach { withStdlibWeb() }
     }
 
     fun withJsRuntime() {
-        add(stdlibJsRuntimeForTests) { project(":kotlin-stdlib", "distJsKlib") }
-        add(stdlibJsMinimalRuntimeForTests) { project(":kotlin-stdlib-js-ir-minimal-for-test", "jsRuntimeElements") }
-        add(testJsRuntimeForTests) { project(":kotlin-test", "jsRuntimeElements") }
+        project.tasks.withType(Test::class.java).configureEach { withJsRuntime() }
     }
 
     fun withWasmRuntime() {
-        add(stdlibWasmJsRuntimeForTests) { project(":kotlin-stdlib", "wasmJsRuntimeElements") }
-        add(stdlibWasmWasiRuntimeForTests) { project(":kotlin-stdlib", "wasmWasiRuntimeElements") }
-        add(testWasmJsRuntimeForTests) { project(":kotlin-test", "wasmJsRuntimeElements") }
-        add(testWasmWasiRuntimeForTests) { project(":kotlin-test", "wasmWasiRuntimeElements") }
+        project.tasks.withType(Test::class.java).configureEach { withWasmRuntime() }
     }
 
     fun withScriptingPlugin() {
-        add(scriptingPluginForTests) { project(":kotlin-scripting-compiler") }
-        add(scriptingPluginForTests) { project(":kotlin-scripting-compiler-impl") }
-        add(scriptingPluginForTests) { project(":kotlin-scripting-common") }
-        add(scriptingPluginForTests) { project(":kotlin-scripting-jvm") }
-        /*
-        KOTLIN_SCRIPTING_COMPILER_PLUGIN_JAR
-        KOTLIN_SCRIPTING_COMPILER_IMPL_JAR
-        KOTLIN_SCRIPTING_COMMON_JAR
-        KOTLIN_SCRIPTING_JVM_JAR
-        */
+        project.tasks.withType(Test::class.java).configureEach { withScriptingPlugin() }
     }
 
     fun withTestScriptDefinition() {
-        add(testScriptDefinitionForTests) { project(":plugins:scripting:test-script-definition", "testFixturesApiElements") }
+        project.tasks.withType(Test::class.java).configureEach { withTestScriptDefinition() }
+    }
+
+    fun withScriptingTestsRuntime() {
+        project.tasks.withType(Test::class.java).configureEach { withScriptingTestsRuntime() }
     }
 
     @KotlinCompilerDistUsage
     fun withDist() {
-        project.normalization {
-            runtimeClasspath {
-                ignore("**/build.txt")
-                ignore("*.spdx.json")
-            }
-        }
-
-        add(distForTests) { project(":kotlin-compiler", "distElements") }
+        project.tasks.withType(Test::class.java).configureEach { withDist() }
     }
 
-    abstract val mockJdkRuntime: RegularFileProperty
-    abstract val mockJDKModifiedRuntime: RegularFileProperty
-    abstract val mockJdkAnnotationsJar: RegularFileProperty
-    abstract val thirdPartyAnnotations: DirectoryProperty
-    abstract val thirdPartyJava8Annotations: DirectoryProperty
-    abstract val thirdPartyJava9Annotations: DirectoryProperty
-    abstract val thirdPartyJsr305: DirectoryProperty
-
     fun withMockJdkRuntime() {
-        mockJdkRuntime.value { File(project.rootDir, "third-party/mockJDKs/mockJDK/jre/lib/rt.jar") }
+        project.tasks.withType(Test::class.java).configureEach { withMockJdkRuntime() }
     }
 
     fun withMockJDKModifiedRuntime() {
-        mockJDKModifiedRuntime.value { File(project.rootDir, "third-party/mockJDKs/mockJDKModified/rt.jar") }
+        project.tasks.withType(Test::class.java).configureEach { withMockJDKModifiedRuntime() }
     }
 
     fun withMockJdkAnnotationsJar() {
-        mockJdkAnnotationsJar.value { File(project.rootDir, "third-party/mockJDKs/mockJDK/jre/lib/annotations.jar") }
+        project.tasks.withType(Test::class.java).configureEach { withMockJdkAnnotationsJar() }
     }
 
     fun withThirdPartyAnnotations() {
-        thirdPartyAnnotations.set(File(project.rootDir, "third-party/annotations"))
+        project.tasks.withType(Test::class.java).configureEach { withThirdPartyAnnotations() }
     }
 
     fun withThirdPartyJava8Annotations() {
-        thirdPartyJava8Annotations.set(File(project.rootDir, "third-party/java8-annotations"))
+        project.tasks.withType(Test::class.java).configureEach { withThirdPartyJava8Annotations() }
     }
 
     fun withThirdPartyJava9Annotations() {
-        thirdPartyJava9Annotations.set(File(project.rootDir, "third-party/java9-annotations"))
+        project.tasks.withType(Test::class.java).configureEach { withThirdPartyJava9Annotations() }
     }
 
     fun withThirdPartyJsr305() {
-        thirdPartyJsr305.set(File(project.rootDir, "third-party/jsr305"))
+        project.tasks.withType(Test::class.java).configureEach { withThirdPartyJsr305() }
     }
 
     fun withPluginSandboxAnnotations() {
-        add(pluginSandboxAnnotationsJar) { project(":plugins:plugin-sandbox:plugin-annotations") }
-        add(pluginSandboxAnnotationsJsKlib) { project(":plugins:plugin-sandbox:plugin-annotations", "jsRuntimeElements") }
+        project.tasks.withType(Test::class.java).configureEach { withPluginSandboxAnnotations() }
+    }
+
+    fun withPluginSandboxJar() {
+        project.tasks.withType(Test::class.java).configureEach { withPluginSandboxJar() }
+    }
+
+    fun withLombokCompilerPluginJar() {
+        project.tasks.withType(Test::class.java).configureEach { withLombokCompilerPluginJar() }
+    }
+
+    fun withAllOpenCompilerPluginJar() {
+        project.tasks.withType(Test::class.java).configureEach { withAllOpenCompilerPluginJar() }
+    }
+
+    fun withNoArgCompilerPluginJar() {
+        project.tasks.withType(Test::class.java).configureEach { withNoArgCompilerPluginJar() }
+    }
+
+    fun withMainKtsJar() {
+        project.tasks.withType(Test::class.java).configureEach { withMainKtsJar() }
     }
 
     // -------------------- testData configuration --------------------
@@ -249,34 +143,34 @@ abstract class ProjectTestsExtension(val project: Project) {
     fun testData(isolatedProject: IsolatedProject, relativePath: String) {
         val testDataDirectory = isolatedProject.projectDirectory.dir(relativePath)
         testDataFiles.add(testDataDirectory)
-        testDataMap.put(
-            testDataDirectory.asFile.relativeTo(project.rootDir).path.toSystemIndependentPath(),
+        testDataMap[testDataDirectory.asFile.relativeTo(project.rootDir).path.toSystemIndependentPath()] =
             testDataDirectory.asFile.canonicalPath.toSystemIndependentPath()
-        )
     }
 
     // -------------------- test task definitions --------------------
 
     fun testTask(
-        parallel: Boolean? = null,
-        jUnitMode: JUnitMode,
-        maxHeapSizeMb: Int? = null,
-        minHeapSizeMb: Int? = null,
-        maxMetaspaceSizeMb: Int = 512,
-        reservedCodeCacheSizeMb: Int = 256,
+        javaLauncher: JdkMajorVersion = DEFAULT_JAVA_LAUNCHER_FOR_TESTS,
+        maxHeapSize: Size = testDefaultMaxHeapSize,
+        minHeapSize: Size = testDefaultMinHeapSize,
+        maxMetaspaceSize: Size = testDefaultMaxMetaspaceSize,
+        reservedCodeCacheSize: Size = testDefaultReservedCodeCacheSize,
+        garbageCollector: GarbageCollector? = testDefaultGC,
         defineJDKEnvVariables: List<JdkMajorVersion> = emptyList(),
+        enableGroupingTestEngine: Boolean = false,
         body: Test.() -> Unit = {},
     ): TaskProvider<Test> {
         @Suppress("UNCHECKED_CAST")
         return testTask(
             taskName = "test",
-            parallel,
-            jUnitMode,
-            maxHeapSizeMb,
-            minHeapSizeMb,
-            maxMetaspaceSizeMb,
-            reservedCodeCacheSizeMb,
+            javaLauncher,
+            maxHeapSize,
+            minHeapSize,
+            maxMetaspaceSize,
+            reservedCodeCacheSize,
+            garbageCollector,
             defineJDKEnvVariables,
+            enableGroupingTestEngine,
             skipInLocalBuild = false,
             body
         ) as TaskProvider<Test>
@@ -284,35 +178,40 @@ abstract class ProjectTestsExtension(val project: Project) {
 
     fun testTask(
         taskName: String,
-        parallel: Boolean? = null,
-        jUnitMode: JUnitMode,
-        maxHeapSizeMb: Int? = null,
-        minHeapSizeMb: Int? = null,
-        maxMetaspaceSizeMb: Int = 512,
-        reservedCodeCacheSizeMb: Int = 256,
+        javaLauncher: JdkMajorVersion = DEFAULT_JAVA_LAUNCHER_FOR_TESTS,
+        maxHeapSize: Size = testDefaultMaxHeapSize,
+        minHeapSize: Size = testDefaultMinHeapSize,
+        maxMetaspaceSize: Size = testDefaultMaxMetaspaceSize,
+        reservedCodeCacheSize: Size = testDefaultReservedCodeCacheSize,
+        garbageCollector: GarbageCollector? = testDefaultGC,
         defineJDKEnvVariables: List<JdkMajorVersion> = emptyList(),
+        enableGroupingTestEngine: Boolean = false,
         skipInLocalBuild: Boolean,
         body: Test.() -> Unit = {},
     ): TaskProvider<out Task> {
         if (skipInLocalBuild && !project.kotlinBuildProperties.isTeamcityBuild.get()) {
             return project.tasks.register(taskName)
         }
-        if (jUnitMode == JUnitMode.JUnit5 && parallel != null) {
-            throw GradleException("JUnit5 tests are parallel by default and its configured with `junit-platform.properties`, please remove `parallel=$parallel` argument")
+
+        if (enableGroupingTestEngine) {
+            project.dependencies {
+                add(
+                    configurationName = "testRuntimeOnly",
+                    dependencyNotation = testFixtures(project(":compiler:test-infrastructure:grouping-test-engine")),
+                )
+            }
         }
         return project.createGeneralTestTask(
             taskName,
-            parallel ?: false,
-            jUnitMode,
-            maxHeapSizeMb,
-            minHeapSizeMb,
-            maxMetaspaceSizeMb,
-            reservedCodeCacheSizeMb,
+            javaLauncher,
+            maxHeapSize,
+            minHeapSize,
+            maxMetaspaceSize,
+            reservedCodeCacheSize,
+            garbageCollector,
             defineJDKEnvVariables,
         ) {
-            if (jUnitMode == JUnitMode.JUnit5) {
-                useJUnitPlatform()
-            }
+            useJUnitPlatform()
             body()
         }
     }
@@ -326,6 +225,7 @@ abstract class ProjectTestsExtension(val project: Project) {
         taskName: String = "generateTests",
         doNotSetFixturesSourceSetDependency: Boolean = false,
         generateTestsInBuildDirectory: Boolean = false,
+        excludeFromAggregateGeneratorTask: Boolean = false,
         skipCollectDataTask: Boolean = false,
         configureTestDataCollection: CollectTestDataTask.() -> Unit = {},
         configure: JavaExec.() -> Unit = {},
@@ -343,6 +243,7 @@ abstract class ProjectTestsExtension(val project: Project) {
             taskName = taskName,
             fqName = fqName,
             sourceSet = fixturesSourceSet ?: project.testSourceSet,
+            registerInAggregateGenerateSources = !generateTestsInBuildDirectory && !excludeFromAggregateGeneratorTask,
             inputKind = when (doNotSetFixturesSourceSetDependency) {
                 true -> GeneratorInputKind.RuntimeClasspath
                 false -> GeneratorInputKind.SourceSetJar
@@ -365,11 +266,13 @@ abstract class ProjectTestsExtension(val project: Project) {
             }
             configure()
         }
-        if (generateTestsInBuildDirectory && !skipCollectDataTask) {
+        if (generateTestsInBuildDirectory) {
             project.sourceSets.named(SourceSet.TEST_SOURCE_SET_NAME) {
                 generatedDir(project, generatorTask.map { generationPath })
             }
-            configureCollectTestDataTask(generatorTask, configureTestDataCollection)
+            if (!skipCollectDataTask) {
+                configureCollectTestDataTask(generatorTask, configureTestDataCollection)
+            }
         }
     }
 
@@ -379,6 +282,16 @@ abstract class ProjectTestsExtension(val project: Project) {
             rootDirPath.set(project.rootDir.absolutePath)
             targetFile.set(project.layout.buildDirectory.file("testDataInfo/testDataFilesList.txt"))
             testDataFiles.set(this@ProjectTestsExtension.testDataFiles)
+            filePatterns.set(listOf("**/*.kt", "**/*.kts", "**/*.kt.can-freeze-ide"))
+            excludeFilePatterns.set(
+                listOf(
+                    "**/*.reversed.kt",
+                    "**/*.partialBody.kt",
+                    "**/*.ll.kt",
+                    "**/*.latestLV.kt",
+                    "**/*.disabled.kt",
+                )
+            )
             configure()
         }
         generatorTask.configure {

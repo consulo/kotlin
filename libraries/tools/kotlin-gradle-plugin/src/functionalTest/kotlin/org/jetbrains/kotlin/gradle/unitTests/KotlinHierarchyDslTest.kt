@@ -3,8 +3,7 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("FunctionName", "JUnitTestCaseWithNoTests")
-@file:OptIn(ExperimentalWasmDsl::class)
+@file:Suppress("JUnitTestCaseWithNoTests")
 
 package org.jetbrains.kotlin.gradle.unitTests
 
@@ -41,12 +40,12 @@ class KotlinHierarchyDslTest {
         )
 
         assertEquals(
-            stringSetOf("androidNativeMain", "appleMain", "linuxMain", "mingwMain"),
+            stringSetOf("appleMain", "linuxMain", "mingwMain"),
             kotlin.dependingSourceSetNames("nativeMain")
         )
 
         assertEquals(
-            stringSetOf("androidNativeTest", "appleTest", "linuxTest", "mingwTest"),
+            stringSetOf("appleTest", "linuxTest", "mingwTest"),
             kotlin.dependingSourceSetNames("nativeTest")
         )
 
@@ -81,12 +80,12 @@ class KotlinHierarchyDslTest {
         )
 
         assertEquals(
-            stringSetOf("watchosArm32Main", "watchosArm64Main", "watchosDeviceArm64Main", "watchosSimulatorArm64Main"),
+            stringSetOf("watchosArm64Main", "watchosDeviceArm64Main", "watchosSimulatorArm64Main"),
             kotlin.dependingSourceSetNames("watchosMain")
         )
 
         assertEquals(
-            stringSetOf("watchosArm32Test", "watchosArm64Test", "watchosDeviceArm64Test", "watchosSimulatorArm64Test"),
+            stringSetOf("watchosArm64Test", "watchosDeviceArm64Test", "watchosSimulatorArm64Test"),
             kotlin.dependingSourceSetNames("watchosTest")
         )
 
@@ -121,16 +120,6 @@ class KotlinHierarchyDslTest {
         )
 
         assertEquals(
-            stringSetOf("androidNativeArm32Main", "androidNativeArm64Main", "androidNativeX64Main", "androidNativeX86Main"),
-            kotlin.dependingSourceSetNames("androidNativeMain")
-        )
-
-        assertEquals(
-            stringSetOf("androidNativeArm32Test", "androidNativeArm64Test", "androidNativeX64Test", "androidNativeX86Test"),
-            kotlin.dependingSourceSetNames("androidNativeTest")
-        )
-
-        assertEquals(
             stringSetOf("jsMain", "wasmJsMain"),
             kotlin.dependingSourceSetNames("webMain")
         )
@@ -154,11 +143,6 @@ class KotlinHierarchyDslTest {
             commonMain
                 ├── jvmMain
                 ├── nativeMain
-                │   ├── androidNativeMain
-                │   │   ├── androidNativeArm32Main
-                │   │   ├── androidNativeArm64Main
-                │   │   ├── androidNativeX64Main
-                │   │   └── androidNativeX86Main
                 │   ├── appleMain
                 │   │   ├── iosMain
                 │   │   │   ├── iosArm64Main
@@ -170,7 +154,6 @@ class KotlinHierarchyDslTest {
                 │   │   │   ├── tvosArm64Main
                 │   │   │   └── tvosSimulatorArm64Main
                 │   │   └── watchosMain
-                │   │       ├── watchosArm32Main
                 │   │       ├── watchosArm64Main
                 │   │       ├── watchosDeviceArm64Main
                 │   │       └── watchosSimulatorArm64Main
@@ -192,11 +175,6 @@ class KotlinHierarchyDslTest {
             commonTest
                 ├── jvmTest
                 ├── nativeTest
-                │   ├── androidNativeTest
-                │   │   ├── androidNativeArm32Test
-                │   │   ├── androidNativeArm64Test
-                │   │   ├── androidNativeX64Test
-                │   │   └── androidNativeX86Test
                 │   ├── appleTest
                 │   │   ├── iosTest
                 │   │   │   ├── iosArm64Test
@@ -208,7 +186,6 @@ class KotlinHierarchyDslTest {
                 │   │   │   ├── tvosArm64Test
                 │   │   │   └── tvosSimulatorArm64Test
                 │   │   └── watchosTest
-                │   │       ├── watchosArm32Test
                 │   │       ├── watchosArm64Test
                 │   │       ├── watchosDeviceArm64Test
                 │   │       └── watchosSimulatorArm64Test
@@ -304,7 +281,7 @@ class KotlinHierarchyDslTest {
         )
 
         assertEquals(
-            stringSetOf("androidUnitTest", "androidUnitTestDebug", "androidUnitTestRelease", "jvmTest"),
+            stringSetOf("androidUnitTest", "androidUnitTestDebug", "jvmTest"),
             kotlin.dependingSourceSetNames("jvmAndAndroidTest")
         )
 
@@ -371,8 +348,7 @@ class KotlinHierarchyDslTest {
         }
 
         kotlin.linuxX64()
-        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-        kotlin.macosX64()
+        kotlin.macosArm64()
         kotlin.mingwX64()
 
         assertEquals(
@@ -381,12 +357,12 @@ class KotlinHierarchyDslTest {
         )
 
         assertEquals(
-            stringSetOf("linuxX64Main", "macosX64Main", "mingwX64Main"),
+            stringSetOf("linuxX64Main", "macosArm64Main", "mingwX64Main"),
             kotlin.dependingSourceSetNames("nativeMain")
         )
 
         assertEquals(
-            stringSetOf("linuxX64Main", "macosX64Main"),
+            stringSetOf("linuxX64Main", "macosArm64Main"),
             kotlin.dependingSourceSetNames("nixMain")
         )
     }
@@ -532,11 +508,10 @@ class KotlinHierarchyDslTest {
             }
         }
 
-        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
+        // fixme: KT-89587 Clean up tests after iosX64 target deprecation
         kotlin.iosX64()
         kotlin.iosArm64()
-        @Suppress("DEPRECATION") // fixme: KT-81704 Cleanup tests after apple x64 family deprecation
-        kotlin.macosX64()
+        kotlin.macosArm64()
         kotlin.jvm()
 
         assertEquals(
@@ -548,7 +523,7 @@ class KotlinHierarchyDslTest {
         )
 
         assertEquals(
-            stringSetOf("macosX64Main", "iosMain"), kotlin.dependingSourceSetNames("appleMain")
+            stringSetOf("macosArm64Main", "iosMain"), kotlin.dependingSourceSetNames("appleMain")
         )
 
         assertEquals(
@@ -556,6 +531,7 @@ class KotlinHierarchyDslTest {
         )
     }
 
+    @OptIn(ExperimentalWasmDsl::class)
     @Test
     fun `verify all default hierarchy SourceSets have static accessors`() {
         kotlin.apply {
@@ -572,11 +548,6 @@ class KotlinHierarchyDslTest {
                         commonMain,
                         jvmMain,
                         nativeMain,
-                        androidNativeMain,
-                        androidNativeArm32Main,
-                        androidNativeArm64Main,
-                        androidNativeX64Main,
-                        androidNativeX86Main,
                         appleMain,
                         iosMain,
                         iosArm64Main,
@@ -588,7 +559,6 @@ class KotlinHierarchyDslTest {
                         tvosArm64Main,
                         tvosSimulatorArm64Main,
                         watchosMain,
-                        watchosArm32Main,
                         watchosArm64Main,
                         watchosDeviceArm64Main,
                         watchosSimulatorArm64Main,
@@ -605,11 +575,6 @@ class KotlinHierarchyDslTest {
                         commonTest,
                         jvmTest,
                         nativeTest,
-                        androidNativeTest,
-                        androidNativeArm32Test,
-                        androidNativeArm64Test,
-                        androidNativeX64Test,
-                        androidNativeX86Test,
                         appleTest,
                         iosTest,
                         iosArm64Test,
@@ -621,7 +586,6 @@ class KotlinHierarchyDslTest {
                         tvosArm64Test,
                         tvosSimulatorArm64Test,
                         watchosTest,
-                        watchosArm32Test,
                         watchosArm64Test,
                         watchosDeviceArm64Test,
                         watchosSimulatorArm64Test,

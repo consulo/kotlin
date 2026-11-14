@@ -1,5 +1,8 @@
 KtNameReferenceExpression(63,64): 'i'
-  KaSymbolResolutionError:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionError:
     candidateSymbols = [
       val i: kotlin.Int
     ]

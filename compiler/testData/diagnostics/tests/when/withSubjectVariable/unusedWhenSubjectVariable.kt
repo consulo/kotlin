@@ -1,5 +1,4 @@
-// RUN_PIPELINE_TILL: BACKEND
-// LANGUAGE: +VariableDeclarationInWhenSubject
+// RUN_PIPELINE_TILL: CODEGEN
 // DIAGNOSTICS: +UNUSED_VARIABLE
 
 fun foo(): Any = 42

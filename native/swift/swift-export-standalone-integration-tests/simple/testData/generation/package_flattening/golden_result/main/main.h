@@ -9,7 +9,11 @@ _Bool org_kotlin_foo_Clazz_init_initialize__TypesOfArguments__Swift_UnsafeMutabl
 
 int32_t org_kotlin_foo_constant_get();
 
+int32_t org_kotlin_foo_fun_with_keywoards__TypesOfArguments__Swift_Int32__(int32_t repeat);
+
 int32_t org_kotlin_foo_function__TypesOfArguments__Swift_Int32__(int32_t arg);
+
+_Bool org_kotlin_foo_renamedParameter__TypesOfArguments__Swift_String__(NSString * input);
 
 int32_t org_kotlin_foo_variable_get();
 

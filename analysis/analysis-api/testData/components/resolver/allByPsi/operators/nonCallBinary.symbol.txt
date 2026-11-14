@@ -20,16 +20,31 @@ KtProperty(17,35): 'val a: Any? = null'
   null
 
 KtTypeReference(24,28): 'Any?'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Any
+    ]
 
 KtNullableType(24,28): 'Any?'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Any
+    ]
 
 KtUserType(24,27): 'Any'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Any
+    ]
 
 KtNameReferenceExpression(24,27): 'Any'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Any
+    ]
 
 KtConstantExpression(31,35): 'null'
   null
@@ -38,13 +53,25 @@ KtProperty(40,55): 'val b: Any = ""'
   null
 
 KtTypeReference(47,50): 'Any'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Any
+    ]
 
 KtUserType(47,50): 'Any'
-  null
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Any
+    ]
 
 KtNameReferenceExpression(47,50): 'Any'
-  null
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  KaSimpleSymbolResolutionSuccess:
+    symbols = [
+      kotlin/Any
+    ]
 
 KtStringTemplateExpression(53,55): '""'
   null
@@ -53,16 +80,25 @@ KtBinaryExpression(74,80): 'a ?: b'
   null
 
 KtNameReferenceExpression(74,75): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val a: kotlin.Any?
     ]
 
 KtOperationReferenceExpression(76,78): '?:'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtNameReferenceExpression(79,80): 'b'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val b: kotlin.Any
     ]
@@ -74,6 +110,9 @@ KtConstantExpression(115,119): 'true'
   null
 
 KtOperationReferenceExpression(120,122): '&&'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtConstantExpression(123,128): 'false'
@@ -86,6 +125,9 @@ KtConstantExpression(133,137): 'true'
   null
 
 KtOperationReferenceExpression(138,140): '||'
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtConstantExpression(141,146): 'false'
@@ -95,16 +137,25 @@ KtBinaryExpression(177,184): 'a === b'
   null
 
 KtNameReferenceExpression(177,178): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val a: kotlin.Any?
     ]
 
 KtOperationReferenceExpression(179,182): '==='
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtNameReferenceExpression(183,184): 'b'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val b: kotlin.Any
     ]
@@ -113,16 +164,25 @@ KtBinaryExpression(189,196): 'a !== b'
   null
 
 KtNameReferenceExpression(189,190): 'a'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val a: kotlin.Any?
     ]
 
 KtOperationReferenceExpression(191,194): '!=='
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
   null
 
 KtNameReferenceExpression(195,196): 'b'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       val b: kotlin.Any
     ]
@@ -134,22 +194,25 @@ KtConstantExpression(234,235): '1'
   null
 
 KtBinaryExpression(240,245): 'x = 2'
-  KaSymbolResolutionSuccess:
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var x: kotlin.Int
     ]
 
 KtNameReferenceExpression(240,241): 'x'
-  KaSymbolResolutionSuccess:
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: true
+  KaSimpleSymbolResolutionSuccess:
     symbols = [
       var x: kotlin.Int
     ]
 
 KtOperationReferenceExpression(242,243): '='
-  KaSymbolResolutionSuccess:
-    symbols = [
-      var x: kotlin.Int
-    ]
+  isImplicitReferenceToCompanion: false
+  contextSensitiveResolutionStatus: NotAvailable
+  lookupLocally: false
+  null
 
 KtConstantExpression(244,245): '2'
   null
