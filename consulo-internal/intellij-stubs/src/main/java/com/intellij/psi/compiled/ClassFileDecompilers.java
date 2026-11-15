@@ -9,12 +9,14 @@ public class ClassFileDecompilers {
 
     /** Consulo: ClassFileDecompiler.Full */
     public static abstract class Full implements com.intellij.psi.compiled.ClassFileDecompiler {
-        public abstract com.intellij.psi.compiled.ClsStubBuilder getStubBuilder();
-        public abstract com.intellij.psi.FileViewProvider createFileViewProvider(com.intellij.openapi.vfs.VirtualFile file, com.intellij.psi.PsiManager manager, boolean physical);
+        public com.intellij.psi.compiled.ClsStubBuilder getStubBuilder() { return null; }
+        public com.intellij.psi.FileViewProvider createFileViewProvider(com.intellij.openapi.vfs.VirtualFile file, com.intellij.psi.PsiManager manager, boolean physical) { return null; }
     }
 
     /** Consulo: ClassFileDecompiler.Light */
     public static abstract class Light implements com.intellij.psi.compiled.ClassFileDecompiler {
-        public abstract java.lang.CharSequence getText(com.intellij.openapi.vfs.VirtualFile file);
+        public java.lang.CharSequence getText(com.intellij.openapi.vfs.VirtualFile file) { return null; }
     }
+    // Added by consulo-internal/remap/genstub.py from com.intellij.java.language.psi.compiled.ClassFileDecompilers
+
 }

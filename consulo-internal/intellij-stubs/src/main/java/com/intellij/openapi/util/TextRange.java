@@ -2,6 +2,7 @@ package com.intellij.openapi.util;
 
 @SuppressWarnings("all")
 public class TextRange implements com.intellij.openapi.util.Segment,java.io.Serializable {
+    public boolean containsInclusive(int offset) { return false; }
   public static final com.intellij.openapi.util.TextRange EMPTY_RANGE = null;
   public static final com.intellij.openapi.util.TextRange[] EMPTY_ARRAY = null;
   public TextRange(int p0, int p1) { throw new UnsupportedOperationException("stub"); }
@@ -44,4 +45,7 @@ public class TextRange implements com.intellij.openapi.util.Segment,java.io.Seri
   public static void assertProperRange(int p0, int p1, java.lang.Object p2) {}
   public static boolean isProperRange(int p0, int p1) { return false; }
   public boolean isProperRange() { return false; }
+    // Added by consulo-internal/remap/genstub.py from consulo.document.util.TextRange
+    public static com.intellij.util.ArrayFactory<com.intellij.openapi.util.TextRange> ARRAY_FACTORY;
+    protected TextRange() { }
 }

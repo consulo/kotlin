@@ -4,4 +4,15 @@ package com.intellij.psi.util;
 @SuppressWarnings("all")
 public abstract class MethodSignatureBase implements com.intellij.psi.util.MethodSignature {
     protected MethodSignatureBase() { }
+    // Added by consulo-internal/remap/genstub.py from com.intellij.java.language.psi.util.MethodSignatureBase
+    protected com.intellij.psi.PsiTypeParameter[] myTypeParameters;
+    protected MethodSignatureBase(com.intellij.psi.PsiSubstitutor p0, com.intellij.psi.PsiType[] p1, com.intellij.psi.PsiTypeParameter[] p2) { }
+    protected MethodSignatureBase(com.intellij.psi.PsiSubstitutor p0, com.intellij.psi.PsiParameterList p1, com.intellij.psi.PsiTypeParameterList p2) { }
+    public com.intellij.psi.PsiType[] getParameterTypes() { return null; }
+    public com.intellij.psi.PsiTypeParameter[] getTypeParameters() { return null; }
+    public com.intellij.psi.PsiType[] getErasedParameterTypes() { return null; }
+    public boolean equals(java.lang.Object p0) { return false; }
+    public int hashCode() { return 0; }
+    public java.lang.String toString() { return null; }
+    public com.intellij.psi.PsiSubstitutor getSubstitutor() { return null; }
 }

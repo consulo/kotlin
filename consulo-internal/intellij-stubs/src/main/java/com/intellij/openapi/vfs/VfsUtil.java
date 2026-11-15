@@ -71,4 +71,6 @@ public class VfsUtil {
     public static java.lang.String loadText(com.intellij.openapi.vfs.VirtualFile p0, int p1) throws java.io.IOException { return null; }
     public static byte[] loadBytes(com.intellij.openapi.vfs.VirtualFile p0) throws java.io.IOException { return null; }
     public static void refreshAndFindFileByPath(com.intellij.openapi.vfs.NewVirtualFileSystem p0, java.lang.String p1, java.util.function.Consumer<? super com.intellij.openapi.vfs.NewVirtualFile> p2) { }
+    // Added by consulo-internal/remap/genstub.py from consulo.virtualFileSystem.util.VirtualFileUtil
+    public static final char VFS_SEPARATOR_CHAR = (char) 47;
 }

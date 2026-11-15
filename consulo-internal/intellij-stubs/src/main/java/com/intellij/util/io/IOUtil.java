@@ -23,4 +23,6 @@ public class IOUtil {
     public static void writeStringList(java.io.DataOutput p0, java.util.Collection<java.lang.String> p1) throws java.io.IOException { }
     public static java.util.List<java.lang.String> readStringList(java.io.DataInput p0) throws java.io.IOException { return null; }
     protected IOUtil() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.index.io.data.IOUtil
+    public static final boolean BYTE_BUFFERS_USE_NATIVE_BYTE_ORDER = true;
 }

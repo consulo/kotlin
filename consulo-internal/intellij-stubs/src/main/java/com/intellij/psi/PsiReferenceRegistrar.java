@@ -4,4 +4,10 @@ package com.intellij.psi;
 @SuppressWarnings("all")
 public abstract class PsiReferenceRegistrar {
     protected PsiReferenceRegistrar() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.language.psi.PsiReferenceRegistrar
+    public static final double DEFAULT_PRIORITY = 0.0d;
+    public static final double HIGHER_PRIORITY = 100.0d;
+    public static final double LOWER_PRIORITY = -100.0d;
+    public void registerReferenceProvider(com.intellij.patterns.ElementPattern<? extends com.intellij.psi.PsiElement> p0, com.intellij.psi.PsiReferenceProvider p1) { }
+    public <T extends com.intellij.psi.PsiElement> void registerReferenceProvider(com.intellij.patterns.ElementPattern<T> p0, com.intellij.psi.PsiReferenceProvider p1, double p2) { }
 }

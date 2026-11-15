@@ -8,4 +8,6 @@ public final class ManifestFileType implements com.intellij.openapi.fileTypes.Fi
     public java.lang.String getDefaultExtension() { return null; }
     public javax.swing.Icon getIcon() { return null; }
     public boolean isBinary() { return false; }
+    // Inherited abstract members (genstub.py)
+    public java.lang.String getId() { return null; }
 }

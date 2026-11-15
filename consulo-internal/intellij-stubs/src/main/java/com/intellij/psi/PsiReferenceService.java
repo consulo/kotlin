@@ -13,4 +13,9 @@ public abstract class PsiReferenceService {
         public Hints() { }
         public Hints(com.intellij.psi.PsiElement p0, java.lang.Integer p1) { }
     }
+    // Added by consulo-internal/remap/genstub.py from consulo.language.psi.PsiReferenceService
+    public static final com.intellij.openapi.util.Key<com.intellij.psi.PsiReferenceService.Hints> HINTS = null;
+    public static com.intellij.psi.PsiReferenceService getService() { return null; }
+    public java.util.List<com.intellij.psi.PsiReference> getReferences(com.intellij.psi.PsiElement p0, com.intellij.psi.PsiReferenceService.Hints p1) { return null; }
+    public com.intellij.psi.PsiReference[] getContributedReferences(com.intellij.psi.PsiElement p0) { return null; }
 }

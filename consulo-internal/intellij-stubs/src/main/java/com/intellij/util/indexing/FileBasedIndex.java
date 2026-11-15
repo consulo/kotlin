@@ -49,4 +49,6 @@ public abstract class FileBasedIndex {
     }
     // IntelliJ API, redirected to consulo.kotlin.compat.psi.IndexingCompat
     public <K, V> java.util.Iterator<com.intellij.openapi.vfs.VirtualFile> getContainingFilesIterator(com.intellij.util.indexing.ID<K, V> p0, K p1, com.intellij.psi.search.GlobalSearchScope p2) { return null; }
+    // Added by consulo-internal/remap/genstub.py from consulo.language.psi.stub.FileBasedIndex
+    public static final boolean ourEnableTracingOfKeyHashToVirtualFileMapping = true;
 }

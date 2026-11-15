@@ -4,4 +4,27 @@ package com.intellij.util.containers;
 @SuppressWarnings("all")
 public abstract class TreeTraversal {
     protected TreeTraversal() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.util.collection.TreeTraversal
+    public static final com.intellij.util.containers.TreeTraversal PRE_ORDER_DFS = null;
+    public static final com.intellij.util.containers.TreeTraversal POST_ORDER_DFS = null;
+    public static final com.intellij.util.containers.TreeTraversal LEAVES_DFS = null;
+    public static final com.intellij.util.containers.TreeTraversal INTERLEAVED_DFS = null;
+    public static final com.intellij.util.containers.TreeTraversal PLAIN_BFS = null;
+    public static final com.intellij.util.containers.TreeTraversal TRACING_BFS = null;
+    public static final com.intellij.util.containers.TreeTraversal LEAVES_BFS = null;
+    protected TreeTraversal(java.lang.String p0) { }
+    public <T extends java.lang.Object> com.intellij.util.containers.JBIterable<T> traversal(java.lang.Iterable<? extends T> p0, java.util.function.Function<T, ? extends java.lang.Iterable<? extends T>> p1) { return null; }
+    public <T extends java.lang.Object> com.intellij.util.containers.JBIterable<T> traversal(T p0, java.util.function.Function<T, ? extends java.lang.Iterable<? extends T>> p1) { return null; }
+    public <T extends java.lang.Object> java.util.function.Function<T, com.intellij.util.containers.JBIterable<T>> traversal(java.util.function.Function<T, ? extends java.lang.Iterable<? extends T>> p0) { return null; }
+    public com.intellij.util.containers.TreeTraversal unique() { return null; }
+    public com.intellij.util.containers.TreeTraversal unique(java.util.function.Function<?, ?> p0) { return null; }
+    public com.intellij.util.containers.TreeTraversal onRange(java.util.function.Predicate<?> p0) { return null; }
+    public <T extends java.lang.Object> com.intellij.util.containers.TreeTraversal.It<T> createIterator(java.lang.Iterable<? extends T> p0, java.util.function.Function<T, ? extends java.lang.Iterable<? extends T>> p1) { return null; }
+    public java.lang.String toString() { return null; }
+    @SuppressWarnings("all")
+    public static abstract class It<T extends java.lang.Object> extends com.intellij.util.containers.JBIterator<T> {
+        protected java.util.function.Function<? super T, ? extends java.lang.Iterable<? extends T>> tree;
+        protected It(java.util.function.Function<? super T, ? extends java.lang.Iterable<? extends T>> p0) { }
+        protected It() { }
+    }
 }

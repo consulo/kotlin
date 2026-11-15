@@ -38,4 +38,24 @@ public final class ExtensionsCompat {
     public static ProjectExtensionPointName<PsiElementFinder> psiElementFinderEp() {
         return PSI_ELEMENT_FINDER;
     }
+
+    private static final ExtensionPointName<Object> SHORT_NAMES_CACHE = ExtensionPointName.create("com.intellij.java.shortNamesCache");
+
+    /** IntelliJ {@code PsiShortNamesCache.EP_NAME} (see ExtensionPointRegistry). */
+    public static ExtensionPointName<Object> shortNamesCacheEp() {
+        return SHORT_NAMES_CACHE;
+    }
+
+    private static final ExtensionPointName<Object> OVERRIDING_METHODS_SEARCH = ExtensionPointName.create("com.intellij.overridingMethodsSearch");
+    private static final ExtensionPointName<Object> DIRECT_CLASS_INHERITORS_SEARCH = ExtensionPointName.create("com.intellij.directClassInheritorsSearch");
+
+    /** IntelliJ {@code OverridingMethodsSearch.EP_NAME}: Consulo's OverridingMethodsSearchExecutor extensions. */
+    public static ExtensionPointName<Object> overridingMethodsSearchEp() {
+        return OVERRIDING_METHODS_SEARCH;
+    }
+
+    /** IntelliJ {@code DirectClassInheritorsSearch.EP_NAME}: Consulo's DirectClassInheritorsSearchExecutor extensions. */
+    public static ExtensionPointName<Object> directClassInheritorsSearchEp() {
+        return DIRECT_CLASS_INHERITORS_SEARCH;
+    }
 }

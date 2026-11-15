@@ -4,4 +4,12 @@ package com.intellij.pom.java;
 @SuppressWarnings("all")
 public enum JavaFeature {
     ;
+    // Added by consulo-internal/remap/genstub.py from com.intellij.java.language.JavaFeature
+    public java.lang.String getFeatureName() { return null; }
+    public com.intellij.pom.java.LanguageLevel getMinimumLevel() { return null; }
+    public boolean canBeCustomized() { return false; }
+    public boolean isSufficient(com.intellij.pom.java.LanguageLevel p0) { return false; }
+    public boolean isLimited() { return false; }
+    public com.intellij.pom.java.LanguageLevel getStandardLevel() { return null; }
+    public static com.intellij.pom.java.JavaFeature convertFromPreviewFeatureName(java.lang.String p0) { return null; }
 }

@@ -15,5 +15,5 @@ public class MethodSignatureBackedByPsiMethod extends com.intellij.psi.util.Meth
     // Inherited abstract members (genstub.py)
     public com.intellij.psi.PsiSubstitutor getSubstitutor() { return null; }
     public com.intellij.psi.PsiType[] getParameterTypes() { return null; }
-    public com.intellij.psi.PsiType[] getTypeParameters() { return null; }
+    public com.intellij.psi.PsiTypeParameter[] getTypeParameters() { return null; }
 }

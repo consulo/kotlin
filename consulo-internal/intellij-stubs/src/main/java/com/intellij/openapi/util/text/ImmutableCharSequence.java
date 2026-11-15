@@ -4,4 +4,12 @@ package com.intellij.openapi.util.text;
 @SuppressWarnings("all")
 public abstract class ImmutableCharSequence implements java.lang.CharSequence {
     protected ImmutableCharSequence() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.util.lang.ImmutableCharSequence
+    public static java.lang.CharSequence asImmutable(java.lang.CharSequence p0) { return null; }
+    public static boolean isImmutable(java.lang.CharSequence p0) { return false; }
+    public com.intellij.openapi.util.text.ImmutableCharSequence replace(int p0, int p1, java.lang.CharSequence p2) { return null; }
+    public com.intellij.openapi.util.text.ImmutableCharSequence concat(java.lang.CharSequence p0) { return null; }
+    public com.intellij.openapi.util.text.ImmutableCharSequence insert(int p0, java.lang.CharSequence p1) { return null; }
+    public com.intellij.openapi.util.text.ImmutableCharSequence delete(int p0, int p1) { return null; }
+    public com.intellij.openapi.util.text.ImmutableCharSequence subtext(int p0, int p1) { return null; }
 }

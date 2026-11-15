@@ -4,4 +4,25 @@ package com.intellij.openapi.vfs;
 @SuppressWarnings("all")
 public abstract class NewVirtualFileSystem extends com.intellij.openapi.vfs.VirtualFileSystem implements com.intellij.openapi.vfs.FileSystemInterface, com.intellij.openapi.vfs.CachingVirtualFileSystem {
     protected NewVirtualFileSystem() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.virtualFileSystem.NewVirtualFileSystem
+    public com.intellij.openapi.vfs.VirtualFile findFileByPathIfCached(java.lang.String p0) { return null; }
+    public java.lang.String normalize(java.lang.String p0) { return null; }
+    public void refreshWithoutFileWatcher(boolean p0) { }
+    public boolean isReadOnly() { return false; }
+    public boolean isSymLink(com.intellij.openapi.vfs.VirtualFile p0) { return false; }
+    public java.lang.String resolveSymLink(com.intellij.openapi.vfs.VirtualFile p0) { return null; }
+    public java.lang.String extractRootPath(java.lang.String p0) { return null; }
+    public void addVirtualFileListener(com.intellij.openapi.vfs.VirtualFileListener p0) { }
+    public void removeVirtualFileListener(com.intellij.openapi.vfs.VirtualFileListener p0) { }
+    public int getRank() { return 0; }
+    public com.intellij.openapi.vfs.VirtualFile copyFile(java.lang.Object p0, com.intellij.openapi.vfs.VirtualFile p1, com.intellij.openapi.vfs.VirtualFile p2, java.lang.String p3) throws java.io.IOException { return null; }
+    public com.intellij.openapi.vfs.VirtualFile createChildDirectory(java.lang.Object p0, com.intellij.openapi.vfs.VirtualFile p1, java.lang.String p2) throws java.io.IOException { return null; }
+    public com.intellij.openapi.vfs.VirtualFile createChildFile(java.lang.Object p0, com.intellij.openapi.vfs.VirtualFile p1, java.lang.String p2) throws java.io.IOException { return null; }
+    public void deleteFile(java.lang.Object p0, com.intellij.openapi.vfs.VirtualFile p1) throws java.io.IOException { }
+    public void moveFile(java.lang.Object p0, com.intellij.openapi.vfs.VirtualFile p1, com.intellij.openapi.vfs.VirtualFile p2) throws java.io.IOException { }
+    public void renameFile(java.lang.Object p0, com.intellij.openapi.vfs.VirtualFile p1, java.lang.String p2) throws java.io.IOException { }
+    public boolean markNewFilesAsDirty() { return false; }
+    public java.lang.String getCanonicallyCasedName(com.intellij.openapi.vfs.VirtualFile p0) { return null; }
+    public com.intellij.openapi.util.io.FileAttributes getAttributes(com.intellij.openapi.vfs.VirtualFile p0) { return null; }
+    public boolean hasChildren(com.intellij.openapi.vfs.VirtualFile p0) { return false; }
 }

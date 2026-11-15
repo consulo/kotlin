@@ -17,4 +17,6 @@ public class LightParameter extends com.intellij.psi.impl.light.LightElement imp
     public boolean hasModifierProperty(String name) { return false; }
     public com.intellij.psi.PsiElement getDeclarationScope() { return null; }
     public boolean isVarArgs() { return false; }
+    // Inherited abstract members (genstub.py)
+    public void navigate(boolean p0) { }
 }

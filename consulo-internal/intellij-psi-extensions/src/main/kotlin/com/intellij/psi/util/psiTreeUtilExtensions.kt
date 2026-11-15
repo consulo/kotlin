@@ -7,8 +7,8 @@ import com.intellij.psi.tree.IElementType
  * Element type of this PSI element (node's element type), or null when the element has no AST node.
  * Same contract as IntelliJ's `com.intellij.psi.util.elementType`.
  */
-val PsiElement.elementType: IElementType?
-    get() = node?.elementType
+val PsiElement?.elementType: IElementType?
+    get() = this?.node?.elementType
 
 /**
  * Sequence of this element followed by all its descendants in depth-first order.

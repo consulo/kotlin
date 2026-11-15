@@ -4,4 +4,10 @@ package com.intellij.openapi.extensions;
 @SuppressWarnings("all")
 public class ExtensionPointCacheKey<E extends java.lang.Object, R extends java.lang.Object> {
     protected ExtensionPointCacheKey() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.component.extension.ExtensionPointCacheKey
+    public static <E1 extends java.lang.Object, R1 extends java.lang.Object> com.intellij.openapi.extensions.ExtensionPointCacheKey<E1, R1> create(java.lang.String p0, java.util.function.Function<com.intellij.openapi.extensions.ExtensionWalker<E1>, R1> p1) { return null; }
+    public static <E1 extends java.lang.Object, K1 extends java.lang.Object> com.intellij.openapi.extensions.ExtensionPointCacheKey<E1, java.util.Map<K1, E1>> groupBy(java.lang.String p0, java.util.function.Function<E1, K1> p1) { return null; }
+    public java.lang.String getKeyName() { return null; }
+    public java.util.function.Function<com.intellij.openapi.extensions.ExtensionWalker<E>, R> getFactory() { return null; }
+    public java.lang.String toString() { return null; }
 }

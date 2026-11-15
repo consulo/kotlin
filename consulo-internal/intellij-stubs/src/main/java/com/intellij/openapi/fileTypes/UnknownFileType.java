@@ -9,4 +9,6 @@ public final class UnknownFileType implements FileType {
     public String getDefaultExtension() { return null; }
     public javax.swing.Icon getIcon() { return null; }
     public boolean isBinary() { return false; }
+    // Inherited abstract members (genstub.py)
+    public java.lang.String getId() { return null; }
 }

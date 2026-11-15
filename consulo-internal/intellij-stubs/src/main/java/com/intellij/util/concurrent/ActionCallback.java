@@ -4,4 +4,35 @@ package com.intellij.util.concurrent;
 @SuppressWarnings("all")
 public class ActionCallback {
     protected ActionCallback() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.util.concurrent.ActionCallback
+    public static final com.intellij.util.concurrent.ActionCallback DONE = null;
+    public static final com.intellij.util.concurrent.ActionCallback REJECTED = null;
+    protected java.lang.String myError;
+    protected java.lang.Throwable myThrowable;
+    public ActionCallback(java.lang.String p0) { }
+    public ActionCallback(int p0) { }
+    public ActionCallback(java.lang.String p0, int p1) { }
+    public void setDone() { }
+    public boolean isDone() { return false; }
+    public boolean isRejected() { return false; }
+    public boolean isProcessed() { return false; }
+    public void setRejected() { }
+    protected void freeResources() { }
+    public com.intellij.util.concurrent.ActionCallback reject(java.lang.String p0) { return null; }
+    public com.intellij.util.concurrent.ActionCallback rejectWithThrowable(java.lang.Throwable p0) { return null; }
+    public java.lang.String getError() { return null; }
+    public com.intellij.util.concurrent.ActionCallback doWhenDone(java.lang.Runnable p0) { return null; }
+    public com.intellij.util.concurrent.ActionCallback doWhenRejected(java.lang.Runnable p0) { return null; }
+    public com.intellij.util.concurrent.ActionCallback doWhenRejectedButNotThrowable(java.lang.Runnable p0) { return null; }
+    public com.intellij.util.concurrent.ActionCallback doWhenRejectedWithThrowable(java.util.function.Consumer<java.lang.Throwable> p0) { return null; }
+    public com.intellij.util.concurrent.ActionCallback doWhenRejected(java.util.function.Consumer<java.lang.String> p0) { return null; }
+    public com.intellij.util.concurrent.ActionCallback doWhenProcessed(java.lang.Runnable p0) { return null; }
+    public com.intellij.util.concurrent.ActionCallback notifyWhenDone(com.intellij.util.concurrent.ActionCallback p0) { return null; }
+    public com.intellij.util.concurrent.ActionCallback notifyWhenRejected(com.intellij.util.concurrent.ActionCallback p0) { return null; }
+    public com.intellij.util.concurrent.ActionCallback notify(com.intellij.util.concurrent.ActionCallback p0) { return null; }
+    public com.intellij.util.concurrent.ActionCallback processOnDone(java.lang.Runnable p0, boolean p1) { return null; }
+    public java.lang.String toString() { return null; }
+    public java.lang.Runnable createSetDoneRunnable() { return null; }
+    public java.lang.Runnable createSetRejectedRunnable() { return null; }
+    public boolean waitFor(long p0) { return false; }
 }

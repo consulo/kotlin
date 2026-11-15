@@ -4,4 +4,9 @@ package com.intellij.psi;
 @SuppressWarnings("all")
 public abstract class PsiReferenceProvider {
     protected PsiReferenceProvider() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.language.psi.PsiReferenceProvider
+    public static final com.intellij.psi.PsiReferenceProvider[] EMPTY_ARRAY = null;
+    public com.intellij.psi.PsiReference[] getReferencesByElement(com.intellij.psi.PsiElement p0, com.intellij.util.ProcessingContext p1) { return null; }
+    public boolean acceptsHints(com.intellij.psi.PsiElement p0, com.intellij.psi.PsiReferenceService.Hints p1) { return false; }
+    public boolean acceptsTarget(com.intellij.psi.PsiElement p0) { return false; }
 }

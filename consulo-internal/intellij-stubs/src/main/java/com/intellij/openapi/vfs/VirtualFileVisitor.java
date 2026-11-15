@@ -34,4 +34,5 @@ public abstract class VirtualFileVisitor<T extends java.lang.Object> {
         public VisitorException(java.lang.Throwable p0) { }
         protected VisitorException() { }
     }
+    // Added by consulo-internal/remap/genstub.py from consulo.virtualFileSystem.util.VirtualFileVisitor
 }

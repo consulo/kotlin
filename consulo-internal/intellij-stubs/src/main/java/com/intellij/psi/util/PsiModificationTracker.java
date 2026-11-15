@@ -10,4 +10,9 @@ public interface PsiModificationTracker extends com.intellij.openapi.util.Modifi
     long getOutOfCodeBlockModificationCount();
     static PsiModificationTracker getInstance(com.intellij.openapi.project.Project project) { return null; }
     interface Listener { void modificationCountChanged(); }
+    // Added by consulo-internal/remap/genstub.py from consulo.language.psi.PsiModificationTracker
+    public void incCounter();
+    public com.intellij.openapi.util.ModificationTracker getModificationTracker();
+    public com.intellij.openapi.util.ModificationTracker forLanguage(com.intellij.lang.Language p0);
+    public com.intellij.openapi.util.ModificationTracker forLanguages(java.util.function.Predicate<? super com.intellij.lang.Language> p0);
 }

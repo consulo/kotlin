@@ -1,5 +1,9 @@
 package consulo.kotlin.compat.application;
 
+import consulo.application.progress.ProgressIndicator;
+import consulo.application.progress.EmptyProgressIndicator;
+import consulo.project.Project;
+import java.util.function.Consumer;
 import consulo.application.Application;
 import consulo.application.event.ApplicationListener;
 import consulo.disposer.Disposable;
@@ -34,5 +38,12 @@ public final class ApplicationEx {
                 listener.afterWriteActionFinished(action.getClass());
             }
         }, parentDisposable);
+    }
+
+    /** IntelliJ's write action under a progress that cannot be canceled; Consulo runs it right away. */
+    public boolean runWriteActionWithNonCancellableProgressInDispatchThread(String title, Project project, javax.swing.JComponent parentComponent,
+                                                                            Consumer<? super ProgressIndicator> action) {
+        myApplication.runWriteAction(() -> action.accept(new EmptyProgressIndicator()));
+        return true;
     }
 }

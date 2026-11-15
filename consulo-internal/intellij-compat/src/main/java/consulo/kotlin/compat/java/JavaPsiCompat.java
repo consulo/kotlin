@@ -1,5 +1,7 @@
 package consulo.kotlin.compat.java;
 
+import com.intellij.java.language.LanguageLevel;
+import com.intellij.java.language.impl.lexer.JavaLexer;
 import com.intellij.java.language.impl.psi.impl.compiled.ClsFieldImpl;
 import com.intellij.java.language.impl.psi.impl.compiled.ClsParameterImpl;
 import com.intellij.java.language.impl.psi.impl.java.stubs.PsiFieldStub;
@@ -75,5 +77,21 @@ public final class JavaPsiCompat {
             return "L" + (name == null ? classType.getCanonicalText() : name).replace('.', '/') + ";";
         }
         return "Ljava/lang/Object;";
+    }
+
+    /** IntelliJ {@code PsiUtil.isKeyword(name, level)}: Consulo asks the Java lexer. */
+    public static boolean isKeyword(String name, LanguageLevel level) {
+        return JavaLexer.isKeyword(name, level);
+    }
+
+    /** IntelliJ {@code PsiUtil.isSoftKeyword(name, level)}: Consulo asks the Java lexer. */
+    public static boolean isSoftKeyword(CharSequence name, LanguageLevel level) {
+        return JavaLexer.isSoftKeyword(name, level);
+    }
+
+    /** IntelliJ {@code JavaCompletionProcessor.seemsInternal}: synthetic-looking classes, which completion hides. */
+    public static boolean seemsInternal(PsiClass psiClass) {
+        String name = psiClass.getName();
+        return name != null && name.startsWith("$");
     }
 }

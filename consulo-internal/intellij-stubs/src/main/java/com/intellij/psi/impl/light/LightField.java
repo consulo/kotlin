@@ -19,4 +19,6 @@ public class LightField extends com.intellij.psi.impl.light.LightElement impleme
     public boolean isDeprecated() { return false; }
     // Inherited abstract members (genstub.py)
     public void setInitializer(com.intellij.psi.PsiExpression p0) { }
+    // Inherited abstract members (genstub.py)
+    public void navigate(boolean p0) { }
 }

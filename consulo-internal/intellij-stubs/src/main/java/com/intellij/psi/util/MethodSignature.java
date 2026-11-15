@@ -4,7 +4,7 @@ package com.intellij.psi.util;
 public interface MethodSignature {
     String getName();
     com.intellij.psi.PsiType[] getParameterTypes();
-    com.intellij.psi.PsiType[] getTypeParameters();
+    com.intellij.psi.PsiTypeParameter[] getTypeParameters();
     com.intellij.psi.PsiSubstitutor getSubstitutor();
     boolean isRaw();
     boolean isConstructor();

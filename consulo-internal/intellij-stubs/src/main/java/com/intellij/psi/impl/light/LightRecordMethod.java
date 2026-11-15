@@ -8,4 +8,6 @@ public class LightRecordMethod extends com.intellij.psi.impl.light.LightMethod {
     public com.intellij.psi.PsiRecordComponent getRecordComponent() { return null; }
     // Inherited abstract members (genstub.py)
     public com.intellij.psi.util.MethodSignature getSignature(com.intellij.psi.PsiSubstitutor p0) { return null; }
+    // Inherited abstract members (genstub.py)
+    public void navigate(boolean p0) { }
 }

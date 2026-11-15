@@ -10,9 +10,11 @@ public class ExtensionPointName<T> {
     }
     public T[] getExtensions() { return null; }
     public java.util.List<T> getExtensionList() { return java.util.Collections.<T>emptyList(); }
+    public java.lang.Iterable<T> getIterable() { return null; }
     public java.util.List<T> getExtensionList(AreaInstance areaInstance) { return java.util.Collections.<T>emptyList(); }
     public T[] getExtensions(AreaInstance areaInstance) { return null; }
     public com.intellij.openapi.extensions.ExtensionPoint<T> getPoint() { return null; }
+    public com.intellij.openapi.extensions.ExtensionPoint<T> getPoint(AreaInstance areaInstance) { return null; }
     public String getName() { return null; }
     public void forEachExtensionSafe(java.util.function.Consumer<? super T> consumer) {}
 }

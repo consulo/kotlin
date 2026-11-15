@@ -307,4 +307,44 @@ public class StringUtil {
   public static java.lang.String formatFileSize(long p0, java.lang.String p1, int p2) { return null; }
   public static java.lang.String formatFileSize(long p0, java.lang.String p1, int p2, boolean p3) { return null; }
   public static int rankForFileSize(long p0) { return 0; }
+    // Added by consulo-internal/remap/genstub.py from consulo.util.lang.StringUtil
+    public static java.lang.String replace(java.lang.String p0, java.lang.String[] p1, java.lang.String[] p2) { return null; }
+    public static boolean isAscii(java.lang.String p0) { return false; }
+    public static boolean isAscii(java.lang.CharSequence p0) { return false; }
+    public static boolean isAscii(char p0) { return false; }
+    public static boolean charsMatch(char p0, char p1, boolean p2) { return false; }
+    public static java.lang.String replaceSubstring(java.lang.String p0, int p1, int p2, java.lang.String p3) { return null; }
+    public static int hashCode(java.lang.CharSequence p0) { return 0; }
+    public static java.lang.String escapeStringCharacters(java.lang.CharSequence p0) { return null; }
+    public static java.lang.StringBuilder escapeStringCharacters(java.lang.CharSequence p0, java.lang.StringBuilder p1) { return null; }
+    public static java.lang.String escapeCharCharacters(java.lang.CharSequence p0) { return null; }
+    public static java.lang.String unescapeStringCharacters(java.lang.CharSequence p0) { return null; }
+    public static boolean parseBoolean(java.lang.String p0, boolean p1) { return false; }
+    public static java.lang.String trimMiddle(java.lang.String p0, int p1, boolean p2) { return null; }
+    public static java.lang.CharSequence unifyLineSeparators(java.lang.CharSequence p0) { return null; }
+    public static java.lang.String truncateWithEllipsis(java.lang.String p0, int p1) { return null; }
+    public static java.lang.CharSequence unifyLineSeparators(java.lang.CharSequence p0, java.lang.String p1, int[] p2, boolean p3) { return null; }
+    public static java.lang.String trimToNull(java.lang.String p0) { return null; }
+    public static java.lang.String removeEllipsis(java.lang.String p0) { return null; }
+    public static java.lang.StringBuilder join(java.lang.StringBuilder p0, java.lang.String... p1) { return null; }
+    public static java.lang.StringBuilder join(java.lang.String[] p0, java.lang.String p1, java.lang.StringBuilder p2) { return null; }
+    public static java.lang.StringBuilder join(java.lang.String[] p0, int p1, int p2, java.lang.String p3, java.lang.StringBuilder p4) { return null; }
+    public static <T extends java.lang.Object> java.lang.StringBuilder join(T[] p0, java.util.function.Function<T, java.lang.String> p1, java.lang.String p2, java.lang.StringBuilder p3) { return null; }
+    public static <T extends java.lang.Object> java.lang.StringBuilder join(java.util.Collection<? extends T> p0, java.util.function.Function<? super T, java.lang.String> p1, java.lang.String p2, java.lang.StringBuilder p3) { return null; }
+    public static java.lang.StringBuilder join(java.lang.Iterable<?> p0, java.lang.String p1, java.lang.StringBuilder p2) { return null; }
+    public static int stringHashCode(char[] p0) { return 0; }
+    public static int stringHashCodeInsensitive(char[] p0) { return 0; }
+    public static int stringHashCodeIgnoreWhitespaces(java.lang.CharSequence p0, int p1, int p2) { return 0; }
+    public static int stringHashCodeIgnoreWhitespaces(char[] p0) { return 0; }
+    public static int stringHashCodeIgnoreWhitespaces(char[] p0, int p1, int p2) { return 0; }
+    public static java.lang.CharSequence toUpperCase(java.lang.CharSequence p0) { return null; }
+    public static java.lang.String notNullizeIfEmpty(java.lang.String p0, java.lang.String p1) { return null; }
+    public static java.lang.String trimExtension(java.lang.String p0) { return null; }
+    public static java.lang.CharSequence trimTrailing(java.lang.CharSequence p0, char p1) { return null; }
+    public static boolean isEscapedBackslash(char[] p0, int p1, int p2) { return false; }
+    public static java.lang.String formatDuration(long p0, java.lang.String p1) { return null; }
+    public static boolean isPreposition(java.lang.String p0, int p1, int p2) { return false; }
+    public static void escapeSlashes(java.lang.StringBuilder p0) { }
+    public static java.lang.String unescapeSlashes(java.lang.String p0) { return null; }
+    public static boolean areSameInstance(java.lang.String p0, java.lang.String p1) { return false; }
 }

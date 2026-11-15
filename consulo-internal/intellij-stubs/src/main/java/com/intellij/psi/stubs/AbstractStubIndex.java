@@ -9,4 +9,6 @@ public abstract class AbstractStubIndex<Key extends java.lang.Object, Psi extend
     public boolean processAllKeys(com.intellij.openapi.project.Project p0, java.util.function.Predicate<Key> p1) { return false; }
     public java.util.Collection<Psi> get(Key p0, com.intellij.openapi.project.Project p1, com.intellij.psi.search.GlobalSearchScope p2) { return null; }
     public int getCacheSize() { return 0; }
+    // Added by consulo-internal/remap/genstub.py from consulo.language.psi.stub.AbstractStubIndex
+    public java.util.Collection<Psi> get(Key p0, com.intellij.openapi.project.Project p1, com.intellij.openapi.project.content.scope.ProjectAwareSearchScope p2) { return null; }
 }

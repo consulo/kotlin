@@ -4,4 +4,16 @@ package com.intellij.openapi.vfs;
 @SuppressWarnings("all")
 public abstract class BaseVirtualFile extends com.intellij.openapi.util.UserDataHolderBase {
     protected BaseVirtualFile() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.virtualFileSystem.BaseVirtualFile
+    public void delete(java.lang.Object p0) throws java.io.IOException { }
+    public java.nio.charset.Charset getCharset() { return null; }
+    protected java.nio.charset.Charset getStoredCharset() { return null; }
+    protected void storeCharset(java.nio.charset.Charset p0) { }
+    public void setCharset(java.nio.charset.Charset p0, java.lang.Runnable p1, boolean p2) { }
+    public boolean isCharsetSet() { return false; }
+    public byte[] getBOM() { return null; }
+    public void setBOM(byte[] p0) { }
+    public java.lang.String toString() { return null; }
+    public java.lang.String getDetectedLineSeparator() { return null; }
+    public void setDetectedLineSeparator(java.lang.String p0) { }
 }

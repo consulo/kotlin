@@ -1,4 +1,9 @@
 <remap>
+    <!-- Classes copied unchanged: the Swing side of composite icons (javax.swing.Icon on purpose, see CompositeImage) -->
+    <verbatim name="consulo.kotlin.compat.ui.CompositeImage"/>
+    <!-- implements Consulo's getText() next to IntelliJ's, which remap.xml renames in implementations (see <methods>) -->
+    <verbatim name="consulo.kotlin.compat.intention.IntentionAction"/>
+
     <!-- Package-level rules (bulk mapping, lowest priority) -->
     <packages>
         <!-- "native" is a Java keyword: packages with it are not legal in a named module -->
@@ -22,6 +27,11 @@
         <rule from="com.intellij.psi" to="consulo.language.psi"/>
         <!-- IntelliJ's repackaged ASM (asm-all) -> the ASM the Consulo Java plugin ships (module "asm") -->
         <rule from="org.jetbrains.org.objectweb.asm" to="consulo.internal.org.objectweb.asm"/>
+
+        <!-- completion patterns and PSI filters -->
+        <rule from="com.intellij.patterns" to="consulo.language.pattern"/>
+        <rule from="com.intellij.psi.filters" to="consulo.language.psi.filter"/>
+        <rule from="com.intellij.psi.xml" to="consulo.xml.language.psi"/>
 
         <!-- Language/Lexer -->
         <rule from="com.intellij.lexer" to="consulo.language.lexer"/>
@@ -547,6 +557,13 @@
         <rule from="com.intellij.psi.util.JavaPsiExtensionsKt" to="consulo.kotlin.compat.ext.JavaPsiExtensionsKt"/>
         <rule from="com.intellij.openapi.application.ReadActionsKt" to="consulo.kotlin.compat.ext.ReadActionsKt"/>
         <rule from="com.intellij.diagnostic.ControlFlowExceptionsKt" to="consulo.kotlin.compat.ext.ControlFlowExceptionsKt"/>
+        <rule from="com.intellij.psi.util.PsiElementUtilsKt" to="consulo.kotlin.compat.ext.PsiElementUtilsKt"/>
+        <rule from="com.intellij.openapi.progress.CoroutinesKt" to="consulo.kotlin.compat.ext.CoroutinesKt"/>
+        <rule from="com.intellij.codeInsight.lookup.SuspendingLookupElementRenderer" to="consulo.kotlin.compat.ext.SuspendingLookupElementRenderer"/>
+        <rule from="com.intellij.openapi.progress.impl.CancellationCheck" to="consulo.kotlin.compat.ext.CancellationCheck"/>
+        <rule from="com.intellij.openapi.progress.util.ProgressWrapper" to="consulo.kotlin.compat.ext.ProgressWrapper"/>
+        <rule from="com.intellij.openapi.fileTypes.BinaryFileTypeDecompilers" to="consulo.kotlin.compat.ext.BinaryFileTypeDecompilers"/>
+        <rule from="com.intellij.openapi.util.registry.RegistryManager" to="consulo.kotlin.compat.ext.RegistryManager"/>
         <!-- Commenter / brace matching -->
         <rule from="com.intellij.codeInsight.highlighting.PairedBraceAndAnglesMatcher" to="consulo.kotlin.compat.editor.CompatPairedBraceAndAnglesMatcher"/>
         <rule from="com.intellij.codeInsight.hint.DeclarationRangeUtil" to="consulo.language.editor.hint.DeclarationRangeUtil"/>
@@ -621,11 +638,200 @@
         <rule from="com.intellij.psi.ClassFileViewProvider" to="com.intellij.java.language.impl.psi.ClassFileViewProvider"/>
         <rule from="com.intellij.psi.impl.DebugUtil" to="consulo.language.impl.DebugUtil"/>
         <rule from="com.intellij.psi.search.impl.VirtualFileEnumeration" to="consulo.kotlin.compat.psi.VirtualFileEnumeration"/>
+        <!-- completion (plugin completion/impl-k2) and what it reaches: code insight, templates, search, patterns -->
+        <rule from="com.intellij.codeInsight.completion.CompletionUtilCore" to="consulo.language.editor.completion.CompletionUtilCore"/>
+        <rule from="com.intellij.codeInsight.completion.CompletionUtil" to="consulo.language.editor.completion.CompletionUtilCore"/>
+        <rule from="com.intellij.codeInsight.completion.CompletionContributor" to="consulo.language.editor.completion.CompletionContributor"/>
+        <rule from="com.intellij.codeInsight.completion.CompletionInitializationContext" to="consulo.language.editor.completion.CompletionInitializationContext"/>
+        <rule from="com.intellij.codeInsight.completion.CompletionParameters" to="consulo.language.editor.completion.CompletionParameters"/>
+        <rule from="com.intellij.codeInsight.completion.CompletionProvider" to="consulo.kotlin.compat.completion.CompletionProvider"/>
+        <rule from="com.intellij.codeInsight.completion.CompletionResultSet" to="consulo.language.editor.completion.CompletionResultSet"/>
+        <rule from="com.intellij.codeInsight.completion.CompletionService" to="consulo.language.editor.completion.CompletionService"/>
+        <rule from="com.intellij.codeInsight.completion.CompletionSorter" to="consulo.language.editor.completion.CompletionSorter"/>
+        <rule from="com.intellij.codeInsight.completion.CompletionType" to="consulo.language.editor.completion.CompletionType"/>
+        <rule from="com.intellij.codeInsight.completion.OffsetKey" to="consulo.language.editor.completion.OffsetKey"/>
+        <rule from="com.intellij.codeInsight.completion.OffsetMap" to="consulo.language.editor.completion.OffsetMap"/>
+        <rule from="com.intellij.codeInsight.completion.InsertHandler" to="consulo.language.editor.completion.lookup.InsertHandler"/>
+        <rule from="com.intellij.codeInsight.completion.InsertionContext" to="consulo.language.editor.completion.lookup.InsertionContext"/>
+        <rule from="com.intellij.codeInsight.completion.PrefixMatcher" to="consulo.application.util.matcher.PrefixMatcher"/>
+        <rule from="com.intellij.codeInsight.completion.impl.CamelHumpMatcher" to="consulo.language.editor.completion.CamelHumpMatcher"/>
+        <rule from="com.intellij.codeInsight.completion.impl.BetterPrefixMatcher" to="consulo.ide.impl.idea.codeInsight.completion.impl.BetterPrefixMatcher"/>
+        <rule from="com.intellij.codeInsight.completion.CodeCompletionHandlerBase" to="consulo.ide.impl.idea.codeInsight.completion.CodeCompletionHandlerBase"/>
+        <rule from="com.intellij.codeInsight.completion.AllClassesGetter" to="com.intellij.java.impl.codeInsight.completion.AllClassesGetter"/>
+        <rule from="com.intellij.codeInsight.completion.scope.JavaCompletionProcessor" to="com.intellij.java.impl.codeInsight.completion.scope.JavaCompletionProcessor"/>
+        <rule from="com.intellij.codeInsight.lookup.AutoCompletionPolicy" to="consulo.language.editor.completion.AutoCompletionPolicy"/>
+        <rule from="com.intellij.codeInsight.lookup.CharFilter" to="consulo.language.editor.completion.lookup.CharFilter"/>
+        <rule from="com.intellij.codeInsight.lookup.CharFilter$Result" to="consulo.language.editor.completion.lookup.CharFilter$Result"/>
+        <rule from="com.intellij.codeInsight.lookup.Lookup" to="consulo.language.editor.completion.lookup.Lookup"/>
+        <rule from="com.intellij.codeInsight.lookup.LookupElement" to="consulo.language.editor.completion.lookup.LookupElement"/>
+        <rule from="com.intellij.codeInsight.lookup.LookupElementBuilder" to="consulo.language.editor.completion.lookup.LookupElementBuilder"/>
+        <rule from="com.intellij.codeInsight.lookup.LookupElementDecorator" to="consulo.kotlin.compat.completion.LookupElementDecorator"/>
+        <rule from="com.intellij.codeInsight.lookup.LookupElementPresentation" to="consulo.language.editor.completion.lookup.LookupElementPresentation"/>
+        <rule from="com.intellij.codeInsight.lookup.LookupElementRenderer" to="consulo.language.editor.completion.lookup.LookupElementRenderer"/>
+        <rule from="com.intellij.codeInsight.lookup.LookupElementWeigher" to="consulo.language.editor.completion.lookup.LookupElementWeigher"/>
+        <rule from="com.intellij.codeInsight.lookup.WeighingContext" to="consulo.language.editor.completion.WeighingContext"/>
+        <rule from="com.intellij.codeInsight.template.Expression" to="consulo.language.editor.template.Expression"/>
+        <rule from="com.intellij.codeInsight.template.ExpressionContext" to="consulo.language.editor.template.ExpressionContext"/>
+        <rule from="com.intellij.codeInsight.template.Template" to="consulo.language.editor.template.Template"/>
+        <rule from="com.intellij.codeInsight.template.TemplateManager" to="consulo.language.editor.template.TemplateManager"/>
+        <rule from="com.intellij.codeInsight.template.TextResult" to="consulo.language.editor.template.TextResult"/>
+        <rule from="com.intellij.codeInsight.template.TemplateEditingListener" to="consulo.language.editor.template.event.TemplateEditingListener"/>
+        <rule from="com.intellij.codeInsight.template.impl.TemplateState" to="consulo.language.editor.template.TemplateState"/>
+        <!-- TemplateImpl is internal in Consulo; Kotlin only reads getEndSegmentNumber, which Template declares -->
+        <rule from="com.intellij.codeInsight.template.impl.TemplateImpl" to="consulo.language.editor.template.Template"/>
+        <rule from="com.intellij.codeInsight.AutoPopupController" to="consulo.language.editor.AutoPopupController"/>
+        <rule from="com.intellij.codeInsight.FileModificationService" to="consulo.language.editor.FileModificationService"/>
+        <rule from="com.intellij.codeInsight.JavaProjectCodeInsightSettings" to="com.intellij.java.impl.codeInsight.JavaProjectCodeInsightSettings"/>
+        <rule from="com.intellij.codeInsight.generation.ClassMember" to="consulo.language.editor.generation.ClassMember"/>
+        <rule from="com.intellij.codeInsight.generation.MemberChooserObject" to="consulo.language.editor.generation.MemberChooserObject"/>
+        <rule from="com.intellij.codeInsight.generation.MemberChooserObjectBase" to="consulo.language.editor.generation.MemberChooserObjectBase"/>
+        <rule from="com.intellij.codeInsight.hint.HintManager" to="consulo.language.editor.hint.HintManager"/>
+        <rule from="com.intellij.codeInsight.intention.IntentionAction" to="consulo.language.editor.intention.IntentionAction"/>
+        <rule from="com.intellij.application.options.CodeStyle" to="consulo.language.codeStyle.CodeStyle"/>
+        <rule from="com.intellij.formatting.ASTBlock" to="consulo.language.codeStyle.ASTBlock"/>
+        <rule from="com.intellij.ide.fileTemplates.FileTemplate" to="consulo.fileTemplate.FileTemplate"/>
+        <rule from="com.intellij.ide.fileTemplates.FileTemplateManager" to="consulo.fileTemplate.FileTemplateManager"/>
+        <rule from="com.intellij.ide.util.MemberChooser" to="consulo.ide.impl.idea.ide.util.MemberChooser"/>
+        <rule from="com.intellij.lang.LanguageCodeInsightActionHandler" to="consulo.language.editor.action.LanguageCodeInsightActionHandler"/>
+        <rule from="com.intellij.openapi.actionSystem.ex.ActionUtil" to="consulo.ui.ex.action.util.ActionUtil"/>
+        <rule from="com.intellij.openapi.application.QueryExecutorBase" to="consulo.kotlin.compat.search.QueryExecutorBase"/>
+        <rule from="com.intellij.openapi.command.CommandProcessor" to="consulo.undoRedo.CommandProcessor"/>
+        <rule from="com.intellij.openapi.editor.ScrollType" to="consulo.codeEditor.ScrollType"/>
+        <rule from="com.intellij.openapi.fileEditor.FileEditorManager" to="consulo.fileEditor.FileEditorManager"/>
+        <rule from="com.intellij.openapi.module.ModuleUtilCore" to="consulo.language.util.ModuleUtilCore"/>
+        <rule from="com.intellij.openapi.roots.ProjectRootManager" to="consulo.module.content.ProjectRootManager"/>
+        <rule from="com.intellij.openapi.ui.DialogWrapper" to="consulo.ui.ex.awt.DialogWrapper"/>
+        <rule from="com.intellij.openapi.util.Comparing" to="consulo.util.lang.Comparing"/>
+        <rule from="com.intellij.openapi.util.text.Strings" to="consulo.util.lang.StringUtil"/>
+        <rule from="com.intellij.openapi.util.DefaultJDOMExternalizer" to="consulo.util.xml.serializer.DefaultJDOMExternalizer"/>
+        <rule from="com.intellij.openapi.util.InvalidDataException" to="consulo.util.xml.serializer.InvalidDataException"/>
+        <rule from="com.intellij.openapi.util.WriteExternalException" to="consulo.util.xml.serializer.WriteExternalException"/>
+        <rule from="com.intellij.util.xmlb.XmlSerializer" to="consulo.util.xml.serializer.XmlSerializer"/>
+        <rule from="com.intellij.patterns.PsiJavaPatterns" to="com.intellij.java.language.patterns.PsiJavaPatterns"/>
+        <rule from="com.intellij.psi.codeStyle.NameUtil" to="consulo.application.util.matcher.NameUtil"/>
+        <rule from="com.intellij.util.text.NameUtilCore" to="consulo.application.util.matcher.NameUtilCore"/>
+        <rule from="com.intellij.psi.filters.TextFilter" to="com.intellij.java.impl.psi.filters.TextFilter"/>
+        <rule from="com.intellij.psi.impl.cache.CacheManager" to="consulo.language.cacheBuilder.CacheManager"/>
+        <rule from="com.intellij.psi.impl.cache.impl.BaseFilterLexer" to="consulo.language.psi.stub.BaseFilterLexer"/>
+        <rule from="com.intellij.psi.impl.cache.impl.IdAndToDoScannerBasedOnFilterLexer" to="consulo.language.psi.stub.IdAndToDoScannerBasedOnFilterLexer"/>
+        <rule from="com.intellij.psi.impl.cache.impl.OccurrenceConsumer" to="consulo.language.psi.stub.OccurrenceConsumer"/>
+        <rule from="com.intellij.psi.impl.cache.impl.id.LexerBasedIdIndexer" to="consulo.language.psi.stub.LexerBasedIdIndexer"/>
+        <rule from="com.intellij.psi.impl.cache.impl.todo.LexerBasedTodoIndexer" to="consulo.language.psi.stub.todo.LexerBasedTodoIndexer"/>
+        <rule from="com.intellij.psi.impl.search.JavaOverridingMethodsSearcher" to="com.intellij.java.indexing.impl.search.JavaOverridingMethodsSearcher"/>
+        <rule from="com.intellij.psi.impl.source.PostprocessReformattingAspect" to="consulo.language.codeStyle.PostprocessReformattingAspect"/>
+        <rule from="com.intellij.psi.impl.source.PsiFileWithStubSupport" to="consulo.language.psi.stub.PsiFileWithStubSupport"/>
+        <rule from="com.intellij.psi.impl.source.resolve.reference.impl.PsiMultiReference" to="consulo.language.psi.PsiMultiReference"/>
+        <rule from="com.intellij.psi.impl.source.tree.java.PsiReferenceExpressionImpl" to="com.intellij.java.language.impl.psi.impl.source.tree.java.PsiReferenceExpressionImpl"/>
+        <rule from="com.intellij.psi.JavaDocTokenType" to="com.intellij.java.language.psi.JavaDocTokenType"/>
+        <rule from="com.intellij.psi.LambdaUtil" to="com.intellij.java.language.psi.LambdaUtil"/>
+        <rule from="com.intellij.psi.util.MethodSignatureUtil" to="com.intellij.java.language.psi.util.MethodSignatureUtil"/>
+        <rule from="com.intellij.psi.search.FileTypeIndex" to="consulo.language.psi.search.FileTypeIndex"/>
+        <rule from="com.intellij.psi.search.PsiShortNamesCache" to="com.intellij.java.language.psi.search.PsiShortNamesCache"/>
+        <rule from="com.intellij.psi.search.RequestResultProcessor" to="consulo.kotlin.compat.search.RequestResultProcessor"/>
+        <rule from="com.intellij.psi.search.SearchRequestCollector" to="consulo.language.psi.search.SearchRequestCollector"/>
+        <rule from="com.intellij.psi.search.SearchSession" to="consulo.language.psi.search.SearchSession"/>
+        <rule from="com.intellij.psi.search.UsageSearchContext" to="consulo.language.psi.search.UsageSearchContext"/>
+        <rule from="com.intellij.psi.search.searches.ReferencesSearch" to="consulo.language.psi.search.ReferencesSearch"/>
+        <rule from="com.intellij.psi.search.searches.ReferencesSearch$SearchParameters" to="consulo.language.psi.search.ReferencesSearch$SearchParameters"/>
+        <rule from="com.intellij.psi.search.searches.ClassInheritorsSearch" to="com.intellij.java.indexing.search.searches.ClassInheritorsSearch"/>
+        <rule from="com.intellij.psi.search.searches.ClassInheritorsSearch$SearchParameters" to="com.intellij.java.indexing.search.searches.ClassInheritorsSearch$SearchParameters"/>
+        <rule from="com.intellij.psi.search.searches.DirectClassInheritorsSearch" to="com.intellij.java.indexing.search.searches.DirectClassInheritorsSearch"/>
+        <rule from="com.intellij.psi.search.searches.DirectClassInheritorsSearch$SearchParameters" to="com.intellij.java.indexing.search.searches.DirectClassInheritorsSearch$SearchParameters"/>
+        <rule from="com.intellij.psi.search.searches.MethodReferencesSearch" to="com.intellij.java.indexing.search.searches.MethodReferencesSearch"/>
+        <rule from="com.intellij.psi.search.searches.MethodReferencesSearch$SearchParameters" to="com.intellij.java.indexing.search.searches.MethodReferencesSearch$SearchParameters"/>
+        <rule from="com.intellij.psi.search.searches.OverridingMethodsSearch" to="com.intellij.java.indexing.search.searches.OverridingMethodsSearch"/>
+        <rule from="com.intellij.psi.search.searches.OverridingMethodsSearch$SearchParameters" to="com.intellij.java.indexing.search.searches.OverridingMethodsSearch$SearchParameters"/>
+        <rule from="com.intellij.ui.JBColor" to="consulo.ui.ex.JBColor"/>
+        <rule from="com.intellij.ui.SimpleTextAttributes" to="consulo.ui.ex.SimpleTextAttributes"/>
+        <rule from="com.intellij.icons.AllIcons" to="consulo.application.AllIcons"/>
+        <rule from="com.intellij.icons.AllIcons$Gutter" to="consulo.application.AllIcons$Gutter"/>
+        <rule from="com.intellij.icons.AllIcons$Nodes" to="consulo.application.AllIcons$Nodes"/>
+        <rule from="com.intellij.util.AbstractQuery" to="consulo.kotlin.compat.search.AbstractQuery"/>
+        <rule from="com.intellij.util.CollectionQuery" to="consulo.application.util.query.CollectionQuery"/>
+        <rule from="com.intellij.util.QueryFactory" to="consulo.application.util.query.QueryFactory"/>
+        <rule from="com.intellij.util.ProcessingContext" to="consulo.language.util.ProcessingContext"/>
+        <rule from="com.intellij.xml.util.XmlStringUtil" to="consulo.util.lang.xml.XmlStringUtil"/>
+        <!-- completion gaps: Consulo has no (public) counterpart, consulo-internal/intellij-compat fills in -->
+        <rule from="com.intellij.ui.IconManager" to="consulo.kotlin.compat.ui.IconManager"/>
+        <rule from="com.intellij.ui.PlatformIcons" to="consulo.kotlin.compat.ui.PlatformIcons"/>
+        <rule from="com.intellij.ui.RowIcon" to="consulo.kotlin.compat.ui.RowIcon"/>
+        <rule from="com.intellij.ui.LayeredIcon" to="consulo.kotlin.compat.ui.LayeredIcon"/>
+        <rule from="com.intellij.ide.IconProvider" to="consulo.kotlin.compat.ui.IconProvider"/>
+        <rule from="com.intellij.util.PlatformIcons" to="consulo.kotlin.compat.ui.LegacyPlatformIcons"/>
+        <rule from="com.intellij.DynamicBundle" to="consulo.kotlin.compat.util.DynamicBundle"/>
+        <rule from="com.intellij.codeInsight.completion.FusCompletionKeys" to="consulo.kotlin.compat.completion.FusCompletionKeys"/>
+        <rule from="com.intellij.codeInsight.completion.command.CommandCompletionLookupElement" to="consulo.kotlin.compat.completion.CommandCompletionLookupElement"/>
+        <rule from="com.intellij.codeInsight.template.postfix.completion.PostfixTemplateLookupElement" to="consulo.kotlin.compat.completion.PostfixTemplateLookupElement"/>
+        <rule from="com.intellij.codeInsight.completion.impl.CompletionSorterImpl" to="consulo.kotlin.compat.completion.CompletionSorterImpl"/>
+        <rule from="com.intellij.model.search.SearchParameters" to="consulo.kotlin.compat.search.SearchParameters"/>
+        <rule from="com.intellij.model.search.Searcher" to="consulo.kotlin.compat.search.Searcher"/>
+        <rule from="com.intellij.model.search.SearchService" to="consulo.kotlin.compat.search.SearchService"/>
+        <rule from="com.intellij.codeInsight.generation.OverrideImplementsAnnotationsFilter" to="consulo.kotlin.compat.java.OverrideImplementsAnnotationsFilter"/>
+        <rule from="com.intellij.openapi.extensions.impl.ExtensionPointImpl" to="consulo.kotlin.compat.extensions.NamedExtensionPoint"/>
+        <rule from="com.intellij.codeInsight.lookup.ClassifierFactory" to="consulo.ide.impl.idea.codeInsight.lookup.ClassifierFactory"/>
+        <!-- XML and HTML PSI (the XML plugin, which the Java plugin requires too) -->
+        <rule from="com.intellij.psi.html.HtmlTag" to="consulo.html.language.psi.HtmlTag"/>
+        <rule from="com.intellij.ide.highlighter.HtmlFileType" to="consulo.html.language.HtmlFileType"/>
+        <rule from="com.intellij.ide.highlighter.XmlFileType" to="consulo.xml.language.XmlFileType"/>
+        <rule from="com.intellij.psi.XmlRecursiveElementVisitor" to="consulo.xml.language.psi.XmlRecursiveElementVisitor"/>
+        <!-- found by simple name by genstub.py (Java plugin and platform classes the completion closure reaches) -->
+        <rule from="com.intellij.java.indexing.search.searches.OverridingMethodsSearchExecutor" to="com.intellij.java.indexing.search.searches.OverridingMethodsSearchExecutor"/>
+        <rule from="com.intellij.java.impl.codeInsight.completion.scope.CompletionElement" to="com.intellij.java.impl.codeInsight.completion.scope.CompletionElement"/>
+        <rule from="com.intellij.java.impl.codeInsight.completion.JavaPsiClassReferenceElement" to="com.intellij.java.impl.codeInsight.completion.JavaPsiClassReferenceElement"/>
+        <rule from="com.intellij.java.impl.codeInsight.lookup.TypedLookupItem" to="com.intellij.java.impl.codeInsight.lookup.TypedLookupItem"/>
+        <rule from="com.intellij.pom.java.patterns.PsiParameterPattern" to="com.intellij.java.language.patterns.PsiParameterPattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiNameValuePairPattern" to="com.intellij.java.language.patterns.PsiNameValuePairPattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiMethodPattern" to="com.intellij.java.language.patterns.PsiMethodPattern"/>
+        <rule from="com.intellij.pom.java.JavaFeature" to="com.intellij.java.language.JavaFeature"/>
+        <rule from="com.intellij.pom.java.patterns.PsiStatementPattern" to="com.intellij.java.language.patterns.PsiStatementPattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiExpressionPattern" to="com.intellij.java.language.patterns.PsiExpressionPattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiClassPattern" to="com.intellij.java.language.patterns.PsiClassPattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiTypeCastExpressionPattern" to="com.intellij.java.language.patterns.PsiTypeCastExpressionPattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiAnnotationPattern" to="com.intellij.java.language.patterns.PsiAnnotationPattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiFieldPattern" to="com.intellij.java.language.patterns.PsiFieldPattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiModifierListOwnerPattern" to="com.intellij.java.language.patterns.PsiModifierListOwnerPattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiTypePattern" to="com.intellij.java.language.patterns.PsiTypePattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiMemberPattern" to="com.intellij.java.language.patterns.PsiMemberPattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiJavaElementPattern" to="com.intellij.java.language.patterns.PsiJavaElementPattern"/>
+        <rule from="com.intellij.pom.java.patterns.PsiBinaryExpressionPattern" to="com.intellij.java.language.patterns.PsiBinaryExpressionPattern"/>
+        <rule from="com.intellij.psi.PsiJavaModuleReference" to="com.intellij.java.language.psi.PsiJavaModuleReference"/>
+        <rule from="com.intellij.psi.util.MethodSignatureBase" to="com.intellij.java.language.psi.util.MethodSignatureBase"/>
+        <rule from="com.intellij.psi.search.PsiNonJavaFileReferenceProcessor" to="consulo.language.psi.search.PsiNonJavaFileReferenceProcessor"/>
+        <rule from="com.intellij.psi.search.QuerySearchRequest" to="consulo.language.psi.search.QuerySearchRequest"/>
+        <rule from="com.intellij.psi.search.PsiSearchRequest" to="consulo.language.psi.search.PsiSearchRequest"/>
+        <rule from="com.intellij.psi.search.TextOccurenceProcessor" to="consulo.language.psi.search.TextOccurenceProcessor"/>
+        <rule from="com.intellij.psi.search.IndexPattern" to="consulo.language.psi.search.IndexPattern"/>
+        <rule from="com.intellij.psi.scope.ElementClassHint" to="com.intellij.java.language.impl.psi.scope.ElementClassHint"/>
+        <rule from="com.intellij.psi.impl.source.tree.java.ExpressionPsiElement" to="com.intellij.java.language.impl.psi.impl.source.tree.java.ExpressionPsiElement"/>
+        <rule from="com.intellij.psi.impl.source.SourceJavaCodeReference" to="com.intellij.java.language.impl.psi.impl.source.SourceJavaCodeReference"/>
+        <rule from="com.intellij.openapi.util.JDOMExternalizable" to="consulo.util.xml.serializer.JDOMExternalizable"/>
+        <!-- editor models: Consulo names in the stubs (genstub.py finds them by these identity rules) -->
+        <rule from="consulo.codeEditor.CaretModel" to="consulo.codeEditor.CaretModel"/>
+        <rule from="consulo.codeEditor.Caret" to="consulo.codeEditor.Caret"/>
+        <rule from="consulo.codeEditor.SelectionModel" to="consulo.codeEditor.SelectionModel"/>
+        <rule from="consulo.codeEditor.ScrollingModel" to="consulo.codeEditor.ScrollingModel"/>
+        <rule from="com.intellij.testFramework.LightVirtualFileBase" to="consulo.virtualFileSystem.light.LightVirtualFileBase"/>
+        <rule from="com.intellij.psi.impl.source.StubbedSpine" to="consulo.language.psi.stub.StubbedSpine"/>
+        <rule from="com.intellij.openapi.progress.Task$WithResult" to="consulo.kotlin.compat.progress.TaskWithResult"/>
+        <rule from="com.intellij.openapi.fileEditor.OpenFileDescriptor" to="consulo.kotlin.compat.navigation.OpenFileDescriptor"/>
+        <!-- IntelliJ intentions have string texts (consulo.kotlin.compat.intention.IntentionAction) -->
+        <rule from="com.intellij.codeInsight.intention.IntentionAction" to="consulo.kotlin.compat.intention.IntentionAction"/>
+        <rule from="com.intellij.codeInsight.intention.CommonIntentionAction" to="consulo.language.editor.intention.IntentionAction"/>
+        <rule from="com.intellij.modcommand.ModCommandAction" to="consulo.kotlin.compat.intention.ModCommandAction"/>
+        <rule from="org.jetbrains.uast.UastContext" to="consulo.kotlin.compat.uast.UastContext"/>
+        <rule from="com.intellij.psi.impl.search.JavaOverridingMethodsSearcher$ClassInheritanceSearchFromJavaOverridingMethodsParameters" to="consulo.kotlin.compat.search.ClassInheritanceSearchFromJavaOverridingMethodsParameters"/>
+        <rule from="com.intellij.psi.search.PsiElementProcessor" to="consulo.language.psi.resolve.PsiElementProcessor"/>
     </classes>
 
     <!-- Method renames (applied after class remapping) -->
     <methods>
         <rule owner="consulo.module.content.DirectoryIndex" name="getDirsByPackageName" newName="getDirectoriesByPackageName"/>
+        <!-- IntelliJ TextRange.containsInclusive(offset) is Consulo's containsOffset -->
+        <rule owner="consulo.document.util.TextRange" name="containsInclusive" newName="containsOffset"/>
+        <!-- IntelliJ's scope caches calcHashCode() in hashCode(); Consulo's computes hashCode() -->
+        <rule owner="consulo.language.psi.scope.DelegatingGlobalSearchScope" name="calcHashCode" newName="hashCode"/>
+        <!-- IntelliJ IntentionAction.getText() is a string: getIntentionText() of consulo.kotlin.compat.intention.IntentionAction -->
+        <rule owner="consulo.kotlin.compat.intention.IntentionAction" name="getText" newName="getIntentionText"/>
         <rule owner="consulo.virtualFileSystem.archive.ArchiveFileSystem" name="getLocalByEntry" newName="getLocalVirtualFileFor"/>
         <!-- EqualityPolicy (IntelliJ) is HashingStrategy (Consulo); overrides are renamed too -->
         <rule owner="consulo.util.collection.HashingStrategy" name="getHashCode" newName="hashCode"/>
@@ -655,6 +861,10 @@
     <redirects>
         <!-- Kotlin registry keys; analysis statistics are always off -->
         <method owner="consulo.application.util.registry.Registry" name="is" desc="(Ljava/lang/String;Z)Z"
+                target="consulo.kotlin.compat.util.RegistryCompat"/>
+        <method owner="consulo.application.util.registry.Registry" name="is" desc="(Ljava/lang/String;)Z"
+                target="consulo.kotlin.compat.util.RegistryCompat"/>
+        <method owner="consulo.application.util.registry.Registry" name="intValue" desc="(Ljava/lang/String;)I"
                 target="consulo.kotlin.compat.util.RegistryCompat"/>
         <method owner="consulo.language.psi.stub.StubIndex" name="getContainingFilesIterator"
                 desc="(Lconsulo/language/psi/stub/StubIndexKey;Ljava/lang/Object;Lconsulo/project/Project;Lconsulo/language/psi/scope/GlobalSearchScope;)Ljava/util/Iterator;"
@@ -727,6 +937,8 @@
                 anyOwner="true" target="consulo.kotlin.compat.extensions.ExtensionsCompat"/>
         <field owner="com.intellij.java.language.psi.PsiElementFinder" name="EP" desc="Lconsulo/kotlin/compat/extensions/ProjectExtensionPointName;"
                target="consulo.kotlin.compat.extensions.ExtensionsCompat" targetName="psiElementFinderEp"/>
+        <field owner="com.intellij.java.language.psi.search.PsiShortNamesCache" name="EP_NAME" desc="Lconsulo/kotlin/compat/extensions/ExtensionPointName;"
+               target="consulo.kotlin.compat.extensions.ExtensionsCompat" targetName="shortNamesCacheEp"/>
         <!-- IntelliJ Topic objects on Consulo's listener-class message bus -->
         <method owner="consulo.component.messagebus.MessageBus" name="syncPublisher"
                 desc="(Lconsulo/kotlin/compat/messagebus/Topic;)Ljava/lang/Object;" target="consulo.kotlin.compat.messagebus.MessageBusCompat"/>
@@ -778,7 +990,7 @@
                 target="consulo.kotlin.compat.psi.PsiCompat"/>
         <method owner="consulo.language.psi.util.PsiTreeUtil" name="getChildrenOfAnyType" desc="(Lconsulo/language/psi/PsiElement;[Ljava/lang/Class;)Ljava/util/List;"
                 target="consulo.kotlin.compat.psi.PsiCompat"/>
-        <method owner="consulo.language.psi.SmartPsiElementPointer" name="getElement" desc="()Ljava/lang/Object;"
+        <method owner="consulo.language.psi.SmartPsiElementPointer" name="getElement" desc="()Ljava/lang/Object;" anyOwner="true"
                 target="consulo.kotlin.compat.psi.PsiCompat"/>
         <method owner="consulo.language.parser.PsiBuilder" name="getErrorMessage" desc="(Lconsulo/language/ast/LighterASTNode;)Ljava/lang/String;"
                 target="consulo.kotlin.compat.psi.PsiCompat"/>
@@ -815,6 +1027,77 @@
         <!-- IntelliJ getService returns null for unregistered services (also through Project/Application) -->
         <method owner="consulo.component.ComponentManager" name="getService" desc="(Ljava/lang/Class;)Ljava/lang/Object;" anyOwner="true"
                 target="consulo.kotlin.compat.util.ServiceCompat"/>
+        <!-- completion closure: IntelliJ members Consulo lacks (consulo-internal/intellij-compat) -->
+        <method owner="consulo.application.Application" name="runWriteAction" desc="(Lconsulo/application/util/function/Computable;)Ljava/lang/Object;" anyOwner="true"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.application.Application" name="invokeLater" desc="(Ljava/lang/Runnable;Lconsulo/util/lang/function/Condition;)V" anyOwner="true"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.language.Language" name="getDisplayName" desc="()Ljava/lang/String;" anyOwner="true"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.util.collection.ContainerUtil" name="createConcurrentList" desc="()Lconsulo/util/collection/ConcurrentList;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.util.collection.ContainerUtil" name="newHashSet" desc="([Ljava/lang/Object;)Ljava/util/HashSet;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.util.lang.StringUtil" name="isNumeric" desc="(Ljava/lang/CharSequence;)Z"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.util.lang.StringUtil" name="unescapeXmlEntities" desc="(Ljava/lang/String;)Ljava/lang/String;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.ui.image.Image" name="getIconWidth" desc="()I" anyOwner="true"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.ui.image.Image" name="getIconHeight" desc="()I" anyOwner="true"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.language.psi.util.PsiTreeUtil" name="findFirstParent" desc="(Lconsulo/language/psi/PsiElement;Lconsulo/util/lang/function/Condition;)Lconsulo/language/psi/PsiElement;"
+                target="consulo.kotlin.compat.psi.PsiCompat"/>
+        <method owner="consulo.language.psi.scope.LocalSearchScope" name="getVirtualFiles" desc="()[Lconsulo/virtualFileSystem/VirtualFile;" anyOwner="true"
+                target="consulo.kotlin.compat.psi.PsiCompat"/>
+        <method owner="consulo.language.psi.search.SearchRequestCollector" name="searchWord" desc="(Ljava/lang/String;Lconsulo/content/scope/SearchScope;SZLconsulo/language/psi/PsiElement;Lconsulo/kotlin/compat/search/RequestResultProcessor;)V" anyOwner="true"
+                target="consulo.kotlin.compat.psi.PsiCompat"/>
+        <method owner="consulo.language.editor.completion.lookup.LookupElementBuilder" name="withItemTextForeground" desc="(Ljava/awt/Color;)Lconsulo/language/editor/completion/lookup/LookupElementBuilder;"
+                target="consulo.kotlin.compat.completion.CompletionCompat"/>
+        <method owner="consulo.application.util.matcher.PrefixMatcher" name="prefixMatches" desc="(Lconsulo/language/editor/completion/lookup/LookupElement;)Z" anyOwner="true"
+                target="consulo.kotlin.compat.completion.CompletionCompat"/>
+        <method owner="consulo.application.progress.ProgressIndicator" name="getText" desc="()Ljava/lang/String;" anyOwner="true"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.application.progress.ProgressIndicator" name="getText2" desc="()Ljava/lang/String;" anyOwner="true"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="com.intellij.java.indexing.search.searches.DirectClassInheritorsSearch$SearchParameters" name="getOriginalParameters" desc="()Ljava/lang/Object;"
+                target="consulo.kotlin.compat.search.SearchCompat"/>
+        <field owner="com.intellij.java.indexing.search.searches.OverridingMethodsSearch" name="EP_NAME" desc="Lconsulo/kotlin/compat/extensions/ExtensionPointName;"
+               target="consulo.kotlin.compat.extensions.ExtensionsCompat" targetName="overridingMethodsSearchEp"/>
+        <field owner="com.intellij.java.indexing.search.searches.DirectClassInheritorsSearch" name="EP_NAME" desc="Lconsulo/kotlin/compat/extensions/ExtensionPointName;"
+               target="consulo.kotlin.compat.extensions.ExtensionsCompat" targetName="directClassInheritorsSearchEp"/>
+        <method owner="consulo.kotlin.compat.completion.LookupElementDecorator" name="withInsertHandler"
+                desc="(Lconsulo/language/editor/completion/lookup/LookupElement;Lconsulo/language/editor/completion/lookup/InsertHandler;)Lconsulo/kotlin/compat/completion/LookupElementDecorator;"
+                target="consulo.kotlin.compat.completion.LookupElementDecorator" targetName="withDecoratorInsertHandler"/>
+        <method owner="consulo.kotlin.compat.completion.LookupElementDecorator" name="withRenderer"
+                desc="(Lconsulo/language/editor/completion/lookup/LookupElement;Lconsulo/language/editor/completion/lookup/LookupElementRenderer;)Lconsulo/kotlin/compat/completion/LookupElementDecorator;"
+                target="consulo.kotlin.compat.completion.LookupElementDecorator" targetName="withDecoratorRenderer"/>
+        <method owner="com.intellij.java.language.psi.util.PsiUtil" name="isKeyword" desc="(Ljava/lang/String;Lcom/intellij/java/language/LanguageLevel;)Z"
+                target="consulo.kotlin.compat.java.JavaPsiCompat"/>
+        <method owner="com.intellij.java.language.psi.util.PsiUtil" name="isSoftKeyword" desc="(Ljava/lang/CharSequence;Lcom/intellij/java/language/LanguageLevel;)Z"
+                target="consulo.kotlin.compat.java.JavaPsiCompat"/>
+        <method owner="com.intellij.java.impl.codeInsight.completion.scope.JavaCompletionProcessor" name="seemsInternal" desc="(Lcom/intellij/java/language/psi/PsiClass;)Z"
+                target="consulo.kotlin.compat.java.JavaPsiCompat"/>
+        <method owner="consulo.application.util.matcher.NameUtilCore" name="nameToWordList" desc="(Ljava/lang/String;)Ljava/util/List;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.application.util.matcher.NameUtil" name="splitNameIntoWordList" desc="(Ljava/lang/String;)Ljava/util/List;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.content.scope.SearchScope" name="toFullString" desc="()Ljava/lang/String;" anyOwner="true"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.ui.ex.action.util.ActionUtil" name="underModalProgress" desc="(Lconsulo/project/Project;Ljava/lang/String;Lconsulo/application/util/function/Computable;)Ljava/lang/Object;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.language.pattern.StringPattern" name="endsWithUppercaseLetter" desc="()Lconsulo/language/pattern/StringPattern;" anyOwner="true"
+                target="consulo.kotlin.compat.completion.CompletionCompat"/>
+        <method owner="consulo.language.editor.template.Template" name="setToShortenLongNames" desc="(Z)V" anyOwner="true"
+                target="consulo.kotlin.compat.completion.CompletionCompat"/>
+        <method owner="consulo.language.editor.completion.CompletionContributor" name="extend" desc="(Lconsulo/language/editor/completion/CompletionType;Lconsulo/language/pattern/ElementPattern;Lconsulo/kotlin/compat/completion/CompletionProvider;)V" anyOwner="true"
+                target="consulo.kotlin.compat.completion.CompletionCompat"/>
+        <method owner="consulo.language.psi.search.PsiSearchHelper" name="isCheapEnoughToSearch" desc="(Ljava/lang/String;Lconsulo/language/psi/scope/GlobalSearchScope;Lconsulo/language/psi/PsiFile;)Lconsulo/language/psi/search/PsiSearchHelper$SearchCostResult;" anyOwner="true"
+                target="consulo.kotlin.compat.psi.PsiCompat"/>
+        <method owner="consulo.language.psi.PsiAnchor" name="calcStubIndex" desc="(Lconsulo/language/psi/StubBasedPsiElement;)I"
+                target="consulo.kotlin.compat.psi.PsiCompat"/>
+        <method owner="consulo.fileEditor.FileEditorManager" name="openTextEditor" desc="(Lconsulo/kotlin/compat/navigation/OpenFileDescriptor;Z)Lconsulo/codeEditor/Editor;" anyOwner="true"
+                target="consulo.kotlin.compat.navigation.OpenFileDescriptor"/>
     </redirects>
 
     <!-- Class modifications -->
@@ -1056,6 +1339,11 @@
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
             </addAnnotation>
         </class>
+        <class name="org.jetbrains.kotlin.psi.KtPsiMutationService">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
         <class name="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor">
             <addAnnotation type="consulo.annotation.component.ExtensionAPI">
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
@@ -1095,12 +1383,6 @@
         <class name="org.jetbrains.kotlin.psi.KotlinCodeFragmentImportModificationListener">
             <addAnnotation type="consulo.annotation.component.TopicAPI">
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
-            </addAnnotation>
-        </class>
-        <!-- applicationService in IntelliJ's plugin.xml; impl (base/psi KtPsiMutationServiceImpl) needs light classes, unbound for now -->
-        <class name="org.jetbrains.kotlin.psi.KtPsiMutationService">
-            <addAnnotation type="consulo.annotation.component.ServiceAPI">
-                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
             </addAnnotation>
         </class>
         <!-- applicationService in IntelliJ's plugin.xml, implemented by the class itself -->
@@ -1232,6 +1514,9 @@
         <requires>consulo.language.code.style.api</requires>
         <requires>consulo.java.language.api</requires>
         <requires>consulo.java.language.impl</requires>
+        <!-- compat: the Java plugin's override annotations handlers and search executors -->
+        <requires>consulo.java</requires>
+        <requires>consulo.java.indexing.api</requires>
         <requires>consulo.kotlin.core.helper</requires>
         <requires>consulo.annotation</requires>
         <!-- libraries shipped in the plugin's lib (guava comes with the platform, asm with the Java plugin; IntelliJ's syntax-api is not shipped,

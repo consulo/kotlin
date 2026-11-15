@@ -35,4 +35,6 @@ public abstract class PsiTreeChangeEvent extends java.util.EventObject {
     public java.lang.Object getNewValue() { return null; }
     public com.intellij.psi.PsiFile getFile() { return null; }
     protected PsiTreeChangeEvent() { super(new Object()); }
+    // Added by consulo-internal/remap/genstub.py from consulo.language.psi.event.PsiTreeChangeEvent
+    protected PsiTreeChangeEvent(com.intellij.psi.PsiManager p0) { super(new Object()); }
 }

@@ -37,5 +37,12 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.intellij-stubs</artifactId>
         </dependency>
+        <!-- runBlockingCancellable, for the parallel completion runner only (off in Consulo) -->
+        <dependency>
+            <groupId>org.jetbrains.kotlinx</groupId>
+            <artifactId>kotlinx-coroutines-core-jvm</artifactId>
+            <version>1.8.0</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 </project>

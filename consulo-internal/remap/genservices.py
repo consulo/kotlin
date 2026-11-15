@@ -52,6 +52,8 @@ PLATFORM_APPLICATION_APIS = [
     'org.jetbrains.kotlin.analysis.decompiler.psi.BuiltinsVirtualFileProvider',
     'org.jetbrains.kotlin.psi.stubs.elements.StubIndexService',
     f'{P}.permissions.KotlinAnalysisPermissionOptions',
+    # PSI edits of the Kotlin PSI; the plugin's base/psi KtPsiMutationServiceImpl
+    'org.jetbrains.kotlin.psi.KtPsiMutationService',
 ]
 # Extension points of the engine (IntelliJ extension point interfaces) as Consulo extension APIs; the implementations
 # come from the plugin's upstream modules (consulo-plugin/tools/genservices.py)

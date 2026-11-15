@@ -4,11 +4,15 @@ import consulo.component.ComponentManager;
 import consulo.disposer.Disposable;
 import consulo.disposer.Disposer;
 
+import consulo.project.Project;
+import com.intellij.java.language.psi.search.PsiShortNamesCache;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Function;
 
 /**
  * IntelliJ names extension points with strings; Consulo identifies them by their {@code @ExtensionAPI} interface.
@@ -20,9 +24,16 @@ public final class ExtensionPointRegistry {
     /** Extension APIs of the remapped compiler, by class name (not visible to this module at compile time). */
     private static final Map<String, String> ourApiNames = new ConcurrentHashMap<>();
     private static final Map<String, List<Object>> ourRegistered = new ConcurrentHashMap<>();
+    /** Extension points whose extensions Consulo keeps behind a service. */
+    private static final Map<String, Function<ComponentManager, List<?>>> ourSuppliers = new ConcurrentHashMap<>();
 
     static {
         register("com.intellij.java.elementFinder", com.intellij.java.language.psi.PsiElementFinder.class);
+        register("com.intellij.overridingMethodsSearch", com.intellij.java.indexing.search.searches.OverridingMethodsSearchExecutor.class);
+        register("com.intellij.directClassInheritorsSearch", com.intellij.java.indexing.search.searches.DirectClassInheritorsSearchExecutor.class);
+        // Consulo unites the short name caches (PsiShortNameProvider extensions) in one project service
+        ourSuppliers.put("com.intellij.java.shortNamesCache",
+            area -> area instanceof Project project ? List.of(PsiShortNamesCache.getInstance(project)) : List.of());
         // @ExtensionAPI and bindings come from remap.xml (genservices.py)
         ourApiNames.put("org.jetbrains.kotlin.psiReferenceProvider", "org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor");
     }
@@ -37,6 +48,10 @@ public final class ExtensionPointRegistry {
     @SuppressWarnings("unchecked")
     static <T> List<T> getExtensions(String name, ComponentManager area) {
         List<T> result = new ArrayList<>();
+        Function<ComponentManager, List<?>> supplier = ourSuppliers.get(name);
+        if (supplier != null && area != null) {
+            result.addAll((List<T>) supplier.apply(area));
+        }
         Class<?> api = ourApis.computeIfAbsent(name, ExtensionPointRegistry::loadApi);
         if (api != null && area != null) {
             result.addAll((List<T>) area.getExtensionList(api));

@@ -11,7 +11,7 @@ public class PsiImplUtil {
     public static com.intellij.psi.PsiJavaCodeReferenceElement[] namesToPackageReferences(com.intellij.psi.PsiManager p0, java.lang.String[] p1) { return null; }
     public static int getParameterIndex(com.intellij.psi.PsiParameter p0, com.intellij.psi.PsiParameterList p1) { return 0; }
     public static int getTypeParameterIndex(com.intellij.psi.PsiTypeParameter p0, com.intellij.psi.PsiTypeParameterList p1) { return 0; }
-    public static java.lang.Object[] getReferenceVariantsByFilter(com.intellij.psi.PsiJavaCodeReferenceElement p0, com.intellij.psi.filter.ElementFilter p1) { return null; }
+    public static java.lang.Object[] getReferenceVariantsByFilter(com.intellij.psi.PsiJavaCodeReferenceElement p0, com.intellij.psi.filters.ElementFilter p1) { return null; }
     public static boolean processDeclarationsInMethod(com.intellij.psi.PsiMethod p0, com.intellij.psi.scope.PsiScopeProcessor p1, com.intellij.psi.ResolveState p2, com.intellij.psi.PsiElement p3, com.intellij.psi.PsiElement p4) { return false; }
     public static boolean processDeclarationsInLambda(com.intellij.psi.PsiLambdaExpression p0, com.intellij.psi.scope.PsiScopeProcessor p1, com.intellij.psi.ResolveState p2, com.intellij.psi.PsiElement p3, com.intellij.psi.PsiElement p4) { return false; }
     public static boolean processDeclarationsInResourceList(com.intellij.psi.PsiResourceList p0, com.intellij.psi.scope.PsiScopeProcessor p1, com.intellij.psi.ResolveState p2, com.intellij.psi.PsiElement p3) { return false; }

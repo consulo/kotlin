@@ -4,4 +4,10 @@ package com.intellij.psi.stubs;
 @SuppressWarnings("all")
 public class IndexingStampInfo {
     protected IndexingStampInfo() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.language.psi.stub.IndexingStampInfo
+    public IndexingStampInfo(long p0, long p1, int p2) { }
+    public java.lang.String toString() { return null; }
+    public static java.lang.String dumpSize(long p0, int p1) { return null; }
+    public boolean isUpToDate(com.intellij.openapi.editor.Document p0, com.intellij.openapi.vfs.VirtualFile p1, com.intellij.psi.PsiFile p2) { return false; }
+    public boolean contentLengthMatches(long p0, int p1) { return false; }
 }

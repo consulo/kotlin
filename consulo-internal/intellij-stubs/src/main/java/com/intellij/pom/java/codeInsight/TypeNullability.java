@@ -4,4 +4,22 @@ package com.intellij.pom.java.codeInsight;
 @SuppressWarnings("all")
 public class TypeNullability {
     protected TypeNullability() { }
+    // Added by consulo-internal/remap/genstub.py from com.intellij.java.language.codeInsight.TypeNullability
+    public static final com.intellij.pom.java.codeInsight.TypeNullability UNKNOWN = null;
+    public static final com.intellij.pom.java.codeInsight.TypeNullability NOT_NULL_MANDATED = null;
+    public static final com.intellij.pom.java.codeInsight.TypeNullability NOT_NULL_KNOWN = null;
+    public static final com.intellij.pom.java.codeInsight.TypeNullability NULLABLE_MANDATED = null;
+    public TypeNullability(com.intellij.pom.java.codeInsight.Nullability p0, com.intellij.pom.java.codeInsight.NullabilitySource p1) { }
+    public com.intellij.pom.java.codeInsight.Nullability nullability() { return null; }
+    public com.intellij.pom.java.codeInsight.NullabilitySource source() { return null; }
+    public com.intellij.pom.java.codeInsight.TypeNullability inherited() { return null; }
+    public com.intellij.pom.java.codeInsight.TypeNullability instantiatedWith(com.intellij.pom.java.codeInsight.TypeNullability p0) { return null; }
+    public com.intellij.pom.java.codeInsight.TypeNullability join(com.intellij.pom.java.codeInsight.TypeNullability p0) { return null; }
+    public com.intellij.pom.java.codeInsight.TypeNullability meet(com.intellij.pom.java.codeInsight.TypeNullability p0) { return null; }
+    public static com.intellij.pom.java.codeInsight.TypeNullability ofTypeParameter(com.intellij.psi.PsiTypeParameter p0) { return null; }
+    public static com.intellij.pom.java.codeInsight.TypeNullability intersect(java.util.Collection<com.intellij.pom.java.codeInsight.TypeNullability> p0) { return null; }
+    public boolean equals(java.lang.Object p0) { return false; }
+    public int hashCode() { return 0; }
+    public java.lang.String toString() { return null; }
+    public com.intellij.pom.java.codeInsight.NullabilityAnnotationInfo toNullabilityAnnotationInfo() { return null; }
 }

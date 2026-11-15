@@ -40,6 +40,11 @@ public class ExtensionPointName<T> {
         return getPoint().getExtensions();
     }
 
+    /** IntelliJ {@code getIterable()}: the extensions, read when iterated. */
+    public Iterable<T> getIterable() {
+        return () -> getExtensionList().iterator();
+    }
+
     public List<T> getExtensionList(ComponentManager area) {
         return new NamedExtensionPoint<T>(myName, area).getExtensionList();
     }
@@ -50,6 +55,11 @@ public class ExtensionPointName<T> {
 
     public ExtensionPoint<T> getPoint() {
         return new NamedExtensionPoint<>(myName, Application.get());
+    }
+
+    /** IntelliJ {@code getPoint(AreaInstance)}: the extension point of a project (or the application). */
+    public ExtensionPoint<T> getPoint(ComponentManager area) {
+        return new NamedExtensionPoint<>(myName, area);
     }
 
     public void forEachExtensionSafe(Consumer<? super T> consumer) {

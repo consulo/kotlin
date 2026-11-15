@@ -223,6 +223,9 @@ def member_source(info, kind, cls_simple, consulo_simple=None):
     if decl.startswith('static {}') or '{}' in decl:
         return None, None
     decl = re.sub(r'\b(native|synchronized|transient|volatile|strictfp)\s+', '', decl)
+    # javap -constants prints a constant field with its value ("short IN_CODE = 1;"); the value is in info['const']
+    if re.match(r'^[^(]*\s=\s', decl):
+        decl = decl[:decl.index(' = ')] + ';'
     m = re.match(r'^(.*?)([\w$]+)\((.*)\)(\s+throws\s+[^;]+)?;$', decl)
     if not m:  # field
         fm = re.match(r'^(.*\s)?([\w.$<>\[\], ?]+)\s+([\w$]+);$', decl)
@@ -235,8 +238,18 @@ def member_source(info, kind, cls_simple, consulo_simple=None):
         if 'static' in mods and 'final' in mods or kind == 'interface':
             if info['const'] is not None and ftype.strip() in ('java.lang.String', 'String'):
                 val = '"' + info['const'].replace('\\', '\\\\').replace('"', '\\"') + '"'
+            elif info['const'] is not None and ftype.strip() == 'boolean':
+                val = 'true' if info['const'] not in ('0', 'false') else 'false'
+            elif info['const'] is not None and ftype.strip() == 'char':
+                val = f"(char) {info['const']}"
+            elif info['const'] is not None and ftype.strip() in ('long', 'float', 'double'):
+                # javap writes the suffix itself (0l, 1.0f, 2.0d); NaN and infinities as words
+                number = info['const'].rstrip('lLfFdD')
+                suffix = {'long': 'L', 'float': 'f', 'double': 'd'}[ftype.strip()]
+                special = {'NaN': f'0.0{suffix} / 0.0{suffix}', 'Infinity': f'1.0{suffix} / 0.0{suffix}', '-Infinity': f'-1.0{suffix} / 0.0{suffix}'}
+                val = special.get(number, number + suffix)
             elif info['const'] is not None:
-                val = info['const'] + ('L' if ftype.strip() == 'long' else 'f' if ftype.strip() == 'float' else '')
+                val = info['const']
             else:
                 val = default_value(ftype)
             mods = re.sub(r'\b(public|protected)\b', r'\1', mods)

@@ -1,5 +1,15 @@
 package consulo.kotlin.compat.psi;
 
+import consulo.language.psi.util.PsiTreeUtil;
+import consulo.language.psi.scope.LocalSearchScope;
+import consulo.language.psi.search.SearchRequestCollector;
+import consulo.content.scope.SearchScope;
+import consulo.virtualFileSystem.VirtualFile;
+import consulo.language.psi.StubBasedPsiElement;
+import consulo.language.psi.stub.PsiFileWithStubSupport;
+import consulo.language.psi.stub.StubbedSpine;
+import consulo.language.psi.search.PsiSearchHelper;
+import consulo.language.psi.scope.GlobalSearchScope;
 import consulo.document.util.TextRange;
 import consulo.language.ast.IElementType;
 import consulo.language.ast.LighterASTNode;
@@ -84,5 +94,50 @@ public final class PsiCompat {
      */
     public static String getErrorMessage(LighterASTNode node) {
         return null;
+    }
+
+    /** IntelliJ {@code PsiAnchor.calcStubIndex}: the element's index in its file's stubbed spine, or -1. */
+    public static int calcStubIndex(StubBasedPsiElement psi) {
+        if (!(psi.getContainingFile() instanceof PsiFileWithStubSupport file)) {
+            return -1;
+        }
+        StubbedSpine spine = file.getStubbedSpine();
+        for (int i = 0; i < spine.getStubCount(); i++) {
+            if (spine.getStubPsi(i) == psi) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** IntelliJ {@code PsiSearchHelper.isCheapEnoughToSearch(name, scope, fileToIgnore)}: without a progress indicator. */
+    public static PsiSearchHelper.SearchCostResult isCheapEnoughToSearch(PsiSearchHelper helper, String name, GlobalSearchScope scope,
+                                                                         consulo.language.psi.PsiFile fileToIgnoreOccurrencesIn) {
+        return helper.isCheapEnoughToSearch(name, scope, fileToIgnoreOccurrencesIn, null);
+    }
+
+    /** IntelliJ {@code PsiTreeUtil.findFirstParent(element, Condition)}: Consulo takes the Predicate it extends. */
+    public static PsiElement findFirstParent(PsiElement element, consulo.util.lang.function.Condition<PsiElement> condition) {
+        return PsiTreeUtil.findFirstParent(element, condition);
+    }
+
+    /** IntelliJ {@code LocalSearchScope.getVirtualFiles()}: the files of the scope's elements. */
+    public static VirtualFile[] getVirtualFiles(LocalSearchScope scope) {
+        java.util.Set<VirtualFile> files = new java.util.LinkedHashSet<>();
+        for (PsiElement element : scope.getScope()) {
+            consulo.language.psi.PsiFile file = element.getContainingFile();
+            VirtualFile virtualFile = file != null ? file.getViewProvider().getVirtualFile() : null;
+            if (virtualFile != null) {
+                files.add(virtualFile);
+            }
+        }
+        return files.toArray(VirtualFile[]::new);
+    }
+
+    /** {@code SearchRequestCollector.searchWord} with an IntelliJ-style result processor (a Consulo one). */
+    public static void searchWord(SearchRequestCollector collector, String word, SearchScope searchScope, short searchContext,
+                                  boolean caseSensitive, PsiElement searchTarget,
+                                  consulo.kotlin.compat.search.RequestResultProcessor processor) {
+        collector.searchWord(word, searchScope, searchContext, caseSensitive, searchTarget, processor);
     }
 }

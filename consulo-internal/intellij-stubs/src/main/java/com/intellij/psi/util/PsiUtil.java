@@ -2,6 +2,9 @@ package com.intellij.psi.util;
 
 @SuppressWarnings("all")
 public class PsiUtil {
+    // remap.xml redirects these to consulo.kotlin.compat.java.JavaPsiCompat
+    public static boolean isKeyword(java.lang.String name, com.intellij.pom.java.LanguageLevel level) { return false; }
+    public static boolean isSoftKeyword(java.lang.CharSequence name, com.intellij.pom.java.LanguageLevel level) { return false; }
     public static final com.intellij.openapi.util.Key<com.intellij.pom.java.LanguageLevel> FILE_LANGUAGE_LEVEL_KEY = com.intellij.openapi.util.Key.create("FILE_LANGUAGE_LEVEL_KEY");
     public static boolean isAccessible(com.intellij.psi.PsiMember member, com.intellij.psi.PsiElement place, com.intellij.psi.PsiClass accessObjectClass) { return true; }
     public static boolean isAccessible(com.intellij.openapi.project.Project project, com.intellij.psi.PsiMember member, com.intellij.psi.PsiElement place, com.intellij.psi.PsiClass accessObjectClass) { return true; }

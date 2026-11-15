@@ -4,4 +4,17 @@ package com.intellij.psi.search;
 @SuppressWarnings("all")
 public class SearchRequestCollector {
     protected SearchRequestCollector() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.language.psi.search.SearchRequestCollector
+    public SearchRequestCollector(com.intellij.psi.search.SearchSession p0) { }
+    public com.intellij.psi.search.SearchSession getSearchSession() { return null; }
+    public void searchWord(java.lang.String p0, com.intellij.psi.search.SearchScope p1, boolean p2, com.intellij.psi.PsiElement p3) { }
+    public void searchWord(java.lang.String p0, com.intellij.psi.search.SearchScope p1, short p2, boolean p3, com.intellij.psi.PsiElement p4) { }
+    public void searchWord(java.lang.String p0, com.intellij.psi.search.SearchScope p1, short p2, boolean p3, com.intellij.psi.PsiElement p4, com.intellij.psi.search.RequestResultProcessor p5) { }
+    public void searchWord(java.lang.String p0, com.intellij.psi.search.SearchScope p1, short p2, boolean p3, com.intellij.psi.search.RequestResultProcessor p4) { }
+    public void searchQuery(com.intellij.psi.search.QuerySearchRequest p0) { }
+    public void searchCustom(java.util.function.Predicate<java.util.function.Predicate<? super com.intellij.psi.PsiReference>> p0) { }
+    public java.util.List<com.intellij.psi.search.QuerySearchRequest> takeQueryRequests() { return null; }
+    public java.util.List<com.intellij.psi.search.PsiSearchRequest> takeSearchRequests() { return null; }
+    public java.util.List<java.util.function.Predicate<java.util.function.Predicate<? super com.intellij.psi.PsiReference>>> takeCustomSearchActions() { return null; }
+    public java.lang.String toString() { return null; }
 }

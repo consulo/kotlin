@@ -2,6 +2,7 @@ package com.intellij.lexer;
 
 @SuppressWarnings("all")
 public class DelegateLexer extends Lexer {
+    protected final com.intellij.lexer.Lexer myDelegate = null;
     public DelegateLexer(Lexer p0) {}
     public final Lexer getDelegate() { return null; }
     public void start(java.lang.CharSequence p0, int p1, int p2, int p3) {}

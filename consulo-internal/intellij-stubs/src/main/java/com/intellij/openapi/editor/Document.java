@@ -39,4 +39,10 @@ public interface Document extends com.intellij.openapi.util.UserDataHolder {
   public default int getLineSeparatorLength(int p0) { return 0; }
   public default boolean isInBulkUpdate() { return false; }
   public default void setInBulkUpdate(boolean p0) {}
+    // Added by consulo-internal/remap/genstub.py from consulo.document.Document
+    public static final com.intellij.openapi.editor.Document[] EMPTY_ARRAY = null;
+    public static final java.lang.String PROP_WRITABLE = "writable";
+    public default void moveText(int p0, int p1, int p2) { }
+    public default boolean processRangeMarkers(com.intellij.util.Processor<? super com.intellij.openapi.editor.RangeMarker> p0) { return false; }
+    public default boolean processRangeMarkersOverlappingWith(int p0, int p1, com.intellij.util.Processor<? super com.intellij.openapi.editor.RangeMarker> p2) { return false; }
 }

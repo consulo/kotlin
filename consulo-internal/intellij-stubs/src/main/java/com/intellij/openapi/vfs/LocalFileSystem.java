@@ -16,4 +16,7 @@ public abstract class LocalFileSystem extends com.intellij.openapi.vfs.NewVirtua
     public static class LocalFileSystemHolder {
         protected LocalFileSystemHolder() { }
     }
+    // Added by consulo-internal/remap/genstub.py from consulo.virtualFileSystem.LocalFileSystem
+    public static final java.lang.String PROTOCOL = "file";
+    public static final java.lang.String PROTOCOL_PREFIX = "file://";
 }

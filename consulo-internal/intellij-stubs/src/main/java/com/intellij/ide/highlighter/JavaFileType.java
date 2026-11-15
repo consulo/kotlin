@@ -10,4 +10,6 @@ public class JavaFileType extends com.intellij.openapi.fileTypes.LanguageFileTyp
     public javax.swing.Icon getIcon() { return null; }
     public static final String DEFAULT_EXTENSION = "java";
     public static final String DOT_DEFAULT_EXTENSION = ".java";
+    // Inherited abstract members (genstub.py)
+    public java.lang.String getId() { return null; }
 }

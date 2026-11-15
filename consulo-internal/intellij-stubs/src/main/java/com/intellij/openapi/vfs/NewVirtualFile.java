@@ -4,4 +4,26 @@ package com.intellij.openapi.vfs;
 @SuppressWarnings("all")
 public abstract class NewVirtualFile extends com.intellij.openapi.vfs.BaseVirtualFile implements com.intellij.openapi.vfs.VirtualFileWithId {
     protected NewVirtualFile() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.virtualFileSystem.NewVirtualFile
+    public boolean isValid() { return false; }
+    public byte[] contentsToByteArray() throws java.io.IOException { return null; }
+    public com.intellij.openapi.vfs.NewVirtualFileSystem getFileSystem() { return null; }
+    public com.intellij.openapi.vfs.NewVirtualFile getParent() { return null; }
+    public com.intellij.openapi.vfs.NewVirtualFile getCanonicalFile() { return null; }
+    public com.intellij.openapi.vfs.NewVirtualFile findChild(java.lang.String p0) { return null; }
+    public com.intellij.openapi.vfs.NewVirtualFile refreshAndFindChild(java.lang.String p0) { return null; }
+    public com.intellij.openapi.vfs.NewVirtualFile findChildIfCached(java.lang.String p0) { return null; }
+    public void setTimeStamp(long p0) throws java.io.IOException { }
+    public java.lang.CharSequence getNameSequence() { return null; }
+    public int getId() { return 0; }
+    public void refresh(boolean p0, boolean p1, java.lang.Runnable p2) { }
+    public void setWritable(boolean p0) throws java.io.IOException { }
+    public void markDirty() { }
+    public void markDirtyRecursively() { }
+    public boolean isDirty() { return false; }
+    public void markClean() { }
+    public void move(java.lang.Object p0, com.intellij.openapi.vfs.VirtualFile p1) throws java.io.IOException { }
+    public java.util.Collection<com.intellij.openapi.vfs.VirtualFile> getCachedChildren() { return null; }
+    public java.lang.Iterable<com.intellij.openapi.vfs.VirtualFile> iterInDbChildren() { return null; }
+    public java.lang.Iterable<com.intellij.openapi.vfs.VirtualFile> iterInDbChildrenWithoutLoadingVfsFromOtherProjects() { return null; }
 }

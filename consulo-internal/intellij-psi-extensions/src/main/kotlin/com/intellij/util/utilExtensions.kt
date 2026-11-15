@@ -14,3 +14,9 @@ inline fun <reified R> Query<*>.filteringIsInstance(): Query<R> {
     @Suppress("UNCHECKED_CAST")
     return (this as Query<Any?>).filtering { it is R }.mapping { it as R }
 }
+
+/** Matches IntelliJ's Query.mappingNotNull(f): the non-null results of [f]. */
+fun <T, R : Any> Query<T>.mappingNotNull(f: (T) -> R?): Query<R> {
+    @Suppress("UNCHECKED_CAST")
+    return (mapping { f(it) } as Query<R?>).filtering { it != null } as Query<R>
+}

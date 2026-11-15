@@ -12,4 +12,6 @@ public class ID<K extends java.lang.Object, V extends java.lang.Object> extends 
     public int getUniqueId() { return 0; }
     public static com.intellij.util.indexing.ID<?, ?> findById(int p0) { return null; }
     protected ID() { }
+    // Added by consulo-internal/remap/genstub.py from consulo.index.io.ID
+    public static final int MAX_NUMBER_OF_INDICES = 32767;
 }
