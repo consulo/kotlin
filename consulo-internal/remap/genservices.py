@@ -2,7 +2,8 @@
 
 Usage: python3 consulo-internal/remap/genservices.py
 Reads the META-INF/analysis-api/*.xml descriptors of the engine modules and rewrites the parts of remap.xml between
-the genservices markers: a @ServiceAPI modification per service API and an InjectingBinding per implementation.
+the genservices markers: a @ServiceAPI modification per service API, an InjectingBinding per implementation, and a
+TopicBinding per @TopicAPI interface.
 """
 import os
 import re
@@ -101,8 +102,11 @@ def main():
     text = open(REMAP).read()
     text = replace_between(text, 'modifications', mods)
     text = replace_between(text, 'bindings', binds)
+    # every interface remap.xml makes a topic gets a TopicBinding
+    topics = re.findall(r'<class name="([\w.$]+)">\s*<addAnnotation type="consulo.annotation.component.TopicAPI"', text)
+    text = replace_between(text, 'topics', ''.join(f'            <binding api="{t}" type="topicBinding"/>\n' for t in topics))
     open(REMAP, 'w').write(text)
-    print(f'{len(found)} services')
+    print(f'{len(found)} services, {len(topics)} topics')
 
 
 main()

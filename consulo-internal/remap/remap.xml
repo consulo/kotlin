@@ -1150,5 +1150,15 @@
                      api="consulo.language.parser.ParserDefinition"
                      scope="APPLICATION"/>
         </provides>
+        <!-- message bus topics (@TopicAPI listener interfaces): called through generated bindings, not by reflection -->
+        <provides interface="consulo.component.bind.TopicBinding">
+            <!-- genservices:topics:begin -->
+            <binding api="org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.LLFirInBlockModificationListener" type="topicBinding"/>
+            <binding api="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionInvalidationListener" type="topicBinding"/>
+            <binding api="org.jetbrains.kotlin.analysis.api.platform.KotlinAnalysisInWriteActionListener" type="topicBinding"/>
+            <binding api="org.jetbrains.kotlin.analysis.api.platform.modification.KotlinModificationEventListener" type="topicBinding"/>
+            <binding api="org.jetbrains.kotlin.psi.KotlinCodeFragmentImportModificationListener" type="topicBinding"/>
+            <!-- genservices:topics:end -->
+        </provides>
     </module>
 </remap>
