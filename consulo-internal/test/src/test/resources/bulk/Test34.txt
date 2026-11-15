@@ -180,7 +180,7 @@ KtFile: Test34.kt
           PsiComment(BLOCK_COMMENT)('/**/')
         PsiElement(RBRACE)('}')
   PsiWhiteSpace('\n\n')
-  FUN
+  FUNCTION
     PsiElement(fun)('fun')
     PsiWhiteSpace(' ')
     PsiElement(IDENTIFIER)('foo')

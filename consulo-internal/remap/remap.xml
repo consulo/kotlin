@@ -296,6 +296,9 @@
     <methods>
         <rule owner="consulo.application.util.NotNullLazyValue" name="lazy" newName="createValue"/>
 
+        <!-- Consulo names IntelliJ's PsiBuilderImpl.isWhitespaceOrComment(IElementType) whitespaceOrComment -->
+        <rule owner="consulo.language.impl.internal.parser.PsiBuilderImpl" name="isWhitespaceOrComment" newName="whitespaceOrComment"/>
+
         <!-- FileType#getName → getId: IntelliJ calls it getName, Consulo calls it getId.
              Only the jar's own subclass declarations need renaming — FileType/LanguageFileType
              live in the Consulo platform and already expose getId. -->

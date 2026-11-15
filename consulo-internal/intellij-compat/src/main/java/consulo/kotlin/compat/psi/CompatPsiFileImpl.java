@@ -19,6 +19,15 @@ public abstract class CompatPsiFileImpl extends PsiFileImpl {
         super(provider);
     }
 
+    /**
+     * Narrowed so subclasses compiled against IntelliJ (whose cloneImpl returns this class after remap)
+     * still override Consulo's cloneImpl through the generated bridge.
+     */
+    @Override
+    protected CompatPsiFileImpl cloneImpl(FileElement treeElement) {
+        return (CompatPsiFileImpl) super.cloneImpl(treeElement);
+    }
+
     /** Like IntelliJ: the stub tree if the file is stub-based right now, otherwise its AST. */
     public final Pair<StubTree, FileElement> getStubTreeOrFileElement() {
         FileElement tree = getTreeElement();
