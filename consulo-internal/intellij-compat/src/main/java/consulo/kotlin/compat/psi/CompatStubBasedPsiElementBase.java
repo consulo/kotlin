@@ -43,6 +43,11 @@ public class CompatStubBasedPsiElementBase<T extends StubElement> extends StubBa
         return myCompatElementType;
     }
 
+    /** IntelliJ {@code StubBasedPsiElement.getIElementType()}. */
+    public IElementType getIElementType() {
+        return myCompatElementType;
+    }
+
     public final PsiElement getStubOrPsiChild(IElementType elementType) {
         T stub = getGreenStub();
         if (stub != null) {
@@ -103,7 +108,7 @@ public class CompatStubBasedPsiElementBase<T extends StubElement> extends StubBa
     }
 
     /** IntelliJ's {@code StubElement.findChildStubByElementType}; Consulo only matches {@link IStubElementType}. */
-    static StubElement findChildStubByElementType(StubElement<?> stub, IElementType elementType) {
+    public static StubElement findChildStubByElementType(StubElement<?> stub, IElementType elementType) {
         for (StubElement child : stub.getChildrenStubs()) {
             if (child.getStubType() == elementType) {
                 return child;

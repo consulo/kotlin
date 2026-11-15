@@ -44,7 +44,12 @@ def parse(data):
         if e and e[0] == 'R':
             _, t, c, nt = e
             refs.append(('F' if t == 9 else 'M', cls(c), u(cp[nt][1]), u(cp[nt][2])))
-    return {'name': cls(this), 'super': cls(sup) if sup else None, 'itfs': itfs, 'fields': fields, 'methods': methods, 'refs': refs}
+    types = {cls(k) for k, e in enumerate(cp) if e and e[0] == 'C'}
+    for n, d in fields | methods:
+        types.update(re.findall(r'L([^;<]+);', d))
+    for _, _, _, d in refs:
+        types.update(re.findall(r'L([^;<]+);', d))
+    return {'name': cls(this), 'super': cls(sup) if sup else None, 'itfs': itfs, 'fields': fields, 'methods': methods, 'refs': refs, 'types': types}
 
 # Consulo classpath: newest non-source jar of every consulo artifact
 index = {}
@@ -114,6 +119,11 @@ for c in own.values():
             missing_cls[owner].add(c['name']); continue
         if find(owner, kind, name, desc) is False:
             missing_mem[(owner, kind, name, desc)].add(c['name'])
+    # classes only used as types (signatures, casts, supertypes) must exist too
+    for t in c['types']:
+        t = t.lstrip('[')
+        if t.startswith(('consulo/', 'com/intellij/')) and t not in own and t not in index:
+            missing_cls[t].add(c['name'])
 
 print(f'classpath jars: {len(jars)}, classes indexed: {len(index)}, jar classes: {len(own)}')
 print(f'\n== MISSING CLASSES ({len(missing_cls)})')

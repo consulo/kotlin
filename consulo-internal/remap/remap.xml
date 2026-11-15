@@ -7,6 +7,7 @@
         <rule from="com.intellij.psi.tree" to="consulo.language.ast"/>
         <rule from="com.intellij.psi.util" to="consulo.language.psi.util"/>
         <rule from="com.intellij.psi.impl.source.tree" to="consulo.language.impl.ast"/>
+        <rule from="com.intellij.psi.impl.java.stubs" to="com.intellij.java.language.impl.psi.impl.java.stubs"/>
         <rule from="com.intellij.psi.impl" to="consulo.language.impl.psi"/>
         <rule from="com.intellij.psi.scope" to="consulo.language.psi.scope"/>
         <rule from="com.intellij.psi.codeStyle" to="consulo.language.codeStyle"/>
@@ -83,7 +84,7 @@
         <rule from="com.intellij.openapi.util.Key" to="consulo.util.dataholder.Key"/>
         <rule from="com.intellij.openapi.util.UserDataHolder" to="consulo.util.dataholder.UserDataHolder"/>
         <rule from="com.intellij.openapi.util.UserDataHolderBase" to="consulo.util.dataholder.UserDataHolderBase"/>
-        <rule from="com.intellij.openapi.util.Computable" to="consulo.util.lang.Computable"/>
+        <rule from="com.intellij.openapi.util.Computable" to="consulo.application.util.function.Computable"/>
 
         <!-- com.intellij.openapi.fileTypes split -->
         <rule from="com.intellij.openapi.fileTypes.LanguageFileType" to="consulo.language.file.LanguageFileType"/>
@@ -175,7 +176,7 @@
         <rule from="com.intellij.psi.PsiArrayType" to="com.intellij.java.language.psi.PsiArrayType"/>
         <rule from="com.intellij.psi.PsiClassObjectAccessExpression" to="com.intellij.java.language.psi.PsiClassObjectAccessExpression"/>
         <rule from="com.intellij.psi.PsiClassType" to="com.intellij.java.language.psi.PsiClassType"/>
-        <rule from="com.intellij.psi.PsiCompiledElement" to="com.intellij.java.language.psi.PsiCompiledElement"/>
+        <rule from="com.intellij.psi.PsiCompiledElement" to="consulo.language.psi.PsiCompiledElement"/>
         <rule from="com.intellij.psi.PsiDocCommentOwner" to="com.intellij.java.language.psi.PsiDocCommentOwner"/>
         <rule from="com.intellij.psi.PsiElementFactory" to="com.intellij.java.language.psi.PsiElementFactory"/>
         <rule from="com.intellij.psi.PsiElementFinder" to="com.intellij.java.language.psi.PsiElementFinder"/>
@@ -192,8 +193,8 @@
         <rule from="com.intellij.psi.PsiModifierListOwner" to="com.intellij.java.language.psi.PsiModifierListOwner"/>
         <rule from="com.intellij.psi.PsiNameValuePair" to="com.intellij.java.language.psi.PsiNameValuePair"/>
         <!-- PsiPackage stays in consulo.language.psi — NOT java.language -->
-        <!-- <rule from="com.intellij.psi.PsiPackage" to="com.intellij.java.language.psi.PsiPackage"/> -->
-        <rule from="com.intellij.psi.PsiPackage" to="consulo.language.psi.PsiPackage"/>
+        <!-- IntelliJ's PsiPackage is the Java package (getClasses, findClassByShortName, ...) -->
+        <rule from="com.intellij.psi.PsiPackage" to="com.intellij.java.language.psi.PsiJavaPackage"/>
         <rule from="com.intellij.psi.PsiParameter" to="com.intellij.java.language.psi.PsiParameter"/>
         <rule from="com.intellij.psi.PsiParameterList" to="com.intellij.java.language.psi.PsiParameterList"/>
         <rule from="com.intellij.psi.PsiPrimitiveType" to="com.intellij.java.language.psi.PsiPrimitiveType"/>
@@ -202,7 +203,7 @@
         <rule from="com.intellij.psi.PsiReferenceList" to="com.intellij.java.language.psi.PsiReferenceList"/>
         <rule from="com.intellij.psi.PsiSubstitutor" to="com.intellij.java.language.psi.PsiSubstitutor"/>
         <rule from="com.intellij.psi.PsiSyntheticElement" to="com.intellij.java.language.psi.PsiSyntheticElement"/>
-        <rule from="com.intellij.psi.SyntheticElement" to="com.intellij.java.language.psi.SyntheticElement"/>
+        <rule from="com.intellij.psi.SyntheticElement" to="consulo.language.psi.SyntheticElement"/>
         <rule from="com.intellij.psi.PsiType" to="com.intellij.java.language.psi.PsiType"/>
         <rule from="com.intellij.psi.PsiTypeElement" to="com.intellij.java.language.psi.PsiTypeElement"/>
         <rule from="com.intellij.psi.PsiTypeParameter" to="com.intellij.java.language.psi.PsiTypeParameter"/>
@@ -290,6 +291,10 @@
         <rule from="com.intellij.openapi.util.LowMemoryWatcher" to="consulo.application.util.LowMemoryWatcher"/>
         <rule from="com.intellij.openapi.util.Pair" to="consulo.util.lang.Pair"/>
         <rule from="com.intellij.util.text.LiteralFormatUtil" to="com.intellij.java.language.impl.util.text.LiteralFormatUtil"/>
+        <rule from="com.intellij.psi.impl.source.resolve.ResolveCache" to="consulo.language.psi.resolve.ResolveCache"/>
+        <rule from="com.intellij.psi.NonClasspathClassFinder" to="com.intellij.java.language.impl.psi.NonClasspathClassFinder"/>
+        <rule from="com.intellij.openapi.project.IndexNotReadyException" to="consulo.application.dumb.IndexNotReadyException"/>
+        <rule from="com.intellij.openapi.util.ThrowableComputable" to="consulo.application.util.function.ThrowableComputable"/>
     </classes>
 
     <!-- Method renames (applied after class remapping) -->
@@ -298,6 +303,8 @@
 
         <!-- Consulo names IntelliJ's PsiBuilderImpl.isWhitespaceOrComment(IElementType) whitespaceOrComment -->
         <rule owner="consulo.language.impl.internal.parser.PsiBuilderImpl" name="isWhitespaceOrComment" newName="whitespaceOrComment"/>
+        <!-- FileType#getName call sites: Consulo calls it getId -->
+        <rule owner="consulo.virtualFileSystem.fileType.FileType" name="getName" newName="getId"/>
 
         <!-- FileType#getName → getId: IntelliJ calls it getName, Consulo calls it getId.
              Only the jar's own subclass declarations need renaming — FileType/LanguageFileType
@@ -305,6 +312,55 @@
         <rule owner="org.jetbrains.kotlin.idea.KotlinFileType" name="getName" newName="getId"/>
         <rule owner="org.jetbrains.kotlin.idea.KotlinModuleFileType" name="getName" newName="getId"/>
     </methods>
+
+    <!-- Calls whose target is missing in Consulo, rewritten to static helpers in consulo-internal/intellij-compat.
+         owner/name/desc are the remapped ones. -->
+    <redirects>
+        <method owner="consulo.language.psi.stub.StubElement" name="getElementType" desc="()Lconsulo/language/ast/IElementType;"
+                target="consulo.kotlin.compat.psi.StubCompat"/>
+        <method owner="consulo.language.psi.stub.StubElement" name="findChildStubByElementType" desc="(Lconsulo/language/ast/IElementType;)Lconsulo/language/psi/stub/StubElement;" anyOwner="true"
+                target="consulo.kotlin.compat.psi.StubCompat"/>
+        <method owner="consulo.language.psi.stub.StubElement" name="getChildrenByType" desc="(Lconsulo/language/ast/TokenSet;Lconsulo/util/collection/ArrayFactory;)[Lconsulo/language/psi/PsiElement;" anyOwner="true"
+                target="consulo.kotlin.compat.psi.StubCompat"/>
+        <method owner="consulo.language.psi.StubBasedPsiElement" name="getIElementType" desc="()Lconsulo/language/ast/IElementType;"
+                target="consulo.kotlin.compat.psi.StubCompat"/>
+        <method owner="consulo.language.psi.LeafPsiElement" name="getChars" desc="()Ljava/lang/CharSequence;"
+                target="consulo.kotlin.compat.psi.PsiCompat"/>
+        <method owner="consulo.language.psi.LeafPsiElement" name="getElementType" desc="()Lconsulo/language/ast/IElementType;"
+                target="consulo.kotlin.compat.psi.PsiCompat"/>
+        <method owner="consulo.language.psi.LiteralTextEscaper" name="createSimple" desc="(Lconsulo/language/psi/PsiLanguageInjectionHost;Z)Lconsulo/language/psi/LiteralTextEscaper;"
+                target="consulo.kotlin.compat.psi.PsiCompat"/>
+        <method owner="consulo.language.psi.util.PsiTreeUtil" name="getChildrenOfAnyType" desc="(Lconsulo/language/psi/PsiElement;[Ljava/lang/Class;)Ljava/util/List;"
+                target="consulo.kotlin.compat.psi.PsiCompat"/>
+        <method owner="consulo.language.psi.SmartPsiElementPointer" name="getElement" desc="()Ljava/lang/Object;"
+                target="consulo.kotlin.compat.psi.PsiCompat"/>
+        <method owner="consulo.language.impl.internal.parser.PsiBuilderImpl" name="getErrorMessage" desc="(Lconsulo/language/ast/LighterASTNode;)Ljava/lang/String;"
+                target="consulo.kotlin.compat.psi.PsiCompat"/>
+        <method owner="com.intellij.java.language.impl.psi.impl.compiled.ClsFieldImpl" name="getStub" desc="()Lcom/intellij/java/language/impl/psi/impl/java/stubs/PsiFieldStub;"
+                target="consulo.kotlin.compat.java.JavaPsiCompat"/>
+        <method owner="com.intellij.java.language.impl.psi.impl.compiled.ClsParameterImpl" name="getStub" desc="()Lcom/intellij/java/language/impl/psi/impl/java/stubs/PsiParameterStub;"
+                target="consulo.kotlin.compat.java.JavaPsiCompat"/>
+        <method owner="com.intellij.java.language.psi.PsiTypeParameter" name="getBounds" desc="()[Lcom/intellij/java/language/psi/PsiClassType;"
+                target="consulo.kotlin.compat.java.JavaPsiCompat"/>
+        <method owner="com.intellij.java.language.psi.PsiJavaPackage" name="getAnnotationList" desc="()Lcom/intellij/java/language/psi/PsiAnnotationOwner;"
+                target="consulo.kotlin.compat.java.JavaPsiCompat"/>
+        <method owner="consulo.util.lang.StringUtil" name="escapeStringCharacters" desc="(Ljava/lang/String;)Ljava/lang/String;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.util.lang.StringUtil" name="unescapeStringCharacters" desc="(Ljava/lang/String;)Ljava/lang/String;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.util.concurrent.ConcurrencyUtil" name="cacheOrGet" desc="(Ljava/util/concurrent/ConcurrentMap;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.content.scope.SearchScope" name="isEmptyScope" desc="(Lconsulo/content/scope/SearchScope;)Z"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.application.util.CachedValuesManager" name="getCachedValue" desc="(Lconsulo/language/psi/PsiElement;Lconsulo/application/util/CachedValueProvider;)Ljava/lang/Object;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.application.Application" name="runReadAction" desc="(Lconsulo/application/util/function/Computable;)Ljava/lang/Object;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.application.util.LowMemoryWatcher" name="register" desc="(Ljava/lang/Runnable;Lconsulo/disposer/Disposable;)Lconsulo/application/util/LowMemoryWatcher;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.project.DumbService" name="filterByDumbAwareness" desc="(Ljava/util/List;)Ljava/util/List;"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+    </redirects>
 
     <!-- Class modifications -->
     <modifications>
