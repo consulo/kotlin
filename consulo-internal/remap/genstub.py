@@ -211,7 +211,7 @@ def erase(t):
     return re.sub(r'<.*>', '', t).replace('...', '[]').split('.')[-1].strip()
 
 
-def member_source(info, kind, cls_simple):
+def member_source(info, kind, cls_simple, consulo_simple=None):
     decl, flags = info['decl'], info['flags']
     if 'ACC_PRIVATE' in flags or 'ACC_SYNTHETIC' in flags or 'ACC_BRIDGE' in flags:
         return None, None
@@ -251,7 +251,7 @@ def member_source(info, kind, cls_simple):
     if kind == 'enum' and name in ('values', 'valueOf'):
         return None, None
     # constructors: javap prints the fully qualified class name
-    if name.split('.')[-1].split('$')[-1] == cls_simple and not re.search(r'\w\s+$', pre.replace('public ', '').replace('protected ', '')):
+    if name.split('.')[-1].split('$')[-1] in (cls_simple, consulo_simple) and not re.search(r'\w\s+$', pre.replace('public ', '').replace('protected ', '')):
         if kind != 'class':
             return None, None
         mods = 'protected ' if 'protected' in pre else 'public '
@@ -298,7 +298,7 @@ def class_source(consulo, ij, shallow, indent=''):
     if not shallow:
         enum_consts = []
         for info in members:
-            key, src = member_source(info, kind, simple)
+            key, src = member_source(info, kind, simple, consulo.split('.')[-1].split('$')[-1])
             if key is None:
                 continue
             if key[0] == 'enum':
