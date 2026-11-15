@@ -18,6 +18,8 @@
     <properties>
         <protobuf.version>4.28.2</protobuf.version>
         <kotlin.compiler.version>2.5.20-dev-4223</kotlin.compiler.version>
+        <!-- javac release (arch.managment defaults to 25); same as kotlin-maven-plugin jvmTarget -->
+        <default.java.level>21</default.java.level>
     </properties>
 
     <build>
