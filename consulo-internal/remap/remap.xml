@@ -455,6 +455,11 @@
         <requires>consulo.util.dataholder</requires>
         <requires>consulo.util.lang</requires>
         <requires>consulo.navigation.api</requires>
+        <requires>consulo.color.scheme.api</requires>
+        <requires>consulo.language.code.style.api</requires>
+        <requires>consulo.java.language.api</requires>
+        <requires>consulo.java.language.impl</requires>
+        <requires>consulo.kotlin.core.helper</requires>
 
         <exports>org/jetbrains/kotlin/psi</exports>
         <exports>org/jetbrains/kotlin/parsing</exports>
