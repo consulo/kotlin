@@ -30,4 +30,6 @@ public class LightMethod extends com.intellij.psi.impl.light.LightElement implem
     public com.intellij.psi.PsiTypeParameter[] getTypeParameters() { return new com.intellij.psi.PsiTypeParameter[0]; }
     public boolean hasTypeParameters() { return false; }
     public com.intellij.psi.PsiTypeElement getReturnTypeElement() { return null; }
+    // Inherited abstract members (genstub.py)
+    public com.intellij.psi.util.MethodSignature getSignature(com.intellij.psi.PsiSubstitutor p0) { return null; }
 }

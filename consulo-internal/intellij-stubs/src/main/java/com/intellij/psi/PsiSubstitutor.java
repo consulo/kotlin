@@ -12,4 +12,11 @@ public interface PsiSubstitutor {
     PsiSubstitutor putAll(com.intellij.psi.PsiClass parentClass, com.intellij.psi.PsiType[] mappings);
     PsiSubstitutor putAll(PsiSubstitutor another);
     boolean isValid();
+    // Added by consulo-internal/remap/genstub.py from com.intellij.java.language.psi.PsiSubstitutor
+    public static final com.intellij.openapi.util.Key<com.intellij.psi.PsiSubstitutor> KEY = null;
+    public default com.intellij.psi.PsiType substituteIgnoringNullability(com.intellij.psi.PsiType p0) { return null; }
+    public default boolean hasRawSubstitution() { return false; }
+    public default com.intellij.psi.PsiSubstitutor putAll(java.util.Map<? extends com.intellij.psi.PsiTypeParameter, ? extends com.intellij.psi.PsiType> p0) { return null; }
+    public static com.intellij.psi.PsiSubstitutor createSubstitutor(java.util.Map<? extends com.intellij.psi.PsiTypeParameter, ? extends com.intellij.psi.PsiType> p0) { return null; }
+    public void ensureValid();
 }

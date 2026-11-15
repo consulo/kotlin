@@ -9,4 +9,6 @@ public interface PsiRecordComponent extends com.intellij.psi.PsiElement, com.int
     com.intellij.psi.PsiClass getContainingClass();
     boolean isVarArgs();
     String getName();
+    // Added by consulo-internal/remap/genstub.py from com.intellij.java.language.psi.PsiRecordComponent
+    public static final com.intellij.util.ArrayFactory<com.intellij.psi.PsiRecordComponent> ARRAY_FACTORY = null;
 }

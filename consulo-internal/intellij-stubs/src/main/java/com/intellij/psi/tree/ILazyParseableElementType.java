@@ -10,4 +10,6 @@ public class ILazyParseableElementType extends com.intellij.psi.tree.IElementTyp
   protected com.intellij.lang.ASTNode doParseContents(com.intellij.lang.ASTNode p0, com.intellij.psi.PsiElement p1) { return null; }
   protected com.intellij.lang.Language getLanguageForParser(com.intellij.psi.PsiElement p0) { return null; }
   public com.intellij.lang.ASTNode createNode(java.lang.CharSequence p0) { return null; }
+    // Inherited abstract members (genstub.py)
+    public boolean matches(IElementType type) { return false; }
 }

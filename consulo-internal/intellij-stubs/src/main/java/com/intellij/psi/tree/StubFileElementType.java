@@ -5,4 +5,6 @@ public class StubFileElementType<T extends com.intellij.psi.stubs.PsiFileStub> e
     public StubFileElementType(String debugName, com.intellij.lang.Language language) { super(debugName, language); }
     public int getStubVersion() { return 0; }
     public String getExternalId() { return null; }
+    // Inherited abstract members (genstub.py)
+    public boolean matches(IElementType type) { return false; }
 }

@@ -1,7 +1,7 @@
 package com.intellij.psi;
 
 @SuppressWarnings("all")
-public interface PsiElementFactory {
+public interface PsiElementFactory extends com.intellij.psi.PsiJavaParserFacade, com.intellij.psi.JVMElementFactory {
     static PsiElementFactory getInstance(com.intellij.openapi.project.Project project) { return null; }
     com.intellij.psi.PsiClassType createType(com.intellij.psi.PsiClass resolve);
     com.intellij.psi.PsiClassType createType(com.intellij.psi.PsiJavaCodeReferenceElement classReference);
@@ -28,4 +28,46 @@ public interface PsiElementFactory {
     com.intellij.psi.PsiClassType getJavaLangEnum();
     com.intellij.psi.PsiClassType createTypeByFQClassName(String qName);
     com.intellij.psi.PsiClassType createTypeByFQClassName(String qName, com.intellij.psi.search.GlobalSearchScope scope);
+    // Added by consulo-internal/remap/genstub.py from com.intellij.java.language.psi.PsiElementFactory
+    public com.intellij.psi.PsiClass createInterface(java.lang.String p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiClass createEnum(java.lang.String p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiClass createAnnotationType(java.lang.String p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiField createField(java.lang.String p0, com.intellij.psi.PsiType p1) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiMethod createMethod(java.lang.String p0, com.intellij.psi.PsiType p1) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiMethod createConstructor();
+    public com.intellij.psi.PsiMethod createConstructor(java.lang.String p0);
+    public com.intellij.psi.PsiClassInitializer createClassInitializer() throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiParameter createParameter(java.lang.String p0, com.intellij.psi.PsiType p1) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiClassType createType(com.intellij.psi.PsiClass p0, com.intellij.psi.PsiSubstitutor p1, com.intellij.pom.java.LanguageLevel p2);
+    public com.intellij.psi.PsiClassType createType(com.intellij.psi.PsiClass p0, com.intellij.psi.PsiSubstitutor p1, com.intellij.pom.java.LanguageLevel p2, com.intellij.psi.PsiAnnotation[] p3);
+    public com.intellij.psi.PsiClassType createType(com.intellij.psi.PsiClass p0, com.intellij.psi.PsiType p1);
+    public com.intellij.psi.PsiSubstitutor createRawSubstitutor(com.intellij.psi.PsiTypeParameterListOwner p0);
+    public com.intellij.psi.PsiSubstitutor createSubstitutor(java.util.Map<com.intellij.psi.PsiTypeParameter, com.intellij.psi.PsiType> p0);
+    public com.intellij.psi.PsiPrimitiveType createPrimitiveType(java.lang.String p0);
+    public com.intellij.psi.PsiJavaCodeReferenceElement createClassReferenceElement(com.intellij.psi.PsiClass p0);
+    public com.intellij.psi.PsiJavaCodeReferenceElement createFQClassNameReferenceElement(java.lang.String p0, com.intellij.psi.search.GlobalSearchScope p1);
+    public com.intellij.psi.PsiJavaCodeReferenceElement createPackageReferenceElement(com.intellij.psi.PsiPackage p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiJavaCodeReferenceElement createPackageReferenceElement(java.lang.String p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiReferenceExpression createReferenceExpression(com.intellij.psi.PsiClass p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiReferenceExpression createReferenceExpression(com.intellij.psi.PsiPackage p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiIdentifier createIdentifier(java.lang.String p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiKeyword createKeyword(java.lang.String p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiKeyword createKeyword(java.lang.String p0, com.intellij.psi.PsiElement p1) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiImportStatement createImportStatement(com.intellij.psi.PsiClass p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiImportStatement createImportStatementOnDemand(java.lang.String p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiImportModuleStatement createImportModuleStatementFromText(java.lang.String p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiDeclarationStatement createVariableDeclarationStatement(java.lang.String p0, com.intellij.psi.PsiType p1, com.intellij.psi.PsiExpression p2) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiDeclarationStatement createVariableDeclarationStatement(java.lang.String p0, com.intellij.psi.PsiType p1, com.intellij.psi.PsiExpression p2, com.intellij.psi.PsiElement p3) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.javadoc.PsiDocTag createParamTag(java.lang.String p0, java.lang.String p1) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiClass getArrayClass(com.intellij.pom.java.LanguageLevel p0);
+    public com.intellij.psi.PsiClassType getArrayClassType(com.intellij.psi.PsiType p0, com.intellij.pom.java.LanguageLevel p1);
+    public com.intellij.psi.PsiPackageStatement createPackageStatement(java.lang.String p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiImportStaticStatement createImportStaticStatement(com.intellij.psi.PsiClass p0, java.lang.String p1) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiParameterList createParameterList(java.lang.String[] p0, com.intellij.psi.PsiType[] p1) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiReferenceList createReferenceList(com.intellij.psi.PsiJavaCodeReferenceElement[] p0) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiSubstitutor createRawSubstitutor(com.intellij.psi.PsiSubstitutor p0, com.intellij.psi.PsiTypeParameter[] p1);
+    public com.intellij.psi.PsiElement createDummyHolder(java.lang.String p0, com.intellij.psi.tree.IElementType p1, com.intellij.psi.PsiElement p2);
+    public com.intellij.psi.PsiCatchSection createCatchSection(com.intellij.psi.PsiType p0, java.lang.String p1, com.intellij.psi.PsiElement p2) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiExpression createExpressionFromText(java.lang.String p0, com.intellij.psi.PsiElement p1) throws com.intellij.util.IncorrectOperationException;
+    public com.intellij.psi.PsiType createPrimitiveTypeFromText(java.lang.String p0) throws com.intellij.util.IncorrectOperationException;
 }

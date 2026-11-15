@@ -379,7 +379,7 @@
         <module>analysis/low-level-api-fir</module>
         <module>analysis/light-classes-base</module>
         <module>analysis/analysis-api-fir-diagnostics</module>
-        <!-- needs the Java PSI light-class API: <module>analysis/symbol-light-classes</module> -->
-        <!-- needs the Java PSI light-class API: <module>analysis/analysis-api-fir</module> -->
+        <module>analysis/symbol-light-classes</module>
+        <!-- platform gaps left (search scopes, dangling files): <module>analysis/analysis-api-fir</module> -->
     </modules>
 </project>

@@ -38,4 +38,6 @@ public interface CommonClassNames {
     String JAVA_UTIL_FUNCTION_SUPPLIER = "java.util.function.Supplier";
     String JAVA_UTIL_CONCURRENT_CALLABLE = "java.util.concurrent.Callable";
     String JAVA_UTIL_OPTIONAL = "java.util.Optional";
+    String JAVA_LANG_ANNOTATION_RETENTION = "java.lang.annotation.Retention";
+    String JAVA_LANG_ANNOTATION_TARGET = "java.lang.annotation.Target";
 }

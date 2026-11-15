@@ -48,6 +48,187 @@
         <rule from="com.intellij.util.messages" to="consulo.component.messagebus"/>
         <rule from="com.intellij.util.io" to="consulo.index.io"/>
         <rule from="com.intellij.util.containers" to="consulo.util.collection"/>
+        <rule from="com.intellij.util.text" to="consulo.util.lang.text"/>
+        <rule from="com.intellij.util" to="consulo.util"/>
+
+        <!-- Test/Mock/Core -->
+        <rule from="com.intellij.mock" to="consulo.test.mock"/>
+        <rule from="com.intellij.core" to="consulo.test.core"/>
+        <rule from="com.intellij.testFramework" to="consulo.test.framework"/>
+    </packages>
+
+    <!-- Per-class overrides (highest priority) -->
+    <classes>
+        <!-- Java PSI, stubs written by genstub.py -->
+        <rule from="com.intellij.lang.ITokenTypeRemapper" to="consulo.language.parser.ITokenTypeRemapper"/>
+        <rule from="com.intellij.lang.LighterLazyParseableNode" to="consulo.language.ast.LighterLazyParseableNode"/>
+        <rule from="com.intellij.lang.WhitespaceSkippedCallback" to="consulo.language.parser.WhitespaceSkippedCallback"/>
+        <rule from="com.intellij.lang.java.JavaLanguage" to="com.intellij.java.language.JavaLanguage"/>
+        <rule from="com.intellij.openapi.extensions.PluginDescriptor" to="consulo.container.plugin.PluginDescriptor"/>
+        <rule from="com.intellij.openapi.extensions.PluginId" to="consulo.container.plugin.PluginId"/>
+        <rule from="com.intellij.openapi.fileEditor.FileDocumentManager" to="consulo.document.FileDocumentManager"/>
+        <rule from="com.intellij.openapi.util.Couple" to="consulo.util.lang.Couple"/>
+        <rule from="com.intellij.openapi.util.Segment" to="consulo.document.util.Segment"/>
+        <rule from="com.intellij.openapi.util.SimpleModificationTracker" to="consulo.component.util.SimpleModificationTracker"/>
+        <rule from="com.intellij.openapi.util.ThreeState" to="consulo.util.lang.ThreeState"/>
+        <rule from="com.intellij.openapi.util.ThrowableRunnable" to="consulo.util.lang.function.ThrowableRunnable"/>
+        <rule from="com.intellij.openapi.vfs.VirtualFileListener" to="consulo.virtualFileSystem.event.VirtualFileListener"/>
+        <rule from="com.intellij.pom.java.codeInsight.TypeNullability" to="com.intellij.java.language.codeInsight.TypeNullability"/>
+        <rule from="com.intellij.psi.ImplicitVariable" to="com.intellij.java.language.psi.ImplicitVariable"/>
+        <rule from="com.intellij.psi.ImplicitlyImportedElement" to="com.intellij.java.language.psi.ImplicitlyImportedElement"/>
+        <rule from="com.intellij.psi.JVMElementFactory" to="com.intellij.java.language.psi.JVMElementFactory"/>
+        <rule from="com.intellij.psi.PsiArrayAccessExpression" to="com.intellij.java.language.psi.PsiArrayAccessExpression"/>
+        <rule from="com.intellij.psi.PsiArrayInitializerExpression" to="com.intellij.java.language.psi.PsiArrayInitializerExpression"/>
+        <rule from="com.intellij.psi.PsiAssertStatement" to="com.intellij.java.language.psi.PsiAssertStatement"/>
+        <rule from="com.intellij.psi.PsiAssignmentExpression" to="com.intellij.java.language.psi.PsiAssignmentExpression"/>
+        <rule from="com.intellij.psi.PsiBinaryExpression" to="com.intellij.java.language.psi.PsiBinaryExpression"/>
+        <rule from="com.intellij.psi.PsiBlockStatement" to="com.intellij.java.language.psi.PsiBlockStatement"/>
+        <rule from="com.intellij.psi.PsiBreakStatement" to="com.intellij.java.language.psi.PsiBreakStatement"/>
+        <rule from="com.intellij.psi.PsiCallExpression" to="com.intellij.java.language.psi.PsiCallExpression"/>
+        <rule from="com.intellij.psi.PsiCapturedWildcardType" to="com.intellij.java.language.psi.PsiCapturedWildcardType"/>
+        <rule from="com.intellij.psi.PsiCaseLabelElement" to="com.intellij.java.language.psi.PsiCaseLabelElement"/>
+        <rule from="com.intellij.psi.PsiCaseLabelElementList" to="com.intellij.java.language.psi.PsiCaseLabelElementList"/>
+        <rule from="com.intellij.psi.PsiCatchSection" to="com.intellij.java.language.psi.PsiCatchSection"/>
+        <rule from="com.intellij.psi.PsiCodeBlock" to="com.intellij.java.language.psi.PsiCodeBlock"/>
+        <rule from="com.intellij.psi.PsiConditionalLoopStatement" to="com.intellij.java.language.psi.PsiConditionalLoopStatement"/>
+        <rule from="com.intellij.psi.PsiConstructorCall" to="com.intellij.java.language.psi.PsiConstructorCall"/>
+        <rule from="com.intellij.psi.PsiContinueStatement" to="com.intellij.java.language.psi.PsiContinueStatement"/>
+        <rule from="com.intellij.psi.PsiDeclarationStatement" to="com.intellij.java.language.psi.PsiDeclarationStatement"/>
+        <rule from="com.intellij.psi.PsiDeconstructionList" to="com.intellij.java.language.psi.PsiDeconstructionList"/>
+        <rule from="com.intellij.psi.PsiDeconstructionPattern" to="com.intellij.java.language.psi.PsiDeconstructionPattern"/>
+        <rule from="com.intellij.psi.PsiDefaultCaseLabelElement" to="com.intellij.java.language.psi.PsiDefaultCaseLabelElement"/>
+        <rule from="com.intellij.psi.PsiDisjunctionType" to="com.intellij.java.language.psi.PsiDisjunctionType"/>
+        <rule from="com.intellij.psi.PsiDoWhileStatement" to="com.intellij.java.language.psi.PsiDoWhileStatement"/>
+        <rule from="com.intellij.psi.PsiEmptyStatement" to="com.intellij.java.language.psi.PsiEmptyStatement"/>
+        <rule from="com.intellij.psi.PsiExpressionList" to="com.intellij.java.language.psi.PsiExpressionList"/>
+        <rule from="com.intellij.psi.PsiExpressionListStatement" to="com.intellij.java.language.psi.PsiExpressionListStatement"/>
+        <rule from="com.intellij.psi.PsiExpressionStatement" to="com.intellij.java.language.psi.PsiExpressionStatement"/>
+        <rule from="com.intellij.psi.PsiForStatement" to="com.intellij.java.language.psi.PsiForStatement"/>
+        <rule from="com.intellij.psi.PsiForeachPatternStatement" to="com.intellij.java.language.psi.PsiForeachPatternStatement"/>
+        <rule from="com.intellij.psi.PsiForeachStatement" to="com.intellij.java.language.psi.PsiForeachStatement"/>
+        <rule from="com.intellij.psi.PsiForeachStatementBase" to="com.intellij.java.language.psi.PsiForeachStatementBase"/>
+        <rule from="com.intellij.psi.PsiFragment" to="com.intellij.java.language.psi.PsiFragment"/>
+        <rule from="com.intellij.psi.PsiFunctionalExpression" to="com.intellij.java.language.psi.PsiFunctionalExpression"/>
+        <rule from="com.intellij.psi.PsiIdentifier" to="com.intellij.java.language.psi.PsiIdentifier"/>
+        <rule from="com.intellij.psi.PsiIfStatement" to="com.intellij.java.language.psi.PsiIfStatement"/>
+        <rule from="com.intellij.psi.PsiImplicitClass" to="com.intellij.java.language.psi.PsiImplicitClass"/>
+        <rule from="com.intellij.psi.PsiImportHolder" to="com.intellij.java.language.psi.PsiImportHolder"/>
+        <rule from="com.intellij.psi.PsiImportList" to="com.intellij.java.language.psi.PsiImportList"/>
+        <rule from="com.intellij.psi.PsiImportModuleStatement" to="com.intellij.java.language.psi.PsiImportModuleStatement"/>
+        <rule from="com.intellij.psi.PsiImportStatement" to="com.intellij.java.language.psi.PsiImportStatement"/>
+        <rule from="com.intellij.psi.PsiImportStatementBase" to="com.intellij.java.language.psi.PsiImportStatementBase"/>
+        <rule from="com.intellij.psi.PsiImportStaticReferenceElement" to="com.intellij.java.language.psi.PsiImportStaticReferenceElement"/>
+        <rule from="com.intellij.psi.PsiImportStaticStatement" to="com.intellij.java.language.psi.PsiImportStaticStatement"/>
+        <rule from="com.intellij.psi.PsiInstanceOfExpression" to="com.intellij.java.language.psi.PsiInstanceOfExpression"/>
+        <rule from="com.intellij.psi.PsiIntersectionType" to="com.intellij.java.language.psi.PsiIntersectionType"/>
+        <rule from="com.intellij.psi.PsiJavaDocumentedElement" to="com.intellij.java.language.psi.PsiJavaDocumentedElement"/>
+        <rule from="com.intellij.psi.PsiJavaModuleReferenceElement" to="com.intellij.java.language.psi.PsiJavaModuleReferenceElement"/>
+        <rule from="com.intellij.psi.PsiJavaParserFacade" to="com.intellij.java.language.psi.PsiJavaParserFacade"/>
+        <rule from="com.intellij.psi.PsiJavaToken" to="com.intellij.java.language.psi.PsiJavaToken"/>
+        <rule from="com.intellij.psi.PsiJvmModifiersOwner" to="com.intellij.java.language.psi.PsiJvmModifiersOwner"/>
+        <rule from="com.intellij.psi.PsiKeyword" to="com.intellij.java.language.psi.PsiKeyword"/>
+        <rule from="com.intellij.psi.PsiLabeledStatement" to="com.intellij.java.language.psi.PsiLabeledStatement"/>
+        <rule from="com.intellij.psi.PsiLambdaExpression" to="com.intellij.java.language.psi.PsiLambdaExpression"/>
+        <rule from="com.intellij.psi.PsiLambdaExpressionType" to="com.intellij.java.language.psi.PsiLambdaExpressionType"/>
+        <rule from="com.intellij.psi.PsiLocalVariable" to="com.intellij.java.language.psi.PsiLocalVariable"/>
+        <rule from="com.intellij.psi.PsiLoopStatement" to="com.intellij.java.language.psi.PsiLoopStatement"/>
+        <rule from="com.intellij.psi.PsiMethodCallExpression" to="com.intellij.java.language.psi.PsiMethodCallExpression"/>
+        <rule from="com.intellij.psi.PsiMethodReferenceExpression" to="com.intellij.java.language.psi.PsiMethodReferenceExpression"/>
+        <rule from="com.intellij.psi.PsiMethodReferenceType" to="com.intellij.java.language.psi.PsiMethodReferenceType"/>
+        <rule from="com.intellij.psi.PsiNameHelper" to="com.intellij.java.language.psi.PsiNameHelper"/>
+        <rule from="com.intellij.psi.PsiNewExpression" to="com.intellij.java.language.psi.PsiNewExpression"/>
+        <rule from="com.intellij.psi.PsiPackageAccessibilityStatement" to="com.intellij.java.language.psi.PsiPackageAccessibilityStatement"/>
+        <rule from="com.intellij.psi.PsiParameterListOwner" to="com.intellij.java.language.psi.PsiParameterListOwner"/>
+        <rule from="com.intellij.psi.PsiParenthesizedPattern" to="com.intellij.java.language.psi.PsiParenthesizedPattern"/>
+        <rule from="com.intellij.psi.PsiPattern" to="com.intellij.java.language.psi.PsiPattern"/>
+        <rule from="com.intellij.psi.PsiPatternVariable" to="com.intellij.java.language.psi.PsiPatternVariable"/>
+        <rule from="com.intellij.psi.PsiPostfixExpression" to="com.intellij.java.language.psi.PsiPostfixExpression"/>
+        <rule from="com.intellij.psi.PsiPrimaryPattern" to="com.intellij.java.language.psi.PsiPrimaryPattern"/>
+        <rule from="com.intellij.psi.PsiProvidesStatement" to="com.intellij.java.language.psi.PsiProvidesStatement"/>
+        <rule from="com.intellij.psi.PsiReceiverParameter" to="com.intellij.java.language.psi.PsiReceiverParameter"/>
+        <rule from="com.intellij.psi.PsiReferenceParameterList" to="com.intellij.java.language.psi.PsiReferenceParameterList"/>
+        <rule from="com.intellij.psi.PsiRequiresStatement" to="com.intellij.java.language.psi.PsiRequiresStatement"/>
+        <rule from="com.intellij.psi.PsiResolveHelper" to="com.intellij.java.language.psi.PsiResolveHelper"/>
+        <rule from="com.intellij.psi.PsiResourceExpression" to="com.intellij.java.language.psi.PsiResourceExpression"/>
+        <rule from="com.intellij.psi.PsiResourceList" to="com.intellij.java.language.psi.PsiResourceList"/>
+        <rule from="com.intellij.psi.PsiResourceListElement" to="com.intellij.java.language.psi.PsiResourceListElement"/>
+        <rule from="com.intellij.psi.PsiResourceVariable" to="com.intellij.java.language.psi.PsiResourceVariable"/>
+        <rule from="com.intellij.psi.PsiReturnStatement" to="com.intellij.java.language.psi.PsiReturnStatement"/>
+        <rule from="com.intellij.psi.PsiStatement" to="com.intellij.java.language.psi.PsiStatement"/>
+        <rule from="com.intellij.psi.PsiSuperExpression" to="com.intellij.java.language.psi.PsiSuperExpression"/>
+        <rule from="com.intellij.psi.PsiSwitchBlock" to="com.intellij.java.language.psi.PsiSwitchBlock"/>
+        <rule from="com.intellij.psi.PsiSwitchExpression" to="com.intellij.java.language.psi.PsiSwitchExpression"/>
+        <rule from="com.intellij.psi.PsiSwitchLabelStatement" to="com.intellij.java.language.psi.PsiSwitchLabelStatement"/>
+        <rule from="com.intellij.psi.PsiSwitchLabelStatementBase" to="com.intellij.java.language.psi.PsiSwitchLabelStatementBase"/>
+        <rule from="com.intellij.psi.PsiSwitchLabeledRuleStatement" to="com.intellij.java.language.psi.PsiSwitchLabeledRuleStatement"/>
+        <rule from="com.intellij.psi.PsiSwitchStatement" to="com.intellij.java.language.psi.PsiSwitchStatement"/>
+        <rule from="com.intellij.psi.PsiSynchronizedStatement" to="com.intellij.java.language.psi.PsiSynchronizedStatement"/>
+        <rule from="com.intellij.psi.PsiTemplate" to="com.intellij.java.language.psi.PsiTemplate"/>
+        <rule from="com.intellij.psi.PsiTemplateExpression" to="com.intellij.java.language.psi.PsiTemplateExpression"/>
+        <rule from="com.intellij.psi.PsiThisExpression" to="com.intellij.java.language.psi.PsiThisExpression"/>
+        <rule from="com.intellij.psi.PsiThrowStatement" to="com.intellij.java.language.psi.PsiThrowStatement"/>
+        <rule from="com.intellij.psi.PsiTryStatement" to="com.intellij.java.language.psi.PsiTryStatement"/>
+        <rule from="com.intellij.psi.PsiTypeTestPattern" to="com.intellij.java.language.psi.PsiTypeTestPattern"/>
+        <rule from="com.intellij.psi.PsiTypes" to="com.intellij.java.language.psi.PsiTypes"/>
+        <rule from="com.intellij.psi.PsiUnaryExpression" to="com.intellij.java.language.psi.PsiUnaryExpression"/>
+        <rule from="com.intellij.psi.PsiUnnamedPattern" to="com.intellij.java.language.psi.PsiUnnamedPattern"/>
+        <rule from="com.intellij.psi.PsiUsesStatement" to="com.intellij.java.language.psi.PsiUsesStatement"/>
+        <rule from="com.intellij.psi.PsiWhileStatement" to="com.intellij.java.language.psi.PsiWhileStatement"/>
+        <rule from="com.intellij.psi.PsiYieldStatement" to="com.intellij.java.language.psi.PsiYieldStatement"/>
+        <rule from="com.intellij.psi.ResolveState" to="consulo.language.psi.resolve.ResolveState"/>
+        <rule from="com.intellij.psi.ServerPageFile" to="com.intellij.java.language.psi.ServerPageFile"/>
+        <rule from="com.intellij.psi.TypeAnnotationProvider" to="com.intellij.java.language.psi.TypeAnnotationProvider"/>
+        <rule from="com.intellij.psi.impl.PsiVariableEx" to="com.intellij.java.language.impl.psi.impl.PsiVariableEx"/>
+        <rule from="com.intellij.psi.impl.light.LightClass" to="com.intellij.java.language.impl.psi.impl.light.LightClass"/>
+        <rule from="com.intellij.psi.impl.light.LightField" to="com.intellij.java.language.impl.psi.impl.light.LightField"/>
+        <rule from="com.intellij.psi.impl.light.LightIdentifier" to="com.intellij.java.language.impl.psi.impl.light.LightIdentifier"/>
+        <rule from="com.intellij.psi.impl.light.LightMethod" to="com.intellij.java.language.impl.psi.impl.light.LightMethod"/>
+        <rule from="com.intellij.psi.impl.light.LightParameter" to="com.intellij.java.language.impl.psi.impl.light.LightParameter"/>
+        <rule from="com.intellij.psi.impl.light.LightParameterListBuilder" to="com.intellij.java.language.impl.psi.impl.light.LightParameterListBuilder"/>
+        <rule from="com.intellij.psi.impl.light.LightRecordMethod" to="com.intellij.java.language.impl.psi.impl.light.LightRecordMethod"/>
+        <rule from="com.intellij.psi.impl.light.LightReferenceListBuilder" to="com.intellij.java.language.impl.psi.impl.light.LightReferenceListBuilder"/>
+        <rule from="com.intellij.psi.impl.source.PsiExtensibleClass" to="com.intellij.java.language.impl.psi.impl.source.PsiExtensibleClass"/>
+        <rule from="com.intellij.psi.javadoc.PsiDocComment" to="com.intellij.java.language.psi.javadoc.PsiDocComment"/>
+        <rule from="com.intellij.psi.javadoc.PsiDocReferenceHolder" to="com.intellij.java.language.psi.javadoc.PsiDocReferenceHolder"/>
+        <rule from="com.intellij.psi.javadoc.PsiDocTag" to="com.intellij.java.language.psi.javadoc.PsiDocTag"/>
+        <rule from="com.intellij.psi.javadoc.PsiDocTagValue" to="com.intellij.java.language.psi.javadoc.PsiDocTagValue"/>
+        <rule from="com.intellij.psi.javadoc.PsiDocToken" to="com.intellij.java.language.psi.javadoc.PsiDocToken"/>
+        <rule from="com.intellij.psi.javadoc.PsiInlineDocTag" to="com.intellij.java.language.psi.javadoc.PsiInlineDocTag"/>
+        <rule from="com.intellij.psi.javadoc.PsiMarkdownCodeBlock" to="com.intellij.java.language.psi.javadoc.PsiMarkdownCodeBlock"/>
+        <rule from="com.intellij.psi.javadoc.PsiMarkdownReferenceLabel" to="com.intellij.java.language.psi.javadoc.PsiMarkdownReferenceLabel"/>
+        <rule from="com.intellij.psi.javadoc.PsiMarkdownReferenceLink" to="com.intellij.java.language.psi.javadoc.PsiMarkdownReferenceLink"/>
+        <rule from="com.intellij.psi.javadoc.PsiSnippetAttribute" to="com.intellij.java.language.psi.javadoc.PsiSnippetAttribute"/>
+        <rule from="com.intellij.psi.javadoc.PsiSnippetAttributeList" to="com.intellij.java.language.psi.javadoc.PsiSnippetAttributeList"/>
+        <rule from="com.intellij.psi.javadoc.PsiSnippetAttributeValue" to="com.intellij.java.language.psi.javadoc.PsiSnippetAttributeValue"/>
+        <rule from="com.intellij.psi.javadoc.PsiSnippetDocTag" to="com.intellij.java.language.psi.javadoc.PsiSnippetDocTag"/>
+        <rule from="com.intellij.psi.javadoc.PsiSnippetDocTagBody" to="com.intellij.java.language.psi.javadoc.PsiSnippetDocTagBody"/>
+        <rule from="com.intellij.psi.javadoc.PsiSnippetDocTagValue" to="com.intellij.java.language.psi.javadoc.PsiSnippetDocTagValue"/>
+        <rule from="com.intellij.psi.util.GenericsUtil" to="com.intellij.java.language.psi.GenericsUtil"/>
+        <rule from="com.intellij.psi.util.MethodSignatureBackedByPsiMethod" to="com.intellij.java.language.psi.util.MethodSignatureBackedByPsiMethod"/>
+        <rule from="com.intellij.psi.impl.light.AbstractLightClass" to="com.intellij.java.language.impl.psi.impl.light.AbstractLightClass"/>
+        <rule from="com.intellij.psi.PsiLiteral" to="com.intellij.java.language.psi.PsiLiteral"/>
+        <rule from="com.intellij.psi.impl.light.LightElement" to="consulo.language.impl.psi.LightElement"/>
+        <rule from="com.intellij.psi.impl.InheritanceImplUtil" to="com.intellij.java.language.impl.psi.impl.InheritanceImplUtil"/>
+        <rule from="com.intellij.psi.impl.PsiImplUtil" to="com.intellij.java.language.impl.psi.impl.PsiImplUtil"/>
+        <rule from="com.intellij.psi.JavaResolveResult" to="com.intellij.java.language.psi.JavaResolveResult"/>
+        <rule from="com.intellij.psi.PsiEnumConstantInitializer" to="com.intellij.java.language.psi.PsiEnumConstantInitializer"/>
+        <rule from="com.intellij.psi.impl.light.LightEmptyImplementsList" to="com.intellij.java.language.impl.psi.impl.light.LightEmptyImplementsList"/>
+        <rule from="com.intellij.psi.util.PsiTypesUtil" to="com.intellij.java.language.psi.util.PsiTypesUtil"/>
+        <rule from="com.intellij.psi.impl.source.PsiImmediateClassType" to="com.intellij.java.language.impl.psi.impl.source.PsiImmediateClassType"/>
+        <rule from="com.intellij.psi.impl.light.LightTypeElement" to="com.intellij.java.language.impl.psi.impl.light.LightTypeElement"/>
+        <rule from="com.intellij.psi.util.ClassUtil" to="com.intellij.java.language.psi.util.ClassUtil"/>
+        <rule from="com.intellij.psi.PsiJavaReference" to="com.intellij.java.language.psi.PsiJavaReference"/>
+        <rule from="com.intellij.psi.impl.PsiClassImplUtil" to="com.intellij.java.language.impl.psi.impl.PsiClassImplUtil"/>
+        <rule from="com.intellij.psi.impl.PsiSuperMethodImplUtil" to="com.intellij.java.language.impl.psi.impl.PsiSuperMethodImplUtil"/>
+        <rule from="com.intellij.psi.PsiEllipsisType" to="com.intellij.java.language.psi.PsiEllipsisType"/>
+        <rule from="com.intellij.psi.PsiRecordHeader" to="com.intellij.java.language.psi.PsiRecordHeader"/>
+        <rule from="com.intellij.psi.PsiClassInitializer" to="com.intellij.java.language.psi.PsiClassInitializer"/>
+        <rule from="com.intellij.psi.util.MethodSignature" to="com.intellij.java.language.psi.util.MethodSignature"/>
+        <rule from="com.intellij.psi.HierarchicalMethodSignature" to="com.intellij.java.language.psi.HierarchicalMethodSignature"/>
+        <rule from="com.intellij.psi.scope.PsiScopeProcessor" to="consulo.language.psi.resolve.PsiScopeProcessor"/>
+        <rule from="com.intellij.psi.PsiJavaFile" to="com.intellij.java.language.psi.PsiJavaFile"/>
+        <rule from="com.intellij.psi.PsiCall" to="com.intellij.java.language.psi.PsiCall"/>
+        <!-- IntelliJ utilities -->
         <rule from="com.intellij.util.ArrayUtil" to="consulo.util.collection.ArrayUtil"/>
         <rule from="com.intellij.openapi.util.Disposer" to="consulo.disposer.Disposer"/>
         <rule from="com.intellij.util.SmartFMap" to="consulo.util.collection.SmartFMap"/>
@@ -67,17 +248,6 @@
         <rule from="com.intellij.util.concurrency.ThreadingAssertions" to="consulo.kotlin.compat.util.ThreadingAssertions"/>
         <rule from="com.intellij.openapi.module.Module" to="consulo.module.Module"/>
         <rule from="com.intellij.psi.SmartPointersKt" to="consulo.kotlin.compat.ext.SmartPointersKt"/>
-        <rule from="com.intellij.util.text" to="consulo.util.lang.text"/>
-        <rule from="com.intellij.util" to="consulo.util"/>
-
-        <!-- Test/Mock/Core -->
-        <rule from="com.intellij.mock" to="consulo.test.mock"/>
-        <rule from="com.intellij.core" to="consulo.test.core"/>
-        <rule from="com.intellij.testFramework" to="consulo.test.framework"/>
-    </packages>
-
-    <!-- Per-class overrides (highest priority) -->
-    <classes>
         <!-- com.intellij.psi split: FileViewProvider goes to consulo.language.file -->
         <rule from="com.intellij.psi.FileViewProvider" to="consulo.language.file.FileViewProvider"/>
         <rule from="com.intellij.psi.SingleRootFileViewProvider" to="consulo.language.impl.file.SingleRootFileViewProvider"/>
@@ -385,6 +555,9 @@
     <!-- Calls whose target is missing in Consulo, rewritten to static helpers in consulo-internal/intellij-compat.
          owner/name/desc are the remapped ones. -->
     <redirects>
+        <method owner="com.intellij.java.language.psi.util.ClassUtil" name="getAsmMethodSignature"
+                desc="(Lcom/intellij/java/language/psi/PsiMethod;)Ljava/lang/String;"
+                target="consulo.kotlin.compat.java.JavaPsiCompat"/>
         <!-- Stub list layout optimization; Consulo keeps it package-private, so the stub is never "last added" -->
         <method owner="consulo.language.psi.stub.StubBase" name="getStubId" desc="()I"
                 target="consulo.kotlin.compat.psi.StubCompat"/>

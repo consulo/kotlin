@@ -4,7 +4,9 @@ package com.intellij.psi;
 public interface PsiParameterList extends com.intellij.psi.PsiElement {
     int getParametersCount();
     com.intellij.psi.PsiParameter[] getParameters();
-    com.intellij.psi.PsiParameter getParameter(int index);
+    default com.intellij.psi.PsiParameter getParameter(int index) { return null; }
     int getParameterIndex(com.intellij.psi.PsiParameter parameter);
-    boolean isEmpty();
+    default boolean isEmpty() { return false; }
+    // Added by consulo-internal/remap/genstub.py from com.intellij.java.language.psi.PsiParameterList
+
 }

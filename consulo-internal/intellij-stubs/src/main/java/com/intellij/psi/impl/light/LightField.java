@@ -17,4 +17,6 @@ public class LightField extends com.intellij.psi.impl.light.LightElement impleme
     public boolean hasModifierProperty(String name) { return false; }
     public com.intellij.psi.javadoc.PsiDocComment getDocComment() { return null; }
     public boolean isDeprecated() { return false; }
+    // Inherited abstract members (genstub.py)
+    public void setInitializer(com.intellij.psi.PsiExpression p0) { }
 }

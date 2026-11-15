@@ -15,7 +15,7 @@
 
     <build>
         <plugins>
-            <!-- Light classes are not complete yet: the parts Kotlin analysis reaches, without enum synthetic methods, scripts and the cls wrapper -->
+            <!-- Light classes for scripts and enum synthetic methods are not complete yet -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -32,13 +32,8 @@
                                 <resource>
                                     <directory>src</directory>
                                     <excludes>
-                                        <exclude>org/jetbrains/kotlin/asJava/ImpreciseResolveResult.kt</exclude>
-                                        <exclude>org/jetbrains/kotlin/asJava/builder/ClsWrapperStubPsiFactory.java</exclude>
-                                        <exclude>org/jetbrains/kotlin/asJava/classes/ClassContentFinderCache.kt</exclude>
                                         <exclude>org/jetbrains/kotlin/asJava/classes/KotlinEnumSyntheticMethod.kt</exclude>
-                                        <exclude>org/jetbrains/kotlin/asJava/classes/KtLightClassForScript.kt</exclude>
-                                        <exclude>org/jetbrains/kotlin/asJava/classes/LightClassInheritanceHelper.kt</exclude>
-                                        <exclude>org/jetbrains/kotlin/asJava/classes/lightClassUtils.kt</exclude>
+                                        <exclude>org/jetbrains/kotlin/asJava/builder/ClsWrapperStubPsiFactory.java</exclude>
                                     </excludes>
                                 </resource>
                             </resources>

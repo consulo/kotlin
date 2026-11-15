@@ -12,4 +12,8 @@ public class ResolveCache {
     public interface Resolver extends AbstractResolver<com.intellij.psi.PsiReference, com.intellij.psi.PsiElement> {
     }
     public <T extends com.intellij.psi.PsiPolyVariantReference> com.intellij.psi.ResolveResult[] resolveWithCaching(T p0, PolyVariantResolver<T> p1, boolean p2, boolean p3) { return null; }
+    @SuppressWarnings("all")
+    public static interface PolyVariantContextResolver<T extends com.intellij.psi.PsiPolyVariantReference> {
+        public com.intellij.psi.ResolveResult[] resolve(T p0, com.intellij.psi.PsiFile p1, boolean p2);
+    }
 }

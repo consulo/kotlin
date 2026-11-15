@@ -16,7 +16,7 @@
 
     <build>
         <plugins>
-            <!-- Only what analysis-api-fir reaches: the light class bridge and annotateByKtType; the rest needs the decompiler (subset by consulo-internal/remap/subset.py) -->
+            <!-- The light class support itself needs the decompiler, which is not built yet -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -32,98 +32,10 @@
                             <resources>
                                 <resource>
                                     <directory>src</directory>
-                                    <includes>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/KaInternalsLightClassBridge.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/SymbolFakeFile.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/SymbolLightMemberBase.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/AbstractClassAdditionalAnnotationsProvider.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/AdditionalAnnotationsProvider.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/AlwaysAllowedAnnotationFilter.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/AnnotationFilter.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/AnnotationValue.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/AnnotationsBox.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/AnnotationsProvider.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/ComputeAllAtOnceAnnotationsBox.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/EmptyAdditionalAnnotationsProvider.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/EmptyAnnotationsBox.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/EmptyAnnotationsProvider.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/ExcludeAnnotationFilter.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/GranularAnnotationsBox.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/JvmExposeBoxedAdditionalAnnotationsProvider.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/JvmInlineAdditionalAnnotationsProvider.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/MethodAdditionalAnnotationsProvider.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/NullabilityAnnotationsProvider.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/ReferenceInformationProvider.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/SymbolAnnotationValues.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/SymbolAnnotationsProvider.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/SymbolLightAbstractAnnotation.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/SymbolLightAbstractAnnotationParameterList.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/SymbolLightEmptyAnnotationParameterList.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/SymbolLightJavaAnnotation.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/SymbolLightLazyAnnotation.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/SymbolLightLazyAnnotationParameterList.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/SymbolLightSimpleAnnotation.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/SymbolNameValuePairForAnnotationArgument.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/annotations/symbolAnnotationsUtils.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/SymbolLightClassBase.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/SymbolLightClassForAnnotationClass.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/SymbolLightClassForAnonymousObject.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/SymbolLightClassForClassLike.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/SymbolLightClassForClassOrObject.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/SymbolLightClassForEnumEntry.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/SymbolLightClassForInterface.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/SymbolLightClassForInterfaceDefaultImpls.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/SymbolLightClassForInterfaceOrAnnotationClass.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/SymbolLightClassForNamedClassLike.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/SymbolLightClassForRepeatableAnnotationContainer.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/mappedCollectionClassUtils.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/classes/symbolLightClassUtils.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/codeReferences/SymbolLightPsiJavaCodeReferenceElementBase.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/codeReferences/SymbolLightPsiJavaCodeReferenceElementWithNoReference.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/codeReferences/SymbolLightPsiJavaCodeReferenceElementWithReference.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/fields/SymbolLightField.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/fields/SymbolLightFieldForEnumEntry.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/fields/SymbolLightFieldForObject.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/fields/SymbolLightFieldForProperty.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/methods/SymbolLightAccessorMethod.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/methods/SymbolLightConstructor.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/methods/SymbolLightMethod.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/methods/SymbolLightMethodBase.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/methods/SymbolLightMethodForMappedJavaCollectionStubMethod.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/methods/SymbolLightMethodForMappedKotlinCollectionMethod.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/methods/SymbolLightNoArgConstructor.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/methods/SymbolLightRepeatableAnnotationContainerMethod.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/methods/SymbolLightSimpleMethod.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/methods/symbolLightMethodUtils.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/modifierLists/EmptyModifiersBox.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/modifierLists/GranularModifiersBox.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/modifierLists/InitializedModifiersBox.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/modifierLists/ModifiersBox.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/modifierLists/SymbolLightClassModifierList.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/modifierLists/SymbolLightMemberModifierList.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/modifierLists/SymbolLightModifierList.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightContextParameter.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightParameterBase.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightParameterCommon.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightParameterForDefaultImplsReceiver.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightParameterForMappedJavaCollectionStubMethod.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightParameterForReceiver.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightParameterList.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightSetterParameter.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightSuspendContinuationParameter.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightTypeParameter.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightTypeParameterBase.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightTypeParameterForMappedJavaCollectionStubMethod.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightTypeParameterList.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightTypeParameterListBase.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightTypeParameterListForMappedJavaCollectionStubMethod.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightValueParameter.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/parameters/SymbolLightValueParameterWithCustomType.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/records/SymbolLightRecordComponent.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/records/SymbolLightRecordHeader.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/utils/lightClassUtils.kt</include>
-                                        <include>org/jetbrains/kotlin/light/classes/symbol/utils/symbolLightUtils.kt</include>
-                                    </includes>
+                                    <excludes>
+                                        <exclude>org/jetbrains/kotlin/light/classes/symbol/SymbolKotlinAsJavaSupport.kt</exclude>
+                                        <exclude>org/jetbrains/kotlin/light/classes/symbol/utils/LightClassMemberUtils.kt</exclude>
+                                    </excludes>
                                 </resource>
                             </resources>
                         </configuration>

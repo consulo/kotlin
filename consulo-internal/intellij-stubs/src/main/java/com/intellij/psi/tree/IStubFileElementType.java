@@ -12,4 +12,6 @@ public class IStubFileElementType<T extends com.intellij.psi.stubs.PsiFileStub> 
   public void indexStub(com.intellij.psi.stubs.PsiFileStub p0, com.intellij.psi.stubs.IndexSink p1) {}
   public boolean shouldBuildStubFor(com.intellij.openapi.vfs.VirtualFile p0) { return false; }
   public static int getTemplateStubBaseVersion() { return 0; }
+    // Inherited abstract members (genstub.py)
+    public boolean matches(IElementType type) { return false; }
 }

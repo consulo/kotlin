@@ -1,7 +1,7 @@
 package com.intellij.psi;
 
 @SuppressWarnings("all")
-public interface PsiClass extends com.intellij.psi.PsiElement, com.intellij.psi.PsiModifierListOwner, com.intellij.psi.PsiTypeParameterListOwner, com.intellij.psi.PsiMember, com.intellij.psi.PsiDocCommentOwner, com.intellij.psi.PsiNamedElement {
+public interface PsiClass extends com.intellij.psi.PsiElement, com.intellij.psi.PsiModifierListOwner, com.intellij.psi.PsiTypeParameterListOwner, com.intellij.psi.PsiMember, com.intellij.psi.PsiDocCommentOwner, com.intellij.psi.PsiNamedElement, com.intellij.psi.PsiNameIdentifierOwner, com.intellij.psi.PsiQualifiedNamedElement, com.intellij.psi.PsiTarget, com.intellij.lang.pom.PomRenameableTarget<com.intellij.psi.PsiElement>, com.intellij.lang.jvm.JvmClass {
     PsiClass[] EMPTY_ARRAY = new PsiClass[0];
     public abstract java.lang.String getQualifiedName();
     public abstract boolean isInterface();
@@ -48,4 +48,10 @@ public interface PsiClass extends com.intellij.psi.PsiElement, com.intellij.psi.
     public default com.intellij.psi.PsiRecordComponent[] getRecordComponents() { return null; }
     public default boolean hasModifier(com.intellij.lang.jvm.JvmModifier modifier) { return false; }
     public default com.intellij.pom.java.LanguageLevel getLanguageLevel() { return com.intellij.pom.java.LanguageLevel.HIGHEST; }
+    // Added by consulo-internal/remap/genstub.py from com.intellij.java.language.psi.PsiClass
+    public static final com.intellij.util.ArrayFactory<com.intellij.psi.PsiClass> ARRAY_FACTORY = null;
+    public default com.intellij.lang.jvm.JvmClassKind getClassKind() { return null; }
+    public default com.intellij.lang.jvm.types.JvmReferenceType getSuperClassType() { return null; }
+    public default com.intellij.lang.jvm.types.JvmReferenceType[] getInterfaceTypes() { return null; }
+    public default com.intellij.psi.PsiRecordHeader getRecordHeader() { return null; }
 }

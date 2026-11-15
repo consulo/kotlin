@@ -57,4 +57,7 @@ public class CompositeElement extends com.intellij.psi.impl.source.tree.TreeElem
   public void rawRemoveAllChildren() {}
   public com.intellij.psi.impl.source.tree.TreeElement rawFirstChild() { return null; }
   public com.intellij.psi.impl.source.tree.TreeElement rawLastChild() { return null; }
+    // Added by consulo-internal/remap/genstub.py from consulo.language.impl.ast.CompositeElement
+    public <T extends com.intellij.psi.PsiElement> T[] getChildrenAsPsiElements(com.intellij.psi.tree.TokenSet p0, java.util.function.IntFunction<? extends T[]> p1) { return null; }
+    protected CompositeElement() { }
 }

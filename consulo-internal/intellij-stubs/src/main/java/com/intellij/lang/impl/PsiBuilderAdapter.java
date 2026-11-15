@@ -33,4 +33,13 @@ public class PsiBuilderAdapter implements com.intellij.lang.PsiBuilder {
   public <T> void putUserData(com.intellij.openapi.util.Key<T> p0, T p1) {}
   public <T> T getUserDataUnprotected(com.intellij.openapi.util.Key<T> p0) { return null; }
   public <T> void putUserDataUnprotected(com.intellij.openapi.util.Key<T> p0, T p1) {}
+    // Inherited abstract members (genstub.py)
+    public Marker precede() { return null; }
+    public int getEndOffset() { return 0; }
+    public int getStartOffset() { return 0; }
+    public void collapse(com.intellij.psi.tree.IElementType type) { }
+    public void done(com.intellij.psi.tree.IElementType type) { }
+    public void drop() { }
+    public void rollbackTo() { }
+    public void setCustomEdgeTokenBinders(com.intellij.lang.WhitespacesAndCommentsBinder left, com.intellij.lang.WhitespacesAndCommentsBinder right) { }
 }
