@@ -248,6 +248,31 @@
 
     <build>
         <plugins>
+            <!-- Publish remap.xml (consulo.kotlin.remapped:xml:mapping) so the Kotlin plugin
+                 can remap its own modules with the same rules -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-mapping</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>attach-artifact</goal>
+                        </goals>
+                        <configuration>
+                            <artifacts>
+                                <artifact>
+                                    <file>${project.basedir}/remap.xml</file>
+                                    <type>xml</type>
+                                    <classifier>mapping</classifier>
+                                </artifact>
+                            </artifacts>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <!-- Shade replaces this module's jar in place. Without forceCreation the next build
                  keeps that already remapped jar as the main artifact, shade prefers it over the
                  fresh module jars, and remap.xml changes never reach the output. -->

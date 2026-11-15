@@ -1,10 +1,10 @@
 """Check that every consulo/* and com/intellij/* member referenced by the remapped jar exists on the Consulo classpath (~/.m2).
 
-Run after `mvn package`: python3 consulo-internal/remap/refcheck.py
+Run after `mvn package`: python3 consulo-internal/remap/refcheck.py [path/to/remapped.jar]
 """
 import glob, os, re, struct, sys, zipfile, collections
 
-JAR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'target', 'consulo.kotlin.remapped-3-SNAPSHOT.jar')
+JAR = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'target', 'consulo.kotlin.remapped-3-SNAPSHOT.jar')
 M2 = os.path.expanduser('~/.m2/repository/consulo')
 
 def parse(data):
@@ -55,6 +55,9 @@ def parse(data):
 index = {}
 jars = {}
 for pom_dir in glob.glob(f'{M2}/**/3-SNAPSHOT', recursive=True):
+    # of this project only the remapped compiler jar is on a Consulo classpath, not the IntelliJ-based modules
+    if '/consulo/kotlin/' in pom_dir + '/' and not pom_dir.endswith('/consulo.kotlin.remapped/3-SNAPSHOT'):
+        continue
     cands = [j for j in glob.glob(f'{pom_dir}/*.jar') if not re.search(r'-(sources|tests|javadoc)\.jar$', j)]
     if cands: jars[pom_dir] = max(cands, key=os.path.getmtime)
 for j in jars.values():

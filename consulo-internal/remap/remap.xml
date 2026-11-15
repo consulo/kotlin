@@ -295,6 +295,16 @@
         <rule from="com.intellij.psi.NonClasspathClassFinder" to="com.intellij.java.language.impl.psi.NonClasspathClassFinder"/>
         <rule from="com.intellij.openapi.project.IndexNotReadyException" to="consulo.application.dumb.IndexNotReadyException"/>
         <rule from="com.intellij.openapi.util.ThrowableComputable" to="consulo.application.util.function.ThrowableComputable"/>
+        <!-- Syntax highlighting -->
+        <rule from="com.intellij.openapi.editor.colors.TextAttributesKey" to="consulo.colorScheme.TextAttributesKey"/>
+        <rule from="com.intellij.openapi.editor.DefaultLanguageHighlighterColors" to="consulo.codeEditor.DefaultLanguageHighlighterColors"/>
+        <rule from="com.intellij.openapi.editor.HighlighterColors" to="consulo.codeEditor.HighlighterColors"/>
+        <rule from="com.intellij.ide.highlighter.JavaHighlightingColors" to="com.intellij.java.analysis.impl.ide.highlighter.JavaHighlightingColors"/>
+        <rule from="com.intellij.openapi.fileTypes.SyntaxHighlighter" to="consulo.language.editor.highlight.SyntaxHighlighter"/>
+        <rule from="com.intellij.openapi.fileTypes.SyntaxHighlighterBase" to="consulo.language.editor.highlight.SyntaxHighlighterBase"/>
+        <rule from="com.intellij.openapi.fileTypes.SyntaxHighlighterFactory" to="consulo.language.editor.highlight.SyntaxHighlighterFactory"/>
+        <rule from="com.intellij.openapi.fileTypes.SingleLazyInstanceSyntaxHighlighterFactory" to="consulo.language.editor.highlight.SingleLazyInstanceSyntaxHighlighterFactory"/>
+        <rule from="com.intellij.openapi.fileTypes.SyntaxHighlighterProvider" to="consulo.language.editor.highlight.SyntaxHighlighterProvider"/>
     </classes>
 
     <!-- Method renames (applied after class remapping) -->
@@ -364,6 +374,8 @@
                 target="consulo.kotlin.compat.util.CompatAttachment"/>
         <!-- IntelliJ Attachment is a class, Consulo's an interface -->
         <new owner="consulo.logging.attachment.Attachment" target="consulo.kotlin.compat.util.CompatAttachment"/>
+        <method owner="consulo.language.editor.highlight.SyntaxHighlighterBase" name="merge" desc="(Ljava/util/Map;Ljava/util/Map;)Ljava/util/Map;"
+                target="consulo.kotlin.compat.editor.HighlighterCompat"/>
     </redirects>
 
     <!-- Class modifications -->
