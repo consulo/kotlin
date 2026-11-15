@@ -88,6 +88,7 @@
         <!-- com.intellij.openapi.fileTypes split -->
         <rule from="com.intellij.openapi.fileTypes.LanguageFileType" to="consulo.language.file.LanguageFileType"/>
         <rule from="com.intellij.openapi.fileTypes.FileType" to="consulo.virtualFileSystem.fileType.FileType"/>
+        <rule from="com.intellij.openapi.fileTypes.UnknownFileType" to="consulo.virtualFileSystem.fileType.UnknownFileType"/>
 
         <!-- com.intellij.openapi.editor split -->
         <rule from="com.intellij.openapi.editor.Document" to="consulo.document.Document"/>
@@ -117,6 +118,8 @@
 
         <!-- com.intellij.openapi.util.io: FileUtilRt → FileUtil -->
         <rule from="com.intellij.openapi.util.io.FileUtilRt" to="consulo.util.io.FileUtil"/>
+        <!-- com.intellij.util.io.URLUtil lives in consulo.util.io, not consulo.index.io -->
+        <rule from="com.intellij.util.io.URLUtil" to="consulo.util.io.URLUtil"/>
 
         <!-- com.intellij.util.containers split: Interner lives in its own artifact
              (consulo-util-interner), not in consulo.util.collection -->

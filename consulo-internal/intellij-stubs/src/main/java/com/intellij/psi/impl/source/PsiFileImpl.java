@@ -96,5 +96,6 @@ public abstract class PsiFileImpl implements com.intellij.psi.PsiFile {
     public com.intellij.psi.impl.source.tree.FileElement calcTreeElement() { return null; }
     protected com.intellij.psi.impl.source.PsiFileImpl cloneImpl(com.intellij.psi.impl.source.tree.FileElement p0) { return null; }
     public com.intellij.psi.stubs.StubElement getGreenStub() { return null; }
+    public com.intellij.openapi.util.Pair<com.intellij.psi.stubs.StubTree, com.intellij.psi.impl.source.tree.FileElement> getStubTreeOrFileElement() { return null; }
     public com.intellij.psi.impl.source.PsiFileImpl clone() { return null; }
 }

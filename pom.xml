@@ -78,6 +78,7 @@
                         <arg>-opt-in=org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProviderInternals</arg>
                         <arg>-opt-in=org.jetbrains.kotlin.fir.expressions.UnsafeExpressionUtility</arg>
                         <arg>-opt-in=org.jetbrains.kotlin.types.model.K2Only</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.K1Deprecation</arg>
                     </args>
                 </configuration>
             </plugin>

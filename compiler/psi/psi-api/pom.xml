@@ -15,6 +15,17 @@
 
     <build>
         <sourceDirectory>src</sourceDirectory>
+        <plugins>
+            <plugin>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Same module name as the Gradle build: Java sources call internal
+                         Kotlin members by their mangled name ($org_jetbrains_kotlin_psi_api) -->
+                    <moduleName>org_jetbrains_kotlin_psi_api</moduleName>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 
     <dependencies>
@@ -52,6 +63,11 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.core.error.handling</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.intellij-psi-extensions</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

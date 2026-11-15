@@ -19,5 +19,6 @@ public interface PsiModifier {
     String TRANSITIVE = "transitive";
     String SEALED = "sealed";
     String NON_SEALED = "non-sealed";
+    String VALUE = "value";
     String[] MODIFIERS = {PUBLIC, PROTECTED, PRIVATE, STATIC, ABSTRACT, FINAL, NATIVE, SYNCHRONIZED, STRICTFP, TRANSIENT, VOLATILE, DEFAULT};
 }

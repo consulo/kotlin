@@ -21,6 +21,14 @@
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <configuration>
                     <moduleName>org_jetbrains_kotlin_psi_impl</moduleName>
+                    <!-- Same opt-ins as compiler/psi/psi-impl/build.gradle.kts -->
+                    <args combine.children="append">
+                        <arg>-opt-in=org.jetbrains.kotlin.psi.KtImplementationDetail</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.psi.KtNonPublicApi</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.psi.KtIdeApi</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.psi.KtExperimentalApi</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.psi.KtPlatformInterface</arg>
+                    </args>
                 </configuration>
             </plugin>
         </plugins>

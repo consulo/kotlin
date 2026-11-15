@@ -5,6 +5,9 @@ public class StubBasedPsiElementBase<T extends com.intellij.psi.stubs.StubElemen
     implements com.intellij.psi.StubBasedPsiElement<T> {
     public StubBasedPsiElementBase(T p0, com.intellij.psi.stubs.IStubElementType p1) { }
     public StubBasedPsiElementBase(com.intellij.lang.ASTNode p0) { }
+    public StubBasedPsiElementBase(T p0, com.intellij.psi.tree.IElementType p1) { }
+    public StubBasedPsiElementBase(T p0, com.intellij.psi.tree.IElementType p1, com.intellij.lang.ASTNode p2) { }
+    protected final com.intellij.psi.tree.IElementType getElementTypeImpl() { return null; }
     public T getStub() { return null; }
     public T getGreenStub() { return null; }
     public com.intellij.psi.stubs.IStubElementType getElementType() { return null; }
@@ -17,4 +20,10 @@ public class StubBasedPsiElementBase<T extends com.intellij.psi.stubs.StubElemen
     public <Psi extends com.intellij.psi.PsiElement> java.util.List<Psi> getStubOrPsiChildrenAsList(com.intellij.psi.stubs.IStubElementType<? extends com.intellij.psi.stubs.StubElement, Psi> p0) { return null; }
     public com.intellij.psi.PsiElement getParentByStub() { return null; }
     public <Psi extends com.intellij.psi.PsiElement> Psi getRequiredStubOrPsiChild(com.intellij.psi.stubs.IStubElementType<? extends com.intellij.psi.stubs.StubElement, Psi> p0) { return null; }
+    public final com.intellij.psi.PsiElement getStubOrPsiChild(com.intellij.psi.tree.IElementType p0) { return null; }
+    public final com.intellij.psi.PsiElement getRequiredStubOrPsiChild(com.intellij.psi.tree.IElementType p0) { return null; }
+    public final <Psi extends com.intellij.psi.PsiElement> Psi getStubOrPsiChild(com.intellij.psi.tree.IElementType p0, Class<Psi> p1) { return null; }
+    public final <Psi extends com.intellij.psi.PsiElement> Psi getRequiredStubOrPsiChild(com.intellij.psi.tree.IElementType p0, Class<Psi> p1) { return null; }
+    public final <Psi extends com.intellij.psi.PsiElement> Psi[] getStubOrPsiChildren(com.intellij.psi.tree.IElementType p0, com.intellij.util.ArrayFactory<? extends Psi> p1) { return null; }
+    public final <Psi extends com.intellij.psi.PsiElement> Psi[] getStubOrPsiChildren(com.intellij.psi.tree.IElementType p0, Psi[] p1) { return p1; }
 }
