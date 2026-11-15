@@ -1,6 +1,11 @@
 <remap>
     <!-- Package-level rules (bulk mapping, lowest priority) -->
     <packages>
+        <!-- "native" is a Java keyword: packages with it are not legal in a named module -->
+        <rule from="org.jetbrains.kotlin.fir.analysis.diagnostics.native" to="org.jetbrains.kotlin.fir.analysis.diagnostics.knative"/>
+        <rule from="org.jetbrains.kotlin.fir.analysis.native" to="org.jetbrains.kotlin.fir.analysis.knative"/>
+        <rule from="org.jetbrains.kotlin.fir.backend.native" to="org.jetbrains.kotlin.fir.backend.knative"/>
+        <rule from="org.jetbrains.kotlin.native" to="org.jetbrains.kotlin.knative"/>
         <!-- PSI -->
         <rule from="com.intellij.psi.stubs" to="consulo.language.psi.stub"/>
         <rule from="com.intellij.psi.search" to="consulo.language.psi.scope"/>
@@ -59,6 +64,23 @@
 
     <!-- Per-class overrides (highest priority) -->
     <classes>
+        <!-- Platform classes with a different home or shape in Consulo -->
+        <rule from="com.intellij.openapi.roots.PackageIndex" to="consulo.module.content.DirectoryIndex"/>
+        <rule from="com.intellij.psi.impl.PsiElementFinderImpl" to="com.intellij.java.language.impl.psi.impl.DefaultPsiElementFinderImpl"/>
+        <rule from="com.intellij.util.io.DataInputOutputUtil" to="consulo.index.io.data.DataInputOutputUtil"/>
+        <rule from="com.intellij.psi.impl.source.SourceTreeToPsiMap" to="consulo.language.impl.psi.SourceTreeToPsiMap"/>
+        <rule from="com.intellij.navigation.ItemPresentationProviders" to="consulo.navigation.ItemPresentationProvider"/>
+        <rule from="com.intellij.lang.LanguageParserDefinitions" to="consulo.kotlin.compat.lang.LanguageParserDefinitions"/>
+        <rule from="com.intellij.util.CachedValueBase" to="consulo.kotlin.compat.util.CachedValueBase"/>
+        <rule from="com.intellij.psi.stubs.StubBase" to="consulo.kotlin.compat.psi.stub.CompatStubBase"/>
+        <!-- String-named extension points, resolved by consulo.kotlin.compat.extensions.ExtensionPointRegistry -->
+        <rule from="com.intellij.openapi.extensions.ExtensionPointName" to="consulo.kotlin.compat.extensions.ExtensionPointName"/>
+        <rule from="com.intellij.openapi.extensions.ProjectExtensionPointName" to="consulo.kotlin.compat.extensions.ProjectExtensionPointName"/>
+        <rule from="com.intellij.openapi.extensions.ExtensionPoint" to="consulo.kotlin.compat.extensions.ExtensionPoint"/>
+        <rule from="com.intellij.openapi.extensions.ExtensionsArea" to="consulo.kotlin.compat.extensions.ExtensionsArea"/>
+        <rule from="com.intellij.openapi.extensions.AreaInstance" to="consulo.component.ComponentManager"/>
+        <!-- Message bus topics carry their listener class; Consulo publishes by listener class -->
+        <rule from="com.intellij.util.messages.Topic" to="consulo.kotlin.compat.messagebus.Topic"/>
         <!-- Java PSI, stubs written by genstub.py -->
         <rule from="com.intellij.psi.impl.source.resolve.reference.ReferenceProvidersRegistry" to="consulo.language.psi.ReferenceProvidersRegistry"/>
         <rule from="com.intellij.psi.SmartTypePointer" to="com.intellij.java.language.psi.SmartTypePointer"/>
@@ -257,7 +279,6 @@
         <!-- com.intellij.psi split: FileViewProvider goes to consulo.language.file -->
         <rule from="com.intellij.psi.FileViewProvider" to="consulo.language.file.FileViewProvider"/>
         <rule from="com.intellij.psi.SingleRootFileViewProvider" to="consulo.language.impl.file.SingleRootFileViewProvider"/>
-        <rule from="com.intellij.psi.PsiClassOwner" to="consulo.language.psi.PsiClassOwner"/>
 
         <!-- com.intellij.lang split: parser classes → consulo.language.parser -->
         <rule from="com.intellij.lang.ParserDefinition" to="consulo.language.parser.ParserDefinition"/>
@@ -303,7 +324,6 @@
         <!-- com.intellij.lang split: parser classes -->
         <rule from="com.intellij.lang.WhitespacesAndCommentsBinder" to="consulo.language.parser.WhitespacesAndCommentsBinder"/>
         <rule from="com.intellij.lang.WhitespacesBinders" to="consulo.language.parser.WhitespacesBinders"/>
-        <rule from="com.intellij.lang.LanguageParserDefinitions" to="consulo.language.parser.LanguageParserDefinitions"/>
 
         <!-- com.intellij.lang.impl split -->
         <rule from="com.intellij.lang.impl.PsiBuilderAdapter" to="consulo.language.parser.PsiBuilderAdapter"/>
@@ -544,6 +564,9 @@
 
     <!-- Method renames (applied after class remapping) -->
     <methods>
+        <rule owner="consulo.module.content.DirectoryIndex" name="getDirsByPackageName" newName="getDirectoriesByPackageName"/>
+        <rule owner="consulo.project.Project" name="getServiceIfCreated" newName="getInstanceIfCreated"/>
+        <rule owner="consulo.application.Application" name="getServiceIfCreated" newName="getInstanceIfCreated"/>
         <rule owner="consulo.component.ComponentManager" name="getServiceIfCreated" newName="getInstanceIfCreated"/>
         <rule owner="consulo.application.util.NotNullLazyValue" name="lazy" newName="createValue"/>
 
@@ -562,6 +585,58 @@
     <!-- Calls whose target is missing in Consulo, rewritten to static helpers in consulo-internal/intellij-compat.
          owner/name/desc are the remapped ones. -->
     <redirects>
+        <!-- Platform calls whose Consulo counterparts differ in signature -->
+        <method owner="com.intellij.java.language.psi.PsiType" name="createArrayType" desc="()Lcom/intellij/java/language/psi/PsiType;" anyOwner="true"
+                target="consulo.kotlin.compat.java.JavaTypeCompat"/>
+        <method owner="com.intellij.java.language.impl.psi.impl.light.LightParameterListBuilder" name="addParameter" desc="(Lcom/intellij/java/language/psi/PsiParameter;)Lcom/intellij/java/language/impl/psi/impl/light/LightParameterListBuilder;"
+                target="consulo.kotlin.compat.java.JavaTypeCompat"/>
+        <method owner="consulo.application.Application" name="assertWriteIntentLockAcquired" desc="()V"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.application.util.CachedValuesManager" name="getManager" desc="(Lconsulo/project/Project;)Lconsulo/application/util/CachedValuesManager;"
+                target="consulo.kotlin.compat.util.PlatformCompat" targetName="getCachedValuesManager"/>
+        <method owner="consulo.disposer.Disposer" name="newDisposable" desc="()Lconsulo/disposer/Disposable;"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.disposer.Disposer" name="newDisposable" desc="(Ljava/lang/String;)Lconsulo/disposer/Disposable;"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.language.psi.scope.GlobalSearchScope" name="isEmptyScope" desc="(Lconsulo/content/scope/SearchScope;)Z"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.language.psi.scope.GlobalSearchScope" name="union" desc="(Ljava/util/Collection;)Lconsulo/language/psi/scope/GlobalSearchScope;"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.language.psi.util.PsiTreeUtil" name="findFirstParent" desc="(Lconsulo/language/psi/PsiElement;ZLconsulo/util/lang/function/Condition;)Lconsulo/language/psi/PsiElement;"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.language.psi.util.PsiTreeUtil" name="findFirstContext" desc="(Lconsulo/language/psi/PsiElement;ZLconsulo/util/lang/function/Condition;)Lconsulo/language/psi/PsiElement;"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.util.collection.ContainerUtil" name="createConcurrentWeakKeySoftValueMap" desc="()Ljava/util/concurrent/ConcurrentMap;"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.util.collection.ContainerUtil" name="exists" desc="(Ljava/lang/Iterable;Lconsulo/util/lang/function/Condition;)Z"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.util.collection.ContainerUtil" name="quickSort" desc="(Ljava/util/List;Ljava/util/Comparator;)V"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.util.lang.StringUtil" name="escapeCharCharacters" desc="(Ljava/lang/String;)Ljava/lang/String;"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.language.ast.IElementType" name="getDebugName" desc="()Ljava/lang/String;" anyOwner="true"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <!-- PSI getIcon(int): every receiver is a PsiElement; the compat calls Iconable through a method reference -->
+        <method owner="consulo.language.psi.PsiElement" name="getIcon" desc="(I)Lconsulo/ui/image/Image;" anyOwner="true"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.application.PathManager" name="getLogDir" desc="()Ljava/nio/file/Path;"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <field owner="consulo.language.psi.PsiModificationTracker" name="MODIFICATION_COUNT" desc="Ljava/lang/Object;"
+               target="consulo.kotlin.compat.util.PlatformCompat" targetName="modificationCount"/>
+        <!-- IntelliJ extension areas -->
+        <method owner="consulo.component.ComponentManager" name="getExtensionArea" desc="()Lconsulo/kotlin/compat/extensions/ExtensionsArea;"
+                anyOwner="true" target="consulo.kotlin.compat.extensions.ExtensionsCompat"/>
+        <field owner="com.intellij.java.language.psi.PsiElementFinder" name="EP" desc="Lconsulo/kotlin/compat/extensions/ProjectExtensionPointName;"
+               target="consulo.kotlin.compat.extensions.ExtensionsCompat" targetName="psiElementFinderEp"/>
+        <!-- IntelliJ Topic objects on Consulo's listener-class message bus -->
+        <method owner="consulo.component.messagebus.MessageBus" name="syncPublisher"
+                desc="(Lconsulo/kotlin/compat/messagebus/Topic;)Ljava/lang/Object;" target="consulo.kotlin.compat.messagebus.MessageBusCompat"/>
+        <method owner="consulo.component.messagebus.MessageBusConnection" name="subscribe"
+                desc="(Lconsulo/kotlin/compat/messagebus/Topic;Ljava/lang/Object;)V" target="consulo.kotlin.compat.messagebus.MessageBusCompat"/>
+        <field owner="consulo.language.psi.PsiModificationTracker" name="TOPIC" desc="Lconsulo/kotlin/compat/messagebus/Topic;"
+               target="consulo.kotlin.compat.messagebus.MessageBusCompat" targetName="psiModificationTopic"/>
+        <field owner="consulo.virtualFileSystem.VirtualFileManager" name="VFS_CHANGES" desc="Lconsulo/kotlin/compat/messagebus/Topic;"
+               target="consulo.kotlin.compat.messagebus.MessageBusCompat" targetName="vfsChangesTopic"/>
         <!-- IntelliJ scope flattening; Consulo has no intersection/union scope structure -->
         <method owner="consulo.language.psi.scope.GlobalSearchScopeUtil" name="isIntersectionScope"
                 desc="(Lconsulo/language/psi/scope/GlobalSearchScope;)Z"
@@ -643,6 +718,41 @@
 
     <!-- Class modifications -->
     <modifications>
+        <!-- IntelliJ StubElement.getElementType(): Kotlin stubs call it through their own interfaces -->
+        <class name="org.jetbrains.kotlin.psi.stubs.KotlinStubElement">
+            <addMethod name="getElementType" returnType="consulo.language.ast.IElementType">
+                <aload index="0"/>
+                <invokestatic owner="consulo.kotlin.compat.psi.StubCompat" name="getElementType"
+                              desc="(Lconsulo/language/psi/stub/StubElement;)Lconsulo/language/ast/IElementType;"/>
+                <areturn/>
+            </addMethod>
+        </class>
+        <!-- Kotlin message bus listeners: Consulo publishes only to @TopicAPI interfaces -->
+        <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.LLFirInBlockModificationListener">
+            <addAnnotation type="consulo.annotation.component.TopicAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionInvalidationListener">
+            <addAnnotation type="consulo.annotation.component.TopicAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.KotlinAnalysisInWriteActionListener">
+            <addAnnotation type="consulo.annotation.component.TopicAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.modification.KotlinModificationEventListener">
+            <addAnnotation type="consulo.annotation.component.TopicAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.psi.KotlinCodeFragmentImportModificationListener">
+            <addAnnotation type="consulo.annotation.component.TopicAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
         <!-- applicationService in IntelliJ's plugin.xml; impl (base/psi KtPsiMutationServiceImpl) needs light classes, unbound for now -->
         <class name="org.jetbrains.kotlin.psi.KtPsiMutationService">
             <addAnnotation type="consulo.annotation.component.ServiceAPI">
@@ -756,6 +866,8 @@
              so the kmp parser is left out of this jar, see remap/pom.xml) -->
         <requires>kotlin.stdlib</requires>
         <requires>kotlinx.collections.immutable</requires>
+        <requires>com.github.benmanes.caffeine</requires>
+        <requires>kotlin.script.runtime</requires>
         <requires>io.vavr</requires>
         <requires>javax.inject</requires>
         <requires>asm</requires>

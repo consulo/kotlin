@@ -19,6 +19,9 @@ public final class StubCompat {
 
     /** IntelliJ {@code StubElement.getElementType()}; Consulo calls it {@code getStubType()}. */
     public static IElementType getElementType(StubElement stub) {
+        if (stub instanceof consulo.kotlin.compat.psi.stub.CompatStubBase<?> compatStub) {
+            return compatStub.getElementType();
+        }
         return stub.getStubType();
     }
 

@@ -244,6 +244,12 @@
             <artifactId>consulo.kotlin.intellij-compat</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- the Analysis API (K2 IDE analysis) with its compiler closure -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.analysis.api-fir</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -305,6 +311,7 @@
                                      only the CLI light-tree path uses it, the IDE parses with the PSI parser -->
                                 <excludes>
                                     <exclude>consulo.kotlin:consulo.kotlin.compiler.multiplatform-parsing</exclude>
+                                    <exclude>consulo.kotlin:consulo.kotlin.compiler.fir.raw-fir.mp-parsing2fir</exclude>
                                 </excludes>
                             </artifactSet>
                             <filters>
@@ -313,7 +320,6 @@
                                     <excludes>
                                         <exclude>org/jetbrains/annotations/**</exclude>
                                         <exclude>org/intellij/lang/annotations/**</exclude>
-                                        <exclude>kotlin/**</exclude>
                                     </excludes>
                                 </filter>
                             </filters>
