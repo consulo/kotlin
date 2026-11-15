@@ -380,6 +380,6 @@
         <module>analysis/light-classes-base</module>
         <module>analysis/analysis-api-fir-diagnostics</module>
         <module>analysis/symbol-light-classes</module>
-        <!-- platform gaps left (search scopes, dangling files): <module>analysis/analysis-api-fir</module> -->
+        <module>analysis/analysis-api-fir</module>
     </modules>
 </project>

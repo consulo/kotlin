@@ -15,18 +15,59 @@
     <artifactId>consulo.kotlin.analysis.api-fir</artifactId>
 
     <build>
-        <sourceDirectory>src</sourceDirectory>
         <resources>
             <resource>
                 <directory>resources</directory>
             </resource>
         </resources>
         <plugins>
+            <!-- LibraryUtils serves the standalone Analysis API; the dangling file mode provider diffs ASTs with Consulo internals (consulo.language.impl.internal.psi.diff), to be provided on Consulo API -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>filter-src</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/filtered-sources/src</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>src</directory>
+                                    <excludes>
+                                        <exclude>org/jetbrains/kotlin/analysis/api/fir/utils/LibraryUtils.kt</exclude>
+                                        <exclude>org/jetbrains/kotlin/analysis/api/fir/utils/JdkClassFinder.java</exclude>
+                                        <exclude>org/jetbrains/kotlin/analysis/api/fir/projectStructure/KaFirDanglingFileResolutionModeProvider.kt</exclude>
+                                    </excludes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compileSourceRoots>
+                        <compileSourceRoot>${project.build.directory}/filtered-sources/src</compileSourceRoot>
+                    </compileSourceRoots>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <configuration>
+                    <sourceDirs>
+                        <sourceDir>${project.build.directory}/filtered-sources/src</sourceDir>
+                        <sourceDir>${project.basedir}/gen</sourceDir>
+                    </sourceDirs>
                     <args combine.children="append">
+                        <arg>-opt-in=org.jetbrains.kotlin.utils.addToStdlib.UnsafeCastFunction</arg>
+                        <arg>-opt-in=org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI</arg>
                         <arg>-opt-in=org.jetbrains.kotlin.fir.symbols.SymbolInternals</arg>
                         <arg>-opt-in=org.jetbrains.kotlin.analysis.api.KaImplementationDetail</arg>
                         <arg>-opt-in=org.jetbrains.kotlin.analysis.api.KaExperimentalApi</arg>

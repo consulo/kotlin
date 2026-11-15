@@ -10,4 +10,5 @@ public class ExtensionPointName<T> {
     public T[] getExtensions(AreaInstance areaInstance) { return null; }
     public com.intellij.openapi.extensions.ExtensionPoint<T> getPoint() { return null; }
     public String getName() { return null; }
+    public void forEachExtensionSafe(java.util.function.Consumer<? super T> consumer) {}
 }

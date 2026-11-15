@@ -11,25 +11,25 @@ public abstract class VirtualFile extends com.intellij.openapi.util.UserDataHold
   public static final java.lang.String PROP_SYMLINK_TARGET = null;
   public static final java.lang.String PROP_CHILDREN_CASE_SENSITIVITY = null;
   protected VirtualFile() { throw new UnsupportedOperationException("stub"); }
-  public abstract java.lang.String getName();
+  public java.lang.String getName() { return null; }
   public java.lang.CharSequence getNameSequence() { return null; }
-  public abstract com.intellij.openapi.vfs.VirtualFileSystem getFileSystem();
-  public abstract java.lang.String getPath();
+  public com.intellij.openapi.vfs.VirtualFileSystem getFileSystem() { return null; }
+  public java.lang.String getPath() { return null; }
   public java.nio.file.Path toNioPath() { return null; }
   public java.lang.String getUrl() { return null; }
   public final java.lang.String getPresentableUrl() { return null; }
   public java.lang.String getExtension() { return null; }
   public java.lang.String getNameWithoutExtension() { return null; }
   public void rename(java.lang.Object p0, java.lang.String p1) throws java.io.IOException {}
-  public abstract boolean isWritable();
+  public boolean isWritable() { return false; }
   public void setWritable(boolean p0) throws java.io.IOException {}
-  public abstract boolean isDirectory();
+  public boolean isDirectory() { return false; }
   public boolean is(com.intellij.openapi.vfs.VFileProperty p0) { return false; }
   public java.lang.String getCanonicalPath() { return null; }
   public com.intellij.openapi.vfs.VirtualFile getCanonicalFile() { return null; }
-  public abstract boolean isValid();
-  public abstract com.intellij.openapi.vfs.VirtualFile getParent();
-  public abstract com.intellij.openapi.vfs.VirtualFile[] getChildren();
+  public boolean isValid() { return false; }
+  public com.intellij.openapi.vfs.VirtualFile getParent() { return null; }
+  public com.intellij.openapi.vfs.VirtualFile[] getChildren() { return null; }
   public com.intellij.openapi.vfs.VirtualFile findChild(java.lang.String p0) { return null; }
   public com.intellij.openapi.vfs.VirtualFile findOrCreateChildData(java.lang.Object p0, java.lang.String p1) throws java.io.IOException { return null; }
   public com.intellij.openapi.fileTypes.FileType getFileType() { return null; }
@@ -53,10 +53,10 @@ public abstract class VirtualFile extends com.intellij.openapi.util.UserDataHold
   public abstract byte[] contentsToByteArray() throws java.io.IOException;
   public byte[] contentsToByteArray(boolean p0) throws java.io.IOException { return null; }
   public long getModificationStamp() { return 0; }
-  public abstract long getTimeStamp();
-  public abstract long getLength();
+  public long getTimeStamp() { return 0L; }
+  public long getLength() { return 0L; }
   public void refresh(boolean p0, boolean p1) {}
-  public abstract void refresh(boolean p0, boolean p1, java.lang.Runnable p2);
+  public void refresh(boolean p0, boolean p1, java.lang.Runnable p2) { }
   public java.lang.String getPresentableName() { return null; }
   public long getModificationCount() { return 0; }
   protected boolean nameEquals(java.lang.String p0) { return false; }
@@ -71,4 +71,15 @@ public abstract class VirtualFile extends com.intellij.openapi.util.UserDataHold
   public <T> T computeWithPreloadedContentHint(byte[] p0, java.util.function.Supplier<? extends T> p1) { return null; }
   public boolean isRecursiveOrCircularSymlink() { return false; }
   public boolean isCaseSensitive() { return false; }
+    // Added by consulo-internal/remap/genstub.py from consulo.virtualFileSystem.VirtualFile
+    public static final com.intellij.openapi.util.Key<java.lang.Object> REQUESTOR_MARKER = null;
+    public static final com.intellij.openapi.util.Key<com.intellij.openapi.vfs.VirtualFile> KEY = null;
+    public static final com.intellij.openapi.util.Key<com.intellij.openapi.vfs.VirtualFile[]> KEY_OF_ARRAY = null;
+    public consulo.localize.LocalizeValue getLocalizedName() { return null; }
+    public java.util.List<com.intellij.openapi.vfs.VirtualFile> getRequiredChildren() { return null; }
+    public java.lang.CharSequence loadText() { return null; }
+    public boolean isInLocalLikeFileSystem() { return false; }
+    public static boolean isValidName(java.lang.String p0) { return false; }
+    public void setPreloadedContentHint(byte[] p0) { }
+    public boolean isRecursiveOrCircularSymLink() { return false; }
 }

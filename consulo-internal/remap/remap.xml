@@ -60,6 +60,12 @@
     <!-- Per-class overrides (highest priority) -->
     <classes>
         <!-- Java PSI, stubs written by genstub.py -->
+        <rule from="com.intellij.psi.impl.source.resolve.reference.ReferenceProvidersRegistry" to="consulo.language.psi.ReferenceProvidersRegistry"/>
+        <rule from="com.intellij.psi.SmartTypePointer" to="com.intellij.java.language.psi.SmartTypePointer"/>
+        <rule from="com.intellij.psi.SmartTypePointerManager" to="com.intellij.java.language.psi.SmartTypePointerManager"/>
+        <rule from="com.intellij.util.containers.ConcurrentFactoryMap" to="consulo.application.util.ConcurrentFactoryMap"/>
+        <rule from="com.intellij.psi.util.PsiUtil" to="com.intellij.java.language.psi.util.PsiUtil"/>
+        <rule from="com.intellij.psi.search.ProjectScope" to="consulo.kotlin.compat.psi.ProjectScopeCompat"/>
         <rule from="com.intellij.lang.ITokenTypeRemapper" to="consulo.language.parser.ITokenTypeRemapper"/>
         <rule from="com.intellij.lang.LighterLazyParseableNode" to="consulo.language.ast.LighterLazyParseableNode"/>
         <rule from="com.intellij.lang.WhitespaceSkippedCallback" to="consulo.language.parser.WhitespaceSkippedCallback"/>
@@ -509,6 +515,7 @@
         <!-- intellij-psi-extensions file facades: keep them out of Consulo's packages (no split packages) -->
         <rule from="com.intellij.util.containers.CollectionExtensionsKt" to="consulo.kotlin.compat.ext.CollectionExtensionsKt"/>
         <rule from="com.intellij.util.UtilExtensionsKt" to="consulo.kotlin.compat.ext.UtilExtensionsKt"/>
+        <rule from="com.intellij.openapi.vfs.VirtualFileExtensionsKt" to="consulo.kotlin.compat.ext.VirtualFileExtensionsKt"/>
         <rule from="com.intellij.openapi.components.ServicesKt" to="consulo.kotlin.compat.ext.ServicesKt"/>
         <rule from="com.intellij.openapi.diagnostic.LoggerExtensionsKt" to="consulo.kotlin.compat.ext.LoggerExtensionsKt"/>
         <rule from="com.intellij.psi.util.PsiChildrenUtilKt" to="consulo.kotlin.compat.ext.PsiChildrenUtilKt"/>
@@ -555,6 +562,19 @@
     <!-- Calls whose target is missing in Consulo, rewritten to static helpers in consulo-internal/intellij-compat.
          owner/name/desc are the remapped ones. -->
     <redirects>
+        <!-- IntelliJ scope flattening; Consulo has no intersection/union scope structure -->
+        <method owner="consulo.language.psi.scope.GlobalSearchScopeUtil" name="isIntersectionScope"
+                desc="(Lconsulo/language/psi/scope/GlobalSearchScope;)Z"
+                target="consulo.kotlin.compat.psi.SearchScopeCompat"/>
+        <method owner="consulo.language.psi.scope.GlobalSearchScopeUtil" name="isUnionScope"
+                desc="(Lconsulo/language/psi/scope/GlobalSearchScope;)Z"
+                target="consulo.kotlin.compat.psi.SearchScopeCompat"/>
+        <method owner="consulo.language.psi.scope.GlobalSearchScopeUtil" name="flattenIntersectionScope"
+                desc="(Lconsulo/language/psi/scope/GlobalSearchScope;)Ljava/util/Set;"
+                target="consulo.kotlin.compat.psi.SearchScopeCompat"/>
+        <method owner="consulo.language.psi.scope.GlobalSearchScopeUtil" name="flattenUnionScope"
+                desc="(Lconsulo/language/psi/scope/GlobalSearchScope;)Ljava/util/Set;"
+                target="consulo.kotlin.compat.psi.SearchScopeCompat"/>
         <method owner="com.intellij.java.language.psi.util.ClassUtil" name="getAsmMethodSignature"
                 desc="(Lcom/intellij/java/language/psi/PsiMethod;)Ljava/lang/String;"
                 target="consulo.kotlin.compat.java.JavaPsiCompat"/>

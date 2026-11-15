@@ -270,6 +270,56 @@ def member_source(info, kind, cls_simple, consulo_simple=None):
 generated = set()
 
 
+def stub_kind(ij_type):
+    base = re.sub(r'<.*', '', ij_type).strip()
+    path = stub_path(base)
+    if not os.path.exists(path):
+        return None
+    m = re.search(rf'\b(class|interface|enum)\s+{base.split(".")[-1]}\b', open(path).read())
+    return m.group(1) if m else None
+
+
+def split_types(text):
+    out, depth, cur = [], 0, ''
+    for ch in text:
+        depth += {'<': 1, '>': -1}.get(ch, 0)
+        if ch == ',' and depth == 0:
+            out.append(cur.strip()); cur = ''
+        else:
+            cur += ch
+    if cur.strip():
+        out.append(cur.strip())
+    return out
+
+
+def place_supertypes(rest, kind):
+    """Puts supertypes where the stubs' own kinds need them: an interface stub may differ from Consulo's class."""
+    m = re.match(r'^\s*(?:extends\s+(.*?))?\s*(?:implements\s+(.*))?$', rest)
+    if not m:
+        return rest
+    ext = split_types(m.group(1) or '')
+    imp = split_types(m.group(2) or '')
+    if kind == 'interface':
+        supers = [t for t in ext + imp if stub_kind(t) != 'class']
+        return (' extends ' + ', '.join(supers)) if supers else ''
+    superclass, interfaces = None, []
+    for t in ext + imp:
+        k = stub_kind(t)
+        if k == 'class' and superclass is None and not t.startswith('java.lang.Object'):
+            superclass = t
+        elif k != 'class' and not t.startswith('java.lang.Object'):
+            interfaces.append(t)
+    if superclass is None and ext and stub_kind(ext[0]) is None and not ext[0].startswith('java.lang.Object'):
+        superclass = ext[0]
+        interfaces = [t for t in interfaces if t != ext[0]]
+    out = ''
+    if superclass:
+        out += ' extends ' + superclass
+    if interfaces:
+        out += ' implements ' + ', '.join(interfaces)
+    return out
+
+
 def class_source(consulo, ij, shallow, indent=''):
     header, cls_flags, members = parse(consulo)
     if not header:
@@ -288,6 +338,7 @@ def class_source(consulo, ij, shallow, indent=''):
                 tparams, tail = translate(tail[:k + 1]), tail[k + 1:]
                 break
     rest = translate(tail.rstrip()) if tail.strip() else ''
+    rest = place_supertypes(rest, kind)
     if kind == 'enum':
         rest = re.sub(r'extends [\w.]*Enum<[^>]*>\s*', '', rest).strip()
         rest = (' ' + rest) if rest else ''
@@ -701,8 +752,13 @@ def main():
             done_nested.add(n)
             outer_ij = inverse(outer_c)
             path = stub_path(outer_ij)
-            if not os.path.exists(path) or n not in CLASS_INDEX:
+            if n not in CLASS_INDEX:
                 continue
+            if not os.path.exists(path):
+                if outer_c in CLASS_INDEX and not stub_exists(outer_ij):
+                    write_new(outer_ij, outer_c, True)
+                if not os.path.exists(path):
+                    continue
             text = open(path).read()
             if re.search(rf'\b(class|interface|enum)\s+{nested}\b', text):
                 continue

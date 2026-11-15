@@ -8,4 +8,5 @@ public class JavaClassFileType extends com.intellij.openapi.fileTypes.LanguageFi
     public String getDescription() { return ""; }
     public String getDefaultExtension() { return "class"; }
     public javax.swing.Icon getIcon() { return null; }
+    public static final String DEFAULT_EXTENSION = "class";
 }

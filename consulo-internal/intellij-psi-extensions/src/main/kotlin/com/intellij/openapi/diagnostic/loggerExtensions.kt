@@ -5,3 +5,8 @@ inline fun <reified T : Any> T.thisLogger(): Logger = Logger.getInstance(T::clas
 
 /** Matches IntelliJ's logger<T>(): a Logger named after T. */
 inline fun <reified T : Any> logger(): Logger = Logger.getInstance(T::class.java)
+
+/** Matches IntelliJ's Logger.trace { }: the message is built only when tracing is enabled. */
+inline fun Logger.trace(lazyMessage: () -> String) {
+    if (isTraceEnabled) trace(lazyMessage())
+}
