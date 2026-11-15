@@ -8,6 +8,7 @@
         <rule from="com.intellij.psi.util" to="consulo.language.psi.util"/>
         <rule from="com.intellij.psi.impl.source.tree" to="consulo.language.impl.ast"/>
         <rule from="com.intellij.psi.impl.java.stubs" to="com.intellij.java.language.impl.psi.impl.java.stubs"/>
+        <rule from="com.intellij.lang.jvm" to="com.intellij.java.language.jvm"/>
         <rule from="com.intellij.psi.impl" to="consulo.language.impl.psi"/>
         <rule from="com.intellij.psi.scope" to="consulo.language.psi.scope"/>
         <rule from="com.intellij.psi.codeStyle" to="consulo.language.codeStyle"/>
@@ -45,6 +46,18 @@
         <rule from="com.intellij.util.messages" to="consulo.component.messagebus"/>
         <rule from="com.intellij.util.io" to="consulo.index.io"/>
         <rule from="com.intellij.util.containers" to="consulo.util.collection"/>
+        <rule from="com.intellij.util.ArrayUtil" to="consulo.util.collection.ArrayUtil"/>
+        <rule from="com.intellij.util.text.VersionComparatorUtil" to="consulo.util.lang.VersionComparatorUtil"/>
+        <rule from="com.intellij.openapi.vfs.VfsUtilCore" to="consulo.virtualFileSystem.util.VirtualFileUtil"/>
+        <rule from="com.intellij.util.lang.JavaVersion" to="consulo.platform.JavaVersion"/>
+        <rule from="com.intellij.util.xmlb.annotations.Transient" to="consulo.util.xml.serializer.annotation.Transient"/>
+        <rule from="com.intellij.openapi.util.Condition" to="consulo.util.lang.function.Condition"/>
+        <rule from="com.intellij.psi.GenericsUtil" to="com.intellij.java.language.psi.GenericsUtil"/>
+        <rule from="com.intellij.psi.util.JavaPsiRecordUtil" to="com.intellij.java.language.impl.psi.util.JavaPsiRecordUtil"/>
+        <rule from="com.intellij.pom.java.LanguageLevel" to="com.intellij.java.language.LanguageLevel"/>
+        <rule from="com.intellij.util.concurrency.ThreadingAssertions" to="consulo.kotlin.compat.util.ThreadingAssertions"/>
+        <rule from="com.intellij.openapi.module.Module" to="consulo.module.Module"/>
+        <rule from="com.intellij.psi.SmartPointersKt" to="consulo.kotlin.compat.ext.SmartPointersKt"/>
         <rule from="com.intellij.util.text" to="consulo.util.lang.text"/>
         <rule from="com.intellij.util" to="consulo.util"/>
 
@@ -148,6 +161,12 @@
         <!-- com.intellij.psi split -->
         <rule from="com.intellij.psi.TokenType" to="consulo.language.ast.TokenType"/>
         <rule from="com.intellij.psi.StubBuilder" to="consulo.language.psi.stub.StubBuilder"/>
+        <!-- IntelliJ's stub registry API (element types decoupled from stub serializers); Consulo has no counterpart -->
+        <rule from="com.intellij.psi.stubs.StubElementFactory" to="consulo.kotlin.compat.psi.stub.StubElementFactory"/>
+        <rule from="com.intellij.psi.stubs.StubSerializingElementFactory" to="consulo.kotlin.compat.psi.stub.StubSerializingElementFactory"/>
+        <rule from="com.intellij.psi.stubs.StubRegistry" to="consulo.kotlin.compat.psi.stub.StubRegistry"/>
+        <rule from="com.intellij.psi.stubs.StubRegistryExtension" to="consulo.kotlin.compat.psi.stub.StubRegistryExtension"/>
+        <rule from="com.intellij.psi.stubs.LanguageStubDefinition" to="consulo.kotlin.compat.psi.stub.LanguageStubDefinition"/>
 
         <!-- com.intellij.extapi.psi split -->
         <!-- compat subclass adds the IElementType-based child lookup -->
@@ -310,6 +329,7 @@
         <rule from="com.intellij.openapi.fileTypes.SyntaxHighlighterProvider" to="consulo.language.editor.highlight.SyntaxHighlighterProvider"/>
         <!-- intellij-psi-extensions file facades: keep them out of Consulo's packages (no split packages) -->
         <rule from="com.intellij.util.containers.CollectionExtensionsKt" to="consulo.kotlin.compat.ext.CollectionExtensionsKt"/>
+        <rule from="com.intellij.util.UtilExtensionsKt" to="consulo.kotlin.compat.ext.UtilExtensionsKt"/>
         <rule from="com.intellij.openapi.components.ServicesKt" to="consulo.kotlin.compat.ext.ServicesKt"/>
         <rule from="com.intellij.openapi.diagnostic.LoggerExtensionsKt" to="consulo.kotlin.compat.ext.LoggerExtensionsKt"/>
         <rule from="com.intellij.psi.util.PsiChildrenUtilKt" to="consulo.kotlin.compat.ext.PsiChildrenUtilKt"/>
@@ -355,6 +375,11 @@
     <!-- Calls whose target is missing in Consulo, rewritten to static helpers in consulo-internal/intellij-compat.
          owner/name/desc are the remapped ones. -->
     <redirects>
+        <!-- Stub list layout optimization; Consulo keeps it package-private, so the stub is never "last added" -->
+        <method owner="consulo.language.psi.stub.StubBase" name="getStubId" desc="()I"
+                target="consulo.kotlin.compat.psi.StubCompat"/>
+        <method owner="consulo.language.psi.stub.StubList" name="prepareForChildren" desc="(II)V"
+                target="consulo.kotlin.compat.psi.StubCompat"/>
         <!-- Consulo's HighlighterIterator.getTokenType() returns Object -->
         <method owner="consulo.codeEditor.HighlighterIterator" name="getTokenType" desc="()Lconsulo/language/ast/IElementType;"
                 target="consulo.kotlin.compat.editor.HighlighterCompat"/>

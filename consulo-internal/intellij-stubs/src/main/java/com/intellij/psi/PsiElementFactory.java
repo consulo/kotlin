@@ -4,6 +4,9 @@ package com.intellij.psi;
 public interface PsiElementFactory {
     static PsiElementFactory getInstance(com.intellij.openapi.project.Project project) { return null; }
     com.intellij.psi.PsiClassType createType(com.intellij.psi.PsiClass resolve);
+    com.intellij.psi.PsiClassType createType(com.intellij.psi.PsiJavaCodeReferenceElement classReference);
+    com.intellij.psi.PsiJavaCodeReferenceElement createReferenceElementByFQClassName(String qName, com.intellij.psi.search.GlobalSearchScope resolveScope);
+    com.intellij.psi.PsiJavaCodeReferenceElement createReferenceElementByType(com.intellij.psi.PsiClassType type);
     com.intellij.psi.PsiClassType createType(com.intellij.psi.PsiClass resolve, com.intellij.psi.PsiSubstitutor substitutor);
     com.intellij.psi.PsiClassType createType(com.intellij.psi.PsiClass resolve, com.intellij.psi.PsiType... parameters);
     com.intellij.psi.PsiClass createClass(String name);

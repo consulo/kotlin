@@ -4,6 +4,7 @@ package com.intellij.psi.stubs;
 public abstract class StubBase<T extends com.intellij.psi.PsiElement> extends com.intellij.psi.stubs.ObjectStubBase<com.intellij.psi.stubs.StubElement<?>> implements com.intellij.psi.stubs.StubElement<T> {
   protected StubBase(com.intellij.psi.stubs.StubElement p0, com.intellij.psi.stubs.IStubElementType<?, ?> p1) { super(p0); }
   public com.intellij.psi.stubs.StubList getStubList() { return null; }
+  public int getStubId() { return 0; }
   public void setStubList(com.intellij.psi.stubs.StubList p0) {}
   protected StubBase(com.intellij.psi.stubs.StubElement p0, com.intellij.psi.tree.IElementType p1) { super(p0); }
   public com.intellij.psi.stubs.StubElement<?> getParentStub() { return null; }

@@ -33,11 +33,6 @@
                                     <excludes>
                                         <exclude>**/MapPsiToAsmDesc.kt</exclude>
                                         <exclude>**/PrintingLogger.java</exclude>
-                                        <exclude>**/JavaSdkUtil.java</exclude>
-                                        <exclude>**/PathUtil.kt</exclude>
-                                        <exclude>**/KotlinPaths.kt</exclude>
-                                        <exclude>**/KotlinNativePaths.kt</exclude>
-                                        <exclude>**/KotlinPathsFromHomeDir.kt</exclude>
                                         <exclude>**/LibraryUtils.kt</exclude>
                                         <exclude>**/Profiler.java</exclude>
                                     </excludes>
@@ -69,6 +64,12 @@
     </build>
 
     <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.intellij-psi-extensions</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.compiler.version</artifactId>

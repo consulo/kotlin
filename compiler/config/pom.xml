@@ -31,9 +31,6 @@
                             <resources>
                                 <resource>
                                     <directory>src</directory>
-                                    <excludes>
-                                        <exclude>**/KlibAbiCompatibilityLevel.kt</exclude>
-                                    </excludes>
                                 </resource>
                             </resources>
                         </configuration>
@@ -49,9 +46,6 @@
                             <resources>
                                 <resource>
                                     <directory>gen</directory>
-                                    <excludes>
-                                        <exclude>**/KlibConfigurationKeys.kt</exclude>
-                                    </excludes>
                                 </resource>
                             </resources>
                         </configuration>
@@ -82,6 +76,12 @@
     </build>
 
     <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.util-klib</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.core.language.version-settings</artifactId>

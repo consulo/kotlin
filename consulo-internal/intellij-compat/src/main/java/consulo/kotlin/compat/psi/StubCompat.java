@@ -39,4 +39,13 @@ public final class StubCompat {
         }
         return element.getElementType();
     }
+
+    /** IntelliJ {@code StubBase.getStubId()}: Consulo does not expose it; -1 matches no position in the stub list. */
+    public static int getStubId(consulo.language.psi.stub.StubBase<?> stub) {
+        return -1;
+    }
+
+    /** IntelliJ {@code StubList.prepareForChildren}: a layout optimization only, skipped. */
+    public static void prepareForChildren(consulo.language.psi.stub.StubList list, int parentId, int childrenCount) {
+    }
 }

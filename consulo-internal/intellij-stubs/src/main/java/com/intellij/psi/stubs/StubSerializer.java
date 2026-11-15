@@ -1,4 +1,4 @@
 package com.intellij.psi.stubs;
 @SuppressWarnings("all")
-public interface StubSerializer<T extends StubElement<?>> {
+public interface StubSerializer<T extends StubElement<?>> extends ObjectStubSerializer<T, StubElement<?>> {
 }

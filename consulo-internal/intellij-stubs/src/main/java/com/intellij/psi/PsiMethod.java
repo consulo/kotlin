@@ -1,7 +1,7 @@
 package com.intellij.psi;
 
 @SuppressWarnings("all")
-public interface PsiMethod extends com.intellij.psi.PsiElement, com.intellij.psi.PsiModifierListOwner, com.intellij.psi.PsiTypeParameterListOwner, com.intellij.psi.PsiMember, com.intellij.psi.PsiDocCommentOwner, com.intellij.psi.PsiNamedElement {
+public interface PsiMethod extends com.intellij.lang.jvm.JvmMethod, com.intellij.psi.PsiElement, com.intellij.psi.PsiModifierListOwner, com.intellij.psi.PsiTypeParameterListOwner, com.intellij.psi.PsiMember, com.intellij.psi.PsiDocCommentOwner, com.intellij.psi.PsiNamedElement {
     PsiMethod[] EMPTY_ARRAY = new PsiMethod[0];
     String getName();
     com.intellij.psi.PsiType getReturnType();

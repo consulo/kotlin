@@ -2,7 +2,7 @@ package com.intellij.psi;
 
 @SuppressWarnings("all")
 public abstract class PsiClassType extends com.intellij.psi.PsiType {
-    public PsiClassType[] EMPTY_ARRAY = new PsiClassType[0];
+    public static final PsiClassType[] EMPTY_ARRAY = new PsiClassType[0];
     public abstract String getCanonicalText();
     public abstract String getPresentableText();
     public abstract String getClassName();

@@ -2,6 +2,7 @@ package com.intellij.psi;
 
 @SuppressWarnings("all")
 public abstract class PsiType implements com.intellij.psi.PsiAnnotationOwner {
+    public static com.intellij.psi.PsiClassType getTypeByName(String qName, com.intellij.openapi.project.Project project, com.intellij.psi.search.GlobalSearchScope resolveScope) { return null; }
     public static final PsiType[] EMPTY_ARRAY = new PsiType[0];
     public abstract String getCanonicalText();
     public String getCanonicalText(boolean annotated) { return getCanonicalText(); }

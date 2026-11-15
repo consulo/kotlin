@@ -11,6 +11,10 @@
             -->
             <includes>
                 <include glob="remap.xml">.</include>
+                <!-- Source roots the cache does not see by default: upstream's generated code, the Kotlin stubs, resources -->
+                <include>gen</include>
+                <include>src/main/kotlin</include>
+                <include>resources</include>
             </includes>
         </global>
     </input>

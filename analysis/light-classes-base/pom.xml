@@ -14,10 +14,66 @@
     <artifactId>consulo.kotlin.analysis.light-classes-base</artifactId>
 
     <build>
-        <sourceDirectory>src</sourceDirectory>
+        <plugins>
+            <!-- Light classes are not complete yet: the parts Kotlin analysis reaches, without enum synthetic methods, scripts and the cls wrapper -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>filter-src</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/filtered-sources/src</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>src</directory>
+                                    <excludes>
+                                        <exclude>org/jetbrains/kotlin/asJava/ImpreciseResolveResult.kt</exclude>
+                                        <exclude>org/jetbrains/kotlin/asJava/builder/ClsWrapperStubPsiFactory.java</exclude>
+                                        <exclude>org/jetbrains/kotlin/asJava/classes/ClassContentFinderCache.kt</exclude>
+                                        <exclude>org/jetbrains/kotlin/asJava/classes/KotlinEnumSyntheticMethod.kt</exclude>
+                                        <exclude>org/jetbrains/kotlin/asJava/classes/KtLightClassForScript.kt</exclude>
+                                        <exclude>org/jetbrains/kotlin/asJava/classes/LightClassInheritanceHelper.kt</exclude>
+                                        <exclude>org/jetbrains/kotlin/asJava/classes/lightClassUtils.kt</exclude>
+                                    </excludes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compileSourceRoots>
+                        <compileSourceRoot>${project.build.directory}/filtered-sources/src</compileSourceRoot>
+                    </compileSourceRoots>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-maven-plugin</artifactId>
+                <configuration>
+                    <sourceDirs>
+                        <sourceDir>${project.build.directory}/filtered-sources/src</sourceDir>
+                        <sourceDir>${project.basedir}/gen</sourceDir>
+                    </sourceDirs>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 
     <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.analysis.api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.compiler.util</artifactId>

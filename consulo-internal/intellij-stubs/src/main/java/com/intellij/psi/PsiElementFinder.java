@@ -9,6 +9,8 @@ public abstract class PsiElementFinder {
     public com.intellij.psi.PsiPackage[] getSubPackages(com.intellij.psi.PsiPackage psiPackage, com.intellij.psi.search.GlobalSearchScope scope) { return new com.intellij.psi.PsiPackage[0]; }
     public com.intellij.psi.PsiClass[] getClasses(com.intellij.psi.PsiPackage psiPackage, com.intellij.psi.search.GlobalSearchScope scope) { return new com.intellij.psi.PsiClass[0]; }
     public com.intellij.psi.PsiFile[] getPackageFiles(com.intellij.psi.PsiPackage psiPackage, com.intellij.psi.search.GlobalSearchScope scope) { return new com.intellij.psi.PsiFile[0]; }
+    public java.util.Set<String> getClassNames(com.intellij.psi.PsiPackage psiPackage, com.intellij.psi.search.GlobalSearchScope scope) { return java.util.Collections.emptySet(); }
+    public java.util.function.Predicate<com.intellij.psi.PsiFile> getPackageFilesFilter(com.intellij.psi.PsiPackage psiPackage, com.intellij.psi.search.GlobalSearchScope scope) { return null; }
     public boolean processPackageDirectories(com.intellij.psi.PsiPackage psiPackage, com.intellij.psi.search.GlobalSearchScope scope, com.intellij.util.Processor<com.intellij.psi.PsiDirectory> consumer) { return true; }
     public static com.intellij.psi.PsiClass[] filterByName(String name, com.intellij.psi.PsiClass[] classes) { return classes; }
 }

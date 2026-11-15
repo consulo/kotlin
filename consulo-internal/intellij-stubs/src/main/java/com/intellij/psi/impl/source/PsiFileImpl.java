@@ -71,6 +71,7 @@ public abstract class PsiFileImpl implements com.intellij.psi.PsiFile {
     public com.intellij.psi.PsiElement getOriginalElement() { return this; }
     public com.intellij.psi.PsiElement setName(String p0) { return this; }
     public void checkSetName(String p0) {}
+    public void setOriginalFile(com.intellij.psi.PsiFile originalFile) {}
 
 
     public void checkAdd(com.intellij.psi.PsiElement p0) {}
