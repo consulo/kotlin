@@ -301,6 +301,11 @@
                                 <includes>
                                     <include>consulo.kotlin:*</include>
                                 </includes>
+                                <!-- new multiplatform parser: built on IntelliJ's syntax-api, which Consulo does not ship;
+                                     only the CLI light-tree path uses it, the IDE parses with the PSI parser -->
+                                <excludes>
+                                    <exclude>consulo.kotlin:consulo.kotlin.compiler.multiplatform-parsing</exclude>
+                                </excludes>
                             </artifactSet>
                             <filters>
                                 <filter>

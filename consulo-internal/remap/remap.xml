@@ -12,6 +12,8 @@
         <rule from="com.intellij.psi.scope" to="consulo.language.psi.scope"/>
         <rule from="com.intellij.psi.codeStyle" to="consulo.language.codeStyle"/>
         <rule from="com.intellij.psi" to="consulo.language.psi"/>
+        <!-- IntelliJ's repackaged ASM (asm-all) -> the ASM the Consulo Java plugin ships (module "asm") -->
+        <rule from="org.jetbrains.org.objectweb.asm" to="consulo.internal.org.objectweb.asm"/>
 
         <!-- Language/Lexer -->
         <rule from="com.intellij.lexer" to="consulo.language.lexer"/>
@@ -313,6 +315,16 @@
         <rule from="com.intellij.psi.util.PsiChildrenUtilKt" to="consulo.kotlin.compat.ext.PsiChildrenUtilKt"/>
         <rule from="com.intellij.psi.util.PsiTreeUtilExtensionsKt" to="consulo.kotlin.compat.ext.PsiTreeUtilExtensionsKt"/>
         <rule from="com.intellij.psi.util.JavaPsiExtensionsKt" to="consulo.kotlin.compat.ext.JavaPsiExtensionsKt"/>
+        <!-- Commenter / brace matching -->
+        <rule from="com.intellij.codeInsight.highlighting.PairedBraceAndAnglesMatcher" to="consulo.kotlin.compat.editor.CompatPairedBraceAndAnglesMatcher"/>
+        <rule from="com.intellij.codeInsight.hint.DeclarationRangeUtil" to="consulo.language.editor.hint.DeclarationRangeUtil"/>
+        <!-- The compiler's few classes in org.jetbrains.kotlin.idea move to a package of their own: the plugin owns
+             org.jetbrains.kotlin.idea, and two modules can't share a package (modcheck.py reports split packages) -->
+        <rule from="org.jetbrains.kotlin.idea.KotlinFileType" to="consulo.kotlin.compiler.idea.KotlinFileType"/>
+        <rule from="org.jetbrains.kotlin.idea.KotlinIconProviderService" to="consulo.kotlin.compiler.idea.KotlinIconProviderService"/>
+        <rule from="org.jetbrains.kotlin.idea.KotlinLanguage" to="consulo.kotlin.compiler.idea.KotlinLanguage"/>
+        <rule from="org.jetbrains.kotlin.idea.KotlinModuleFileType" to="consulo.kotlin.compiler.idea.KotlinModuleFileType"/>
+        <rule from="org.jetbrains.kotlin.idea.references.KtReference" to="consulo.kotlin.compiler.idea.references.KtReference"/>
     </classes>
 
     <!-- Method renames (applied after class remapping) -->
@@ -327,8 +339,8 @@
         <!-- FileType#getName → getId: IntelliJ calls it getName, Consulo calls it getId.
              Only the jar's own subclass declarations need renaming — FileType/LanguageFileType
              live in the Consulo platform and already expose getId. -->
-        <rule owner="org.jetbrains.kotlin.idea.KotlinFileType" name="getName" newName="getId"/>
-        <rule owner="org.jetbrains.kotlin.idea.KotlinModuleFileType" name="getName" newName="getId"/>
+        <rule owner="consulo.kotlin.compiler.idea.KotlinFileType" name="getName" newName="getId"/>
+        <rule owner="consulo.kotlin.compiler.idea.KotlinModuleFileType" name="getName" newName="getId"/>
     </methods>
 
     <!-- Calls whose target is missing in Consulo, rewritten to static helpers in consulo-internal/intellij-compat.
@@ -481,18 +493,20 @@
         <requires>consulo.util.lang</requires>
         <requires>consulo.navigation.api</requires>
         <requires>consulo.color.scheme.api</requires>
+        <requires>consulo.code.editor.api</requires>
+        <requires>consulo.language.editor.api</requires>
         <requires>consulo.language.code.style.api</requires>
         <requires>consulo.java.language.api</requires>
         <requires>consulo.java.language.impl</requires>
         <requires>consulo.kotlin.core.helper</requires>
         <requires>consulo.annotation</requires>
-        <!-- libraries shipped in the plugin's lib (guava comes with the platform) -->
+        <!-- libraries shipped in the plugin's lib (guava comes with the platform, asm with the Java plugin; IntelliJ's syntax-api is not shipped,
+             so the kmp parser is left out of this jar, see remap/pom.xml) -->
         <requires>kotlin.stdlib</requires>
         <requires>kotlinx.collections.immutable</requires>
         <requires>io.vavr</requires>
         <requires>javax.inject</requires>
-        <requires>asm.all</requires>
-        <requires>syntax.api.jvm</requires>
+        <requires>asm</requires>
         <requires>com.google.common</requires>
 
         <exports>org/jetbrains/kotlin/psi</exports>

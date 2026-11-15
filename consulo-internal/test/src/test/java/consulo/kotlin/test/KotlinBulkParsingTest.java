@@ -6,8 +6,8 @@ import consulo.language.version.LanguageVersion;
 import consulo.language.version.LanguageVersionUtil;
 import consulo.test.junit.impl.language.SimpleParsingTest;
 import consulo.virtualFileSystem.fileType.FileType;
-import org.jetbrains.kotlin.idea.KotlinFileType;
-import org.jetbrains.kotlin.idea.KotlinLanguage;
+import consulo.kotlin.compiler.idea.KotlinFileType;
+import consulo.kotlin.compiler.idea.KotlinLanguage;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 

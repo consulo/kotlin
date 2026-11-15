@@ -2,7 +2,7 @@ package consulo.kotlin.test;
 
 import consulo.language.file.LanguageFileType;
 import consulo.test.junit.impl.language.SimpleParsingTest;
-import org.jetbrains.kotlin.idea.KotlinFileType;
+import consulo.kotlin.compiler.idea.KotlinFileType;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 

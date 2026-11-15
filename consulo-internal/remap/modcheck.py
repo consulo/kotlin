@@ -8,6 +8,8 @@ import glob, json, os, re, subprocess, sys, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 M2 = os.path.expanduser('~/.m2/repository/consulo')
 CACHE = os.path.expanduser('~/.cache/consulo-kotlin-modcheck.json')
+# automatic modules from the Consulo platform lib or plugins we depend on (not in ~/.m2)
+PLATFORM_LIBS = {'com.google.common', 'it.unimi.dsi.fastutil', 'asm'}  # asm: Consulo Java plugin
 
 
 def describe(jar):
@@ -15,6 +17,11 @@ def describe(jar):
     lines = out.splitlines()
     if not lines or 'No module descriptor' in out:
         return None
+    if lines[0].startswith('releases:'):  # multi-release jar: module-info in META-INF/versions
+        out = subprocess.run(['jar', '--describe-module', '--file', jar, '--release', '9'], capture_output=True, text=True).stdout
+        lines = [l for l in out.splitlines() if not l.startswith('releases:') and l.strip()]
+        if not lines:
+            return None
     name = lines[0].split('@')[0].split()[0]
     exports, transitive = [], []
     for l in lines[1:]:
@@ -51,7 +58,7 @@ def used_packages(jar):
         if n.endswith('.class') and n != 'module-info.class':
             own.add(n.rsplit('/', 1)[0])
             data = z.read(n).decode('latin-1')
-            used.update(m.rsplit('/', 1)[0] for m in re.findall(r'(?:^|[L\x07\x01\x00\[])((?:consulo|com/intellij)/[\w/$]+?)(?:;|[^\w/$])', data) if '/' in m)
+            used.update(m.rsplit('/', 1)[0] for m in re.findall(r'L((?:[a-z][\w]*/)+[A-Z][\w$]*);', data))
     return own, used
 
 
@@ -61,6 +68,20 @@ def main():
     for m in modules.values():
         for p in m['exports']:
             by_package.setdefault(p.replace('.', '/'), m['name'])
+    # libraries next to the checked jars (a plugin's lib/) are modules too
+    for jar in {os.path.join(os.path.dirname(os.path.abspath(j)), f) for j in sys.argv[1:] for f in os.listdir(os.path.dirname(os.path.abspath(j))) if f.endswith('.jar')}:
+        d = describe(jar)
+        if d is None:
+            manifest = zipfile.ZipFile(jar).read('META-INF/MANIFEST.MF').decode('utf-8', 'replace') if 'META-INF/MANIFEST.MF' in zipfile.ZipFile(jar).namelist() else ''
+            auto = re.search(r'Automatic-Module-Name:\s*(\S+)', manifest)
+            base = re.sub(r'-\d.*$', '', os.path.basename(jar)[:-4])
+            d = {'name': auto.group(1) if auto else re.sub(r'[^A-Za-z0-9]+', '.', base), 'exports': [], 'transitive': []}
+        if not d['exports']:  # automatic module: every package is exported
+            d['exports'] = sorted({n.rsplit('/', 1)[0].replace('/', '.') for n in zipfile.ZipFile(jar).namelist() if n.endswith('.class') and '/' in n and not n.startswith('META-INF')})
+        modules.setdefault(d['name'], d)
+    for p in [m for m in modules.values()]:
+        for e in p['exports']:
+            by_package.setdefault(e.replace('.', '/'), p['name'])
     for jar in sys.argv[1:]:
         me = describe(jar)
         if not me:
@@ -76,6 +97,8 @@ def main():
         own, used = used_packages(jar)
         missing, unexported = {}, set()
         for p in sorted(used - own):
+            if p.startswith(('java/', 'javax/swing', 'javax/annotation', 'jdk/', 'sun/')):
+                continue
             mod = by_package.get(p)
             if mod is None:
                 unexported.add(p)
@@ -83,7 +106,7 @@ def main():
                 missing.setdefault(mod, []).append(p)
         print(f'== {me["name"]} ({os.path.basename(jar)})')
         for d in sorted(declared - set(modules) - {'java.base'}):
-            if not d.startswith(('java.', 'jdk.', 'consulo.kotlin')):
+            if not d.startswith(('java.', 'jdk.', 'consulo.kotlin')) and d not in PLATFORM_LIBS:
                 print(f'  requires unknown module {d}')
         for p in sorted(own):
             other = by_package.get(p)
