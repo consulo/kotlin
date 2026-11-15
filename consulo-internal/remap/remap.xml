@@ -378,7 +378,8 @@
         <rule from="com.intellij.extapi.psi.StubBasedPsiElementBase" to="consulo.kotlin.compat.psi.CompatStubBasedPsiElementBase"/>
 
         <!-- com.intellij.psi.impl split -->
-        <rule from="com.intellij.psi.impl.PsiManagerEx" to="consulo.language.impl.internal.psi.PsiManagerEx"/>
+        <!-- PsiManagerEx and FileManager are internal in Consulo: the public PsiManager and a compat file manager -->
+        <rule from="com.intellij.psi.impl.PsiManagerEx" to="consulo.language.psi.PsiManager"/>
 
         <!-- com.intellij.psi.impl.source.tree split -->
         <rule from="com.intellij.psi.impl.source.tree.ICodeFragmentElementType" to="consulo.language.ast.ICodeFragmentElementType"/>
@@ -495,7 +496,7 @@
         <rule from="com.intellij.openapi.fileTypes.FileTypeRegistry" to="consulo.virtualFileSystem.fileType.FileTypeRegistry"/>
         <rule from="com.intellij.psi.impl.compiled.ClsFieldImpl" to="com.intellij.java.language.impl.psi.impl.compiled.ClsFieldImpl"/>
         <rule from="com.intellij.psi.impl.compiled.ClsParameterImpl" to="com.intellij.java.language.impl.psi.impl.compiled.ClsParameterImpl"/>
-        <rule from="com.intellij.psi.impl.file.impl.FileManager" to="consulo.language.impl.internal.file.FileManager"/>
+        <rule from="com.intellij.psi.impl.file.impl.FileManager" to="consulo.kotlin.compat.psi.FileManagerCompat"/>
         <rule from="com.intellij.psi.impl.file.impl.JavaFileManager" to="com.intellij.java.language.impl.psi.impl.file.impl.JavaFileManager"/>
         <rule from="com.intellij.psi.impl.java.stubs.PsiParameterStub" to="com.intellij.java.language.impl.psi.impl.java.stubs.PsiParameterStub"/>
         <rule from="com.intellij.psi.impl.java.stubs.impl.PsiParameterStubImpl" to="com.intellij.java.language.impl.psi.impl.java.stubs.impl.PsiParameterStubImpl"/>
@@ -510,7 +511,7 @@
         <rule from="com.intellij.psi.search.PackageScope" to="com.intellij.java.language.psi.search.PackageScope"/>
         <rule from="com.intellij.psi.util.PsiUtilCore" to="consulo.language.psi.PsiUtilCore"/>
         <rule from="com.intellij.testFramework.LightVirtualFile" to="consulo.language.file.light.LightVirtualFile"/>
-        <rule from="com.intellij.util.AstLoadingFilter" to="consulo.language.impl.internal.psi.AstLoadingFilter"/>
+        <rule from="com.intellij.util.AstLoadingFilter" to="consulo.kotlin.compat.psi.AstLoadingFilter"/>
         <rule from="com.intellij.util.ConcurrencyUtil" to="consulo.util.concurrent.ConcurrencyUtil"/>
         <rule from="com.intellij.util.Query" to="consulo.application.util.query.Query"/>
         <rule from="com.intellij.util.cls.ClsFormatException" to="com.intellij.java.language.util.cls.ClsFormatException"/>
@@ -588,6 +589,10 @@
         <!-- Kotlin registry keys; analysis statistics are always off -->
         <method owner="consulo.application.util.registry.Registry" name="is" desc="(Ljava/lang/String;Z)Z"
                 target="consulo.kotlin.compat.util.RegistryCompat"/>
+        <method owner="consulo.language.psi.PsiInvalidElementAccessException" name="findOutInvalidationReason" desc="(Lconsulo/language/psi/PsiElement;)Ljava/lang/String;"
+                target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <method owner="consulo.language.psi.PsiManager" name="getFileManager" desc="()Lconsulo/kotlin/compat/psi/FileManagerCompat;"
+                target="consulo.kotlin.compat.psi.FileManagerCompat"/>
         <!-- Platform calls whose Consulo counterparts differ in signature -->
         <method owner="com.intellij.java.language.psi.PsiType" name="createArrayType" desc="()Lcom/intellij/java/language/psi/PsiType;" anyOwner="true"
                 target="consulo.kotlin.compat.java.JavaTypeCompat"/>
@@ -863,6 +868,81 @@
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
             </addAnnotation>
         </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinLifetimeTokenFactory">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.KotlinPlatformSettings">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinProjectStructureProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.projectStructure.KotlinModuleDependentsProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDeclarationProviderFactory">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDeclarationProviderMerger">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinAnnotationsResolverFactory">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.declarations.KotlinDirectInheritorsProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.packages.KotlinPackageProviderFactory">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.packages.KotlinPackageProviderMerger">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.packages.KotlinPackagePartProviderFactory">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.modification.KotlinModificationTrackerFactory">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.java.KotlinJavaModuleAnnotationsProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.java.KotlinJavaModuleAccessibilityChecker">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.decompiler.psi.BuiltinsVirtualFileProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
         <!-- genservices:modifications:end -->
         <!-- IntelliJ StubElement.getElementType(): Kotlin stubs call it through their own interfaces -->
         <class name="org.jetbrains.kotlin.psi.stubs.KotlinStubElement">
@@ -990,6 +1070,12 @@
 
     <!-- library for the Kotlin plugin: export every package -->
     <module name="consulo.kotlin.remapped" exportAll="true">
+        <!-- JDK modules the compiler uses beyond java.base (JFR events of LL FIR, script engines, logging, Swing) -->
+        <requires>java.desktop</requires>
+        <requires>java.logging</requires>
+        <requires>java.management</requires>
+        <requires>java.scripting</requires>
+        <requires>jdk.jfr</requires>
         <requires>consulo.language.api</requires>
         <requires>consulo.language.impl</requires>
         <requires>consulo.component.api</requires>
@@ -1055,6 +1141,7 @@
             <binding impl="org.jetbrains.kotlin.analysis.api.fir.imports.KaFirDefaultImportsProvider" api="org.jetbrains.kotlin.analysis.api.imports.KaDefaultImportsProvider" scope="PROJECT" type="service"/>
             <binding impl="org.jetbrains.kotlin.analysis.api.fir.utils.KaFirStopWorldCacheCleaner" api="org.jetbrains.kotlin.analysis.api.fir.utils.KaFirCacheCleaner" scope="PROJECT" type="service"/>
             <binding impl="org.jetbrains.kotlin.analysis.api.fir.rendering.KaInternalsRendererProviderImpl" api="org.jetbrains.kotlin.analysis.api.internals.KaInternalsRendererProvider" scope="APPLICATION" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinReadActionConfinementLifetimeTokenFactory" api="org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinLifetimeTokenFactory" scope="PROJECT" type="service"/>
             <!-- genservices:bindings:end -->
             <binding impl="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"
                      api="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"

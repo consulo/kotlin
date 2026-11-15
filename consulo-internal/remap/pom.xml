@@ -244,6 +244,19 @@
             <artifactId>consulo.kotlin.intellij-compat</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- the platform, for the kinds of remap targets (an IntelliJ class can be a Consulo interface) -->
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-ide-impl</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>consulo.plugin</groupId>
+            <artifactId>consulo.java-java.language.impl</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <!-- the Analysis API (K2 IDE analysis) with its compiler closure -->
         <dependency>
             <groupId>${project.groupId}</groupId>

@@ -4,13 +4,11 @@ import consulo.document.util.TextRange;
 import consulo.language.ast.IElementType;
 import consulo.language.ast.LighterASTNode;
 import consulo.language.impl.ast.LeafElement;
-import consulo.language.impl.internal.parser.PsiBuilderImpl;
 import consulo.language.psi.LeafPsiElement;
 import consulo.language.psi.LiteralTextEscaper;
 import consulo.language.psi.PsiElement;
 import consulo.language.psi.PsiLanguageInjectionHost;
 import consulo.language.psi.SmartPsiElementPointer;
-import consulo.localize.LocalizeValue;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -80,9 +78,11 @@ public final class PsiCompat {
         return pointer.getElement();
     }
 
-    /** IntelliJ static {@code PsiBuilderImpl.getErrorMessage(node)} returns a String. */
+    /**
+     * IntelliJ static {@code PsiBuilderImpl.getErrorMessage(node)}: the message of a light tree error element.
+     * Consulo keeps it in an internal class, so there is none (used by light tree FIR building, not by the IDE).
+     */
     public static String getErrorMessage(LighterASTNode node) {
-        LocalizeValue message = PsiBuilderImpl.getErrorMessageImpl(node);
-        return message == null ? null : message.get();
+        return null;
     }
 }

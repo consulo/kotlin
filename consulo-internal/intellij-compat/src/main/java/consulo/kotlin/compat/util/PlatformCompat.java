@@ -29,6 +29,11 @@ public final class PlatformCompat {
     private PlatformCompat() {
     }
 
+    /** IntelliJ {@code PsiInvalidElementAccessException.findOutInvalidationReason}: not tracked in Consulo. */
+    public static String findOutInvalidationReason(PsiElement element) {
+        return "unknown (" + element.getClass().getName() + ")";
+    }
+
     /** {@code Disposer.newDisposable()} */
     public static Disposable newDisposable() {
         return Disposable.newDisposable();

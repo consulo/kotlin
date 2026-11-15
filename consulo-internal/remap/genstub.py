@@ -601,7 +601,8 @@ def stub_types():
             mm = MEMBER.match(line)
             if mm and mm.group(3) not in ('if', 'for', 'while', 'return', 'new', 'switch'):
                 params = [re.sub(r'\s+\w+$', '', p.strip()) for p in split_params(mm.group(4))] if mm.group(4).strip() else []
-                key = (mm.group(3), tuple(erase(p) for p in params))
+                # type variables (K, T, ...) erase alike, so <K> f(K) and <T> f(T) are one method
+                key = (mm.group(3), tuple(re.sub(r'^[A-Z]\w{0,2}(?=(\[\])*$)', 'java.lang.Object', erase(p)) for p in params))
                 if ' static ' in f' {line} ':
                     static_methods.add(key)
                     continue

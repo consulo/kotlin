@@ -2,7 +2,7 @@
 
 Run after `mvn package`: python3 consulo-internal/remap/refcheck.py [path/to/remapped.jar]
 """
-import glob, os, re, struct, sys, zipfile, collections
+import glob, os, re, struct, subprocess, sys, zipfile, collections
 
 JAR = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'target', 'consulo.kotlin.remapped-3-SNAPSHOT.jar')
 M2 = os.path.expanduser('~/.m2/repository/consulo')
@@ -68,10 +68,29 @@ for j in jars.values():
     for n in z.namelist():
         if n.endswith('.class') and not n.startswith('META-INF'):
             index.setdefault(n[:-6], (z, n))
+# the JDK, so that inherited JDK members are checked too (extracted once with jimage)
+JDK_HOME = os.path.dirname(os.path.dirname(os.path.realpath(subprocess.run(['which', 'java'], capture_output=True, text=True).stdout.strip())))
+JDK_CACHE = os.path.expanduser(f'~/.cache/consulo-kotlin-refcheck-jdk/{os.path.basename(JDK_HOME)}')
+if not os.path.isdir(JDK_CACHE):
+    subprocess.run([f'{JDK_HOME}/bin/jimage', 'extract', '--dir', JDK_CACHE, f'{JDK_HOME}/lib/modules'], check=True)
+jdk_index = {}
+for module in os.listdir(JDK_CACHE):
+    root = os.path.join(JDK_CACHE, module)
+    for d, _, fs in os.walk(root):
+        for f in fs:
+            if f.endswith('.class') and f != 'module-info.class':
+                jdk_index.setdefault(os.path.relpath(os.path.join(d, f), root)[:-6], os.path.join(d, f))
+
 cache = {}
 def load(name):
     if name in cache: return cache[name]
-    e = index.get(name); cache[name] = parse(e[0].read(e[1])) if e else None
+    e = index.get(name)
+    if e:
+        cache[name] = parse(e[0].read(e[1]))
+    elif name in jdk_index:
+        cache[name] = parse(open(jdk_index[name], 'rb').read())
+    else:
+        cache[name] = None
     return cache[name]
 
 jar = zipfile.ZipFile(JAR)

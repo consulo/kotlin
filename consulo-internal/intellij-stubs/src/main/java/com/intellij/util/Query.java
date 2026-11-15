@@ -4,6 +4,7 @@ package com.intellij.util;
 public interface Query<R> extends Iterable<R> {
     java.util.Collection<R> findAll();
     R findFirst();
-    boolean forEach(com.intellij.util.Processor<? super R> consumer);
+    // Consulo: a Predicate (Processor is one)
+    boolean forEach(java.util.function.Predicate<? super R> consumer);
     java.util.Iterator<R> iterator();
 }

@@ -27,6 +27,34 @@ SKIP = {
 }
 
 
+P = 'org.jetbrains.kotlin.analysis.api.platform'
+# Platform components the Consulo plugin implements (@ServiceImpl there) as project services
+PLATFORM_APIS = [
+    f'{P}.KotlinPlatformSettings',
+    f'{P}.projectStructure.KotlinProjectStructureProvider',
+    f'{P}.projectStructure.KotlinModuleDependentsProvider',
+    f'{P}.declarations.KotlinDeclarationProviderFactory',
+    f'{P}.declarations.KotlinDeclarationProviderMerger',
+    f'{P}.declarations.KotlinAnnotationsResolverFactory',
+    f'{P}.declarations.KotlinDirectInheritorsProvider',
+    f'{P}.packages.KotlinPackageProviderFactory',
+    f'{P}.packages.KotlinPackageProviderMerger',
+    f'{P}.packages.KotlinPackagePartProviderFactory',
+    f'{P}.modification.KotlinModificationTrackerFactory',
+    f'{P}.lifetime.KotlinLifetimeTokenFactory',
+    f'{P}.java.KotlinJavaModuleAnnotationsProvider',
+    f'{P}.java.KotlinJavaModuleAccessibilityChecker',
+]
+# Platform components the Consulo plugin implements as application services
+PLATFORM_APPLICATION_APIS = [
+    'org.jetbrains.kotlin.analysis.decompiler.psi.BuiltinsVirtualFileProvider',
+]
+# Platform components with a ready implementation in the Analysis API
+READY = [
+    (f'{P}.lifetime.KotlinLifetimeTokenFactory', f'{P}.lifetime.KotlinReadActionConfinementLifetimeTokenFactory', 'PROJECT'),
+]
+
+
 def services():
     out = []
     for d in DESCRIPTORS:
@@ -53,10 +81,14 @@ def replace_between(text, tag, body):
 
 
 def main():
-    found = services()
+    found = services() + READY
     mods, binds = '', ''
-    for api in dict.fromkeys(a for a, _, _ in found):
-        scope = next(s for a, _, s in found if a == api)
+    apis = dict((a, s) for a, _, s in found)
+    for api in PLATFORM_APIS:
+        apis.setdefault(api, 'PROJECT')
+    for api in PLATFORM_APPLICATION_APIS:
+        apis.setdefault(api, 'APPLICATION')
+    for api, scope in apis.items():
         mods += f'''        <class name="{api}">
             <addAnnotation type="consulo.annotation.component.ServiceAPI">
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="{scope}"/>
