@@ -263,10 +263,16 @@
             <artifactId>consulo.kotlin.analysis.api-fir</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- PSI references of Kotlin code, resolved through the Analysis API -->
+        <!-- data externalizers of the IDE indexes -->
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>consulo.kotlin.analysis.api-standalone-fir</artifactId>
+            <artifactId>consulo.kotlin.build-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- class file decompiler (library stubs for the IDE indexes) -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.analysis.decompiled.decompiler</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

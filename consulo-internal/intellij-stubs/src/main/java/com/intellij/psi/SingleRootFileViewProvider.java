@@ -3,6 +3,8 @@ package com.intellij.psi;
 public class SingleRootFileViewProvider implements FileViewProvider {
     public SingleRootFileViewProvider(PsiManager p0, com.intellij.openapi.vfs.VirtualFile p1) {}
     public SingleRootFileViewProvider(PsiManager p0, com.intellij.openapi.vfs.VirtualFile p1, boolean p2) {}
+    protected SingleRootFileViewProvider(PsiManager p0, com.intellij.openapi.vfs.VirtualFile p1, boolean p2, com.intellij.lang.Language p3) {}
+    protected PsiFile createFile(com.intellij.openapi.project.Project p0, com.intellij.openapi.vfs.VirtualFile p1, com.intellij.openapi.fileTypes.FileType p2) { return null; }
     public com.intellij.openapi.vfs.VirtualFile getVirtualFile() { return null; }
     public com.intellij.openapi.editor.Document getDocument() { return null; }
     public PsiManager getManager() { return null; }

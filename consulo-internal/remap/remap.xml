@@ -370,6 +370,9 @@
         <rule from="com.intellij.psi.stubs.StubElementFactory" to="consulo.kotlin.compat.psi.stub.StubElementFactory"/>
         <rule from="com.intellij.psi.stubs.StubSerializingElementFactory" to="consulo.kotlin.compat.psi.stub.StubSerializingElementFactory"/>
         <rule from="com.intellij.psi.stubs.StubRegistry" to="consulo.kotlin.compat.psi.stub.StubRegistry"/>
+        <!-- IntelliJ's decoupled stub API on Consulo's stub machinery (consulo.kotlin.compat.psi.stub.StubBridge) -->
+        <rule from="com.intellij.psi.stubs.DefaultStubBuilder" to="consulo.kotlin.compat.psi.stub.DefaultStubBuilder"/>
+        <rule from="com.intellij.psi.stubs.PsiFileStubImpl" to="consulo.kotlin.compat.psi.stub.CompatPsiFileStubImpl"/>
         <rule from="com.intellij.psi.stubs.StubRegistryExtension" to="consulo.kotlin.compat.psi.stub.StubRegistryExtension"/>
         <rule from="com.intellij.psi.stubs.LanguageStubDefinition" to="consulo.kotlin.compat.psi.stub.LanguageStubDefinition"/>
 
@@ -542,6 +545,8 @@
         <rule from="com.intellij.psi.util.PsiChildrenUtilKt" to="consulo.kotlin.compat.ext.PsiChildrenUtilKt"/>
         <rule from="com.intellij.psi.util.PsiTreeUtilExtensionsKt" to="consulo.kotlin.compat.ext.PsiTreeUtilExtensionsKt"/>
         <rule from="com.intellij.psi.util.JavaPsiExtensionsKt" to="consulo.kotlin.compat.ext.JavaPsiExtensionsKt"/>
+        <rule from="com.intellij.openapi.application.ReadActionsKt" to="consulo.kotlin.compat.ext.ReadActionsKt"/>
+        <rule from="com.intellij.diagnostic.ControlFlowExceptionsKt" to="consulo.kotlin.compat.ext.ControlFlowExceptionsKt"/>
         <!-- Commenter / brace matching -->
         <rule from="com.intellij.codeInsight.highlighting.PairedBraceAndAnglesMatcher" to="consulo.kotlin.compat.editor.CompatPairedBraceAndAnglesMatcher"/>
         <rule from="com.intellij.codeInsight.hint.DeclarationRangeUtil" to="consulo.language.editor.hint.DeclarationRangeUtil"/>
@@ -561,11 +566,72 @@
         <rule from="org.jetbrains.kotlin.idea.KotlinModuleFileType" to="consulo.kotlin.compiler.idea.KotlinModuleFileType"/>
         <rule from="org.jetbrains.kotlin.idea.references.KtReference" to="consulo.kotlin.compiler.idea.references.KtReference"/>
         <rule from="com.intellij.psi.impl.file.PsiFileImplUtil" to="consulo.kotlin.compat.psi.PsiFileImplUtilCompat"/>
+        <!-- indexing API of the upstream plugin indexes (base/indices) -->
+        <rule from="com.intellij.util.indexing.DataIndexer" to="consulo.index.io.DataIndexer"/>
+        <rule from="com.intellij.util.indexing.ID" to="consulo.index.io.ID"/>
+        <rule from="com.intellij.util.indexing.DefaultFileTypeSpecificInputFilter" to="consulo.language.psi.stub.DefaultFileTypeSpecificInputFilter"/>
+        <rule from="com.intellij.util.indexing.DumbModeAccessType" to="consulo.language.psi.stub.DumbModeAccessType"/>
+        <rule from="com.intellij.util.indexing.FileBasedIndex" to="consulo.language.psi.stub.FileBasedIndex"/>
+        <rule from="com.intellij.util.indexing.FileBasedIndexExtension" to="consulo.language.psi.stub.FileBasedIndexExtension"/>
+        <rule from="com.intellij.util.indexing.IdFilter" to="consulo.language.psi.stub.IdFilter"/>
+        <rule from="com.intellij.util.indexing.ScalarIndexExtension" to="consulo.language.psi.stub.ScalarIndexExtension"/>
+        <rule from="com.intellij.util.indexing.IndexableSetContributor" to="consulo.language.psi.stub.IndexableSetContributor"/>
+        <rule from="com.intellij.util.indexing.FileContent" to="consulo.language.psi.stub.FileContent"/>
+        <rule from="com.intellij.util.indexing.IndexedFile" to="consulo.language.psi.stub.IndexedFile"/>
+        <rule from="com.intellij.util.indexing.IndexingDataKeys" to="consulo.language.psi.stub.IndexingDataKeys"/>
+        <rule from="com.intellij.util.containers.hash.EqualityPolicy" to="consulo.util.collection.HashingStrategy"/>
+        <rule from="com.intellij.util.io.DataExternalizer" to="consulo.index.io.data.DataExternalizer"/>
+        <rule from="com.intellij.util.io.IOUtil" to="consulo.index.io.data.IOUtil"/>
+        <rule from="com.intellij.util.text.CharArrayUtil" to="consulo.util.lang.CharArrayUtil"/>
+        <rule from="com.intellij.util.DocumentUtil" to="consulo.document.util.DocumentUtil"/>
+        <rule from="com.intellij.injected.editor.DocumentWindow" to="consulo.document.DocumentWindow"/>
+        <rule from="com.intellij.openapi.application.ModalityState" to="consulo.ui.ModalityState"/>
+        <rule from="com.intellij.openapi.roots.ContentIterator" to="consulo.content.ContentIterator"/>
+        <rule from="com.intellij.openapi.roots.ProjectFileIndex" to="consulo.module.content.ProjectFileIndex"/>
+        <rule from="com.intellij.openapi.roots.FileIndex" to="consulo.content.FileIndex"/>
+        <rule from="com.intellij.openapi.vfs.VirtualFileVisitor" to="consulo.virtualFileSystem.util.VirtualFileVisitor"/>
+        <rule from="com.intellij.openapi.vfs.jrt.JrtFileSystem" to="com.intellij.java.language.vfs.jrt.JrtFileSystem"/>
+        <rule from="com.intellij.openapi.fileTypes.PlainTextFileType" to="consulo.language.plain.PlainTextFileType"/>
+        <rule from="com.intellij.java.library.JavaLibraryModificationTracker" to="com.intellij.java.language.library.JavaLibraryModificationTracker"/>
+        <rule from="com.intellij.psi.PsiTreeChangeEvent" to="consulo.language.psi.event.PsiTreeChangeEvent"/>
+        <!-- PSI change kinds: Consulo's event implementation is internal, compat dispatches typed events -->
+        <rule from="com.intellij.psi.impl.PsiTreeChangePreprocessor" to="consulo.kotlin.compat.psi.PsiTreeChangePreprocessor"/>
+        <rule from="com.intellij.psi.impl.PsiTreeChangeEventImpl" to="consulo.kotlin.compat.psi.PsiTreeChangeEventImpl"/>
+        <rule from="com.intellij.psi.impl.PsiTreeChangeEventImpl$PsiEventType" to="consulo.kotlin.compat.psi.PsiTreeChangeEventImpl$PsiEventType"/>
+        <rule from="com.intellij.psi.impl.PsiModificationTrackerImpl" to="consulo.kotlin.compat.psi.PsiModificationTrackerImpl"/>
+        <rule from="com.intellij.psi.impl.source.tree.injected.InjectedLanguageUtilBase" to="consulo.kotlin.compat.psi.InjectedLanguageUtilBase"/>
+        <!-- write action listeners: Consulo's ApplicationManagerEx is internal, compat adapts ApplicationListener -->
+        <rule from="com.intellij.openapi.application.WriteActionListener" to="consulo.kotlin.compat.application.WriteActionListener"/>
+        <rule from="com.intellij.openapi.application.ex.ApplicationManagerEx" to="consulo.kotlin.compat.application.ApplicationManagerEx"/>
+        <rule from="com.intellij.openapi.application.ex.ApplicationEx" to="consulo.kotlin.compat.application.ApplicationEx"/>
+        <!-- IntelliJ light services; the plugin's remap.xml declares them as Consulo services -->
+        <rule from="com.intellij.openapi.components.Service" to="consulo.kotlin.compat.components.Service"/>
+        <rule from="com.intellij.openapi.components.Service$Level" to="consulo.kotlin.compat.components.Service$Level"/>
+        <rule from="com.intellij.util.indexing.hints.FileTypeInputFilterPredicate" to="consulo.language.psi.stub.DefaultFileTypeSpecificInputFilter"/>
+        <rule from="com.intellij.openapi.vfs.VfsUtil" to="consulo.virtualFileSystem.util.VirtualFileUtil"/>
+        <rule from="com.intellij.psi.search.PsiSearchHelper" to="consulo.language.psi.search.PsiSearchHelper"/>
+        <rule from="org.jetbrains.lang.manifest.ManifestFileType" to="consulo.kotlin.compat.lang.ManifestFileType"/>
+        <rule from="com.intellij.openapi.vfs.JarFileSystem" to="consulo.virtualFileSystem.archive.ArchiveFileSystem" type="interface"/>
+        <!-- class file decompiler (analysis/decompiled): the compiled-class API of Consulo's Java plugin -->
+        <rule from="com.intellij.psi.compiled.ClassFileDecompilers" to="com.intellij.java.language.psi.compiled.ClassFileDecompilers"/>
+        <rule from="com.intellij.psi.compiled.ClassFileDecompiler" to="com.intellij.java.language.psi.compiled.ClassFileDecompiler"/>
+        <rule from="com.intellij.psi.compiled.ClassFileDecompilers$Full" to="com.intellij.java.language.psi.compiled.ClassFileDecompiler$Full"/>
+        <rule from="com.intellij.psi.compiled.ClassFileDecompilers$Light" to="com.intellij.java.language.psi.compiled.ClassFileDecompiler$Light"/>
+        <rule from="com.intellij.psi.compiled.ClsStubBuilder" to="com.intellij.java.language.psi.compiled.ClsStubBuilder"/>
+        <rule from="com.intellij.psi.ClassFileViewProvider" to="com.intellij.java.language.impl.psi.ClassFileViewProvider"/>
+        <rule from="com.intellij.psi.impl.DebugUtil" to="consulo.language.impl.DebugUtil"/>
+        <rule from="com.intellij.psi.search.impl.VirtualFileEnumeration" to="consulo.kotlin.compat.psi.VirtualFileEnumeration"/>
     </classes>
 
     <!-- Method renames (applied after class remapping) -->
     <methods>
         <rule owner="consulo.module.content.DirectoryIndex" name="getDirsByPackageName" newName="getDirectoriesByPackageName"/>
+        <rule owner="consulo.virtualFileSystem.archive.ArchiveFileSystem" name="getLocalByEntry" newName="getLocalVirtualFileFor"/>
+        <!-- EqualityPolicy (IntelliJ) is HashingStrategy (Consulo); overrides are renamed too -->
+        <rule owner="consulo.util.collection.HashingStrategy" name="getHashCode" newName="hashCode"/>
+        <rule owner="consulo.util.collection.HashingStrategy" name="isEqual" newName="equals"/>
+        <!-- builds a stub tree; Consulo reads it from the index first -->
+        <rule owner="consulo.language.psi.stub.StubTreeLoader" name="build" newName="readOrBuild"/>
         <rule owner="consulo.project.Project" name="getServiceIfCreated" newName="getInstanceIfCreated"/>
         <rule owner="consulo.application.Application" name="getServiceIfCreated" newName="getInstanceIfCreated"/>
         <rule owner="consulo.component.ComponentManager" name="getServiceIfCreated" newName="getInstanceIfCreated"/>
@@ -581,6 +647,7 @@
              live in the Consulo platform and already expose getId. -->
         <rule owner="consulo.kotlin.compiler.idea.KotlinFileType" name="getName" newName="getId"/>
         <rule owner="consulo.kotlin.compiler.idea.KotlinModuleFileType" name="getName" newName="getId"/>
+        <rule owner="org.jetbrains.kotlin.analysis.decompiler.psi.KotlinBuiltInFileType" name="getName" newName="getId"/>
     </methods>
 
     <!-- Calls whose target is missing in Consulo, rewritten to static helpers in consulo-internal/intellij-compat.
@@ -589,6 +656,30 @@
         <!-- Kotlin registry keys; analysis statistics are always off -->
         <method owner="consulo.application.util.registry.Registry" name="is" desc="(Ljava/lang/String;Z)Z"
                 target="consulo.kotlin.compat.util.RegistryCompat"/>
+        <method owner="consulo.language.psi.stub.StubIndex" name="getContainingFilesIterator"
+                desc="(Lconsulo/language/psi/stub/StubIndexKey;Ljava/lang/Object;Lconsulo/project/Project;Lconsulo/language/psi/scope/GlobalSearchScope;)Ljava/util/Iterator;"
+                target="consulo.kotlin.compat.psi.StubIndexCompat"/>
+        <method owner="consulo.language.psi.stub.StubIndex" name="processAllKeys"
+                desc="(Lconsulo/language/psi/stub/StubIndexKey;Lconsulo/application/util/function/Processor;Lconsulo/language/psi/scope/GlobalSearchScope;)Z"
+                target="consulo.kotlin.compat.psi.StubIndexCompat"/>
+        <!-- IntelliJ's DelegatingGlobalSearchScope(project, scope): Consulo's takes the scope only -->
+        <dropFirstConstructorArgument owner="consulo.language.psi.scope.DelegatingGlobalSearchScope"
+                                      desc="(Lconsulo/project/Project;Lconsulo/language/psi/scope/GlobalSearchScope;)V"/>
+        <!-- KtNodeTypes.FILE as a Consulo stub file element type (see StubBridge.fileType) -->
+        <method owner="org.jetbrains.kotlin.KotlinElementTypeProvider" name="getFileType" desc="()Lconsulo/language/ast/IFileElementType;"
+                target="consulo.kotlin.compat.psi.stub.StubBridge" targetName="fileType" targetDesc="(Ljava/lang/Object;)Lconsulo/language/ast/IFileElementType;"/>
+        <!-- IntelliJ's JrtFileSystem is the file system; Consulo's is a helper (see JrtFileSystemCompat) -->
+        <method owner="com.intellij.java.language.vfs.jrt.JrtFileSystem" name="getInstance" desc="()Lcom/intellij/java/language/vfs/jrt/JrtFileSystem;"
+                target="consulo.kotlin.compat.vfs.JrtFileSystemCompat" targetDesc="()Lconsulo/virtualFileSystem/VirtualFileSystem;"/>
+        <instanceof type="com.intellij.java.language.vfs.jrt.JrtFileSystem" target="consulo.kotlin.compat.vfs.JrtFileSystemCompat" targetName="isJrtFileSystem"/>
+        <method owner="consulo.language.psi.search.PsiSearchHelper" name="getCodeUsageScope" desc="(Lconsulo/language/psi/PsiElement;)Lconsulo/content/scope/SearchScope;"
+                target="consulo.kotlin.compat.psi.SearchScopeCompat"/>
+        <method owner="consulo.language.psi.stub.FileBasedIndex" name="getContainingFilesIterator"
+                desc="(Lconsulo/index/io/ID;Ljava/lang/Object;Lconsulo/language/psi/scope/GlobalSearchScope;)Ljava/util/Iterator;"
+                target="consulo.kotlin.compat.psi.IndexingCompat"/>
+        <!-- only the IntelliJ index (VirtualFileEnumeration) asks a delegating scope for its delegate -->
+        <method owner="consulo.language.psi.scope.DelegatingGlobalSearchScope" name="getDelegate" desc="()Lconsulo/language/psi/scope/GlobalSearchScope;" anyOwner="true"
+                target="consulo.kotlin.compat.psi.SearchScopeCompat"/>
         <method owner="consulo.language.psi.PsiInvalidElementAccessException" name="findOutInvalidationReason" desc="(Lconsulo/language/psi/PsiElement;)Ljava/lang/String;"
                 target="consulo.kotlin.compat.util.PlatformCompat"/>
         <method owner="consulo.language.psi.PsiManager" name="getFileManager" desc="()Lconsulo/kotlin/compat/psi/FileManagerCompat;"
@@ -643,6 +734,8 @@
                 desc="(Lconsulo/kotlin/compat/messagebus/Topic;Ljava/lang/Object;)V" target="consulo.kotlin.compat.messagebus.MessageBusCompat"/>
         <field owner="consulo.language.psi.PsiModificationTracker" name="TOPIC" desc="Lconsulo/kotlin/compat/messagebus/Topic;"
                target="consulo.kotlin.compat.messagebus.MessageBusCompat" targetName="psiModificationTopic"/>
+        <field owner="consulo.language.psi.stub.FileBasedIndexExtension" name="USE_FORWARD_INDEX_FOR_KEYS_FILTERING" desc="Z"
+               target="consulo.kotlin.compat.psi.IndexingCompat" targetName="useForwardIndexForKeysFiltering"/>
         <field owner="consulo.virtualFileSystem.VirtualFileManager" name="VFS_CHANGES" desc="Lconsulo/kotlin/compat/messagebus/Topic;"
                target="consulo.kotlin.compat.messagebus.MessageBusCompat" targetName="vfsChangesTopic"/>
         <!-- IntelliJ scope flattening; Consulo has no intersection/union scope structure -->
@@ -873,9 +966,9 @@
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
             </addAnnotation>
         </class>
-        <class name="org.jetbrains.kotlin.idea.references.ReadWriteAccessChecker">
+        <class name="org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache">
             <addAnnotation type="consulo.annotation.component.ServiceAPI">
-                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
             </addAnnotation>
         </class>
         <class name="org.jetbrains.kotlin.analysis.api.platform.KotlinPlatformSettings">
@@ -949,6 +1042,11 @@
             </addAnnotation>
         </class>
         <class name="org.jetbrains.kotlin.analysis.decompiler.psi.BuiltinsVirtualFileProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.psi.stubs.elements.StubIndexService">
             <addAnnotation type="consulo.annotation.component.ServiceAPI">
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
             </addAnnotation>
@@ -1071,6 +1169,28 @@
             </overrideMethod>
         </class>
 
+        <class name="org.jetbrains.kotlin.idea.KotlinModuleFileType">
+            <overrideMethod name="getDescription">
+                <replaceReturn type="consulo.localize.LocalizeValue"/>
+                <body>
+                    <aload index="0"/>
+                    <invokestatic owner="consulo.kotlin.compat.lang.FileTypeCompat" name="description"
+                                  desc="(Ljava/lang/Object;)Lconsulo/localize/LocalizeValue;"/>
+                    <areturn/>
+                </body>
+            </overrideMethod>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.decompiler.psi.KotlinBuiltInFileType">
+            <overrideMethod name="getDescription">
+                <replaceReturn type="consulo.localize.LocalizeValue"/>
+                <body>
+                    <aload index="0"/>
+                    <invokestatic owner="consulo.kotlin.compat.lang.FileTypeCompat" name="description"
+                                  desc="(Ljava/lang/Object;)Lconsulo/localize/LocalizeValue;"/>
+                    <areturn/>
+                </body>
+            </overrideMethod>
+        </class>
         <class name="org.jetbrains.kotlin.idea.KotlinFileType">
             <overrideMethod name="getDescription">
                 <replaceReturn type="consulo.localize.LocalizeValue"/>
@@ -1162,17 +1282,9 @@
             <binding impl="org.jetbrains.kotlin.analysis.api.fir.utils.KaFirStopWorldCacheCleaner" api="org.jetbrains.kotlin.analysis.api.fir.utils.KaFirCacheCleaner" scope="PROJECT" type="service"/>
             <binding impl="org.jetbrains.kotlin.analysis.api.fir.rendering.KaInternalsRendererProviderImpl" api="org.jetbrains.kotlin.analysis.api.internals.KaInternalsRendererProvider" scope="APPLICATION" type="service"/>
             <binding impl="org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinReadActionConfinementLifetimeTokenFactory" api="org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinLifetimeTokenFactory" scope="PROJECT" type="service"/>
-            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.ReadWriteAccessCheckerBaseImpl" api="org.jetbrains.kotlin.idea.references.ReadWriteAccessChecker" scope="PROJECT" type="service"/>
-            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseForLoopInReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
-            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseInvokeFunctionReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
-            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBasePropertyDelegationMethodsReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
-            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseDestructuringDeclarationReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
-            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseArrayAccessReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
-            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseConstructorDelegationReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
-            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseCollectionLiteralReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
-            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseKDocReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
-            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseSimpleNameReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
-            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseDefaultAnnotationArgumentReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
+            <binding impl="org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache" api="org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache" scope="APPLICATION" type="service"/>
+            <binding impl="org.jetbrains.kotlin.psi.stubs.KotlinStubRegistryExtension" api="consulo.kotlin.compat.psi.stub.StubRegistryExtension" scope="APPLICATION"/>
+            <binding impl="org.jetbrains.kotlin.psi.stubs.KotlinLanguageStubDefinition" api="consulo.kotlin.compat.psi.stub.LanguageStubDefinition" scope="APPLICATION"/>
             <!-- genservices:bindings:end -->
             <binding impl="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"
                      api="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"
@@ -1180,6 +1292,12 @@
             <binding impl="org.jetbrains.kotlin.parsing.KotlinParserDefinition"
                      api="consulo.language.parser.ParserDefinition"
                      scope="APPLICATION"/>
+            <binding impl="consulo.kotlin.compat.psi.stub.StubBridgeTypeHolder"
+                     api="consulo.language.psi.stub.StubElementTypeHolder"
+                     scope="APPLICATION"/>
+            <binding impl="consulo.kotlin.compat.psi.PsiTreeChangeDispatcher"
+                     api="consulo.project.startup.PostStartupActivity"
+                     scope="PROJECT"/>
         </provides>
         <!-- message bus topics (@TopicAPI listener interfaces): called through generated bindings, not by reflection -->
         <provides interface="consulo.component.bind.TopicBinding">

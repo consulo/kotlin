@@ -50,19 +50,28 @@ PLATFORM_APIS = [
 # Platform components the Consulo plugin implements as application services
 PLATFORM_APPLICATION_APIS = [
     'org.jetbrains.kotlin.analysis.decompiler.psi.BuiltinsVirtualFileProvider',
+    'org.jetbrains.kotlin.psi.stubs.elements.StubIndexService',
     f'{P}.permissions.KotlinAnalysisPermissionOptions',
 ]
-# Extensions the engine looks up by IntelliJ extension point: (descriptor, tag, extension interface); only these tags
-# are read from the descriptor (the standalone one also declares services that the IDE must not use)
+# Extension points of the engine (IntelliJ extension point interfaces) as Consulo extension APIs; the implementations
+# come from the plugin's upstream modules (consulo-plugin/tools/genservices.py)
+EXTENSION_APIS = [
+    'org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor',
+]
+# Extensions the engine's descriptors declare, bound to compat extension APIs (annotated in compat itself):
+# (descriptor, tag, implementation attribute, Consulo extension API)
 EXTENSIONS = [
-    ('analysis/analysis-api-standalone/analysis-api-standalone-fir/resources/META-INF/analysis-api/analysis-api-standalone-fir.xml',
-     'psiReferenceProvider', 'org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor'),
+    ('analysis/analysis-api-fir/resources/META-INF/analysis-api/analysis-api-fir.xml', 'stubElementRegistryExtension',
+     'implementation', 'consulo.kotlin.compat.psi.stub.StubRegistryExtension'),
+    ('analysis/analysis-api-fir/resources/META-INF/analysis-api/analysis-api-fir.xml', 'languageStubDefinition',
+     'implementationClass', 'consulo.kotlin.compat.psi.stub.LanguageStubDefinition'),
 ]
 # Platform components with a ready implementation in the Analysis API
 READY = [
     (f'{P}.lifetime.KotlinLifetimeTokenFactory', f'{P}.lifetime.KotlinReadActionConfinementLifetimeTokenFactory', 'PROJECT'),
-    ('org.jetbrains.kotlin.idea.references.ReadWriteAccessChecker',
-     'org.jetbrains.kotlin.analysis.api.standalone.fir.references.ReadWriteAccessCheckerBaseImpl', 'PROJECT'),
+    # the class file decompiler's cache (IntelliJ registers it in the plugin's base/psi descriptor)
+    ('org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache',
+     'org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache', 'APPLICATION'),
 ]
 
 
@@ -78,14 +87,6 @@ def services():
             api = e.get('serviceInterface') or impl
             scope = 'PROJECT' if e.tag == 'projectService' else 'APPLICATION'
             out.append((api, impl, scope))
-    return out
-
-
-def extensions():
-    out = []
-    for d, tag, api in EXTENSIONS:
-        for e in ET.parse(f'{ROOT}/{d}').getroot().iter(tag):
-            out.append((api, e.get('implementation')))
     return out
 
 
@@ -117,17 +118,18 @@ def main():
     for api, impl, scope in found:
         binds += f'''            <binding impl="{impl}" api="{api}" scope="{scope}" type="service"/>
 '''
-    exts = extensions()
-    for api in dict.fromkeys(api for api, _ in exts):
+    for d, tag, attribute, api in EXTENSIONS:
+        for e in ET.parse(f'{ROOT}/{d}').getroot().iter(tag):
+            binds += f'''            <binding impl="{e.get(attribute)}" api="{api}" scope="APPLICATION"/>
+'''
+    for api in EXTENSION_APIS:
         mods += f'''        <class name="{api}">
             <addAnnotation type="consulo.annotation.component.ExtensionAPI">
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
             </addAnnotation>
         </class>
 '''
-    for api, impl in exts:
-        binds += f'''            <binding impl="{impl}" api="{api}" scope="PROJECT"/>
-'''
+
     text = open(REMAP).read()
     text = replace_between(text, 'modifications', mods)
     text = replace_between(text, 'bindings', binds)
@@ -135,7 +137,7 @@ def main():
     topics = re.findall(r'<class name="([\w.$]+)">\s*<addAnnotation type="consulo.annotation.component.TopicAPI"', text)
     text = replace_between(text, 'topics', ''.join(f'            <binding api="{t}" type="topicBinding"/>\n' for t in topics))
     open(REMAP, 'w').write(text)
-    print(f'{len(found)} services, {len(exts)} extensions, {len(topics)} topics')
+    print(f'{len(found)} services, {len(EXTENSION_APIS)} extension APIs, {len(topics)} topics')
 
 
 main()

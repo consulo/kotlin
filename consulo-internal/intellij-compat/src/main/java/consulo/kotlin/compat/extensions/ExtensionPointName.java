@@ -18,6 +18,16 @@ public class ExtensionPointName<T> {
         return new ExtensionPointName<>(name);
     }
 
+    /** IntelliJ's ExtensionPointName is Kotlin: its callers may go through the companion. */
+    public static final class Companion {
+        private Companion() {
+        }
+
+        public static <T> ExtensionPointName<T> create(String name) {
+            return new ExtensionPointName<>(name);
+        }
+    }
+
     public String getName() {
         return myName;
     }

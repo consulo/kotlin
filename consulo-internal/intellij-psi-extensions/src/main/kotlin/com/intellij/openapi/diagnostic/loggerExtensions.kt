@@ -10,3 +10,7 @@ inline fun <reified T : Any> logger(): Logger = Logger.getInstance(T::class.java
 inline fun Logger.trace(lazyMessage: () -> String) {
     if (isTraceEnabled) trace(lazyMessage())
 }
+
+/** Matches IntelliJ's Result.getOrLogException(): the value, or null after logging the failure (control flow is rethrown). */
+fun <T> Result<T>.getOrLogException(logger: Logger): T? =
+    onFailure { e -> if (e is ControlFlowException || e is com.intellij.openapi.progress.ProcessCanceledException) throw e else logger.error(e) }.getOrNull()

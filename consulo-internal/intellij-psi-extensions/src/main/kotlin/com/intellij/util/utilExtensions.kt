@@ -8,3 +8,9 @@ fun currentJavaVersion(): com.intellij.util.lang.JavaVersion = com.intellij.util
 
 /** Matches IntelliJ's Any?.asSafely(): this cast to T, or null. */
 inline fun <reified T> Any?.asSafely(): T? = this as? T
+
+/** Matches IntelliJ's Query.filteringIsInstance(): the results that are R. */
+inline fun <reified R> Query<*>.filteringIsInstance(): Query<R> {
+    @Suppress("UNCHECKED_CAST")
+    return (this as Query<Any?>).filtering { it is R }.mapping { it as R }
+}

@@ -10,6 +10,7 @@ public class PsiFileStubImpl<T extends com.intellij.psi.PsiFile> extends com.int
   public java.lang.String getInvalidationReason() { return null; }
   public com.intellij.psi.stubs.IStubElementType getStubType() { return null; }
   public com.intellij.psi.tree.IElementType getElementType() { return null; }
+  public com.intellij.psi.tree.IElementType getFileElementType() { return null; }
   public com.intellij.psi.stubs.ObjectStubSerializer<?, ? extends com.intellij.psi.stubs.Stub> getStubSerializer() { return null; }
   public com.intellij.psi.tree.IStubFileElementType<?> getType() { return null; }
   public com.intellij.psi.stubs.PsiFileStub<?>[] getStubRoots() { return null; }

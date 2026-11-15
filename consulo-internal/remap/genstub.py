@@ -107,12 +107,14 @@ def forward(ij):
 def inverse(consulo):
     """Consulo class name (with $ for nested) -> IntelliJ class name (with $)."""
     outer, _, nested = consulo.partition('$')
-    if outer in INVERSE_CLASSES:
-        ij = INVERSE_CLASSES[outer]
-    else:
-        pkg, _, name = outer.rpartition('.')
-        best = max((p for p in INVERSE_PACKAGES if pkg == p or pkg.startswith(p + '.')), key=len, default=None)
-        ij = (INVERSE_PACKAGES[best] + pkg[len(best):] + '.' + name) if best else outer
+    pkg, _, name = outer.rpartition('.')
+    best = max((p for p in INVERSE_PACKAGES if pkg == p or pkg.startswith(p + '.')), key=len, default=None)
+    by_package = (INVERSE_PACKAGES[best] + pkg[len(best):] + '.' + name) if best else outer
+    ij = INVERSE_CLASSES.get(outer, by_package)
+    # a class rule that aliases another IntelliJ class onto this one (PsiManagerEx -> PsiManager) must not rename the
+    # class whose own stub follows the package rule
+    if ij != by_package and stub_exists(by_package) and _pure_forward(by_package) == outer:
+        ij = by_package
     return ij + ('$' + nested if nested else '')
 
 
@@ -143,7 +145,8 @@ def translate(text):
         if name.startswith(JDK) or '.' not in name:
             return name.replace('$', '.')
         ij = inverse(name)
-        if not stub_exists(ij) and ij.split('$')[0] not in generated:
+        # a JDK type (e.g. javax.swing.Icon, the inverse of Image) gets no stub: it would shadow the real class
+        if not stub_exists(ij) and ij.split('$')[0] not in generated and not ij.startswith(JDK):
             pending_shallow.add(name.split('$')[0])
         if '$' in name:
             pending_nested.add(name)
@@ -362,7 +365,8 @@ def class_source(consulo, ij, shallow, indent=''):
             out.append(indent + src)
     elif kind == 'enum':
         out.append(f'{indent}    ;')
-    if kind == 'class' and not any(k[0] == 'ctor' and k[1] == () for k in keys):
+    # a single varargs parameter takes no arguments too: VirtualFileVisitor(Option...)
+    if kind == 'class' and not any(k[0] == 'ctor' and (k[1] == () or len(k[1]) == 1 and k[1][0].endswith('...')) for k in keys):
         out.append(f'{indent}    protected {simple}() {{ }}')
     out.append(f'{indent}}}')
     return '\n'.join(out), keys
@@ -704,6 +708,10 @@ def implement_abstract():
         add = []
         for k, (ret, params, has_body, _) in all_methods(t).items():
             if has_body or k in info['methods']:
+                continue
+            # a parameter typed by a type variable of a generic supertype (save(DataOutput, T)): the class implements it
+            # with the type argument, which is not substituted here
+            if any(re.fullmatch(r'[A-Z]\w{0,2}(\[\])*', p.strip().rsplit(' ', 1)[0]) for p in split_params(params) if p.strip()):
                 continue
             ret = re.sub(r'^(public|protected|default|abstract|static)\s+', '', ret.strip())
             dv = default_value(ret.split()[-1] if ret.strip() else 'void')

@@ -1,5 +1,6 @@
 package consulo.kotlin.compat.psi;
 
+import consulo.kotlin.compat.psi.stub.StubChildren;
 import consulo.language.ast.ASTNode;
 import consulo.language.ast.IElementType;
 import consulo.language.ast.TokenSet;
@@ -109,11 +110,6 @@ public class CompatStubBasedPsiElementBase<T extends StubElement> extends StubBa
 
     /** IntelliJ's {@code StubElement.findChildStubByElementType}; Consulo only matches {@link IStubElementType}. */
     public static StubElement findChildStubByElementType(StubElement<?> stub, IElementType elementType) {
-        for (StubElement child : stub.getChildrenStubs()) {
-            if (child.getStubType() == elementType) {
-                return child;
-            }
-        }
-        return null;
+        return StubChildren.findChild(stub, elementType);
     }
 }

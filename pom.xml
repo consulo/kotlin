@@ -358,7 +358,8 @@
         <!-- the compiler CLI is not needed in the IDE: <module>compiler/build-tools/kotlin-build-tools-api-backports</module> -->
         <!-- the compiler CLI is not needed in the IDE: <module>compiler/build-tools/kotlin-build-tools-api</module> -->
         <!-- the compiler CLI is not needed in the IDE: <module>compiler/build-tools/kotlin-build-statistics</module> -->
-        <!-- the compiler CLI is not needed in the IDE: <module>build-common</module> -->
+        <!-- data externalizers only (the IDE indexes); the incremental compilation runs in the build tool -->
+        <module>build-common</module>
         <!-- script sessions need the JVM CLI (java-direct needs IntelliJ java syntax): <module>compiler/java-direct</module> -->
         <!-- script sessions need the JVM CLI (java-direct needs IntelliJ java syntax): <module>compiler/cli/cli-jvm</module> -->
         <module>core/reflection.common.jvm</module>
@@ -381,6 +382,8 @@
         <module>analysis/analysis-api-fir-diagnostics</module>
         <module>analysis/symbol-light-classes</module>
         <module>analysis/analysis-api-fir</module>
-        <module>analysis/analysis-api-standalone/analysis-api-standalone-fir</module>
+        <!-- class file decompiler: stubs of library classes for the IDE indexes -->
+        <module>analysis/decompiled/decompiler</module>
+        <!-- next with light classes (SymbolKotlinAsJavaSupport): <module>analysis/decompiled/light-classes-for-decompiled</module> -->
     </modules>
 </project>

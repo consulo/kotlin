@@ -6,7 +6,8 @@ public class CommonProcessors {
         private final java.util.Collection<T> result;
         public CollectProcessor() { this.result = new java.util.ArrayList<T>(); }
         public CollectProcessor(java.util.Collection<T> result) { this.result = result; }
-        public boolean process(T t) { result.add(t); return true; }
+        public boolean process(T t) { if (accept(t)) result.add(t); return true; }
+        protected boolean accept(T t) { return true; }
         public java.util.Collection<T> getResults() { return result; }
         public T[] toArray(T[] array) { return result.toArray(array); }
     }

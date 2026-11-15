@@ -53,3 +53,7 @@ fun PsiElement.descendants(childrenFirst: Boolean): Sequence<PsiElement> = seque
     }
     if (childrenFirst) yield(this@descendants)
 }
+
+/** Matches IntelliJ's PsiElement.parents property: the parents of this element, including itself. */
+val PsiElement.parents: Sequence<PsiElement>
+    get() = parents(withSelf = true)
