@@ -3,5 +3,6 @@ package com.intellij.openapi.fileTypes;
 public abstract class FileTypeRegistry {
     public static FileTypeRegistry getInstance() { return null; }
     public abstract FileType getFileTypeByFileName(String fileName);
+    public abstract FileType getFileTypeByFile(com.intellij.openapi.vfs.VirtualFile file);
     public abstract boolean isFileOfType(com.intellij.openapi.vfs.VirtualFile file, FileType type);
 }

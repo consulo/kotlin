@@ -5,6 +5,7 @@ public interface PsiPackage extends com.intellij.psi.PsiElement, com.intellij.ps
     PsiPackage[] EMPTY_ARRAY = new PsiPackage[0];
     String PACKAGE_INFO_CLASS = "package-info";
     String PACKAGE_INFO_FILE = "package-info.java";
+    String PACKAGE_INFO_CLS_FILE = "package-info.class";
     default String getQualifiedName() { return null; }
     default com.intellij.psi.PsiPackage getParentPackage() { return null; }
     default com.intellij.psi.PsiPackage[] getSubPackages() { return new com.intellij.psi.PsiPackage[0]; }

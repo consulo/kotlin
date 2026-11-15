@@ -9,6 +9,8 @@
         <rule from="com.intellij.psi.impl.source.tree" to="consulo.language.impl.ast"/>
         <rule from="com.intellij.psi.impl.java.stubs" to="com.intellij.java.language.impl.psi.impl.java.stubs"/>
         <rule from="com.intellij.lang.jvm" to="com.intellij.java.language.jvm"/>
+        <rule from="com.intellij.psi.impl.compiled" to="com.intellij.java.language.impl.psi.impl.compiled"/>
+        <rule from="com.intellij.psi.impl.cache" to="com.intellij.java.language.impl.psi.impl.cache"/>
         <rule from="com.intellij.psi.impl" to="consulo.language.impl.psi"/>
         <rule from="com.intellij.psi.scope" to="consulo.language.psi.scope"/>
         <rule from="com.intellij.psi.codeStyle" to="consulo.language.codeStyle"/>
@@ -47,8 +49,15 @@
         <rule from="com.intellij.util.io" to="consulo.index.io"/>
         <rule from="com.intellij.util.containers" to="consulo.util.collection"/>
         <rule from="com.intellij.util.ArrayUtil" to="consulo.util.collection.ArrayUtil"/>
+        <rule from="com.intellij.openapi.util.Disposer" to="consulo.disposer.Disposer"/>
+        <rule from="com.intellij.util.SmartFMap" to="consulo.util.collection.SmartFMap"/>
+        <rule from="com.intellij.util.concurrency.AppExecutorUtil" to="consulo.application.util.concurrent.AppExecutorUtil"/>
+        <rule from="com.intellij.openapi.roots.ProjectRootModificationTracker" to="consulo.project.content.ProjectRootModificationTracker"/>
+        <rule from="com.intellij.openapi.application.ApplicationListener" to="consulo.application.event.ApplicationListener"/>
+        <rule from="com.intellij.psi.PsiPackageStatement" to="com.intellij.java.language.psi.PsiPackageStatement"/>
         <rule from="com.intellij.util.text.VersionComparatorUtil" to="consulo.util.lang.VersionComparatorUtil"/>
         <rule from="com.intellij.openapi.vfs.VfsUtilCore" to="consulo.virtualFileSystem.util.VirtualFileUtil"/>
+        <rule from="com.intellij.injected.editor.VirtualFileWindow" to="consulo.language.file.inject.VirtualFileWindow"/>
         <rule from="com.intellij.util.lang.JavaVersion" to="consulo.platform.JavaVersion"/>
         <rule from="com.intellij.util.xmlb.annotations.Transient" to="consulo.util.xml.serializer.annotation.Transient"/>
         <rule from="com.intellij.openapi.util.Condition" to="consulo.util.lang.function.Condition"/>
@@ -358,6 +367,7 @@
 
     <!-- Method renames (applied after class remapping) -->
     <methods>
+        <rule owner="consulo.component.ComponentManager" name="getServiceIfCreated" newName="getInstanceIfCreated"/>
         <rule owner="consulo.application.util.NotNullLazyValue" name="lazy" newName="createValue"/>
 
         <!-- IntelliJ PsiBuilderImpl.isWhitespaceOrComment(IElementType) is PsiBuilder.isWhitespaceOrCommentType in Consulo -->

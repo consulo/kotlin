@@ -44,6 +44,12 @@
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.intellij-psi-extensions</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.compiler.psi.api</artifactId>
             <version>${project.version}</version>
         </dependency>

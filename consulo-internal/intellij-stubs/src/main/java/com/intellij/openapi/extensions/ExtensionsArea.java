@@ -3,4 +3,5 @@ package com.intellij.openapi.extensions;
 public interface ExtensionsArea {
     boolean hasExtensionPoint(String p0);
     <T> ExtensionPoint<T> getExtensionPoint(ExtensionPointName<T> p0);
+    <T> ExtensionPoint<T> getExtensionPoint(String extensionPointName);
 }

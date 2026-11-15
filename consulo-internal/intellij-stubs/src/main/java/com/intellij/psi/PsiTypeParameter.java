@@ -2,6 +2,7 @@ package com.intellij.psi;
 
 @SuppressWarnings("all")
 public interface PsiTypeParameter extends com.intellij.psi.PsiClass, com.intellij.psi.PsiAnnotationOwner {
+    default boolean hasAnnotation(String fqn) { return false; }
     PsiTypeParameter[] EMPTY_ARRAY = new PsiTypeParameter[0];
     String getName();
     int getIndex();

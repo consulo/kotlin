@@ -31,6 +31,12 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-script-runtime</artifactId>
+            <version>${kotlin.compiler.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.core.descriptors</artifactId>
             <version>${project.version}</version>
@@ -51,12 +57,6 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.compiler.plugin-api</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>consulo.kotlin.compiler.cli</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>

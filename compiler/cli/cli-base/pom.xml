@@ -33,6 +33,7 @@
                                 <resource>
                                     <directory>src</directory>
                                     <includes>
+                                        <include>org/jetbrains/kotlin/utils/parametersMap.kt</include>
                                         <include>org/jetbrains/kotlin/cli/CliDiagnosticReporting.kt</include>
                                         <include>org/jetbrains/kotlin/cli/CliDiagnostics.kt</include>
                                         <include>org/jetbrains/kotlin/cli/CompilerConfigurationCreation.kt</include>

@@ -14,3 +14,6 @@ inline fun <reified T : Any> service(): T = ApplicationManager.getApplication().
 
 /** Matches IntelliJ's top-level serviceOrNull(): an application service, or null. */
 inline fun <reified T : Any> serviceOrNull(): T? = ApplicationManager.getApplication().serviceOrNull()
+
+/** Matches IntelliJ's ComponentManager.serviceIfCreated(): the service if it has been created already. */
+inline fun <reified T : Any> ComponentManager.serviceIfCreated(): T? = getServiceIfCreated(T::class.java)

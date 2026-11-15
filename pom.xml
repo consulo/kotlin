@@ -366,17 +366,17 @@
         <module>libraries/scripting/jvm</module>
         <module>js/js.parser</module>
         <module>compiler/ir/serialization.js</module>
-        <!-- the compiler CLI is not needed in the IDE: <module>plugins/scripting/scripting-compiler-impl</module> -->
+        <module>plugins/scripting/scripting-compiler-impl</module>
         <module>plugins/power-assert/power-assert-compiler/power-assert.common</module>
         <module>plugins/power-assert/power-assert-compiler/power-assert.backend</module>
         <module>plugins/power-assert/power-assert-compiler/power-assert.frontend</module>
         <module>plugins/power-assert/power-assert-compiler/power-assert.cli</module>
         <module>plugins/power-assert/power-assert-compiler</module>
-        <!-- script sessions need the JVM CLI (java-direct needs IntelliJ java syntax): <module>plugins/scripting/scripting-compiler</module> -->
+        <module>plugins/scripting/scripting-compiler</module>
         <module>plugins/assign-plugin/assign-plugin.common</module>
         <module>plugins/assign-plugin/assign-plugin.k2</module>
-        <!-- the compiler CLI is not needed in the IDE: <module>plugins/assign-plugin/assign-plugin.cli</module> -->
-        <!-- script sessions need the JVM CLI (java-direct needs IntelliJ java syntax): <module>analysis/low-level-api-fir</module> -->
+        <module>plugins/assign-plugin/assign-plugin.cli</module>
+        <module>analysis/low-level-api-fir</module>
         <module>analysis/light-classes-base</module>
         <module>analysis/analysis-api-fir-diagnostics</module>
         <!-- needs the Java PSI light-class API: <module>analysis/symbol-light-classes</module> -->

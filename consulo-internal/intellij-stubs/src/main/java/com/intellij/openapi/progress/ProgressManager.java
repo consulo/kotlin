@@ -2,6 +2,7 @@ package com.intellij.openapi.progress;
 
 @SuppressWarnings("all")
 public abstract class ProgressManager {
+    public void executeNonCancelableSection(Runnable runnable) {}
     public static ProgressManager getInstance() { return null; }
     public abstract void doCheckCanceled();
     public static void checkCanceled() {}

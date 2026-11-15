@@ -15,17 +15,86 @@
     <artifactId>consulo.kotlin.plugins.scripting.compiler</artifactId>
 
     <build>
-        <sourceDirectory>src</sourceDirectory>
         <resources>
             <resource>
                 <directory>resources</directory>
             </resource>
         </resources>
         <plugins>
+            <!-- IDE script sessions only: FIR script services and definitions; the JVM script compiler needs the compiler CLI (subset by consulo-internal/remap/subset.py) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>filter-src</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/filtered-sources/src</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>src</directory>
+                                    <includes>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/FirScriptingSamWithReceiverExtensionRegistrar.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/definitions/CliScriptConfigurationsProvider.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/definitions/CliScriptDefinitionProvider.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/definitions/CliScriptReportSink.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/definitions/ScriptCompilationConfigurationProvider.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/definitions/ScriptCompilationConfigurationProviderImpl.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/definitions/ScriptRefinedCompilationConfigurationCache.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/definitions/ScriptRefinedCompilationConfigurationCacheImpl.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/fir/FirScriptCompilationComponent.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/fir/firScriptUtil.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/impl/SnippetArtifactMetadata.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/impl/SnippetArtifactMetadataBuilder.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/impl/SnippetArtifactMetadataFromClassFile.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/impl/errorReporting.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/impl/k2RefinementUtil.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/impl/k2ScriptAnnotationResolution.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/irLowerings/JvmSymbolsForScripting.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/irLowerings/ReplSnippetLowering.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/irLowerings/ScriptConfigurationAttributes.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/irLowerings/ScriptLowering.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/irLowerings/scriptingLoweringVisitors.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/replSnippetConfigurationTransport.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/services/ClasspathBackedFirReplHistoryProvider.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/services/Fir2IrReplSnippetConfiguratorExtensionImpl.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/services/Fir2IrScriptConfiguratorExtensionImpl.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/services/FirReplSnippetResolveExtensionImpl.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/services/FirScriptConfigurationExtensionImpl.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/services/FirScriptDefinitionProviderService.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/services/FirScriptResolutionConfigurationExtensionImpl.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/services/ScriptConfigurationUtils.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/compiler/plugin/services/StatelessReplSnippetSupport.kt</include>
+                                        <include>org/jetbrains/kotlin/scripting/resolve/refineCompilationConfiguration.kt</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <compileSourceRoots>
+                        <compileSourceRoot>${project.build.directory}/filtered-sources/src</compileSourceRoot>
+                    </compileSourceRoots>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>
                 <configuration>
+                    <sourceDirs>
+                        <sourceDir>${project.build.directory}/filtered-sources/src</sourceDir>
+                        <sourceDir>${project.basedir}/gen</sourceDir>
+                        <sourceDir>${project.basedir}/../../../consulo-internal/upstream-subset/scripting-compiler/src</sourceDir>
+                    </sourceDirs>
                     <args combine.children="append">
                         <arg>-opt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi</arg>
                         <arg>-opt-in=org.jetbrains.kotlin.ir.symbols.UnsafeDuringIrConstructionAPI</arg>
@@ -37,6 +106,52 @@
     </build>
 
     <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.fir.entrypoint</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.fir.raw-fir.psi2fir</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.fir.raw-fir.light-tree2fir</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.fir.jvm</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.fir.resolve</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.frontend.common.jvm</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.fir.checkers.jvm</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.compiler.cli.base</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-script-runtime</artifactId>
+            <version>${kotlin.compiler.version}</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.compiler.psi.api</artifactId>
@@ -58,18 +173,6 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.compiler.fir.fir2ir.jvm-backend</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>consulo.kotlin.compiler.cli</artifactId>
-            <version>${project.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>consulo.kotlin.compiler.cli.jvm</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>
