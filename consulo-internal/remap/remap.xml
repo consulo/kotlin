@@ -873,6 +873,11 @@
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
             </addAnnotation>
         </class>
+        <class name="org.jetbrains.kotlin.idea.references.ReadWriteAccessChecker">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
         <class name="org.jetbrains.kotlin.analysis.api.platform.KotlinPlatformSettings">
             <addAnnotation type="consulo.annotation.component.ServiceAPI">
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
@@ -946,6 +951,16 @@
         <class name="org.jetbrains.kotlin.analysis.decompiler.psi.BuiltinsVirtualFileProvider">
             <addAnnotation type="consulo.annotation.component.ServiceAPI">
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.permissions.KotlinAnalysisPermissionOptions">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor">
+            <addAnnotation type="consulo.annotation.component.ExtensionAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
             </addAnnotation>
         </class>
         <!-- genservices:modifications:end -->
@@ -1147,6 +1162,17 @@
             <binding impl="org.jetbrains.kotlin.analysis.api.fir.utils.KaFirStopWorldCacheCleaner" api="org.jetbrains.kotlin.analysis.api.fir.utils.KaFirCacheCleaner" scope="PROJECT" type="service"/>
             <binding impl="org.jetbrains.kotlin.analysis.api.fir.rendering.KaInternalsRendererProviderImpl" api="org.jetbrains.kotlin.analysis.api.internals.KaInternalsRendererProvider" scope="APPLICATION" type="service"/>
             <binding impl="org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinReadActionConfinementLifetimeTokenFactory" api="org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinLifetimeTokenFactory" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.ReadWriteAccessCheckerBaseImpl" api="org.jetbrains.kotlin.idea.references.ReadWriteAccessChecker" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseForLoopInReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseInvokeFunctionReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBasePropertyDelegationMethodsReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseDestructuringDeclarationReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseArrayAccessReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseConstructorDelegationReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseCollectionLiteralReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseKDocReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseSimpleNameReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.standalone.fir.references.KaBaseDefaultAnnotationArgumentReference$Provider" api="org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor" scope="PROJECT"/>
             <!-- genservices:bindings:end -->
             <binding impl="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"
                      api="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"

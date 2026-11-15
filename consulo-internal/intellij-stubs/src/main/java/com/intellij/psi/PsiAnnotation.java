@@ -3,6 +3,7 @@ package com.intellij.psi;
 @SuppressWarnings("all")
 public interface PsiAnnotation extends com.intellij.psi.PsiElement, com.intellij.psi.PsiAnnotationMemberValue, com.intellij.lang.jvm.JvmAnnotation {
     PsiAnnotation[] EMPTY_ARRAY = new PsiAnnotation[0];
+    String DEFAULT_REFERENCED_METHOD_NAME = "value";
     String getQualifiedName();
     com.intellij.psi.PsiJavaCodeReferenceElement getNameReferenceElement();
     com.intellij.psi.PsiAnnotationParameterList getParameterList();

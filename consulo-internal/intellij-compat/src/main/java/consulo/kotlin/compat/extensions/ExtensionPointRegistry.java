@@ -17,10 +17,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public final class ExtensionPointRegistry {
     private static final Map<String, Class<?>> ourApis = new ConcurrentHashMap<>();
+    /** Extension APIs of the remapped compiler, by class name (not visible to this module at compile time). */
+    private static final Map<String, String> ourApiNames = new ConcurrentHashMap<>();
     private static final Map<String, List<Object>> ourRegistered = new ConcurrentHashMap<>();
 
     static {
         register("com.intellij.java.elementFinder", com.intellij.java.language.psi.PsiElementFinder.class);
+        // @ExtensionAPI and bindings come from remap.xml (genservices.py)
+        ourApiNames.put("org.jetbrains.kotlin.psiReferenceProvider", "org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor");
     }
 
     private ExtensionPointRegistry() {
@@ -33,7 +37,7 @@ public final class ExtensionPointRegistry {
     @SuppressWarnings("unchecked")
     static <T> List<T> getExtensions(String name, ComponentManager area) {
         List<T> result = new ArrayList<>();
-        Class<?> api = ourApis.get(name);
+        Class<?> api = ourApis.computeIfAbsent(name, ExtensionPointRegistry::loadApi);
         if (api != null && area != null) {
             result.addAll((List<T>) area.getExtensionList(api));
         }
@@ -42,6 +46,19 @@ public final class ExtensionPointRegistry {
             result.addAll((List<T>) registered);
         }
         return result;
+    }
+
+    private static Class<?> loadApi(String name) {
+        String className = ourApiNames.get(name);
+        if (className == null) {
+            return null;
+        }
+        try {
+            return Class.forName(className, false, ExtensionPointRegistry.class.getClassLoader());
+        }
+        catch (ClassNotFoundException e) {
+            return null;
+        }
     }
 
     static void registerExtension(String name, Object extension, Disposable parentDisposable) {

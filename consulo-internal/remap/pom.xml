@@ -263,6 +263,12 @@
             <artifactId>consulo.kotlin.analysis.api-fir</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- PSI references of Kotlin code, resolved through the Analysis API -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.analysis.api-standalone-fir</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

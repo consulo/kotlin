@@ -381,5 +381,6 @@
         <module>analysis/analysis-api-fir-diagnostics</module>
         <module>analysis/symbol-light-classes</module>
         <module>analysis/analysis-api-fir</module>
+        <module>analysis/analysis-api-standalone/analysis-api-standalone-fir</module>
     </modules>
 </project>
