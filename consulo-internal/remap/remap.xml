@@ -322,6 +322,10 @@
         <rule from="com.intellij.openapi.editor.Editor" to="consulo.codeEditor.Editor"/>
         <rule from="com.intellij.openapi.editor.highlighter.HighlighterIterator" to="consulo.codeEditor.HighlighterIterator"/>
         <rule from="com.intellij.codeInsight.editorActions.QuoteHandler" to="consulo.language.editor.action.QuoteHandler"/>
+        <!-- Folding -->
+        <rule from="com.intellij.lang.folding.CustomFoldingBuilder" to="consulo.language.editor.folding.CustomFoldingBuilder"/>
+        <rule from="com.intellij.lang.folding.FoldingDescriptor" to="consulo.language.editor.folding.FoldingDescriptor"/>
+        <rule from="com.intellij.codeInsight.folding.CodeFoldingSettings" to="consulo.language.editor.folding.CodeFoldingSettings"/>
         <!-- The compiler's few classes in org.jetbrains.kotlin.idea move to a package of their own: the plugin owns
              org.jetbrains.kotlin.idea, and two modules can't share a package (modcheck.py reports split packages) -->
         <rule from="org.jetbrains.kotlin.idea.KotlinFileType" to="consulo.kotlin.compiler.idea.KotlinFileType"/>
