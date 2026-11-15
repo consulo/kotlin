@@ -44,6 +44,15 @@ public class CompatStubBasedPsiElementBase<T extends StubElement> extends StubBa
         return myCompatElementType;
     }
 
+    /**
+     * Consulo's callers (e.g. smart pointer anchors) want the stub element type: the adapter of the plain Kotlin element
+     * type (see StubBridge), as Consulo's base only accepts an IStubElementType.
+     */
+    @Override
+    public IStubElementType getElementType() {
+        return consulo.kotlin.compat.psi.stub.StubBridge.getInstance().getStubElementType(myCompatElementType);
+    }
+
     /** IntelliJ {@code StubBasedPsiElement.getIElementType()}. */
     public IElementType getIElementType() {
         return myCompatElementType;
