@@ -305,6 +305,13 @@
         <rule from="com.intellij.openapi.fileTypes.SyntaxHighlighterFactory" to="consulo.language.editor.highlight.SyntaxHighlighterFactory"/>
         <rule from="com.intellij.openapi.fileTypes.SingleLazyInstanceSyntaxHighlighterFactory" to="consulo.language.editor.highlight.SingleLazyInstanceSyntaxHighlighterFactory"/>
         <rule from="com.intellij.openapi.fileTypes.SyntaxHighlighterProvider" to="consulo.language.editor.highlight.SyntaxHighlighterProvider"/>
+        <!-- intellij-psi-extensions file facades: keep them out of Consulo's packages (no split packages) -->
+        <rule from="com.intellij.util.containers.CollectionExtensionsKt" to="consulo.kotlin.compat.ext.CollectionExtensionsKt"/>
+        <rule from="com.intellij.openapi.components.ServicesKt" to="consulo.kotlin.compat.ext.ServicesKt"/>
+        <rule from="com.intellij.openapi.diagnostic.LoggerExtensionsKt" to="consulo.kotlin.compat.ext.LoggerExtensionsKt"/>
+        <rule from="com.intellij.psi.util.PsiChildrenUtilKt" to="consulo.kotlin.compat.ext.PsiChildrenUtilKt"/>
+        <rule from="com.intellij.psi.util.PsiTreeUtilExtensionsKt" to="consulo.kotlin.compat.ext.PsiTreeUtilExtensionsKt"/>
+        <rule from="com.intellij.psi.util.JavaPsiExtensionsKt" to="consulo.kotlin.compat.ext.JavaPsiExtensionsKt"/>
     </classes>
 
     <!-- Method renames (applied after class remapping) -->
@@ -380,6 +387,13 @@
 
     <!-- Class modifications -->
     <modifications>
+        <!-- registered as applicationService in IntelliJ's plugin.xml; the plugin provides the @ServiceImpl -->
+        <class name="org.jetbrains.kotlin.idea.KotlinIconProviderService">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
+
         <class name="org.jetbrains.kotlin.parsing.KotlinCommonParserDefinition">
             <overrideMethod name="createLexer">
                 <replaceParam index="0" type="consulo.language.version.LanguageVersion"/>
@@ -444,14 +458,15 @@
         </class>
     </modifications>
 
-    <module name="consulo.kotlin.remapped">
+    <!-- library for the Kotlin plugin: export every package -->
+    <module name="consulo.kotlin.remapped" exportAll="true">
         <requires>consulo.language.api</requires>
         <requires>consulo.language.impl</requires>
         <requires>consulo.component.api</requires>
         <requires>consulo.project.api</requires>
         <requires>consulo.application.api</requires>
         <requires>consulo.document.api</requires>
-        <requires>consulo.virtualFileSystem.api</requires>
+        <requires>consulo.virtual.file.system.api</requires>
         <requires>consulo.util.dataholder</requires>
         <requires>consulo.util.lang</requires>
         <requires>consulo.navigation.api</requires>
@@ -460,6 +475,15 @@
         <requires>consulo.java.language.api</requires>
         <requires>consulo.java.language.impl</requires>
         <requires>consulo.kotlin.core.helper</requires>
+        <requires>consulo.annotation</requires>
+        <!-- libraries shipped in the plugin's lib (guava comes with the platform) -->
+        <requires>kotlin.stdlib</requires>
+        <requires>kotlinx.collections.immutable</requires>
+        <requires>io.vavr</requires>
+        <requires>javax.inject</requires>
+        <requires>asm.all</requires>
+        <requires>syntax.api.jvm</requires>
+        <requires>com.google.common</requires>
 
         <exports>org/jetbrains/kotlin/psi</exports>
         <exports>org/jetbrains/kotlin/parsing</exports>

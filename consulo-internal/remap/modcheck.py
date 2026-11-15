@@ -82,6 +82,13 @@ def main():
             elif mod not in readable and mod != me['name']:
                 missing.setdefault(mod, []).append(p)
         print(f'== {me["name"]} ({os.path.basename(jar)})')
+        for d in sorted(declared - set(modules) - {'java.base'}):
+            if not d.startswith(('java.', 'jdk.', 'consulo.kotlin')):
+                print(f'  requires unknown module {d}')
+        for p in sorted(own):
+            other = by_package.get(p)
+            if other and other != me['name']:
+                print(f'  split package {p.replace("/", ".")} (also in {other})')
         for mod, pkgs in sorted(missing.items()):
             print(f'  missing requires {mod}   e.g. {pkgs[0].replace("/", ".")}')
         if unexported:
