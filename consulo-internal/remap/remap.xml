@@ -107,7 +107,8 @@
 
         <!-- com.intellij.lang.impl split -->
         <rule from="com.intellij.lang.impl.PsiBuilderAdapter" to="consulo.language.parser.PsiBuilderAdapter"/>
-        <rule from="com.intellij.lang.impl.PsiBuilderImpl" to="consulo.language.impl.internal.parser.PsiBuilderImpl"/>
+        <!-- Kotlin only needs isWhitespaceOrComment/getErrorMessage; Consulo's impl is in a non-exported package -->
+        <rule from="com.intellij.lang.impl.PsiBuilderImpl" to="consulo.language.parser.PsiBuilder" type="interface"/>
 
         <!-- Classes that became interfaces in Consulo -->
         <rule from="com.intellij.openapi.diagnostic.Logger" to="consulo.logging.Logger" type="interface"/>
@@ -318,8 +319,8 @@
     <methods>
         <rule owner="consulo.application.util.NotNullLazyValue" name="lazy" newName="createValue"/>
 
-        <!-- Consulo names IntelliJ's PsiBuilderImpl.isWhitespaceOrComment(IElementType) whitespaceOrComment -->
-        <rule owner="consulo.language.impl.internal.parser.PsiBuilderImpl" name="isWhitespaceOrComment" newName="whitespaceOrComment"/>
+        <!-- IntelliJ PsiBuilderImpl.isWhitespaceOrComment(IElementType) is PsiBuilder.isWhitespaceOrCommentType in Consulo -->
+        <rule owner="consulo.language.parser.PsiBuilder" name="isWhitespaceOrComment" newName="isWhitespaceOrCommentType"/>
         <!-- FileType#getName call sites: Consulo calls it getId -->
         <rule owner="consulo.virtualFileSystem.fileType.FileType" name="getName" newName="getId"/>
 
@@ -351,7 +352,7 @@
                 target="consulo.kotlin.compat.psi.PsiCompat"/>
         <method owner="consulo.language.psi.SmartPsiElementPointer" name="getElement" desc="()Ljava/lang/Object;"
                 target="consulo.kotlin.compat.psi.PsiCompat"/>
-        <method owner="consulo.language.impl.internal.parser.PsiBuilderImpl" name="getErrorMessage" desc="(Lconsulo/language/ast/LighterASTNode;)Ljava/lang/String;"
+        <method owner="consulo.language.parser.PsiBuilder" name="getErrorMessage" desc="(Lconsulo/language/ast/LighterASTNode;)Ljava/lang/String;"
                 target="consulo.kotlin.compat.psi.PsiCompat"/>
         <method owner="com.intellij.java.language.impl.psi.impl.compiled.ClsFieldImpl" name="getStub" desc="()Lcom/intellij/java/language/impl/psi/impl/java/stubs/PsiFieldStub;"
                 target="consulo.kotlin.compat.java.JavaPsiCompat"/>
@@ -383,10 +384,19 @@
         <new owner="consulo.logging.attachment.Attachment" target="consulo.kotlin.compat.util.CompatAttachment"/>
         <method owner="consulo.language.editor.highlight.SyntaxHighlighterBase" name="merge" desc="(Ljava/util/Map;Ljava/util/Map;)Ljava/util/Map;"
                 target="consulo.kotlin.compat.editor.HighlighterCompat"/>
+        <!-- IntelliJ getService returns null for unregistered services (also through Project/Application) -->
+        <method owner="consulo.component.ComponentManager" name="getService" desc="(Ljava/lang/Class;)Ljava/lang/Object;" anyOwner="true"
+                target="consulo.kotlin.compat.util.ServiceCompat"/>
     </redirects>
 
     <!-- Class modifications -->
     <modifications>
+        <!-- projectService in IntelliJ's plugin.xml; the plugin provides the @ServiceImpl -->
+        <class name="org.jetbrains.kotlin.psi.KtFileClassProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
         <!-- registered as applicationService in IntelliJ's plugin.xml; the plugin provides the @ServiceImpl -->
         <class name="org.jetbrains.kotlin.idea.KotlinIconProviderService">
             <addAnnotation type="consulo.annotation.component.ServiceAPI">
