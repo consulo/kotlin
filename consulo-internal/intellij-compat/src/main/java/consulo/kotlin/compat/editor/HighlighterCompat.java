@@ -1,5 +1,6 @@
 package consulo.kotlin.compat.editor;
 
+import consulo.codeEditor.HighlighterIterator;
 import consulo.colorScheme.TextAttributesKey;
 import consulo.language.ast.IElementType;
 
@@ -37,5 +38,10 @@ public final class HighlighterCompat {
             result.put(type, keys);
         }
         return result;
+    }
+
+    /** IntelliJ {@code HighlighterIterator.getTokenType()} is typed; Consulo's returns {@code Object}. */
+    public static IElementType getTokenType(HighlighterIterator iterator) {
+        return (IElementType) iterator.getTokenType();
     }
 }

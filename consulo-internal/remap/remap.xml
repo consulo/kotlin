@@ -318,6 +318,10 @@
         <!-- Commenter / brace matching -->
         <rule from="com.intellij.codeInsight.highlighting.PairedBraceAndAnglesMatcher" to="consulo.kotlin.compat.editor.CompatPairedBraceAndAnglesMatcher"/>
         <rule from="com.intellij.codeInsight.hint.DeclarationRangeUtil" to="consulo.language.editor.hint.DeclarationRangeUtil"/>
+        <!-- Editor actions -->
+        <rule from="com.intellij.openapi.editor.Editor" to="consulo.codeEditor.Editor"/>
+        <rule from="com.intellij.openapi.editor.highlighter.HighlighterIterator" to="consulo.codeEditor.HighlighterIterator"/>
+        <rule from="com.intellij.codeInsight.editorActions.QuoteHandler" to="consulo.language.editor.action.QuoteHandler"/>
         <!-- The compiler's few classes in org.jetbrains.kotlin.idea move to a package of their own: the plugin owns
              org.jetbrains.kotlin.idea, and two modules can't share a package (modcheck.py reports split packages) -->
         <rule from="org.jetbrains.kotlin.idea.KotlinFileType" to="consulo.kotlin.compiler.idea.KotlinFileType"/>
@@ -347,6 +351,9 @@
     <!-- Calls whose target is missing in Consulo, rewritten to static helpers in consulo-internal/intellij-compat.
          owner/name/desc are the remapped ones. -->
     <redirects>
+        <!-- Consulo's HighlighterIterator.getTokenType() returns Object -->
+        <method owner="consulo.codeEditor.HighlighterIterator" name="getTokenType" desc="()Lconsulo/language/ast/IElementType;"
+                target="consulo.kotlin.compat.editor.HighlighterCompat"/>
         <method owner="consulo.language.psi.stub.StubElement" name="getElementType" desc="()Lconsulo/language/ast/IElementType;"
                 target="consulo.kotlin.compat.psi.StubCompat"/>
         <method owner="consulo.language.psi.stub.StubElement" name="findChildStubByElementType" desc="(Lconsulo/language/ast/IElementType;)Lconsulo/language/psi/stub/StubElement;" anyOwner="true"
