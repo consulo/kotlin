@@ -27,7 +27,8 @@ def scan(path):
     return {
         'pkg': pkg.group(1) if pkg else '',
         'names': names,
-        'imports': {i for i, star in imports if not star},
+        # every prefix too: importing pkg.Name.Companion.member names pkg.Name
+        'imports': {'.'.join(i.split('.')[:k]) for i, star in imports if not star for k in range(2, i.count('.') + 2)},
         'stars': {i for i, star in imports if star},
         'idents': set(re.findall(r'\b[A-Za-z_]\w*\b', text_nc)),
     }
