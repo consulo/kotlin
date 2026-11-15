@@ -721,6 +721,149 @@
 
     <!-- Class modifications -->
     <modifications>
+        <!-- Analysis API engine services (consulo-internal/remap/genservices.py) -->
+        <!-- genservices:modifications:begin -->
+        <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.api.services.LLFirElementByPsiElementChooser">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.factory.LLFirBuiltinsSessionFactory">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionCache">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionInvalidationService">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionInvalidationEventPublisher">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirGlobalResolveComponents">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.LLResolutionFacadeService">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.LLFirDeclarationModificationService">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.LLFirInBlockModificationTracker">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.resolution.KaResolutionActivityTracker">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.psi.impl.KotlinElementFactory">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.resolve.jvm.KotlinJavaPsiFacade">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.resolve.jvm.modules.JavaModuleResolver">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementSourceFactory">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.psi.KotlinReferenceProvidersService">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.projectStructure.KaModuleProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.KotlinMessageBusProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.permissions.KaAnalysisPermissionRegistry">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.permissions.KaAnalysisPermissionChecker">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.projectStructure.KaResolutionScopeProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.lifetime.KaLifetimeTracker">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.projectStructure.KaContentScopeProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.projectStructure.KaGlobalSearchScopeMerger">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.session.KaSessionProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.platform.modification.KaSourceModificationService">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.imports.KaDefaultImportsProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.fir.utils.KaFirCacheCleaner">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
+        <class name="org.jetbrains.kotlin.analysis.api.internals.KaInternalsRendererProvider">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
+        <!-- genservices:modifications:end -->
         <!-- IntelliJ StubElement.getElementType(): Kotlin stubs call it through their own interfaces -->
         <class name="org.jetbrains.kotlin.psi.stubs.KotlinStubElement">
             <addMethod name="getElementType" returnType="consulo.language.ast.IElementType">
@@ -883,9 +1026,39 @@
         <exports>org/jetbrains/kotlin/kdoc</exports>
 
         <provides interface="consulo.component.bind.InjectingBinding">
+            <!-- genservices:bindings:begin -->
+            <binding impl="org.jetbrains.kotlin.analysis.low.level.api.fir.services.LLRealFirElementByPsiElementChooser" api="org.jetbrains.kotlin.analysis.low.level.api.fir.api.services.LLFirElementByPsiElementChooser" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.factory.LLFirBuiltinsSessionFactory" api="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.factory.LLFirBuiltinsSessionFactory" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionCache" api="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionCache" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionInvalidationService" api="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionInvalidationService" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionInvalidationEventPublisher" api="org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.cache.LLFirSessionInvalidationEventPublisher" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirGlobalResolveComponents" api="org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirGlobalResolveComponents" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.low.level.api.fir.LLResolutionFacadeService" api="org.jetbrains.kotlin.analysis.low.level.api.fir.LLResolutionFacadeService" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.LLFirDeclarationModificationService" api="org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.LLFirDeclarationModificationService" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.LLFirInBlockModificationTracker" api="org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.LLFirInBlockModificationTracker" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.LLFirResolutionActivityTracker" api="org.jetbrains.kotlin.analysis.api.platform.resolution.KaResolutionActivityTracker" scope="APPLICATION" type="service"/>
+            <binding impl="org.jetbrains.kotlin.psi.impl.KotlinElementFactoryImpl" api="org.jetbrains.kotlin.psi.impl.KotlinElementFactory" scope="APPLICATION" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.java.KaFirKotlinJavaPsiFacade" api="org.jetbrains.kotlin.resolve.jvm.KotlinJavaPsiFacade" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.java.KaFirJavaModuleResolver" api="org.jetbrains.kotlin.resolve.jvm.modules.JavaModuleResolver" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.java.source.JavaElementSourceWithSmartPointerFactory" api="org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementSourceFactory" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.references.KotlinReferenceProvidersServiceImpl" api="org.jetbrains.kotlin.psi.KotlinReferenceProvidersService" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.projectStructure.KaFirModuleProvider" api="org.jetbrains.kotlin.analysis.api.projectStructure.KaModuleProvider" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.platform.KotlinProjectMessageBusProvider" api="org.jetbrains.kotlin.analysis.api.platform.KotlinMessageBusProvider" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.permissions.KaFirAnalysisPermissionRegistry" api="org.jetbrains.kotlin.analysis.api.permissions.KaAnalysisPermissionRegistry" scope="APPLICATION" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.permissions.KaFirAnalysisPermissionChecker" api="org.jetbrains.kotlin.analysis.api.platform.permissions.KaAnalysisPermissionChecker" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.projectStructure.KaFirResolutionScopeProvider" api="org.jetbrains.kotlin.analysis.api.platform.projectStructure.KaResolutionScopeProvider" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.lifetime.KaFirLifetimeTracker" api="org.jetbrains.kotlin.analysis.api.platform.lifetime.KaLifetimeTracker" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.projectStructure.KaFirContentScopeProvider" api="org.jetbrains.kotlin.analysis.api.platform.projectStructure.KaContentScopeProvider" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.projectStructure.KotlinOptimizingGlobalSearchScopeMerger" api="org.jetbrains.kotlin.analysis.api.platform.projectStructure.KaGlobalSearchScopeMerger" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.KaFirSessionProvider" api="org.jetbrains.kotlin.analysis.api.session.KaSessionProvider" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.modification.KaFirSourceModificationService" api="org.jetbrains.kotlin.analysis.api.platform.modification.KaSourceModificationService" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.imports.KaFirDefaultImportsProvider" api="org.jetbrains.kotlin.analysis.api.imports.KaDefaultImportsProvider" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.utils.KaFirStopWorldCacheCleaner" api="org.jetbrains.kotlin.analysis.api.fir.utils.KaFirCacheCleaner" scope="PROJECT" type="service"/>
+            <binding impl="org.jetbrains.kotlin.analysis.api.fir.rendering.KaInternalsRendererProviderImpl" api="org.jetbrains.kotlin.analysis.api.internals.KaInternalsRendererProvider" scope="APPLICATION" type="service"/>
+            <!-- genservices:bindings:end -->
             <binding impl="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"
                      api="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"
-                     scope="APPLICATION"/>
+                     scope="APPLICATION" type="service"/>
             <binding impl="org.jetbrains.kotlin.parsing.KotlinParserDefinition"
                      api="consulo.language.parser.ParserDefinition"
                      scope="APPLICATION"/>
