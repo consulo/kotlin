@@ -244,7 +244,7 @@
         <rule from="com.intellij.psi.util.PsiModificationTracker$Listener" to="consulo.language.psi.PsiModificationTrackerListener"/>
 
         <!-- PsiPackageImpl lives in the Java impl plugin, not consulo.language.impl.psi.file -->
-        <rule from="com.intellij.psi.impl.file.PsiPackageImpl" to="com.intellij.java.language.impl.psi.impl.file.PsiPackageImpl"/>
+        <rule from="com.intellij.psi.impl.file.PsiPackageImpl" to="consulo.kotlin.compat.java.CompatPsiPackageImpl"/>
 
         <!-- JavaClassFileType is in Java plugin impl -->
         <rule from="com.intellij.ide.highlighter.JavaClassFileType" to="com.intellij.java.language.impl.JavaClassFileType"/>
@@ -360,6 +360,10 @@
                 target="consulo.kotlin.compat.util.UtilCompat"/>
         <method owner="consulo.project.DumbService" name="filterByDumbAwareness" desc="(Ljava/util/List;)Ljava/util/List;"
                 target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.logging.attachment.Attachment" name="getBytes" desc="()[B"
+                target="consulo.kotlin.compat.util.CompatAttachment"/>
+        <!-- IntelliJ Attachment is a class, Consulo's an interface -->
+        <new owner="consulo.logging.attachment.Attachment" target="consulo.kotlin.compat.util.CompatAttachment"/>
     </redirects>
 
     <!-- Class modifications -->
