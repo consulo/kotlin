@@ -45,6 +45,7 @@ PLATFORM_APIS = [
     f'{P}.lifetime.KotlinLifetimeTokenFactory',
     f'{P}.java.KotlinJavaModuleAnnotationsProvider',
     f'{P}.java.KotlinJavaModuleAccessibilityChecker',
+    'org.jetbrains.kotlin.load.kotlin.VirtualFileFinderFactory',
 ]
 # Platform components the Consulo plugin implements as application services
 PLATFORM_APPLICATION_APIS = [

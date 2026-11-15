@@ -938,6 +938,11 @@
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
             </addAnnotation>
         </class>
+        <class name="org.jetbrains.kotlin.load.kotlin.VirtualFileFinderFactory">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
         <class name="org.jetbrains.kotlin.analysis.decompiler.psi.BuiltinsVirtualFileProvider">
             <addAnnotation type="consulo.annotation.component.ServiceAPI">
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
