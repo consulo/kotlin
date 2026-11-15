@@ -243,6 +243,16 @@
 
     <build>
         <plugins>
+            <!-- Shade replaces this module's jar in place. Without forceCreation the next build
+                 keeps that already remapped jar as the main artifact, shade prefers it over the
+                 fresh module jars, and remap.xml changes never reach the output. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <forceCreation>true</forceCreation>
+                </configuration>
+            </plugin>
             <!-- Step 1: Shade all kotlin modules into one JAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

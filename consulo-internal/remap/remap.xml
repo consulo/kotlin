@@ -247,9 +247,9 @@
         <!-- JavaClassFileType is in Java plugin impl -->
         <rule from="com.intellij.ide.highlighter.JavaClassFileType" to="com.intellij.java.language.impl.JavaClassFileType"/>
 
-        <!-- DumbAware moved to consulo.application.dumb -->
+        <!-- DumbAware moved to consulo.application.dumb, DumbService lives in consulo.project -->
         <rule from="com.intellij.openapi.project.DumbAware" to="consulo.application.dumb.DumbAware"/>
-        <rule from="com.intellij.openapi.project.DumbService" to="consulo.application.dumb.DumbService"/>
+        <rule from="com.intellij.openapi.project.DumbService" to="consulo.project.DumbService"/>
 
         <!-- SmartList in consulo.util.collection -->
         <rule from="com.intellij.util.SmartList" to="consulo.util.collection.SmartList"/>
@@ -257,6 +257,37 @@
         <!-- PsiFileImpl: Consulo dropped the .source subpackage; the class rule beats
              the package rule com.intellij.psi.impl → consulo.language.impl.psi -->
         <rule from="com.intellij.psi.impl.source.PsiFileImpl" to="consulo.language.impl.psi.PsiFileImpl"/>
+        <!-- Targets found by checking the remapped jar against the Consulo classpath -->
+        <rule from="com.intellij.codeInsight.ExternalAnnotationsManager" to="com.intellij.java.language.codeInsight.ExternalAnnotationsManager"/>
+        <rule from="com.intellij.ide.highlighter.JavaFileType" to="com.intellij.java.language.impl.JavaFileType"/>
+        <rule from="com.intellij.openapi.progress.ProcessCanceledException" to="consulo.component.ProcessCanceledException"/>
+        <rule from="com.intellij.lang.LighterASTTokenNode" to="consulo.language.ast.LighterASTTokenNode"/>
+        <rule from="com.intellij.openapi.fileTypes.FileTypeRegistry" to="consulo.virtualFileSystem.fileType.FileTypeRegistry"/>
+        <rule from="com.intellij.psi.impl.compiled.ClsFieldImpl" to="com.intellij.java.language.impl.psi.impl.compiled.ClsFieldImpl"/>
+        <rule from="com.intellij.psi.impl.compiled.ClsParameterImpl" to="com.intellij.java.language.impl.psi.impl.compiled.ClsParameterImpl"/>
+        <rule from="com.intellij.psi.impl.file.impl.FileManager" to="consulo.language.impl.internal.file.FileManager"/>
+        <rule from="com.intellij.psi.impl.file.impl.JavaFileManager" to="com.intellij.java.language.impl.psi.impl.file.impl.JavaFileManager"/>
+        <rule from="com.intellij.psi.impl.java.stubs.PsiParameterStub" to="com.intellij.java.language.impl.psi.impl.java.stubs.PsiParameterStub"/>
+        <rule from="com.intellij.psi.impl.java.stubs.impl.PsiParameterStubImpl" to="com.intellij.java.language.impl.psi.impl.java.stubs.impl.PsiParameterStubImpl"/>
+        <rule from="com.intellij.psi.impl.light.LightModifierList" to="com.intellij.java.language.impl.psi.impl.light.LightModifierList"/>
+        <rule from="com.intellij.psi.impl.source.PsiFieldImpl" to="com.intellij.java.language.impl.psi.impl.source.PsiFieldImpl"/>
+        <rule from="com.intellij.psi.impl.source.codeStyle.CodeEditUtil" to="consulo.language.impl.psi.CodeEditUtil"/>
+        <rule from="com.intellij.psi.PsiConditionalExpression" to="com.intellij.java.language.psi.PsiConditionalExpression"/>
+        <rule from="com.intellij.psi.PsiParenthesizedExpression" to="com.intellij.java.language.psi.PsiParenthesizedExpression"/>
+        <rule from="com.intellij.psi.PsiPolyadicExpression" to="com.intellij.java.language.psi.PsiPolyadicExpression"/>
+        <rule from="com.intellij.psi.PsiPrefixExpression" to="com.intellij.java.language.psi.PsiPrefixExpression"/>
+        <rule from="com.intellij.psi.PsiTypeCastExpression" to="com.intellij.java.language.psi.PsiTypeCastExpression"/>
+        <rule from="com.intellij.psi.search.PackageScope" to="com.intellij.java.language.psi.search.PackageScope"/>
+        <rule from="com.intellij.psi.util.PsiUtilCore" to="consulo.language.psi.PsiUtilCore"/>
+        <rule from="com.intellij.testFramework.LightVirtualFile" to="consulo.language.file.light.LightVirtualFile"/>
+        <rule from="com.intellij.util.AstLoadingFilter" to="consulo.language.impl.internal.psi.AstLoadingFilter"/>
+        <rule from="com.intellij.util.ConcurrencyUtil" to="consulo.util.concurrent.ConcurrencyUtil"/>
+        <rule from="com.intellij.util.Query" to="consulo.application.util.query.Query"/>
+        <rule from="com.intellij.util.cls.ClsFormatException" to="com.intellij.java.language.util.cls.ClsFormatException"/>
+        <rule from="com.intellij.util.codeInsight.CommentUtilCore" to="consulo.language.util.CommentUtilCore"/>
+        <rule from="com.intellij.openapi.util.LowMemoryWatcher" to="consulo.application.util.LowMemoryWatcher"/>
+        <rule from="com.intellij.openapi.util.Pair" to="consulo.util.lang.Pair"/>
+        <rule from="com.intellij.util.text.LiteralFormatUtil" to="com.intellij.java.language.impl.util.text.LiteralFormatUtil"/>
     </classes>
 
     <!-- Method renames (applied after class remapping) -->
