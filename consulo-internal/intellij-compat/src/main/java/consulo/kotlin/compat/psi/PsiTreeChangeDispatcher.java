@@ -20,7 +20,26 @@ public class PsiTreeChangeDispatcher implements PostStartupActivity {
         manager.addPsiTreeChangeListener(new Listener(project, manager), project);
     }
 
-    private record Listener(Project project, PsiManager manager) implements PsiTreeChangeListener {
+    /**
+     * IntelliJ marks "children changed" as generic when it accompanies specific events (child added, removed, replaced or
+     * moved) of the same change; without them, e.g. after the text of a leaf changed, it is the change itself. Consulo's
+     * events do not say, so the listener tracks whether specific events came since the "before children change".
+     */
+    private static final class Listener implements PsiTreeChangeListener {
+        private final Project project;
+        private final PsiManager manager;
+        private boolean mySpecificEventSeen;
+
+        Listener(Project project, PsiManager manager) {
+            this.project = project;
+            this.manager = manager;
+        }
+
+        private void specific(PsiTreeChangeEvent event, PsiTreeChangeEventImpl.PsiEventType code) {
+            mySpecificEventSeen = true;
+            dispatch(event, code, false);
+        }
+
         private void dispatch(PsiTreeChangeEvent event, PsiTreeChangeEventImpl.PsiEventType code, boolean genericChange) {
             PsiTreeChangeEventImpl compatEvent = new PsiTreeChangeEventImpl(manager, event, code, genericChange);
             for (PsiTreeChangePreprocessor preprocessor : project.getExtensionList(PsiTreeChangePreprocessor.class)) {
@@ -30,27 +49,27 @@ public class PsiTreeChangeDispatcher implements PostStartupActivity {
 
         @Override
         public void beforeChildAddition(PsiTreeChangeEvent event) {
-            dispatch(event, PsiTreeChangeEventImpl.PsiEventType.BEFORE_CHILD_ADDITION, false);
+            specific(event, PsiTreeChangeEventImpl.PsiEventType.BEFORE_CHILD_ADDITION);
         }
 
         @Override
         public void beforeChildRemoval(PsiTreeChangeEvent event) {
-            dispatch(event, PsiTreeChangeEventImpl.PsiEventType.BEFORE_CHILD_REMOVAL, false);
+            specific(event, PsiTreeChangeEventImpl.PsiEventType.BEFORE_CHILD_REMOVAL);
         }
 
         @Override
         public void beforeChildReplacement(PsiTreeChangeEvent event) {
-            dispatch(event, PsiTreeChangeEventImpl.PsiEventType.BEFORE_CHILD_REPLACEMENT, false);
+            specific(event, PsiTreeChangeEventImpl.PsiEventType.BEFORE_CHILD_REPLACEMENT);
         }
 
         @Override
         public void beforeChildMovement(PsiTreeChangeEvent event) {
-            dispatch(event, PsiTreeChangeEventImpl.PsiEventType.BEFORE_CHILD_MOVEMENT, false);
+            specific(event, PsiTreeChangeEventImpl.PsiEventType.BEFORE_CHILD_MOVEMENT);
         }
 
-        // "children changed" accompanies the specific events of a change: generic, as IntelliJ marks it
         @Override
         public void beforeChildrenChange(PsiTreeChangeEvent event) {
+            mySpecificEventSeen = false;
             dispatch(event, PsiTreeChangeEventImpl.PsiEventType.BEFORE_CHILDREN_CHANGE, true);
         }
 
@@ -61,27 +80,29 @@ public class PsiTreeChangeDispatcher implements PostStartupActivity {
 
         @Override
         public void childAdded(PsiTreeChangeEvent event) {
-            dispatch(event, PsiTreeChangeEventImpl.PsiEventType.CHILD_ADDED, false);
+            specific(event, PsiTreeChangeEventImpl.PsiEventType.CHILD_ADDED);
         }
 
         @Override
         public void childRemoved(PsiTreeChangeEvent event) {
-            dispatch(event, PsiTreeChangeEventImpl.PsiEventType.CHILD_REMOVED, false);
+            specific(event, PsiTreeChangeEventImpl.PsiEventType.CHILD_REMOVED);
         }
 
         @Override
         public void childReplaced(PsiTreeChangeEvent event) {
-            dispatch(event, PsiTreeChangeEventImpl.PsiEventType.CHILD_REPLACED, false);
+            specific(event, PsiTreeChangeEventImpl.PsiEventType.CHILD_REPLACED);
         }
 
         @Override
         public void childrenChanged(PsiTreeChangeEvent event) {
-            dispatch(event, PsiTreeChangeEventImpl.PsiEventType.CHILDREN_CHANGED, true);
+            boolean generic = mySpecificEventSeen;
+            mySpecificEventSeen = false;
+            dispatch(event, PsiTreeChangeEventImpl.PsiEventType.CHILDREN_CHANGED, generic);
         }
 
         @Override
         public void childMoved(PsiTreeChangeEvent event) {
-            dispatch(event, PsiTreeChangeEventImpl.PsiEventType.CHILD_MOVED, false);
+            specific(event, PsiTreeChangeEventImpl.PsiEventType.CHILD_MOVED);
         }
 
         @Override

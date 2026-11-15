@@ -1580,9 +1580,10 @@
             <binding impl="consulo.kotlin.compat.psi.stub.StubBridgeTypeHolder"
                      api="consulo.language.psi.stub.StubElementTypeHolder"
                      scope="APPLICATION"/>
+            <!-- PostStartupActivity is an application-scope extension API (run per project) -->
             <binding impl="consulo.kotlin.compat.psi.PsiTreeChangeDispatcher"
                      api="consulo.project.startup.PostStartupActivity"
-                     scope="PROJECT"/>
+                     scope="APPLICATION"/>
         </provides>
         <!-- message bus topics (@TopicAPI listener interfaces): called through generated bindings, not by reflection -->
         <provides interface="consulo.component.bind.TopicBinding">
