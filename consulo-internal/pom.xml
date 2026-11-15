@@ -18,6 +18,7 @@
         <module>protobuf-lite</module>
         <module>intellij-stubs</module>
         <module>intellij-psi-extensions</module>
+        <module>intellij-compat</module>
         <module>kotlin-core-helper</module>
         <module>remap</module>
         <module>test</module>

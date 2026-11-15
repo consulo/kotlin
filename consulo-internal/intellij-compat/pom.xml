@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>consulo.kotlin</groupId>
+        <artifactId>consulo.kotlin.internal</artifactId>
+        <version>3-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>consulo.kotlin.intellij-compat</artifactId>
+
+    <description>IntelliJ APIs that Consulo does not have, written against the Consulo API.
+        remap.xml points the IntelliJ classes here, so upstream Kotlin sources stay untouched.
+        Shaded into the remapped jar.
+    </description>
+
+    <build>
+        <sourceDirectory>src/main/java</sourceDirectory>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-language-api</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-annotation</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-language-impl</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+</project>

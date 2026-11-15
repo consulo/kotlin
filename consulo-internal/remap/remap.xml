@@ -146,7 +146,8 @@
         <rule from="com.intellij.psi.StubBuilder" to="consulo.language.psi.stub.StubBuilder"/>
 
         <!-- com.intellij.extapi.psi split -->
-        <rule from="com.intellij.extapi.psi.StubBasedPsiElementBase" to="consulo.language.impl.psi.stub.StubBasedPsiElementBase"/>
+        <!-- compat subclass adds the IElementType-based child lookup -->
+        <rule from="com.intellij.extapi.psi.StubBasedPsiElementBase" to="consulo.kotlin.compat.psi.CompatStubBasedPsiElementBase"/>
 
         <!-- com.intellij.psi.impl split -->
         <rule from="com.intellij.psi.impl.PsiManagerEx" to="consulo.language.impl.internal.psi.PsiManagerEx"/>
@@ -256,7 +257,8 @@
 
         <!-- PsiFileImpl: Consulo dropped the .source subpackage; the class rule beats
              the package rule com.intellij.psi.impl → consulo.language.impl.psi -->
-        <rule from="com.intellij.psi.impl.source.PsiFileImpl" to="consulo.language.impl.psi.PsiFileImpl"/>
+        <rule from="com.intellij.psi.impl.source.PsiFileImpl" to="consulo.kotlin.compat.psi.CompatPsiFileImpl"/>
+        <rule from="com.intellij.extapi.psi.PsiFileBase" to="consulo.kotlin.compat.psi.CompatPsiFileBase"/>
         <!-- Targets found by checking the remapped jar against the Consulo classpath -->
         <rule from="com.intellij.codeInsight.ExternalAnnotationsManager" to="com.intellij.java.language.codeInsight.ExternalAnnotationsManager"/>
         <rule from="com.intellij.ide.highlighter.JavaFileType" to="com.intellij.java.language.impl.JavaFileType"/>

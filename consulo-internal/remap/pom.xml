@@ -239,6 +239,11 @@
             <artifactId>consulo.kotlin.compiler.fir.checkers.common</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.intellij-compat</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
