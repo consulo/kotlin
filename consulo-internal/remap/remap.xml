@@ -585,6 +585,9 @@
     <!-- Calls whose target is missing in Consulo, rewritten to static helpers in consulo-internal/intellij-compat.
          owner/name/desc are the remapped ones. -->
     <redirects>
+        <!-- Kotlin registry keys; analysis statistics are always off -->
+        <method owner="consulo.application.util.registry.Registry" name="is" desc="(Ljava/lang/String;Z)Z"
+                target="consulo.kotlin.compat.util.RegistryCompat"/>
         <!-- Platform calls whose Consulo counterparts differ in signature -->
         <method owner="com.intellij.java.language.psi.PsiType" name="createArrayType" desc="()Lcom/intellij/java/language/psi/PsiType;" anyOwner="true"
                 target="consulo.kotlin.compat.java.JavaTypeCompat"/>
