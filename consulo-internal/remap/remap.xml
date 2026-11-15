@@ -325,6 +325,7 @@
         <rule from="org.jetbrains.kotlin.idea.KotlinLanguage" to="consulo.kotlin.compiler.idea.KotlinLanguage"/>
         <rule from="org.jetbrains.kotlin.idea.KotlinModuleFileType" to="consulo.kotlin.compiler.idea.KotlinModuleFileType"/>
         <rule from="org.jetbrains.kotlin.idea.references.KtReference" to="consulo.kotlin.compiler.idea.references.KtReference"/>
+        <rule from="com.intellij.psi.impl.file.PsiFileImplUtil" to="consulo.kotlin.compat.psi.PsiFileImplUtilCompat"/>
     </classes>
 
     <!-- Method renames (applied after class remapping) -->
@@ -403,6 +404,18 @@
 
     <!-- Class modifications -->
     <modifications>
+        <!-- applicationService in IntelliJ's plugin.xml; impl (base/psi KtPsiMutationServiceImpl) needs light classes, unbound for now -->
+        <class name="org.jetbrains.kotlin.psi.KtPsiMutationService">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
+        <!-- applicationService in IntelliJ's plugin.xml, implemented by the class itself -->
+        <class name="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
+            </addAnnotation>
+        </class>
         <!-- projectService in IntelliJ's plugin.xml; the plugin provides the @ServiceImpl -->
         <class name="org.jetbrains.kotlin.psi.KtFileClassProvider">
             <addAnnotation type="consulo.annotation.component.ServiceAPI">
@@ -516,6 +529,9 @@
         <exports>org/jetbrains/kotlin/kdoc</exports>
 
         <provides interface="consulo.component.bind.InjectingBinding">
+            <binding impl="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"
+                     api="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"
+                     scope="APPLICATION"/>
             <binding impl="org.jetbrains.kotlin.parsing.KotlinParserDefinition"
                      api="consulo.language.parser.ParserDefinition"
                      scope="APPLICATION"/>
