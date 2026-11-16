@@ -1,7 +1,7 @@
 package com.intellij.psi.impl.java.stubs;
 
 @SuppressWarnings("all")
-public interface PsiClassStub<T extends com.intellij.psi.PsiClass> extends com.intellij.psi.stubs.StubElement<T> {
+public interface PsiClassStub<T extends com.intellij.psi.PsiClass> extends com.intellij.psi.impl.java.stubs.PsiMemberStub<T> {
     String getName();
     String getQualifiedName();
     boolean isInterface();

@@ -9,6 +9,7 @@ public class UserDataHolderBase implements UserDataHolder {
     public <T> boolean replace(Key<T> key, T oldValue, T newValue) { return false; }
     public <T> T putUserDataIfAbsent(Key<T> key, T value) { return null; }
     public void copyCopyableDataTo(UserDataHolderBase clone) {}
+    protected Object clone() { return null; }
     public void copyUserDataTo(UserDataHolderBase other) {}
     public boolean isUserDataEmpty() { return false; }
 }

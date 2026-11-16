@@ -384,6 +384,6 @@
         <module>analysis/analysis-api-fir</module>
         <!-- class file decompiler: stubs of library classes for the IDE indexes -->
         <module>analysis/decompiled/decompiler</module>
-        <!-- next with light classes (SymbolKotlinAsJavaSupport): <module>analysis/decompiled/light-classes-for-decompiled</module> -->
+        <module>analysis/decompiled/light-classes-for-decompiled</module>
     </modules>
 </project>

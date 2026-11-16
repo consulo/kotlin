@@ -931,6 +931,8 @@
         <!-- IntelliJ's code style provider creates its settings page with createConfigurable, Consulo's with createSettingsPage
              (CodeStyleConfigurable maps to Consulo's Configurable). IntelliJ's display name and tab titles are strings,
              Consulo's LocalizeValue: the string methods get other names, and the plugin's remap.xml bridges them -->
+        <!-- a private isStatic() would hide consulo-java's PsiMember.isStatic() default from Java callers -->
+        <rule owner="org.jetbrains.kotlin.light.classes.symbol.methods.SymbolLightAccessorMethod" name="isStatic" desc="()Z" newName="isStaticProperty"/>
         <rule owner="consulo.language.codeStyle.setting.LanguageCodeStyleSettingsProvider" name="createConfigurable" newName="createSettingsPage"/>
         <rule owner="consulo.language.codeStyle.setting.LanguageCodeStyleSettingsProvider" name="getConfigurableDisplayName" desc="()Ljava/lang/String;" newName="getConfigurableDisplayNameText"/>
         <rule owner="consulo.language.codeStyle.ui.setting.CodeStyleAbstractPanel" name="getTabTitle" desc="()Ljava/lang/String;" newName="getTabTitleText"/>
@@ -1379,6 +1381,11 @@
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="APPLICATION"/>
             </addAnnotation>
         </class>
+        <class name="org.jetbrains.kotlin.asJava.KotlinAsJavaSupport">
+            <addAnnotation type="consulo.annotation.component.ServiceAPI">
+                <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
+            </addAnnotation>
+        </class>
         <class name="org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinLifetimeTokenFactory">
             <addAnnotation type="consulo.annotation.component.ServiceAPI">
                 <enum name="value" type="consulo.annotation.component.ComponentScope" value="PROJECT"/>
@@ -1701,10 +1708,12 @@
             <binding impl="org.jetbrains.kotlin.analysis.api.fir.imports.KaFirDefaultImportsProvider" api="org.jetbrains.kotlin.analysis.api.imports.KaDefaultImportsProvider" scope="PROJECT" type="service"/>
             <binding impl="org.jetbrains.kotlin.analysis.api.fir.utils.KaFirStopWorldCacheCleaner" api="org.jetbrains.kotlin.analysis.api.fir.utils.KaFirCacheCleaner" scope="PROJECT" type="service"/>
             <binding impl="org.jetbrains.kotlin.analysis.api.fir.rendering.KaInternalsRendererProviderImpl" api="org.jetbrains.kotlin.analysis.api.internals.KaInternalsRendererProvider" scope="APPLICATION" type="service"/>
+            <binding impl="org.jetbrains.kotlin.light.classes.symbol.SymbolKotlinAsJavaSupport" api="org.jetbrains.kotlin.asJava.KotlinAsJavaSupport" scope="PROJECT" type="service"/>
             <binding impl="org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinReadActionConfinementLifetimeTokenFactory" api="org.jetbrains.kotlin.analysis.api.platform.lifetime.KotlinLifetimeTokenFactory" scope="PROJECT" type="service"/>
             <binding impl="org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache" api="org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache" scope="APPLICATION" type="service"/>
             <binding impl="org.jetbrains.kotlin.psi.stubs.KotlinStubRegistryExtension" api="consulo.kotlin.compat.psi.stub.StubRegistryExtension" scope="APPLICATION"/>
             <binding impl="org.jetbrains.kotlin.psi.stubs.KotlinLanguageStubDefinition" api="consulo.kotlin.compat.psi.stub.LanguageStubDefinition" scope="APPLICATION"/>
+            <binding impl="org.jetbrains.kotlin.asJava.finder.JavaElementFinder" api="com.intellij.java.language.psi.PsiElementFinder" scope="PROJECT"/>
             <!-- genservices:bindings:end -->
             <binding impl="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"
                      api="org.jetbrains.kotlin.load.kotlin.KotlinBinaryClassCache"

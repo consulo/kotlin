@@ -4,6 +4,7 @@ package com.intellij.psi.impl.light;
 public class LightParameter extends com.intellij.psi.impl.light.LightElement implements com.intellij.psi.PsiParameter {
     public LightParameter(String name, com.intellij.psi.PsiType type, com.intellij.psi.PsiElement declarationScope) { super(declarationScope.getManager(), null); }
     public LightParameter(String name, com.intellij.psi.PsiType type, com.intellij.psi.PsiElement declarationScope, com.intellij.lang.Language language) { super(declarationScope.getManager(), language); }
+    public LightParameter(String name, com.intellij.psi.PsiType type, com.intellij.psi.PsiElement declarationScope, com.intellij.lang.Language language, boolean isVarArgs) { super(declarationScope.getManager(), language); }
     public String getName() { return null; }
     public com.intellij.psi.PsiType getType() { return null; }
     public com.intellij.psi.PsiTypeElement getTypeElement() { return null; }

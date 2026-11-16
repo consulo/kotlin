@@ -32,10 +32,6 @@
                             <resources>
                                 <resource>
                                     <directory>src</directory>
-                                    <excludes>
-                                        <exclude>org/jetbrains/kotlin/light/classes/symbol/SymbolKotlinAsJavaSupport.kt</exclude>
-                                        <exclude>org/jetbrains/kotlin/light/classes/symbol/utils/LightClassMemberUtils.kt</exclude>
-                                    </excludes>
                                 </resource>
                             </resources>
                         </configuration>
@@ -89,6 +85,11 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>consulo.kotlin.analysis.light-classes-base</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.analysis.decompiled.light-classes-for-decompiled</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

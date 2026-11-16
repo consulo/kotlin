@@ -24,7 +24,6 @@ SKIP = {
     'org.jetbrains.kotlin.analysis.decompiled.light.classes.origin.KotlinDeclarationInCompiledFileSearcher',
     'org.jetbrains.kotlin.analysis.decompiler.konan.KlibLoadingMetadataCache',
     'org.jetbrains.kotlin.analysis.api.fir.projectStructure.KaFirDanglingFileResolutionModeProvider',
-    'org.jetbrains.kotlin.light.classes.symbol.SymbolKotlinAsJavaSupport',
 }
 
 
@@ -60,13 +59,16 @@ PLATFORM_APPLICATION_APIS = [
 EXTENSION_APIS = [
     'org.jetbrains.kotlin.references.KotlinPsiReferenceProviderContributor',
 ]
-# Extensions the engine's descriptors declare, bound to compat extension APIs (annotated in compat itself):
-# (descriptor, tag, implementation attribute, Consulo extension API)
+# Extensions the engine's descriptors declare, bound to Consulo or compat extension APIs:
+# (descriptor, tag, implementation attribute, Consulo extension API, scope)
 EXTENSIONS = [
     ('analysis/analysis-api-fir/resources/META-INF/analysis-api/analysis-api-fir.xml', 'stubElementRegistryExtension',
-     'implementation', 'consulo.kotlin.compat.psi.stub.StubRegistryExtension'),
+     'implementation', 'consulo.kotlin.compat.psi.stub.StubRegistryExtension', 'APPLICATION'),
     ('analysis/analysis-api-fir/resources/META-INF/analysis-api/analysis-api-fir.xml', 'languageStubDefinition',
-     'implementationClass', 'consulo.kotlin.compat.psi.stub.LanguageStubDefinition'),
+     'implementationClass', 'consulo.kotlin.compat.psi.stub.LanguageStubDefinition', 'APPLICATION'),
+    # Java sees Kotlin declarations as light classes
+    ('analysis/analysis-api-fir/resources/META-INF/analysis-api/analysis-api-fir.xml', 'java.elementFinder',
+     'implementation', 'com.intellij.java.language.psi.PsiElementFinder', 'PROJECT'),
 ]
 # Platform components with a ready implementation in the Analysis API
 READY = [
@@ -120,9 +122,9 @@ def main():
     for api, impl, scope in found:
         binds += f'''            <binding impl="{impl}" api="{api}" scope="{scope}" type="service"/>
 '''
-    for d, tag, attribute, api in EXTENSIONS:
+    for d, tag, attribute, api, scope in EXTENSIONS:
         for e in ET.parse(f'{ROOT}/{d}').getroot().iter(tag):
-            binds += f'''            <binding impl="{e.get(attribute)}" api="{api}" scope="APPLICATION"/>
+            binds += f'''            <binding impl="{e.get(attribute)}" api="{api}" scope="{scope}"/>
 '''
     for api in EXTENSION_APIS:
         mods += f'''        <class name="{api}">

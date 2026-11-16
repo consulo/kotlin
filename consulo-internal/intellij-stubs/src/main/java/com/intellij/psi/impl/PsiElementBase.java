@@ -1,7 +1,7 @@
 package com.intellij.psi.impl;
 
 @SuppressWarnings("all")
-public abstract class PsiElementBase implements com.intellij.psi.NavigatablePsiElement {
+public abstract class PsiElementBase extends com.intellij.openapi.util.UserDataHolderBase implements com.intellij.psi.NavigatablePsiElement {
     protected javax.swing.Icon getElementIcon(int flags) { return null; }
     public com.intellij.navigation.ItemPresentation getPresentation() { return null; }
     public String getName() { return null; }

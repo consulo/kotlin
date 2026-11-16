@@ -275,6 +275,12 @@
             <artifactId>consulo.kotlin.analysis.decompiled.decompiler</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- light classes of compiled Kotlin declarations -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>consulo.kotlin.analysis.decompiled.light-classes-for-decompiled</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

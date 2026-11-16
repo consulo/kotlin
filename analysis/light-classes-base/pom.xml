@@ -31,10 +31,6 @@
                             <resources>
                                 <resource>
                                     <directory>src</directory>
-                                    <excludes>
-                                        <exclude>org/jetbrains/kotlin/asJava/classes/KotlinEnumSyntheticMethod.kt</exclude>
-                                        <exclude>org/jetbrains/kotlin/asJava/builder/ClsWrapperStubPsiFactory.java</exclude>
-                                    </excludes>
                                 </resource>
                             </resources>
                         </configuration>

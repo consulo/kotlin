@@ -84,7 +84,7 @@ JDK_SUPER_ARGS = {
     'javax.swing.border.LineBorder': '(java.awt.Color) null',
 }
 
-JDK = ('java.', 'javax.', 'kotlin.', 'jdk.', 'sun.', 'org.jetbrains.annotations.')
+JDK = ('java.', 'javax.', 'org.jetbrains.org.objectweb.', 'kotlin.', 'jdk.', 'sun.', 'org.jetbrains.annotations.')
 new_rules = []
 
 
