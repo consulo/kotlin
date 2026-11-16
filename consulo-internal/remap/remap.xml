@@ -25,6 +25,7 @@
         <rule from="com.intellij.psi.impl" to="consulo.language.impl.psi"/>
         <rule from="com.intellij.psi.scope" to="consulo.language.psi.scope"/>
         <rule from="com.intellij.psi.codeStyle" to="consulo.language.codeStyle"/>
+        <rule from="com.intellij.codeInspection" to="consulo.language.editor.inspection"/>
         <rule from="com.intellij.psi" to="consulo.language.psi"/>
         <!-- IntelliJ's repackaged ASM (asm-all) -> the ASM the Consulo Java plugin ships (module "asm") -->
         <rule from="org.jetbrains.org.objectweb.asm" to="consulo.internal.org.objectweb.asm"/>
@@ -854,6 +855,36 @@
         <rule from="com.intellij.ui.JBIntSpinner" to="consulo.kotlin.compat.ext.dsl.JBIntSpinner"/>
         <rule from="com.intellij.ui.layout.ComponentPredicate" to="consulo.kotlin.compat.ext.dsl.ComponentPredicate"/>
         <rule from="com.intellij.ui.layout.ComponentPredicateKt" to="consulo.kotlin.compat.ext.dsl.ComponentPredicateKt"/>
+        <!-- inspections and quick fixes; IntelliJ's ModCommand as Consulo quick fixes (consulo.kotlin.compat.modcommand) -->
+        <rule from="com.intellij.codeInspection.LocalQuickFix" to="consulo.language.editor.inspection.LocalQuickFix"/>
+        <rule from="com.intellij.codeInspection.QuickFix" to="consulo.language.editor.inspection.QuickFix"/>
+        <rule from="com.intellij.codeInsight.intention.PriorityAction" to="consulo.language.editor.inspection.PriorityAction"/>
+        <rule from="com.intellij.codeInspection.InspectionManager" to="consulo.language.editor.inspection.scheme.InspectionManager"/>
+        <rule from="com.intellij.codeInspection.LocalInspectionTool" to="consulo.language.editor.inspection.LocalInspectionTool"/>
+        <rule from="com.intellij.codeInspection.LocalQuickFixAndIntentionActionOnPsiElement" to="consulo.language.editor.inspection.LocalQuickFixAndIntentionActionOnPsiElement"/>
+        <rule from="com.intellij.codeInspection.LocalQuickFixOnPsiElement" to="consulo.language.editor.inspection.LocalQuickFixOnPsiElement"/>
+        <rule from="com.intellij.codeInspection.ProblemHighlightType" to="consulo.language.editor.inspection.ProblemHighlightType"/>
+        <rule from="com.intellij.codeInspection.SuppressionUtil" to="consulo.language.editor.inspection.SuppressionUtil"/>
+        <rule from="com.intellij.codeInsight.daemon.HighlightDisplayKey" to="consulo.language.editor.rawHighlight.HighlightDisplayKey"/>
+        <rule from="com.intellij.codeInspection.ex.InspectionProfileWrapper" to="consulo.language.editor.inspection.scheme.InspectionProfileWrapper"/>
+        <rule from="com.intellij.profile.codeInspection.InspectionProjectProfileManager" to="consulo.language.editor.inspection.scheme.InspectionProjectProfileManager"/>
+        <rule from="com.intellij.codeInspection.ex.QuickFixWrapper" to="consulo.language.editor.intention.QuickFixWrapper"/>
+        <rule from="com.intellij.openapi.util.Predicates" to="consulo.util.lang.function.Predicates"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.quickfix.RenameElementFix" to="consulo.ide.impl.idea.codeInsight.daemon.impl.quickfix.RenameElementFix"/>
+        <rule from="com.intellij.codeInsight.intention.QuickFixFactory" to="com.intellij.java.analysis.codeInsight.intention.QuickFixFactory"/>
+        <rule from="com.intellij.codeInspection.deadCode.UnusedDeclarationInspectionBase" to="com.intellij.java.analysis.impl.codeInspection.deadCode.UnusedDeclarationInspectionBase"/>
+        <rule from="com.intellij.codeInspection.ex.EntryPointsManager" to="com.intellij.java.analysis.codeInspection.ex.EntryPointsManager"/>
+        <rule from="com.intellij.codeInspection.ex.EntryPointsManagerBase" to="com.intellij.java.analysis.impl.codeInspection.ex.EntryPointsManagerBase"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.analysis.JavaHighlightUtil" to="com.intellij.java.analysis.impl.codeInsight.daemon.impl.analysis.JavaHighlightUtil"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.UnusedSymbolUtil" to="com.intellij.java.analysis.impl.codeInsight.daemon.impl.UnusedSymbolUtil"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.Divider" to="consulo.kotlin.compat.highlight.Divider"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.Divider$DividedElements" to="consulo.kotlin.compat.highlight.Divider$DividedElements"/>
+        <rule from="com.intellij.modcommand.PsiUpdateModCommandQuickFix" to="consulo.kotlin.compat.modcommand.PsiUpdateModCommandQuickFix"/>
+        <rule from="com.intellij.modcommand.ModPsiUpdater" to="consulo.kotlin.compat.modcommand.ModPsiUpdater"/>
+        <rule from="com.intellij.modcommand.ModCommandService" to="consulo.kotlin.compat.modcommand.ModCommandService"/>
+        <rule from="com.intellij.refactoring.modplan.ModPlanOptionValues" to="consulo.kotlin.compat.modcommand.ModPlanOptionValues"/>
+        <rule from="com.intellij.refactoring.modplan.safeDelete.ModPlanSafeDeleteFix" to="consulo.kotlin.compat.modcommand.ModPlanSafeDeleteFix"/>
+        <rule from="com.intellij.refactoring.modplan.safeDelete.ModPlanSafeDeleteOptions" to="consulo.kotlin.compat.modcommand.ModPlanSafeDeleteOptions"/>
         <!-- highlighting extensions (plugin highlighting-k2) -->
         <rule from="com.intellij.util.Consumer" to="java.util.function.Consumer"/>
         <rule from="com.intellij.codeHighlighting.RainbowHighlighter" to="consulo.language.editor.rawHighlight.RainbowHighlighter"/>
@@ -1065,6 +1096,27 @@
                 target="consulo.kotlin.compat.highlight.HighlightCompat"/>
         <method owner="consulo.colorScheme.TextAttributes" name="getErrorStripeColor" desc="()Ljava/awt/Color;" anyOwner="true"
                 target="consulo.kotlin.compat.highlight.HighlightCompat"/>
+        <!-- quick fix names on Consulo quick fixes -->
+        <method owner="consulo.language.editor.inspection.QuickFix" name="getName" desc="()Ljava/lang/String;"
+                target="consulo.kotlin.compat.modcommand.QuickFixCompat"/>
+        <method owner="consulo.language.editor.inspection.QuickFix" name="getFamilyName" desc="()Ljava/lang/String;"
+                target="consulo.kotlin.compat.modcommand.QuickFixCompat"/>
+        <method owner="consulo.language.editor.inspection.LocalQuickFix" name="getName" desc="()Ljava/lang/String;"
+                target="consulo.kotlin.compat.modcommand.QuickFixCompat"/>
+        <method owner="consulo.language.editor.inspection.LocalQuickFix" name="getFamilyName" desc="()Ljava/lang/String;"
+                target="consulo.kotlin.compat.modcommand.QuickFixCompat"/>
+        <!-- IntelliJ's quick fixes name themselves with strings: Consulo's LocalizeValue methods call them -->
+        <bridge owner="consulo.language.editor.inspection.QuickFix" name="getName" desc="()Lconsulo/localize/LocalizeValue;"
+                adapter="consulo.kotlin.compat.modcommand.QuickFixCompat" adapterName="localizeValue">
+            <source name="getName" desc="()Ljava/lang/String;"/>
+            <source name="getFamilyName" desc="()Ljava/lang/String;"/>
+            <except owner="consulo.language.editor.inspection.LocalQuickFixOnPsiElement"/>
+        </bridge>
+        <bridge owner="consulo.language.editor.inspection.LocalQuickFixOnPsiElement" name="getText" desc="()Lconsulo/localize/LocalizeValue;"
+                adapter="consulo.kotlin.compat.modcommand.QuickFixCompat" adapterName="localizeValue">
+            <source name="getText" desc="()Ljava/lang/String;"/>
+            <source name="getFamilyName" desc="()Ljava/lang/String;"/>
+        </bridge>
         <method owner="consulo.language.inject.InjectedLanguageManager" name="shouldInspectionsBeLenient" desc="(Lconsulo/language/psi/PsiElement;)Z" anyOwner="true"
                 target="consulo.kotlin.compat.highlight.HighlightCompat"/>
         <method owner="consulo.find.FindUsagesHandler" name="processUsagesInText"
@@ -1353,6 +1405,15 @@
 
     <!-- Class modifications -->
     <modifications>
+        <class name="consulo.kotlin.compat.modcommand.PsiUpdateModCommandQuickFix">
+            <addInterface type="consulo.language.editor.inspection.LocalQuickFix"/>
+            <addMethod name="getName" returnType="consulo.localize.LocalizeValue">
+                <aload index="0"/>
+                <invokevirtual owner="consulo.kotlin.compat.modcommand.PsiUpdateModCommandQuickFix" name="getName" desc="()Ljava/lang/String;"/>
+                <invokestatic owner="consulo.kotlin.compat.modcommand.QuickFixCompat" name="localizeValue" desc="(Ljava/lang/String;)Lconsulo/localize/LocalizeValue;"/>
+                <areturn/>
+            </addMethod>
+        </class>
         <!-- Analysis API engine services (consulo-internal/remap/genservices.py) -->
         <!-- genservices:modifications:begin -->
         <class name="org.jetbrains.kotlin.analysis.low.level.api.fir.api.services.LLFirElementByPsiElementChooser">
@@ -1775,6 +1836,7 @@
         <requires>consulo.java.indexing.api</requires>
         <requires>consulo.java.analysis.impl</requires>
         <requires>consulo.find.api</requires>
+        <requires>consulo.language.editor.refactoring.api</requires>
         <requires>consulo.usage.api</requires>
         <requires>consulo.kotlin.core.helper</requires>
         <requires>consulo.annotation</requires>
