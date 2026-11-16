@@ -854,6 +854,21 @@
         <rule from="com.intellij.ui.JBIntSpinner" to="consulo.kotlin.compat.ext.dsl.JBIntSpinner"/>
         <rule from="com.intellij.ui.layout.ComponentPredicate" to="consulo.kotlin.compat.ext.dsl.ComponentPredicate"/>
         <rule from="com.intellij.ui.layout.ComponentPredicateKt" to="consulo.kotlin.compat.ext.dsl.ComponentPredicateKt"/>
+        <!-- highlighting extensions (plugin highlighting-k2) -->
+        <rule from="com.intellij.util.Consumer" to="java.util.function.Consumer"/>
+        <rule from="com.intellij.codeHighlighting.RainbowHighlighter" to="consulo.language.editor.rawHighlight.RainbowHighlighter"/>
+        <rule from="com.intellij.codeInsight.daemon.SyntheticPsiFileSupport" to="consulo.kotlin.compat.highlight.SyntheticPsiFileSupport"/>
+        <rule from="com.intellij.codeInsight.daemon.ProblemHighlightFilter" to="consulo.language.editor.ProblemHighlightFilter"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.analysis.DefaultHighlightingSettingProvider" to="consulo.language.editor.DefaultHighlightingSettingProvider"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.analysis.FileHighlightingSetting" to="consulo.language.editor.FileHighlightingSetting"/>
+        <rule from="com.intellij.codeInsight.highlighting.HighlightErrorFilter" to="consulo.language.editor.HighlightErrorFilter"/>
+        <rule from="com.intellij.codeInsight.highlighting.HighlightUsagesHandlerBase" to="consulo.language.editor.highlight.usage.HighlightUsagesHandlerBase"/>
+        <rule from="com.intellij.codeInsight.highlighting.HighlightUsagesHandlerFactoryBase" to="consulo.language.editor.highlight.usage.HighlightUsagesHandlerFactoryBase"/>
+        <rule from="com.intellij.codeInsight.highlighting.HighlightUsagesHandlerFactory" to="consulo.language.editor.highlight.usage.HighlightUsagesHandlerFactory"/>
+        <rule from="com.intellij.ide.highlighter.custom.CustomHighlighterColors" to="consulo.ide.impl.idea.ide.highlighter.custom.CustomHighlighterColors"/>
+        <rule from="com.intellij.openapi.editor.colors.EditorColorsManager" to="consulo.colorScheme.EditorColorsManager"/>
+        <rule from="com.intellij.openapi.util.ScalableIcon" to="consulo.ui.ex.awt.ScalableIcon"/>
+        <rule from="com.intellij.util.ui.ColorIcon" to="consulo.ui.ex.awt.ColorIcon"/>
         <!-- find usages (plugin kotlin.searching) -->
         <rule from="com.intellij.psi.search.searches.AllOverridingMethodsSearch" to="com.intellij.java.indexing.search.searches.AllOverridingMethodsSearch"/>
         <rule from="com.intellij.util.MergeQuery" to="consulo.application.util.query.MergeQuery"/>
@@ -991,6 +1006,8 @@
         <rule owner="consulo.language.codeStyle.setting.LanguageCodeStyleSettingsProvider" name="createConfigurable" newName="createSettingsPage"/>
         <rule owner="consulo.language.codeStyle.setting.LanguageCodeStyleSettingsProvider" name="getConfigurableDisplayName" desc="()Ljava/lang/String;" newName="getConfigurableDisplayNameText"/>
         <rule owner="consulo.language.codeStyle.ui.setting.CodeStyleAbstractPanel" name="getTabTitle" desc="()Ljava/lang/String;" newName="getTabTitleText"/>
+        <!-- IntelliJ's Consumer is java.util.function.Consumer -->
+        <rule owner="java.util.function.Consumer" name="consume" newName="accept"/>
         <rule owner="consulo.kotlin.compat.psi.ElementDescriptionProvider" name="getElementDescription" desc="(Lconsulo/language/psi/PsiElement;Lconsulo/language/psi/ElementDescriptionLocation;)Ljava/lang/String;" newName="getElementDescriptionText"/>
         <!-- IntelliJ's scope caches calcHashCode() in hashCode(); Consulo's computes hashCode() -->
         <rule owner="consulo.language.psi.scope.DelegatingGlobalSearchScope" name="calcHashCode" newName="hashCode"/>
@@ -1039,6 +1056,17 @@
                 target="consulo.kotlin.compat.find.FindCompat" targetName="getPropertiesComponent"/>
         <method owner="consulo.component.PropertiesComponent" name="getInstance" desc="()Lconsulo/component/PropertiesComponent;"
                 target="consulo.kotlin.compat.find.FindCompat" targetName="getPropertiesComponent"/>
+        <!-- IntelliJ's text attribute colors are AWT colors -->
+        <method owner="consulo.colorScheme.TextAttributes" name="getForegroundColor" desc="()Ljava/awt/Color;" anyOwner="true"
+                target="consulo.kotlin.compat.highlight.HighlightCompat"/>
+        <method owner="consulo.colorScheme.TextAttributes" name="getBackgroundColor" desc="()Ljava/awt/Color;" anyOwner="true"
+                target="consulo.kotlin.compat.highlight.HighlightCompat"/>
+        <method owner="consulo.colorScheme.TextAttributes" name="getEffectColor" desc="()Ljava/awt/Color;" anyOwner="true"
+                target="consulo.kotlin.compat.highlight.HighlightCompat"/>
+        <method owner="consulo.colorScheme.TextAttributes" name="getErrorStripeColor" desc="()Ljava/awt/Color;" anyOwner="true"
+                target="consulo.kotlin.compat.highlight.HighlightCompat"/>
+        <method owner="consulo.language.inject.InjectedLanguageManager" name="shouldInspectionsBeLenient" desc="(Lconsulo/language/psi/PsiElement;)Z" anyOwner="true"
+                target="consulo.kotlin.compat.highlight.HighlightCompat"/>
         <method owner="consulo.find.FindUsagesHandler" name="processUsagesInText"
                 desc="(Lconsulo/language/psi/PsiElement;Lconsulo/application/util/function/Processor;Lconsulo/language/psi/scope/GlobalSearchScope;)Z"
                 anyOwner="true" target="consulo.kotlin.compat.find.FindCompat"/>

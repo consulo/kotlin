@@ -16,13 +16,13 @@ public class TextAttributes implements java.lang.Cloneable {
     public boolean isEmpty() { return false; }
     public consulo.colorScheme.AttributesFlyweight getFlyweight() { return null; }
     public static com.intellij.openapi.editor.markup.TextAttributes fromFlyweight(consulo.colorScheme.AttributesFlyweight p0) { return null; }
-    public consulo.ui.color.ColorValue getForegroundColor() { return null; }
+    public java.awt.Color getForegroundColor() { return null; }
     public void setForegroundColor(consulo.ui.color.ColorValue p0) { }
-    public consulo.ui.color.ColorValue getBackgroundColor() { return null; }
+    public java.awt.Color getBackgroundColor() { return null; }
     public void setBackgroundColor(consulo.ui.color.ColorValue p0) { }
-    public consulo.ui.color.ColorValue getEffectColor() { return null; }
+    public java.awt.Color getEffectColor() { return null; }
     public void setEffectColor(consulo.ui.color.ColorValue p0) { }
-    public consulo.ui.color.ColorValue getErrorStripeColor() { return null; }
+    public java.awt.Color getErrorStripeColor() { return null; }
     public void setErrorStripeColor(consulo.ui.color.ColorValue p0) { }
     public boolean hasEffects() { return false; }
     public void setAdditionalEffects(java.util.Map<consulo.colorScheme.EffectType, consulo.ui.color.ColorValue> p0) { }

@@ -71,4 +71,33 @@ public final class HighlightCompat {
     public static void registerUnresolvedReferenceLazyQuickFixes(PsiReference reference, HighlightInfo.Builder builder) {
         UnresolvedReferenceQuickFixProvider.registerReferenceFixes(reference, QuickFixActionRegistrar.create(builder));
     }
+
+    /** IntelliJ {@code InjectedLanguageManager.shouldInspectionsBeLenient}: Consulo has no lenient injections. */
+    public static boolean shouldInspectionsBeLenient(consulo.language.inject.InjectedLanguageManager manager, consulo.language.psi.PsiElement injectedContext) {
+        return false;
+    }
+
+    /** IntelliJ {@code TextAttributes.getForegroundColor()} is an AWT color, Consulo's a ColorValue. */
+    public static java.awt.Color getForegroundColor(consulo.colorScheme.TextAttributes attributes) {
+        consulo.ui.color.ColorValue color = attributes.getForegroundColor();
+        return color == null ? null : consulo.ui.ex.awtUnsafe.TargetAWT.to(color);
+    }
+
+    /** IntelliJ {@code TextAttributes.getBackgroundColor()} is an AWT color, Consulo's a ColorValue. */
+    public static java.awt.Color getBackgroundColor(consulo.colorScheme.TextAttributes attributes) {
+        consulo.ui.color.ColorValue color = attributes.getBackgroundColor();
+        return color == null ? null : consulo.ui.ex.awtUnsafe.TargetAWT.to(color);
+    }
+
+    /** IntelliJ {@code TextAttributes.getEffectColor()} is an AWT color, Consulo's a ColorValue. */
+    public static java.awt.Color getEffectColor(consulo.colorScheme.TextAttributes attributes) {
+        consulo.ui.color.ColorValue color = attributes.getEffectColor();
+        return color == null ? null : consulo.ui.ex.awtUnsafe.TargetAWT.to(color);
+    }
+
+    /** IntelliJ {@code TextAttributes.getErrorStripeColor()} is an AWT color, Consulo's a ColorValue. */
+    public static java.awt.Color getErrorStripeColor(consulo.colorScheme.TextAttributes attributes) {
+        consulo.ui.color.ColorValue color = attributes.getErrorStripeColor();
+        return color == null ? null : consulo.ui.ex.awtUnsafe.TargetAWT.to(color);
+    }
 }

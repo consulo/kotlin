@@ -64,8 +64,31 @@ public final class ExtensionPointRegistry {
         return result;
     }
 
+    /** Extension points of the Kotlin plugin (name=extension API), written by consulo-plugin/tools/genservices.py */
+    private static final String PLUGIN_EXTENSION_POINTS = "META-INF/kotlin-extension-points.properties";
+    private static volatile java.util.Properties ourPluginPoints;
+
+    private static java.util.Properties pluginPoints() {
+        java.util.Properties points = ourPluginPoints;
+        if (points == null) {
+            points = new java.util.Properties();
+            try (java.io.InputStream stream = ExtensionPointRegistry.class.getClassLoader().getResourceAsStream(PLUGIN_EXTENSION_POINTS)) {
+                if (stream != null) {
+                    points.load(stream);
+                }
+            }
+            catch (java.io.IOException ignored) {
+            }
+            ourPluginPoints = points;
+        }
+        return points;
+    }
+
     private static Class<?> loadApi(String name) {
         String className = ourApiNames.get(name);
+        if (className == null) {
+            className = pluginPoints().getProperty(name);
+        }
         if (className == null) {
             return null;
         }
