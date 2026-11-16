@@ -27,7 +27,7 @@ public interface SelectionModel {
     public void setBlockSelection(consulo.codeEditor.LogicalPosition p0, consulo.codeEditor.LogicalPosition p1);
     public int[] getBlockSelectionStarts();
     public int[] getBlockSelectionEnds();
-    public consulo.colorScheme.TextAttributes getTextAttributes();
+    public com.intellij.openapi.editor.markup.TextAttributes getTextAttributes();
     public default boolean isUnknownDirection() { return false; }
     public default void setUnknownDirection(boolean p0) { }
 }

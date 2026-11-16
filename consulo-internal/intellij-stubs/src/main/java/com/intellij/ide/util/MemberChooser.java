@@ -58,7 +58,7 @@ public class MemberChooser<T extends com.intellij.codeInsight.generation.ClassMe
     protected com.intellij.ide.util.MemberChooser.ShowContainersAction getShowContainersAction() { return null; }
     protected MemberChooser() { }
     @SuppressWarnings("all")
-    public static class CollapseAllAction extends consulo.ui.ex.action.AnAction {
+    public static class CollapseAllAction extends com.intellij.openapi.actionSystem.AnAction {
         public CollapseAllAction(com.intellij.ide.util.MemberChooser p0) { }
         public void actionPerformed(consulo.ui.ex.action.AnActionEvent p0) { }
         protected CollapseAllAction() { }
@@ -136,7 +136,7 @@ public class MemberChooser<T extends com.intellij.codeInsight.generation.ClassMe
         public int getOrder();
     }
     @SuppressWarnings("all")
-    public static class ExpandAllAction extends consulo.ui.ex.action.AnAction {
+    public static class ExpandAllAction extends com.intellij.openapi.actionSystem.AnAction {
         public ExpandAllAction(com.intellij.ide.util.MemberChooser p0) { }
         public void actionPerformed(consulo.ui.ex.action.AnActionEvent p0) { }
         protected ExpandAllAction() { }

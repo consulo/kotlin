@@ -75,6 +75,15 @@ SKIP_MEMBERS = {
     ('com.intellij.psi.PsiMember', 'isPublic'),
 }
 
+# the arguments of an accessible constructor of a JDK superclass that has no no-argument one
+JDK_SUPER_ARGS = {
+    'java.awt.Insets': '0, 0, 0, 0',
+    'java.awt.Font': '(String) null, 0, 0',
+    'javax.swing.border.TitledBorder': '(String) null',
+    'javax.swing.border.EmptyBorder': '0, 0, 0, 0',
+    'javax.swing.border.LineBorder': '(java.awt.Color) null',
+}
+
 JDK = ('java.', 'javax.', 'kotlin.', 'jdk.', 'sun.', 'org.jetbrains.annotations.')
 new_rules = []
 
@@ -315,6 +324,9 @@ def place_supertypes(rest, kind):
         return rest
     ext = split_types(m.group(1) or '')
     imp = split_types(m.group(2) or '')
+    # two Consulo types may stand for one IntelliJ type (Image and Icon are both javax.swing.Icon)
+    ext = list(dict.fromkeys(ext))
+    imp = [t for t in dict.fromkeys(imp) if t not in ext]
     if kind == 'interface':
         supers = [t for t in ext + imp if stub_kind(t) != 'class']
         return (' extends ' + ', '.join(supers)) if supers else ''
@@ -358,7 +370,8 @@ def class_source(consulo, ij, shallow, indent=''):
     if kind == 'enum':
         rest = re.sub(r'extends [\w.]*Enum<[^>]*>\s*', '', rest).strip()
         rest = (' ' + rest) if rest else ''
-    abstract = 'abstract ' if 'ACC_ABSTRACT' in cls_flags and kind == 'class' else ''
+    # a shallow stub has no members, so it cannot implement the abstract ones of its supertypes
+    abstract = 'abstract ' if kind == 'class' and ('ACC_ABSTRACT' in cls_flags or shallow) else ''
     static = 'static ' if indent else ''
     out = [f'{indent}@SuppressWarnings("all")', f'{indent}public {static}{abstract}{kind} {simple}{tparams}{rest} {{']
     keys = {}
@@ -381,6 +394,11 @@ def class_source(consulo, ij, shallow, indent=''):
     # a single varargs parameter takes no arguments too: VirtualFileVisitor(Option...)
     if kind == 'class' and not any(k[0] == 'ctor' and (k[1] == () or len(k[1]) == 1 and k[1][0].endswith('...')) for k in keys):
         out.append(f'{indent}    protected {simple}() {{ }}')
+    # a JDK superclass without a no-argument constructor needs an explicit super call
+    sup = re.match(r'^ extends ([\w.]+)', rest)
+    if kind == 'class' and sup and sup.group(1) in JDK_SUPER_ARGS:
+        out = [re.sub(rf'^(\s*(?:public |protected |private )?{simple}\([^)]*\)(?: throws [\w., ]+)?) \{{ \}}$',
+                      rf'\1 {{ super({JDK_SUPER_ARGS[sup.group(1)]}); }}', line) for line in out]
     out.append(f'{indent}}}')
     return '\n'.join(out), keys
 
@@ -408,6 +426,9 @@ def write_new(ij, consulo, shallow):
     body = src.rsplit('}', 1)[0]
     if not shallow:
         for n in nested_names(consulo):
+            # Swing's accessible contexts are inner classes of their components: a static stub cannot extend them
+            if n.rsplit('$', 1)[-1].startswith('Accessible'):
+                continue
             nsrc, _ = class_source(n, inverse(n), False, indent='    ')
             if nsrc:
                 body += nsrc + '\n'

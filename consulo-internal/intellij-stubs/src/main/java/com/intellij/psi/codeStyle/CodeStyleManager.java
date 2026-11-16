@@ -24,9 +24,9 @@ public abstract class CodeStyleManager {
   public abstract java.lang.String getLineIndent(com.intellij.psi.PsiFile p0, int p1);
   public java.util.List<java.lang.String> getLineIndents(com.intellij.psi.PsiFile p0) { return null; }
   public abstract java.lang.String getLineIndent(com.intellij.openapi.editor.Document p0, int p1);
-  public abstract com.intellij.psi.codeStyle.Indent getIndent(java.lang.String p0, com.intellij.openapi.fileTypes.FileType p1);
-  public abstract java.lang.String fillIndent(com.intellij.psi.codeStyle.Indent p0, com.intellij.openapi.fileTypes.FileType p1);
-  public abstract com.intellij.psi.codeStyle.Indent zeroIndent();
+  public abstract com.intellij.formatting.Indent getIndent(java.lang.String p0, com.intellij.openapi.fileTypes.FileType p1);
+  public abstract java.lang.String fillIndent(com.intellij.formatting.Indent p0, com.intellij.openapi.fileTypes.FileType p1);
+  public abstract com.intellij.formatting.Indent zeroIndent();
   public abstract void reformatNewlyAddedElement(com.intellij.lang.ASTNode p0, com.intellij.lang.ASTNode p1) throws com.intellij.util.IncorrectOperationException;
   public abstract boolean isSequentialProcessingAllowed();
   public abstract void performActionWithFormatterDisabled(java.lang.Runnable p0);

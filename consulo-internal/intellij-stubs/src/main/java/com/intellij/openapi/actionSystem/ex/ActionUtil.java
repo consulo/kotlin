@@ -4,15 +4,15 @@ package com.intellij.openapi.actionSystem.ex;
 @SuppressWarnings("all")
 public class ActionUtil {
     public static <T> T underModalProgress(com.intellij.openapi.project.Project project, java.lang.String progressTitle, com.intellij.openapi.util.Computable<T> computable) { return null; }
-    public static final com.intellij.openapi.util.Key<java.util.List<consulo.ui.ex.action.AnAction>> INLINE_ACTIONS = null;
+    public static final com.intellij.openapi.util.Key<java.util.List<com.intellij.openapi.actionSystem.AnAction>> INLINE_ACTIONS = null;
     public static final com.intellij.openapi.util.Key<java.lang.Boolean> ALWAYS_VISIBLE_INLINE_ACTION = null;
     public ActionUtil() { }
-    public static java.util.List<consulo.ui.ex.action.AnAction> getActions(javax.swing.JComponent p0) { return null; }
+    public static java.util.List<com.intellij.openapi.actionSystem.AnAction> getActions(javax.swing.JComponent p0) { return null; }
     public static void clearActions(javax.swing.JComponent p0) { }
     public static void copyRegisteredShortcuts(javax.swing.JComponent p0, javax.swing.JComponent p1) { }
-    public static consulo.ui.ex.action.AnAction copyFrom(consulo.ui.ex.action.AnAction p0, java.lang.String p1) { return null; }
-    public static consulo.ui.ex.action.AnAction mergeFrom(consulo.ui.ex.action.AnAction p0, java.lang.String p1) { return null; }
+    public static com.intellij.openapi.actionSystem.AnAction copyFrom(com.intellij.openapi.actionSystem.AnAction p0, java.lang.String p1) { return null; }
+    public static com.intellij.openapi.actionSystem.AnAction mergeFrom(com.intellij.openapi.actionSystem.AnAction p0, java.lang.String p1) { return null; }
     public static void registerForEveryKeyboardShortcut(javax.swing.JComponent p0, java.awt.event.ActionListener p1, consulo.ui.ex.action.ShortcutSet p2) { }
-    public static void sortAlphabetically(java.util.List<? extends consulo.ui.ex.action.AnAction> p0) { }
-    public static void moveActionTo(java.util.List<consulo.ui.ex.action.AnAction> p0, java.lang.String p1, java.lang.String p2, boolean p3) { }
+    public static void sortAlphabetically(java.util.List<? extends com.intellij.openapi.actionSystem.AnAction> p0) { }
+    public static void moveActionTo(java.util.List<com.intellij.openapi.actionSystem.AnAction> p0, java.lang.String p1, java.lang.String p2, boolean p3) { }
 }

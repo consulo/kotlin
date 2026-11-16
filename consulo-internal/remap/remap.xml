@@ -33,6 +33,9 @@
         <rule from="com.intellij.patterns" to="consulo.language.pattern"/>
         <rule from="com.intellij.psi.filters" to="consulo.language.psi.filter"/>
         <rule from="com.intellij.psi.xml" to="consulo.xml.language.psi"/>
+        <!-- IntelliJ's Kotlin UI DSL: a subset in consulo-internal/intellij-psi-extensions -->
+        <rule from="com.intellij.ui.dsl" to="consulo.kotlin.compat.ext.dsl"/>
+        <rule from="com.intellij.application.options.codeStyle.properties" to="consulo.kotlin.compat.codeStyle"/>
 
         <!-- Language/Lexer -->
         <rule from="com.intellij.lexer" to="consulo.language.lexer"/>
@@ -847,6 +850,77 @@
         <rule from="com.intellij.codeInsight.intention.preview.IntentionPreviewUtils" to="consulo.kotlin.compat.intention.IntentionPreviewUtils"/>
         <rule from="com.intellij.codeInsight.intention.RealIntentionBulb" to="consulo.kotlin.compat.intention.RealIntentionBulb"/>
         <rule from="com.intellij.codeInsight.daemon.QuickFixActionRegistrar" to="consulo.language.editor.intention.QuickFixActionRegistrar"/>
+        <rule from="com.intellij.openapi.ui.DialogPanel" to="consulo.kotlin.compat.ext.dsl.DialogPanel"/>
+        <rule from="com.intellij.ui.JBIntSpinner" to="consulo.kotlin.compat.ext.dsl.JBIntSpinner"/>
+        <rule from="com.intellij.ui.layout.ComponentPredicate" to="consulo.kotlin.compat.ext.dsl.ComponentPredicate"/>
+        <rule from="com.intellij.ui.layout.ComponentPredicateKt" to="consulo.kotlin.compat.ext.dsl.ComponentPredicateKt"/>
+        <!-- formatter and code style (plugin formatter/minimal) -->
+        <rule from="com.intellij.openapi.actionSystem.AnAction" to="consulo.ui.ex.action.AnAction"/>
+        <rule from="com.intellij.openapi.wm.FocusRequestor" to="consulo.application.ui.wm.FocusRequestor"/>
+        <rule from="com.intellij.openapi.editor.markup.TextAttributes" to="consulo.colorScheme.TextAttributes"/>
+        <rule from="com.intellij.ui.SimpleColoredComponent" to="consulo.ui.ex.awt.SimpleColoredComponent"/>
+        <rule from="com.intellij.ui.AnActionButton" to="consulo.ui.ex.awt.AnActionButton"/>
+        <rule from="com.intellij.ui.AnActionButtonRunnable" to="consulo.ui.ex.awt.AnActionButtonRunnable"/>
+        <rule from="com.intellij.ui.AnActionButtonUpdater" to="consulo.ui.ex.awt.AnActionButtonUpdater"/>
+        <rule from="com.intellij.formatting.Alignment" to="consulo.language.codeStyle.Alignment"/>
+        <rule from="com.intellij.formatting.Block" to="consulo.language.codeStyle.Block"/>
+        <rule from="com.intellij.formatting.ChildAttributes" to="consulo.language.codeStyle.ChildAttributes"/>
+        <rule from="com.intellij.formatting.DependentSpacingRule" to="consulo.language.codeStyle.DependentSpacingRule"/>
+        <rule from="com.intellij.formatting.FormattingContext" to="consulo.language.codeStyle.FormattingContext"/>
+        <rule from="com.intellij.formatting.FormattingDocumentModel" to="consulo.language.codeStyle.FormattingDocumentModel"/>
+        <rule from="com.intellij.formatting.FormattingMode" to="consulo.language.codeStyle.FormattingMode"/>
+        <rule from="com.intellij.formatting.FormattingModel" to="consulo.language.codeStyle.FormattingModel"/>
+        <rule from="com.intellij.formatting.FormattingModelBuilder" to="consulo.language.codeStyle.FormattingModelBuilder"/>
+        <rule from="com.intellij.formatting.FormattingModelProvider" to="consulo.language.codeStyle.FormattingModelProvider"/>
+        <rule from="com.intellij.formatting.FormattingRangesInfo" to="consulo.language.codeStyle.FormattingRangesInfo"/>
+        <rule from="com.intellij.formatting.Indent" to="consulo.language.codeStyle.Indent"/>
+        <rule from="com.intellij.formatting.Spacing" to="consulo.language.codeStyle.Spacing"/>
+        <rule from="com.intellij.formatting.SpacingBuilder" to="consulo.language.codeStyle.SpacingBuilder"/>
+        <rule from="com.intellij.formatting.Wrap" to="consulo.language.codeStyle.Wrap"/>
+        <rule from="com.intellij.formatting.WrapType" to="consulo.language.codeStyle.WrapType"/>
+        <rule from="com.intellij.psi.codeStyle.CodeStyleSettingsCustomizableOptions" to="consulo.kotlin.compat.codeStyle.CodeStyleSettingsCustomizableOptions"/>
+        <rule from="com.intellij.application.options.CodeStyleAbstractConfigurable" to="consulo.kotlin.compat.codeStyle.CodeStyleAbstractConfigurable"/>
+        <rule from="com.intellij.application.options.CodeStyleAbstractPanel" to="consulo.language.codeStyle.ui.setting.CodeStyleAbstractPanel"/>
+        <rule from="com.intellij.application.options.codeStyle.OptionTreeWithPreviewPanel" to="consulo.language.codeStyle.ui.setting.OptionTreeWithPreviewPanel"/>
+        <rule from="com.intellij.application.options.IndentOptionsEditor" to="consulo.language.codeStyle.setting.IndentOptionsEditor"/>
+        <rule from="com.intellij.application.options.SmartIndentOptionsEditor" to="consulo.language.codeStyle.ui.setting.SmartIndentOptionsEditor"/>
+        <rule from="com.intellij.application.options.TabbedLanguageCodeStylePanel" to="consulo.language.codeStyle.ui.setting.TabbedLanguageCodeStylePanel"/>
+        <rule from="com.intellij.formatting.alignment.AlignmentStrategy" to="consulo.language.codeStyle.AlignmentStrategy"/>
+        <rule from="com.intellij.formatting.DependantSpacingImpl" to="consulo.language.codeStyle.internal.DependantSpacingImpl"/>
+        <rule from="com.intellij.ide.todo.TodoConfiguration" to="consulo.language.editor.todo.TodoConfiguration"/>
+        <rule from="com.intellij.openapi.actionSystem.ActionUpdateThread" to="consulo.ui.ex.action.ActionUpdateThread"/>
+        <rule from="com.intellij.openapi.actionSystem.AnActionEvent" to="consulo.ui.ex.action.AnActionEvent"/>
+        <rule from="com.intellij.openapi.actionSystem.CommonShortcuts" to="consulo.ui.ex.action.CommonShortcuts"/>
+        <rule from="com.intellij.openapi.editor.colors.EditorColorsScheme" to="consulo.colorScheme.EditorColorsScheme"/>
+        <rule from="com.intellij.openapi.project.DumbAwareAction" to="consulo.ui.ex.action.DumbAwareAction"/>
+        <rule from="com.intellij.openapi.ui.ComboBox" to="consulo.ui.ex.awt.ComboBox"/>
+        <rule from="com.intellij.openapi.ui.OnePixelDivider" to="consulo.ui.ex.awt.OnePixelDivider"/>
+        <rule from="com.intellij.openapi.util.text.LineTokenizer" to="consulo.application.util.LineTokenizer"/>
+        <rule from="com.intellij.openapi.wm.IdeFocusManager" to="consulo.application.ui.wm.IdeFocusManager"/>
+        <rule from="com.intellij.psi.codeStyle.CodeStyleConfigurable" to="consulo.configurable.Configurable"/>
+        <rule from="com.intellij.psi.codeStyle.CodeStyleSettingsCustomizable" to="consulo.language.codeStyle.setting.CodeStyleSettingsCustomizable"/>
+        <rule from="com.intellij.psi.codeStyle.CodeStyleSettingsProvider" to="consulo.language.codeStyle.setting.CodeStyleSettingsProvider"/>
+        <rule from="com.intellij.psi.codeStyle.LanguageCodeStyleSettingsProvider" to="consulo.language.codeStyle.setting.LanguageCodeStyleSettingsProvider"/>
+        <rule from="com.intellij.psi.formatter.common.AbstractBlock" to="consulo.language.codeStyle.AbstractBlock"/>
+        <rule from="com.intellij.psi.formatter.FormatterUtil" to="consulo.language.codeStyle.FormatterUtil"/>
+        <rule from="com.intellij.psi.impl.source.codeStyle.PreFormatProcessor" to="consulo.language.codeStyle.PreFormatProcessor"/>
+        <rule from="com.intellij.ui.BooleanTableCellRenderer" to="consulo.ui.ex.awt.BooleanTableCellRenderer"/>
+        <rule from="com.intellij.ui.border.CustomLineBorder" to="consulo.ui.ex.awt.CustomLineBorder"/>
+        <rule from="com.intellij.ui.ColoredTableCellRenderer" to="consulo.ui.ex.awt.ColoredTableCellRenderer"/>
+        <rule from="com.intellij.ui.components.JBCheckBox" to="consulo.ui.ex.awt.JBCheckBox"/>
+        <rule from="com.intellij.ui.components.JBScrollPane" to="consulo.ui.ex.awt.JBScrollPane"/>
+        <rule from="com.intellij.ui.components.panels.HorizontalLayout" to="consulo.ui.ex.awt.HorizontalLayout"/>
+        <rule from="com.intellij.ui.components.panels.VerticalLayout" to="consulo.ui.ex.awt.VerticalLayout"/>
+        <rule from="com.intellij.ui.IdeBorderFactory" to="consulo.ui.ex.awt.IdeBorderFactory"/>
+        <rule from="com.intellij.ui.table.JBTable" to="consulo.ui.ex.awt.table.JBTable"/>
+        <rule from="com.intellij.ui.TableUtil" to="consulo.ui.ex.awt.util.TableUtil"/>
+        <rule from="com.intellij.ui.ToolbarDecorator" to="consulo.ui.ex.awt.ToolbarDecorator"/>
+        <rule from="com.intellij.util.IconUtil" to="consulo.ide.impl.idea.util.IconUtil"/>
+        <rule from="com.intellij.util.text.TextRangeUtil" to="consulo.document.util.TextRangeUtil"/>
+        <rule from="com.intellij.util.ui.JBInsets" to="consulo.ui.ex.awt.JBInsets"/>
+        <rule from="com.intellij.util.ui.JBUI" to="consulo.ui.ex.awt.JBUI"/>
+        <rule from="com.intellij.util.ui.UIUtil" to="consulo.ui.ex.awt.UIUtil"/>
+        <rule from="com.intellij.openapi.application.ApplicationBundle" to="consulo.application.ApplicationBundle"/>
     </classes>
 
     <!-- Method renames (applied after class remapping) -->
@@ -854,6 +928,12 @@
         <rule owner="consulo.module.content.DirectoryIndex" name="getDirsByPackageName" newName="getDirectoriesByPackageName"/>
         <!-- IntelliJ TextRange.containsInclusive(offset) is Consulo's containsOffset -->
         <rule owner="consulo.document.util.TextRange" name="containsInclusive" newName="containsOffset"/>
+        <!-- IntelliJ's code style provider creates its settings page with createConfigurable, Consulo's with createSettingsPage
+             (CodeStyleConfigurable maps to Consulo's Configurable). IntelliJ's display name and tab titles are strings,
+             Consulo's LocalizeValue: the string methods get other names, and the plugin's remap.xml bridges them -->
+        <rule owner="consulo.language.codeStyle.setting.LanguageCodeStyleSettingsProvider" name="createConfigurable" newName="createSettingsPage"/>
+        <rule owner="consulo.language.codeStyle.setting.LanguageCodeStyleSettingsProvider" name="getConfigurableDisplayName" desc="()Ljava/lang/String;" newName="getConfigurableDisplayNameText"/>
+        <rule owner="consulo.language.codeStyle.ui.setting.CodeStyleAbstractPanel" name="getTabTitle" desc="()Ljava/lang/String;" newName="getTabTitleText"/>
         <!-- IntelliJ's scope caches calcHashCode() in hashCode(); Consulo's computes hashCode() -->
         <rule owner="consulo.language.psi.scope.DelegatingGlobalSearchScope" name="calcHashCode" newName="hashCode"/>
         <!-- IntelliJ IntentionAction.getText() is a string: getIntentionText() of consulo.kotlin.compat.intention.IntentionAction -->
@@ -885,6 +965,13 @@
     <!-- Calls whose target is missing in Consulo, rewritten to static helpers in consulo-internal/intellij-compat.
          owner/name/desc are the remapped ones. -->
     <redirects>
+        <!-- formatter: IntelliJ API that Consulo has elsewhere or lacks -->
+        <method owner="consulo.ide.impl.idea.util.IconUtil" name="getAddPackageIcon" desc="()Lconsulo/ui/image/Image;"
+                target="consulo.kotlin.compat.ui.IconUtilCompat"/>
+        <method owner="consulo.ui.ex.SimpleTextAttributes" name="fromTextAttributes" desc="(Lconsulo/colorScheme/TextAttributes;)Lconsulo/ui/ex/SimpleTextAttributes;"
+                target="consulo.ui.ex.util.TextAttributesUtil"/>
+        <method owner="consulo.language.editor.todo.TodoConfiguration" name="isMultiLine" desc="()Z"
+                target="consulo.kotlin.compat.editor.TodoCompat"/>
         <!-- Kotlin registry keys; analysis statistics are always off -->
         <method owner="consulo.application.util.registry.Registry" name="is" desc="(Ljava/lang/String;Z)Z"
                 target="consulo.kotlin.compat.util.RegistryCompat"/>

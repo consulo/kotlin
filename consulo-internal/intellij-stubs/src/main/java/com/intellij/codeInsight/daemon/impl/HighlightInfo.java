@@ -14,7 +14,7 @@ public interface HighlightInfo extends com.intellij.openapi.util.Segment {
     public com.intellij.codeInsight.daemon.impl.HighlightInfoType getType();
     public com.intellij.psi.PsiElement getPsiElement();
     public consulo.localize.LocalizeValue getToolTip();
-    public consulo.colorScheme.TextAttributes getTextAttributes(com.intellij.psi.PsiElement p0, consulo.colorScheme.EditorColorsScheme p1);
+    public com.intellij.openapi.editor.markup.TextAttributes getTextAttributes(com.intellij.psi.PsiElement p0, consulo.colorScheme.EditorColorsScheme p1);
     public consulo.codeEditor.markup.GutterMark getGutterIconRenderer();
     public default void registerFix(com.intellij.codeInsight.intention.CommonIntentionAction p0) { }
     public void registerFix(com.intellij.codeInsight.intention.CommonIntentionAction p0, java.util.List<? extends com.intellij.codeInsight.intention.CommonIntentionAction> p1, consulo.localize.LocalizeValue p2, com.intellij.openapi.util.TextRange p3, com.intellij.lang.editor.rawHighlight.HighlightDisplayKey p4);
@@ -36,7 +36,7 @@ public interface HighlightInfo extends com.intellij.openapi.util.Segment {
         public com.intellij.codeInsight.daemon.impl.HighlightInfo.Builder inspectionToolId(java.lang.String p0);
         public com.intellij.codeInsight.daemon.impl.HighlightInfo.Builder description(consulo.localize.LocalizeValue p0);
         public default com.intellij.codeInsight.daemon.impl.HighlightInfo.Builder descriptionAndTooltip(consulo.localize.LocalizeValue p0) { return null; }
-        public com.intellij.codeInsight.daemon.impl.HighlightInfo.Builder textAttributes(consulo.colorScheme.TextAttributes p0);
+        public com.intellij.codeInsight.daemon.impl.HighlightInfo.Builder textAttributes(com.intellij.openapi.editor.markup.TextAttributes p0);
         public com.intellij.codeInsight.daemon.impl.HighlightInfo.Builder textAttributes(com.intellij.openapi.editor.colors.TextAttributesKey p0);
         public com.intellij.codeInsight.daemon.impl.HighlightInfo.Builder unescapedToolTip(consulo.localize.LocalizeValue p0);
         public com.intellij.codeInsight.daemon.impl.HighlightInfo.Builder escapedToolTip(consulo.localize.LocalizeValue p0);

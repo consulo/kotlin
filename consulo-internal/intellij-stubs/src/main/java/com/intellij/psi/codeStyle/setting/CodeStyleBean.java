@@ -14,6 +14,6 @@ public abstract class CodeStyleBean implements java.io.Serializable {
     protected com.intellij.psi.codeStyle.CommonCodeStyleSettings getCommonSettings() { return null; }
     protected com.intellij.psi.codeStyle.CommonCodeStyleSettings.IndentOptions getIndentOptions(boolean p0) { return null; }
     protected <T extends com.intellij.psi.codeStyle.CustomCodeStyleSettings> T getCustomSettings(java.lang.Class<T> p0) { return null; }
-    protected static com.intellij.psi.codeStyle.WrapType intToWrapType(int p0) { return null; }
-    protected static int wrapTypeToInt(com.intellij.psi.codeStyle.WrapType p0) { return 0; }
+    protected static com.intellij.formatting.WrapType intToWrapType(int p0) { return null; }
+    protected static int wrapTypeToInt(com.intellij.formatting.WrapType p0) { return 0; }
 }

@@ -2,6 +2,7 @@ package com.intellij.openapi.editor.colors;
 
 @SuppressWarnings("all")
 public final class TextAttributesKey implements java.lang.Comparable<TextAttributesKey> {
+    public com.intellij.openapi.editor.markup.TextAttributes getDefaultAttributes() { return null; }
     public static final TextAttributesKey[] EMPTY_ARRAY = null;
     private TextAttributesKey() {}
     public static TextAttributesKey createTextAttributesKey(java.lang.String p0) { return null; }

@@ -18,7 +18,7 @@ public interface CaretModel {
     public void removeCaretListener(consulo.codeEditor.event.CaretListener p0);
     public int getVisualLineStart();
     public int getVisualLineEnd();
-    public consulo.colorScheme.TextAttributes getTextAttributes();
+    public com.intellij.openapi.editor.markup.TextAttributes getTextAttributes();
     public boolean supportsMultipleCarets();
     public int getMaxCaretCount();
     public consulo.codeEditor.Caret getCurrentCaret();
