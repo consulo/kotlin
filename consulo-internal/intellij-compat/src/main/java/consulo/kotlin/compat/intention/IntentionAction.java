@@ -14,6 +14,11 @@ public interface IntentionAction extends consulo.language.editor.intention.Inten
         return getIntentionText();
     }
 
+    /** IntelliJ {@code asModCommandAction()}: Consulo has no ModCommand API. */
+    default ModCommandAction asModCommandAction() {
+        return null;
+    }
+
     @Override
     default LocalizeValue getText() {
         return LocalizeValue.of(getIntentionText());

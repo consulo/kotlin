@@ -163,4 +163,14 @@ public final class UtilCompat {
     public static int getIconHeight(Image image) {
         return image.getHeight();
     }
+
+    /** IntelliJ {@code ExperimentalUI.isNewUI()}: the plugin shows the new UI icons. */
+    public static boolean isNewUI() {
+        return true;
+    }
+
+    /** IntelliJ {@code IncompleteModelUtil.isIncompleteModel(element)}: Consulo has no incomplete project model state. */
+    public static boolean isIncompleteModel(Object element) {
+        return false;
+    }
 }

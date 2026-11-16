@@ -3,6 +3,7 @@
     <verbatim name="consulo.kotlin.compat.ui.CompositeImage"/>
     <!-- implements Consulo's getText() next to IntelliJ's, which remap.xml renames in implementations (see <methods>) -->
     <verbatim name="consulo.kotlin.compat.intention.IntentionAction"/>
+    <verbatim name="consulo.kotlin.compat.intention.SuppressIntentionAction"/>
 
     <!-- Package-level rules (bulk mapping, lowest priority) -->
     <packages>
@@ -821,6 +822,31 @@
         <rule from="org.jetbrains.uast.UastContext" to="consulo.kotlin.compat.uast.UastContext"/>
         <rule from="com.intellij.psi.impl.search.JavaOverridingMethodsSearcher$ClassInheritanceSearchFromJavaOverridingMethodsParameters" to="consulo.kotlin.compat.search.ClassInheritanceSearchFromJavaOverridingMethodsParameters"/>
         <rule from="com.intellij.psi.search.PsiElementProcessor" to="consulo.language.psi.resolve.PsiElementProcessor"/>
+        <!-- highlighting (plugin highlighting/highlighting-k2) -->
+        <rule from="com.intellij.codeInsight.daemon.impl.analysis.HighlightInfoHolder" to="consulo.language.editor.rawHighlight.HighlightInfoHolder"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.analysis.HighlightingLevelManager" to="consulo.language.editor.highlight.HighlightingLevelManager"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.HighlightInfo" to="consulo.language.editor.rawHighlight.HighlightInfo"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.HighlightInfoType" to="consulo.language.editor.rawHighlight.HighlightInfoType"/>
+        <!-- nested in IntelliJ, top-level in Consulo -->
+        <rule from="com.intellij.codeInsight.daemon.impl.HighlightInfoType$HighlightInfoTypeImpl" to="consulo.language.editor.rawHighlight.HighlightInfoTypeImpl"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.HighlightRangeExtension" to="consulo.language.editor.HighlightRangeExtension"/>
+        <rule from="com.intellij.codeInsight.daemon.impl.HighlightVisitor" to="consulo.kotlin.compat.highlight.HighlightVisitor"/>
+        <rule from="com.intellij.codeInsight.hint.QuestionAction" to="consulo.language.editor.hint.QuestionAction"/>
+        <rule from="com.intellij.codeInsight.intention.AbstractEmptyIntentionAction" to="consulo.kotlin.compat.intention.AbstractEmptyIntentionAction"/>
+        <rule from="com.intellij.codeInsight.intention.FileModifier" to="consulo.language.editor.inspection.FileModifier"/>
+        <rule from="com.intellij.codeInsight.intention.IntentionActionWithOptions" to="consulo.language.editor.intention.IntentionActionWithOptions"/>
+        <rule from="com.intellij.codeInsight.intention.LowPriorityAction" to="consulo.language.editor.intention.LowPriorityAction"/>
+        <rule from="com.intellij.codeInsight.quickfix.UnresolvedReferenceQuickFixProvider" to="consulo.language.editor.intention.UnresolvedReferenceQuickFixProvider"/>
+        <rule from="com.intellij.codeInspection.SuppressableProblemGroup" to="consulo.language.editor.annotation.SuppressableProblemGroup"/>
+        <rule from="com.intellij.codeInspection.SuppressIntentionAction" to="consulo.kotlin.compat.intention.SuppressIntentionAction"/>
+        <rule from="com.intellij.codeInspection.SuppressQuickFix" to="consulo.language.editor.inspection.SuppressQuickFix"/>
+        <rule from="com.intellij.concurrency.JobLauncher" to="consulo.application.util.concurrent.JobLauncher"/>
+        <rule from="com.intellij.lang.annotation.HighlightSeverity" to="consulo.language.editor.annotation.HighlightSeverity"/>
+        <rule from="com.intellij.lang.injection.InjectedLanguageManager" to="consulo.language.inject.InjectedLanguageManager"/>
+        <rule from="com.intellij.psi.impl.source.tree.injected.InjectedFileViewProvider" to="consulo.kotlin.compat.psi.InjectedFileViewProvider"/>
+        <rule from="com.intellij.codeInsight.intention.preview.IntentionPreviewUtils" to="consulo.kotlin.compat.intention.IntentionPreviewUtils"/>
+        <rule from="com.intellij.codeInsight.intention.RealIntentionBulb" to="consulo.kotlin.compat.intention.RealIntentionBulb"/>
+        <rule from="com.intellij.codeInsight.daemon.QuickFixActionRegistrar" to="consulo.language.editor.intention.QuickFixActionRegistrar"/>
     </classes>
 
     <!-- Method renames (applied after class remapping) -->
@@ -1028,6 +1054,28 @@
         <method owner="consulo.component.ComponentManager" name="getService" desc="(Ljava/lang/Class;)Ljava/lang/Object;" anyOwner="true"
                 target="consulo.kotlin.compat.util.ServiceCompat"/>
         <!-- completion closure: IntelliJ members Consulo lacks (consulo-internal/intellij-compat) -->
+        <field owner="consulo.language.editor.rawHighlight.HighlightInfoType" name="DEPRECATED" desc="Lconsulo/language/editor/rawHighlight/HighlightInfoType;"
+               target="consulo.kotlin.compat.highlight.HighlightCompat" targetName="deprecated"/>
+        <field owner="consulo.language.editor.rawHighlight.HighlightInfoType" name="UNUSED_SYMBOL" desc="Lconsulo/language/editor/rawHighlight/HighlightInfoType;"
+               target="consulo.kotlin.compat.highlight.HighlightCompat" targetName="unusedSymbol"/>
+        <field owner="consulo.language.editor.rawHighlight.HighlightInfoType" name="PENDING_REFERENCE" desc="Lconsulo/language/editor/rawHighlight/HighlightInfoType;"
+               target="consulo.kotlin.compat.highlight.HighlightCompat" targetName="pendingReference"/>
+        <method owner="consulo.language.inject.InjectedLanguageManager" name="isInjectedViewProvider" desc="(Lconsulo/language/file/FileViewProvider;)Z" anyOwner="true"
+                target="consulo.kotlin.compat.highlight.HighlightCompat"/>
+        <method owner="consulo.language.editor.highlight.HighlightingLevelManager" name="runEssentialHighlightingOnly" desc="(Lconsulo/language/psi/PsiElement;)Z" anyOwner="true"
+                target="consulo.kotlin.compat.highlight.HighlightCompat"/>
+        <method owner="consulo.application.util.concurrent.JobLauncher" name="processConcurrentlyAsync" desc="(Ljava/util/List;Lconsulo/application/util/function/Processor;Ljava/lang/Runnable;)V" anyOwner="true"
+                target="consulo.kotlin.compat.highlight.HighlightCompat"/>
+        <method owner="consulo.language.editor.rawHighlight.HighlightInfo$Builder" name="registerLazyFixes" desc="(Ljava/util/function/Consumer;)Lconsulo/language/editor/rawHighlight/HighlightInfo$Builder;" anyOwner="true"
+                target="consulo.kotlin.compat.highlight.HighlightCompat"/>
+        <method owner="consulo.language.editor.intention.UnresolvedReferenceQuickFixProvider" name="registerUnresolvedReferenceLazyQuickFixes" desc="(Lconsulo/language/psi/PsiReference;Lconsulo/language/editor/rawHighlight/HighlightInfo$Builder;)V"
+                target="consulo.kotlin.compat.highlight.HighlightCompat"/>
+        <method owner="consulo.language.editor.intention.IntentionAction" name="asIntention" desc="()Lconsulo/kotlin/compat/intention/IntentionAction;" anyOwner="true"
+                target="consulo.kotlin.compat.intention.IntentionCompat"/>
+        <method owner="com.intellij.ui.ExperimentalUI" name="isNewUI" desc="()Z"
+                target="consulo.kotlin.compat.util.UtilCompat"/>
+        <method owner="consulo.language.impl.psi.IncompleteModelUtil" name="isIncompleteModel" desc="(Lconsulo/language/psi/PsiElement;)Z"
+                target="consulo.kotlin.compat.util.UtilCompat" targetDesc="(Ljava/lang/Object;)Z"/>
         <method owner="consulo.application.Application" name="runWriteAction" desc="(Lconsulo/application/util/function/Computable;)Ljava/lang/Object;" anyOwner="true"
                 target="consulo.kotlin.compat.util.UtilCompat"/>
         <method owner="consulo.application.Application" name="invokeLater" desc="(Ljava/lang/Runnable;Lconsulo/util/lang/function/Condition;)V" anyOwner="true"

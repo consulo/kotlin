@@ -408,6 +408,8 @@ public class AllIcons {
     }
     @SuppressWarnings("all")
     public static class Actions {
+        // not in Consulo; upstream reads it only for the old UI (ExperimentalUI.isNewUI() is true here)
+        public static final javax.swing.Icon RealIntentionBulb = null;
         public static final javax.swing.Icon AddMulticaret = null;
         public static final javax.swing.Icon AllLeft = null;
         public static final javax.swing.Icon AllRight = null;
