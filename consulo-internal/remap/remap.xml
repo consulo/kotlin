@@ -854,6 +854,61 @@
         <rule from="com.intellij.ui.JBIntSpinner" to="consulo.kotlin.compat.ext.dsl.JBIntSpinner"/>
         <rule from="com.intellij.ui.layout.ComponentPredicate" to="consulo.kotlin.compat.ext.dsl.ComponentPredicate"/>
         <rule from="com.intellij.ui.layout.ComponentPredicateKt" to="consulo.kotlin.compat.ext.dsl.ComponentPredicateKt"/>
+        <!-- find usages (plugin kotlin.searching) -->
+        <rule from="com.intellij.psi.search.searches.AllOverridingMethodsSearch" to="com.intellij.java.indexing.search.searches.AllOverridingMethodsSearch"/>
+        <rule from="com.intellij.util.MergeQuery" to="consulo.application.util.query.MergeQuery"/>
+        <rule from="com.intellij.codeInsight.highlighting.JavaReadWriteAccessDetector" to="com.intellij.java.language.impl.codeInsight.highlighting.JavaReadWriteAccessDetector"/>
+        <rule from="com.intellij.openapi.wm.ToolWindow" to="consulo.ui.ex.toolWindow.ToolWindow"/>
+        <rule from="com.intellij.psi.ElementDescriptionProvider" to="consulo.kotlin.compat.psi.ElementDescriptionProvider"/>
+        <rule from="com.intellij.find.findUsages.CommonFindUsagesDialog" to="consulo.kotlin.compat.find.CommonFindUsagesDialog"/>
+        <rule from="com.intellij.find.findUsages.JavaFindUsagesDialog" to="consulo.kotlin.compat.find.JavaFindUsagesDialog"/>
+        <rule from="com.intellij.find.findUsages.FindClassUsagesDialog" to="consulo.kotlin.compat.find.FindClassUsagesDialog"/>
+        <rule from="com.intellij.find.findUsages.FindMethodUsagesDialog" to="consulo.kotlin.compat.find.FindMethodUsagesDialog"/>
+        <rule from="com.intellij.find.findUsages.AbstractFindUsagesDialog" to="consulo.find.ui.AbstractFindUsagesDialog"/>
+        <rule from="com.intellij.find.findUsages.FindUsagesHandler" to="consulo.find.FindUsagesHandler"/>
+        <rule from="com.intellij.find.findUsages.FindUsagesHandlerFactory" to="consulo.find.FindUsagesHandlerFactory"/>
+        <rule from="com.intellij.find.findUsages.FindUsagesOptions" to="consulo.find.FindUsagesOptions"/>
+        <rule from="com.intellij.find.findUsages.FindUsagesManager" to="consulo.find.FindManager"/>
+        <rule from="com.intellij.find.findUsages.JavaFindUsagesOptions" to="com.intellij.java.analysis.impl.find.findUsages.JavaFindUsagesOptions"/>
+        <rule from="com.intellij.find.findUsages.JavaClassFindUsagesOptions" to="com.intellij.java.analysis.impl.find.findUsages.JavaClassFindUsagesOptions"/>
+        <rule from="com.intellij.find.findUsages.JavaMethodFindUsagesOptions" to="com.intellij.java.analysis.impl.find.findUsages.JavaMethodFindUsagesOptions"/>
+        <rule from="com.intellij.find.findUsages.JavaVariableFindUsagesOptions" to="com.intellij.java.analysis.impl.find.findUsages.JavaVariableFindUsagesOptions"/>
+        <rule from="com.intellij.find.findUsages.JavaFindUsagesHandler" to="com.intellij.java.impl.find.findUsages.JavaFindUsagesHandler"/>
+        <rule from="com.intellij.find.findUsages.JavaFindUsagesHandlerFactory" to="com.intellij.java.impl.find.findUsages.JavaFindUsagesHandlerFactory"/>
+        <rule from="com.intellij.find.FindManager" to="consulo.find.FindManager"/>
+        <rule from="com.intellij.find.impl.FindManagerBase" to="consulo.find.FindManager"/>
+        <rule from="com.intellij.find.FindUsagesSettings" to="consulo.find.FindSettings"/>
+        <rule from="com.intellij.codeInsight.highlighting.HighlightUsagesDescriptionLocation" to="consulo.language.editor.highlight.HighlightUsagesDescriptionLocation"/>
+        <rule from="com.intellij.codeInsight.highlighting.ReadWriteAccessDetector" to="consulo.language.editor.highlight.ReadWriteAccessDetector"/>
+        <rule from="com.intellij.java.JavaBundle" to="consulo.java.impl.JavaBundle"/>
+        <rule from="com.intellij.lang.findUsages.FindUsagesProvider" to="consulo.language.findUsage.FindUsagesProvider"/>
+        <rule from="com.intellij.lang.java.JavaFindUsagesProvider" to="com.intellij.java.impl.lang.java.JavaFindUsagesProvider"/>
+        <rule from="com.intellij.openapi.application.WriteIntentReadAction" to="consulo.kotlin.compat.application.WriteIntentReadAction"/>
+        <rule from="com.intellij.openapi.ui.MessageType" to="consulo.project.ui.notification.NotificationType"/>
+        <rule from="com.intellij.openapi.ui.panel.ComponentPanelBuilder" to="consulo.kotlin.compat.ui.ComponentPanelBuilder"/>
+        <rule from="com.intellij.openapi.wm.ToolWindowId" to="consulo.project.ui.wm.ToolWindowId"/>
+        <rule from="com.intellij.openapi.wm.ToolWindowManager" to="consulo.project.ui.wm.ToolWindowManager"/>
+        <rule from="com.intellij.psi.impl.light.LightMemberReference" to="com.intellij.java.language.impl.psi.impl.light.LightMemberReference"/>
+        <rule from="com.intellij.psi.search.searches.DefinitionsScopedSearch" to="consulo.language.psi.search.DefinitionsScopedSearch"/>
+        <rule from="com.intellij.psi.search.searches.FunctionalExpressionSearch" to="com.intellij.java.indexing.search.searches.FunctionalExpressionSearch"/>
+        <rule from="com.intellij.refactoring.util.CommonRefactoringUtil" to="consulo.language.editor.refactoring.util.CommonRefactoringUtil"/>
+        <rule from="com.intellij.refactoring.util.RefactoringDescriptionLocation" to="consulo.language.editor.refactoring.util.RefactoringDescriptionLocation"/>
+        <rule from="com.intellij.ui.StateRestoringCheckBox" to="consulo.ui.ex.awt.StateRestoringCheckBox"/>
+        <rule from="com.intellij.usageView.UsageInfo" to="consulo.usage.UsageInfo"/>
+        <rule from="com.intellij.usageView.UsageViewBundle" to="consulo.usage.UsageViewBundle"/>
+        <rule from="com.intellij.usageView.UsageViewLongNameLocation" to="consulo.usage.UsageViewLongNameLocation"/>
+        <rule from="com.intellij.usageView.UsageViewShortNameLocation" to="consulo.usage.UsageViewShortNameLocation"/>
+        <rule from="com.intellij.usageView.UsageViewTypeLocation" to="consulo.usage.UsageViewTypeLocation"/>
+        <rule from="com.intellij.usages.UsageTarget" to="consulo.usage.UsageTarget"/>
+        <rule from="com.intellij.usages.impl.rules.UsageType" to="consulo.usage.UsageType"/>
+        <rule from="com.intellij.usages.impl.rules.UsageTypeProviderEx" to="consulo.usage.UsageTypeProviderEx"/>
+        <rule from="com.intellij.usages.impl.rules.UsageTypeProvider" to="consulo.usage.UsageTypeProvider"/>
+        <rule from="com.intellij.util.Alarm" to="consulo.ui.ex.awt.util.Alarm"/>
+        <rule from="com.intellij.util.EmptyQuery" to="consulo.application.util.query.EmptyQuery"/>
+        <rule from="com.intellij.util.FilteredQuery" to="consulo.application.util.query.FilteredQuery"/>
+        <rule from="com.intellij.util.QueryExecutor" to="consulo.kotlin.compat.search.QueryExecutor"/>
+        <rule from="com.intellij.openapi.actionSystem.DataContext" to="consulo.dataContext.DataContext"/>
+        <rule from="com.intellij.ide.util.PropertiesComponent" to="consulo.component.PropertiesComponent"/>
         <!-- formatter and code style (plugin formatter/minimal) -->
         <rule from="com.intellij.openapi.actionSystem.AnAction" to="consulo.ui.ex.action.AnAction"/>
         <rule from="com.intellij.openapi.wm.FocusRequestor" to="consulo.application.ui.wm.FocusRequestor"/>
@@ -936,6 +991,7 @@
         <rule owner="consulo.language.codeStyle.setting.LanguageCodeStyleSettingsProvider" name="createConfigurable" newName="createSettingsPage"/>
         <rule owner="consulo.language.codeStyle.setting.LanguageCodeStyleSettingsProvider" name="getConfigurableDisplayName" desc="()Ljava/lang/String;" newName="getConfigurableDisplayNameText"/>
         <rule owner="consulo.language.codeStyle.ui.setting.CodeStyleAbstractPanel" name="getTabTitle" desc="()Ljava/lang/String;" newName="getTabTitleText"/>
+        <rule owner="consulo.kotlin.compat.psi.ElementDescriptionProvider" name="getElementDescription" desc="(Lconsulo/language/psi/PsiElement;Lconsulo/language/psi/ElementDescriptionLocation;)Ljava/lang/String;" newName="getElementDescriptionText"/>
         <!-- IntelliJ's scope caches calcHashCode() in hashCode(); Consulo's computes hashCode() -->
         <rule owner="consulo.language.psi.scope.DelegatingGlobalSearchScope" name="calcHashCode" newName="hashCode"/>
         <!-- IntelliJ IntentionAction.getText() is a string: getIntentionText() of consulo.kotlin.compat.intention.IntentionAction -->
@@ -974,6 +1030,31 @@
                 target="consulo.ui.ex.util.TextAttributesUtil"/>
         <method owner="consulo.language.editor.todo.TodoConfiguration" name="isMultiLine" desc="()Z"
                 target="consulo.kotlin.compat.editor.TodoCompat"/>
+        <!-- find usages: IntelliJ's FindUsagesManager is Consulo's FindManager; balloons with Swing hyperlink listeners -->
+        <method owner="consulo.usage.UsageViewBundle" name="messagePointer" desc="(Ljava/lang/String;[Ljava/lang/Object;)Ljava/util/function/Supplier;"
+                target="consulo.kotlin.compat.usage.UsageCompat"/>
+        <method owner="consulo.module.Module" name="getModuleWithDependentsScope" desc="()Lconsulo/language/psi/scope/GlobalSearchScope;" anyOwner="true"
+                target="consulo.kotlin.compat.psi.SearchScopeCompat"/>
+        <method owner="consulo.component.PropertiesComponent" name="getInstance" desc="(Lconsulo/project/Project;)Lconsulo/component/PropertiesComponent;"
+                target="consulo.kotlin.compat.find.FindCompat" targetName="getPropertiesComponent"/>
+        <method owner="consulo.component.PropertiesComponent" name="getInstance" desc="()Lconsulo/component/PropertiesComponent;"
+                target="consulo.kotlin.compat.find.FindCompat" targetName="getPropertiesComponent"/>
+        <method owner="consulo.find.FindUsagesHandler" name="processUsagesInText"
+                desc="(Lconsulo/language/psi/PsiElement;Lconsulo/application/util/function/Processor;Lconsulo/language/psi/scope/GlobalSearchScope;)Z"
+                anyOwner="true" target="consulo.kotlin.compat.find.FindCompat"/>
+        <!-- IntelliJ's QueryExecutor is consulo.kotlin.compat.search.QueryExecutor, a subtype of the parameter -->
+        <retype owner="consulo.application.util.query.QueryFactory" name="registerExecutor" desc="(Lconsulo/kotlin/compat/search/QueryExecutor;)V"
+                newDesc="(Lconsulo/application/util/query/QueryExecutor;)V"/>
+        <retype owner="consulo.application.util.query.QueryFactory" name="unregisterExecutor" desc="(Lconsulo/kotlin/compat/search/QueryExecutor;)V"
+                newDesc="(Lconsulo/application/util/query/QueryExecutor;)V"/>
+        <method owner="consulo.find.FindUsagesHandler" name="processElementUsages"
+                desc="(Lconsulo/language/psi/PsiElement;Lconsulo/application/util/function/Processor;Lconsulo/find/FindUsagesOptions;)Z"
+                target="consulo.kotlin.compat.find.FindCompat"/>
+        <method owner="consulo.find.FindManager" name="getFindUsagesManager" desc="()Lconsulo/find/FindManager;" anyOwner="true"
+                target="consulo.kotlin.compat.find.FindCompat"/>
+        <method owner="consulo.project.ui.wm.ToolWindowManager" name="notifyByBalloon"
+                desc="(Ljava/lang/String;Lconsulo/project/ui/notification/NotificationType;Ljava/lang/String;Lconsulo/ui/image/Image;Ljavax/swing/event/HyperlinkListener;)V"
+                anyOwner="true" target="consulo.kotlin.compat.find.FindCompat"/>
         <!-- Kotlin registry keys; analysis statistics are always off -->
         <method owner="consulo.application.util.registry.Registry" name="is" desc="(Ljava/lang/String;Z)Z"
                 target="consulo.kotlin.compat.util.RegistryCompat"/>
@@ -1045,6 +1126,8 @@
                 target="consulo.kotlin.compat.util.PlatformCompat"/>
         <method owner="consulo.application.PathManager" name="getLogDir" desc="()Ljava/nio/file/Path;"
                 target="consulo.kotlin.compat.util.PlatformCompat"/>
+        <field owner="consulo.project.ui.notification.NotificationType" name="INFO" desc="Lconsulo/project/ui/notification/NotificationType;"
+               target="consulo.kotlin.compat.find.FindCompat" targetName="messageTypeInfo"/>
         <field owner="consulo.language.psi.PsiModificationTracker" name="MODIFICATION_COUNT" desc="Ljava/lang/Object;"
                target="consulo.kotlin.compat.util.PlatformCompat" targetName="modificationCount"/>
         <!-- IntelliJ extension areas -->
@@ -1137,6 +1220,7 @@
                 target="consulo.kotlin.compat.util.CompatAttachment"/>
         <!-- IntelliJ Attachment is a class, Consulo's an interface -->
         <new owner="consulo.logging.attachment.Attachment" target="consulo.kotlin.compat.util.CompatAttachment"/>
+        <newFactory owner="consulo.usage.UsageType" desc="(Ljava/util/function/Supplier;)V" target="consulo.kotlin.compat.usage.UsageCompat" name="usageType"/>
         <method owner="consulo.language.editor.highlight.SyntaxHighlighterBase" name="merge" desc="(Ljava/util/Map;Ljava/util/Map;)Ljava/util/Map;"
                 target="consulo.kotlin.compat.editor.HighlighterCompat"/>
         <!-- IntelliJ getService returns null for unregistered services (also through Project/Application) -->
@@ -1203,6 +1287,8 @@
                target="consulo.kotlin.compat.extensions.ExtensionsCompat" targetName="overridingMethodsSearchEp"/>
         <field owner="com.intellij.java.indexing.search.searches.DirectClassInheritorsSearch" name="EP_NAME" desc="Lconsulo/kotlin/compat/extensions/ExtensionPointName;"
                target="consulo.kotlin.compat.extensions.ExtensionsCompat" targetName="directClassInheritorsSearchEp"/>
+        <field owner="consulo.language.editor.highlight.ReadWriteAccessDetector" name="EP_NAME" desc="Lconsulo/kotlin/compat/extensions/ExtensionPointName;"
+               target="consulo.kotlin.compat.extensions.ExtensionsCompat" targetName="readWriteAccessDetectorEp"/>
         <method owner="consulo.kotlin.compat.completion.LookupElementDecorator" name="withInsertHandler"
                 desc="(Lconsulo/language/editor/completion/lookup/LookupElement;Lconsulo/language/editor/completion/lookup/InsertHandler;)Lconsulo/kotlin/compat/completion/LookupElementDecorator;"
                 target="consulo.kotlin.compat.completion.LookupElementDecorator" targetName="withDecoratorInsertHandler"/>
@@ -1659,6 +1745,9 @@
         <!-- compat: the Java plugin's override annotations handlers and search executors -->
         <requires>consulo.java</requires>
         <requires>consulo.java.indexing.api</requires>
+        <requires>consulo.java.analysis.impl</requires>
+        <requires>consulo.find.api</requires>
+        <requires>consulo.usage.api</requires>
         <requires>consulo.kotlin.core.helper</requires>
         <requires>consulo.annotation</requires>
         <!-- libraries shipped in the plugin's lib (guava comes with the platform, asm with the Java plugin; IntelliJ's syntax-api is not shipped,

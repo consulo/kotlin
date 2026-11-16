@@ -58,4 +58,11 @@ public final class ExtensionsCompat {
     public static ExtensionPointName<Object> directClassInheritorsSearchEp() {
         return DIRECT_CLASS_INHERITORS_SEARCH;
     }
+
+    private static final ExtensionPointName<Object> READ_WRITE_ACCESS_DETECTOR = ExtensionPointName.create("com.intellij.readWriteAccessDetector");
+
+    /** IntelliJ {@code ReadWriteAccessDetector.EP_NAME}: Consulo's ReadWriteAccessDetector extensions. */
+    public static ExtensionPointName<Object> readWriteAccessDetectorEp() {
+        return READ_WRITE_ACCESS_DETECTOR;
+    }
 }

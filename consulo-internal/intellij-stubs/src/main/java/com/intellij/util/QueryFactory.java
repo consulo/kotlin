@@ -4,7 +4,9 @@ package com.intellij.util;
 @SuppressWarnings("all")
 public class QueryFactory<Result extends java.lang.Object, Parameters extends java.lang.Object> {
     public QueryFactory() { }
+    public void registerExecutor(com.intellij.util.QueryExecutor<Result, Parameters> p0) { }
     public void registerExecutor(com.intellij.openapi.application.util.query.QueryExecutor<Result, Parameters> p0) { }
+    public void unregisterExecutor(com.intellij.util.QueryExecutor<Result, Parameters> p0) { }
     public void unregisterExecutor(com.intellij.openapi.application.util.query.QueryExecutor<Result, Parameters> p0) { }
     public com.intellij.util.Query<Result> createQuery(Parameters p0) { return null; }
     protected java.util.List<? extends com.intellij.openapi.application.util.query.QueryExecutor<Result, Parameters>> getExecutors() { return null; }

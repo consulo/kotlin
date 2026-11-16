@@ -47,4 +47,9 @@ public final class SearchScopeCompat {
     public static Set<GlobalSearchScope> flattenUnionScope(GlobalSearchScope scope) {
         return Set.of(scope);
     }
+
+    /** IntelliJ {@code Module.getModuleWithDependentsScope()} */
+    public static consulo.language.psi.scope.GlobalSearchScope getModuleWithDependentsScope(consulo.module.Module module) {
+        return consulo.language.psi.scope.GlobalSearchScope.moduleWithDependentsScope(module);
+    }
 }

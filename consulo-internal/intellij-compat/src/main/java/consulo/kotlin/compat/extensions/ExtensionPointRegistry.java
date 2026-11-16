@@ -30,6 +30,7 @@ public final class ExtensionPointRegistry {
     static {
         register("com.intellij.java.elementFinder", com.intellij.java.language.psi.PsiElementFinder.class);
         register("com.intellij.overridingMethodsSearch", com.intellij.java.indexing.search.searches.OverridingMethodsSearchExecutor.class);
+        register("com.intellij.readWriteAccessDetector", consulo.language.editor.highlight.ReadWriteAccessDetector.class);
         register("com.intellij.directClassInheritorsSearch", com.intellij.java.indexing.search.searches.DirectClassInheritorsSearchExecutor.class);
         // Consulo unites the short name caches (PsiShortNameProvider extensions) in one project service
         ourSuppliers.put("com.intellij.java.shortNamesCache",

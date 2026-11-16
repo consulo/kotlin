@@ -1,0 +1,17 @@
+package com.intellij.find.findUsages;
+
+// consulo.kotlin.compat.find.FindClassUsagesDialog
+@SuppressWarnings("all")
+public class FindClassUsagesDialog extends com.intellij.find.findUsages.JavaFindUsagesDialog<com.intellij.find.findUsages.JavaClassFindUsagesOptions> {
+    public FindClassUsagesDialog(com.intellij.psi.PsiElement element, com.intellij.openapi.project.Project project, com.intellij.find.findUsages.FindUsagesOptions findUsagesOptions, boolean toShowInNewTab, boolean mustOpenInNewTab, boolean isSingleFile, com.intellij.find.findUsages.FindUsagesHandler handler) { super(element, project, findUsagesOptions, toShowInNewTab, mustOpenInNewTab, isSingleFile, handler); }
+    public javax.swing.JComponent getPreferredFocusedControl() { return null; }
+    public void calcFindUsagesOptions(com.intellij.find.findUsages.JavaClassFindUsagesOptions options) { }
+    protected javax.swing.JPanel createFindWhatPanel() { return null; }
+    protected void update() { }
+    protected void updateStateOnUsagesStateChange(com.intellij.ui.StateRestoringCheckBox dependantCb) { }
+    // Inherited abstract members (genstub.py)
+    public boolean canBeHidden() { return false; }
+    public boolean isToBeShown() { return false; }
+    public boolean shouldSaveOptionsOnCancel() { return false; }
+    public void setToBeShown(boolean p0, int p1) { }
+}

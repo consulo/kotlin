@@ -2,7 +2,8 @@ package com.intellij.openapi.application;
 
 // consulo.kotlin.compat.search.QueryExecutorBase
 @SuppressWarnings("all")
-public abstract class QueryExecutorBase<Result, Params> implements com.intellij.openapi.application.util.query.QueryExecutor<Result, Params> {
+public abstract class QueryExecutorBase<Result, Params> implements com.intellij.openapi.application.util.query.QueryExecutor<Result, Params>, com.intellij.util.QueryExecutor<Result, Params> {
+    public boolean execute(Params queryParameters, com.intellij.util.Processor<? super Result> consumer) { return false; }
     protected QueryExecutorBase(boolean requireReadAction) { }
     protected QueryExecutorBase() { }
     public boolean execute(Params queryParameters, java.util.function.Predicate<? super Result> consumer) { return false; }

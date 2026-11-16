@@ -2,6 +2,10 @@ package com.intellij.util;
 
 @SuppressWarnings("all")
 public class CommonProcessors {
+    public static class UniqueProcessor<T> implements com.intellij.util.Processor<T> {
+        public UniqueProcessor(java.util.function.Predicate<? super T> delegate) { }
+        public boolean process(T t) { return false; }
+    }
     public static class CollectProcessor<T> implements com.intellij.util.Processor<T> {
         private final java.util.Collection<T> result;
         public CollectProcessor() { this.result = new java.util.ArrayList<T>(); }

@@ -37,6 +37,20 @@ public class DefaultStubBuilder implements StubBuilder {
         return false;
     }
 
+    /**
+     * Consulo's {@code StubBuilder.isStubbedNode}: the nodes this builder creates stubs for, so that a loaded AST binds to
+     * the stub PSI (otherwise Consulo drops all PSI of the file). Not marked as an override: the platform API is newer than
+     * the one this compiles against.
+     */
+    public boolean isStubbedNode(ASTNode node) {
+        IElementType type = node.getElementType();
+        if (type instanceof IStubElementType stubType) {
+            return stubType.shouldCreateStub(node);
+        }
+        StubElementFactory factory = StubBridge.getInstance().getFactory(type);
+        return factory != null && factory.shouldCreateStub(node);
+    }
+
     protected final StubElement buildStubTreeFor(ASTNode root, StubElement parentStub) {
         Stack<StubElement> parentStubs = new Stack<>();
         Stack<ASTNode> parentNodes = new Stack<>();

@@ -37,6 +37,18 @@
         </dependency>
         <dependency>
             <groupId>consulo</groupId>
+            <artifactId>consulo-find-api</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
+            <artifactId>consulo-usage-api</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>consulo</groupId>
             <artifactId>consulo-application-content-api</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
@@ -146,6 +158,12 @@
         <dependency>
             <groupId>consulo.plugin</groupId>
             <artifactId>consulo.java-java.indexing.api</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>consulo.plugin</groupId>
+            <artifactId>consulo.java-java.analysis.impl</artifactId>
             <version>${project.version}</version>
             <scope>provided</scope>
         </dependency>

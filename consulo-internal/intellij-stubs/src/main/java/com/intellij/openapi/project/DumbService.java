@@ -2,6 +2,7 @@ package com.intellij.openapi.project;
 
 @SuppressWarnings("all")
 public abstract class DumbService {
+    public void withAlternativeResolveEnabled(java.lang.Runnable runnable) { }
     public void runReadActionInSmartMode(java.lang.Runnable runnable) { }
     public static DumbService getInstance(com.intellij.openapi.project.Project p) { return null; }
     public abstract boolean isDumb();

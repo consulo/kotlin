@@ -324,8 +324,9 @@ def place_supertypes(rest, kind):
         return rest
     ext = split_types(m.group(1) or '')
     imp = split_types(m.group(2) or '')
-    # two Consulo types may stand for one IntelliJ type (Image and Icon are both javax.swing.Icon)
-    ext = list(dict.fromkeys(ext))
+    # two Consulo types may stand for one IntelliJ type (Image and Icon are both javax.swing.Icon); a record's stub is a
+    # plain class (only the compiler may extend java.lang.Record)
+    ext = [t for t in dict.fromkeys(ext) if t != 'java.lang.Record']
     imp = [t for t in dict.fromkeys(imp) if t not in ext]
     if kind == 'interface':
         supers = [t for t in ext + imp if stub_kind(t) != 'class']

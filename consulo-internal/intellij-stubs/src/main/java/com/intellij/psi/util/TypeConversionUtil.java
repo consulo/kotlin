@@ -2,6 +2,7 @@ package com.intellij.psi.util;
 
 @SuppressWarnings("all")
 public class TypeConversionUtil {
+    public static com.intellij.psi.PsiSubstitutor getSuperClassSubstitutor(com.intellij.psi.PsiClass superClass, com.intellij.psi.PsiClass derivedClass, com.intellij.psi.PsiSubstitutor derivedSubstitutor) { return null; }
     public static boolean isAssignable(com.intellij.psi.PsiType left, com.intellij.psi.PsiType right) { return false; }
     public static com.intellij.psi.PsiType erasure(com.intellij.psi.PsiType t) { return null; }
     public static boolean isPrimitive(String s) { return false; }

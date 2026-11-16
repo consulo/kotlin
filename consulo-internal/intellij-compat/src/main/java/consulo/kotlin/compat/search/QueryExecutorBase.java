@@ -8,7 +8,8 @@ import java.util.function.Predicate;
  * IntelliJ {@code QueryExecutorBase}: implementations process with a {@link Processor}; Consulo's passes a
  * {@link Predicate}.
  */
-public abstract class QueryExecutorBase<Result, Params> extends consulo.project.util.query.QueryExecutorBase<Result, Params> {
+public abstract class QueryExecutorBase<Result, Params> extends consulo.project.util.query.QueryExecutorBase<Result, Params>
+    implements QueryExecutor<Result, Params> {
     protected QueryExecutorBase() {
     }
 
@@ -22,4 +23,9 @@ public abstract class QueryExecutorBase<Result, Params> extends consulo.project.
     }
 
     public abstract void processQuery(Params queryParameters, Processor<? super Result> consumer);
+
+    @Override
+    public boolean execute(Params queryParameters, Processor<? super Result> consumer) {
+        return execute(queryParameters, (Predicate<? super Result>) consumer);
+    }
 }
