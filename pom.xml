@@ -130,7 +130,7 @@
     <repositories>
         <repository>
             <id>kotlin-bootstrap</id>
-            <url>https://maven.pkg.jetbrains.space/kotlin/p/kotlin/bootstrap</url>
+            <url>https://redirector.kotlinlang.org/maven/bootstrap</url>
         </repository>
         <repository>
             <id>consulo</id>
@@ -149,7 +149,7 @@
     <pluginRepositories>
         <pluginRepository>
             <id>kotlin-bootstrap-plugins</id>
-            <url>https://maven.pkg.jetbrains.space/kotlin/p/kotlin/bootstrap</url>
+            <url>https://redirector.kotlinlang.org/maven/bootstrap</url>
         </pluginRepository>
     </pluginRepositories>
 
